@@ -1,10 +1,20 @@
 # https://github.com/fleetdm/fleet/pull/13084
 - 
-  task: "Complete Digital Experience KPIs"
+  task: "Complete Digital Experience KPIs and send weekly update"
   startedOn: "2024-08-30" 
   frequency: "Weekly"
   description: "Complete Digital Experience KPIs for this week"
-  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0&range=DB1"
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#send-the-weekly-update"
+  dri: "SFriendLee"
+  autoIssue:   
+    labels: [ "#g-digital-experience" ]
+    repo: "fleet"
+- 
+  task: "Confirm consultant hours"
+  startedOn: "2024-09-30" 
+  frequency: "Weekly"
+  description: "Perform step three in “Inform managers about hours worked” responsibility"
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#inform-managers-about-hours-worked"
   dri: "SFriendLee"
   autoIssue:   
     labels: [ "#g-digital-experience" ]
@@ -102,16 +112,6 @@
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-the-ceos-calendar"
   dri: "SFriendLee"
 -
-  task: "Send weekly update"
-  startedOn: "2023-09-15"
-  frequency: "Weekly"
-  description: "Send weekly update"
-  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#send-the-weekly-update"
-  dri: "SFriendLee"
-  autoIssue:  
-    labels: [ "#g-digital-experience" ] 
-    repo: "confidential"
--
   task: "Process and backup E-group agenda"
   startedOn: "2023-09-20"
   frequency: "Weekly"
@@ -175,7 +175,7 @@
   startedOn: "2024-03-31" 
   frequency: "Quarterly"
   description: "Downgrade unused or questionable license seats on the first Wednesday of every quarter" 
-  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#downgrade-an-unused-license-seat"
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#downgrade-an-unused-license-seat"
   dri: "sampfluger88"
 -
   task: "Communicate Fleet's potential energy to stakeholders" 
@@ -187,15 +187,37 @@
   autoIssue:  
     labels: [ "#g-digital-experience" ] 
     repo: "confidential"
-
-
-
-
-
-
-
-
-
-
-
-
+-
+  task: "Vanta check" # TODO tie this to a responsibility
+  startedOn: "2024-04-01"
+  frequency: "Monthly"
+  description: "Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time."
+  moreInfoUrl:
+  dri: "sampfluger88"
+  autoIssue:
+    labels: [ "#g-digital-experience" ]
+    repo: "confidential"
+-
+  task: "Recognize and benchmark workiversaries"
+  startedOn: "2024-07-15"
+  frequency: "Monthly"
+  description: "Identify workiversaries coming up in the next two months and follow the steps to ensure they're recognized and benchmarked"
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#recognize-employee-workiversaries"
+  dri: "SFriendLee"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"
+-
+  task: "Quarterly grants"
+  startedOn: "2024-02-01"
+  frequency: "Quarterly"
+  description: "Create the equity grants GitHub issue and walk through the steps."
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#grant-equity"
+  dri: "hollidayn"
+-
+  task: "Change password of \"Integrations admin\" Salesforce account"
+  startedOn: "2024-09-10"
+  frequency: "Quarterly"
+  description: "Log into the \"Integrations admin\" account in Salesforce and change the password to prevent a password change being required by Salesforce."
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#change-the-integrations-admin-salesforce-account-password"
+  dri: "eashaw"

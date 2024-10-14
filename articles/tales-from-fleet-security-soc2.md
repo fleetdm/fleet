@@ -43,7 +43,7 @@ One of the essential things about SOC 2 is having the right security policies. T
 
 Writing policies from scratch can seem daunting. Many compliance automation products have templates you can use to get started, but there are excellent free and open resources online.
 
-As you can see, our policies are in our [handbook](https://fleetdm.com/handbook/business-operations/security-policies#information-security-policy-and-acceptable-use-policy), and we created most of them using this [free set of templates](https://github.com/JupiterOne/security-policy-templates) published by JupiterOne under Creative Commons licensing.
+As you can see, our policies are in our [handbook](https://fleetdm.com/handbook/digital-experience/security-policies#information-security-policy-and-acceptable-use-policy), and we created most of them using this [free set of templates](https://github.com/JupiterOne/security-policy-templates) published by JupiterOne under Creative Commons licensing.
 
 We kept our policies as basic as possible to make sure everything in them is valuable and achievable. Having policies that state you must do the impossible is a surefire way of getting in trouble! The templates we used contained many processes and procedures as well. We used the policies and will eventually document more of our procedures in our handbook.
 

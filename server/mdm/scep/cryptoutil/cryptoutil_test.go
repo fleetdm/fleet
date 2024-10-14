@@ -11,7 +11,7 @@ import (
 )
 
 func TestGenerateSubjectKeyID(t *testing.T) {
-	ecdsaKey, err := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
+	ecKey, err := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -20,7 +20,7 @@ func TestGenerateSubjectKeyID(t *testing.T) {
 		pub      crypto.PublicKey
 	}{
 		{"RSA", &rsa.PublicKey{N: big.NewInt(123), E: 65537}},
-		{"ECDSA", &ecdsa.PublicKey{X: ecdsaKey.X, Y: ecdsaKey.Y, Curve: elliptic.P224()}},
+		{"ECDSA", ecKey.Public()},
 	} {
 		test := test
 		t.Run(test.testName, func(t *testing.T) {

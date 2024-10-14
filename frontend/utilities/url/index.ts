@@ -9,10 +9,13 @@ import {
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
-import { isValidSoftwareInstallStatus } from "interfaces/software";
+import { isValidSoftwareAggregateStatus } from "interfaces/software";
+import { API_ALL_TEAMS_ID } from "interfaces/team";
 
 export type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;
+/** updated value for query params. TODO: update using this value across the codebase */
+type QueryParams2<T> = { [s in keyof T]: QueryValues };
 type FilteredQueryValues = string | number | boolean;
 type FilteredQueryParams = Record<string, FilteredQueryValues>;
 
@@ -90,7 +93,7 @@ const filterEmptyParams = (queryParams: QueryParams) => {
  * or an empty string on the queryParams object, that key-value pair will be
  * excluded from the query string.
  */
-export const buildQueryStringFromParams = (queryParams: QueryParams) => {
+export const buildQueryStringFromParams = <T>(queryParams: QueryParams2<T>) => {
   const filteredParams = filterEmptyParams(queryParams);
 
   let queryString = "";
@@ -119,10 +122,9 @@ export const reconcileSoftwareParams = ({
   | "softwareStatus"
 >) => {
   if (
-    isValidSoftwareInstallStatus(softwareStatus) &&
+    isValidSoftwareAggregateStatus(softwareStatus) &&
     softwareTitleId &&
-    teamId &&
-    teamId > 0
+    teamId !== API_ALL_TEAMS_ID
   ) {
     return {
       software_title_id: softwareTitleId,

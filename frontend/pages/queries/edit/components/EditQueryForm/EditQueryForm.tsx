@@ -405,7 +405,9 @@ const EditQueryForm = ({
         setShowSaveQueryModal(true);
       } else {
         onUpdate({
-          name: lastEditedQueryName,
+          // name should already be trimmed at this point due to associated onBlurs, but this
+          // doesn't hurt
+          name: lastEditedQueryName.trim(),
           description: lastEditedQueryDescription,
           query: lastEditedQueryBody,
           observer_can_run: lastEditedQueryObserverCanRun,
@@ -498,6 +500,9 @@ const EditQueryForm = ({
             maxLength={160}
             hasError={errors && errors.name}
             onChange={setLastEditedQueryName}
+            onBlur={() => {
+              setLastEditedQueryName(lastEditedQueryName.trim());
+            }}
             onKeyPress={onInputKeypress}
             isFocused={isEditingName}
           />

@@ -24,6 +24,10 @@ import targetsAPI, {
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { formatSelectedTargetsForApi } from "utilities/helpers";
 import permissions from "utilities/permissions";
+import {
+  LABEL_DISPLAY_MAP,
+  PlatformLabelNameFromAPI,
+} from "utilities/constants";
 
 import PageError from "components/DataError";
 import TargetsInput from "components/LiveQuery/TargetsInput";
@@ -108,23 +112,15 @@ const TargetPillSelector = ({
   isSelected,
   onClick,
 }: ITargetPillSelectorProps): JSX.Element => {
-  const displayText = () => {
+  const displayText = (): string => {
     if (isBuiltInLabel(entity)) {
-      switch (entity.name) {
-        case "All Hosts":
-          return "All hosts";
-        case "All Linux":
-          return "Linux";
-        case "chrome":
-          return "ChromeOS";
-        case "MS Windows":
-          return "Windows";
-        default:
-          return entity.name || "Missing display name"; // TODO
+      const labelName = entity.name as PlatformLabelNameFromAPI;
+      if (labelName in LABEL_DISPLAY_MAP) {
+        return LABEL_DISPLAY_MAP[labelName] || labelName;
       }
     }
 
-    return entity.name || "Missing display name"; // TODO
+    return entity.name || "Missing display name";
   };
 
   return (
@@ -429,17 +425,6 @@ const SelectTargets = ({
       </>
     );
   };
-
-  if (isLoadingLabels || (isPremiumTier && isLoadingTeams)) {
-    return (
-      <div className={`${baseClass}__wrapper`}>
-        <h1>Select targets</h1>
-        <div className={`${baseClass}__page-loading`}>
-          <Spinner />
-        </div>
-      </div>
-    );
-  }
 
   if (errorLabels || errorTeams) {
     return (

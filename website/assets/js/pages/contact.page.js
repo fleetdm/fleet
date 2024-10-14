@@ -50,8 +50,8 @@ parasails.registerPage('contact', {
     if(this.formToShow === 'contact'){
       this.formToDisplay = this.formToShow;
     } else if(!this.primaryBuyingSituation){
-      // Default to contact form for users who have no primaryBuyingSituation set.
-      this.formToDisplay = 'contact';
+      // Otherwise, default to the formToShow value from the page's controller.
+      this.formToDisplay = this.formToShow;
     }
     if(this.primaryBuyingSituation){ // If the user has a priamry buying situation set in their sesssion, pre-fill the form.
       // Note: this will be overriden if the user is logged in and has a primaryBuyingSituation set in the database.
@@ -104,7 +104,7 @@ parasails.registerPage('contact', {
       if(typeof analytics !== 'undefined'){
         analytics.track('fleet_website__contact_forms');
       }
-      if(this.formData.numberOfHosts > 700){
+      if(this.formData.numberOfHosts > 300){
         this.goto(`https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.formData.emailAddress)}&name=${encodeURIComponent(this.formData.firstName+' '+this.formData.lastName)}`);
       } else {
         this.goto(`https://calendly.com/fleetdm/chat?email=${encodeURIComponent(this.formData.emailAddress)}&name=${encodeURIComponent(this.formData.firstName+' '+this.formData.lastName)}`);

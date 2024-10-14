@@ -88,6 +88,8 @@ func TestMDMApple(t *testing.T) {
 		{"ABMTokensTermsExpired", testMDMAppleABMTokensTermsExpired},
 		{"TestMDMGetABMTokenOrgNamesAssociatedWithTeam", testMDMGetABMTokenOrgNamesAssociatedWithTeam},
 		{"HostMDMCommands", testHostMDMCommands},
+		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
+		{"MDMManagedCertificates", testMDMManagedCertificates},
 	}
 
 	for _, c := range cases {
@@ -5693,10 +5695,10 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	for _, a := range assets {
 		wantAssets[a.Name] = a
 	}
-	err := ds.InsertMDMConfigAssets(ctx, assets)
+	err := ds.InsertMDMConfigAssets(ctx, assets, nil)
 	require.NoError(t, err)
 
-	a, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	a, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey}, nil)
 	require.NoError(t, err)
 	require.Equal(t, wantAssets, a)
 
@@ -5708,7 +5710,7 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 
 	// try to fetch an asset that doesn't exist
 	var nfe fleet.NotFoundError
-	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetABMCert})
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetABMCert}, ds.writer(ctx))
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, a)
 
@@ -5717,7 +5719,7 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	require.Nil(t, h)
 
 	// try to fetch a mix of assets that exist and doesn't exist
-	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetABMCert})
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetABMCert}, nil)
 	require.ErrorIs(t, err, ErrPartialResult)
 	require.Len(t, a, 1)
 
@@ -5744,10 +5746,10 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 		wantNewAssets[a.Name] = a
 	}
 
-	err = ds.ReplaceMDMConfigAssets(ctx, newAssets)
+	err = ds.ReplaceMDMConfigAssets(ctx, newAssets, nil)
 	require.NoError(t, err)
 
-	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey}, ds.reader(ctx))
 	require.NoError(t, err)
 	require.Equal(t, wantNewAssets, a)
 
@@ -5762,7 +5764,7 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	err = ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
 	require.NoError(t, err)
 
-	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey}, nil)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, a)
 
@@ -5801,6 +5803,22 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 		require.NotEmpty(t, got.DeletionUUID)
 		require.NotEmpty(t, got.DeletedAt)
 	}
+
+	// Hard delete
+	err = ds.HardDeleteMDMConfigAsset(ctx, fleet.MDMAssetCACert)
+	require.NoError(t, err)
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey}, nil)
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, a)
+
+	var result bool
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &result, "SELECT 1 FROM mdm_config_assets WHERE name = ?", fleet.MDMAssetCACert)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+
+	// other (non-hard deleted asset still present)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &result, "SELECT 1 FROM mdm_config_assets WHERE name = ?", fleet.MDMAssetCAKey)
+	assert.NoError(t, err)
+	assert.True(t, result)
 }
 
 func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
@@ -6793,6 +6811,7 @@ func testMDMGetABMTokenOrgNamesAssociatedWithTeam(t *testing.T, ds *Datastore) {
 	require.Len(t, orgNames, 1)
 	require.Equal(t, orgNames[0], "org3")
 }
+
 func testHostMDMCommands(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -6862,6 +6881,68 @@ func testHostMDMCommands(t *testing.T, ds *Datastore) {
 	commands, err = ds.GetHostMDMCommands(ctx, h.ID)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, hostCommands[1:], commands)
+}
+
+func testIngestMDMAppleDeviceFromOTAEnrollment(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	createBuiltinLabels(t, ds)
+
+	for i := 0; i < 10; i++ {
+		_, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:        fmt.Sprintf("hostname_%d", i),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("osquery-host-id_%d", i)),
+			NodeKey:         ptr.String(fmt.Sprintf("node-key_%d", i)),
+			UUID:            fmt.Sprintf("uuid_%d", i),
+			HardwareSerial:  fmt.Sprintf("serial_%d", i),
+		})
+		require.NoError(t, err)
+	}
+
+	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 10)
+	wantSerials := []string{}
+	for _, h := range hosts {
+		wantSerials = append(wantSerials, h.HardwareSerial)
+	}
+
+	// mock results incoming from OTA enrollments
+	otaDevices := []fleet.MDMAppleMachineInfo{
+		{Serial: "abc", Product: "MacBook Pro"},
+		{Serial: "abc", Product: "MacBook Pro"},
+		{Serial: hosts[0].HardwareSerial, Product: "MacBook Pro"},
+		{Serial: "ijk", Product: "iPad13,16"},
+		{Serial: "tuv", Product: "iPhone14,6"},
+		{Serial: hosts[1].HardwareSerial, Product: "MacBook Pro"},
+		{Serial: "xyz", Product: "MacBook Pro"},
+		{Serial: "xyz", Product: "MacBook Pro"},
+		{Serial: "xyz", Product: "MacBook Pro"},
+	}
+	wantSerials = append(wantSerials, "abc", "xyz", "ijk", "tuv")
+
+	for _, d := range otaDevices {
+		err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, d)
+		require.NoError(t, err)
+	}
+
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, len(wantSerials))
+	gotSerials := []string{}
+	for _, h := range hosts {
+		gotSerials = append(gotSerials, h.HardwareSerial)
+
+		switch h.HardwareSerial {
+		case "abc", "xyz":
+			checkMDMHostRelatedTables(t, ds, h.ID, h.HardwareSerial, "MacBook Pro")
+		case "ijk":
+			checkMDMHostRelatedTables(t, ds, h.ID, h.HardwareSerial, "iPad13,16")
+		case "tuv":
+			checkMDMHostRelatedTables(t, ds, h.ID, h.HardwareSerial, "iPhone14,6")
+
+		}
+	}
+	require.ElementsMatch(t, wantSerials, gotSerials)
 }
 
 func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
@@ -7034,4 +7115,101 @@ func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
 	})
 	_, err = ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), devicesByKey["macos"].SerialNumber)
 	require.ErrorIs(t, err, sql.ErrNoRows)
+}
+
+func testMDMManagedCertificates(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	initialCP := storeDummyConfigProfileForTest(t, ds)
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("host0-osquery-id"),
+		NodeKey:         ptr.String("host0-node-key"),
+		UUID:            "host0-test-mdm-profiles",
+		Hostname:        "hostname0",
+	})
+	require.NoError(t, err)
+
+	// Host and profile are not linked
+	profile, err := ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID)
+	require.NoError(t, err)
+	assert.Nil(t, profile)
+
+	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{
+			ProfileUUID:       initialCP.ProfileUUID,
+			ProfileIdentifier: initialCP.Identifier,
+			ProfileName:       initialCP.Name,
+			HostUUID:          host.UUID,
+			Status:            &fleet.MDMDeliveryPending,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			CommandUUID:       "command-uuid",
+			Checksum:          []byte("checksum"),
+		},
+	},
+	)
+	require.NoError(t, err)
+
+	// Host and profile do not have certificate metadata
+	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID)
+	require.NoError(t, err)
+	require.NotNil(t, profile)
+	assert.Equal(t, host.UUID, profile.HostUUID)
+	assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
+	assert.Nil(t, profile.ChallengeRetrievedAt)
+
+	challengeRetrievedAt := time.Now().Add(-time.Hour).UTC().Round(time.Microsecond)
+	err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
+		{
+			HostUUID:             host.UUID,
+			ProfileUUID:          initialCP.ProfileUUID,
+			ChallengeRetrievedAt: &challengeRetrievedAt,
+		},
+	})
+	require.NoError(t, err)
+
+	// Check that the managed certificate was inserted correctly
+	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID)
+	require.NoError(t, err)
+	require.NotNil(t, profile)
+	assert.Equal(t, host.UUID, profile.HostUUID)
+	assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
+	require.NotNil(t, profile.ChallengeRetrievedAt)
+	assert.Equal(t, &challengeRetrievedAt, profile.ChallengeRetrievedAt)
+
+	// Cleanup should do nothing
+	err = ds.CleanUpMDMManagedCertificates(ctx)
+	require.NoError(t, err)
+	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID)
+	require.NoError(t, err)
+	require.NotNil(t, profile)
+
+	badProfileUUID := uuid.NewString()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_mdm_managed_certificates (host_uuid, profile_uuid) VALUES (?, ?)
+		`, host.UUID, badProfileUUID)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	var uid string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM host_mdm_managed_certificates WHERE profile_uuid = ?`,
+			badProfileUUID)
+	})
+	require.Equal(t, badProfileUUID, uid)
+
+	// Cleanup should delete the above orphaned record
+	err = ds.CleanUpMDMManagedCertificates(ctx)
+	require.NoError(t, err)
+	err = ExecAdhocSQLWithError(ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM host_mdm_managed_certificates WHERE profile_uuid = ?`,
+			badProfileUUID)
+	})
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
 }

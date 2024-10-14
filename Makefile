@@ -75,7 +75,13 @@ define HELP_TEXT
 	make generate-js  - Generate and bundle required js code
 	make generate-dev - Generate and bundle required code in a watch loop
 
-    make clean        - Clean all build artifacts
+	make migration - create a database migration file (supply name=TheNameOfYourMigration)
+
+	make generate-doc     - Generate updated API documentation for activities, osquery flags
+	make dump-test-schema - update schema.sql from current migrations
+	make generate-mock    - update mock data store
+
+	make clean        - Clean all build artifacts
 	make clean-assets - Clean assets only
 
 	make build        - Build the code

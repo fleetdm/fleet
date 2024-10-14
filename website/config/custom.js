@@ -161,7 +161,7 @@ module.exports.custom = {
 
     // 🫧 Pricing and features
     // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
-    // 'handbook/company/pricing-features-table.yml': '',    // « Covered in CODEOWNERS (2023-07-22)
+    'handbook/company/pricing-features-table.yml': 'noahtalerman',
 
     'handbook/company/testimonials.yml': 'mike-j-thomas',
 
@@ -203,7 +203,7 @@ module.exports.custom = {
   githubRepoMaintainersByPath: {// fleetdm/fleet
 
     // Code for core product and integrations
-    'ee/tools/puppet': ['lukeheath', 'roperzh', 'gillespi314', 'mna', 'georgekarrv'],
+    'ee/tools/puppet': ['lukeheath', 'gillespi314', 'mna', 'georgekarrv'],
     'tools/api': ['lukeheath', 'georgekarrv', 'sharon-fdm'],//« Scripts for interacting with the Fleet API
 
     // Reference, config surface, built-in queries, API, and other documentation
@@ -266,7 +266,7 @@ module.exports.custom = {
     'handbook/company/product-groups.md': ['lukeheath', 'sampfluger88','mikermcneil'],
     'handbook/company/open-positions.yml': ['@sampfluger88','mikermcneil'],
     'handbook/digital-experience': ['sampfluger88','mikermcneil'],
-    'handbook/business-operations': ['sampfluger88','mikermcneil'],
+    'handbook/finance': ['sampfluger88','mikermcneil'],
     'handbook/engineering': ['sampfluger88','mikermcneil', 'lukeheath'],
     'handbook/product-design': ['sampfluger88','mikermcneil'],
     'handbook/sales': ['sampfluger88','mikermcneil'],

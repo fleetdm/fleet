@@ -1,3 +1,5 @@
+import { buildQueryStringFromParams } from "utilities/url";
+
 import { IPolicy } from "../interfaces/policy";
 import URL_PREFIX from "./url_prefix";
 
@@ -75,6 +77,11 @@ export default {
   SOFTWARE_VULNERABILITY_DETAILS: (cve: string): string => {
     return `${URL_PREFIX}/software/vulnerabilities/${cve}`;
   },
+  SOFTWARE_ADD_FLEET_MAINTAINED: `${URL_PREFIX}/software/add/fleet-maintained`,
+  SOFTWARE_FLEET_MAINTAINED_DETAILS: (id: number) =>
+    `${URL_PREFIX}/software/add/fleet-maintained/${id}`,
+  SOFTWARE_ADD_PACKAGE: `${URL_PREFIX}/software/add/package`,
+  SOFTWARE_ADD_APP_STORE: `${URL_PREFIX}/software/add/app-store`,
 
   // Label pages
   LABEL_NEW_DYNAMIC: `${URL_PREFIX}/labels/new/dynamic`,
@@ -95,10 +102,17 @@ export default {
       teamId ? `?team_id=${teamId}` : ""
     }`;
   },
-  LIVE_QUERY: (queryId: number | null, teamId?: number): string => {
-    return `${URL_PREFIX}/queries/${queryId || "new"}/live${
-      teamId ? `?team_id=${teamId}` : ""
-    }`;
+  LIVE_QUERY: (
+    queryId: number | null,
+    teamId?: number,
+    hostId?: number
+  ): string => {
+    const baseUrl = `${URL_PREFIX}/queries/${queryId || "new"}/live`;
+    const queryParams = buildQueryStringFromParams({
+      team_id: teamId,
+      host_id: hostId,
+    });
+    return queryParams ? `${baseUrl}?${queryParams}` : baseUrl;
   },
   QUERY_DETAILS: (queryId: number, teamId?: number): string => {
     return `${URL_PREFIX}/queries/${queryId}${
@@ -107,7 +121,7 @@ export default {
   },
   EDIT_POLICY: (policy: IPolicy): string => {
     return `${URL_PREFIX}/policies/${policy.id}${
-      policy.team_id ? `?team_id=${policy.team_id}` : ""
+      policy.team_id !== undefined ? `?team_id=${policy.team_id}` : ""
     }`;
   },
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,

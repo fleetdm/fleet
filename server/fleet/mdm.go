@@ -676,6 +676,9 @@ const (
 	// Deprecated: VPP tokens are now stored in the vpp_tokens table, they are
 	// not in mdm_config_assets anymore.
 	MDMAssetVPPTokenDeprecated MDMAssetName = "vpp_token"
+	// MDMAssetNDESPassword is the password used to retrieve SCEP challenge from
+	// NDES SCEP server. It is used by Fleet's SCEP proxy.
+	MDMAssetNDESPassword MDMAssetName = "ndes_password"
 )
 
 type MDMConfigAsset struct {
@@ -800,6 +803,17 @@ const (
 	// VPP token is available only for "No team" team.
 	NullTeamNoTeam NullTeamType = "noteam"
 )
+
+func (n NullTeamType) PrettyName() string {
+	switch n {
+	case NullTeamAllTeams:
+		return ReservedNameAllTeams
+	case NullTeamNoTeam:
+		return ReservedNameNoTeam
+	default:
+		return string(n)
+	}
+}
 
 type AppleDevice int
 

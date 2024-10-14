@@ -330,6 +330,7 @@ const TeamDetailsWrapper = ({
         setBackendValidators({});
         refetchTeams();
         refetchMe();
+        toggleRenameTeamModal();
       } catch (response) {
         console.error(response);
         const errorObject = formatErrorResponse(response);
@@ -337,11 +338,18 @@ const TeamDetailsWrapper = ({
           setBackendValidators({
             name: "A team with this name already exists",
           });
+        } else if (errorObject.base.includes("all teams")) {
+          setBackendValidators({
+            name: `"All teams" is a reserved team name. Please try another name.`,
+          });
+        } else if (errorObject.base.includes("no team")) {
+          setBackendValidators({
+            name: `"No team" is a reserved team name. Please try another name.`,
+          });
         } else {
           renderFlash("error", "Could not create team. Please try again.");
         }
       } finally {
-        toggleRenameTeamModal();
         setIsUpdatingTeams(false);
       }
     },

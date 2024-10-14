@@ -46,9 +46,9 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Transfer hosts between teams\*                                                                                                             |          |            | ✅         | ✅    | ✅      |
 | Create, edit, and delete labels                                                                                                            |          |            | ✅         | ✅    | ✅      |
 | View all software                                                                                                                          | ✅       | ✅         | ✅         | ✅    |         |
-| Add and delete software                                                                                                                    |          |           | ✅         | ✅    | ✅       |
+| Add, edit, and delete software                                                                                                                    |          |           | ✅         | ✅    | ✅       |
 | Download added software                                                                                                                    |          |           | ✅         | ✅    |         |
-| Install software on hosts                                                                                                                  |          |           | ✅         | ✅    |         |
+| Install/uninstall software on hosts                                                                                                                  |          |           | ✅         | ✅    |         |
 | Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)               | ✅       | ✅         | ✅         | ✅    |         |
 | Filter hosts by software                                                                                                                   | ✅       | ✅         | ✅         | ✅    |         |
 | Filter software by team\*                                                                                                                  | ✅       | ✅         | ✅         | ✅    |         |
@@ -79,9 +79,10 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Edit agent options for hosts assigned to teams\*            |          |            |            | ✅    | ✅      |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                                        |          |            | ✅         | ✅    |         |
 | Retrieve contents from file carving                                                                                                        |          |            |            | ✅    |         |
-| View Apple mobile device management (MDM) certificate information                                                                          |          |            |            | ✅    |         |
-| View Apple business manager (BM) information                                                                                               |          |            |            | ✅    |         |
-| Generate Apple mobile device management (MDM) certificate signing request (CSR)                                                            |          |            |            | ✅    |         |
+| Create Apple Push Certificates service (APNs) certificate signing request (CSR)                                                            |          |            |            | ✅    |         |
+| View, edit, and delete APNs certificate                                                                          |          |            |            | ✅    |         |
+| View, edit, and delete Apple Business Manager (ABM) connections                                                                                               |          |            |            | ✅    |         |
+| View, edit, and delete Volume Purchasing Program (VPP) connections                                                                                               |          |            |            | ✅    |         |
 | View disk encryption key for macOS and Windows hosts                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
 | Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                                |          |            | ✅         | ✅    | ✅      |
 | Create, edit, resend and delete configuration profiles for macOS and Windows hosts                                                                  |          |            | ✅         | ✅    | ✅      |
@@ -129,7 +130,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | View software                                                                                                                    | ✅            | ✅               | ✅              | ✅        |             |
 | Add and delete software                                                                                                          |               |                | ✅              | ✅         | ✅            |
 | Download added software                                                                                                          |               |                | ✅              | ✅         |              |
-| Install software on hosts                                                                                                        |               |                | ✅              | ✅         |              |
+| Install/uninstall software on hosts                                                                                                        |               |                | ✅              | ✅         |              |
 | Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)     | ✅            | ✅             | ✅              | ✅         |             |
 | Filter hosts by software                                                                                                         | ✅            | ✅             | ✅              | ✅         |             |
 | Filter software                                                                                                                  | ✅            | ✅             | ✅              | ✅         |             |

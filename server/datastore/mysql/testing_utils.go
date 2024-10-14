@@ -33,8 +33,8 @@ import (
 	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/require"
-	"go.mozilla.org/pkcs7"
 )
 
 const (
@@ -495,6 +495,7 @@ func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
 }
 
 func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error) {
+	tb.Helper()
 	err := fn(ds.primary)
 	require.NoError(tb, err)
 }
@@ -699,12 +700,40 @@ func SetOrderedCreatedAtTimestamps(t testing.TB, ds *Datastore, afterTime time.T
 	return now
 }
 
+func CreateABMKeyCertIfNotExists(t testing.TB, ds *Datastore) {
+	certPEM, keyPEM, _, err := GenerateTestABMAssets(t)
+	require.NoError(t, err)
+	var assets []fleet.MDMConfigAsset
+	_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
+		fleet.MDMAssetABMKey,
+	}, nil)
+	if err != nil {
+		var nfe fleet.NotFoundError
+		require.ErrorAs(t, err, &nfe)
+		assets = append(assets, fleet.MDMConfigAsset{Name: fleet.MDMAssetABMKey, Value: keyPEM})
+	}
+
+	_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
+		fleet.MDMAssetABMCert,
+	}, nil)
+	if err != nil {
+		var nfe fleet.NotFoundError
+		require.ErrorAs(t, err, &nfe)
+		assets = append(assets, fleet.MDMConfigAsset{Name: fleet.MDMAssetABMCert, Value: certPEM})
+	}
+
+	if len(assets) != 0 {
+		err = ds.InsertMDMConfigAssets(context.Background(), assets, ds.writer(context.Background()))
+		require.NoError(t, err)
+	}
+}
+
 // CreateAndSetABMToken creates a new ABM token (using an existing ABM key/cert) and stores it in the DB.
 func CreateAndSetABMToken(t testing.TB, ds *Datastore, orgName string) *fleet.ABMToken {
 	assets, err := ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
 		fleet.MDMAssetABMKey,
 		fleet.MDMAssetABMCert,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	certPEM := assets[fleet.MDMAssetABMCert].Value
@@ -762,7 +791,7 @@ func SetTestABMAssets(t testing.TB, ds *Datastore, orgName string) *fleet.ABMTok
 		{Name: fleet.MDMAssetCAKey, Value: keyPEM},
 	}
 
-	err = ds.InsertMDMConfigAssets(context.Background(), assets)
+	err = ds.InsertMDMConfigAssets(context.Background(), assets, nil)
 	require.NoError(t, err)
 
 	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{EncryptedToken: tokenBytes, OrganizationName: orgName})

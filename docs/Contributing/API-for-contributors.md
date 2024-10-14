@@ -531,12 +531,23 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Generate Apple Business Manager public key (ADE)](#generate-apple-business-manager-public-key-ade)
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
 - [Upload APNS certificate](#upload-apns-certificate)
-- [Upload ABM Token](#upload-abm-token)
+- [Add ABM token](#add-abm-token)
 - [Turn off Apple MDM](#turn-off-apple-mdm)
-- [Disable automatic enrollment (ADE)](#disable-automatic-enrollment-ade)
+- [Update ABM token's teams](#update-abm-tokens-teams)
+- [Renew ABM token](#renew-abm-token)
+- [Delete ABM token](#delete-abm-token)
+- [Add VPP token](#add-VPP-token)
+- [Update VPP token's teams](#update-vpp-tokens-teams)
+- [Renew VPP token](#renew-vpp-token)
+- [Delete VPP token](#delete-vpp-token)
 - [Batch-apply MDM custom settings](#batch-apply-mdm-custom-settings)
+- [Batch-apply packages](#batch-apply-packages)
+- [Batch-apply App Store apps](#batch-apply-app-store-apps)
+- [Get token to download package](#get-token-to-download-package)
+- [Download package using a token](#download-package-using-a-token)
 - [Initiate SSO during DEP enrollment](#initiate-sso-during-dep-enrollment)
 - [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
+- [Over the air enrollment](#over-the-air-enrollment)
 - [Preassign profiles to devices](#preassign-profiles-to-devices)
 - [Match preassigned profiles](#match-preassigned-profiles)
 - [Get FileVault statistics](#get-filevault-statistics)
@@ -620,9 +631,9 @@ Content-Type: application/octet-stream
 
 `Status: 200`
 
-### Upload ABM Token
+### Add ABM token
 
-`POST /api/v1/fleet/mdm/apple/abm_token`
+`POST /api/v1/fleet/abm_tokens`
 
 #### Parameters
 
@@ -632,7 +643,7 @@ Content-Type: application/octet-stream
 
 #### Example
 
-`POST /api/v1/fleet/mdm/apple/abm_token`
+`POST /api/v1/fleet/abm_tokens`
 
 ##### Request header
 
@@ -653,11 +664,23 @@ Content-Type: application/octet-stream
 --------------------------f02md47480und42y
 ```
 
-
 ##### Default response
 
 `Status: 200`
 
+```json
+"abm_token": {
+  "id": 1,
+  "apple_id": "apple@example.com",
+  "org_name": "Fleet Device Management Inc.",
+  "mdm_server_url": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2024-10-20T00:00:00Z",
+  "terms_expired": false,
+  "macos_team": null,
+  "ios_team": null,
+  "ipados_team": null
+}
+```
 
 ### Turn off Apple MDM
 
@@ -671,19 +694,278 @@ Content-Type: application/octet-stream
 
 `Status: 204`
 
+### Update ABM token's teams
 
-### Disable automatic enrollment (ADE)
+`PATCH /api/v1/fleet/abm_tokens/:id/teams`
 
-`DELETE /api/v1/fleet/mdm/apple/abm_token`
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The ABM token's ID |
+| macos_team_id | integer | body | macOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team" |
+| ios_team_id | integer | body | iOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team" |
+| ipados_team_id | integer | body | iPadOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team" |
 
 #### Example
 
-`DELETE /api/v1/fleet/mdm/apple/abm_token`
+`PATCH /api/v1/fleet/abm_tokens/1/teams`
+
+##### Request body
+
+```json
+{
+  "macos_team_id": 1,
+  "ios_team_id": 2,
+  "ipados_team_id": 3
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+"abm_token": {
+  "id": 1,
+  "apple_id": "apple@example.com",
+  "org_name": "Fleet Device Management Inc.",
+  "mdm_server_url": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2024-11-29T00:00:00Z",
+  "terms_expired": false,
+  "macos_team": 1,
+  "ios_team": 2,
+  "ipados_team": 3
+}
+```
+
+### Renew ABM token
+
+`PATCH /api/v1/fleet/abm_tokens/:id/renew`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The ABM token's ID |
+
+#### Example
+
+`PATCH /api/v1/fleet/abm_tokens/1/renew`
+
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="token"; filename="server_token_abm.p7m"
+Content-Type: application/octet-stream
+
+<TOKEN_DATA>
+
+--------------------------f02md47480und42y
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+"abm_token": {
+  "id": 1,
+  "apple_id": "apple@example.com",
+  "org_name": "Fleet Device Management Inc.",
+  "mdm_server_url": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2025-10-20T00:00:00Z",
+  "terms_expired": false,
+  "macos_team": null,
+  "ios_team": null,
+  "ipados_team": null
+}
+```
+
+### Delete ABM token
+
+`DELETE /api/v1/fleet/abm_tokens/:id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The ABM token's ID |
+
+#### Example
+
+`DELETE /api/v1/fleet/abm_tokens/1`
 
 ##### Default response
 
 `Status: 204`
 
+### Add VPP token
+
+`POST /api/v1/fleet/vpp_tokens`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business Manager |
+
+#### Example
+
+`POST /api/v1/fleet/vpp_tokens`
+
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="token"; filename="sToken_for_Acme.vpptoken"
+Content-Type: application/octet-stream
+<TOKEN_DATA>
+--------------------------f02md47480und42y
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+"vpp_token": {
+  "id": 1,
+  "org_name": "Fleet Device Management Inc.",
+  "location": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2024-10-20T00:00:00Z",
+  "terms_expired": false,
+  "teams": null
+}
+```
+
+### Update VPP token's teams
+
+`PATCH /api/v1/fleet/vpp_tokens/:id/teams`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The ABM token's ID |
+| team_ids | list | body | If you choose specific teams, App Store apps in this VPP account will only be available to install on hosts in these teams. If not specified, defaults to all teams. |
+
+#### Example
+
+`PATCH /api/v1/fleet/vpp_tokens/1/teams`
+
+##### Request body
+
+```json
+{
+  "team_ids": [1, 2, 3]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+"vpp_token": {
+  "id": 1,
+  "org_name": "Fleet Device Management Inc.",
+  "location": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2024-10-20T00:00:00Z",
+  "terms_expired": false,
+  "teams": [
+    {
+      "team_id": 1,
+      "name": "Team 1"
+    },
+    {
+      "team_id": 2,
+      "name": "Team 2"
+    },
+    {
+      "team_id": 2,
+      "name": "Team 3"
+    },
+  ]
+}
+```
+
+### Renew VPP token
+
+`PATCH /api/v1/fleet/vpp_tokens/:id/renew`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The VPP token's ID |
+
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="token"; filename="sToken_for_Acme.vpptoken"
+Content-Type: application/octet-stream
+
+<TOKEN_DATA>
+
+--------------------------f02md47480und42y
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+"vpp_token": {
+  "id": 1,
+  "org_name": "Fleet Device Management Inc.",
+  "location": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2025-10-20T00:00:00Z",
+  "terms_expired": false,
+  "teams": [1, 2, 3]
+}
+```
+
+### Delete VPP token
+
+`DELETE /api/v1/fleet/vpp_token/:id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The VPP token's ID |
+
+#### Example
+
+`DELETE /api/v1/fleet/vpp_tokens/1`
+
+##### Default response
+
+`Status: 204`
 
 ### Batch-apply MDM custom settings
 
@@ -764,6 +1046,34 @@ If the credentials are valid, the server redirects the client to the Fleet UI. T
 - `enrollment_reference` a reference that must be passed along with `profile_token` to the endpoint to download an enrollment profile.
 - `profile_token` is a token that can be used to download an enrollment profile (.mobileconfig).
 - `eula_token` (optional) if an EULA was uploaded, this contains a token that can be used to view the EULA document.
+
+### Over the air enrollment
+
+This endpoint handles over the air (OTA) MDM enrollments
+
+`POST /api/v1/fleet/ota_enrollment`
+
+#### Parameters
+
+| Name                | Type   | In   | Description                                                                                                                                                                                                                                                                                        |
+| ------------------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enroll_secret       | string | url  | **Required** Assigns the host to a team with a matching enroll secret                                                                                                                                                                                                                 |
+| XML device response | XML    | body | **Required**. The XML response from the device. Fields are documented [here](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/ConfigurationProfileExamples/ConfigurationProfileExamples.html#//apple_ref/doc/uid/TP40009505-CH4-SW7) |
+
+> Note: enroll secrets can contain special characters. Ensure any special characters are [properly escaped](https://developer.mozilla.org/en-US/docs/Glossary/Percent-encoding).
+
+#### Example
+
+`POST /api/v1/fleet/ota_enrollment?enroll_secret=0Z6IuKpKU4y7xl%2BZcrp2gPcMi1kKNs3p`
+
+##### Default response
+
+`Status: 200`
+
+Per [the spec](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/Introduction/Introduction.html#//apple_ref/doc/uid/TP40009505-CH1-SW1), the response is different depending on the signature of the XML device response:
+
+- If the body is signed with a certificate that can be validated by our root SCEP certificate, it returns an enrollment profile.
+- Otherwise, it returns a SCEP payload.
 
 ### Preassign profiles to devices
 
@@ -1189,12 +1499,14 @@ NOTE: when updating a policy, team and platform will be ignored.
       "name": "new policy",
       "description": "This will be a new policy because a policy with the name 'new policy' doesn't exist in Fleet.",
       "query": "SELECT * FROM osquery_info",
+      "team": "No team",
       "resolution": "some resolution steps here",
       "critical": false
     },
     {
       "name": "Is FileVault enabled on macOS devices?",
       "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT “” AND filevault_status = ‘on’ LIMIT 1;",
+      "team": "Workstations",
       "description": "Checks to make sure that the FileVault feature is enabled on macOS devices.",
       "resolution": "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
       "platform": "darwin",
@@ -1435,7 +1747,7 @@ If the `name` is not already associated with an existing team, this API route cr
 | scripts                                   | list   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
 | software                                   | object   | body  | The team's software that will be available for install.  |
 | software.packages                          | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, `post_install_script` - script that runs after software install, and `self_service` boolean.   |
-| software.app_store_apps                   | list   | body  | An array objects. Each object consists of `app_store_id` - ID of the App Store app formatted as a string (in quotes) rather than a number. |
+| software.app_store_apps                   | list   | body  | An array of objects. Each object consists of `app_store_id` - ID of the App Store app and `self_service` boolean. |
 | mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
 | force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
 | dry_run                                   | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
@@ -1528,6 +1840,7 @@ If the `name` is not already associated with an existing team, this API route cr
         "app_store_apps": [
           {
             "app_store_id": "12464567",
+            "self_service": true
           }
         ]
       }  
@@ -3029,36 +3342,7 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 
 `Status: 204`
 
-## Software
-
-### Batch-apply software
-
-_Available in Fleet Premium._
-
-`POST /api/v1/fleet/software/batch`
-
-#### Parameters
-
-| Name      | Type   | In    | Description                                                                                                                                                           |
-| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_id   | number | query | The ID of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`. Ommitting these parameters will add software to 'No Team'. |
-| team_name | string | query | The name of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. Ommitting these parameters will add software to 'No Team'. |
-| dry_run   | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
-| software  | object   | body  | The team's software that will be available for install.  |
-| software.packages   | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, and `post_install_script` - script that runs after software install.   |
-| software.app_store_apps | list   | body  | An array objects. Each object consists of `app_store_id` - ID of the App Store app. |
-
-If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error. If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
-
-#### Example
-
-`POST /api/v1/fleet/software/batch`
-
-##### Default response
-
-`Status: 204`
-
- ### Run live script
+### Run live script
 
 Run a live script and get results back (5 minute timeout). Live scripts only runs on the host if it has no other scripts running.
 
@@ -3097,6 +3381,131 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
   "exit_code": 0
 }
 ```
+## Software
+
+### Batch-apply software
+
+_Available in Fleet Premium._
+
+`POST /api/v1/fleet/software/batch`
+
+This endpoint is asynchronous, meaning it will start a background process to download and apply the software and return a `request_uuid` in the JSON response that can be used to query the status of the batch-apply (using the `GET /api/v1/fleet/software/batch/:request_uuid` endpoint defined below).
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                                                           |
+| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| team_name | string | query | The name of the team to add the software package to. Ommitting these parameters will add software to 'No Team'. |
+| dry_run   | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
+| software  | object   | body  | The team's software that will be available for install.  |
+| software.packages   | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, `post_install_script` - script that runs after software install, and `uninstall_script` - command that Fleet runs to uninstall software. |
+
+#### Example
+
+`POST /api/v1/fleet/software/batch`
+
+##### Default response
+
+`Status: 200`
+```json
+{
+  "request_uuid": "ec23c7b6-c336-4109-b89d-6afd859659b4",
+}
+```
+
+### Get status of software batch-apply request
+
+_Available in Fleet Premium._
+
+`GET /api/v1/fleet/software/batch/:request_uuid`
+
+This endpoint allows querying the status of a batch-apply software request (`POST /api/v1/fleet/software/batch`).
+Returns `"status"` field that can be one of `"processing"`, `"complete"` or `"failed"`.
+If `"status"` is `"completed"` then the `"packages"` field contains the applied packages.
+If `"status"` is `"processing"` then the operation is ongoing and the request should be retried.
+If `"status"` is `"failed"` then the `"message"` field contains the error message.
+
+#### Parameters
+
+| Name         | Type   | In    | Description                                                                                                                                                           |
+| ------------ | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| request_uuid | string | query | The request_uuid returned by the `POST /api/v1/fleet/software/batch` endpoint. |
+| team_name    | string | query | The name of the team to add the software package to. Ommitting these parameters will add software to 'No Team'. |
+| dry_run      | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
+
+##### Default responses
+
+`Status: 200`
+```json
+{
+  "status": "processing",
+  "message": "",
+  "packages": null
+}
+```
+
+`Status: 200`
+```json
+{
+  "status": "completed",
+  "message": "",
+  "packages": [
+    {
+      "team_id": 1,
+      "title_id": 2751,
+      "url": "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/win64/en-US/Firefox%20Setup%20129.0.2.msi"
+    }
+  ]
+}
+```
+
+`Status: 200`
+```json
+{
+  "status": "failed",
+  "message": "validation failed: software.url Couldn't edit software. URL (\"https://foobar.does.not.exist.com\") returned \"Not Found\". Please make sure that URLs are reachable from your Fleet server.",
+  "packages": null
+}
+```
+
+### Batch-apply App Store apps
+
+_Available in Fleet Premium._
+
+`POST /api/latest/fleet/software/app_store_apps/batch`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                                                           |
+| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| team_name | string | query | The name of the team to add the software package to. Ommitting this parameter will add software to "No team". |
+| dry_run   | bool   | query | If `true`, will validate the provided VPP apps and return any validation errors, but will not apply the changes.                                                                         |
+| app_store_apps | list   | body  | An array of objects. Each object contains `app_store_id` and `self_service`. |
+| app_store_apps.app_store_id | string   | body  | ID of the App Store app. |
+| app_store_apps.self_service | boolean   | body  | Whether the VPP app is "Self-service" or not. |
+
+#### Example
+
+`POST /api/latest/fleet/software/app_store_apps/batch`
+```json
+{
+  "team_name": "Foobar",
+  "app_store_apps": {
+    {
+      "app_store_id": "597799333",
+      "self_service": false,
+    },
+    {
+      "app_store_id": "497799835",
+      "self_service": true,
+    }
+  }
+}
+```
+
+##### Default response
+
+`Status: 204`
 
 ### Get token to download package
 

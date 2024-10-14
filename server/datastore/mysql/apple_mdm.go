@@ -291,7 +291,9 @@ WHERE
 }
 
 func (ds *Datastore) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error {
-	return ds.deleteMDMAppleConfigProfileByIDOrUUID(ctx, profileID, "")
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return deleteMDMAppleConfigProfileByIDOrUUID(ctx, tx, profileID, "")
+	})
 }
 
 func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error {
@@ -299,10 +301,20 @@ func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUI
 	if strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix) {
 		return ds.deleteMDMAppleDeclaration(ctx, profileUUID)
 	}
-	return ds.deleteMDMAppleConfigProfileByIDOrUUID(ctx, 0, profileUUID)
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := deleteMDMAppleConfigProfileByIDOrUUID(ctx, tx, 0, profileUUID); err != nil {
+			return err
+		}
+
+		if err := deleteUnsentAppleHostMDMProfile(ctx, tx, profileUUID); err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
-func (ds *Datastore) deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, id uint, uuid string) error {
+func deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, tx sqlx.ExtContext, id uint, uuid string) error {
 	var arg any
 	stmt := `DELETE FROM mdm_apple_configuration_profiles WHERE `
 	if uuid != "" {
@@ -312,7 +324,7 @@ func (ds *Datastore) deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, 
 		arg = id
 		stmt += `profile_id = ?`
 	}
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, arg)
+	res, err := tx.ExecContext(ctx, stmt, arg)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -323,6 +335,15 @@ func (ds *Datastore) deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, 
 			return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(uuid))
 		}
 		return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithID(id))
+	}
+
+	return nil
+}
+
+func deleteUnsentAppleHostMDMProfile(ctx context.Context, tx sqlx.ExtContext, uuid string) error {
+	const stmt = `DELETE FROM host_mdm_apple_profiles WHERE profile_uuid = ? AND status IS NULL AND operation_type = ? AND command_uuid = ''`
+	if _, err := tx.ExecContext(ctx, stmt, uuid, fleet.MDMOperationTypeInstall); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host profile that has not been sent to host")
 	}
 
 	return nil
@@ -432,6 +453,41 @@ WHERE
 		return nil, err
 	}
 	return profiles, nil
+}
+
+func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID string,
+	profileUUID string) (*fleet.HostMDMCertificateProfile, error) {
+	stmt := `
+	SELECT
+		hmap.host_uuid,
+		hmap.profile_uuid,
+		hmap.status,
+		hmmc.challenge_retrieved_at
+	FROM
+		host_mdm_apple_profiles hmap
+	LEFT JOIN host_mdm_managed_certificates hmmc
+		ON hmap.host_uuid = hmmc.host_uuid AND hmap.profile_uuid = hmmc.profile_uuid
+	WHERE
+		hmap.host_uuid = ? AND hmap.profile_uuid = ?`
+	var profile fleet.HostMDMCertificateProfile
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &profile, stmt, hostUUID, profileUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &profile, nil
+}
+
+func (ds *Datastore) CleanUpMDMManagedCertificates(ctx context.Context) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+	DELETE hmmc FROM host_mdm_managed_certificates hmmc
+		LEFT JOIN host_mdm_apple_profiles hmap ON hmmc.host_uuid = hmap.host_uuid AND hmmc.profile_uuid = hmap.profile_uuid
+		WHERE hmap.host_uuid IS NULL`)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "clean up mdm certificate profiles")
+	}
+	return nil
 }
 
 func (ds *Datastore) NewMDMAppleEnrollmentProfile(
@@ -896,61 +952,36 @@ func insertMDMAppleHostDB(
 	return nil
 }
 
-type hostWithEnrolled struct {
-	fleet.Host
-	Enrolled *bool `db:"enrolled"`
+// hostToCreateFromMDM defines a common set of parameters required to create
+// host records without a pre-existing osquery enrollment from MDM flows like
+// ADE ingestion or OTA enrollments
+type hostToCreateFromMDM struct {
+	// HardwareSerial should match the value for hosts.hardware_serial
+	HardwareSerial string
+	// HardwareModel should match the value for hosts.hardware_model
+	HardwareModel string
+	// PlatformHint is used to determine hosts.platform, if it:
+	//
+	// - contains "iphone" the platform is "ios"
+	// - contains "ipad" the platform is "ipados"
+	// - otherwise the platform is "darwin"
+	PlatformHint string
 }
 
-func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
+func createHostFromMDMDB(
 	ctx context.Context,
-	devices []godep.Device,
-	abmTokenID uint,
-	macOSTeam, iosTeam, ipadTeam *fleet.Team,
-) (createdCount int64, err error) {
-	if len(devices) < 1 {
-		level.Debug(ds.logger).Log("msg", "ingesting devices from DEP received < 1 device, skipping", "len(devices)", len(devices))
-		return 0, nil
-	}
+	tx sqlx.ExtContext,
+	logger log.Logger,
+	devices []hostToCreateFromMDM,
+	fromADE bool,
+	macOSTeam, iosTeam, ipadTeam *uint,
+) (int64, []fleet.Host, error) {
+	// NOTE: order of arguments for teams is important, see statement.
+	args := []any{iosTeam, ipadTeam, macOSTeam}
+	us, unionArgs := unionSelectDevices(devices)
+	args = append(args, unionArgs...)
 
-	appCfg, err := ds.AppConfig(ctx)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple host get app config")
-	}
-
-	var args []any
-	teams := []*fleet.Team{iosTeam, ipadTeam, macOSTeam}
-	for _, team := range teams {
-		if team == nil {
-			args = append(args, nil)
-			continue
-		}
-
-		exists, err := ds.TeamExists(ctx, team.ID)
-		if err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple host get team by name")
-		}
-
-		if exists {
-			args = append(args, team.ID)
-			continue
-		}
-
-		// If the team doesn't exist, we still ingest the device, but it won't
-		// belong to any team.
-		level.Debug(ds.logger).Log(
-			"msg",
-			"ingesting devices from ABM: unable to find default team assigned in config, the devices won't be assigned to a team",
-			"team_id",
-			team,
-		)
-		args = append(args, nil)
-	}
-
-	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		us, unionArgs := unionSelectDevices(devices)
-		args = append(args, unionArgs...)
-
-		stmt := fmt.Sprintf(`
+	stmt := fmt.Sprintf(`
 		INSERT INTO hosts (
 			hardware_serial,
 			hardware_model,
@@ -980,79 +1011,168 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
 			h.id IS NULL
 		GROUP BY
 			us.hardware_serial, us.platform)`,
-			us,
-		)
+		us,
+	)
 
-		res, err := tx.ExecContext(ctx, stmt, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "ingest mdm apple hosts from dep sync insert")
-		}
+	res, err := tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "inserting new host in MDM ingestion")
+	}
 
-		n, err := res.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "ingest mdm apple hosts from dep sync rows affected")
-		}
-		createdCount = n
+	n, _ := res.RowsAffected()
+	// get new host ids
+	args = []any{}
+	parts := []string{}
+	for _, d := range devices {
+		args = append(args, d.HardwareSerial)
+		parts = append(parts, "?")
+	}
 
-		// get new host ids
-		args = []interface{}{}
-		parts := []string{}
-		for _, d := range devices {
-			args = append(args, d.SerialNumber)
-			parts = append(parts, "?")
-		}
-		var hostsWithEnrolled []hostWithEnrolled
-		err = sqlx.SelectContext(ctx, tx, &hostsWithEnrolled, fmt.Sprintf(`
+	var hostsWithEnrolled []struct {
+		fleet.Host
+		Enrolled *bool `db:"enrolled"`
+	}
+	err = sqlx.SelectContext(ctx, tx, &hostsWithEnrolled, fmt.Sprintf(`
 			SELECT
 				h.id,
 				h.platform,
 				h.hardware_model,
 				h.hardware_serial,
+				h.hostname,
 				COALESCE(hmdm.enrolled, 0) as enrolled
 			FROM hosts h
 			LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
 			WHERE h.hardware_serial IN(%s)`,
-			strings.Join(parts, ",")),
-			args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "ingest mdm apple host get host ids")
+		strings.Join(parts, ",")),
+		args...)
+	if err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host get host ids")
+	}
+
+	var hosts []fleet.Host
+	var unmanagedHostIDs []uint
+	for _, h := range hostsWithEnrolled {
+		hosts = append(hosts, h.Host)
+		if h.Enrolled == nil || !*h.Enrolled {
+			unmanagedHostIDs = append(unmanagedHostIDs, h.ID)
+		}
+	}
+
+	if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, hosts...); err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert display names")
+	}
+
+	if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, logger, hosts...); err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert label membership")
+	}
+
+	appCfg, err := appConfigDB(ctx, tx)
+	if err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host get app config")
+	}
+
+	// only upsert MDM info for hosts that are unmanaged. This
+	// prevents us from overriding valuable info with potentially
+	// incorrect data. For example: if a host is enrolled in a
+	// third-party MDM, but gets assigned in ABM to Fleet (during
+	// migration) we'll get an 'added' event. In that case, we
+	// expect that MDM info will be updated in due time as we ingest
+	// future osquery data from the host
+	if err := upsertMDMAppleHostMDMInfoDB(
+		ctx,
+		tx,
+		appCfg.ServerSettings,
+		fromADE,
+		unmanagedHostIDs...,
+	); err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
+	}
+
+	return n, hosts, nil
+}
+
+func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
+	ctx context.Context,
+	teamID *uint,
+	deviceInfo fleet.MDMAppleMachineInfo,
+) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		toInsert := []hostToCreateFromMDM{
+			{
+				HardwareSerial: deviceInfo.Serial,
+				PlatformHint:   deviceInfo.Product,
+				HardwareModel:  deviceInfo.Product,
+			},
+		}
+		_, _, err := createHostFromMDMDB(ctx, tx, ds.logger, toInsert, false, teamID, teamID, teamID)
+		return ctxerr.Wrap(ctx, err, "creating host from OTA enrollment")
+	})
+}
+
+func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
+	ctx context.Context,
+	devices []godep.Device,
+	abmTokenID uint,
+	macOSTeam, iosTeam, ipadTeam *fleet.Team,
+) (createdCount int64, err error) {
+	if len(devices) < 1 {
+		level.Debug(ds.logger).Log("msg", "ingesting devices from DEP received < 1 device, skipping", "len(devices)", len(devices))
+		return 0, nil
+	}
+
+	var teamIDs []*uint
+	for _, team := range []*fleet.Team{macOSTeam, iosTeam, ipadTeam} {
+		if team == nil {
+			teamIDs = append(teamIDs, nil)
+			continue
 		}
 
-		var hosts []fleet.Host
-		var unmanagedHostIDs []uint
-		for _, h := range hostsWithEnrolled {
-			hosts = append(hosts, h.Host)
-			if h.Enrolled == nil || !*h.Enrolled {
-				unmanagedHostIDs = append(unmanagedHostIDs, h.ID)
+		exists, err := ds.TeamExists(ctx, team.ID)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple host get team by name")
+		}
+
+		if exists {
+			teamIDs = append(teamIDs, &team.ID)
+			continue
+		}
+
+		// If the team doesn't exist, we still ingest the device, but it won't
+		// belong to any team.
+		level.Debug(ds.logger).Log(
+			"msg",
+			"ingesting devices from ABM: unable to find default team assigned in config, the devices won't be assigned to a team",
+			"team_id",
+			team,
+		)
+		teamIDs = append(teamIDs, nil)
+	}
+
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		htc := make([]hostToCreateFromMDM, len(devices))
+		for i, d := range devices {
+			htc[i] = hostToCreateFromMDM{
+				HardwareSerial: d.SerialNumber,
+				HardwareModel:  d.Model,
+				PlatformHint:   d.DeviceFamily,
 			}
 		}
 
-		if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, hosts...); err != nil {
-			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert display names")
-		}
-
-		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, ds.logger, hosts...); err != nil {
-			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert label membership")
-		}
-		if err := upsertHostDEPAssignmentsDB(ctx, tx, hosts, abmTokenID); err != nil {
-			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert DEP assignments")
-		}
-
-		// only upsert MDM info for hosts that are unmanaged. This
-		// prevents us from overriding valuable info with potentially
-		// incorrect data. For example: if a host is enrolled in a
-		// third-party MDM, but gets assigned in ABM to Fleet (during
-		// migration) we'll get an 'added' event. In that case, we
-		// expect that MDM info will be updated in due time as we ingest
-		// future osquery data from the host
-		if err := upsertMDMAppleHostMDMInfoDB(
+		n, hosts, err := createHostFromMDMDB(
 			ctx,
 			tx,
-			appCfg.ServerSettings,
+			ds.logger,
+			htc,
 			true,
-			unmanagedHostIDs...,
-		); err != nil {
-			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
+			teamIDs[0], teamIDs[1], teamIDs[2],
+		)
+		if err != nil {
+			return err
+		}
+		createdCount = n
+
+		if err := upsertHostDEPAssignmentsDB(ctx, tx, hosts, abmTokenID); err != nil {
+			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert DEP assignments")
 		}
 
 		return nil
@@ -1310,22 +1430,24 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) error {
 	})
 }
 
-func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}) {
+func unionSelectDevices(devices []hostToCreateFromMDM) (stmt string, args []interface{}) {
 	for i, d := range devices {
 		if i == 0 {
 			stmt = "SELECT ? hardware_serial, ? hardware_model, ? platform"
 		} else {
 			stmt += " UNION SELECT ?, ?, ?"
 		}
-		// Map Apple's device family to Fleet's hosts.platform field.
-		platform := "darwin"
-		switch d.DeviceFamily {
-		case "iPhone":
-			platform = "ios"
-		case "iPad":
-			platform = "ipados"
+
+		// map the platform hint to Fleet's hosts.platform field.
+		normalizedHint := strings.ToLower(d.PlatformHint)
+		platform := string(fleet.MacOSPlatform)
+		switch {
+		case strings.Contains(normalizedHint, "iphone"):
+			platform = string(fleet.IOSPlatform)
+		case strings.Contains(normalizedHint, "ipad"):
+			platform = string(fleet.IPadOSPlatform)
 		}
-		args = append(args, d.SerialNumber, d.Model, platform)
+		args = append(args, d.HardwareSerial, d.HardwareModel, platform)
 	}
 
 	return stmt, args
@@ -2021,11 +2143,11 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
 			continue
 		}
-		// If the installation failed, then we do not want to change the operation to "Remove".
+		// If the profile wasn't installed, then we do not want to change the operation to "Remove".
 		// Doing so will result in Fleet attempting to remove a profile that doesn't exist on the
 		// host (since the installation failed). Skipping it here will lead to it being removed from
 		// the host in Fleet during profile reconciliation, which is what we want.
-		if p.FailedToInstallOnHost() {
+		if p.DidNotInstallOnHost() {
 			continue
 		}
 		profilesToInsert[fmt.Sprintf("%s\n%s", p.HostUUID, p.ProfileUUID)] = &fleet.MDMAppleProfilePayload{
@@ -2469,377 +2591,150 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 	return err
 }
 
-const (
-	appleMDMFailedProfilesStmt = `
-            h.uuid = hmap.host_uuid AND
-            hmap.status = :failed`
-
-	appleMDMPendingProfilesStmt = `
-            h.uuid = hmap.host_uuid AND
-            (
-                hmap.status IS NULL OR
-                hmap.status = :pending OR
+// sqlCaseMDMAppleStatus returns a SQL snippet that can be used to determine the status of a host
+// based on the status of its profiles and declarations and filevault status. It should be used in
+// conjunction with sqlJoinMDMAppleProfilesStatus and sqlJoinMDMAppleDeclarationsStatus. It assumes the
+// hosts table to be aliased as 'h' and the host_disk_encryption_keys table to be aliased as 'hdek'.
+func sqlCaseMDMAppleStatus() string {
+	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
+	// complicate usage in other queries (e.g., list hosts).
+	var (
+		failed    = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
+		pending   = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
+		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
+		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
+	)
+	return `
+	CASE WHEN (prof_failed
+		OR decl_failed
+		OR fv_failed) THEN
+		` + failed + `
+	WHEN (prof_pending
+		OR decl_pending
 		-- special case for filevault, it's pending if the profile is
 		-- pending OR the profile is verified or verifying but we still
 		-- don't have an encryption key.
-                (
-                    hmap.profile_identifier = :filevault AND
-                    hmap.status IN (:verifying, :verified) AND
-                    hmap.operation_type = :install AND
-                    NOT EXISTS (
-                        SELECT 1
-                        FROM host_disk_encryption_keys hdek
-                        WHERE h.id = hdek.host_id AND
-                              (hdek.decryptable = 1 OR hdek.decryptable IS NULL)
-                    )
-                )
-            )`
-
-	appleMDMVerifyingProfilesStmt = `
-           h.uuid = hmap.host_uuid AND
-           hmap.operation_type = :install AND
-           (
-	       -- all profiles except filevault that are 'verifying'
-               (
-                   hmap.profile_identifier != :filevault AND
-                   hmap.status = :verifying
-               )
-               OR
-               -- special cases for filevault
-               (
-                   hmap.profile_identifier = :filevault AND
-                   (
-		       -- filevault profile is verified, but we didn't verify the encryption key
-                       (
-                           hmap.status = :verified AND
-                           EXISTS (
-                               SELECT 1
-                               FROM host_disk_encryption_keys AS hdek
-                               WHERE h.id = hdek.host_id AND
-                                     hdek.decryptable IS NULL
-                           )
-                       )
-                       OR
-		       -- filevault profile is verifying, and we already have an encryption key, in any state
-                       (
-                           hmap.status = :verifying AND
-                           EXISTS (
-                               SELECT 1
-                               FROM host_disk_encryption_keys AS hdek
-                               WHERE h.id = hdek.host_id AND
-                                     hdek.decryptable = 1 OR hdek.decryptable IS NULL
-                           )
-                       )
-                   )
-               )
-           )`
-
-	appleVerifiedProfilesStmt = `
-            h.uuid = hmap.host_uuid AND
-            hmap.operation_type = :install AND
-            hmap.status = :verified AND
-            (
-                hmap.profile_identifier != :filevault OR
-                EXISTS (
-                    SELECT 1
-                    FROM host_disk_encryption_keys hdek
-                    WHERE h.id = hdek.host_id AND
-                          hdek.decryptable = 1
-                )
-            )`
-)
-
-// subqueryAppleProfileStatus builds the right subquery that can be used to
-// filter hosts based on their profile status.
-//
-// The subquery mechanism works by finding profiles for hosts that:
-//   - match with the provided status
-//   - match any status that supercedes the provided status (eg: failed supercedes verifying)
-//
-// Hosts will be considered to be in the given status only if the profiles
-// match the given status and zero profiles match any superceding status.
-func subqueryAppleProfileStatus(status fleet.MDMDeliveryStatus) (string, []any, error) {
-	var condition string
-	var excludeConditions string
-	switch status {
-	case fleet.MDMDeliveryFailed:
-		condition = appleMDMFailedProfilesStmt
-		excludeConditions = "FALSE"
-	case fleet.MDMDeliveryPending:
-		condition = appleMDMPendingProfilesStmt
-		excludeConditions = appleMDMFailedProfilesStmt
-	case fleet.MDMDeliveryVerifying:
-		condition = appleMDMVerifyingProfilesStmt
-		excludeConditions = fmt.Sprintf("(%s) OR (%s)", appleMDMPendingProfilesStmt, appleMDMFailedProfilesStmt)
-	case fleet.MDMDeliveryVerified:
-		condition = appleVerifiedProfilesStmt
-		excludeConditions = fmt.Sprintf("(%s) OR (%s) OR (%s)", appleMDMPendingProfilesStmt, appleMDMFailedProfilesStmt, appleMDMVerifyingProfilesStmt)
-	default:
-		return "", nil, fmt.Errorf("invalid status: %s", status)
-	}
-
-	sql := fmt.Sprintf(`
-            SELECT 1
-            FROM host_mdm_apple_profiles hmap
-            WHERE %s AND
-                  NOT EXISTS (
-                      SELECT 1
-                      FROM host_mdm_apple_profiles hmap
-                      WHERE %s
-                  )`, condition, excludeConditions)
-
-	arg := map[string]any{
-		"install":   fleet.MDMOperationTypeInstall,
-		"verifying": fleet.MDMDeliveryVerifying,
-		"failed":    fleet.MDMDeliveryFailed,
-		"verified":  fleet.MDMDeliveryVerified,
-		"pending":   fleet.MDMDeliveryPending,
-		"filevault": mobileconfig.FleetFileVaultPayloadIdentifier,
-	}
-	query, args, err := sqlx.Named(sql, arg)
-	if err != nil {
-		return "", nil, fmt.Errorf("subqueryAppleProfileStatus %s: %w", status, err)
-	}
-
-	return query, args, nil
+		OR(fv_pending
+			OR((fv_verifying
+				OR fv_verified)
+			AND (hdek.base64_encrypted IS NULL OR (hdek.decryptable IS NOT NULL AND hdek.decryptable != 1))))) THEN
+		` + pending + `
+	WHEN (prof_verifying
+		OR decl_verifying
+		-- special case when fv profile is verifying, and we already have an encryption key, in any state, we treat as verifying
+		OR(fv_verifying
+			AND hdek.base64_encrypted IS NOT NULL AND (hdek.decryptable IS NULL OR hdek.decryptable = 1))
+		-- special case when fv profile is verified, but we didn't verify the encryption key, we treat as verifying
+		OR(fv_verified
+			AND hdek.base64_encrypted IS NOT NULL AND hdek.decryptable IS NULL)) THEN
+		` + verifying + `
+	WHEN (prof_verified
+		OR decl_verified
+		OR(fv_verified
+			AND hdek.base64_encrypted IS NOT NULL AND hdek.decryptable = 1)) THEN
+		` + verified + `
+	END
+`
 }
 
-// subqueryAppleDeclarationStatus builds out the subquery for declaration status
-func subqueryAppleDeclarationStatus() (string, []any, error) {
-	const declNamedStmt = `
-		CASE WHEN EXISTS (
-			SELECT
-				1
-			FROM
-				host_mdm_apple_declarations d1
-			WHERE
-				h.uuid = d1.host_uuid
-				AND d1.operation_type = :install
-				AND d1.status = :failed
-				AND d1.declaration_name NOT IN (:reserved_names)) THEN
-			'declarations_failed'
-		WHEN EXISTS (
-			SELECT
-				1
-			FROM
-				host_mdm_apple_declarations d2
-			WHERE
-				h.uuid = d2.host_uuid
-				AND d2.operation_type = :install
-				AND(d2.status IS NULL
-					OR d2.status = :pending)
-				AND d2.declaration_name NOT IN (:reserved_names)
-				AND NOT EXISTS (
-					SELECT
-						1
-					FROM
-						host_mdm_apple_declarations d3
-					WHERE
-						h.uuid = d3.host_uuid
-						AND d3.operation_type = :install
-						AND d3.status = :failed
-						AND d3.declaration_name NOT IN (:reserved_names))) THEN
-			'declarations_pending'
-		WHEN EXISTS (
-			SELECT
-				1
-			FROM
-				host_mdm_apple_declarations d4
-			WHERE
-				h.uuid = d4.host_uuid
-				AND d4.operation_type = :install
-				AND d4.status = :verifying
-				AND d4.declaration_name NOT IN (:reserved_names)
-				AND NOT EXISTS (
-					SELECT
-						1
-					FROM
-						host_mdm_apple_declarations d5
-					WHERE (h.uuid = d5.host_uuid
-						AND d5.operation_type = :install
-						AND d5.declaration_name NOT IN (:reserved_names)
-						AND(d5.status IS NULL
-							OR d5.status IN(:pending, :failed))))) THEN
-			'declarations_verifying'
-		WHEN EXISTS (
-			SELECT
-				1
-			FROM
-				host_mdm_apple_declarations d6
-			WHERE
-				h.uuid = d6.host_uuid
-				AND d6.operation_type = :install
-				AND d6.status = :verified
-				AND d6.declaration_name NOT IN (:reserved_names)
-				AND NOT EXISTS (
-					SELECT
-						1
-					FROM
-						host_mdm_apple_declarations d7
-					WHERE (h.uuid = d7.host_uuid
-						AND d7.operation_type = :install
-						AND d7.declaration_name NOT IN (:reserved_names)
-						AND(d7.status IS NULL
-							OR d7.status IN(:pending, :failed, :verifying))))) THEN
-			'declarations_verified'
-		ELSE
-			''
-		END`
-
-	arg := map[string]any{
-		"install":        fleet.MDMOperationTypeInstall,
-		"verifying":      fleet.MDMDeliveryVerifying,
-		"failed":         fleet.MDMDeliveryFailed,
-		"verified":       fleet.MDMDeliveryVerified,
-		"pending":        fleet.MDMDeliveryPending,
-		"reserved_names": fleetmdm.ListFleetReservedMacOSDeclarationNames(),
-	}
-	query, args, err := sqlx.Named(declNamedStmt, arg)
-	if err != nil {
-		return "", nil, fmt.Errorf("subqueryAppleDeclarationStatus: %w", err)
-	}
-	query, args, err = sqlx.In(query, args...)
-	if err != nil {
-		return "", nil, fmt.Errorf("subqueryAppleDeclarationStatus resolve IN: %w", err)
-	}
-
-	return query, args, nil
-}
-
-func subqueryOSSettingsStatusMac() (string, []any, error) {
-	var profArgs []any
-	profFailed, profFailedArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryFailed)
-	if err != nil {
-		return "", nil, err
-	}
-	profArgs = append(profArgs, profFailedArgs...)
-
-	profPending, profPendingArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryPending)
-	if err != nil {
-		return "", nil, err
-	}
-	profArgs = append(profArgs, profPendingArgs...)
-
-	profVerifying, profVerifyingArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryVerifying)
-	if err != nil {
-		return "", nil, err
-	}
-	profArgs = append(profArgs, profVerifyingArgs...)
-
-	profVerified, profVerifiedArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryVerified)
-	if err != nil {
-		return "", nil, err
-	}
-	profArgs = append(profArgs, profVerifiedArgs...)
-
-	profStmt := fmt.Sprintf(`
-	    CASE WHEN EXISTS (%s) THEN
-	        'profiles_failed'
-	    WHEN EXISTS (%s) THEN
-	        'profiles_pending'
-	    WHEN EXISTS (%s) THEN
-	        'profiles_verifying'
-	    WHEN EXISTS (%s) THEN
-	        'profiles_verified'
-	    ELSE
-	        ''
-	    END`,
-		profFailed,
-		profPending,
-		profVerifying,
-		profVerified,
+// sqlJoinMDMAppleProfilesStatus returns a SQL snippet that can be used to join a table derived from
+// host_mdm_apple_profiles (grouped by host_uuid and status) and the hosts table. For each host_uuid,
+// it derives a boolean value for each status category. The value will be 1 if the host has any
+// profile in the given status category. Separate columns are used for status of the filevault profile
+// vs. all other profiles. The snippet assumes the hosts table to be aliased as 'h'.
+func sqlJoinMDMAppleProfilesStatus() string {
+	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
+	// complicate usage in other queries (e.g., list hosts).
+	var (
+		failed    = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
+		pending   = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
+		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
+		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
+		install   = fmt.Sprintf("'%s'", string(fleet.MDMOperationTypeInstall))
+		filevault = fmt.Sprintf("'%s'", mobileconfig.FleetFileVaultPayloadIdentifier)
 	)
+	return `
+	LEFT JOIN (
+		-- profile statuses grouped by host uuid, boolean value will be 1 if host has any profile with the given status
+		-- filevault profiles are treated separately
+		SELECT
+			host_uuid,
+			MAX( IF((status IS NULL OR status = ` + pending + `) AND profile_identifier != ` + filevault + `, 1, 0)) AS prof_pending,
+			MAX( IF(status = ` + failed + ` AND profile_identifier != ` + filevault + `, 1, 0)) AS prof_failed,
+			MAX( IF(status = ` + verifying + ` AND profile_identifier != ` + filevault + ` AND operation_type = ` + install + `, 1, 0)) AS prof_verifying,
+			MAX( IF(status = ` + verified + `  AND profile_identifier != ` + filevault + ` AND operation_type = ` + install + `, 1, 0)) AS prof_verified,
+			MAX( IF((status IS NULL OR status = ` + pending + `) AND profile_identifier = ` + filevault + `, 1, 0)) AS fv_pending,
+			MAX( IF(status = ` + failed + ` AND profile_identifier = ` + filevault + `, 1, 0)) AS fv_failed,
+			MAX( IF(status = ` + verifying + ` AND profile_identifier = ` + filevault + ` AND operation_type = ` + install + `, 1, 0)) AS fv_verifying,
+			MAX( IF(status = ` + verified + `  AND profile_identifier = ` + filevault + ` AND operation_type = ` + install + `, 1, 0)) AS fv_verified
+		FROM
+			host_mdm_apple_profiles
+		GROUP BY
+			host_uuid) hmap ON h.uuid = hmap.host_uuid
+`
+}
 
-	declStmt, declArgs, err := subqueryAppleDeclarationStatus()
-	if err != nil {
-		return "", nil, err
-	}
-
-	stmt := fmt.Sprintf(`
-	CASE (%s)
-	WHEN 'profiles_failed' THEN
-	    'failed'
-	WHEN 'profiles_pending' THEN (
-	    CASE (%s)
-	    WHEN 'declarations_failed' THEN
-	        'failed'
-	    ELSE
-	        'pending'
-	    END)
-	WHEN 'profiles_verifying' THEN (
-	    CASE (%s)
-	    WHEN 'declarations_failed' THEN
-	        'failed'
-	    WHEN 'declarations_pending' THEN
-	        'pending'
-	    ELSE
-	        'verifying'
-	    END)
-	WHEN 'profiles_verified' THEN (
-	    CASE (%s)
-	    WHEN 'declarations_failed' THEN
-	        'failed'
-	    WHEN 'declarations_pending' THEN
-	        'pending'
-	    WHEN 'declarations_verifying' THEN
-	        'verifying'
-	    ELSE
-	        'verified'
-	    END)
-	ELSE
-	    REPLACE((%s), 'declarations_', '')
-	END`, profStmt, declStmt, declStmt, declStmt, declStmt)
-
-	args := append(profArgs, declArgs...)
-	args = append(args, declArgs...)
-	args = append(args, declArgs...)
-	args = append(args, declArgs...)
-
-	// FIXME(roberto): we found issues in MySQL 5.7.17 (only that version,
-	// which we must support for now) with prepared statements on this
-	// query. The results returned by the DB were always different what
-	// expected unless the arguments are inlined in the query.
-	//
-	// We decided to do this given:
-	//
-	// - The time constraints we were given to develop DDM
-	// - The fact that all the variables in this query are really strings managed by us
-	// - The imminent deprecation of MySQL 5.7
-	return fmt.Sprintf(strings.Replace(stmt, "?", "'%s'", -1), args...), []any{}, nil
+// sqlJoinMDMAppleDeclarationsStatus returns a SQL snippet that can be used to join a table derived from
+// host_mdm_apple_declarations (grouped by host_uuid and status) and the hosts table. For each host_uuid,
+// it derives a boolean value for each status category. The value will be 1 if the host has any
+// declaration in the given status category. The snippet assumes the hosts table to be aliased as 'h'.
+func sqlJoinMDMAppleDeclarationsStatus() string {
+	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
+	// complicate usage in other queries (e.g., list hosts).
+	var (
+		failed            = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
+		pending           = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
+		verifying         = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
+		verified          = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
+		install           = fmt.Sprintf("'%s'", string(fleet.MDMOperationTypeInstall))
+		reservedDeclNames = fmt.Sprintf("'%s', '%s', '%s'", fleetmdm.FleetMacOSUpdatesProfileName, fleetmdm.FleetIOSUpdatesProfileName, fleetmdm.FleetIPadOSUpdatesProfileName)
+	)
+	return `
+	LEFT JOIN (
+		-- declaration statuses grouped by host uuid, boolean value will be 1 if host has any declaration with the given status
+		SELECT
+			host_uuid,
+			MAX( IF((status IS NULL OR status = ` + pending + `), 1, 0)) AS decl_pending,
+			MAX( IF(status = ` + failed + `, 1, 0)) AS decl_failed,
+			MAX( IF(status = ` + verifying + ` , 1, 0)) AS decl_verifying,
+			MAX( IF(status = ` + verified + ` , 1, 0)) AS decl_verified
+		FROM
+			host_mdm_apple_declarations
+		WHERE
+			operation_type = ` + install + ` AND declaration_name NOT IN(` + reservedDeclNames + `)
+		GROUP BY
+			host_uuid) hmad ON h.uuid = hmad.host_uuid
+`
 }
 
 func (ds *Datastore) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
-	subquery, args, err := subqueryOSSettingsStatusMac()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building os settings subquery")
-	}
-
-	sqlFmt := `
+	stmt := `
 SELECT
-  %s as status,
-  COUNT(id) as count
+	COUNT(id) AS count,
+	%s AS status
 FROM
-  hosts h
-WHERE platform = 'darwin' OR platform = 'ios' OR platform = 'ipados'
-GROUP BY status, team_id HAVING status IN (?, ?, ?, ?) AND %s`
-
-	args = append(args, fleet.MDMDeliveryFailed, fleet.MDMDeliveryPending, fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified)
+	hosts h
+	%s
+	%s
+	LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
+WHERE
+	platform IN('darwin', 'ios', 'ipad_os') AND %s
+GROUP BY
+	status HAVING status IS NOT NULL`
 
 	teamFilter := "team_id IS NULL"
 	if teamID != nil && *teamID > 0 {
-		teamFilter = "team_id = ?"
-		args = append(args, *teamID)
+		teamFilter = fmt.Sprintf("team_id = %d", *teamID)
 	}
 
-	stmt := fmt.Sprintf(sqlFmt, subquery, teamFilter)
+	stmt = fmt.Sprintf(stmt, sqlCaseMDMAppleStatus(), sqlJoinMDMAppleProfilesStatus(), sqlJoinMDMAppleDeclarationsStatus(), teamFilter)
 
 	var dest []struct {
 		Count  uint   `db:"count"`
 		Status string `db:"status"`
 	}
 
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...)
-	if err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt); err != nil {
 		return nil, err
 	}
 
@@ -3855,9 +3750,9 @@ WHERE
 // depCooldownPeriod is the waiting period following a failed DEP assign profile request for a host.
 const depCooldownPeriod = 1 * time.Hour // TODO: Make this a test config option?
 
-func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, serialsByOrgName map[string][]string, err error) {
+func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerialsByOrgName map[string][]string, serialsByOrgName map[string][]string, err error) {
 	if len(serials) == 0 {
-		return skipSerials, serialsByOrgName, nil
+		return skipSerialsByOrgName, serialsByOrgName, nil
 	}
 
 	stmt := `
@@ -3892,19 +3787,20 @@ WHERE
 	}
 
 	serialsByOrgName = make(map[string][]string)
+	skipSerialsByOrgName = make(map[string][]string)
 
 	for _, r := range rows {
 		switch r.Status {
 		case "assign":
 			serialsByOrgName[r.ABMOrgName] = append(serialsByOrgName[r.ABMOrgName], r.HardwareSerial)
 		case "skip":
-			skipSerials = append(skipSerials, r.HardwareSerial)
+			skipSerialsByOrgName[r.ABMOrgName] = append(skipSerialsByOrgName[r.ABMOrgName], r.HardwareSerial)
 		default:
 			return nil, nil, ctxerr.New(ctx, fmt.Sprintf("screen dep serials: %s unrecognized status: %s", r.HardwareSerial, r.Status))
 		}
 	}
 
-	return skipSerials, serialsByOrgName, nil
+	return skipSerialsByOrgName, serialsByOrgName, nil
 }
 
 func (ds *Datastore) GetDEPAssignProfileExpiredCooldowns(ctx context.Context) (map[uint][]string, error) {
@@ -4343,7 +4239,8 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 }
 
 func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtContext,
-	declarationLabels []fleet.ConfigurationProfileLabel) (updatedDB bool, err error) {
+	declarationLabels []fleet.ConfigurationProfileLabel,
+) (updatedDB bool, err error) {
 	if len(declarationLabels) == 0 {
 		return false, nil
 	}
@@ -4551,7 +4448,8 @@ func (ds *Datastore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) (
 }
 
 func mdmAppleBatchSetHostDeclarationStateDB(ctx context.Context, tx sqlx.ExtContext, batchSize int,
-	status *fleet.MDMDeliveryStatus) ([]string, bool, error) {
+	status *fleet.MDMDeliveryStatus,
+) ([]string, bool, error) {
 	// once all the declarations are in place, compute the desired state
 	// and find which hosts need a DDM sync.
 	changedDeclarations, err := mdmAppleGetHostsWithChangedDeclarationsDB(ctx, tx)
@@ -4868,17 +4766,21 @@ func decrypt(encrypted []byte, privateKey string) ([]byte, error) {
 	return decrypted, nil
 }
 
-func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error {
+	insertFunc := func(tx sqlx.ExtContext) error {
 		if err := insertMDMConfigAssets(ctx, tx, assets, ds.serverPrivateKey); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert mdm config assets")
 		}
-
 		return nil
-	})
+	}
+	if tx != nil {
+		return insertFunc(tx)
+	}
+	return ds.withRetryTxx(ctx, insertFunc)
 }
 
-func (ds *Datastore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+func (ds *Datastore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName,
+	queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 	if len(assetNames) == 0 {
 		return nil, nil
 	}
@@ -4899,7 +4801,10 @@ WHERE
 	}
 
 	var res []fleet.MDMConfigAsset
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, args...); err != nil {
+	if queryerContext == nil {
+		queryerContext = ds.reader(ctx)
+	}
+	if err := sqlx.SelectContext(ctx, queryerContext, &res, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get mdm config assets by name")
 	}
 
@@ -4970,6 +4875,15 @@ func (ds *Datastore) DeleteMDMConfigAssetsByName(ctx context.Context, assetNames
 	})
 }
 
+func (ds *Datastore) HardDeleteMDMConfigAsset(ctx context.Context, assetName fleet.MDMAssetName) error {
+	stmt := `
+DELETE FROM mdm_config_assets
+WHERE name = ?`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, assetName)
+	// ctxerr.Wrap returns nil if err is nil
+	return ctxerr.Wrap(ctx, err, "hard delete mdm config asset")
+}
+
 func softDeleteMDMConfigAssetsByName(ctx context.Context, tx sqlx.ExtContext, assetNames []fleet.MDMAssetName) error {
 	stmt := `
 UPDATE
@@ -5020,8 +4934,8 @@ VALUES
 	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
 }
 
-func (ds *Datastore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+func (ds *Datastore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error {
+	replaceFunc := func(tx sqlx.ExtContext) error {
 		var names []fleet.MDMAssetName
 		for _, a := range assets {
 			names = append(names, a.Name)
@@ -5034,9 +4948,12 @@ func (ds *Datastore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.
 		if err := insertMDMConfigAssets(ctx, tx, assets, ds.serverPrivateKey); err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert mdm config assets insert")
 		}
-
 		return nil
-	})
+	}
+	if tx != nil {
+		return replaceFunc(tx)
+	}
+	return ds.withRetryTxx(ctx, replaceFunc)
 }
 
 // ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched
@@ -5177,6 +5094,7 @@ SELECT
 	abt.apple_id,
 	abt.terms_expired,
 	abt.renew_at,
+	abt.token,
 	abt.macos_default_team_id,
 	abt.ios_default_team_id,
 	abt.ipados_default_team_id,
@@ -5233,6 +5151,15 @@ LEFT OUTER JOIN
 		tok.IOSTeam = fleet.ABMTokenTeam{Name: tok.IOSTeamName, ID: iOSTeamID}
 		tok.IPadOSTeam = fleet.ABMTokenTeam{Name: tok.IPadOSTeamName, ID: iPadIOSTeamID}
 
+		// decrypt the token with the serverPrivateKey, the resulting value will be
+		// the token still encrypted, but just with the ABM cert and key (it is that
+		// encrypted value that is stored with another layer of encryption with the
+		// serverPrivateKey).
+		decrypted, err := decrypt(tok.EncryptedToken, ds.serverPrivateKey)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "decrypting abm token with datastore.serverPrivateKey")
+		}
+		tok.EncryptedToken = decrypted
 	}
 
 	return tokens, nil
@@ -5552,4 +5479,45 @@ LIMIT 1`
 	}
 
 	return &settings, nil
+}
+
+func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMBulkUpsertManagedCertificatePayload) error {
+	if len(payload) == 0 {
+		return nil
+	}
+
+	executeUpsertBatch := func(valuePart string, args []any) error {
+		stmt := fmt.Sprintf(`
+	    INSERT INTO host_mdm_managed_certificates (
+              host_uuid,
+              profile_uuid,
+              challenge_retrieved_at
+            )
+            VALUES %s
+            ON DUPLICATE KEY UPDATE
+              challenge_retrieved_at = VALUES(challenge_retrieved_at)`,
+			strings.TrimSuffix(valuePart, ","),
+		)
+
+		_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+		return err
+	}
+
+	generateValueArgs := func(p *fleet.MDMBulkUpsertManagedCertificatePayload) (string, []any) {
+		valuePart := "(?, ?, ?),"
+		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt}
+		return valuePart, args
+	}
+
+	const defaultBatchSize = 1000
+	batchSize := defaultBatchSize
+	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
+	}
+
+	if err := batchProcessDB(payload, batchSize, generateValueArgs, executeUpsertBatch); err != nil {
+		return err
+	}
+
+	return nil
 }

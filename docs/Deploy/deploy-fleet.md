@@ -17,6 +17,7 @@ Deploy to Render for an easy one-click proof of concept. Or, choose AWS with Ter
     </a>
 </div>
 
+Looking for other deployment options? Check out the [guides](https://fleetdm.com/guides).
 
 <h2 class="d-none markdown-heading">Render</h2>
 <h2 id="render">Deploy to Render in 5 minutes</h2>
@@ -47,7 +48,7 @@ Render is a cloud hosting service that makes it easy to get up and running fast,
 
 2. Give the Blueprint a unique name like `yourcompany-fleet`.
 
-3. Click "**Apply.**" Render will provision your services, which should take less than five minutes. 
+3. Click "**Deploy Blueprint.**" Render will provision your services, which should take less than five minutes. 
 
 4. Click the "**Dashboard**" tab in Render when provisioning is complete to see your new services. 
 

@@ -279,6 +279,15 @@ func (p HostMDMAppleProfile) ToHostMDMProfile(platform string) HostMDMProfile {
 	}
 }
 
+// HostMDMCertificateProfile represents the status of an MDM certificate profile (SCEP payload) along with the
+// associated certificate metadata.
+type HostMDMCertificateProfile struct {
+	HostUUID             string             `db:"host_uuid"`
+	ProfileUUID          string             `db:"profile_uuid"`
+	Status               *MDMDeliveryStatus `db:"status"`
+	ChallengeRetrievedAt *time.Time         `db:"challenge_retrieved_at"`
+}
+
 type HostMDMProfileDetail string
 
 const (
@@ -311,10 +320,10 @@ type MDMAppleProfilePayload struct {
 	CommandUUID       string             `db:"command_uuid"`
 }
 
-// FailedToInstallOnHost indicates whether this profile failed to be installed on the host (and
+// DidNotInstallOnHost indicates whether this profile was not installed on the host (and
 // therefore is not, as far as Fleet knows, currently on the host).
-func (p *MDMAppleProfilePayload) FailedToInstallOnHost() bool {
-	return p.Status != nil && *p.Status == MDMDeliveryFailed && p.OperationType == MDMOperationTypeInstall
+func (p *MDMAppleProfilePayload) DidNotInstallOnHost() bool {
+	return p.Status != nil && (*p.Status == MDMDeliveryFailed || *p.Status == MDMDeliveryPending) && p.OperationType == MDMOperationTypeInstall
 }
 
 func (p MDMAppleProfilePayload) Equal(other MDMAppleProfilePayload) bool {
@@ -940,4 +949,10 @@ func NewMDMAppleSoftwareUpdateRequired(asset MDMAppleSoftwareUpdateAsset) *MDMAp
 type MDMAppleSoftwareUpdateAsset struct {
 	ProductVersion string `json:"ProductVersion"`
 	Build          string `json:"Build"`
+}
+
+type MDMBulkUpsertManagedCertificatePayload struct {
+	ProfileUUID          string
+	HostUUID             string
+	ChallengeRetrievedAt *time.Time
 }

@@ -2,12 +2,25 @@
   <div purpose="page-container" class="container-fluid">
     <div purpose="page-content">
       <div purpose="hero-text">
-        <h2 class="text-center">What can Fleet access on my device?</h2>
-        <p class="text-center col-md-8">End users deserve to know what their employer can see and do on their laptops. Here’s what Fleet can manage on your device:</p>
-<!--         <h1>A better employee experience</h1>
-        <p>What if the way your employer maintained your computer was more <a href="https://fleetdm.com/handbook/company/why-this-way#why-open-source">transparent</a>? What if it helped you get more done?</p> -->
+        <h1 class="text-center">Why is Fleet on my computer?</h1>
+        <p class="text-center">Fleet makes it a little easier for your IT team to keep your computer healthy without interfering with your work.</p>
       </div>
-    <div purpose="accordion" class="container-fluid d-flex flex-column justify-content-center align-items-center">
+      <div purpose="feature" class="d-flex flex-lg-row flex-column-reverse justify-content-between mx-auto align-items-center">
+      <div purpose="feature-text" class="d-flex flex-column">
+        <h3>How does it affect me?</h3>
+        <p>Your IT team has to maintain your computer and keep it compliant with with a bunch of security requirements. But they also realize you have a job to do. So they want to be as un-intrusive as possible.</p>
+        <p class="mb-0">That’s why they chose Fleet. It’s compatible with everything, including Linux, so it doesn’t limit what operating system you use. And it’s open source, meaning if you want to, you can <a href="https://github.com/fleetdm/fleet" target="_blank">take it apart</a> and see what it’s doing to your computer.</p>
+      </div>
+      <div purpose="feature-image">
+        <img alt="Information about a users device in Fleet." src="/images/better-hero-image-468x380@2x.png">
+      </div>
+    </div>
+    <div purpose="logos" class="mx-auto">
+      <logo-carousel></logo-carousel>
+    </div>
+    <div purpose="accordion" class="container-fluid d-flex flex-column justify-content-center align-items-center px-0">
+      <h2 class="text-center">What personal information can Fleet see?</h2>
+      <p class="mb-0">Here’s what Fleet can manage on your computer:</p>
       <div purpose="accordion-body" class="mx-auto">
         <div purpose="accordion-item">
           <p purpose="accordion-header" id="accordion__header1" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body1" aria-controls="accordion__body1">
@@ -111,9 +124,6 @@
         </div>
       </div>
     </div>
-    </div>
-  <div purpose="logos" class="mx-auto">
-    <logo-carousel></logo-carousel>
   </div>
   <div purpose="secureframe-section" v-if="showSecureframeBanner">
     <div purpose="secureframe-banner" class="d-flex flex-column">

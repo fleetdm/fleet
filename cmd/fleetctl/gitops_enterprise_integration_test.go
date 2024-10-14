@@ -59,7 +59,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 		{Name: fleet.MDMAssetAPNSKey, Value: testKeyPEM},
 		{Name: fleet.MDMAssetCACert, Value: testCertPEM},
 		{Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
-	})
+	}, nil)
 	require.NoError(s.T(), err)
 
 	mdmStorage, err := s.ds.NewMDMAppleMDMStorage()
@@ -83,7 +83,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 	}
 	err = s.ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetSCEPChallenge, Value: []byte("scepchallenge")},
-	})
+	}, nil)
 	require.NoError(s.T(), err)
 	users, server := service.RunServerForTestsWithDS(s.T(), s.ds, &serverConfig)
 	s.T().Setenv("FLEET_SERVER_ADDRESS", server.URL) // fleetctl always uses this env var in tests
@@ -187,6 +187,9 @@ team_settings:
 		),
 	)
 	require.NoError(t, err)
+
+	test.CreateInsertGlobalVPPToken(t, s.ds)
+
 	// Apply the team to be deleted
 	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", deletedTeamFile.Name()})
 

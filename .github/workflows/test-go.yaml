@@ -44,7 +44,7 @@ jobs:
       matrix:
         suite: ["integration", "core"]
         os: [ubuntu-latest]
-        mysql: ["mysql:8.0.36", "mysql:8.4.2"]
+        mysql: ["mysql:8.0.36", "mysql:8.4.2"] # make sure to update supported versions docs when this changes
     continue-on-error: ${{ matrix.suite == 'integration' }} # Since integration tests have a higher chance of failing, often for unrelated reasons, we don't want to fail the whole job if they fail
     runs-on: ${{ matrix.os }}
 
@@ -120,6 +120,7 @@ jobs:
         fi
         GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT $RUN_TESTS_ARG" \
           TEST_LOCK_FILE_PATH=$(pwd)/lock \
+          TEST_CRON_NO_RECOVER=1 \
           NETWORK_TEST=1 \
           REDIS_TEST=1 \
           MYSQL_TEST=1 \

@@ -13,7 +13,7 @@ import {
   IZendeskIntegration,
   IZendeskJiraIntegrations,
 } from "interfaces/integration";
-import { ITeamConfig } from "interfaces/team";
+import { APP_CONTEXT_ALL_TEAMS_ID, ITeamConfig } from "interfaces/team";
 import { SelectedPlatform } from "interfaces/platform";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import configAPI from "services/entities/config";
@@ -37,9 +37,10 @@ import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal"
 import AddSoftwareModal from "./components/AddSoftwareModal";
 import {
   buildSoftwareFilterQueryParams,
+  buildSoftwareVulnFiltersQueryParams,
   getSoftwareFilterFromQueryParams,
   getSoftwareVulnFiltersFromQueryParams,
-  ISoftwareVulnFilters,
+  ISoftwareVulnFiltersParams,
 } from "./SoftwareTitles/SoftwareTable/helpers";
 import SoftwareFiltersModal from "./components/SoftwareFiltersModal";
 
@@ -257,10 +258,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     setShowManageAutomationsModal(!showManageAutomationsModal);
   }, [setShowManageAutomationsModal, showManageAutomationsModal]);
 
-  const toggleAddSoftwareModal = useCallback(() => {
-    setShowAddSoftwareModal(!showAddSoftwareModal);
-  }, [showAddSoftwareModal]);
-
   const togglePreviewPayloadModal = useCallback(() => {
     setShowPreviewPayloadModal(!showPreviewPayloadModal);
   }, [setShowPreviewPayloadModal, showPreviewPayloadModal]);
@@ -296,6 +293,16 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     }
   };
 
+  const onAddSoftware = useCallback(() => {
+    if (currentTeamId === APP_CONTEXT_ALL_TEAMS_ID) {
+      setShowAddSoftwareModal(true);
+    } else {
+      router.push(
+        `${PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}?team_id=${currentTeamId}`
+      );
+    }
+  }, [currentTeamId, router]);
+
   // NOTE: used to reset page number to 0 when modifying filters
   // NOTE: Solution reused from ManageHostPage.tsx
   useEffect(() => {
@@ -311,7 +318,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     [handleTeamChange]
   );
 
-  const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFilters) => {
+  const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFiltersParams) => {
     const newQueryParams: ISoftwareApiParams = {
       query,
       teamId: currentTeamId,
@@ -319,7 +326,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       orderKey: sortHeader,
       page: 0, // resets page index
       ...buildSoftwareFilterQueryParams(softwareFilter),
-      ...vulnFilters,
+      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
     };
 
     router.replace(
@@ -385,7 +392,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           </Button>
         )}
         {canAddSoftware && (
-          <Button onClick={toggleAddSoftwareModal} variant="brand">
+          <Button onClick={onAddSoftware} variant="brand">
             <span>Add software</span>
           </Button>
         )}
@@ -476,10 +483,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         )}
         {showAddSoftwareModal && (
           <AddSoftwareModal
-            teamId={currentTeamId ?? 0}
-            router={router}
-            onExit={toggleAddSoftwareModal}
-            setAddedSoftwareToken={setAddedSoftwareToken}
+            onExit={() => setShowAddSoftwareModal(false)}
             isFreeTier={isFreeTier}
           />
         )}

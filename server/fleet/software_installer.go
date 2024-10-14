@@ -9,9 +9,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
+
+// MaxSoftwareInstallerSize is the maximum size allowed for software
+// installers. This is enforced by the endpoints that upload installers.
+const MaxSoftwareInstallerSize = 3000 * units.MiB
 
 // SoftwareInstallerStore is the interface to store and retrieve software
 // installer files. Fleet supports storing to the local filesystem and to an
@@ -47,7 +52,7 @@ func (FailingSoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerI
 	return 0, nil
 }
 
-// SoftwareInstallDetailsResult contains all of the information
+// SoftwareInstallDetails contains all of the information
 // required for a client to pull in and install software from the fleet server
 type SoftwareInstallDetails struct {
 	// HostID is used for authentication on the backend and should not
@@ -61,6 +66,8 @@ type SoftwareInstallDetails struct {
 	PreInstallCondition string `json:"pre_install_condition" db:"pre_install_condition"`
 	// InstallScript is the script to run to install the software package.
 	InstallScript string `json:"install_script" db:"install_script"`
+	// UninstallScript is the script to run to uninstall the software package.
+	UninstallScript string `json:"uninstall_script" db:"uninstall_script"`
 	// PostInstallScript is the script to run after installing the software package.
 	PostInstallScript string `json:"post_install_script" db:"post_install_script"`
 	// SelfService indicates the install was initiated by the device user
@@ -74,13 +81,17 @@ type SoftwareInstaller struct {
 	// no team.
 	TeamID *uint `json:"team_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
-	TitleID *uint `json:"-" db:"title_id"`
+	TitleID *uint `json:"title_id" db:"title_id"`
 	// Name is the name of the software package.
 	Name string `json:"name" db:"filename"`
+	// Extension is the file extension of the software package, inferred from package contents.
+	Extension string `json:"-" db:"extension"`
 	// Version is the version of the software package.
 	Version string `json:"version" db:"version"`
 	// Platform can be "darwin" (for pkgs), "windows" (for exes/msis) or "linux" (for debs).
 	Platform string `json:"platform" db:"platform"`
+	// PackageIDList is a comma-separated list of packages extracted from the installer
+	PackageIDList string `json:"-" db:"package_ids"`
 	// UploadedAt is the time the software package was uploaded.
 	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
 	// InstallerID is the unique identifier for the software package metadata in Fleet.
@@ -89,10 +100,14 @@ type SoftwareInstaller struct {
 	InstallScript string `json:"install_script" db:"install_script"`
 	// InstallScriptContentID is the ID of the install script content.
 	InstallScriptContentID uint `json:"-" db:"install_script_content_id"`
+	// UninstallScriptContentID is the ID of the uninstall script content.
+	UninstallScriptContentID uint `json:"-" db:"uninstall_script_content_id"`
 	// PreInstallQuery is the query to run as a condition to installing the software package.
 	PreInstallQuery string `json:"pre_install_query" db:"pre_install_query"`
 	// PostInstallScript is the script to run after installing the software package.
 	PostInstallScript string `json:"post_install_script" db:"post_install_script"`
+	// UninstallScript is the script to run to uninstall the software package.
+	UninstallScript string `json:"uninstall_script" db:"uninstall_script"`
 	// PostInstallScriptContentID is the ID of the post-install script content.
 	PostInstallScriptContentID *uint `json:"-" db:"post_install_script_content_id"`
 	// StorageID is the unique identifier for the software package in the software installer store.
@@ -104,6 +119,21 @@ type SoftwareInstaller struct {
 	// SelfService indicates that the software can be installed by the
 	// end user without admin intervention
 	SelfService bool `json:"self_service" db:"self_service"`
+	// URL is the source URL for this installer (set when uploading via batch/gitops).
+	URL string `json:"url" db:"url"`
+	// FleetLibraryAppID is the related Fleet-maintained app for this installer (if not nil).
+	FleetLibraryAppID *uint `json:"-" db:"fleet_library_app_id"`
+}
+
+// SoftwarePackageResponse is the response type used when applying software by batch.
+type SoftwarePackageResponse struct {
+	// TeamID is the ID of the team.
+	// A value of nil means it is scoped to hosts that are assigned to "No team".
+	TeamID *uint `json:"team_id" db:"team_id"`
+	// TitleID is the id of the software title associated with the software installer.
+	TitleID *uint `json:"title_id" db:"title_id"`
+	// URL is the source URL for this installer (set when uploading via batch/gitops).
+	URL string `json:"url" db:"url"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -111,31 +141,53 @@ func (s *SoftwareInstaller) AuthzType() string {
 	return "installable_entity"
 }
 
+// PackageIDs turns the comma-separated string from the database into a list (potentially zero-length) of string package IDs
+func (s *SoftwareInstaller) PackageIDs() []string {
+	if s.PackageIDList == "" {
+		return []string{}
+	}
+
+	return strings.Split(s.PackageIDList, ",")
+}
+
 // SoftwareInstallerStatusSummary represents aggregated status metrics for a software installer package.
 type SoftwareInstallerStatusSummary struct {
 	// Installed is the number of hosts that have the software package installed.
 	Installed uint `json:"installed" db:"installed"`
-	// Pending is the number of hosts that have the software package pending installation.
-	Pending uint `json:"pending" db:"pending"`
-	// Failed is the number of hosts that have the software package installation failed.
-	Failed uint `json:"failed" db:"failed"`
+	// PendingInstall is the number of hosts that have the software package pending installation.
+	PendingInstall uint `json:"pending_install" db:"pending_install"`
+	// FailedInstall is the number of hosts that have the software package installation failed.
+	FailedInstall uint `json:"failed_install" db:"failed_install"`
+	// PendingUninstall is the number of hosts that have the software package pending installation.
+	PendingUninstall uint `json:"pending_uninstall" db:"pending_uninstall"`
+	// FailedInstall is the number of hosts that have the software package installation failed.
+	FailedUninstall uint `json:"failed_uninstall" db:"failed_uninstall"`
 }
 
 // SoftwareInstallerStatus represents the status of a software installer package on a host.
 type SoftwareInstallerStatus string
 
 const (
-	SoftwareInstallerPending   SoftwareInstallerStatus = "pending"
-	SoftwareInstallerFailed    SoftwareInstallerStatus = "failed"
-	SoftwareInstallerInstalled SoftwareInstallerStatus = "installed"
+	SoftwareInstallPending   SoftwareInstallerStatus = "pending_install"
+	SoftwareInstallFailed    SoftwareInstallerStatus = "failed_install"
+	SoftwareInstalled        SoftwareInstallerStatus = "installed"
+	SoftwareUninstallPending SoftwareInstallerStatus = "pending_uninstall"
+	SoftwareUninstallFailed  SoftwareInstallerStatus = "failed_uninstall"
+	// SoftwarePending and SoftwareFailed statuses are only used as filters in the API and are not stored in the database.
+	SoftwarePending SoftwareInstallerStatus = "pending" // either pending_install or pending_uninstall
+	SoftwareFailed  SoftwareInstallerStatus = "failed"  // either failed_install or failed_uninstall
 )
 
 func (s SoftwareInstallerStatus) IsValid() bool {
 	switch s {
 	case
-		SoftwareInstallerFailed,
-		SoftwareInstallerInstalled,
-		SoftwareInstallerPending:
+		SoftwarePending,
+		SoftwareFailed,
+		SoftwareUninstallPending,
+		SoftwareUninstallFailed,
+		SoftwareInstallFailed,
+		SoftwareInstalled,
+		SoftwareInstallPending:
 		return true
 	default:
 		return false
@@ -199,6 +251,9 @@ type HostSoftwareInstallerResult struct {
 	SoftwareInstallerUserName string `json:"-" db:"software_installer_user_name"`
 	// SoftwareInstallerUserEmail is the email of the user that uploaded the software installer.
 	SoftwareInstallerUserEmail string `json:"-" db:"software_installer_user_email"`
+	// PolicyID is the id of the policy that triggered the install, or
+	// nil if the install was not triggered by a policy failure
+	PolicyID *uint `json:"policy_id" db:"policy_id"`
 }
 
 const (
@@ -208,19 +263,16 @@ const (
 	SoftwareInstallerInstallFailCopy        = "Installing software...\nFailed\n%s"
 	SoftwareInstallerInstallSuccessCopy     = "Installing software...\nSuccess\n%s"
 	SoftwareInstallerPostInstallSuccessCopy = "Running script...\nExit code: 0 (Success)\n%s"
-	// TODO(roberto): this is not true, how do we know that the rollback script was successful?
-	SoftwareInstallerPostInstallFailCopy = `Running script...
+	SoftwareInstallerPostInstallFailCopy    = `Running script...
 Exit code: %d (Failed)
 %s
-Rolling back software install...
-Rolled back successfully
 `
 )
 
 // EnhanceOutputDetails is used to add extra boilerplate/information to the
 // output fields so they're easier to consume by users.
 func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
-	if h.Status == SoftwareInstallerPending {
+	if h.Status == SoftwareInstallPending {
 		return
 	}
 
@@ -279,6 +331,35 @@ type UploadSoftwareInstallerPayload struct {
 	BundleIdentifier  string
 	SelfService       bool
 	UserID            uint
+	URL               string
+	FleetLibraryAppID *uint
+	PackageIDs        []string
+	UninstallScript   string
+	Extension         string
+}
+
+type UpdateSoftwareInstallerPayload struct {
+	// find the installer via these fields
+	TitleID     uint
+	TeamID      *uint
+	InstallerID uint
+	// used for authorization and persisted as author
+	UserID uint
+	// optional; used for pulling metadata + persisting new installer package to file system
+	InstallerFile io.ReadSeeker
+	// update the installer with these fields (*not* PATCH semantics at that point; while the
+	// associated endpoint is a PATCH, the entire row will be updated to these values, including
+	// blanks, so make sure they're set from either user input or the existing installer row
+	// before saving)
+	InstallScript     *string
+	PreInstallQuery   *string
+	PostInstallScript *string
+	SelfService       *bool
+	UninstallScript   *string
+	StorageID         string
+	Filename          string
+	Version           string
+	PackageIDs        []string
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -293,6 +374,8 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 	switch ext {
 	case "deb":
 		return "deb_packages", nil
+	case "rpm":
+		return "rpm_packages", nil
 	case "exe", "msi":
 		return "programs", nil
 	case "pkg":
@@ -308,7 +391,7 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 func SofwareInstallerPlatformFromExtension(ext string) (string, error) {
 	ext = strings.TrimPrefix(ext, ".")
 	switch ext {
-	case "deb":
+	case "deb", "rpm":
 		return "linux", nil
 	case "exe", "msi":
 		return "windows", nil
@@ -346,10 +429,12 @@ type SoftwarePackageOrApp struct {
 	// Name is only present for software installer packages.
 	Name string `json:"name,omitempty"`
 
-	Version     string               `json:"version"`
-	SelfService *bool                `json:"self_service,omitempty"`
-	IconURL     *string              `json:"icon_url"`
-	LastInstall *HostSoftwareInstall `json:"last_install"`
+	Version       string                 `json:"version"`
+	SelfService   *bool                  `json:"self_service,omitempty"`
+	IconURL       *string                `json:"icon_url"`
+	LastInstall   *HostSoftwareInstall   `json:"last_install"`
+	LastUninstall *HostSoftwareUninstall `json:"last_uninstall"`
+	PackageURL    *string                `json:"package_url"`
 }
 
 type SoftwarePackageSpec struct {
@@ -358,6 +443,7 @@ type SoftwarePackageSpec struct {
 	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
 	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
 	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
+	UninstallScript   TeamSpecSoftwareAsset `json:"uninstall_script"`
 }
 
 type SoftwareSpec struct {
@@ -378,6 +464,14 @@ type HostSoftwareInstall struct {
 	// Empty if the install was for an uploaded software installer.
 	CommandUUID string    `json:"command_uuid,omitempty"`
 	InstalledAt time.Time `json:"installed_at"`
+}
+
+// HostSoftwareUninstall represents uninstallation of software from a host with a
+// Fleet software installer.
+type HostSoftwareUninstall struct {
+	// ExecutionID is the UUID of the script execution that uninstalled the software.
+	ExecutionID   string    `json:"script_execution_id,omitempty"`
+	UninstalledAt time.Time `json:"uninstalled_at"`
 }
 
 // HostSoftwareInstalledVersion represents a version of software installed on a
@@ -413,17 +507,17 @@ type HostSoftwareInstallResultPayload struct {
 func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 	switch {
 	case h.PostInstallScriptExitCode != nil && *h.PostInstallScriptExitCode == 0:
-		return SoftwareInstallerInstalled
+		return SoftwareInstalled
 	case h.PostInstallScriptExitCode != nil && *h.PostInstallScriptExitCode != 0:
-		return SoftwareInstallerFailed
+		return SoftwareInstallFailed
 	case h.InstallScriptExitCode != nil && *h.InstallScriptExitCode == 0:
-		return SoftwareInstallerInstalled
+		return SoftwareInstalled
 	case h.InstallScriptExitCode != nil && *h.InstallScriptExitCode != 0:
-		return SoftwareInstallerFailed
+		return SoftwareInstallFailed
 	case h.PreInstallConditionOutput != nil && *h.PreInstallConditionOutput == "":
-		return SoftwareInstallerFailed
+		return SoftwareInstallFailed
 	default:
-		return SoftwareInstallerPending
+		return SoftwareInstallPending
 	}
 }
 
@@ -432,3 +526,5 @@ type SoftwareInstallerTokenMetadata struct {
 	TitleID uint `json:"title_id"`
 	TeamID  uint `json:"team_id"`
 }
+
+const SoftwareInstallerURLMaxLength = 255

@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/Masterminds/semver"
@@ -34,6 +35,7 @@ func (os OperatingSystem) IsWindows() bool {
 }
 
 var macOSNudgeLastVersion = semver.MustParse("14")
+var macOSRapidSecurityResponseVersionSuffix = regexp.MustCompile(` \([a-z]\)`)
 
 // RequiresNudge returns whether the target platform is darwin and
 // below version 14. Starting at macOS 14 nudge is no longer required,
@@ -43,7 +45,8 @@ func (os *OperatingSystem) RequiresNudge() (bool, error) {
 		return false, nil
 	}
 
-	version, err := semver.NewVersion(os.Version)
+	// strip Rapid Security Response suffix (e.g. version 13.3.7 (a)) if any
+	version, err := semver.NewVersion(macOSRapidSecurityResponseVersionSuffix.ReplaceAllString(os.Version, ``))
 	if err != nil {
 		return false, fmt.Errorf("parsing macos version \"%s\": %w", os.Version, err)
 	}
