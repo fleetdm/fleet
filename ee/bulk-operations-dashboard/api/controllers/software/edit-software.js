@@ -80,21 +80,21 @@ module.exports = {
             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
           }
         });
-        let tempUploadedSoftware = await sails.uploadOne(softwareStream, {bucket: sails.config.uploads.bucket+sails.config.uploads.prefix});
+        let tempUploadedSoftware = await sails.uploadOne(softwareStream, {bucket: sails.config.uploads.bucketWithPostfix});
         softwareFd = tempUploadedSoftware.fd;
         softwareName = software.name;
         softwareMime = tempUploadedSoftware.type;
       } else if(newSoftware) {
         // If a new copy of the installer was uploaded, we'll
         // console.log('replacing software package!');
-        let uploadedSoftware = await sails.uploadOne(newSoftware, {bucket: sails.config.uploads.bucket+sails.config.uploads.prefix});
+        let uploadedSoftware = await sails.uploadOne(newSoftware, {bucket: sails.config.uploads.bucketWithPostfix});
         softwareFd = uploadedSoftware.fd;
         softwareName = uploadedSoftware.filename;
         softwareMime = uploadedSoftware.type;
         let newSoftwareExtension = '.'+softwareName.split('.').pop();
         let existingSoftwareExtension = '.'+software.name.split('.').pop();
         if(newSoftwareExtension !== existingSoftwareExtension) {
-          await sails.rm(sails.config.uploads.prefix+softwareFd);
+          await sails.rm(sails.config.uploads.prefixForFileDeletion+softwareFd);
           throw {wrongInstallerExtension: `Couldn't edit ${software.name}. The selected package should be a ${existingSoftwareExtension} file`};
         }
       } else {
@@ -113,7 +113,7 @@ module.exports = {
         await sails.helpers.flow.simultaneouslyForEach(addedTeams, async (team)=>{
           // console.log(`transfering ${software.name} to fleet instance for team id ${team}`);
           // Send an api request to send the file to the Fleet server for each added team.
-          await sails.cp(softwareFd, {bucket: sails.config.uploads.bucket+sails.config.uploads.prefix},
+          await sails.cp(softwareFd, {bucket: sails.config.uploads.bucketWithPostfix},
             {
               adapter: ()=>{
                 return {
@@ -180,9 +180,9 @@ module.exports = {
                 Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
               }
             });
-            // console.log(`transfering ${software.name} to fleet instance for team id ${teamApid}`);
+            // console.log(`transfering the changed installer ${software.name} to fleet instance for team id ${teamApid}`);
             // console.time(`transfering ${software.name} to fleet instance for team id ${teamApid}`);
-            await sails.cp(softwareFd, {bucket: sails.config.uploads.bucket+sails.config.uploads.prefix},
+            await sails.cp(softwareFd, {bucket: sails.config.uploads.bucketWithPostfix},
             {
               adapter: ()=>{
                 return {
@@ -250,7 +250,7 @@ module.exports = {
         }
         // If the software had been previously undeployed, delete the installer in s3 and the db record.
         if(software.id) {
-          await sails.rm(sails.config.uploads.prefix+software.uploadFd);
+          await sails.rm(sails.config.uploads.prefixForFileDeletion+software.uploadFd);
           await UndeployedSoftware.destroyOne({id: software.id});
         }
 
@@ -297,6 +297,8 @@ module.exports = {
           uploadMime: softwareMime,
           uploadFd: softwareFd,
         });
+        // console.log('removing old stored copy of '+softwareName);
+        await sails.rm(sails.config.uploads.prefixForFileDeletion+software.uploadFd);
       }
     } else if(preInstallQuery !== software.preInstallQuery ||
       installScript !== software.installScript ||

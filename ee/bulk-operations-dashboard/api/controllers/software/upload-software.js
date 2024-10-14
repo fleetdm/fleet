@@ -39,7 +39,7 @@ module.exports = {
   fn: async function ({newSoftware, teams}) {
     let uploadedSoftware;
     if(!teams) {
-      uploadedSoftware = await sails.uploadOne(newSoftware, {bucket: sails.config.uploads.bucket+sails.config.uploads.prefix});
+      uploadedSoftware = await sails.uploadOne(newSoftware, {bucket: sails.config.uploads.bucketWithPostfix});
       let datelessFilename = uploadedSoftware.filename.replace(/^\d{4}-\d{2}-\d{2}\s/, '');
       // Build a dictonary of information about this software to return to the softwares page.
       let newSoftwareInfo = {
@@ -52,9 +52,9 @@ module.exports = {
       await UndeployedSoftware.create(newSoftwareInfo);
     } else {
       for(let teamApid of teams) {
-        uploadedSoftware = await sails.uploadOne(newSoftware, {bucket: sails.config.uploads.bucket+sails.config.uploads.prefix});
+        uploadedSoftware = await sails.uploadOne(newSoftware, {bucket: sails.config.uploads.bucketWithPostfix});
         var WritableStream = require('stream').Writable;
-        await sails.cp(uploadedSoftware.fd, {bucket: sails.config.uploads.bucket+sails.config.uploads.prefix}, {
+        await sails.cp(uploadedSoftware.fd, {bucket: sails.config.uploads.bucketWithPostfix}, {
           adapter: ()=>{
             return {
               ls: undefined,
@@ -101,7 +101,7 @@ module.exports = {
         });
       }
       // Remove the file from the s3 bucket after it has been sent to the Fleet server.
-      await sails.rm(sails.config.uploads.prefix+uploadedSoftware.fd);
+      await sails.rm(sails.config.uploads.prefixForFileDeletion+uploadedSoftware.fd);
     }
     return;
 

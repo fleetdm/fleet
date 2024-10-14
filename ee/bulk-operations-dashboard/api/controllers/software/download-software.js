@@ -45,7 +45,7 @@ module.exports = {
 
     if(id){
       let softwareToDownload = await UndeployedSoftware.findOne({id: id});
-      downloading = await sails.startDownload(softwareToDownload.uploadFd, {bucket: sails.config.uploads.bucket+sails.config.uploads.prefix});
+      downloading = await sails.startDownload(softwareToDownload.uploadFd, {bucket: sails.config.uploads.bucketWithPostfix});
       this.res.type(softwareToDownload.uploadMime);
       this.res.attachment(softwareToDownload.name);
     } else {
