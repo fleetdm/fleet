@@ -31,6 +31,7 @@ type SwiftDialog struct {
 	exitCode    ExitCode
 	exitErr     error
 	done        chan struct{}
+	binPath     string
 }
 
 type SwiftDialogExit struct {
@@ -52,13 +53,8 @@ const (
 	ExitFileNotFound          ExitCode = 202
 )
 
-func Create(ctx context.Context, swiftDialogBin string, options *SwiftDialogOptions) (*SwiftDialog, error) {
+func Create(ctx context.Context, swiftDialogBin string) (*SwiftDialog, error) {
 	commandFile, err := os.CreateTemp("", "swiftDialogCommand")
-	if err != nil {
-		return nil, err
-	}
-
-	jsonBytes, err := json.Marshal(options)
 	if err != nil {
 		return nil, err
 	}
@@ -72,11 +68,28 @@ func Create(ctx context.Context, swiftDialogBin string, options *SwiftDialogOpti
 		return nil, err
 	}
 
+	sd := &SwiftDialog{
+		cancel:      cancel,
+		commandFile: commandFile,
+		context:     ctx,
+		done:        make(chan struct{}),
+		binPath:     swiftDialogBin,
+	}
+
+	return sd, nil
+}
+
+func (s *SwiftDialog) Start(ctx context.Context, opts *SwiftDialogOptions) error {
+	jsonBytes, err := json.Marshal(opts)
+	if err != nil {
+		return err
+	}
+
 	cmd := exec.CommandContext( //nolint:gosec
 		ctx,
-		swiftDialogBin,
+		s.binPath,
 		"--jsonstring", string(jsonBytes),
-		"--commandfile", commandFile.Name(),
+		"--commandfile", s.commandFile.Name(),
 		"--json",
 	)
 
@@ -85,30 +98,21 @@ func Create(ctx context.Context, swiftDialogBin string, options *SwiftDialogOpti
 
 	err = cmd.Start()
 	if err != nil {
-		cancel(errors.New("could not start swiftDialog"))
-		return nil, err
-	}
-
-	sd := &SwiftDialog{
-		cancel:      cancel,
-		cmd:         cmd,
-		commandFile: commandFile,
-		context:     ctx,
-		done:        make(chan struct{}),
-		output:      outBuf,
+		s.cancel(errors.New("could not start swiftDialog"))
+		return err
 	}
 
 	go func() {
 		if err := cmd.Wait(); err != nil {
 			errExit := &exec.ExitError{}
 			if errors.As(err, &errExit) && strings.Contains(errExit.Error(), "exit status") {
-				sd.exitCode = ExitCode(errExit.ExitCode())
+				s.exitCode = ExitCode(errExit.ExitCode())
 			} else {
-				sd.exitErr = fmt.Errorf("waiting for swiftDialog: %w", err)
+				s.exitErr = fmt.Errorf("waiting for swiftDialog: %w", err)
 			}
 		}
-		close(sd.done)
-		cancel(ErrWindowClosed)
+		close(s.done)
+		s.cancel(ErrWindowClosed)
 	}()
 
 	// This sleep makes sure that SD is fully up and running and has access to the command file.
@@ -116,7 +120,7 @@ func Create(ctx context.Context, swiftDialogBin string, options *SwiftDialogOpti
 	// commands may be lost.
 	time.Sleep(500 * time.Millisecond)
 
-	return sd, nil
+	return nil
 }
 
 func (s *SwiftDialog) finished() {
