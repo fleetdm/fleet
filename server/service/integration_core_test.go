@@ -4771,6 +4771,12 @@ func (s *integrationTestSuite) TestHostStatusWebhookConfig() {
   		}
 	}`), http.StatusUnprocessableEntity)
 
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEditedActivitiesWebhook{}.ActivityName(),
+		`{"destination_url": ""}`,
+		0,
+	)
+
 	// update without a negative days count
 	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
 		"webhook_settings": {
