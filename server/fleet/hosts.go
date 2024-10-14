@@ -913,7 +913,6 @@ type HostMDM struct {
 	MDMID                  *uint   `db:"mdm_id" json:"-" csv:"-"`
 	Name                   string  `db:"name" json:"-" csv:"-"`
 	DEPProfileAssignStatus *string `db:"dep_profile_assign_status" json:"-" csv:"-"`
-	AwaitingConfiguration  bool    `db:"awaiting_configuration" json:"-"`
 }
 
 // HasJSONProfileAssigned returns true if Fleet has assigned an ADE/DEP JSON
