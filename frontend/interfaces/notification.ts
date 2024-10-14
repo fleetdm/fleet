@@ -5,6 +5,7 @@ export default PropTypes.shape({
   isVisible: PropTypes.bool,
   message: PropTypes.string,
   undoAction: PropTypes.func,
+  dismissOnPageChange: PropTypes.bool,
 });
 
 export interface INotification {
@@ -12,4 +13,5 @@ export interface INotification {
   isVisible: boolean;
   message: JSX.Element | string | null;
   undoAction?: () => void;
+  dismissOnPageChange?: boolean;
 }

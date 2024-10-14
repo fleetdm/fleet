@@ -17,6 +17,7 @@ export interface IFlashMessage {
   onUndoActionClick?: (
     value: () => void
   ) => (evt: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
+  pathname?: string;
 }
 
 const FlashMessage = ({
@@ -26,8 +27,10 @@ const FlashMessage = ({
   className,
   onRemoveFlash,
   onUndoActionClick,
+  pathname,
 }: IFlashMessage): JSX.Element | null => {
-  const { alertType, isVisible, message, undoAction } = notification || {};
+  const { alertType, isVisible, message, undoAction, dismissOnPageChange } =
+    notification || {};
   const baseClasses = classnames(
     baseClass,
     className,
@@ -59,6 +62,14 @@ const FlashMessage = ({
 
     return undefined; // No cleanup when we don't set a timeout.
   }, [notification, alertType, isVisible, setHide]);
+
+  useEffect(() => {
+    if (dismissOnPageChange) {
+      setHide(true);
+    }
+    // intentionally omit dismissOnPageChange from dependencies to prevent hiding during initial
+    // update of the notification prop from its default empty value
+  }, [pathname]);
 
   if (hide || !isVisible) {
     return null;

@@ -17,7 +17,8 @@ type InitialStateType = {
   renderFlash: (
     alertType: "success" | "error" | "warning-filled" | null,
     message: JSX.Element | string | null,
-    undoAction?: (evt: React.MouseEvent<HTMLButtonElement>) => void
+    undoAction?: (evt: React.MouseEvent<HTMLButtonElement>) => void,
+    options?: { dismissOnPageChange?: boolean }
   ) => void;
   hideFlash: () => void;
 };
@@ -30,14 +31,14 @@ const initialState = {
   hideFlash: noop,
 };
 
-const actions = {
+const actionTypes = {
   RENDER_FLASH: "RENDER_FLASH",
   HIDE_FLASH: "HIDE_FLASH",
 };
 
 const reducer = (state: any, action: any) => {
   switch (action.type) {
-    case actions.RENDER_FLASH:
+    case actionTypes.RENDER_FLASH:
       return {
         ...state,
         notification: {
@@ -45,9 +46,10 @@ const reducer = (state: any, action: any) => {
           isVisible: true,
           message: action.message,
           undoAction: action.undoAction,
+          dismissOnPageChange: action.options?.dismissOnPageChange ?? false,
         },
       };
-    case actions.HIDE_FLASH:
+    case actionTypes.HIDE_FLASH:
       return initialState;
     default:
       return state;
@@ -65,20 +67,24 @@ const NotificationProvider = ({ children }: Props) => {
     (
       alertType: "success" | "error" | "warning-filled" | null,
       message: JSX.Element | string | null,
-      undoAction?: (evt: React.MouseEvent<HTMLButtonElement>) => void
+      undoAction?: (evt: React.MouseEvent<HTMLButtonElement>) => void,
+      options?: {
+        dismissOnPageChange?: boolean;
+      }
     ) => {
       dispatch({
-        type: actions.RENDER_FLASH,
+        type: actionTypes.RENDER_FLASH,
         alertType,
         message,
         undoAction,
+        options,
       });
     },
     []
   );
 
   const hideFlash = useCallback(() => {
-    dispatch({ type: actions.HIDE_FLASH });
+    dispatch({ type: actionTypes.HIDE_FLASH });
   }, []);
 
   const value = useMemo(

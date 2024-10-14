@@ -44,10 +44,6 @@ const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
     }
   }, [notification]);
 
-  useEffect(() => {
-    hideFlash();
-  }, [hideFlash, location.pathname]);
-
   const onLogoutUser = async () => {
     const { LOGOUT } = paths;
     router.push(LOGOUT);
@@ -103,6 +99,7 @@ const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
           notification={notification}
           onRemoveFlash={hideFlash}
           onUndoActionClick={onUndoActionClick}
+          pathname={location.pathname}
         />
 
         {children}

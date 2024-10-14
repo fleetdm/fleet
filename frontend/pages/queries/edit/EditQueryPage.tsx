@@ -318,7 +318,11 @@ const EditQueryPage = ({
       } else {
         renderFlash(
           "error",
-          "Something went wrong updating your query. Please try again."
+          "Something went wrong updating your query. Please try again.",
+          undefined,
+          {
+            dismissOnPageChange: true,
+          }
         );
       }
     }
