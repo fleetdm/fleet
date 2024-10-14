@@ -81,10 +81,15 @@ const SetupExperienceScript = ({
               onUpload={onUpload}
             />
           ) : (
-            <SetupExperienceScriptCard
-              script={script}
-              onDelete={() => setShowDeleteScriptModal(true)}
-            />
+            <>
+              <p className={`${baseClass}__run-message`}>
+                Script will run during setup:
+              </p>
+              <SetupExperienceScriptCard
+                script={script}
+                onDelete={() => setShowDeleteScriptModal(true)}
+              />
+            </>
           )}
         </div>
         <SetupExperiencePreview />

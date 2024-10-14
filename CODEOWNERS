@@ -74,13 +74,6 @@ go.mod @fleetdm/go
 /render.yaml                                    @edwardsb
 
 ##############################################################################################
-# 🫧 Pricing and features
-#
-# (see website/config/custom.js for DRIs of other paths not listed here)
-##############################################################################################
-/handbook/company/pricing-features-table.yml          @noahtalerman # « Head of Product Design is current DRI for features table
-
-##############################################################################################
 # 🌐 Repo automation and change control settings
 ##############################################################################################
 # /CODEOWNERS                 @mikermcneil  # Covered in DRIs
@@ -115,6 +108,12 @@ go.mod @fleetdm/go
 # 🌐 GitHub issue templates
 ##############################################################################################
 #/.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # Covered in custom.js See https://github.com/fleetdm/fleet/pull/18668
+
+
+##############################################################################################
+# 🌐 Fleet website
+##############################################################################################
+/website/.sailsrc 		@eashaw # Note: eashaw will not approve any PR that changes this file. This codeowner exists to make sure no changes are committed to the repo.
 
 ##############################################################################################
 # 🌐 GitHub workflows
