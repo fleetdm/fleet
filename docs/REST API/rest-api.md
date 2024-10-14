@@ -8425,6 +8425,8 @@ The script will be added to the host's list of upcoming activities.
 
 The new script will run after other activities finish. Failure of one activity won't cancel other activities.
 
+If the script run takes longer than 5 minutes (default), Fleet will stop the script. You can modify this default in your [agent configuration](https://fleetdm.com/docs/configuration/agent-configuration#script-execution-timeout).
+
 `POST /api/v1/fleet/scripts/run`
 
 #### Parameters
@@ -9481,6 +9483,8 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 _Available in Fleet Premium._
 
 Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` added to be installed.
+
+If the software install takes longer than 1 hour, Fleet will stop the install.
 
 `POST /api/v1/fleet/hosts/:id/software/:software_title_id/install`
 
