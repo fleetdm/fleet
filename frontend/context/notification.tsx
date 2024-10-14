@@ -17,7 +17,6 @@ type InitialStateType = {
   renderFlash: (
     alertType: "success" | "error" | "warning-filled" | null,
     message: JSX.Element | string | null,
-    undoAction?: (evt: React.MouseEvent<HTMLButtonElement>) => void,
     options?: { dismissOnPageChange?: boolean }
   ) => void;
   hideFlash: () => void;
@@ -45,7 +44,6 @@ const reducer = (state: any, action: any) => {
           alertType: action.alertType,
           isVisible: true,
           message: action.message,
-          undoAction: action.undoAction,
           dismissOnPageChange: action.options?.dismissOnPageChange ?? false,
         },
       };
@@ -67,7 +65,6 @@ const NotificationProvider = ({ children }: Props) => {
     (
       alertType: "success" | "error" | "warning-filled" | null,
       message: JSX.Element | string | null,
-      undoAction?: (evt: React.MouseEvent<HTMLButtonElement>) => void,
       options?: {
         dismissOnPageChange?: boolean;
       }
@@ -76,7 +73,6 @@ const NotificationProvider = ({ children }: Props) => {
         type: actionTypes.RENDER_FLASH,
         alertType,
         message,
-        undoAction,
         options,
       });
     },

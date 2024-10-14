@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from "react";
+import React, { useContext } from "react";
 import { InjectedRouter } from "react-router";
 
 import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
@@ -63,18 +63,6 @@ const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
     };
   };
 
-  const onUndoActionClick = (undoAction?: () => void) => {
-    return (evt: React.MouseEvent<HTMLButtonElement>) => {
-      evt.preventDefault();
-
-      if (undoAction) {
-        undoAction();
-      }
-
-      hideFlash();
-    };
-  };
-
   const fullWidthFlash = !currentUser;
 
   if (!currentUser || !config) {
@@ -98,7 +86,6 @@ const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
           fullWidth={fullWidthFlash}
           notification={notification}
           onRemoveFlash={hideFlash}
-          onUndoActionClick={onUndoActionClick}
           pathname={location.pathname}
         />
 

@@ -319,7 +319,6 @@ const EditQueryPage = ({
         renderFlash(
           "error",
           "Something went wrong updating your query. Please try again.",
-          undefined,
           {
             dismissOnPageChange: true,
           }

@@ -4,7 +4,6 @@ import classnames from "classnames";
 import { INotification } from "interfaces/notification";
 // @ts-ignore
 import Icon from "components/Icon/Icon";
-import Button from "components/buttons/Button";
 
 const baseClass = "flash-message";
 
@@ -14,9 +13,6 @@ export interface IFlashMessage {
   isPersistent?: boolean;
   className?: string;
   onRemoveFlash: () => void;
-  onUndoActionClick?: (
-    value: () => void
-  ) => (evt: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
   pathname?: string;
 }
 
@@ -26,10 +22,9 @@ const FlashMessage = ({
   isPersistent,
   className,
   onRemoveFlash,
-  onUndoActionClick,
   pathname,
 }: IFlashMessage): JSX.Element | null => {
-  const { alertType, isVisible, message, undoAction, dismissOnPageChange } =
+  const { alertType, isVisible, message, dismissOnPageChange } =
     notification || {};
   const baseClasses = classnames(
     baseClass,
@@ -84,15 +79,6 @@ const FlashMessage = ({
             color="core-fleet-white"
           />
           <span>{message}</span>
-          {onUndoActionClick && undoAction && (
-            <Button
-              className={`${baseClass}__undo`}
-              variant="unstyled"
-              onClick={onUndoActionClick(undoAction)}
-            >
-              Undo
-            </Button>
-          )}
         </div>
         <div className={`${baseClass}__action`}>
           <div className={`${baseClass}__ex`}>
