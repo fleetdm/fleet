@@ -32,7 +32,7 @@ const addSoftwareSubNav: IAddSoftwareSubNavItem[] = [
     pathname: PATHS.SOFTWARE_ADD_APP_STORE,
   },
   {
-    name: "Custom Package",
+    name: "Custom package",
     pathname: PATHS.SOFTWARE_ADD_PACKAGE,
   },
 ];

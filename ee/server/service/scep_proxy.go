@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/Azure/go-ntlmssp"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -27,6 +28,7 @@ var challengeRegex = regexp.MustCompile(`(?i)The enrollment challenge password i
 const (
 	fullPasswordCache             = "The password cache is full."
 	MessageSCEPProxyNotConfigured = "SCEP proxy is not configured"
+	NDESChallengeInvalidAfter     = 57 * time.Minute
 )
 
 type scepProxyService struct {
@@ -89,8 +91,8 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 		return nil, &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 	}
 
-	// Validate the identifier. In the future, we will also use the identifier for tracking the certificate renewal.
-	parsedID, err := url.QueryUnescape(identifier)
+	// Validate the identifier and challenge password expiration.
+	parsedID, err := url.PathUnescape(identifier)
 	if err != nil {
 		// Should never happen since the identifier comes in as a path variable
 		return nil, ctxerr.Wrap(ctx, err, "unescaping identifier in URL path")
@@ -100,13 +102,33 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 		// Return error that implements kithttp.StatusCoder interface
 		return nil, &scepserver.BadRequestError{Message: "invalid identifier in URL path"}
 	}
-	profile, err := svc.ds.GetHostMDMAppleProfile(ctx, parsedIDs[0], parsedIDs[1])
+	hostUUID := parsedIDs[0]
+	profileUUID := parsedIDs[1]
+	if !strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) {
+		return nil, &scepserver.BadRequestError{Message: fmt.Sprintf("invalid profile UUID (only Apple config profiles are supported): %s",
+			profileUUID)}
+	}
+	profile, err := svc.ds.GetHostMDMCertificateProfile(ctx, hostUUID, profileUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting host MDM profile")
 	}
 	if profile == nil {
 		// Return error that implements kithttp.StatusCoder interface
 		return nil, &scepserver.BadRequestError{Message: "unknown identifier in URL path"}
+	}
+	if profile.Status == nil || *profile.Status != fleet.MDMDeliveryPending {
+		// This could happen if Fleet DB was updated before the profile was updated on the host.
+		// We expect another certificate request from the host once the profile is updated.
+		return nil, &scepserver.BadRequestError{Message: "profile status is not 'pending'"}
+	}
+	if profile.ChallengeRetrievedAt != nil && profile.ChallengeRetrievedAt.Add(NDESChallengeInvalidAfter).Before(time.Now()) {
+		// The challenge password was retrieved for this profile, and is now invalid.
+		// We need to resend the profile with a new challenge password.
+		// Note: we don't actually know if it is invalid, and we can't get that exact feedback from SCEP server.
+		if err = svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "resending host mdm profile")
+		}
+		return nil, &scepserver.BadRequestError{Message: "challenge password has expired"}
 	}
 
 	client, err := scepclient.New(appConfig.Integrations.NDESSCEPProxy.Value.URL, svc.debugLogger)

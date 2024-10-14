@@ -1,10 +1,10 @@
 # https://github.com/fleetdm/fleet/pull/13084
 - 
-  task: "Complete Digital Experience KPIs"
+  task: "Complete Digital Experience KPIs and send weekly update"
   startedOn: "2024-08-30" 
   frequency: "Weekly"
   description: "Complete Digital Experience KPIs for this week"
-  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0&range=DB1"
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#send-the-weekly-update"
   dri: "SFriendLee"
   autoIssue:   
     labels: [ "#g-digital-experience" ]
@@ -111,16 +111,6 @@
   description: "Process the CEO's calendar"  
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-the-ceos-calendar"
   dri: "SFriendLee"
--
-  task: "Send weekly update"
-  startedOn: "2023-09-15"
-  frequency: "Weekly"
-  description: "Send weekly update"
-  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#send-the-weekly-update"
-  dri: "SFriendLee"
-  autoIssue:  
-    labels: [ "#g-digital-experience" ] 
-    repo: "confidential"
 -
   task: "Process and backup E-group agenda"
   startedOn: "2023-09-20"

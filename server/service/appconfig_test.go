@@ -1471,7 +1471,8 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 		return nil
 	}
 
-	svc, ctx = newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	fleetConfig := config.TestConfig()
+	svc, ctx = newTestServiceWithConfig(t, ds, fleetConfig, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 	ac, err := svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
 	require.NoError(t, err)
@@ -1589,4 +1590,12 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	assert.False(t, validateNDESSCEPURLCalled)
 	assert.False(t, validateNDESSCEPAdminURLCalled)
 	assert.True(t, ds.HardDeleteMDMConfigAssetFuncInvoked)
+
+	// Cannot configure NDES without private key
+	fleetConfig.Server.PrivateKey = ""
+	svc, ctx = newTestServiceWithConfig(t, ds, fleetConfig, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+	_, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
+	assert.ErrorContains(t, err, "private key")
+
 }

@@ -74,7 +74,7 @@ module.exports = {
       throw 'invalidEmailDomain';
     }
 
-    if(numberOfHosts >= 700){
+    if(numberOfHosts >= 300){
       sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: emailAddress,
         firstName: firstName,
