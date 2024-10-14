@@ -23,7 +23,7 @@ module.exports = {
   fn: async function ({software}) {
     // If the provided software does not have a teams array and has an ID, it is an undeployed software that will be deleted.
     if(software.id && !software.teams){
-      await sails.rm(software.uploadFd);
+      await sails.rm(sails.config.uploads.prefix+software.uploadFd);
       await UndeployedSoftware.destroy({id: software.id});
     } else {// Otherwise, this is a deployed software, and we'll use information from the teams array to remove the software.
       for(let team of software.teams){
