@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -59,8 +60,17 @@ func testUsersCreate(t *testing.T, ds *Datastore) {
 			SSOEnabled:               tt.sso,
 			GlobalRole:               ptr.String(fleet.RoleObserver),
 		}
+
+		// truncating because we're truncating under the hood to match the DB
+		beforeUserCreate := time.Now().Truncate(time.Second)
 		user, err := ds.NewUser(context.Background(), u)
+		afterUserCreate := time.Now().Truncate(time.Second)
 		assert.Nil(t, err)
+
+		assert.LessOrEqual(t, beforeUserCreate, user.CreatedAt)
+		assert.LessOrEqual(t, beforeUserCreate, user.UpdatedAt)
+		assert.GreaterOrEqual(t, afterUserCreate, user.CreatedAt)
+		assert.GreaterOrEqual(t, afterUserCreate, user.UpdatedAt)
 
 		verify, err := ds.UserByEmail(context.Background(), tt.email)
 		assert.Nil(t, err)
@@ -70,6 +80,11 @@ func testUsersCreate(t *testing.T, ds *Datastore) {
 		assert.Equal(t, tt.email, verify.Email)
 		assert.Equal(t, tt.sso, verify.SSOEnabled)
 		assert.Equal(t, tt.resultingPasswordReset, verify.AdminForcedPasswordReset)
+
+		assert.LessOrEqual(t, beforeUserCreate, verify.CreatedAt)
+		assert.LessOrEqual(t, beforeUserCreate, verify.UpdatedAt)
+		assert.GreaterOrEqual(t, afterUserCreate, verify.CreatedAt)
+		assert.GreaterOrEqual(t, afterUserCreate, verify.UpdatedAt)
 	}
 }
 

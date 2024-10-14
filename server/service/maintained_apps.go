@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
@@ -62,6 +63,8 @@ type listFleetMaintainedAppsRequest struct {
 }
 
 type listFleetMaintainedAppsResponse struct {
+	Count               int                       `json:"count"`
+	AppsUpdatedAt       *time.Time                `json:"apps_updated_at"`
 	FleetMaintainedApps []fleet.MaintainedApp     `json:"fleet_maintained_apps"`
 	Meta                *fleet.PaginationMetadata `json:"meta"`
 	Err                 error                     `json:"error,omitempty"`
@@ -69,7 +72,7 @@ type listFleetMaintainedAppsResponse struct {
 
 func (r listFleetMaintainedAppsResponse) error() error { return r.Err }
 
-func listFleetMaintainedApps(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+func listFleetMaintainedAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
 	req := request.(*listFleetMaintainedAppsRequest)
 
 	req.IncludeMetadata = true
@@ -79,7 +82,23 @@ func listFleetMaintainedApps(ctx context.Context, request any, svc fleet.Service
 		return listFleetMaintainedAppsResponse{Err: err}, nil
 	}
 
-	return listFleetMaintainedAppsResponse{FleetMaintainedApps: apps, Meta: meta}, nil
+	var latest time.Time
+	for _, app := range apps {
+		if app.UpdatedAt != nil && !app.UpdatedAt.IsZero() && app.UpdatedAt.After(latest) {
+			latest = *app.UpdatedAt
+		}
+	}
+
+	listResp := listFleetMaintainedAppsResponse{
+		FleetMaintainedApps: apps,
+		Count:               int(meta.TotalResults),
+		Meta:                meta,
+	}
+	if !latest.IsZero() {
+		listResp.AppsUpdatedAt = &latest
+	}
+
+	return listResp, nil
 }
 
 func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {

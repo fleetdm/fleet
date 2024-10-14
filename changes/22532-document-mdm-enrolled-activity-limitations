@@ -1,0 +1,1 @@
+* Documented that Microsoft enrollments have less fields filled in the `mdm_enrolled` activity due to how this MDM enrollment flow is implemented.

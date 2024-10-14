@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -27,6 +28,10 @@ import (
 	"github.com/go-kit/log/level"
 	"golang.org/x/text/unicode/norm"
 )
+
+// Functions that can be overwritten in tests
+var validateNDESSCEPAdminURL = eeservice.ValidateNDESSCEPAdminURL
+var validateNDESSCEPURL = eeservice.ValidateNDESSCEPURL
 
 ////////////////////////////////////////////////////////////////////////////////
 // Get AppConfig
@@ -328,6 +333,65 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if err := json.Unmarshal(p, &appConfig); err != nil {
 		err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// Validate NDES SCEP URLs if they changed. Validation is done in both dry run and normal mode.
+	if newAppConfig.Integrations.NDESSCEPProxy.Set && newAppConfig.Integrations.NDESSCEPProxy.Valid && !license.IsPremium() {
+		invalid.Append("integrations.ndes_scep_proxy", ErrMissingLicense.Error())
+		appConfig.Integrations.NDESSCEPProxy.Valid = false
+	} else {
+		switch {
+		case !newAppConfig.Integrations.NDESSCEPProxy.Set:
+			// Nothing is set -- keep the old value
+			appConfig.Integrations.NDESSCEPProxy = oldAppConfig.Integrations.NDESSCEPProxy
+		case !newAppConfig.Integrations.NDESSCEPProxy.Valid:
+			// User is explicitly clearing this setting
+			appConfig.Integrations.NDESSCEPProxy.Valid = false
+			// Delete stored password
+			if !applyOpts.DryRun {
+				if err := svc.ds.HardDeleteMDMConfigAsset(ctx, fleet.MDMAssetNDESPassword); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "delete NDES SCEP password")
+				}
+			}
+		default:
+			// User is updating the setting
+			appConfig.Integrations.NDESSCEPProxy.Value.URL = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.URL)
+			appConfig.Integrations.NDESSCEPProxy.Value.AdminURL = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.AdminURL)
+			appConfig.Integrations.NDESSCEPProxy.Value.Username = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.Username)
+			// do not preprocess password
+			if len(svc.config.Server.PrivateKey) == 0 {
+				invalid.Append("integrations.ndes_scep_proxy",
+					"Cannot encrypt NDES password. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+			}
+
+			validateAdminURL, validateSCEPURL := false, false
+			newSCEPProxy := appConfig.Integrations.NDESSCEPProxy.Value
+			if !oldAppConfig.Integrations.NDESSCEPProxy.Valid {
+				validateAdminURL, validateSCEPURL = true, true
+			} else {
+				oldSCEPProxy := oldAppConfig.Integrations.NDESSCEPProxy.Value
+				if newSCEPProxy.URL != oldSCEPProxy.URL {
+					validateSCEPURL = true
+				}
+				if newSCEPProxy.AdminURL != oldSCEPProxy.AdminURL ||
+					newSCEPProxy.Username != oldSCEPProxy.Username ||
+					(newSCEPProxy.Password != "" && newSCEPProxy.Password != fleet.MaskedPassword) {
+					validateAdminURL = true
+				}
+			}
+
+			if validateAdminURL {
+				if err = validateNDESSCEPAdminURL(ctx, newSCEPProxy); err != nil {
+					invalid.Append("integrations.ndes_scep_proxy", err.Error())
+				}
+			}
+
+			if validateSCEPURL {
+				if err = validateNDESSCEPURL(ctx, newSCEPProxy, svc.logger); err != nil {
+					invalid.Append("integrations.ndes_scep_proxy.url", err.Error())
+				}
+			}
+		}
 	}
 
 	// EnableDiskEncryption is an optjson.Bool field in order to support the

@@ -14262,10 +14262,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	var listUpcomingAct listHostUpcomingActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1Team1.ID), nil, http.StatusOK, &listUpcomingAct)
 	require.Len(t, listUpcomingAct.Activities, 1)
-	require.NotNil(t, listUpcomingAct.Activities[0].ActorID)
-	require.Equal(t, globalAdmin.ID, *listUpcomingAct.Activities[0].ActorID)
-	require.Equal(t, globalAdmin.Name, *listUpcomingAct.Activities[0].ActorFullName)
-	require.Equal(t, globalAdmin.Email, *listUpcomingAct.Activities[0].ActorEmail)
+	require.Nil(t, listUpcomingAct.Activities[0].ActorID)
+	require.Equal(t, "Fleet", *listUpcomingAct.Activities[0].ActorFullName)
+	require.Nil(t, listUpcomingAct.Activities[0].ActorEmail)
 
 	//
 	// Finally have orbit install the packages and check activities.
@@ -14286,8 +14285,10 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"software_package": "%s",
 		"self_service": false,
 		"install_uuid": "%s",
-		"status": "installed"
-	}`, host1Team1.ID, host1Team1.DisplayName(), "DummyApp.app", "dummy_installer.pkg", host1LastInstall.ExecutionID), 0)
+		"status": "installed",
+		"policy_id": %d,
+		"policy_name": "%s"
+	}`, host1Team1.ID, host1Team1.DisplayName(), "DummyApp.app", "dummy_installer.pkg", host1LastInstall.ExecutionID, policy1Team1.ID, policy1Team1.Name), 0)
 
 	// host2Team1 posts the installation result for ruby.deb.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
@@ -14304,27 +14305,32 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"software_package": "%s",
 		"self_service": false,
 		"install_uuid": "%s",
-		"status": "%s"
-	}`, host2Team1.ID, host2Team1.DisplayName(), "ruby", "ruby.deb", host2LastInstall.ExecutionID, fleet.SoftwareInstallFailed), 0)
+		"status": "%s",
+		"policy_id": %d,
+		"policy_name": "%s"
+	}`, host2Team1.ID, host2Team1.DisplayName(), "ruby", "ruby.deb", host2LastInstall.ExecutionID, fleet.SoftwareInstallFailed, policy2Team1.ID, policy2Team1.Name), 0)
 
-	// Check that the activity item generated for ruby.deb installation has a null user,
-	// but has name and email set.
+	// Check that the activity item generated for ruby.deb installation is shown as coming from Fleet
 	var actor struct {
-		UserID    *uint   `db:"user_id"`
-		UserName  *string `db:"user_name"`
-		UserEmail string  `db:"user_email"`
+		UserID     *uint   `db:"user_id"`
+		UserName   *string `db:"user_name"`
+		UserEmail  string  `db:"user_email"`
+		PolicyID   *uint   `db:"policy_id"`
+		PolicyName *string `db:"policy_name"`
 	}
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&actor,
-			`SELECT user_id, user_name, user_email FROM activities WHERE id = ?`,
+			`SELECT user_id, user_name, user_email, details->>'$.policy_id' policy_id, details->>'$.policy_name' policy_name FROM activities WHERE id = ?`,
 			activityID,
 		)
 	})
 	require.Nil(t, actor.UserID)
 	require.NotNil(t, actor.UserName)
-	require.Equal(t, "admin team1", *actor.UserName)
-	require.Equal(t, "admin_team1@example.com", actor.UserEmail)
+	require.Equal(t, "Fleet", *actor.UserName)
+	require.Equal(t, "", actor.UserEmail)
+	require.Equal(t, policy2Team1.ID, *actor.PolicyID)
+	require.Equal(t, policy2Team1.Name, *actor.PolicyName)
 
 	// host3Team2 posts the installation result for fleet-osquery.msi.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
@@ -14341,23 +14347,26 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"software_package": "%s",
 		"self_service": false,
 		"install_uuid": "%s",
-		"status": "%s"
+		"status": "%s",
+		"policy_id": %f,
+		"policy_name": "%s"
 	}`, host3Team2.ID, host3Team2.DisplayName(), "Fleet osquery", "fleet-osquery.msi", host3LastInstall.ExecutionID,
-		fleet.SoftwareInstallFailed), 0)
+		fleet.SoftwareInstallFailed, float64(policy4Team2.ID), policy4Team2.Name), 0)
 
-	// Check that the activity item generated for fleet-osquery.msi installation has the admin user set as author.
+	// Check that the activity item generated for fleet-osquery.msi installation has Fleet set as author.
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&actor,
-			`SELECT user_id, user_name, user_email FROM activities WHERE id = ?`,
+			`SELECT user_id, user_name, user_email, details->>'$.policy_id' policy_id, details->>'$.policy_name' policy_name FROM activities WHERE id = ?`,
 			activityID,
 		)
 	})
-	require.NotNil(t, actor.UserID)
-	require.Equal(t, globalAdmin.ID, *actor.UserID)
+	require.Nil(t, actor.UserID)
 	require.NotNil(t, actor.UserName)
-	require.Equal(t, "Test Name admin1@example.com", *actor.UserName)
-	require.Equal(t, "admin1@example.com", actor.UserEmail)
+	require.Equal(t, "Fleet", *actor.UserName)
+	require.Equal(t, "", actor.UserEmail)
+	require.Equal(t, policy4Team2.ID, *actor.PolicyID)
+	require.Equal(t, policy4Team2.Name, *actor.PolicyName)
 
 	// hostVanillaOsquery5Team1 sends policy results with failed policies with associated installers.
 	// Fleet should not queue an install for vanilla osquery hosts.

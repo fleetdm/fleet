@@ -4,4 +4,4 @@
   resolution: There is no resolution for this policy.
   query: SELECT 1 FROM osquery_info WHERE start_time < 0;
   run_script:
-    path: ./lib/collect-fleetd-logs.sh
+    path: ../lib/collect-fleetd-logs.sh

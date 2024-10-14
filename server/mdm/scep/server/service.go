@@ -32,6 +32,28 @@ type Service interface {
 	GetNextCACert(ctx context.Context) ([]byte, error)
 }
 
+// ServiceWithIdentifier is the interface for all supported SCEP server operations.
+type ServiceWithIdentifier interface {
+	// GetCACaps returns a list of options
+	// which are supported by the server.
+	GetCACaps(ctx context.Context) ([]byte, error)
+
+	// GetCACert returns CA certificate or
+	// a CA certificate chain with intermediates
+	// in a PKCS#7 Degenerate Certificates format
+	// message is an optional string for the CA
+	GetCACert(ctx context.Context, message string) ([]byte, int, error)
+
+	// PKIOperation handles incoming SCEP messages such as PKCSReq and
+	// sends back a CertRep PKIMessag.
+	PKIOperation(ctx context.Context, msg []byte, identifier string) ([]byte, error)
+
+	// GetNextCACert returns a replacement certificate or certificate chain
+	// when the old one expires. The response format is a PKCS#7 Degenerate
+	// Certificates type.
+	GetNextCACert(ctx context.Context) ([]byte, error)
+}
+
 type service struct {
 	// The service certificate and key for SCEP exchanges. These are
 	// quite likely the same as the CA keypair but may be its own SCEP
@@ -52,8 +74,10 @@ type service struct {
 	debugLogger log.Logger
 }
 
+const DefaultCACaps = "Renewal\nSHA-1\nSHA-256\nAES\nDES3\nSCEPStandard\nPOSTPKIOperation"
+
 func (svc *service) GetCACaps(ctx context.Context) ([]byte, error) {
-	defaultCaps := []byte("Renewal\nSHA-1\nSHA-256\nAES\nDES3\nSCEPStandard\nPOSTPKIOperation")
+	defaultCaps := []byte(DefaultCACaps)
 	return defaultCaps, nil
 }
 

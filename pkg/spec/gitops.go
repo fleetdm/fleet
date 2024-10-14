@@ -428,9 +428,11 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	}
 	controlsTop.Defined = true
 	if controlsTop.Path == nil {
+		controlsTop.Scripts = resolvePaths(controlsTop.Scripts, baseDir)
 		result.Controls = controlsTop
 	} else {
-		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *controlsTop.Path))
+		controlsFilePath := resolveApplyRelativePath(baseDir, *controlsTop.Path)
+		fileBytes, err := os.ReadFile(controlsFilePath)
 		if err != nil {
 			return multierror.Append(multiError, fmt.Errorf("failed to read controls file %s: %v", *controlsTop.Path, err))
 		}
@@ -451,10 +453,25 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					fmt.Errorf("nested paths are not supported: %s in %s", *pathControls.Path, *controlsTop.Path),
 				)
 			}
+
+			pathControls.Scripts = resolvePaths(pathControls.Scripts, filepath.Dir(controlsFilePath))
 			result.Controls = pathControls
 		}
 	}
 	return multiError
+}
+
+func resolvePaths(input []BaseItem, baseDir string) []BaseItem {
+	var resolved []BaseItem
+	for _, item := range input {
+		if item.Path != nil {
+			resolvedPath := resolveApplyRelativePath(baseDir, *item.Path)
+			item.Path = &resolvedPath
+		}
+		resolved = append(resolved, item)
+	}
+
+	return resolved
 }
 
 func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
@@ -479,7 +496,8 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 			result.Policies = append(result.Policies, &item.GitOpsPolicySpec)
 		} else {
-			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
+			filePath := resolveApplyRelativePath(baseDir, *item.Path)
+			fileBytes, err := os.ReadFile(filePath)
 			if err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to read policies file %s: %v", *item.Path, err))
 				continue
@@ -504,11 +522,11 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 								multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pp.Path, *item.Path),
 							)
 						} else {
-							if err := parsePolicyInstallSoftware(baseDir, result.TeamName, pp, result.Software.Packages); err != nil {
+							if err := parsePolicyInstallSoftware(filepath.Dir(filePath), result.TeamName, pp, result.Software.Packages); err != nil {
 								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy install_software %q: %v", pp.Name, err))
 								continue
 							}
-							if err := parsePolicyRunScript(baseDir, result.TeamName, pp, result.Controls.Scripts); err != nil {
+							if err := parsePolicyRunScript(filepath.Dir(filePath), result.TeamName, pp, result.Controls.Scripts); err != nil {
 								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy run_script %q: %v", pp.Name, err))
 								continue
 							}
@@ -562,20 +580,26 @@ func parsePolicyRunScript(baseDir string, teamName *string, policy *Policy, scri
 		return errors.New("empty run_script path")
 	}
 
-	_, err := os.Stat(resolveApplyRelativePath(baseDir, policy.RunScript.Path))
+	scriptPath := resolveApplyRelativePath(baseDir, policy.RunScript.Path)
+	_, err := os.Stat(scriptPath)
 	if err != nil {
 		return fmt.Errorf("script file does not exist %q: %v", policy.RunScript.Path, err)
 	}
 
 	scriptOnTeamFound := false
+	var foundScriptPaths []string
 	for _, script := range scripts {
-		if policy.RunScript.Path == *script.Path {
+		foundScriptPaths = append(foundScriptPaths, *script.Path)
+		if scriptPath == *script.Path {
 			scriptOnTeamFound = true
 			break
 		}
 	}
 	if !scriptOnTeamFound {
-		return fmt.Errorf("policy script not found on team: %s", policy.RunScript.Path)
+		if *teamName == noTeam {
+			return fmt.Errorf("policy script %s was not defined in controls in no-team.yml", scriptPath)
+		}
+		return fmt.Errorf("policy script %s was not defined in controls for %s", scriptPath, *teamName)
 	}
 
 	scriptName := filepath.Base(policy.RunScript.Path)
