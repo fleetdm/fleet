@@ -64,8 +64,6 @@ const ProfileStatusAggregate = ({
   teamId,
   aggregateProfileStatusData,
 }: ProfileStatusAggregateProps) => {
-  if (!aggregateProfileStatusData) return null;
-
   if (isLoading) {
     return (
       <div className={baseClass}>
@@ -73,6 +71,8 @@ const ProfileStatusAggregate = ({
       </div>
     );
   }
+
+  if (!aggregateProfileStatusData) return null;
 
   const indicators = AGGREGATE_STATUS_DISPLAY_OPTIONS.map((status) => {
     const { value, text, iconName, tooltipText } = status;
