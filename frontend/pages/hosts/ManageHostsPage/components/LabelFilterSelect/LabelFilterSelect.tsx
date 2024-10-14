@@ -131,6 +131,10 @@ const LabelFilterSelect = ({
     if (e.key === "Escape") {
       setMenuIsOpen(false);
       selectRef.current?.blur();
+    } else if (e.key === "Tab" && !e.shiftKey) {
+      // Allow tabbing out of the component
+      setMenuIsOpen(false);
+      selectRef.current?.blur();
     } else {
       setMenuIsOpen(true);
     }

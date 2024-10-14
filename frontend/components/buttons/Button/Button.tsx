@@ -57,7 +57,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
   static defaultProps = {
     size: "",
     type: "button",
-    variant: "default",
+    variant: "brand",
   };
 
   componentDidMount(): void {
