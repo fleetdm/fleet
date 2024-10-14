@@ -20,6 +20,16 @@ sudo npm install -g fleetctl
 
 To install fleetctl on Windows or Linux, download the fleectl binary here on [GitHub](https://github.com/fleetdm/fleet/releases).
 
+### Additional dependencies
+
+To use `fleetctl preview`, you'll need Docker Compose.
+
+To use `fleetctl package` for platforms other than Windows, you'll need to run `fleetctl` from macOS or Linux.
+
+To use `fleetctl package` to create macOS installers (.pkg files), if you're using Linux you'll need Docker, as we use utilities in the `fleetdm/bomutils` Docker image there.
+
+To use `fleetctl package` to create Windows installers (.msi files), you'll need Docker if you aren't on an Apple Silicon Mac. This is because we use the `fleetdm/wix` Docker image to provide the [WiX](https://github.com/wixtoolset/wix3) dependency on most platforms. For Apple Silicon Macs, we automatically install WiX locally when needed.
+
 ### Upgrading fleetctl
 
 The easiest way to update fleetctl is by rerunning the installation command.
