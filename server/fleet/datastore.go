@@ -1756,6 +1756,9 @@ type Datastore interface {
 	GetSetupExperienceScript(ctx context.Context, teamID *uint) (*Script, error)
 	SetSetupExperienceScript(ctx context.Context, script *Script) error
 	DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error
+	MaybeUpdateSetupExperienceScriptStatus(ctx context.Context, hostUUID string, executionID string, status SetupExperienceStatusResultStatus) (bool, error)
+	MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx context.Context, hostUUID string, executionID string, status SetupExperienceStatusResultStatus) (bool, error)
+	MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hostUUID string, commandUUID string, status SetupExperienceStatusResultStatus) (bool, error)
 
 	// Fleet-maintained apps
 	//

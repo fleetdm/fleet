@@ -690,6 +690,20 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 		return ctxerr.Wrap(ctx, err, "save host script result")
 	}
 
+	// FIXME: datastore implementation of action seems rather brittle, can it be refactored?
+	if action == "" {
+		// this might be a setup experience script result
+		if updated, err := svc.maybeUpdateSetupExperienceStatus(ctx, fleet.SetupExperienceScriptResult{
+			HostUUID:    host.UUID,
+			ExecutionID: result.ExecutionID,
+			ExitCode:    result.ExitCode,
+		}, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "update setup experience status")
+		} else if updated {
+			// TODO: call next step of setup experience?
+		}
+	}
+
 	if hsr != nil {
 		var user *fleet.User
 		if hsr.UserID != nil {
@@ -1026,6 +1040,17 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	result.HostID = host.ID
 	if err := svc.ds.SetHostSoftwareInstallResult(ctx, result); err != nil {
 		return ctxerr.Wrap(ctx, err, "save host software installation result")
+	}
+
+	// this might be a setup experience software install result
+	if updated, err := svc.maybeUpdateSetupExperienceStatus(ctx, fleet.SetupExperienceSoftwareInstallResult{
+		HostUUID:        host.UUID,
+		ExecutionID:     result.InstallUUID,
+		InstallerStatus: result.Status(),
+	}, true); err != nil {
+		return ctxerr.Wrap(ctx, err, "update setup experience status")
+	} else if updated {
+		// TODO: call next step of setup experience?
 	}
 
 	if status := result.Status(); status != fleet.SoftwareInstallPending {

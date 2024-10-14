@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -405,4 +406,70 @@ func (ds *Datastore) DeleteSetupExperienceScript(ctx context.Context, teamID *ui
 	// for setup experience scripts.
 
 	return nil
+}
+
+func (ds *Datastore) MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hostUUID string, nanoCommandUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+	selectStmt := "SELECT id FROM setup_experience_status_results WHERE host_uuid = ? AND nano_command_uuid = ?"
+	updateStmt := "UPDATE setup_experience_status_results SET status = ? WHERE id = ?"
+
+	var id uint
+	if err := ds.writer(ctx).GetContext(ctx, &id, selectStmt, hostUUID, nanoCommandUUID); err != nil {
+		// TODO: maybe we can use the reader instead for this query
+		if errors.Is(err, sql.ErrNoRows) {
+			// return early if no results found
+			return false, nil
+		}
+		return false, err
+	}
+	res, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, id)
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+
+	return n > 0, nil
+}
+
+func (ds *Datastore) MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+	selectStmt := "SELECT id FROM setup_experience_status_results WHERE host_uuid = ? AND host_software_installs_id = ?"
+	updateStmt := "UPDATE setup_experience_status_results SET status = ? WHERE id = ?"
+
+	var id uint
+	if err := ds.writer(ctx).GetContext(ctx, &id, selectStmt, hostUUID, executionID); err != nil {
+		// TODO: maybe we can use the reader instead for this query
+		if errors.Is(err, sql.ErrNoRows) {
+			// return early if no results found
+			return false, nil
+		}
+		return false, err
+	}
+	res, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, id)
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+
+	return n > 0, nil
+}
+
+func (ds *Datastore) MaybeUpdateSetupExperienceScriptStatus(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+	selectStmt := "SELECT id FROM setup_experience_status_results WHERE host_uuid = ? AND script_execution_id = ?"
+	updateStmt := "UPDATE setup_experience_status_results SET status = ? WHERE id = ?"
+
+	var id uint
+	if err := ds.writer(ctx).GetContext(ctx, &id, selectStmt, hostUUID, executionID); err != nil {
+		// TODO: maybe we can use the reader instead for this query
+		if errors.Is(err, sql.ErrNoRows) {
+			// return early if no results found
+			return false, nil
+		}
+		return false, err
+	}
+	res, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, id)
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+
+	return n > 0, nil
 }

@@ -9,6 +9,24 @@ const (
 	SetupExperienceStatusFailure SetupExperienceStatusResultStatus = "failure"
 )
 
+func (s SetupExperienceStatusResultStatus) IsValid() bool {
+	switch s {
+	case SetupExperienceStatusPending, SetupExperienceStatusRunning, SetupExperienceStatusSuccess, SetupExperienceStatusFailure:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s SetupExperienceStatusResultStatus) IsTerminalStatus() bool {
+	switch s {
+	case SetupExperienceStatusSuccess, SetupExperienceStatusFailure:
+		return true
+	default:
+		return false
+	}
+}
+
 // SetupExperienceStatusResult represents the status of a particular step in the macOS setup
 // experience process for a particular host. These steps can either be a software installer
 // installation, a VPP app installation, or a script execution.
@@ -53,6 +71,57 @@ type SetupExperienceConfigurationProfileResult struct {
 type SetupExperienceAccountConfigurationResult struct {
 	CommandUUID string `json:"command_uuid"`
 	Status      string `json:"status"`
+}
+
+type SetupExperienceVPPInstallResult struct {
+	HostUUID      string
+	CommandUUID   string
+	CommandStatus string
+}
+
+func (r SetupExperienceVPPInstallResult) SetupExperienceStatus() SetupExperienceStatusResultStatus {
+	switch r.CommandStatus {
+	case MDMAppleStatusAcknowledged:
+		return SetupExperienceStatusSuccess
+	case MDMAppleStatusError, MDMAppleStatusCommandFormatError:
+		return SetupExperienceStatusFailure
+	default:
+		// TODO: is this what we want as the default, what about other possible statuses?
+		return SetupExperienceStatusPending
+	}
+}
+
+type SetupExperienceSoftwareInstallResult struct {
+	HostUUID        string
+	ExecutionID     string
+	InstallerStatus SoftwareInstallerStatus
+}
+
+func (r SetupExperienceSoftwareInstallResult) SetupExperienceStatus() SetupExperienceStatusResultStatus {
+	switch r.InstallerStatus {
+	case SoftwareInstalled:
+		return SetupExperienceStatusSuccess
+	case SoftwareFailed, SoftwareUninstallFailed:
+		return SetupExperienceStatusFailure
+	default:
+		// TODO: is this what we want as the default, what about other possible statuses (uninstall)?
+		return SetupExperienceStatusPending
+	}
+}
+
+type SetupExperienceScriptResult struct {
+	HostUUID    string
+	ExecutionID string
+	ExitCode    int
+}
+
+func (r SetupExperienceScriptResult) SetupExperienceStatus() SetupExperienceStatusResultStatus {
+	if r.ExitCode == 0 {
+		return SetupExperienceStatusSuccess
+	}
+	// TODO: what about other possible script statuses? seems like pending/running is never a
+	// possibility here (exit code can't be null)?
+	return SetupExperienceStatusFailure
 }
 
 // SetupExperienceStatusPayload is the payload we send to Orbit to tell it what the current status

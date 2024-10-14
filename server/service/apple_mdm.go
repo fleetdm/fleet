@@ -2872,7 +2872,19 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.UDID, status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
 	case "InstallApplication":
-		// Create an activity for installing only if we're in a terminal state
+
+		// this might be a setup experience VPP install, so we'll try to update the setup experience status
+		seStatus := (fleet.SetupExperienceVPPInstallResult{CommandStatus: cmdResult.Status}).SetupExperienceStatus()
+		if seStatus.IsValid() && seStatus.IsTerminalStatus() {
+			updated, err := svc.ds.MaybeUpdateSetupExperienceVPPStatus(r.Context, cmdResult.UDID, cmdResult.CommandUUID, seStatus)
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "updating setup experience status from VPP install result")
+			} else if updated {
+				// TODO: call next step of setup experience?
+			}
+		}
+
+		// create an activity for installing only if we're in a terminal state
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
 			cmdResult.Status == fleet.MDMAppleStatusError ||
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
@@ -3499,7 +3511,6 @@ func preprocessProfileContents(
 	profileContents map[string]mobileconfig.Mobileconfig,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 ) error {
-
 	// This method replaces Fleet variables ($FLEET_VAR_<NAME>) in the profile contents, generating a unique profile for each host.
 	// For a 2KB profile and 30K hosts, this method may generate ~60MB of profile data in memory.
 
