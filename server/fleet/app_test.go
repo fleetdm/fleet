@@ -398,7 +398,7 @@ func TestMDMUrl(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			appConfig := AppConfig{
-				MDM:            MDM{ServerURL: tc.mdmURL},
+				MDM:            MDM{ClientURL: tc.mdmURL},
 				ServerSettings: ServerSettings{ServerURL: tc.serverURL},
 			}
 			require.Equal(t, tc.want, appConfig.MDMUrl())

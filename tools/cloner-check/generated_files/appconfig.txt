@@ -104,7 +104,7 @@ github.com/fleetdm/fleet/v4/server/fleet/NDESSCEPProxyIntegration	AdminURL	strin
 github.com/fleetdm/fleet/v4/server/fleet/NDESSCEPProxyIntegration	Username	string
 github.com/fleetdm/fleet/v4/server/fleet/NDESSCEPProxyIntegration	Password	string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	MDM	fleet.MDM
-github.com/fleetdm/fleet/v4/server/fleet/MDM	ServerURL	string
+github.com/fleetdm/fleet/v4/server/fleet/MDM	ClientURL	string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	DeprecatedAppleBMDefaultTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBusinessManager	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleABMAssignmentInfo]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleABMAssignmentInfo]	Set	bool
