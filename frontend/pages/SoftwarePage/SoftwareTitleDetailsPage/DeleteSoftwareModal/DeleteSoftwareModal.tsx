@@ -12,6 +12,9 @@ const baseClass = "delete-software-modal";
 
 const DELETE_SW_USED_BY_POLICY_ERROR_MSG =
   "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again.";
+const DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG =
+  "Couldn't delete. This software is installed when new Macs boot. Please remove software in Controls > Setup experience and try again.";
+
 interface IDeleteSoftwareModalProps {
   softwareId: number;
   teamId: number;
@@ -36,6 +39,8 @@ const DeleteSoftwareModal = ({
       const reason = getErrorReason(error);
       if (reason.includes("Policy automation uses this software")) {
         renderFlash("error", DELETE_SW_USED_BY_POLICY_ERROR_MSG);
+      } else if (reason.includes("This software is installed when")) {
+        renderFlash("error", DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG);
       } else {
         renderFlash("error", "Couldn't delete. Please try again.");
       }
