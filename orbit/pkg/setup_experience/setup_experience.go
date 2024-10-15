@@ -5,13 +5,20 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// Client is the minimal interface needed to communicate with the Fleet server.
+type Client interface {
+	GetSetupExperienceStatus() (*fleet.SetupExperienceStatusPayload, error)
+}
+
 // SetupExperiencer is the type that manages the Fleet setup experience flow during macOS Setup
 // Assistant. It uses swiftDialog as a UI for showing the status of software installations and
 // script execution that are configured to run before the user has full access to the device.
-type SetupExperiencer struct{}
+type SetupExperiencer struct {
+	OrbitClient Client
+}
 
-func NewSetupExperiencer() *SetupExperiencer {
-	return &SetupExperiencer{}
+func NewSetupExperiencer(client Client) *SetupExperiencer {
+	return &SetupExperiencer{OrbitClient: client}
 }
 
 func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
@@ -21,7 +28,13 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		return nil
 	}
 
-	log.Debug().Msg("TODO: launch swiftDialog here!")
+	// poll the status endpoint
+	_, err := s.OrbitClient.GetSetupExperienceStatus()
+	if err != nil {
+		return err
+	}
+
+	// TODO: fill this in!
 
 	return nil
 }

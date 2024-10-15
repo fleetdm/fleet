@@ -28,6 +28,7 @@ func TestSetupExperience(t *testing.T) {
 		{"SetSetupExperienceTitles", testSetSetupExperienceTitles},
 		{"ListSetupExperienceStatusResults", testSetupExperienceStatusResults},
 		{"SetupExperienceScriptCRUD", testSetupExperienceScriptCRUD},
+		{"TestHostInSetupExperience", testHostInSetupExperience},
 	}
 
 	for _, c := range cases {
@@ -290,7 +291,6 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 			t.Errorf("team %d shouldn't have any any entries", team)
 		}
 	}
-
 }
 
 type setupExperienceInsertTestRows struct {
@@ -848,4 +848,21 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 	// script contents are deleted by CleanupUnusedScriptContents not by DeleteSetupExperienceScript
 	// so the content id should be the same as the old
 	require.Equal(t, oldScript1.ScriptContentID, newScript1.ScriptContentID)
+}
+
+func testHostInSetupExperience(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	err := ds.SetHostAwaitingConfiguration(ctx, "abc", true)
+	require.NoError(t, err)
+
+	inSetupExperience, err := ds.GetHostAwaitingConfiguration(ctx, "abc")
+	require.NoError(t, err)
+	require.True(t, inSetupExperience)
+
+	err = ds.SetHostAwaitingConfiguration(ctx, "abc", false)
+	require.NoError(t, err)
+
+	inSetupExperience, err = ds.GetHostAwaitingConfiguration(ctx, "abc")
+	require.NoError(t, err)
+	require.False(t, inSetupExperience)
 }
