@@ -106,9 +106,13 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
       setErrors(errorObject);
 
       if (errorObject.base.includes("already exists")) {
-        renderFlash("error", "A user with this email address already exists.");
+        renderFlash("error", "A user with this email address already exists.", {
+          dismissOnPageChange: true,
+        });
       } else {
-        renderFlash("error", "Could not edit user. Please try again.");
+        renderFlash("error", "Could not edit user. Please try again.", {
+          dismissOnPageChange: true,
+        });
       }
 
       setShowEmailModal(false);

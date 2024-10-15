@@ -195,7 +195,9 @@ const RunQuery = ({
           "It seems you do not have the rights to run this query. If you believe this is in error, please contact your administrator."
         );
       } else {
-        renderFlash("error", "Something has gone wrong. Please try again.");
+        renderFlash("error", "Something has gone wrong. Please try again.", {
+          dismissOnPageChange: true,
+        });
       }
 
       return teardownDistributedQuery();

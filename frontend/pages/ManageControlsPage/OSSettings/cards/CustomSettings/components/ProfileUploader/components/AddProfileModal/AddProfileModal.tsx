@@ -269,7 +269,9 @@ const AddProfileModal = ({
 
   const onFileUpload = async () => {
     if (!fileRef.current) {
-      renderFlash("error", DEFAULT_ERROR_MESSAGE);
+      renderFlash("error", DEFAULT_ERROR_MESSAGE, {
+        dismissOnPageChange: true,
+      });
       return;
     }
     const file = fileRef.current;
@@ -290,7 +292,9 @@ const AddProfileModal = ({
       onUpload();
     } catch (e) {
       // TODO: cleanup this error handling
-      renderFlash("error", getErrorMessage(e as AxiosResponse<IApiError>));
+      renderFlash("error", getErrorMessage(e as AxiosResponse<IApiError>), {
+        dismissOnPageChange: true,
+      });
     } finally {
       setIsLoading(false);
       onDone();
@@ -311,7 +315,7 @@ const AddProfileModal = ({
       const [name, platform] = await parseFile(file);
       setFileDetails({ name, platform });
     } catch (e) {
-      renderFlash("error", "Invalid file type");
+      renderFlash("error", "Invalid file type", { dismissOnPageChange: true });
     } finally {
       setIsLoading(false);
     }

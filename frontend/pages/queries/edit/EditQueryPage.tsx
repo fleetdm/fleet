@@ -312,9 +312,13 @@ const EditQueryPage = ({
       console.error(updateError);
       const reason = getErrorReason(updateError);
       if (reason.includes("Duplicate")) {
-        renderFlash("error", "A query with this name already exists.");
+        renderFlash("error", "A query with this name already exists.", {
+          dismissOnPageChange: true,
+        });
       } else if (reason.includes(INVALID_PLATFORMS_REASON)) {
-        renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE);
+        renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE, {
+          dismissOnPageChange: true,
+        });
       } else {
         renderFlash(
           "error",

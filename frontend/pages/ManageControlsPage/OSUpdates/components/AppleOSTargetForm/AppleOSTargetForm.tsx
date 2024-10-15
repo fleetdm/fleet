@@ -149,7 +149,9 @@ const AppleOSTargetForm = ({
           : await teamsAPI.update(updateData, currentTeamId);
         renderFlash("success", "Successfully updated minimum version!");
       } catch {
-        renderFlash("error", "Couldn’t update. Please try again.");
+        renderFlash("error", "Couldn’t update. Please try again.", {
+          dismissOnPageChange: true,
+        });
       } finally {
         currentTeamId === APP_CONTEXT_NO_TEAM_ID
           ? refetchAppConfig()

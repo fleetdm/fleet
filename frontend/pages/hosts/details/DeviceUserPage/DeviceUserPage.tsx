@@ -283,7 +283,9 @@ const DeviceUserPage = ({
         }, 1000);
       } catch (error) {
         console.log(error);
-        renderFlash("error", `Host "${host.display_name}" refetch error`);
+        renderFlash("error", `Host "${host.display_name}" refetch error`, {
+          dismissOnPageChange: true,
+        });
         setShowRefetchSpinner(false);
       }
     }

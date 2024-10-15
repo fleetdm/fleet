@@ -125,7 +125,9 @@ const TeamManagementPage = (): JSX.Element => {
               name: `"No team" is a reserved team name. Please try another name.`,
             });
           } else {
-            renderFlash("error", "Could not create team. Please try again.");
+            renderFlash("error", "Could not create team. Please try again.", {
+              dismissOnPageChange: true,
+            });
             toggleCreateTeamModal();
           }
         })

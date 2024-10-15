@@ -23,7 +23,7 @@ const ApplePushCertSetup = ({
   const onFileUpload = useCallback(
     async (files: FileList | null) => {
       if (!files?.length) {
-        renderFlash("error", "No file selected");
+        renderFlash("error", "No file selected", { dismissOnPageChange: true });
         return;
       }
       setIsUploading(true);
@@ -37,9 +37,11 @@ const ApplePushCertSetup = ({
           msg.toLowerCase().includes("invalid certificate") ||
           msg.toLowerCase().includes("required private key")
         ) {
-          renderFlash("error", msg);
+          renderFlash("error", msg, { dismissOnPageChange: true });
         } else {
-          renderFlash("error", "Couldn’t connect. Please try again.");
+          renderFlash("error", "Couldn’t connect. Please try again.", {
+            dismissOnPageChange: true,
+          });
         }
         setIsUploading(false);
       }
@@ -51,12 +53,16 @@ const ApplePushCertSetup = ({
     (e: unknown) => {
       const msg = getErrorReason(e);
       if (msg.toLowerCase().includes("email address")) {
-        renderFlash("error", msg);
+        renderFlash("error", msg, { dismissOnPageChange: true });
       } else if (msg.toLowerCase().includes("required private key")) {
         // replace link with actually clickable link
-        renderFlash("error", ClickableUrls({ text: msg }));
+        renderFlash("error", ClickableUrls({ text: msg }), {
+          dismissOnPageChange: true,
+        });
       } else {
-        renderFlash("error", "Something's gone wrong. Please try again.");
+        renderFlash("error", "Something's gone wrong. Please try again.", {
+          dismissOnPageChange: true,
+        });
       }
     },
     [renderFlash]

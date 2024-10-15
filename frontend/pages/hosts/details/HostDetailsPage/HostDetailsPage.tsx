@@ -580,7 +580,9 @@ const HostDetailsPage = ({
         });
       } catch (error) {
         console.log(error);
-        renderFlash("error", `Host "${host.display_name}" refetch error`);
+        renderFlash("error", `Host "${host.display_name}" refetch error`, {
+          dismissOnPageChange: true,
+        });
         setShowRefetchSpinner(false);
       }
     }
@@ -685,7 +687,9 @@ const HostDetailsPage = ({
       setShowTransferHostModal(false);
     } catch (error) {
       console.log(error);
-      renderFlash("error", "Could not transfer host. Please try again.");
+      renderFlash("error", "Could not transfer host. Please try again.", {
+        dismissOnPageChange: true,
+      });
     } finally {
       setIsUpdatingHost(false);
     }

@@ -106,7 +106,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     let status = new URLSearchParams(location.search).get("status");
     status = status && statusMessages[status as keyof IStatusMessages];
     if (status) {
-      renderFlash("error", status);
+      renderFlash("error", status, { dismissOnPageChange: true });
     }
   }, [location?.search]);
 

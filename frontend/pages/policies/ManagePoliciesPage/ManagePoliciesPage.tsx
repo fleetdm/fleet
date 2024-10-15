@@ -512,7 +512,9 @@ const ManagePolicyPage = ({
         : configAPI.update(requestBody));
       renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
-      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
+      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG, {
+        dismissOnPageChange: true,
+      });
     } finally {
       toggleOtherWorkflowsModal();
       setIsUpdatingPolicies(false);
@@ -567,7 +569,9 @@ const ManagePolicyPage = ({
       refetchTeamPolicies();
       renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
-      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
+      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG, {
+        dismissOnPageChange: true,
+      });
     } finally {
       toggleInstallSoftwareModal();
       setIsUpdatingPolicies(false);
@@ -620,7 +624,9 @@ const ManagePolicyPage = ({
       refetchTeamPolicies();
       renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
-      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
+      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG, {
+        dismissOnPageChange: true,
+      });
     } finally {
       togglePolicyRunScriptModal();
       setIsUpdatingPolicies(false);
@@ -683,7 +689,9 @@ const ManagePolicyPage = ({
 
       renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
-      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
+      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG, {
+        dismissOnPageChange: true,
+      });
     } finally {
       toggleCalendarEventsModal();
       setIsUpdatingPolicies(false);

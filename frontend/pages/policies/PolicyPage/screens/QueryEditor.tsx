@@ -110,7 +110,9 @@ const QueryEditor = ({
         setLastEditedQueryDescription(autofillResponse.description);
       } catch (error) {
         console.log(error);
-        renderFlash("error", "Couldn't autofill policy data.");
+        renderFlash("error", "Couldn't autofill policy data.", {
+          dismissOnPageChange: true,
+        });
       }
       setIsFetchingAutofillDescription(false);
     }
@@ -133,7 +135,9 @@ const QueryEditor = ({
         setLastEditedQueryResolution(autofillResponse.resolution);
       } catch (error) {
         console.log(error);
-        renderFlash("error", "Couldn't autofill policy data.");
+        renderFlash("error", "Couldn't autofill policy data.", {
+          dismissOnPageChange: true,
+        });
       }
       setIsFetchingAutofillResolution(false);
     }
@@ -214,7 +218,9 @@ const QueryEditor = ({
     } catch (updateError: any) {
       console.error(updateError);
       if (updateError.data.errors[0].reason.includes("Duplicate")) {
-        renderFlash("error", "A policy with this name already exists.");
+        renderFlash("error", "A policy with this name already exists.", {
+          dismissOnPageChange: true,
+        });
       } else {
         renderFlash(
           "error",

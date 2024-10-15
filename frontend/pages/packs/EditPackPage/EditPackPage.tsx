@@ -161,7 +161,9 @@ const EditPacksPage = ({
             "Unable to update pack. Pack names must be unique."
           );
         } else {
-          renderFlash("error", `Could not update pack. Please try again.`);
+          renderFlash("error", `Could not update pack. Please try again.`, {
+            dismissOnPageChange: true,
+          });
         }
       })
       .finally(() => {
@@ -182,7 +184,9 @@ const EditPacksPage = ({
         renderFlash("success", `Successfully updated this pack.`);
       })
       .catch(() => {
-        renderFlash("error", "Could not update this pack. Please try again.");
+        renderFlash("error", "Could not update this pack. Please try again.", {
+          dismissOnPageChange: true,
+        });
       })
       .finally(() => {
         togglePackQueryEditorModal();

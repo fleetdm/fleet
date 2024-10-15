@@ -110,7 +110,9 @@ const EditTeamsAbmModal = ({
         renderFlash("success", "Edited successfully.");
         onSuccess();
       } catch (e) {
-        renderFlash("error", "Couldn’t edit. Please try again.");
+        renderFlash("error", "Couldn’t edit. Please try again.", {
+          dismissOnPageChange: true,
+        });
         onCancel();
       }
     },

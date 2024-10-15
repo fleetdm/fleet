@@ -32,7 +32,7 @@ const WipeModal = ({ id, hostName, onSuccess, onClose }: IWipeModalProps) => {
         "Wiping host or will wipe when the host comes online."
       );
     } catch (e) {
-      renderFlash("error", getErrorReason(e));
+      renderFlash("error", getErrorReason(e), { dismissOnPageChange: true });
     }
     onClose();
     setIsWiping(false);

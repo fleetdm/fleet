@@ -169,7 +169,7 @@ const EditSoftwareModal = ({
           </>
         );
       } else {
-        renderFlash("error", getErrorMessage(e));
+        renderFlash("error", getErrorMessage(e), { dismissOnPageChange: true });
       }
     }
     setIsUpdatingSoftware(false);

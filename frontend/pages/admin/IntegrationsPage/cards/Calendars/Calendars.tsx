@@ -171,7 +171,9 @@ const Calendars = (): JSX.Element => {
       );
       refetchConfig();
     } catch (e) {
-      renderFlash("error", "Could not save calendar integration settings.");
+      renderFlash("error", "Could not save calendar integration settings.", {
+        dismissOnPageChange: true,
+      });
     } finally {
       setIsUpdatingSettings(false);
     }

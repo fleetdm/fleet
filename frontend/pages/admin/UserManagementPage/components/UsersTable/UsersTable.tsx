@@ -254,7 +254,9 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
               password: "Password is over the character limit.",
             });
           } else {
-            renderFlash("error", "Could not create user. Please try again.");
+            renderFlash("error", "Could not create user. Please try again.", {
+              dismissOnPageChange: true,
+            });
           }
         })
         .finally(() => {
@@ -292,7 +294,9 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
               password: "Password is over the character limit.",
             });
           } else {
-            renderFlash("error", "Could not create user. Please try again.");
+            renderFlash("error", "Could not create user. Please try again.", {
+              dismissOnPageChange: true,
+            });
           }
         })
         .finally(() => {
@@ -339,7 +343,9 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
                 password: userUpdatedPasswordError,
               });
             } else {
-              renderFlash("error", userUpdatedError);
+              renderFlash("error", userUpdatedError, {
+                dismissOnPageChange: true,
+              });
             }
           })
           .finally(() => {
@@ -369,7 +375,9 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
               password: userUpdatedPasswordError,
             });
           } else {
-            renderFlash("error", userUpdatedError);
+            renderFlash("error", userUpdatedError, {
+              dismissOnPageChange: true,
+            });
           }
         })
         .finally(() => {
@@ -433,7 +441,9 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         renderFlash("success", "Successfully reset sessions.");
       })
       .catch(() => {
-        renderFlash("error", "Could not reset sessions. Please try again.");
+        renderFlash("error", "Could not reset sessions. Please try again.", {
+          dismissOnPageChange: true,
+        });
       })
       .finally(() => {
         toggleResetSessionsUserModal();

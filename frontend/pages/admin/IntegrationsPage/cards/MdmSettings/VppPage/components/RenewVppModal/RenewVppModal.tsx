@@ -41,7 +41,7 @@ const RenewVppModal = ({
 
     if (!tokenFile) {
       setIsRenewing(false);
-      renderFlash("error", "No token selected.");
+      renderFlash("error", "No token selected.", { dismissOnPageChange: true });
       return;
     }
 
@@ -53,7 +53,7 @@ const RenewVppModal = ({
       );
       onRenewedToken();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      renderFlash("error", getErrorMessage(e), { dismissOnPageChange: true });
       onCancel();
     }
     setIsRenewing(false);

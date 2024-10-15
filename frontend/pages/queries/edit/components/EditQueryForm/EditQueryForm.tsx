@@ -376,10 +376,14 @@ const EditQueryForm = ({
               });
           } else if (createErrorReason.includes(INVALID_PLATFORMS_REASON)) {
             setIsSaveAsNewLoading(false);
-            renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE);
+            renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE, {
+              dismissOnPageChange: true,
+            });
           } else {
             setIsSaveAsNewLoading(false);
-            renderFlash("error", "Could not create query. Please try again.");
+            renderFlash("error", "Could not create query. Please try again.", {
+              dismissOnPageChange: true,
+            });
           }
         });
     }

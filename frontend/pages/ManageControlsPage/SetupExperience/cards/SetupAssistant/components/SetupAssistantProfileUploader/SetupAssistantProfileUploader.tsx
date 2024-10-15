@@ -57,7 +57,7 @@ const SetupAssistantProfileUploader = ({
           </>
         );
       }
-      renderFlash("error", errComponent);
+      renderFlash("error", errComponent, { dismissOnPageChange: true });
     } finally {
       setShowLoading(false);
     }

@@ -56,7 +56,7 @@ const UnlockModal = ({
         "Unlocking host or will unlock when it comes online."
       );
     } catch (e) {
-      renderFlash("error", getErrorReason(e));
+      renderFlash("error", getErrorReason(e), { dismissOnPageChange: true });
     }
     onClose();
     setIsUnlocking(false);

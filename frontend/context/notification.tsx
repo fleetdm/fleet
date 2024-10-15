@@ -33,7 +33,7 @@ const initialState = {
 const actionTypes = {
   RENDER_FLASH: "RENDER_FLASH",
   HIDE_FLASH: "HIDE_FLASH",
-};
+} as const;
 
 const reducer = (state: any, action: any) => {
   switch (action.type) {
@@ -60,7 +60,6 @@ export const NotificationContext = createContext<InitialStateType>(
 
 const NotificationProvider = ({ children }: Props) => {
   const [state, dispatch] = useReducer(reducer, initialState);
-
   const renderFlash = useCallback(
     (
       alertType: "success" | "error" | "warning-filled" | null,

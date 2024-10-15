@@ -163,7 +163,9 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
         }
       })
       .catch(() =>
-        renderFlash("error", "Unable to remove users. Please try again.")
+        renderFlash("error", "Unable to remove users. Please try again.", {
+          dismissOnPageChange: true,
+        })
       )
       .finally(() => {
         setIsUpdatingUsers(false);
@@ -194,7 +196,9 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           );
         })
         .catch(() =>
-          renderFlash("error", "Could not add users. Please try again.")
+          renderFlash("error", "Could not add users. Please try again.", {
+            dismissOnPageChange: true,
+          })
         )
         .finally(() => {
           toggleAddUserModal();
@@ -251,7 +255,9 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
               email: "A user with this email address has already been invited",
             });
           } else {
-            renderFlash("error", "Could not invite user. Please try again.");
+            renderFlash("error", "Could not invite user. Please try again.", {
+              dismissOnPageChange: true,
+            });
           }
         })
         .finally(() => {
@@ -288,7 +294,9 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
               password: "Password is over the character limit.",
             });
           } else {
-            renderFlash("error", "Could not create user. Please try again.");
+            renderFlash("error", "Could not create user. Please try again.", {
+              dismissOnPageChange: true,
+            });
           }
         })
         .finally(() => {

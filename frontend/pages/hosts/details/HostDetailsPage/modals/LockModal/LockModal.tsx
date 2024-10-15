@@ -36,7 +36,7 @@ const LockModal = ({
       onSuccess();
       renderFlash("success", "Locking host or will lock when it comes online.");
     } catch (e) {
-      renderFlash("error", getErrorReason(e));
+      renderFlash("error", getErrorReason(e), { dismissOnPageChange: true });
     }
     onClose();
     setIsLocking(false);

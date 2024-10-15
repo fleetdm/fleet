@@ -148,7 +148,7 @@ const SoftwareCustomPackage = ({
           </>
         );
       } else {
-        renderFlash("error", getErrorMessage(e));
+        renderFlash("error", getErrorMessage(e), { dismissOnPageChange: true });
       }
     }
     setUploadDetails(null);

@@ -48,7 +48,7 @@ const useSetWindowsMdm = ({
             nameEquals: "mdm.windows_enabled_and_configured",
           }) || msg;
       }
-      renderFlash("error", msg);
+      renderFlash("error", msg, { dismissOnPageChange: true });
     } finally {
       router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
     }

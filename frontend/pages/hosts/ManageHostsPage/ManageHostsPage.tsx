@@ -1032,7 +1032,11 @@ const ManageHostsPage = ({
       renderFlash("success", `Successfully deleted enroll secret.`);
     } catch (error) {
       console.error(error);
-      renderFlash("error", "Could not delete enroll secret. Please try again.");
+      renderFlash(
+        "error",
+        "Could not delete enroll secret. Please try again.",
+        { dismissOnPageChange: true }
+      );
     } finally {
       setIsUpdatingSecret(false);
     }
@@ -1063,9 +1067,13 @@ const ManageHostsPage = ({
     } catch (error) {
       console.error(error);
       if (getErrorReason(error).includes("built-in")) {
-        renderFlash("error", "Built-in labels can’t be modified or deleted.");
+        renderFlash("error", "Built-in labels can’t be modified or deleted.", {
+          dismissOnPageChange: true,
+        });
       } else {
-        renderFlash("error", "Could not delete label. Please try again.");
+        renderFlash("error", "Could not delete label. Please try again.", {
+          dismissOnPageChange: true,
+        });
       }
     } finally {
       setIsUpdatingLabel(false);
@@ -1131,7 +1139,9 @@ const ManageHostsPage = ({
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
     } catch (error) {
-      renderFlash("error", "Could not transfer hosts. Please try again.");
+      renderFlash("error", "Could not transfer hosts. Please try again.", {
+        dismissOnPageChange: true,
+      });
     } finally {
       setIsUpdatingHosts(false);
     }
@@ -1397,7 +1407,9 @@ const ManageHostsPage = ({
       FileSaver.saveAs(file);
     } catch (error) {
       console.error(error);
-      renderFlash("error", "Could not export hosts. Please try again.");
+      renderFlash("error", "Could not export hosts. Please try again.", {
+        dismissOnPageChange: true,
+      });
     }
   };
 

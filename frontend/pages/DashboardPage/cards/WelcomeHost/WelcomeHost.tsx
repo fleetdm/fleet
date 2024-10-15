@@ -110,7 +110,9 @@ const WelcomeHost = ({
         });
       } catch (error) {
         console.error(error);
-        renderFlash("error", `Host "${host.display_name}" refetch error`);
+        renderFlash("error", `Host "${host.display_name}" refetch error`, {
+          dismissOnPageChange: true,
+        });
         setShowRefetchLoadingSpinner(false);
       }
     }

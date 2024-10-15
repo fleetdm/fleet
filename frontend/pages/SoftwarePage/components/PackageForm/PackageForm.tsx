@@ -97,7 +97,7 @@ const PackageForm = ({
         try {
           newDefaultInstallScript = getDefaultInstallScript(file.name);
         } catch (e) {
-          renderFlash("error", `${e}`);
+          renderFlash("error", `${e}`, { dismissOnPageChange: true });
           return;
         }
 
@@ -105,7 +105,7 @@ const PackageForm = ({
         try {
           newDefaultUninstallScript = getDefaultUninstallScript(file.name);
         } catch (e) {
-          renderFlash("error", `${e}`);
+          renderFlash("error", `${e}`, { dismissOnPageChange: true });
           return;
         }
 
