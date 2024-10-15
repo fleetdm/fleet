@@ -19,6 +19,7 @@ import DataError from "components/DataError";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 
 import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 import AddAbmModal from "./components/AddAbmModal";
@@ -27,30 +28,6 @@ import DeleteAbmModal from "./components/DeleteAbmModal";
 import EditTeamsAbmModal from "./components/EditTeamsAbmModal";
 
 const baseClass = "apple-business-manager-page";
-
-interface ITurnOnMdmMessageProps {
-  router: InjectedRouter;
-}
-
-const TurnOnMdmMessage = ({ router }: ITurnOnMdmMessageProps) => {
-  return (
-    <div className={`${baseClass}__turn-on-mdm-message`}>
-      <h2>Turn on Apple MDM</h2>
-      <p>
-        To add your ABM and enable automatic enrollment for macOS, iOS, and
-        iPadOS hosts, first turn on Apple MDM.
-      </p>
-      <Button
-        variant="brand"
-        onClick={() => {
-          router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
-        }}
-      >
-        Turn on
-      </Button>
-    </div>
-  );
-};
 
 interface IAddAbmMessageProps {
   onAddAbm: () => void;
@@ -168,7 +145,14 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     }
 
     if (!config?.mdm.enabled_and_configured) {
-      return <TurnOnMdmMessage router={router} />;
+      return (
+        <TurnOnMdmMessage
+          router={router}
+          header="Turn on Apple MDM"
+          info="To add your ABM and enable automatic enrollment for macOS, iOS, and
+        iPadOS hosts, first turn on Apple MDM."
+        />
+      );
     }
 
     if (isLoading) {
