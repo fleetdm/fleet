@@ -1108,7 +1108,7 @@
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
   # System for Cross-domain Identity Management (SCIM) provisioning comingSoonOn: 2024-12-31 #customer-rosner, https://github.com/fleetdm/fleet/issues/15671
-- industryName: Grant Wi-Fi access (SCEP proxy)
+- industryName: Grant Wi-Fi access
   description: Help your end users connect to Wi-Fi by adding your Simple Certificate Enrollment Protocol (SCEP) server.                
   # documentationUrl: TODO
   isExperimental: yes
