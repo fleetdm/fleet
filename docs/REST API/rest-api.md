@@ -9484,7 +9484,7 @@ _Available in Fleet Premium._
 
 Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` added to be installed.
 
-If the software install takes longer than 1 hour, Fleet will stop the install.
+Package installs time out after 1 hour.
 
 `POST /api/v1/fleet/hosts/:id/software/:software_title_id/install`
 
