@@ -101,7 +101,7 @@ func (r SetupExperienceSoftwareInstallResult) SetupExperienceStatus() SetupExper
 	switch r.InstallerStatus {
 	case SoftwareInstalled:
 		return SetupExperienceStatusSuccess
-	case SoftwareFailed, SoftwareUninstallFailed:
+	case SoftwareFailed, SoftwareInstallFailed:
 		return SetupExperienceStatusFailure
 	default:
 		// TODO: is this what we want as the default, what about other possible statuses (uninstall)?
@@ -132,4 +132,9 @@ type SetupExperienceStatusPayload struct {
 	BootstrapPackage      *SetupExperienceBootstrapPackageResult       `json:"bootstrap_package,omitempty"`
 	ConfigurationProfiles []*SetupExperienceConfigurationProfileResult `json:"configuration_profiles,omitempty"`
 	AccountConfiguration  *SetupExperienceAccountConfigurationResult   `json:"account_configuration,omitempty"`
+}
+
+func IsSetupExperienceSupported(hostPlatform string) bool {
+	// TODO: confirm we aren't supporting any other Apple platforms
+	return hostPlatform == "darwin"
 }

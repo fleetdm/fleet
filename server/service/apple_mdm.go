@@ -2903,18 +2903,17 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.UDID, status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
 	case "InstallApplication":
-		// this might be a setup experience VPP install, so we'll try to update the setup experience status
-		seStatus := (fleet.SetupExperienceVPPInstallResult{CommandStatus: cmdResult.Status}).SetupExperienceStatus()
-		if seStatus.IsValid() && seStatus.IsTerminalStatus() {
-			// NOTE: changes to this flow should also implemented in
-			// maybeUpdateSetupExperienceStatus in sevice/setup_experience.
-			updated, err := svc.ds.MaybeUpdateSetupExperienceVPPStatus(r.Context, cmdResult.UDID, cmdResult.CommandUUID, seStatus)
-			if err != nil {
-				return nil, ctxerr.Wrap(r.Context, err, "updating setup experience status from VPP install result")
-			} else if updated {
-				// TODO: call next step of setup experience?
-				level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", cmdResult.UDID, "execution_id", cmdResult.CommandUUID)
-			}
+		// this might be a setup experience VPP install, so we'll try to update setup experience status
+		// TODO: consider limiting this to only macOS hosts
+		if updated, err := maybeUpdateSetupExperienceStatus(r.Context, svc.ds, fleet.SetupExperienceVPPInstallResult{
+			HostUUID:      cmdResult.UDID,
+			CommandUUID:   cmdResult.CommandUUID,
+			CommandStatus: cmdResult.Status,
+		}, true); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "updating setup experience status from VPP install result")
+		} else if updated {
+			// TODO: call next step of setup experience?
+			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", cmdResult.UDID, "execution_id", cmdResult.CommandUUID)
 		}
 
 		// create an activity for installing only if we're in a terminal state

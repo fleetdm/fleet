@@ -702,9 +702,9 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 	}
 
 	// FIXME: datastore implementation of action seems rather brittle, can it be refactored?
-	if action == "" {
+	if action == "" && fleet.IsSetupExperienceSupported(host.Platform) {
 		// this might be a setup experience script result
-		if updated, err := svc.maybeUpdateSetupExperienceStatus(ctx, fleet.SetupExperienceScriptResult{
+		if updated, err := maybeUpdateSetupExperienceStatus(ctx, svc.ds, fleet.SetupExperienceScriptResult{
 			HostUUID:    host.UUID,
 			ExecutionID: result.ExecutionID,
 			ExitCode:    result.ExitCode,
@@ -1054,16 +1054,18 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return ctxerr.Wrap(ctx, err, "save host software installation result")
 	}
 
-	// this might be a setup experience software install result
-	if updated, err := svc.maybeUpdateSetupExperienceStatus(ctx, fleet.SetupExperienceSoftwareInstallResult{
-		HostUUID:        host.UUID,
-		ExecutionID:     result.InstallUUID,
-		InstallerStatus: result.Status(),
-	}, true); err != nil {
-		return ctxerr.Wrap(ctx, err, "update setup experience status")
-	} else if updated {
-		// TODO: call next step of setup experience?
-		level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.InstallUUID)
+	if fleet.IsSetupExperienceSupported(host.Platform) {
+		// this might be a setup experience software install result
+		if updated, err := maybeUpdateSetupExperienceStatus(ctx, svc.ds, fleet.SetupExperienceSoftwareInstallResult{
+			HostUUID:        host.UUID,
+			ExecutionID:     result.InstallUUID,
+			InstallerStatus: result.Status(),
+		}, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "update setup experience status")
+		} else if updated {
+			// TODO: call next step of setup experience?
+			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.InstallUUID)
+		}
 	}
 
 	if status := result.Status(); status != fleet.SoftwareInstallPending {

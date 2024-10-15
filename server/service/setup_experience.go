@@ -222,7 +222,7 @@ func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uin
 // supported type, it returns false and an error indicated that the type is not supported.
 // If the skipPending parameter is true, the datastore will only be updated if the given result
 // status is not pending.
-func (svc *Service) maybeUpdateSetupExperienceStatus(ctx context.Context, result interface{}, requireTerminalStatus bool) (bool, error) {
+func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, result interface{}, requireTerminalStatus bool) (bool, error) {
 	switch v := result.(type) {
 	case fleet.SetupExperienceScriptResult:
 		status := v.SetupExperienceStatus()
@@ -231,16 +231,17 @@ func (svc *Service) maybeUpdateSetupExperienceStatus(ctx context.Context, result
 		} else if requireTerminalStatus && !status.IsTerminalStatus() {
 			return false, nil
 		}
-		return svc.ds.MaybeUpdateSetupExperienceScriptStatus(ctx, v.HostUUID, v.ExecutionID, status)
+		return ds.MaybeUpdateSetupExperienceScriptStatus(ctx, v.HostUUID, v.ExecutionID, status)
 
 	case fleet.SetupExperienceSoftwareInstallResult:
 		status := v.SetupExperienceStatus()
+		fmt.Println(status)
 		if !status.IsValid() {
 			return false, fmt.Errorf("invalid status: %s", status)
 		} else if requireTerminalStatus && !status.IsTerminalStatus() {
 			return false, nil
 		}
-		return svc.ds.MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx, v.HostUUID, v.ExecutionID, status)
+		return ds.MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx, v.HostUUID, v.ExecutionID, status)
 
 	case fleet.SetupExperienceVPPInstallResult:
 		// NOTE: this case is also implemented in the CommandAndReportResults method of
@@ -251,7 +252,7 @@ func (svc *Service) maybeUpdateSetupExperienceStatus(ctx context.Context, result
 		} else if requireTerminalStatus && !status.IsTerminalStatus() {
 			return false, nil
 		}
-		return svc.ds.MaybeUpdateSetupExperienceVPPStatus(ctx, v.HostUUID, v.CommandUUID, status)
+		return ds.MaybeUpdateSetupExperienceVPPStatus(ctx, v.HostUUID, v.CommandUUID, status)
 
 	default:
 		return false, fmt.Errorf("unsupported result type: %T", result)
