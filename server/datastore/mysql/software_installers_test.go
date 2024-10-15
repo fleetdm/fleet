@@ -32,7 +32,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"BatchSetSoftwareInstallers", testBatchSetSoftwareInstallers},
 		{"GetSoftwareInstallerMetadataByTeamAndTitleID", testGetSoftwareInstallerMetadataByTeamAndTitleID},
 		{"HasSelfServiceSoftwareInstallers", testHasSelfServiceSoftwareInstallers},
-		{"DeleteSoftwareInstallersAssignedToPolicy", testDeleteSoftwareInstallersAssignedToPolicy},
+		{"DeleteSoftwareInstallers", testDeleteSoftwareInstallers},
 		{"GetHostLastInstallData", testGetHostLastInstallData},
 		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
 	}
@@ -926,7 +926,7 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	assert.True(t, hasSelfService)
 }
 
-func testDeleteSoftwareInstallersAssignedToPolicy(t *testing.T, ds *Datastore) {
+func testDeleteSoftwareInstallers(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	dir := t.TempDir()
@@ -971,8 +971,29 @@ func testDeleteSoftwareInstallersAssignedToPolicy(t *testing.T, ds *Datastore) {
 	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{p1.ID})
 	require.NoError(t, err)
 
+	// mark the installer as "installed during setup", which prevents deletion
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET install_during_setup = 1 WHERE id = ?`, softwareInstallerID)
+		return err
+	})
+
+	err = ds.DeleteSoftwareInstaller(ctx, softwareInstallerID)
+	require.Error(t, err)
+	require.ErrorIs(t, err, errDeleteInstallerInstalledDuringSetup)
+
+	// clear "installed during setup", which allows deletion
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET install_during_setup = 0 WHERE id = ?`, softwareInstallerID)
+		return err
+	})
+
 	err = ds.DeleteSoftwareInstaller(ctx, softwareInstallerID)
 	require.NoError(t, err)
+
+	// deleting again returns an error, no such installer
+	err = ds.DeleteSoftwareInstaller(ctx, softwareInstallerID)
+	var nfe *notFoundError
+	require.ErrorAs(t, err, &nfe)
 }
 
 func testGetHostLastInstallData(t *testing.T, ds *Datastore) {

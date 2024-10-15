@@ -182,6 +182,16 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
 
+	// mark it as install_during_setup for team 2
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE vpp_apps_teams SET install_during_setup = 1 WHERE global_or_team_id = ? AND adam_id = ?`, team2.ID, vpp2.AdamID)
+		return err
+	})
+	// this prevents its deletion
+	err = ds.DeleteVPPAppFromTeam(ctx, &team2.ID, vpp2)
+	require.Error(t, err)
+	require.ErrorIs(t, err, errDeleteInstallerInstalledDuringSetup)
+
 	// delete vpp1 again fails, not found
 	err = ds.DeleteVPPAppFromTeam(ctx, nil, vpp1)
 	require.Error(t, err)
