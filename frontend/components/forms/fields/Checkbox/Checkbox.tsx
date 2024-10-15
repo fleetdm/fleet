@@ -1,10 +1,11 @@
-import React, { ReactNode } from "react";
+import React, { ReactNode, KeyboardEvent } from "react";
 import classnames from "classnames";
 import { noop, pick } from "lodash";
 
 import FormField from "components/forms/FormField";
 import { IFormFieldProps } from "components/forms/FormField/FormField";
 import TooltipWrapper from "components/TooltipWrapper";
+import Icon from "components/Icon";
 
 const baseClass = "fleet-checkbox";
 
@@ -17,8 +18,8 @@ export interface ICheckboxProps {
   disabled?: boolean;
   name?: string;
   onChange?: any; // TODO: meant to be an event; figure out type for this
-  onBlur?: any;
-  value?: boolean;
+  onBlur?: (event: React.FocusEvent<HTMLDivElement>) => void;
+  value?: boolean | null;
   wrapperClassName?: string;
   indeterminate?: boolean;
   parseTarget?: boolean;
@@ -36,22 +37,41 @@ const Checkbox = (props: ICheckboxProps) => {
     name,
     onChange = noop,
     onBlur = noop,
-    value,
+    value = false,
     wrapperClassName,
-    indeterminate,
+    indeterminate = false,
     parseTarget,
     tooltipContent,
     isLeftLabel,
     helpText,
   } = props;
 
-  const handleChange = () => {
-    if (parseTarget) {
-      // Returns both name and value
-      return onChange({ name, value: !value });
+  const handleChange = (
+    event: React.MouseEvent | React.KeyboardEvent
+  ): void => {
+    event.preventDefault();
+    if (readOnly || disabled) return;
+
+    let newValue: boolean | null;
+    if (indeterminate) {
+      newValue = true;
+    } else if (value === true) {
+      newValue = false;
+    } else {
+      newValue = true;
     }
 
-    return onChange(!value);
+    if (parseTarget) {
+      onChange({ name, value: newValue });
+    } else {
+      onChange(newValue);
+    }
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
+    if (event.key === "Enter" || event.key === " ") {
+      handleChange(event);
+    }
   };
 
   const checkBoxClass = classnames(
@@ -59,12 +79,6 @@ const Checkbox = (props: ICheckboxProps) => {
     className,
     baseClass
   );
-
-  const checkBoxTickClass = classnames(`${baseClass}__tick`, {
-    [`${baseClass}__tick--read-only`]: readOnly || disabled,
-    [`${baseClass}__tick--disabled`]: disabled,
-    [`${baseClass}__tick--indeterminate`]: indeterminate,
-  });
 
   const checkBoxLabelClass = classnames(checkBoxClass, {
     [`${baseClass}__label--read-only`]: readOnly || disabled,
@@ -77,35 +91,39 @@ const Checkbox = (props: ICheckboxProps) => {
     type: "checkbox",
   } as IFormFieldProps;
 
+  const getIconName = () => {
+    if (indeterminate) return "checkbox-indeterminate";
+    if (value) return "checkbox";
+    return "checkbox-unchecked";
+  };
+
   return (
     <FormField {...formFieldProps}>
-      <>
-        <label htmlFor={name} className={checkBoxLabelClass}>
-          <input
-            checked={value}
-            className={`${baseClass}__input`}
-            disabled={readOnly || disabled}
-            id={name}
-            name={name}
-            onChange={handleChange}
-            onBlur={onBlur}
-            type="checkbox"
-          />
-          <span className={checkBoxTickClass} />
-          {tooltipContent ? (
-            <span className={`${baseClass}__label-tooltip tooltip`}>
-              <TooltipWrapper
-                tipContent={tooltipContent}
-                clickable={false} // Not block form behind tooltip
-              >
-                {children}
-              </TooltipWrapper>
-            </span>
-          ) : (
-            <span className={`${baseClass}__label`}>{children} </span>
-          )}
-        </label>
-      </>
+      <div
+        role="checkbox"
+        aria-checked={indeterminate ? "mixed" : value || undefined}
+        aria-readonly={readOnly}
+        aria-disabled={disabled}
+        tabIndex={disabled ? -1 : 0}
+        className={checkBoxLabelClass}
+        onClick={handleChange}
+        onKeyDown={handleKeyDown}
+        onBlur={onBlur}
+      >
+        <Icon
+          name={getIconName()}
+          className={`${baseClass}__icon ${baseClass}__icon--${getIconName()}`}
+        />
+        {tooltipContent ? (
+          <span className={`${baseClass}__label-tooltip tooltip`}>
+            <TooltipWrapper tipContent={tooltipContent} clickable={false}>
+              {children}
+            </TooltipWrapper>
+          </span>
+        ) : (
+          <span className={`${baseClass}__label`}>{children}</span>
+        )}
+      </div>
     </FormField>
   );
 };
