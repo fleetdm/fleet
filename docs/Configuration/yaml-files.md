@@ -710,7 +710,7 @@ Once the IdP settings are configured, you can use the [`controls.macos_setup.ena
 
 Can only be configured for all teams (`org_settings`).
 
-##### client_url
+##### apple_server_url
 
 Update this URL if you're self-hosting Fleet and you want your hosts to talk to a different URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)
 
@@ -719,7 +719,7 @@ Update this URL if you're self-hosting Fleet and you want your hosts to talk to 
 ```yaml
 org_settings:
   mdm:
-    client_url: https://instance.fleet.com
+    apple_server_url: https://instance.fleet.com
 ```
 
 Can only be configured for all teams (`org_settings`).
