@@ -56,6 +56,7 @@ const EditUserModal = ({
       title="Edit user"
       onExit={onCancel}
       className={`${baseClass}__edit-user-modal`}
+      disableModalAutofocus
     >
       <UserForm
         createOrEditUserErrors={editUserErrors}

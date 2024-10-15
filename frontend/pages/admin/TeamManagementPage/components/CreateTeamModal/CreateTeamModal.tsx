@@ -51,7 +51,12 @@ const CreateTeamModal = ({
   );
 
   return (
-    <Modal title="Create team" onExit={onCancel} className={baseClass}>
+    <Modal
+      title="Create team"
+      onExit={onCancel}
+      className={baseClass}
+      disableModalAutofocus
+    >
       <form
         className={`${baseClass}__form`}
         onSubmit={onFormSubmit}

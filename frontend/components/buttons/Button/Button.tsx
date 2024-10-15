@@ -36,13 +36,13 @@ export interface IButtonProps {
   type?: "button" | "submit" | "reset";
   title?: string;
   variant?: ButtonVariant;
-  onClick?:
-    | ((value?: any) => void)
-    | ((
-        evt:
-          | React.MouseEvent<HTMLButtonElement>
-          | React.KeyboardEvent<HTMLButtonElement>
-      ) => void);
+  onClick?: (
+    evt:
+      | React.MouseEvent<HTMLButtonElement>
+      | React.KeyboardEvent<HTMLButtonElement>
+  ) => void;
+  onFocus?: React.FocusEventHandler<HTMLButtonElement>;
+  onBlur?: React.FocusEventHandler<HTMLButtonElement>;
   isLoading?: boolean;
 }
 
@@ -115,6 +115,8 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       title,
       variant,
       isLoading,
+      onFocus,
+      onBlur,
     } = this.props;
     const fullClassName = classnames(
       baseClass,
@@ -137,6 +139,8 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         disabled={disabled}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
+        onFocus={onFocus}
+        onBlur={onBlur}
         tabIndex={tabIndex}
         type={type}
         title={title}

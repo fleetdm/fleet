@@ -44,7 +44,12 @@ const CreateUserModal = ({
   createUserErrors,
 }: ICreateUserModalProps): JSX.Element => {
   return (
-    <Modal title="Create user" onExit={onCancel} className={baseClass}>
+    <Modal
+      title="Create user"
+      onExit={onCancel}
+      className={baseClass}
+      disableModalAutofocus
+    >
       <UserForm
         serverErrors={serverErrors}
         createOrEditUserErrors={createUserErrors}

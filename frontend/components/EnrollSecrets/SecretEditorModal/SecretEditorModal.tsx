@@ -82,6 +82,7 @@ const SecretEditorModal = ({
       onEnter={onSaveSecretClick}
       title={selectedSecret ? "Edit secret" : "Add secret"}
       className={baseClass}
+      disableModalAutofocus
     >
       <div className={baseClass}>
         <div className={`${baseClass}__description`}>
@@ -90,6 +91,7 @@ const SecretEditorModal = ({
         </div>
         <div className={`${baseClass}__secret-wrapper`}>
           <InputField
+            autofocus
             inputWrapperClass={`${baseClass}__secret-input`}
             name="osqueryd-secret"
             label="Secret"

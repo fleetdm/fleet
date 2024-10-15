@@ -47,7 +47,12 @@ const RenameTeamModal = ({
   };
 
   return (
-    <Modal title="Rename team" onExit={onCancel} className={baseClass}>
+    <Modal
+      title="Rename team"
+      onExit={onCancel}
+      className={baseClass}
+      disableModalAutofocus
+    >
       <form
         className={`${baseClass}__form`}
         onSubmit={onFormSubmit}

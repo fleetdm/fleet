@@ -1,7 +1,14 @@
-import React, { useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+} from "react";
 import classnames from "classnames";
 import Button from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
+import { noop } from "lodash";
 
 const baseClass = "modal";
 
@@ -36,8 +43,31 @@ export interface IModalProps {
    * @default false
    * */
   disableClosingModal?: boolean;
+  /** Modal defaults focus to first element for ability to tab through app
+   * `disableModalAutofocus` when a specific form field should be autofocused */
+  disableModalAutofocus?: boolean;
   className?: string;
 }
+
+// Context for focus handling
+// Child buttons to handle their own Enter key press events when focused.
+// The modal's onEnter function to be executed when Enter is pressed and no child button is focused.
+const ModalContext = createContext<{
+  setChildFocused: (focused: boolean) => void;
+  onEnter?: () => void;
+}>({ setChildFocused: noop });
+
+export const useModalContext = () => useContext(ModalContext);
+
+const getFirstFocusableElement = (
+  container: HTMLElement | null
+): HTMLElement | null => {
+  if (!container) return null;
+  const focusableElements = container.querySelectorAll<HTMLElement>(
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  );
+  return focusableElements[0] || null;
+};
 
 const Modal = ({
   title,
@@ -49,8 +79,11 @@ const Modal = ({
   isLoading = false,
   isContentDisabled = false,
   disableClosingModal = false,
+  disableModalAutofocus = false,
   className,
 }: IModalProps): JSX.Element => {
+  const [isChildFocused, setIsChildFocused] = useState(false);
+
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -71,19 +104,37 @@ const Modal = ({
 
   useEffect(() => {
     if (onEnter) {
-      const closeOrSaveWithEnterKey = (event: KeyboardEvent) => {
-        if (event.code === "Enter" || event.code === "NumpadEnter") {
+      const handleEnterKey = (event: KeyboardEvent) => {
+        if (
+          (event.code === "Enter" || event.code === "NumpadEnter") &&
+          !isChildFocused
+        ) {
           event.preventDefault();
           onEnter();
         }
       };
 
-      document.addEventListener("keydown", closeOrSaveWithEnterKey);
+      document.addEventListener("keydown", handleEnterKey);
       return () => {
-        document.removeEventListener("keydown", closeOrSaveWithEnterKey);
+        document.removeEventListener("keydown", handleEnterKey);
       };
     }
-  }, [onEnter]);
+  }, [onEnter, isChildFocused]);
+
+  const setChildFocused = (focused: boolean) => {
+    setIsChildFocused(focused);
+  };
+
+  const modalRef = useRef(null);
+
+  useEffect(() => {
+    if (!disableModalAutofocus) {
+      const firstFocusableElement = getFirstFocusableElement(modalRef.current);
+      if (firstFocusableElement) {
+        firstFocusableElement.focus();
+      }
+    }
+  }, [disableModalAutofocus]);
 
   const backgroundClasses = classnames(`${baseClass}__background`, {
     [`${baseClass}__hidden`]: isHidden,
@@ -107,13 +158,18 @@ const Modal = ({
   });
 
   return (
-    <div className={backgroundClasses}>
+    <div ref={modalRef} className={backgroundClasses}>
       <div className={modalContainerClasses}>
         <div className={`${baseClass}__header`}>
           <span>{title}</span>
           {!disableClosingModal && (
             <div className={`${baseClass}__ex`}>
-              <Button className="button button--unstyled" onClick={onExit}>
+              <Button
+                className="button button--unstyled"
+                onClick={onExit}
+                onFocus={() => setChildFocused(true)}
+                onBlur={() => setChildFocused(false)}
+              >
                 <Icon name="close" color="core-fleet-black" size="medium" />
               </Button>
             </div>
@@ -124,7 +180,11 @@ const Modal = ({
           {isContentDisabled && (
             <div className={`${baseClass}__disabled-overlay`} />
           )}
-          <div className={contentClasses}>{children}</div>
+          <div className={contentClasses}>
+            <ModalContext.Provider value={{ setChildFocused, onEnter }}>
+              {children}
+            </ModalContext.Provider>
+          </div>
         </div>
       </div>
     </div>

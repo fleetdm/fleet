@@ -50,7 +50,6 @@ const EnrollSecretModal = ({
   return (
     <Modal
       onExit={onReturnToApp}
-      onEnter={onReturnToApp}
       title="Manage enroll secrets"
       className={baseClass}
     >
