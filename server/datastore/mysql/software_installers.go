@@ -818,6 +818,16 @@ WHERE
   team_id = ?
 `
 
+	const countInstallDuringSetupAllInstallersInTeam = `
+SELECT
+  COUNT(*)
+FROM
+  software_installers
+WHERE
+  global_or_team_id = ? AND
+  install_during_setup = 1
+`
+
 	const deleteAllInstallersInTeam = `
 DELETE FROM
   software_installers
@@ -836,6 +846,17 @@ WHERE
     WHERE global_or_team_id = ? AND
     title_id NOT IN (?)
   )
+`
+
+	const countInstallDuringSetupNotInList = `
+SELECT
+  COUNT(*)
+FROM
+  software_installers 
+WHERE 
+  global_or_team_id = ? AND
+  title_id NOT IN (?) AND
+  install_during_setup = 1
 `
 
 	const deleteInstallersNotInList = `
@@ -909,8 +930,16 @@ ON DUPLICATE KEY UPDATE
 		// if no installers are provided, just delete whatever was in
 		// the table
 		if len(installers) == 0 {
-			// TODO(mna): check if any existing installer is install_during_setup, fail if there is one
-			// (will need to be reconciled with https://github.com/fleetdm/fleet/issues/22385)
+			// check if any existing installer is install_during_setup, fail if there is one
+			// TODO: will need to be reconciled with https://github.com/fleetdm/fleet/issues/22385
+			var countInstallDuringSetup int
+			if err := sqlx.GetContext(ctx, tx, &countInstallDuringSetup, countInstallDuringSetupAllInstallersInTeam, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "check installers installed during setup")
+			}
+			if countInstallDuringSetup > 0 {
+				return errDeleteInstallerInstalledDuringSetup
+			}
+
 			if _, err := tx.ExecContext(ctx, unsetAllInstallersFromPolicies, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "unset all obsolete installers in policies")
 			}
@@ -946,8 +975,20 @@ ON DUPLICATE KEY UPDATE
 			return ctxerr.Wrap(ctx, err, "unset obsolete software installers from policies")
 		}
 
-		// TODO(mna): check if any in the list are install_during_setup, fail if there is one
-		// (will need to be reconciled with https://github.com/fleetdm/fleet/issues/22385)
+		// check if any in the list are install_during_setup, fail if there is one
+		// TODO: will need to be reconciled with https://github.com/fleetdm/fleet/issues/22385
+		stmt, args, err = sqlx.In(countInstallDuringSetupNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to check installers install_during_setup")
+		}
+		var countInstallDuringSetup int
+		if err := sqlx.GetContext(ctx, tx, &countInstallDuringSetup, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "check installers installed during setup")
+		}
+		if countInstallDuringSetup > 0 {
+			return errDeleteInstallerInstalledDuringSetup
+		}
+
 		stmt, args, err = sqlx.In(deleteInstallersNotInList, globalOrTeamID, titleIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete installers")
