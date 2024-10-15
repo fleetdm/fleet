@@ -836,7 +836,7 @@ WHERE
 SELECT id,
 storage_id != ? is_package_modified,
 install_script_content_id != ? OR uninstall_script_content_id != ? OR pre_install_query != ? OR
-COALESCE(post_install_script_content_id != ? OR 
+COALESCE(post_install_script_content_id != ? OR
 	(post_install_script_content_id IS NULL AND ? IS NOT NULL) OR
 	(? IS NULL AND post_install_script_content_id IS NOT NULL)
 , FALSE) is_metadata_modified FROM software_installers
@@ -848,7 +848,7 @@ INSERT INTO software_installers (
 	team_id,
 	global_or_team_id,
 	storage_id,
-	filename, 
+	filename,
 	extension,
 	version,
 	install_script_content_id,
@@ -895,6 +895,8 @@ ON DUPLICATE KEY UPDATE
 		// if no installers are provided, just delete whatever was in
 		// the table
 		if len(installers) == 0 {
+			// TODO(mna): check if any existing installer is install_during_setup, fail if there is one
+			// (will need to be reconciled with https://github.com/fleetdm/fleet/issues/22385)
 			if _, err := tx.ExecContext(ctx, unsetAllInstallersFromPolicies, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "unset all obsolete installers in policies")
 			}
@@ -930,6 +932,8 @@ ON DUPLICATE KEY UPDATE
 			return ctxerr.Wrap(ctx, err, "unset obsolete software installers from policies")
 		}
 
+		// TODO(mna): check if any in the list are install_during_setup, fail if there is one
+		// (will need to be reconciled with https://github.com/fleetdm/fleet/issues/22385)
 		stmt, args, err = sqlx.In(deleteInstallersNotInList, globalOrTeamID, titleIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete installers")
