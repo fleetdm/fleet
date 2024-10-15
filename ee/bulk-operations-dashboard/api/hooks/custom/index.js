@@ -67,7 +67,7 @@ module.exports = function defineCustomHook(sails) {
           sails.config.custom.fleetBaseUrl = _.trimRight(sails.config.custom.fleetBaseUrl, '/');
           sails.log.warn('Warning: The provided sails.config.custom.fleetBaseUrl has a trailing slash. To make sure all auto-generated URLs work as expected, this trailing slash has been removed for you.');
         }
-        if (!_.startsWith(sails.config.custom.fleetBaseUrl, 'https://')) {
+        if (!_.startsWith(sails.config.custom.fleetBaseUrl, 'https://') && !_.startsWith(sails.config.custom.fleetBaseUrl, 'http://')) {
           sails.log.warn('Warning: The provided sails.config.custom.fleetBaseUrl is missing a protocol (https://). To make sure all auto-generated URLs work as expected, the protocol has been added to the fleetBaseUrl.');
           sails.config.custom.fleetBaseUrl = 'https://'+sails.config.custom.fleetBaseUrl;
         }
