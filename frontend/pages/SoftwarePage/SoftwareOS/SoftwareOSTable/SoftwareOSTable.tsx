@@ -61,13 +61,13 @@ const PLATFORM_FILTER_OPTIONS = [
     disabled: false,
     label: "Windows",
     value: "windows",
-  }, // Skipped until API supports "linux" as a platform (vs. "ubuntu" etc.)
-  /*  {
+  },
+  {
     disabled: false,
     label: "Linux",
     value: "linux",
   },
-*/ {
+  {
     disabled: false,
     label: "ChromeOS",
     value: "chrome",
