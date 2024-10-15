@@ -425,3 +425,14 @@ then the [app's context](#react-context) should be used.
 If you are dealing with a page that *updates* any kind of config, you'll want to access that config
 with a fresh API call to be sure you have the updated values. Otherwise, that is, you are dealing
 with a page that is only *reading* config values, get them from context.
+
+### Rendering flash messages
+
+The `renderFlash` method from notification context accepts a third `options` argument. Our best
+practice for new flash messages is to set `options.dismissOnPageChange` to `true`:
+
+```tsx
+renderFlash("error", "Something went wrong", {dismissOnPageChange: true})
+```
+This is especially important for `"error"` messages, since they are not otherwise hidden. `"success"`
+messages will be hidden automatically after an interval.
