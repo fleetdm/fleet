@@ -6,7 +6,7 @@ Use the `fleetctl` CLI to interact with Fleet, the lightweight telemetry platfor
 
 From the command line, install `fleetctl` with `npm install -g fleetctl`.
 
-See the [fleetctl documentation](https://fleetdm.com/guides/fleetctl#additional-dependencies) for additional requirements for using `fleetctl package` and `fleetctl preview`.
+See the [documentation on enrolling hosts](https://fleetdm.com/guides/enroll-hosts#cli) for additional requirements for using `fleetctl package`.
 
 ## Usage
 

@@ -10,15 +10,22 @@ Fleet supports the [latest version of osquery](https://github.com/osquery/osquer
 
 ## CLI
 
-> You must have `fleetctl` installed. [Learn how to install `fleetctl`](https://fleetdm.com/docs/using-fleet/fleetctl-cli#installing-fleetctl).
+> You must have `fleetctl` installed. [Learn how to install `fleetctl`](https://fleetdm.com/guides/fleetctl#installing-fleetctl).
 
 The `fleetctl package` command is used to generate Fleet's agent (fleetd) install package..
 
-The `--type` flag is used to specify the fleetd installer type. Note that Windows can only generate an MSI package:
+The `--type` flag is used to specify the fleetd installer type.
+
 - macOS: .pkg
-- Windows: .msi
+  - When building from Linux, you'll need Docker to run the [fleetdm/bomutils](https://hub.docker.com/r/fleetdm/bomutils) image that contains necessary dependencies.
+- Windows: .msi (using [WiX](https://github.com/wixtoolset/wix3))
+  - When building from Intel Macs or Linux, you'll need Docker to run the [fleetdm/wix](https://hub.docker.com/r/fleetdm/wix) image that contains the necessary WiX utilities.
+  - When building from Windows, by default `fleetctl` will use Docker, but you can [use WiX without Docker instead](https://fleetdm.com/guides/enroll-hosts#generating-fleetd-for-windows-using-local-wix-toolset).
+  - When building from Apple Silicon Macs, you'll need to [install Wine](https://fleetdm.com/install-wine), as `fleetctl` uses a local installation of WiX.
 - Linux: .deb or .rpm
-  
+
+> `fleetctl` on Windows can only generate MSI packages.
+
 A `--fleet-url` (Fleet instance URL) and `--enroll-secret` (Fleet enrollment secret) must be specified in order to communicate with Fleet instance.
 
 #### Example
