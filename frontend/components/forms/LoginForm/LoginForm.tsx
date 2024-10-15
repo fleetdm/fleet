@@ -147,7 +147,7 @@ const LoginForm = ({
           <Button className={`login-btn button button--brand`} type="submit">
             Login
           </Button>
-          {!ssoEnabled && renderSingleSignOnButton()}
+          {ssoEnabled && renderSingleSignOnButton()}
         </div>
         <div className={`${baseClass}__forgot-wrap`}>
           <Link
