@@ -562,10 +562,7 @@ SELECT
 	hsi.host_deleted_at,
 	hsi.policy_id,
 	hsi.created_at as created_at,
-	hsi.updated_at as updated_at,
-	si.user_id AS software_installer_user_id,
-	si.user_name AS software_installer_user_name,
-	si.user_email AS software_installer_user_email
+	hsi.updated_at as updated_at
 FROM
 	host_software_installs hsi
 	JOIN software_installers si ON si.id = hsi.software_installer_id
