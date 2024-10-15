@@ -297,6 +297,8 @@ SELECT
 	sesr.setup_experience_script_id,
 	sesr.script_execution_id,
 	sesr.error,
+	va.adam_id AS vpp_app_id,
+	va.platform AS vpp_app_platform,
 	COALESCE(si.title_id, COALESCE(va.title_id, NULL)) AS software_title_id
 FROM setup_experience_status_results sesr
 LEFT JOIN software_installers si ON si.id = sesr.software_installer_id
