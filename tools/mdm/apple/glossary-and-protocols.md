@@ -9,7 +9,7 @@ sequenceDiagram
     note over server: Server sends automatic enrollment<br/>endpoint details to ABM as part of a<br/>ADE/DEP configuration cron job
     alt Automatic Authenticated Enrollment
         mac->>server: GET /api/v1/fleet/sso<br/>(endpoint configured using ADE)<br/>Opens authetication webpage in a webview
-        server->>mac: Enrollment Profile (specific response heders)
+        server->>mac: Enrollment Profile (specific response headers)
     else Automatic Enrollment
         mac->>server: GET /api/mdm/apple/enroll<br/>(endpoint configured using ADE)
         server->>mac: Enrollment profile
