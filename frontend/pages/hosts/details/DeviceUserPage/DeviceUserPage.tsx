@@ -38,6 +38,7 @@ import AboutCard from "../cards/About";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
+import { getErrorMessage } from "./helpers";
 
 import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
@@ -282,8 +283,7 @@ const DeviceUserPage = ({
           refetchExtensions();
         }, 1000);
       } catch (error) {
-        console.log(error);
-        renderFlash("error", `Host "${host.display_name}" refetch error`, {
+        renderFlash("error", getErrorMessage(error, host.display_name), {
           dismissOnPageChange: true,
         });
         setShowRefetchSpinner(false);

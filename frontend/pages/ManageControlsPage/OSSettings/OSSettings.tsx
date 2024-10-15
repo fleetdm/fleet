@@ -9,7 +9,7 @@ import mdmAPI from "services/entities/mdm";
 
 import OS_SETTINGS_NAV_ITEMS from "./OSSettingsNavItems";
 import ProfileStatusAggregate from "./ProfileStatusAggregate";
-import TurnOnMdmMessage from "../components/TurnOnMdmMessage";
+import TurnOnMdmMessage from "../../../components/TurnOnMdmMessage";
 
 const baseClass = "os-settings";
 

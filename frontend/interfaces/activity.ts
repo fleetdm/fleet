@@ -45,6 +45,9 @@ export enum ActivityType {
   DeletedAppleOSProfile = "deleted_macos_profile",
   /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
   EditedAppleOSProfile = "edited_macos_profile",
+  CreatedNdesScepProxy = "created_ndes_scep_proxy",
+  DeletedNdesScepProxy = "deleted_ndes_scep_proxy",
+  EditedNdesScepProxy = "edited_ndes_scep_proxy",
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
