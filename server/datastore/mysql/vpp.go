@@ -181,6 +181,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 			}
 		}
 		if !found {
+			// TODO(mna): if app is marked as install during setup, prevent deletion.
 			toRemoveApps = append(toRemoveApps, existingApp)
 		}
 	}
@@ -421,6 +422,7 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 	if teamID != nil {
 		globalOrTeamID = *teamID
 	}
+	// TODO(mna): prevent deletion if app is marked as install during setup.
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, globalOrTeamID, appID.AdamID, appID.Platform)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete VPP app from team")

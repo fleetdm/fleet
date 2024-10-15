@@ -411,6 +411,7 @@ WHERE
 var errDeleteInstallerWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again."}
 
 func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
+	// TODO(mna): check if installer is marked as install during setup, prevent deletion if so.
 	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM software_installers WHERE id = ?`, id)
 	if err != nil {
 		if isMySQLForeignKey(err) {
