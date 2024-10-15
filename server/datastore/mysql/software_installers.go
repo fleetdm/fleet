@@ -408,11 +408,14 @@ WHERE
 	return &dest, nil
 }
 
-var errDeleteInstallerWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again."}
+var (
+	errDeleteInstallerWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again."}
+	errDeleteInstallerInstalledDuringSetup = &fleet.ConflictError{Message: "Couldn't delete. This software is installed when new Macs boot. Please remove software in Controls > Setup experience and try again."}
+)
 
 func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
-	// TODO(mna): check if installer is marked as install during setup, prevent deletion if so.
-	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM software_installers WHERE id = ?`, id)
+	// allow delete only if install_during_setup is false
+	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM software_installers WHERE id = ? AND install_during_setup = 0`, id)
 	if err != nil {
 		if isMySQLForeignKey(err) {
 			// Check if the software installer is referenced by a policy automation.
@@ -429,6 +432,16 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 
 	rows, _ := res.RowsAffected()
 	if rows == 0 {
+		// could be that the software installer does not exist, or it is installed
+		// during setup, do additional check.
+		var installDuringSetup bool
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &installDuringSetup,
+			`SELECT install_during_setup FROM software_installers WHERE id = ?`, id); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return ctxerr.Wrap(ctx, err, "check if software installer is installed during setup")
+		}
+		if installDuringSetup {
+			return errDeleteInstallerInstalledDuringSetup
+		}
 		return notFound("SoftwareInstaller").WithID(id)
 	}
 
