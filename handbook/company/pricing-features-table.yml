@@ -1111,6 +1111,7 @@
 - industryName: Grant Wi-Fi access
   description: Help your end users connect to Wi-Fi by adding your Simple Certificate Enrollment Protocol (SCEP) server.                
   # documentationUrl: TODO
+  comingSoonOn: 2024-10-15
   isExperimental: yes
   productCategories: [Device management]
   pricingTableCategories: [Integrations]
