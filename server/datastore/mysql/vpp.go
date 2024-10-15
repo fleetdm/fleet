@@ -172,7 +172,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 	var toAddApps []fleet.VPPAppTeam
 	var toRemoveApps []fleet.VPPAppID
 
-	for existingApp := range existingApps {
+	for existingApp, appTeamInfo := range existingApps {
 		var found bool
 		for _, appFleet := range appFleets {
 			// Self service value doesn't matter for removing app from team
@@ -181,7 +181,11 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 			}
 		}
 		if !found {
-			// TODO(mna): if app is marked as install during setup, prevent deletion.
+			// if app is marked as install during setup, prevent deletion.
+			// TODO: will need to be reconciled with https://github.com/fleetdm/fleet/issues/22385
+			if appTeamInfo.InstallDuringSetup {
+				return errDeleteInstallerInstalledDuringSetup
+			}
 			toRemoveApps = append(toRemoveApps, existingApp)
 		}
 	}
