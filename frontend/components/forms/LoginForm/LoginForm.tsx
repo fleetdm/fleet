@@ -141,18 +141,23 @@ const LoginForm = ({
         value={formData.password}
         onChange={onInputChange("password")}
       />
-      <div className={`${baseClass}__forgot-wrap`}>
-        <Link
-          className={`${baseClass}__forgot-link`}
-          to={paths.FORGOT_PASSWORD}
-        >
-          Forgot password?
-        </Link>
+      {/* Actions displayed using CSS column-reverse to preserve tab order */}
+      <div className={`${baseClass}__actions`}>
+        <div className={`${baseClass}__login-actions`}>
+          <Button className={`login-btn button button--brand`} type="submit">
+            Login
+          </Button>
+          {!ssoEnabled && renderSingleSignOnButton()}
+        </div>
+        <div className={`${baseClass}__forgot-wrap`}>
+          <Link
+            className={`${baseClass}__forgot-link`}
+            to={paths.FORGOT_PASSWORD}
+          >
+            Forgot password?
+          </Link>
+        </div>
       </div>
-      <Button className={`login-btn button button--brand`} type="submit">
-        Login
-      </Button>
-      {ssoEnabled && renderSingleSignOnButton()}
     </form>
   );
 };
