@@ -5383,7 +5383,8 @@ func (ds *Datastore) UpdateHostIssuesVulnerabilities(ctx context.Context) error 
 	}
 	var criticalCounts []issuesCount
 	// We must batch the query extracting the critical vulnerabilities count because the query is too complex for MySQL to handle in one go.
-	// We saw MySQL error 1114 (HY000), where the temporary table reached its max capacity.
+	// We saw MySQL error 1114 (HY000), where the temporary table reached its max capacity.  Temporary table size is reduced further by
+	// filtering cvss_score in the subqueries.
 	for i := 0; i < len(allHostIDs); i += hostIssuesInsertBatchSize {
 		start := i
 		end := i + hostIssuesInsertBatchSize
