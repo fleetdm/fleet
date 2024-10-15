@@ -5392,21 +5392,27 @@ func (ds *Datastore) UpdateHostIssuesVulnerabilities(ctx context.Context) error 
 		}
 		criticalVulnerabilitiesCountStmt := `
 		SELECT combined.host_id, COUNT(*) as count
-		FROM (SELECT host_id, cve
+		FROM (
+			SELECT host_id, sc.cve
 			FROM host_software hs
 			INNER JOIN software_cve sc ON sc.software_id = hs.software_id
+			INNER JOIN cve_meta cm ON cm.cve = sc.cve
 			WHERE host_id IN (?)
+			AND cm.cvss_score > ?
+
 			UNION
-			SELECT host_id, cve
+
+			SELECT host_id, osv.cve
 			FROM host_operating_system hos
 			INNER JOIN operating_system_vulnerabilities osv ON osv.operating_system_id = hos.os_id
+			INNER JOIN cve_meta cm ON cm.cve = osv.cve
 			WHERE host_id IN (?)
+			AND cm.cvss_score > ?
 		) combined
 		INNER JOIN cve_meta cm ON cm.cve = combined.cve
-		WHERE cm.cvss_score > ?
 		GROUP BY combined.host_id
 		ORDER BY combined.host_id`
-		stmt, args, err := sqlx.In(criticalVulnerabilitiesCountStmt, allHostIDs[start:end], allHostIDs[start:end], criticalCVSSScoreCutoff)
+		stmt, args, err := sqlx.In(criticalVulnerabilitiesCountStmt, allHostIDs[start:end], criticalCVSSScoreCutoff, allHostIDs[start:end], criticalCVSSScoreCutoff)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building IN statement for getting critical vulnerabilities count")
 		}
