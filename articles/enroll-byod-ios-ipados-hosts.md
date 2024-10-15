@@ -25,9 +25,9 @@ By enrolling BYOD iPhones and iPads in Fleet, IT admins can manage software inst
 
 > Each team has a unique URL that includes the team's enrollment secret. This enrollment secret ensures that devices are assigned to the correct team during enrollment. When an incorrect enroll secret is provided, users can still download the enrollment profile, but the enrollment itself will fail (403 error).
 
-## Profile-driven vs. account-driven BYOD enrollment
+## Profile-based vs. account-driven enrollment
 
-Profile-driven BYOD enrollment requires users to install a configuration profile on their personally owned devices manually—using the method described above—to enroll in MDM. In contrast, account-driven enrollment occurs automatically when users add a managed or federated Apple Account to their device; this action triggers the device to enroll in MDM without requiring manual profile installation. Both methods enable organizations to manage devices while respecting user privacy, but account-driven enrollment streamlines the process by integrating it with the account setup. Support for account-driven enrollment is coming to Fleet soon.
+Currently, BYOD enrollment in Fleet requires end users to install a configuration profile on their device. This is called profile-based _device_ enrollment. Apple recently deprecated profile-based _user_ enrollment (not supported in Fleet) in favor of the new account-driven enrollment: enrollment happens when end users add a Managed Apple Account to their device. Account-driven enrollment in Fleet is coming soon.
 
 ## Conclusion
 
