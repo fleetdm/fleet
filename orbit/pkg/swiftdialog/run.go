@@ -96,6 +96,8 @@ func (s *SwiftDialog) Start(ctx context.Context, opts *SwiftDialogOptions) error
 	outBuf := &bytes.Buffer{}
 	cmd.Stdout = outBuf
 
+	s.output = outBuf
+
 	err = cmd.Start()
 	if err != nil {
 		s.cancel(errors.New("could not start swiftDialog"))
@@ -176,15 +178,26 @@ func (s *SwiftDialog) sendCommand(command, arg string) error {
 	if err := s.context.Err(); err != nil {
 		return fmt.Errorf("could not send command: %w", context.Cause(s.context))
 	}
+
+	fullCommand := fmt.Sprintf("%s: %s", command, arg)
+
+	return s.writeCommand(fullCommand)
+}
+
+func (s *SwiftDialog) sendMultiCommand(commands ...string) error {
+	multiCommands := strings.Join(commands, "\n")
+	return s.writeCommand(multiCommands)
+}
+
+func (s *SwiftDialog) writeCommand(fullCommand string) error {
 	// For some reason swiftDialog needs us to open and close the file
 	// to detect a new command, just writing to the file doesn't cause
 	// a change
+
 	commandFile, err := os.OpenFile(s.commandFile.Name(), os.O_APPEND|os.O_WRONLY|os.O_CREATE, CommandFilePerms)
 	if err != nil {
 		return fmt.Errorf("opening command file for writing: %w", err)
 	}
-
-	fullCommand := fmt.Sprintf("%s: %s", command, arg)
 
 	_, err = fmt.Fprintf(commandFile, "%s\n", fullCommand)
 	if err != nil {
@@ -225,6 +238,11 @@ func (s *SwiftDialog) SetMessage(text string) error {
 // Append to the dialog message
 func (s *SwiftDialog) AppendMessage(text string) error {
 	return s.sendCommand("message", fmt.Sprintf("+ %s", sanitize(text)))
+}
+
+// SetMessageKeepListItems sets the message to the given string while preserving the current list items.
+func (s *SwiftDialog) SetMessageKeepListItems(message string) error {
+	return s.sendMultiCommand(fmt.Sprintf("message: %s", sanitize(message)), "list: show")
 }
 
 ///////////
@@ -334,6 +352,11 @@ func (s *SwiftDialog) UpdateListItemByIndex(index uint, statusText string, statu
 	}
 	arg := fmt.Sprintf("index: %d, status: %s, statustext: %s", index, argStatus, statusText)
 	return s.sendCommand("listitem", arg)
+}
+
+// ShowList forces the list to render.
+func (s *SwiftDialog) ShowList() {
+	s.sendCommand("list", "show")
 }
 
 /////////////

@@ -2,6 +2,7 @@ package setupexperience
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/swiftdialog"
@@ -9,6 +10,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
+
+const doneMessage = `### Setup is complete\n\nPlease contact your IT Administrator if there were any errors.`
 
 // Client is the minimal interface needed to communicate with the Fleet server.
 type Client interface {
@@ -54,7 +57,9 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		return nil
 	}
 
+	// If swiftDialog isn't up yet, then launch it
 	s.StartSwiftDialog(binaryPath)
+	defer func() { s.started = true }()
 
 	// Poll the status endpoint. This also releases the device if we're done.
 	payload, err := s.OrbitClient.GetSetupExperienceStatus()
@@ -62,36 +67,21 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		return err
 	}
 
-	// TODO: fill this in!
-
-	// if profiles not verified: render spinner
-	// if not account verification: render spinner
-	// if not bootstrap package:  render spinner
-
-	// render software + script status
-
-	// if all steps terminal, render close button
-
-	// If swiftDialog isn't up yet, then launch it
+	// TODO(JVE): do we need this now that we're blocking up in StartSwiftDialog?
 	select {
 	case <-s.closeChan:
 		log.Debug().Str("receiver", "setup_experiencer").Msg("closing swiftDialog")
-	// case s.openChan <- struct{}{}:
-	// 	log.Debug().Str("receiver", "setup_experiencer").Msg("swiftDialog is opened, proceeding")
 	default:
 		// ok
 	}
-	// ok
+
+	// We're rendering the initial loading UI (shown while there are still profiles, bootstrap package,
+	// and account configuration to verify) right off the bat, so we can just no-op if any of those
+	// are not terminal
 	if s.sd == nil {
 		log.Debug().Msg("JVE_LOG: 84")
 		return nil
 	}
-
-	// s.counter++
-	// if err := s.sd.UpdateTitle(fmt.Sprintf("Config received %d times", s.counter)); err != nil {
-	// 	log.Error().Err(err).Msg("updating swiftDialog title")
-	// }
-
 	if payload.BootstrapPackage != nil && payload.BootstrapPackage.Status == fleet.MDMBootstrapPackagePending {
 		log.Debug().Msg("JVE_LOG: 97")
 		return nil
@@ -116,6 +106,34 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		return nil
 	}
 
+	// Now render the UI for the software and script.
+	if len(payload.Software) > 0 || payload.Script != nil {
+		var done int
+		steps := append(payload.Software, payload.Script)
+		for _, r := range steps {
+			item := resultToListItem(r)
+			if s.started {
+				s.sd.UpdateListItemByTitle(item.Title, item.StatusText, item.Status)
+			} else {
+				s.sd.AddListItem(item)
+			}
+			if r.Status == fleet.SetupExperienceStatusFailure || r.Status == fleet.SetupExperienceStatusSuccess {
+				done++
+			}
+		}
+		s.sd.ShowList()
+		s.sd.IncrementProgress()
+		s.sd.UpdateProgressText(fmt.Sprintf("%d%%", done/len(steps)))
+
+		if done == len(steps) {
+			s.sd.SetMessage(doneMessage)
+			s.sd.ShowList() // need to call this because SetMessage removes the list from the view for some reason :(
+			s.sd.EnableButton1(true)
+			return nil
+		}
+	}
+
+	// If we get here, we can enable the button to allow the user to close the window.
 	s.sd.EnableButton1(true)
 
 	log.Debug().Msg("JVE_LOG: 120")
@@ -126,7 +144,6 @@ func (s *SetupExperiencer) StartSwiftDialog(binaryPath string) {
 	if s.started {
 		return
 	}
-	s.started = true
 
 	readyChan := make(chan struct{})
 	s.sd, _ = swiftdialog.Create(context.Background(), binaryPath)
@@ -134,24 +151,46 @@ func (s *SetupExperiencer) StartSwiftDialog(binaryPath string) {
 		initOpts := &swiftdialog.SwiftDialogOptions{
 			Title:            "none",
 			Message:          "### Setting up your Mac...\n\nYour Mac is being configured by your organization using Fleet. This process may take some time to complete. Please don't attempt to restart or shut down the computer unless prompted to do so.",
-			Icon:             "https://upload.wikimedia.org/wikipedia/commons/0/08/Pinterest-logo.png",
+			Icon:             "https://upload.wikimedia.org/wikipedia/commons/0/08/Pinterest-logo.png", // TODO(JVE): figure out how to get this
 			IconSize:         48,
 			MessageAlignment: swiftdialog.AlignmentCenter,
 			CentreIcon:       true,
 			Height:           "625",
 			Big:              true,
-			Progress:         1,
 			ProgressText:     "Configuring your device...",
 			Button1Text:      "Close",
 			Button1Disabled:  true,
 		}
 
 		s.sd.Start(context.Background(), initOpts)
-
+		s.sd.ShowProgress()
 		log.Debug().Msg("swiftDialog process started")
 		readyChan <- struct{}{}
 		s.sd.Wait()
 		s.closeChan <- struct{}{}
 	}()
 	<-readyChan
+}
+
+func resultToListItem(result *fleet.SetupExperienceStatusResult) swiftdialog.ListItem {
+	statusText := "Pending"
+	status := swiftdialog.StatusWait
+
+	switch result.Status {
+	case fleet.SetupExperienceStatusFailure:
+		status = swiftdialog.StatusFail
+		statusText = "Failed"
+	case fleet.SetupExperienceStatusSuccess:
+		status = swiftdialog.StatusSuccess
+		statusText = "Installed"
+		if result.IsForScript() {
+			statusText = "Ran"
+		}
+	}
+
+	return swiftdialog.ListItem{
+		Title:      result.Name,
+		Status:     status,
+		StatusText: statusText,
+	}
 }
