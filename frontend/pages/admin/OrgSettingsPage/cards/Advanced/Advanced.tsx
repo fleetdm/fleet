@@ -172,13 +172,14 @@ const Advanced = ({
           </p>
           {appConfig.mdm.enabled_and_configured && (
             <InputField
-              label="MDM client URL"
+              label="Apple MDM server URL"
               onChange={onInputChange}
               name="mdmAppleServerURL"
               value={mdmAppleServerURL}
               parseTarget
               error={formErrors.mdmAppleServerURL}
-              tooltip="Update this URL if Fleet is self-hosted and you want your MDM clients to communicate with a custom proxy."
+              tooltip="Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. If not configured, hosts will use the base URL of the Fleet instance."
+              helpText="If this URL changes and hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features."
             />
           )}
           <InputField
