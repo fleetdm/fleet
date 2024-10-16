@@ -17,7 +17,7 @@ import { IAppConfigFormProps, IFormField } from "../constants";
 const baseClass = "app-config-form";
 
 interface IAdvancedConfigFormData {
-  mdmClientURL: string;
+  mdmAppleServerURL: string;
   domain: string;
   verifySSLCerts: boolean;
   enableStartTLS?: boolean;
@@ -32,23 +32,23 @@ interface IAdvancedConfigFormData {
 }
 
 interface IAdvancedConfigFormErrors {
-  mdmClientURL?: string | null;
+  mdmAppleServerURL?: string | null;
   domain?: string | null;
   hostExpiryWindow?: string | null;
 }
 
 const validateFormData = ({
-  mdmClientURL,
+  mdmAppleServerURL,
   domain,
   hostExpiryWindow,
   enableHostExpiry,
 }: IAdvancedConfigFormData) => {
   const errors: Record<string, string> = {};
 
-  if (!mdmClientURL) {
-    delete errors.mdmClientURL;
-  } else if (!validUrl({ url: mdmClientURL })) {
-    errors.mdmClientURL = `${mdmClientURL} is not a valid URL`;
+  if (!mdmAppleServerURL) {
+    delete errors.mdmAppleServerURL;
+  } else if (!validUrl({ url: mdmAppleServerURL })) {
+    errors.mdmAppleServerURL = `${mdmAppleServerURL} is not a valid URL`;
   }
 
   if (!domain) {
@@ -72,7 +72,7 @@ const Advanced = ({
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<IAdvancedConfigFormData>({
-    mdmClientURL: appConfig.mdm?.client_url || "",
+    mdmAppleServerURL: appConfig.mdm?.client_url || "",
     domain: appConfig.smtp_settings?.domain || "",
     verifySSLCerts: appConfig.smtp_settings?.verify_ssl_certs || false,
     enableStartTLS: appConfig.smtp_settings?.enable_start_tls,
@@ -94,7 +94,7 @@ const Advanced = ({
   });
 
   const {
-    mdmClientURL,
+    mdmAppleServerURL,
     domain,
     verifySSLCerts,
     enableStartTLS,
@@ -155,7 +155,7 @@ const Advanced = ({
         activity_expiry_window: activityExpiryWindow || undefined,
       },
       mdm: {
-        client_url: mdmClientURL,
+        apple_server_url: mdmAppleServerURL,
       },
     };
 
@@ -174,10 +174,10 @@ const Advanced = ({
             <InputField
               label="MDM client URL"
               onChange={onInputChange}
-              name="mdmClientURL"
-              value={mdmClientURL}
+              name="mdmAppleServerURL"
+              value={mdmAppleServerURL}
               parseTarget
-              error={formErrors.mdmClientURL}
+              error={formErrors.mdmAppleServerURL}
               tooltip="Update this URL if Fleet is self-hosted and you want your MDM clients to communicate with a custom proxy."
             />
           )}
