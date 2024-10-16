@@ -486,7 +486,7 @@ org_settings:
 - `query_reports_disabled` disables query reports and deletes existing repors (default: `false`).
 - `query_report_cap` sets the maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at time and monitoring your infrastructure. (Default: `1000`)
 - `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI (defaul: `false`).
-- `server_url` is the base URL of the Fleet instance (default: provided during Fleet setup)
+- `server_url` is the base URL of the Fleet instance. If this URL changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features. (default: provided during Fleet setup)
 
 Can only be configured for all teams (`org_settings`).
 
@@ -712,7 +712,9 @@ Can only be configured for all teams (`org_settings`).
 
 ##### apple_server_url
 
-Update this URL if you're self-hosting Fleet and you want your hosts to talk to a different URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)
+Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)
+
+If this URL changes and hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
 
 ##### Example
 
