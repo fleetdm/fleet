@@ -64,6 +64,7 @@ describe("Software operating systems table", () => {
       screen.getByText("No operating systems detected")
     ).toBeInTheDocument();
     expect(screen.getByText("0 items")).toBeInTheDocument();
+    expect(screen.getByText("All platforms")).toBeInTheDocument();
     expect(screen.queryByText("Search")).toBeNull();
     expect(screen.queryByText("Updated")).toBeNull();
   });

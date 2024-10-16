@@ -4691,7 +4691,7 @@ func (ds *Datastore) OSVersions(
 	// filter by platform, name, and version
 	var filtered []fleet.OSVersion
 	for _, os := range counts {
-		if (platform == nil || *platform == os.Platform) && (name == nil || version == nil || (*name == os.NameOnly && *version == os.Version)) {
+		if (platform == nil || *platform == os.Platform || (*platform == "linux" && fleet.IsLinux(os.Platform))) && (name == nil || version == nil || (*name == os.NameOnly && *version == os.Version)) {
 			filtered = append(filtered, os)
 		}
 	}

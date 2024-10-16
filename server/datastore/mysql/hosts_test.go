@@ -6392,6 +6392,17 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
 
+	// filter by Linux pseudo-platform
+	platform = "linux"
+	osVersions, err = ds.OSVersions(ctx, nil, &platform, nil, nil)
+	require.NoError(t, err)
+
+	expected = []fleet.OSVersion{
+		{HostsCount: 1, Name: "CentOS 8.0.0", NameOnly: "CentOS", Version: "8.0.0", Platform: "rhel", OSVersionID: 4},
+		{HostsCount: 2, Name: "Ubuntu 20.4.0", NameOnly: "Ubuntu", Version: "20.4.0", Platform: "ubuntu", OSVersionID: 5},
+	}
+	require.Equal(t, expected, osVersions.OSVersions)
+
 	// filter by operating system name and version
 	osVersions, err = ds.OSVersions(ctx, nil, nil, ptr.String("Ubuntu"), ptr.String("20.4.0"))
 	require.NoError(t, err)
