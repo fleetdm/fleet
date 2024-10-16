@@ -355,8 +355,8 @@ func (s *SwiftDialog) UpdateListItemByIndex(index uint, statusText string, statu
 }
 
 // ShowList forces the list to render.
-func (s *SwiftDialog) ShowList() {
-	s.sendCommand("list", "show")
+func (s *SwiftDialog) ShowList() error {
+	return s.sendCommand("list", "show")
 }
 
 /////////////
