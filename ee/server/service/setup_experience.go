@@ -204,6 +204,10 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 				return ctxerr.Wrap(ctx, err, "constructing vpp app details for installation")
 			}
 
+			if app.SoftwareTitleID == nil {
+				return ctxerr.Errorf(ctx, "setup experience software title id missing from vpp app install request: %d", app.ID)
+			}
+
 			vppApp := &fleet.VPPApp{
 				TitleID: *app.SoftwareTitleID,
 				VPPAppTeam: fleet.VPPAppTeam{
@@ -220,6 +224,22 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 		}
 	case installersRunning == 0 && appsRunning == 0 && len(scriptsPending) > 0:
 		// enqueue scripts
+		for _, script := range scriptsPending {
+			req := &fleet.HostScriptRequestPayload{
+				HostID:          host.ID,
+				ScriptName:      script.Name,
+				ScriptContentID: *script.ScriptContentID,
+			}
+			res, err := svc.ds.NewHostScriptExecutionRequest(ctx, req)
+			if err != nil {
+				ctxerr.Wrap(ctx, err, "queueing setup experience script execution request")
+			}
+			script.ScriptExecutionID = &res.ExecutionID
+			script.Status = fleet.SetupExperienceStatusRunning
+			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, script); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating setup experience script execution id")
+			}
+		}
 	case installersRunning == 0 && appsRunning == 0 && scriptsRunning == 0:
 		// finished
 	}

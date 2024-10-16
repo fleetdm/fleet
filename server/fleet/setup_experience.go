@@ -26,6 +26,7 @@ type SetupExperienceStatusResult struct {
 	VPPAppPlatform                  *string                           `db:"vpp_app_platform" json:"-"`
 	NanoCommandUUID                 *string                           `db:"nano_command_uuid" json:"-" `
 	SetupExperienceScriptID         *uint                             `db:"setup_experience_script_id" json:"-" `
+	ScriptContentID                 *uint                             `db:"script_content_id" json:"-"`
 	ScriptExecutionID               *string                           `db:"script_execution_id" json:"execution_id,omitempty" `
 	Error                           *string                           `db:"error" json:"-" `
 	// SoftwareTitleID must be filled through a JOIN
