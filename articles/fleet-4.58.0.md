@@ -31,10 +31,71 @@ Fleet now supports RPM package installation on Linux distributions such as Fedor
 
 **NOTE:** Beginning with Fleet v4.55.0, Fleet no longer supports MySQL 5.7 because it has reached [end of life](https://mattermost.com/blog/mysql-5-7-reached-eol-upgrade-to-mysql-8-x-today/#:~:text=In%20October%202023%2C%20MySQL%205.7,to%20upgrade%20to%20MySQL%208.). The minimum version supported is MySQL 8.0.36.
 
-**Endpoint Operations**
+**Endpoint Operations:**
+- Add endpoint to retrieve details on fleet maintained app
+- Added support for uploading RPM packages.
+- Fix MSRC feed pulls (for NVD release builds) in environments where GitHub access is authenticated
+- Add API endpoint to list team available Fleet-maintained apps
 
+**Device Management (MDM):**
+- Fixed an issue with the migration adding support for multiple VPP tokens that would happen if a token is removed prior to upgrading Fleet.
+- Fixes a bug where a profile wouldn't be removed from a host if it was deleted or if the host was moved to another team before the profile was installed on the host.
+- Fixes a bug where removing a VPP or ABM token from a GitOps YAML file would leave the team assignments unchanged.
 
+**Vulnerability Management:**
+- Hide CVSS severity column from Fleet Free software details > vulnerabilities sections
+- Improved performance of SQL queries used to determine MDM profile status for Apple hosts
 
+**Bug fixes and improvements:**
+- Fix "no rows" error when adding a software installer that matches an existing title's name and source but not its bundle ID
+- Fix UI flow for observers to easily query hosts from the host details page
+- UI: Remove redundant built-in label filter pills
+- Ensure request timeouts for software installer edits are just as high as for initial software installer uploads
+- Fix bug with label display names always sentence casing
+- Updated activity cleanup job to remove all expired live queries to improve API performance in environment using large volumes of live queries. Note: the cleanup cron may take longer on the first run after upgrade.
+- Fix UI bug: Edit team name closes modal
+- UI fix: Switching vulnerability search types does not cause page re-render
+- Fixed software uninstaller script for `pkg`s to only remove '.app' directories installed by the package.
+- Fix policy automation truncation when selecting software to auto-install
+- Fixed UI design bug where software package file name was not displayed as expected
+- Windows host details now include battery status and UI includes information on how battery health is defined
+- Show proper software icon for chrome packages
+- Show the 'Unsupported screen size' UI on the My device page
+- Update success messages for lock, unlock, and wipe commands in the UI
+- Restrict width of policy description wrappers for better UI
+- UI cleanup: Host details about section condenses information into fewer columns at smaller widths
+- Fleet UI: Fix host software filter bug that resets dropdown filter on table changes (pagination, order by column, etc)
+- Updated the guide for MDM migration to include the new UX in fleetd
+- Increased performance for Host details and Fleet Desktop, particularly in environments using high volumes of live queries
+- Change add software modal to be separate pages in Fleet UI
+- Added the definition of the Fleet maintained apps and its ingestion
+- Battery health definitions now defined as cycle counts greater than 1000 or max capacity falling under 80% of designed capacity for macOS and Windows
+- Updated UI to remove leading/trailing whitespace when creating or editing team or query names
+- UI Improvements to selecting live query targets (e.g., styling, closing behavior)
+- Fleet UI: Surface duplicate label name error to user
+- Add ability to trigger script run on policy failure
+- Fix a small UI bug where a button overlapped some copy.
+
+## Fleet 4.57.3 (Oct 11, 2024)
+
+### Bug fixes
+
+* Fixed Orbit configuration endpoint returning 500 for Macs running Rapid Security Response macOS releases that are enrolled in OS major version enforcement.
+
+## Fleet 4.57.2 (Oct 03, 2024)
+
+### Bug fixes
+
+* Fixed software uninstaller script for `pkg`s to only remove '.app' directories installed by the package.
+
+## Fleet 4.57.1 (Oct 01, 2024)
+
+### Bug fixes
+
+* Improved performance of SQL queries used to determine MDM profile status for Apple hosts.
+* Ensured request timeouts for software installer edits were just as high as for initial software installer uploads.
+* Fixed an issue with the migration that added support for multiple VPP tokens, which would happen if a token was removed prior to upgrading Fleet.
+* Fixed a "no rows" error when adding a software installer that matched an existing title's name and source but not its bundle ID.
 
 ## Ready to upgrade?
 
@@ -43,6 +104,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
-<meta name="publishedOn" value="2024-10-11">
+<meta name="publishedOn" value="2024-10-16">
 <meta name="articleTitle" value="Fleet 4.58.0 | Run script on policy failure, Fleet-maintained apps, Sequoia firewall status.">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.58.0-1600x900@2x.png">
