@@ -225,6 +225,9 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 	case installersRunning == 0 && appsRunning == 0 && len(scriptsPending) > 0:
 		// enqueue scripts
 		for _, script := range scriptsPending {
+			if script.ScriptContentID == nil {
+				return ctxerr.Errorf(ctx, "setup experience script missing content id: %d", *script.SetupExperienceScriptID)
+			}
 			req := &fleet.HostScriptRequestPayload{
 				HostID:          host.ID,
 				ScriptName:      script.Name,
