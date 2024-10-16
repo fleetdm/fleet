@@ -109,6 +109,7 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	// Now render the UI for the software and script.
 	if len(payload.Software) > 0 || payload.Script != nil {
 		var done int
+		var prog uint
 		steps := append(payload.Software, payload.Script)
 		for _, r := range steps {
 			item := resultToListItem(r)
@@ -119,18 +120,22 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 			}
 			if r.Status == fleet.SetupExperienceStatusFailure || r.Status == fleet.SetupExperienceStatusSuccess {
 				done++
+				for range int(float32(1) / float32(len(steps)) * 100) {
+					prog++
+				}
 			}
 		}
+		s.sd.UpdateProgress(prog)
 		s.sd.ShowList()
-		s.sd.IncrementProgress()
-		s.sd.UpdateProgressText(fmt.Sprintf("%d%%", done/len(steps)))
+		s.sd.UpdateProgressText(fmt.Sprintf("%.0f%%", float32(done)/float32(len(steps))*100))
 
 		if done == len(steps) {
 			s.sd.SetMessage(doneMessage)
+			s.sd.CompleteProgress()
 			s.sd.ShowList() // need to call this because SetMessage removes the list from the view for some reason :(
 			s.sd.EnableButton1(true)
-			return nil
 		}
+		return nil
 	}
 
 	// If we get here, we can enable the button to allow the user to close the window.
