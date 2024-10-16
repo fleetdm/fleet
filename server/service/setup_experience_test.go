@@ -342,7 +342,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					return true, nil
 				}
 				ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked = false
-				updated, err = maybeUpdateSetupExperienceStatus(ctx, ds, result, false)
+				updated, err = maybeUpdateSetupExperienceStatus(ctx, ds, result, requireTerminalStatus)
 				require.NoError(t, err)
 				shouldUpdate := tt.alwaysUpdated
 				if tt.expectStatus == fleet.SetupExperienceStatusPending || tt.expectStatus == fleet.SetupExperienceStatusRunning {
@@ -426,7 +426,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 				}
 				ds.MaybeUpdateSetupExperienceVPPStatusFuncInvoked = false
 
-				updated, err = maybeUpdateSetupExperienceStatus(ctx, ds, result, false)
+				updated, err = maybeUpdateSetupExperienceStatus(ctx, ds, result, requireTerminalStatus)
 				require.NoError(t, err)
 				shouldUpdate := tt.alwaysUpdated
 				if tt.expected == fleet.SetupExperienceStatusPending || tt.expected == fleet.SetupExperienceStatusRunning {
