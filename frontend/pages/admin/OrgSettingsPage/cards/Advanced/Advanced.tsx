@@ -126,7 +126,20 @@ const Advanced = ({
   const onInputChange = ({ name, value }: IFormField) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
-    setFormErrors(validateFormData(newFormData));
+    const newErrs = validateFormData(newFormData);
+    // only set errors that are updates of existing errors
+    // new errors are only set onBlur
+    const errsToSet: Record<string, string> = {};
+    Object.keys(formErrors).forEach((k) => {
+      if (newErrs[k]) {
+        errsToSet[k] = newErrs[k];
+      }
+    });
+    setFormErrors(errsToSet);
+  };
+
+  const onInputBlur = () => {
+    setFormErrors(validateFormData(formData));
   };
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
@@ -174,6 +187,7 @@ const Advanced = ({
             <InputField
               label="Apple MDM server URL"
               onChange={onInputChange}
+              onBlur={onInputBlur}
               name="mdmAppleServerURL"
               value={mdmAppleServerURL}
               parseTarget
@@ -185,6 +199,7 @@ const Advanced = ({
           <InputField
             label="Domain"
             onChange={onInputChange}
+            onBlur={onInputBlur}
             name="domain"
             value={domain}
             parseTarget

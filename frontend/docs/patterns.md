@@ -200,6 +200,7 @@ export default PackComposerPage;
 
 ### Data validation
 
+#### How to validate
 Forms should make use of a pure `validate` function whose input(s) correspond to form data (may include
 new and possibly former form data) and whose output is an object of formFieldName:errorMessage
 key-value pairs (`Record<string,string>`) e.g.
@@ -211,8 +212,38 @@ const validate = (newFormData: IFormData) => {
   return errors;
 }
 ```
-The output of `validate` should be used by the calling `onChange` handler to set a `formErrors`
-state. 
+The output of `validate` should be used by the calling handler to set a `formErrors`
+state.
+
+#### When to validate
+Form fields should *set new errors* on blur only, and *set or remove* errors on change. This provides
+an "optimistic" user experience. The user is only told they have an error once they navigate
+away from a field, implying they are finished editing it, while they are informed they have fixed
+the error as soon as possible, that is, as soon as they make the fixing change. e.g.
+```
+const onInputChange = ({ name, value }: IFormField) => {
+  const newFormData = { ...formData, [name]: value };
+  setFormData(newFormData);
+  const newErrs = validateFormData(newFormData);
+  // only set errors that are updates of existing errors
+  // new errors are only set onBlur
+  const errsToSet: Record<string, string> = {};
+  Object.keys(formErrors).forEach((k) => {
+    if (newErrs[k]) {
+      errsToSet[k] = newErrs[k];
+    }
+  });
+  setFormErrors(errsToSet);
+};
+
+```
+and
+```
+const onInputBlur = () => {
+  setFormErrors(validateFormData(formData));
+};
+```
+
 
 ## React hooks
 
