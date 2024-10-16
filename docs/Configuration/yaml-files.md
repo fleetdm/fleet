@@ -289,7 +289,10 @@ controls:
 - `macos_settings.custom_settings` is a list of paths to macOS configuration profiles (.mobileconfig) or declaration profiles (.json).
 - `windows_settings.custom_settings` is a list of paths to Windows configuration profiles (.xml).
 
-Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format.
+Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format. Variables beginning with `$FLEET_VAR_` are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. Supported variables include:
+   - `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`
+   - `$FLEET_VAR_NDES_SCEP_CHALLENGE`
+   - `$FLEET_VAR_NDES_SCEP_PROXY_URL`
 
 Use `labels_include_all` to only apply (scope) profiles to hosts that have all those labels or `labels_exclude_any` to apply profiles to hosts that don't have any of those labels.
 
