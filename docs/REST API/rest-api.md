@@ -4625,7 +4625,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 
 ### Cancel host's upcoming activity
 
-`DELETE /api/v1/fleet/hosts/:id/activities/upcoming/:upcoming_activity_id`
+`DELETE /api/v1/fleet/hosts/:id/activities/upcoming/:activity_id`
 
 #### Parameters
 
