@@ -64,14 +64,8 @@ const Checkbox = (props: ICheckboxProps) => {
     event.preventDefault();
     if (readOnly || disabled) return;
 
-    let newValue: boolean | null;
-    if (indeterminate) {
-      newValue = true;
-    } else if (value === true) {
-      newValue = false;
-    } else {
-      newValue = true;
-    }
+    // If indeterminate, set to true; otherwise, toggle the current value
+    const newValue = indeterminate || !value;
 
     if (parseTarget) {
       onChange({ name, value: newValue });
@@ -85,6 +79,9 @@ const Checkbox = (props: ICheckboxProps) => {
     }
   };
 
+  /** Manual implementation of spacebar toggling checkboxes (default behavior)
+   * since we're using a custom div instead of a native checkbox
+   * Enter key intended to toggle table checkboxes only */
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     if (event.key === " " || (enableEnterToCheck && event.key === "Enter")) {
       handleChange(event);
@@ -144,7 +141,10 @@ const Checkbox = (props: ICheckboxProps) => {
           />
           {tooltipContent ? (
             <span className={`${baseClass}__label-tooltip tooltip`}>
-              <TooltipWrapper tipContent={tooltipContent} clickable={false}>
+              <TooltipWrapper
+                tipContent={tooltipContent}
+                clickable={false} // Not block form behind tooltip
+              >
                 {children}
               </TooltipWrapper>
             </span>
