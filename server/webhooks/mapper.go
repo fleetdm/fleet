@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/url"
 	"path"
-	"strconv"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -48,7 +47,7 @@ func (m *Mapper) getHostPayloadPart(
 	shortHosts := make([]*hostPayloadPart, len(hosts))
 	for i, h := range hosts {
 		hostURL := *hostBaseURL
-		hostURL.Path = path.Join(hostURL.Path, "hosts", strconv.Itoa(int(h.ID)))
+		hostURL.Path = path.Join(hostURL.Path, "hosts", fmt.Sprint(h.ID))
 		hostPayload := hostPayloadPart{
 			ID:          h.ID,
 			Hostname:    h.Hostname,

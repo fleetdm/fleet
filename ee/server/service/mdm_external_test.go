@@ -296,7 +296,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 					return nil, errors.New("team name already exists")
 				}
 			}
-			id := uint(len(teamStore) + 1)
+			id := uint(len(teamStore) + 1) //nolint:gosec // dismiss G115
 			_, ok := teamStore[id]
 			require.False(t, ok) // sanity check
 			team.ID = id
@@ -441,7 +441,8 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		// a custom setup assistant
 		setupAsstByTeam[0] = nil
 
-		preassignGrousWithFoo := append(preassignGroups, "foo")
+		preassignGrousWithFoo := preassignGroups
+		preassignGrousWithFoo = append(preassignGrousWithFoo, "foo")
 		team, err = svc.GetOrCreatePreassignTeam(ctx, preassignGrousWithFoo)
 		require.NoError(t, err)
 		require.Equal(t, uint(4), team.ID)
@@ -504,7 +505,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 					return nil, errors.New("team name already exists")
 				}
 			}
-			id := uint(len(teamStore) + 1)
+			id := uint(len(teamStore) + 1) //nolint:gosec // dismiss G115
 			_, ok := teamStore[id]
 			require.False(t, ok) // sanity check
 			require.Equal(t, "new team", team.Name)

@@ -43,7 +43,7 @@ func AddSecret(secret string) error {
 		C.kCFAllocatorDefault,
 		0,
 		&C.kCFTypeDictionaryKeyCallBacks,
-		&C.kCFTypeDictionaryValueCallBacks,
+		&C.kCFTypeDictionaryValueCallBacks, //nolint:gocritic // dubSubExpr false positive
 	)
 	defer C.CFRelease(C.CFTypeRef(query))
 
@@ -75,7 +75,7 @@ func UpdateSecret(secret string) error {
 		C.kCFAllocatorDefault,
 		0,
 		&C.kCFTypeDictionaryKeyCallBacks,
-		&C.kCFTypeDictionaryValueCallBacks,
+		&C.kCFTypeDictionaryValueCallBacks, //nolint:gocritic // dubSubExpr false positive
 	)
 	defer C.CFRelease(C.CFTypeRef(query))
 
@@ -86,7 +86,7 @@ func UpdateSecret(secret string) error {
 		C.kCFAllocatorDefault,
 		0,
 		&C.kCFTypeDictionaryKeyCallBacks,
-		&C.kCFTypeDictionaryValueCallBacks,
+		&C.kCFTypeDictionaryValueCallBacks, //nolint:gocritic // dubSubExpr false positive
 	)
 	defer C.CFRelease(C.CFTypeRef(update))
 
