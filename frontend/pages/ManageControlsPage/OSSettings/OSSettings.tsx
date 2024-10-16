@@ -40,6 +40,7 @@ const OSSettings = ({
   const {
     data: aggregateProfileStatusData,
     refetch: refetchAggregateProfileStatus,
+    isError: isErrorAggregateProfileStatus,
     isLoading: isLoadingAggregateProfileStatus,
   } = useQuery(
     ["aggregateProfileStatuses", teamId],
@@ -73,6 +74,7 @@ const OSSettings = ({
       </p>
       <ProfileStatusAggregate
         isLoading={isLoadingAggregateProfileStatus}
+        isError={isErrorAggregateProfileStatus}
         teamId={teamId}
         aggregateProfileStatusData={aggregateProfileStatusData}
       />
