@@ -1,2 +1,0 @@
-- Fixes a bug where removing a VPP or ABM token from a GitOps YAML file would leave the team
-  assignments unchanged.
