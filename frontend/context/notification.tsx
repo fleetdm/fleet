@@ -68,11 +68,15 @@ const NotificationProvider = ({ children }: Props) => {
         dismissOnPageChange?: boolean;
       }
     ) => {
-      dispatch({
-        type: actionTypes.RENDER_FLASH,
-        alertType,
-        message,
-        options,
+      // wrapping the dispatch in a timeout ensures it is evaluated on the next event loop,
+      // preventing bugs related to the dismissOnPageChange option's dependence on URL changes
+      setTimeout(() => {
+        dispatch({
+          type: actionTypes.RENDER_FLASH,
+          alertType,
+          message,
+          options,
+        });
       });
     },
     []
