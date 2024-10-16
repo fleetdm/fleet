@@ -53,3 +53,9 @@ The uninstallation process is also visible in the  **Activities** section on the
 ## How does Fleet maintain these apps?
 
 Fleet checks Homebrew Casks every hour for updates to app definitions. When you add an app, Fleet downloads the latest version available. However, Fleet does not automatically update apps. Auto-updating is not supported to ensure greater control over application versions across your fleet. If security or feature updates are critical, we recommend uninstalling and reinstalling the app from the Fleet-maintained list to force an update.
+
+<meta name="category" value="guides">
+<meta name="authorFullName" value="Gabriel Hernandez">
+<meta name="authorGitHubUsername" value="ghernandez345">
+<meta name="publishedOn" value="2024-10-16">
+<meta name="articleTitle" value="Installing Fleet-maintained apps on macOS hosts.">
