@@ -274,7 +274,7 @@ const generateTableHeaders = ({
             (row.original.team_id ?? undefined) === currentTeamId,
         });
 
-        return <Checkbox {...checkboxProps} />;
+        return <Checkbox {...checkboxProps} enableEnterToCheck />;
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
         const isInheritedQuery =
@@ -290,7 +290,7 @@ const generateTableHeaders = ({
           onChange: () => row.toggleRowSelected(),
         };
         // v4.35.0 Any team admin or maintainer now can add, edit, delete their team's queries
-        return <Checkbox {...checkboxProps} />;
+        return <Checkbox {...checkboxProps} enableEnterToCheck />;
       },
       disableHidden: true,
     });

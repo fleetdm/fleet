@@ -1,4 +1,4 @@
-import React, { ReactNode, KeyboardEvent } from "react";
+import React, { ReactNode, KeyboardEvent, useEffect, useRef } from "react";
 import classnames from "classnames";
 import { noop, pick } from "lodash";
 
@@ -26,6 +26,9 @@ export interface ICheckboxProps {
   tooltipContent?: React.ReactNode;
   isLeftLabel?: boolean;
   helpText?: React.ReactNode;
+  /** Use in table action only
+   * Do not use on forms as enter key reserved for submit */
+  enableEnterToCheck?: boolean;
 }
 
 const Checkbox = (props: ICheckboxProps) => {
@@ -44,7 +47,16 @@ const Checkbox = (props: ICheckboxProps) => {
     tooltipContent,
     isLeftLabel,
     helpText,
+    enableEnterToCheck = false,
   } = props;
+
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.indeterminate = indeterminate;
+    }
+  }, [indeterminate]);
 
   const handleChange = (
     event: React.MouseEvent | React.KeyboardEvent
@@ -66,10 +78,15 @@ const Checkbox = (props: ICheckboxProps) => {
     } else {
       onChange(newValue);
     }
+
+    // Update the hidden input
+    if (inputRef.current) {
+      inputRef.current.checked = newValue;
+    }
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
-    if (event.key === "Enter" || event.key === " ") {
+    if (event.key === " " || (enableEnterToCheck && event.key === "Enter")) {
       handleChange(event);
     }
   };
@@ -99,31 +116,43 @@ const Checkbox = (props: ICheckboxProps) => {
 
   return (
     <FormField {...formFieldProps}>
-      <div
-        role="checkbox"
-        aria-checked={indeterminate ? "mixed" : value || undefined}
-        aria-readonly={readOnly}
-        aria-disabled={disabled}
-        tabIndex={disabled ? -1 : 0}
-        className={checkBoxLabelClass}
-        onClick={handleChange}
-        onKeyDown={handleKeyDown}
-        onBlur={onBlur}
-      >
-        <Icon
-          name={getIconName()}
-          className={`${baseClass}__icon ${baseClass}__icon--${getIconName()}`}
+      <label htmlFor={name}>
+        <input
+          type="checkbox"
+          ref={inputRef}
+          name={name}
+          checked={value || undefined}
+          onChange={noop} // Empty onChange to avoid React warning
+          disabled={disabled || readOnly}
+          style={{ display: "none" }} // Hide the input
+          id={name}
         />
-        {tooltipContent ? (
-          <span className={`${baseClass}__label-tooltip tooltip`}>
-            <TooltipWrapper tipContent={tooltipContent} clickable={false}>
-              {children}
-            </TooltipWrapper>
-          </span>
-        ) : (
-          <span className={`${baseClass}__label`}>{children}</span>
-        )}
-      </div>
+        <div
+          role="checkbox"
+          aria-checked={indeterminate ? "mixed" : value || undefined}
+          aria-readonly={readOnly}
+          aria-disabled={disabled}
+          tabIndex={disabled ? -1 : 0}
+          className={checkBoxLabelClass}
+          onClick={handleChange}
+          onKeyDown={handleKeyDown}
+          onBlur={onBlur}
+        >
+          <Icon
+            name={getIconName()}
+            className={`${baseClass}__icon ${baseClass}__icon--${getIconName()}`}
+          />
+          {tooltipContent ? (
+            <span className={`${baseClass}__label-tooltip tooltip`}>
+              <TooltipWrapper tipContent={tooltipContent} clickable={false}>
+                {children}
+              </TooltipWrapper>
+            </span>
+          ) : (
+            <span className={`${baseClass}__label`}>{children}</span>
+          )}
+        </div>
+      </label>
     </FormField>
   );
 };
