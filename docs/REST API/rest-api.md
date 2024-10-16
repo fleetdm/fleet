@@ -1023,7 +1023,6 @@ None.
     }
   },
   "integrations": {
-    "jira": null,
     "google_calendar": [
       {
         "domain": "example.com",
@@ -1041,7 +1040,15 @@ None.
            "universe_domain": "googleapis.com"
          }
       }
-    ]
+    ],
+    "jira": [],
+    "ndes_scep_proxy": {
+      "admin_url": "https://example.com/certsrv/mscep_admin/",
+      "password": "********",
+      "url": "https://example.com/certsrv/mscep/mscep.dll",
+      "username": "Administrator@example.com"
+    },
+    "zendesk": []
   },
   "logging": {
     "debug": false,
@@ -1100,7 +1107,7 @@ Modifies the Fleet's configuration with the supplied information.
 | agent_options            | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.  |
 | fleet_desktop            | object  | body  | See [fleet_desktop](#fleet-desktop).                                                                                                 |
 | webhook_settings         | object  | body  | See [webhook_settings](#webhook-settings).                                                                                           |
-| integrations             | object  | body  | Includes `jira`, `zendesk`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
+| integrations             | object  | body  | Includes `ndes_scep_proxy` object and `jira`, `zendesk`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
 | scripts                  | array   | body  | A list of script files to add so they can be executed at a later time.                                                               |
@@ -1291,6 +1298,12 @@ Modifies the Fleet's configuration with the supplied information.
     }
   },
   "integrations": {
+    "google_calendar": [
+      {
+        "domain": "",
+        "api_key_json": null
+      }
+    ],
     "jira": [
       {
         "url": "https://jiraserver.com",
@@ -1300,12 +1313,8 @@ Modifies the Fleet's configuration with the supplied information.
         "enable_software_vulnerabilities": false
       }
     ],
-    "google_calendar": [
-      {
-        "domain": "",
-        "api_key_json": null
-      }
-    ]
+    "ndes_scep_proxy": null,
+    "zendesk": []
   },
   "logging": {
       "debug": false,
@@ -1620,16 +1629,15 @@ _Available in Fleet Premium._
 + [`integrations.jira`](#integrations-jira)
 + [`integrations.zendesk`](#integrations-zendesk)
 + [`integrations.google_calendar`](#integrations-google-calendar)
++ [`integrations.ndes_scep_proxy`](#integrations-ndes_scep_proxy)
 -->
 
-| Name                  | Type  | Description   |
-| --------------------- | ----- | -------------------------------------------------------------------- |
-| jira                  | array | See [`integrations.jira`](#integrations-jira).                       |
-| zendesk               | array | See [`integrations.zendesk`](#integrations-zendesk).                 |
-| google_calendar       | array | See [`integrations.google_calendar`](#integrations-google-calendar). |
-
-
-> Note that when making changes to the `integrations` object, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
+| Name            | Type   | Description                                                          |
+|-----------------|--------|----------------------------------------------------------------------|
+| jira            | array  | See [`integrations.jira`](#integrations-jira).                       |
+| zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk).                 |
+| google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
+| ndes_scep_proxy | object | See [`integrations.ndes_scep_proxy`](#integrations-ndes-scep-proxy). |
 
 <br/>
 
@@ -1648,6 +1656,8 @@ _Available in Fleet Premium._
 
 <br/>
 
+> Note that when making changes to the `integrations.jira` array, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
+
 ##### integrations.zendesk
 
 `integrations.zendesk` is an array of objects with the following structure:
@@ -1663,6 +1673,8 @@ _Available in Fleet Premium._
 
 <br/>
 
+> Note that when making changes to the `integrations.zendesk` array, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
+
 ##### integrations.google_calendar
 
 `integrations.google_calendar` is an array of objects with the following structure:
@@ -1673,6 +1685,22 @@ _Available in Fleet Premium._
 | api_key_json                      | object  | The private key JSON downloaded when generating the service account API key to be used for this calendar integration. |
 
 <br/>
+
+##### integrations.ndes_scep_proxy
+
+`integrations.ndes_scep_proxy` is an object with the following structure:
+
+| Name      | Type   | Description                                             |
+|-----------|--------|---------------------------------------------------------|
+| url       | string | **Required**. The URL of the NDES SCEP endpoint.        |
+| admin_url | string | **Required**. The URL of the NDES admin endpoint.       |
+| password  | string | **Required**. The password for the NDES admin endpoint. |
+| username  | string | **Required**. The username for the NDES admin endpoint. |
+
+Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. Not specifying `integrations.ndes_scep_proxy` in the payload will not change the existing settings.
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 
 ##### Example request body
 
@@ -1695,7 +1723,13 @@ _Available in Fleet Premium._
         "domain": "https://domain.com",
         "api_key_json": "<API KEY JSON>"
       }
-    ]
+    ],
+    "ndes_scep_proxy": {
+      "admin_url": "https://example.com/certsrv/mscep_admin/",
+      "password": "abc123",
+      "url": "https://example.com/certsrv/mscep/mscep.dll",
+      "username": "Administrator@example.com"
+    }
   }
 }
 ```
