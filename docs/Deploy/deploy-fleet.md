@@ -106,13 +106,13 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
 
     > This step will take around 15 minutes.
 
-5. Run the following commands in Terminal:
+5. Run the following command in Terminal:
 
     ```
     terraform apply -target module.fleet.module.vpc
     ```
 
-6. Next, run this command:
+6. Run the follwing command in Terminal:
     
     ```
     terraform apply -target module.osquery-carve -target module.firehose-logging
@@ -120,20 +120,20 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
 
 7. Log in to your AWS Route 53 instance
 
-8. Run the following commands in Terminal:
+8. Run the following command in Terminal:
     ```
     terraform apply -target aws_route53_zone.main
     ```
 
 9. From the Terminal output, obtain the NS records created for the zone and add them to the parent DNS zone in the AWS Route 53 GUI.
 
-10. Run the following commands in Terminal:
+10. Run the following command in Terminal:
     
     ```
     terraform apply -target module.fleet
     ```
 
-11. Lastly, run the following in Terminal:
+11. Run the follwing command in Terminal:
     
     ```
     terraform apply
