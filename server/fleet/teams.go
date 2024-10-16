@@ -518,5 +518,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		HostExpirySettings: &t.Config.HostExpirySettings,
 		WebhookSettings:    webhookSettings,
 		Integrations:       integrations,
+		Scripts:            t.Config.Scripts,
+		Software:           t.Config.Software,
 	}, nil
 }
