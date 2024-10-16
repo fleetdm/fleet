@@ -252,10 +252,10 @@ controls:
     custom_settings:
       - path: ../lib/macos-profile1.mobileconfig
         labels_exclude_any:
-          - Label 1
+          - Macs on Sequoia
       - path: ../lib/macos-profile2.json
         labels_include_all:
-          - Label 2
+          - Macs on Sonoma
   windows_settings:
     custom_settings:
       - path: ../lib/windows-profile.xml

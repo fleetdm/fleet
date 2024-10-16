@@ -17,7 +17,7 @@ This requires:
 
 The script will check that each of these are installed and available before running
 
-## Before running the script
+## Before publishing the release
 
 Make sure all tickets are tagged with the correct milestone.
 
@@ -30,13 +30,14 @@ For example no tickets still in Ready / In Progress should be in the milestone w
 Example:
 ```
 # Build release candidate and changelogs and QA ticket
+# git pull main locally
 ./tools/release/publish_release.sh -m
 
 # Do QA until ready to release
 
 # - QA is passed on all teams and ready for release
-# - Merge changelog and versions update PR into main
-# - git pull main locally with the changelog as the latest commit
+# - Merge changelog and versions update PR into RC branch and main
+# - git pull RC branch locally with the changelog as the latest commit
 
 # Tag minor
 ./tools/release/publish_release.sh -mg

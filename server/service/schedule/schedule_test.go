@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -297,6 +298,8 @@ func TestConfigReloadCheck(t *testing.T) {
 }
 
 func TestJobPanicRecover(t *testing.T) {
+	os.Setenv("TEST_CRON_NO_RECOVER", "0")
+	defer os.Unsetenv("TEST_CRON_NO_RECOVER")
 	ctx, cancel := context.WithCancel(context.Background())
 
 	jobRan := false

@@ -45,6 +45,10 @@ func (ds *Datastore) NewActivity(
 		if ranScriptActivity.PolicyID != nil {
 			userName = &automationActivityAuthor
 		}
+	} else if softwareInstallActivity, ok := activity.(fleet.ActivityTypeInstalledSoftware); ok {
+		if softwareInstallActivity.PolicyID != nil {
+			userName = &automationActivityAuthor
+		}
 	}
 
 	cols := []string{"user_id", "user_name", "activity_type", "details", "created_at"}
@@ -339,11 +343,11 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		fmt.Sprintf(`SELECT
 			hsi.execution_id as uuid,
 			-- policies with automatic installers generate a host_software_installs with (user_id=NULL,self_service=0),
-			-- thus the user_id for the upcoming activity needs to be the user that uploaded the software installer.
-			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.name, u.name) AS name,
-			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.id, u.id) as user_id,
-			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.gravatar_url, u.gravatar_url) as gravatar_url,
-			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.email, u.email) AS user_email,
+			-- so we mark those as "Fleet"
+			IF(hsi.user_id IS NULL AND NOT hsi.self_service, 'Fleet', u.name) AS name,
+			hsi.user_id as user_id,
+			u.gravatar_url as gravatar_url,
+			u.email AS user_email,
 			:installed_software_type as activity_type,
 			hsi.created_at as created_at,
 			JSON_OBJECT(
@@ -353,7 +357,9 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'software_package', si.filename,
 				'install_uuid', hsi.execution_id,
 				'status', CAST(hsi.status AS CHAR),
-				'self_service', hsi.self_service IS TRUE
+				'self_service', hsi.self_service IS TRUE,
+				'policy_id', hsi.policy_id,
+			    'policy_name', p.name
 			) as details
 		FROM
 			host_software_installs hsi
@@ -364,7 +370,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		LEFT OUTER JOIN
 			users u ON u.id = hsi.user_id
 		LEFT OUTER JOIN
-			users u2 ON u2.id = si.user_id
+			policies p ON p.id = hsi.policy_id
 		LEFT OUTER JOIN
 			host_display_names hdn ON hdn.host_id = hsi.host_id
 		WHERE
@@ -375,11 +381,11 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		fmt.Sprintf(`SELECT
 			hsi.execution_id as uuid,
 			-- policies with automatic installers generate a host_software_installs with (user_id=NULL,self_service=0),
-			-- thus the user_id for the upcoming activity needs to be the user that uploaded the software installer.
-			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.name, u.name) AS name,
-			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.id, u.id) as user_id,
-			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.gravatar_url, u.gravatar_url) as gravatar_url,
-			IF(hsi.user_id IS NULL AND NOT hsi.self_service, u2.email, u.email) AS user_email,
+			-- so we mark those as "Fleet"
+			IF(hsi.user_id IS NULL AND NOT hsi.self_service, 'Fleet', u.name) AS name,
+			hsi.user_id as user_id,
+			u.gravatar_url as gravatar_url,
+			u.email AS user_email,
 			:uninstalled_software_type as activity_type,
 			hsi.created_at as created_at,
 			JSON_OBJECT(
@@ -387,7 +393,9 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ''),
 				'script_execution_id', hsi.execution_id,
-				'status', CAST(hsi.status AS CHAR)
+				'status', CAST(hsi.status AS CHAR),
+				'policy_id', hsi.policy_id,
+			    'policy_name', p.name
 			) as details
 		FROM
 			host_software_installs hsi
@@ -398,7 +406,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		LEFT OUTER JOIN
 			users u ON u.id = hsi.user_id
 		LEFT OUTER JOIN
-			users u2 ON u2.id = si.user_id
+			policies p ON p.id = hsi.policy_id
 		LEFT OUTER JOIN
 			host_display_names hdn ON hdn.host_id = hsi.host_id
 		WHERE

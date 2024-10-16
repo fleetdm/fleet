@@ -39,4 +39,17 @@
   &__sso-legend {
     vertical-align: middle;
   }
+
+  &__actions {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: $pad-large;
+  }
+
+  &__login-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-large;
+  }
 }

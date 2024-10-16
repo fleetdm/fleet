@@ -98,7 +98,7 @@ parasails.registerPage('new-license', {
       this.showQuotedPrice = true;
       this.quotedPrice = quote.quotedPrice;
       this.numberOfHostsQuoted = quote.numberOfHosts;
-      if(quote.numberOfHosts < 700) {
+      if(quote.numberOfHosts < 300) {
         this.formData.quoteId = quote.id;
         this.showBillingForm = true;
       }

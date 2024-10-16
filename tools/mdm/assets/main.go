@@ -142,7 +142,8 @@ func main() {
 			log.Fatalf("invalid asset name %s", flagImportName)
 		}
 
-		err := ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{{Name: fleet.MDMAssetName(flagImportName), Value: []byte(flagImportValue)}})
+		err := ds.ReplaceMDMConfigAssets(ctx,
+			[]fleet.MDMConfigAsset{{Name: fleet.MDMAssetName(flagImportName), Value: []byte(flagImportValue)}}, nil)
 		if err != nil {
 			log.Fatal("writing asset to db: ", err)
 		}
@@ -192,7 +193,7 @@ func main() {
 			names = []fleet.MDMAssetName{fleet.MDMAssetName(flagExportName)}
 		}
 
-		assets, err := ds.GetAllMDMConfigAssetsByName(ctx, names)
+		assets, err := ds.GetAllMDMConfigAssetsByName(ctx, names, nil)
 		if err != nil && !errors.Is(err, mysql.ErrPartialResult) {
 			log.Fatal("retrieving assets from db:", err)
 		}
