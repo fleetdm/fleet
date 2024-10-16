@@ -666,6 +666,15 @@ func (c *AppConfig) Copy() *AppConfig {
 		clone.MDM.VolumePurchasingProgram = optjson.SetSlice(vpp)
 	}
 
+	if c.MDM.MacOSSetup.Software.Set {
+		sw := make([]*MacOSSetupSoftware, len(c.MDM.MacOSSetup.Software.Value))
+		for i, s := range c.MDM.MacOSSetup.Software.Value {
+			s := *s
+			sw[i] = &s
+		}
+		clone.MDM.MacOSSetup.Software = optjson.SetSlice(sw)
+	}
+
 	return &clone
 }
 
