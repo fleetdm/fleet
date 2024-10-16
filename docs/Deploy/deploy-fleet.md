@@ -112,7 +112,7 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
     terraform apply -target module.fleet.module.vpc
     ```
 
-6. Run the follwing command in Terminal:
+6. Run the following command in Terminal:
     
     ```
     terraform apply -target module.osquery-carve -target module.firehose-logging
@@ -133,7 +133,7 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
     terraform apply -target module.fleet
     ```
 
-11. Run the follwing command in Terminal:
+11. Run the following command in Terminal:
     
     ```
     terraform apply
