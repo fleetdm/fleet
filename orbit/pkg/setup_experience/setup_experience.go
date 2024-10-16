@@ -21,13 +21,19 @@ type Client interface {
 // SetupExperiencer is the type that manages the Fleet setup experience flow during macOS Setup
 // Assistant. It uses swiftDialog as a UI for showing the status of software installations and
 // script execution that are configured to run before the user has full access to the device.
+// If the setup experience is supposed to run, it will launch a single swiftDialog instance and then
+// update that instance based on the results from the /orbit/setup_experience/status endpoint.
 type SetupExperiencer struct {
 	OrbitClient Client
 	closeChan   chan struct{}
 	rootDirPath string
-	sd          *swiftdialog.SwiftDialog
-	counter     int
-	started     bool
+	// Note: this object is not safe for concurrent use. Since the SetupExperiencer is a singleton,
+	// its Run method is called within a WaitGroup,
+	// and no other parts of Orbit need access to this field (or any other parts of the
+	// SetupExperiencer), it's OK to not protect this with a lock.
+	sd      *swiftdialog.SwiftDialog
+	counter int
+	started bool
 }
 
 func NewSetupExperiencer(client Client, rootDirPath string) *SetupExperiencer {
