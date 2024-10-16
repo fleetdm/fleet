@@ -198,8 +198,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
-			License:       license,
-			KeyValueStore: newMemKeyValueStore(),
+			License:         license,
+			KeyValueStore:   newMemKeyValueStore(),
+			EnableSCEPProxy: true,
 		},
 	)
 
@@ -289,6 +290,12 @@ queries:
 policies:
 agent_options:
 org_settings:
+  integrations:
+    ndes_scep_proxy:
+      url: https://ndes.example.com/scep
+      admin_url: https://ndes.example.com/admin
+      username: ndes_user
+      password: ndes_password
   server_settings:
     server_url: $FLEET_SERVER_URL
   org_info:
@@ -312,6 +319,8 @@ software:
 	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
 	assert.Empty(t, enrolledSecrets)
+	assert.True(t, savedAppConfig.Integrations.NDESSCEPProxy.Valid)
+	assert.Equal(t, "https://ndes.example.com/scep", savedAppConfig.Integrations.NDESSCEPProxy.Value.URL)
 }
 
 func TestGitOpsBasicTeam(t *testing.T) {

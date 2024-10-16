@@ -38,6 +38,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/go-kit/kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -387,6 +388,18 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 				logger,
 			)
 			require.NoError(t, err)
+			origValidateNDESSCEPURL := validateNDESSCEPURL
+			origValidateNDESSCEPAdminURL := validateNDESSCEPAdminURL
+			t.Cleanup(func() {
+				validateNDESSCEPURL = origValidateNDESSCEPURL
+				validateNDESSCEPAdminURL = origValidateNDESSCEPAdminURL
+			})
+			validateNDESSCEPURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration, _ log.Logger) error {
+				return nil
+			}
+			validateNDESSCEPAdminURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
+				return nil
+			}
 		}
 	}
 

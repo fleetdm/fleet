@@ -355,7 +355,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		case !newAppConfig.Integrations.NDESSCEPProxy.Valid:
 			// User is explicitly clearing this setting
 			appConfig.Integrations.NDESSCEPProxy.Valid = false
-			ndesStatus = ndesStatusDeleted
+			if oldAppConfig.Integrations.NDESSCEPProxy.Valid {
+				ndesStatus = ndesStatusDeleted
+			}
 		default:
 			// User is updating the setting
 			appConfig.Integrations.NDESSCEPProxy.Value.URL = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.URL)
