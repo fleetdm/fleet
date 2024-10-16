@@ -230,13 +230,47 @@ Tools for building and signing orbit on macOS and Windows
 ##### [orbit/tools/cleanup](/orbit/tools/cleanup)
 Tools for removing `fleetd` services from all platforms
 
-##### [orbit/tools/ubuntu](/orbit/tools/ubuntu)
-Ubuntu Dockerfile
-
 ##### [orbit/tools/windows](/orbit/tools/windows)
 Tool for profiling performance on Windows
 
 ### [pkg/](/pkg)
+Packages that are used by various fleet server and client commands
+
+- [buildpkg](/pkg/buildpkg)
+   Package for building fleet components
+- [certificate](/pkg/certificate)
+   Package for handling TLS certificates
+- [download](/pkg/download)
+   Package for downloading resources from URLs
+- [file](/pkg/file)
+   Package for various file-related operations like copying,
+   validating paths, and checking PDF signatures
+- [filepath_windows](/pkg/filepath_windows)
+   Package for working with Windows file paths
+- [fleethttp](/pkg/fleethttp)
+   Package for making HTTP requests, configured using Functional Options Pattern
+- [mdm](/pkg/mdm)
+   MDM tests
+- [nettest](/pkg/nettest)
+   Package that provides functionality to run tests that access the
+   public network
+- [open](/pkg/open)
+   Package that provides a cross-platform method of opening links in
+   the browser
+- [optjson](/pkg/optjson)
+   Package provides types that can be used to represent optional JSON values.
+- [rawjson](/pkg/rawjson)
+   Package provides functions for operating on rawjson
+- [retry](/pkg/retry)
+   Package provides a method to re-attempt a function with cooldown
+   and delay, or at various intervals
+- [scripts](/pkg/scripts)
+   Package contains constants used by fleetd and the server
+- [secure](/pkg/secure)
+   Package provides methods for checking the permissions on files
+- [spec](/pkg/spec)
+   Package provides methods for interacting with `GitOpts` spec files
+
 
 ### [proposals/](/proposals)
 
