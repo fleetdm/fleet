@@ -107,8 +107,8 @@ Documentation on working with TUF (The Update Framework)
 Orbit packages
 
 - [augeas](/orbit/pkg/augeas)
-    Contains "lens" files for =augeas=. =augeas= is a config file
-    parser and used by =osquery=. This package will embed the
+    Contains "lens" files for `augeas`. `augeas` is a config file
+    parser and used by `osquery`. This package will embed the
     directory of lenses and has a function to copy them to the install
     directory.
 - [bitlocker](/orbit/pkg/bitlocker)
