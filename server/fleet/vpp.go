@@ -16,7 +16,8 @@ type VPPAppID struct {
 type VPPAppTeam struct {
 	VPPAppID
 
-	SelfService bool `db:"self_service" json:"self_service"`
+	SelfService        bool `db:"self_service" json:"self_service"`
+	InstallDuringSetup bool `db:"install_during_setup" json:"-"`
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,

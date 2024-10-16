@@ -408,10 +408,14 @@ WHERE
 	return &dest, nil
 }
 
-var errDeleteInstallerWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again."}
+var (
+	errDeleteInstallerWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again."}
+	errDeleteInstallerInstalledDuringSetup = &fleet.ConflictError{Message: "Couldn't delete. This software is installed when new Macs boot. Please remove software in Controls > Setup experience and try again."}
+)
 
 func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
-	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM software_installers WHERE id = ?`, id)
+	// allow delete only if install_during_setup is false
+	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM software_installers WHERE id = ? AND install_during_setup = 0`, id)
 	if err != nil {
 		if isMySQLForeignKey(err) {
 			// Check if the software installer is referenced by a policy automation.
@@ -428,6 +432,16 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 
 	rows, _ := res.RowsAffected()
 	if rows == 0 {
+		// could be that the software installer does not exist, or it is installed
+		// during setup, do additional check.
+		var installDuringSetup bool
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &installDuringSetup,
+			`SELECT install_during_setup FROM software_installers WHERE id = ?`, id); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return ctxerr.Wrap(ctx, err, "check if software installer is installed during setup")
+		}
+		if installDuringSetup {
+			return errDeleteInstallerInstalledDuringSetup
+		}
 		return notFound("SoftwareInstaller").WithID(id)
 	}
 
@@ -804,6 +818,16 @@ WHERE
   team_id = ?
 `
 
+	const countInstallDuringSetupAllInstallersInTeam = `
+SELECT
+  COUNT(*)
+FROM
+  software_installers
+WHERE
+  global_or_team_id = ? AND
+  install_during_setup = 1
+`
+
 	const deleteAllInstallersInTeam = `
 DELETE FROM
   software_installers
@@ -824,6 +848,17 @@ WHERE
   )
 `
 
+	const countInstallDuringSetupNotInList = `
+SELECT
+  COUNT(*)
+FROM
+  software_installers 
+WHERE 
+  global_or_team_id = ? AND
+  title_id NOT IN (?) AND
+  install_during_setup = 1
+`
+
 	const deleteInstallersNotInList = `
 DELETE FROM
   software_installers
@@ -836,7 +871,7 @@ WHERE
 SELECT id,
 storage_id != ? is_package_modified,
 install_script_content_id != ? OR uninstall_script_content_id != ? OR pre_install_query != ? OR
-COALESCE(post_install_script_content_id != ? OR 
+COALESCE(post_install_script_content_id != ? OR
 	(post_install_script_content_id IS NULL AND ? IS NOT NULL) OR
 	(? IS NULL AND post_install_script_content_id IS NOT NULL)
 , FALSE) is_metadata_modified FROM software_installers
@@ -848,7 +883,7 @@ INSERT INTO software_installers (
 	team_id,
 	global_or_team_id,
 	storage_id,
-	filename, 
+	filename,
 	extension,
 	version,
 	install_script_content_id,
@@ -895,6 +930,16 @@ ON DUPLICATE KEY UPDATE
 		// if no installers are provided, just delete whatever was in
 		// the table
 		if len(installers) == 0 {
+			// check if any existing installer is install_during_setup, fail if there is one
+			// TODO: will need to be reconciled with https://github.com/fleetdm/fleet/issues/22385
+			var countInstallDuringSetup int
+			if err := sqlx.GetContext(ctx, tx, &countInstallDuringSetup, countInstallDuringSetupAllInstallersInTeam, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "check installers installed during setup")
+			}
+			if countInstallDuringSetup > 0 {
+				return errDeleteInstallerInstalledDuringSetup
+			}
+
 			if _, err := tx.ExecContext(ctx, unsetAllInstallersFromPolicies, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "unset all obsolete installers in policies")
 			}
@@ -928,6 +973,20 @@ ON DUPLICATE KEY UPDATE
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "unset obsolete software installers from policies")
+		}
+
+		// check if any in the list are install_during_setup, fail if there is one
+		// TODO: will need to be reconciled with https://github.com/fleetdm/fleet/issues/22385
+		stmt, args, err = sqlx.In(countInstallDuringSetupNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to check installers install_during_setup")
+		}
+		var countInstallDuringSetup int
+		if err := sqlx.GetContext(ctx, tx, &countInstallDuringSetup, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "check installers installed during setup")
+		}
+		if countInstallDuringSetup > 0 {
+			return errDeleteInstallerInstalledDuringSetup
 		}
 
 		stmt, args, err = sqlx.In(deleteInstallersNotInList, globalOrTeamID, titleIDs)
