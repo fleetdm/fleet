@@ -4633,8 +4633,6 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 | ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required**. The host's ID. |
 | activity_id   | string | path | **Required**. The ID of host's upcoming activity. |
-| page | integer | query | Page number of the results to fetch.|
-| per_page | integer | query | Results per page.|
 
 #### Example
 
