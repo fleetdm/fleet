@@ -487,11 +487,12 @@ for pagination. For a comprehensive list of activity types and detailed informat
     {
       "created_at": "2023-07-27T14:35:08Z",
       "id": 25,
-      "actor_full_name": "Anna Chao",
+      "actor_full_name": "Fleet",
       "actor_id": 3,
       "actor_gravatar": "",
       "actor_email": "",
-      "type": "uninstalled_software",
+      "fleet_initiated": true,
+      "type": "installed_software",
       "details": {
         "host_id": 1,
         "host_display_name": "Marko's MacBook Pro",
@@ -557,10 +558,11 @@ for pagination. For a comprehensive list of activity types and detailed informat
     {
       "created_at": "2021-07-26T17:27:08Z",
       "id": 15,
-      "actor_full_name": "name",
+      "actor_full_name": "Anna",
       "actor_id": 1,
       "actor_gravatar": "",
-      "actor_email": "name@example.com",
+      "actor_email": "anna@example.com",
+      "fleet_initiated": false,
       "type": "live_query",
       "details": {
         "target_counts": 14
@@ -568,7 +570,7 @@ for pagination. For a comprehensive list of activity types and detailed informat
     }
   ],
   "meta": {
-    "has_next_results": true,
+    "has_next_results": false,
     "has_previous_results": false
   }
 }
@@ -2414,6 +2416,7 @@ None.
 - [Wipe host](#wipe-host)
 - [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
+- [Cancel host's upcoming activity](#cancel-hosts-upcoming-activity)
 - [Add labels to host](#add-labels-to-host)
 - [Remove labels from host](#remove-labels-from-host)
 - [Live query one host (ad-hoc)](#live-query-one-host-ad-hoc)
@@ -4723,6 +4726,25 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
   }
 }
 ```
+
+### Cancel host's upcoming activity
+
+`DELETE /api/v1/fleet/hosts/:id/activities/upcoming/:activity_id`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's ID. |
+| activity_id   | string | path | **Required**. The ID of host's upcoming activity. |
+
+#### Example
+
+`DELETE /api/v1/fleet/hosts/12/activities/upcoming/81e10a70-730b-4c45-9b40-b14373e04757`
+
+##### Default response
+
+`Status: 204`
 
 ### Add labels to host
 
