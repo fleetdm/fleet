@@ -2,7 +2,7 @@
 
 Fleet [v4.59.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.59.0) introduces support for NDES SCEP proxy. This guide will walk you through configuring and using NDES with Fleet acting as a SCEP proxy.
 
-NDES (Network Device Enrollment Service) is a Microsoft service that allows devices to receive certificates. SCEP (Simple Certificate Enrollment Protocol) is a protocol used by devices to request certificates from a Certificate Authority (CA).
+NDES (Network Device Enrollment Service) is a Microsoft service that allows devices to receive certificates. SCEP (Simple Certificate Enrollment Protocol) is a protocol devices use to request certificates from a Certificate Authority (CA).
 
 ## Prerequisites
 
@@ -22,13 +22,13 @@ Go to the Fleet web interface, navigate to `Settings`, go to the `Integrations` 
 
 ### 2. Configure NDES SCEP settings
 
-Fill in the SCEP settings. You will need to provide the SCEP URL which accepts the SCEP protocol. In addition, you will need to give the Admin URL with the associated username and password to retrieve the one-time challenge passwords for SCEP enrollment.
+You will need to provide the SCEP URL that accepts the SCEP protocol. You'll also need to give the Admin URL with the associated username and password to get the one-time challenge passwords for SCEP enrollment.
 
 ![Configure NDES SCEP settings](../website/assets/images/articles/ndes-scep-config.png)
 
 Note:
 * The example paths end with `/certsrv/mscep/mscep.dll` and `/certsrv/mscep_admin/` respectively. These path suffixes are the default paths for NDES on Windows Server 2022 and should only be changed if you have customized the paths on your server.
-* When saving the configuration, Fleet will attempt to connect to the SCEP server to verify the connection, including retrieving a one-time challenge password. This validation also occurs when adding a new SCEP configuration or updating an existing one via API and GitOps, including dry runs. Please make sure the NDES password cache size is large enough to accommodate this validation.
+* When saving the configuration, Fleet will attempt to connect to the SCEP server to verify the connection, including retrieving a one-time challenge password. This validation also occurs when adding a new SCEP configuration or updating an existing one via API and GitOps, including dry runs. Please ensure the NDES password cache size is large enough to accommodate this validation.
 
 ### 3. Create a SCEP configuration profile
 
@@ -104,38 +104,39 @@ When sending the profile to hosts, Fleet will replace the `$FLEET_VAR_NDES_SCEP_
 
 ![NDES SCEP failed profile](../website/assets/images/articles/ndes-scep-failed-profile.png)
 
-Note: If the uploaded profile is signed, Fleet will replace the variables and invalidate the signature.
+> Note: If the uploaded profile is signed, Fleet will replace the variables and invalidate the signature.
 
 ## How does it work?
 
 The SCEP proxy in Fleet acts as a middleman between the device and the NDES server. When a device requests a certificate, the SCEP proxy forwards the request to the NDES server, retrieves the certificate, and sends it back to the device. In addition, the SCEP proxy:
 
 - Retrieves the one-time challenge password from the NDES server.
-  - The NDES admin password is encrypted in Fleet's database by the [server private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key). This password cannot be retrieved via the API or the web interface.
-  - Retrieving passwords for many devices may cause a bottleneck. To avoid long wait times, we recommend a gradual rollout of SCEP profiles.
+  The NDES admin password is encrypted in Fleet's database by the [server private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key). It cannot be retrieved via the API or the web interface.
+  Retrieving passwords for many devices may cause a bottleneck. To avoid long wait times, we recommend a gradual rollout of SCEP profiles.
   - Restarting the NDES service will clear the password cache and may cause outstanding SCEP profiles to fail.
-- Resends the profile to the device if the one-time challenge password has expired.
+- Resend the profile to the device if the one-time challenge password has expired.
   - If the device has been offline and the one-time challenge password is more than 60 minutes old, the SCEP proxy assumes the password has expired and will resend the profile to the device with a new one-time challenge password.
 
-The issued certificate will appear in the System Keychain on macOS. During the profile installation, the OS generates a couple of temporary certificates needed for the SCEP protocol. These certificates may be briefly visible in the Keychain Access app on macOS. In order for the issued certificate to appear as trusted, the CA certificate must also be installed and marked as trusted on the device. The IT admin can send the CA certificate in a separate [CertificateRoot profile](https://developer.apple.com/documentation/devicemanagement/certificateroot?language=objc).
+The issued certificate will appear in the System Keychain on macOS. During the profile installation, the OS generates several temporary certificates needed for the SCEP protocol. These certificates may be briefly visible in the Keychain Access app on macOS. The CA certificate must also be installed and marked as trusted on the device for the issued certificate to appear as trusted. The IT admin can send the CA certificate in a separate [CertificateRoot profile](https://developer.apple.com/documentation/devicemanagement/certificateroot?language=objc).
 
 ## Use case: connecting to a corporate WiFi network
 
-A common use case for SCEP is connecting devices to a corporate WiFi network. Here's how you can use Fleet's SCEP proxy to achieve this:
+A common use case for SCEP is connecting devices to a corporate WiFi network. This involves creating a profile with SCEP and WiFi payloads and linking them together. Here's how you can use Fleet's SCEP proxy to achieve this:
 
 1. Send the root CA certificate to the device using a [CertificateRoot profile](https://developer.apple.com/documentation/devicemanagement/certificateroot?language=objc).
 2. Create a profile with a SCEP payload and a [WiFi payload](https://developer.apple.com/documentation/devicemanagement/wifi?language=objc), and send it to the device.
   - The `PayloadCertificateUUID` in the WiFi payload should reference the `PayloadUUID` of the SCEP payload.
 
 
+
 ## Assumptions and limitations
-* NDES SCEP proxy is currently only supported for macOS devices via Apple config profiles. Support for DDM (Declarative Device Management) is coming soon. Support for iOS, iPadOS, Windows, and Linux is coming soon.
+* NDES SCEP proxy is currently only supported for macOS devices via Apple config profiles. Support for DDM (Declarative Device Management) is coming soon, as is support for iOS, iPadOS, Windows, and Linux.
 * Certificate renewal is coming soon.
 * Fleet server assumes a one-time challenge password expiration time of 60 minutes.
 
 ## Conclusion
 
-Fleet's NDES SCEP proxy feature allows your devices to receive certificates from your certificate authority's NDES service. This feature simplifies the process of managing certificates on your devices and enables a secure and efficient way to connect them to your corporate network.
+Fleet's NDES SCEP proxy feature allows your devices to receive certificates from your certificate authority's NDES service. This feature simplifies managing certificates on your devices and enables a secure and efficient way to connect them to your corporate network.
 
 <meta name="articleTitle" value="Configuring and using NDES SCEP proxy">
 <meta name="authorFullName" value="Victor Lyuboslavsky">
