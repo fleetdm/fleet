@@ -88,7 +88,13 @@ software:
         path: ../lib/macos-check-if-apple-silicon.queries.yml
       self_service: true
     - url: https://dl.google.com/chrome/mac/stable/accept_tos%3Dhttps%253A%252F%252Fwww.google.com%252Fintl%252Fen_ph%252Fchrome%252Fterms%252F%26_and_accept_tos%3Dhttps%253A%252F%252Fpolicies.google.com%252Fterms/googlechrome.pkg
-      self_service: true
+      self_service: true # Google Chrome (macOS-Universal)
+    - url: https://dl.google.com/tag/s/appguid%3D%7B8A69D345-D564-463C-AFF1-A69D9E530F96%7D%26iid%3D%7BF2E95419-BF4D-84E6-4F17-5E1FC543A83C%7D%26lang%3Den%26browser%3D4%26usagestats%3D0%26appname%3DGoogle%2520Chrome%26needsadmin%3Dtrue%26ap%3Dx64-stable-statsdef_0%26brand%3DGCEA/dl/chrome/install/googlechromestandaloneenterprise64.msi
+      self_service: true # Google Chrome (Windows-Intel)
+    - url: https://getunblocked.com/api/download/latest/desktop?platform=macos&arch=arm
+      pre_install_query:
+        path: ../lib/macos-check-if-apple-silicon.queries.yml
+      self_service: true # Unblocked (macOS-AppleSilicon)
   app_store_apps:
     - app_store_id: '803453959' # Slack Desktop
     - app_store_id: '1333542190' # 1Password 7 Desktop
