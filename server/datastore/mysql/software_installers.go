@@ -438,9 +438,13 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 	const (
 		insertStmt = `
 		  INSERT INTO host_software_installs
-		    (execution_id, host_id, software_installer_id, user_id, self_service, policy_id)
+		    (execution_id, host_id, software_installer_id, user_id, self_service, policy_id, installer_filename, software_title_id, software_title_name)
 		  VALUES
-		    (?, ?, ?, ?, ?, ?)
+		    (?, ?, ?, ?, ?, ?,
+			 SELECT filename FROM software_installers WHERE id = ?,
+		     SELECT title_id FROM software installers WHERE id = ?,
+		     SELECT st.name FROM software_titles JOIN software_installers si ON si.title_id = st.id AND si.id = ?
+		     )
 		    `
 
 		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
@@ -469,6 +473,9 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 		userID,
 		selfService,
 		policyID,
+		softwareInstallerID,
+		softwareInstallerID,
+		softwareInstallerID,
 	)
 
 	return installID, ctxerr.Wrap(ctx, err, "inserting new install software request")
@@ -512,9 +519,13 @@ func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executi
 	const (
 		insertStmt = `
 		  INSERT INTO host_software_installs
-		    (execution_id, host_id, software_installer_id, user_id, uninstall)
+		    (execution_id, host_id, software_installer_id, user_id, uninstall, installer_filename, software_title_id, software_title_name)
 		  VALUES
-		    (?, ?, ?, ?, 1)
+		    (?, ?, ?, ?, 1,
+		     SELECT filename FROM software_installers WHERE id = ?,
+		     SELECT title_id FROM software installers WHERE id = ?,
+		     SELECT st.name FROM software_titles JOIN software_installers si ON si.title_id = st.id AND si.id = ?
+		     )
 		    `
 		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
 	)
@@ -538,6 +549,9 @@ func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executi
 		hostID,
 		softwareInstallerID,
 		userID,
+		softwareInstallerID,
+		softwareInstallerID,
+		softwareInstallerID,
 	)
 
 	return ctxerr.Wrap(ctx, err, "inserting new uninstall software request")
@@ -551,10 +565,10 @@ SELECT
 	hsi.post_install_script_output,
 	hsi.install_script_output,
 	hsi.host_id AS host_id,
-	st.name AS software_title,
-	st.id AS software_title_id,
+	COALESCE(st.name, hsi.software_title_name) AS software_title,
+	hsi.title_id AS software_title_id,
 	COALESCE(hsi.status, '') AS status,
-	si.filename AS software_package,
+	hsi.installer_filename AS software_package,
 	hsi.user_id AS user_id,
 	hsi.post_install_script_exit_code,
 	hsi.install_script_exit_code,
@@ -565,8 +579,7 @@ SELECT
 	hsi.updated_at as updated_at
 FROM
 	host_software_installs hsi
-	JOIN software_installers si ON si.id = hsi.software_installer_id
-	JOIN software_titles st ON si.title_id = st.id
+	LEFT JOIN software_titles st ON hsi.title_id = st.id
 WHERE
 	hsi.execution_id = :execution_id
 	`)

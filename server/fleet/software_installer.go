@@ -211,9 +211,9 @@ type HostSoftwareInstallerResult struct {
 	// SoftwareTitle is the title of the software.
 	SoftwareTitle string `json:"software_title" db:"software_title"`
 	// SoftwareTitleID is the unique numerical ID of the software title assigned by the datastore.
-	SoftwareTitleID uint `json:"software_title_id" db:"software_title_id"`
+	SoftwareTitleID *uint `json:"software_title_id" db:"software_title_id"`
 	// SoftwareInstallerID is the unique numerical ID of the software installer assigned by the datastore.
-	SoftwareInstallerID uint `json:"-" db:"software_installer_id"`
+	SoftwareInstallerID *uint `json:"-" db:"software_installer_id"`
 	// SoftwarePackage is the name of the software installer package.
 	SoftwarePackage string `json:"software_package" db:"software_package"`
 	// HostID is the ID of the host.
