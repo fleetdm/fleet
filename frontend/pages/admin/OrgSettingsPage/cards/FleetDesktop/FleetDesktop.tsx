@@ -1,7 +1,5 @@
 import React, { useState } from "react";
 
-import { IConfig } from "interfaces/config";
-
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
