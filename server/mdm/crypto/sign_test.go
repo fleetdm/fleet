@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,7 +44,8 @@ func TestSign(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+				_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 				require.ElementsMatch(t, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey}, assetNames)
 				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 					fleet.MDMAssetCACert: {Value: tc.cert},

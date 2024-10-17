@@ -392,7 +392,7 @@ const OtherWorkflowsModal = ({
               id="ticket-radio-btn"
               checked={!isWebhookEnabled}
               value="ticket"
-              name="ticket"
+              name="workflow-type"
               onChange={onChangeRadio}
             />
             <Radio
@@ -401,7 +401,7 @@ const OtherWorkflowsModal = ({
               id="webhook-radio-btn"
               checked={isWebhookEnabled}
               value="webhook"
-              name="webhook"
+              name="workflow-type"
               onChange={onChangeRadio}
             />
           </div>

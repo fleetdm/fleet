@@ -545,16 +545,16 @@ Once the Digital Experience department approves inventory to be shipped from Fle
 7. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
 
 
-### Provide 0-day support for major version macOS releases
+### Provide same-day support for major version macOS releases
 
-Beginning with macOS 16, Fleet will offer 0-day support for all major version macOS releases. 
+Beginning with macOS 16, Fleet will offer same-day support for all major version macOS releases. 
 
 1. Install major version macOS beta release on test devices. 
 2. Create a new [QA release issue](https://github.com/fleetdm/fleet/issues/new?assignees=xpkoala%2Cpezhub&labels=%23g-mdm%2C%23g-endpoint-ops%2C%3Arelease&projects=&template=release-qa.md&title=Release+QA%3A+macOS+16) with the new major version in the issue title.
 3. Complete all manual smoke tests in the issue and confirm they are passing. 
 4. Confirm all automated tests are passing.
 5. [File bugs](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=P1%2Cbug%2C%3Areproduce%2C%3Aincoming&projects=&template=bug-report.md&title=) with a `P1` label and assign to the appropriate [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups).
-6. When all bugs are fixed, follow the [writing a feature guide](https://fleetdm.com/handbook/engineering#write-a-feature-guide) process to publish an article announcing Fleet 0-day support for the new major release.
+6. When all bugs are fixed, follow the [writing a feature guide](https://fleetdm.com/handbook/engineering#write-a-feature-guide) process to publish an article announcing Fleet same-day support for the new major release.
 
 
 ## Rituals

@@ -26,7 +26,7 @@
 #  ║║║╠═╣║║║╠═╣║ ╦║╣  ║║  ║  ║  ║ ║║ ║ ║║
 #  ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝═╩╝  ╚═╝╩═╝╚═╝╚═╝═╩╝
 - industryName: Managed cloud
-  description: Have Fleet host it for you (currently only available for customers with 700+ hosts.  PS. Wish we could host for you?  We're working on it!  Please let us know if you know of a good partner.  In the meantime, join fleetdm.com/support and we're happy to help you deploy Fleet yourself.)
+  description: Have Fleet host it for you (currently only available for customers with 300+ hosts.  PS. Wish we could host for you?  We're working on it!  Please let us know if you know of a good partner.  In the meantime, join fleetdm.com/support and we're happy to help you deploy Fleet yourself.)
   pricingTableCategories: [Deployment]
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   tier: Premium
@@ -558,7 +558,7 @@
 #  ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║  ║║║╠═╣║║║╠═╣║ ╦║╣ ║║║║╣ ║║║ ║ 
 #  ╩ ╩╩  ╩  ╩═╝╩╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝  ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩ 
 - industryName: Application management
-  description: Manage updates and patches for apps on macOS, Windows, and Linux computers.
+  description: Manage updates and apps on macOS, Windows, and Linux computers.
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no

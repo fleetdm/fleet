@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -102,7 +103,8 @@ SELECT
 	fla.id,
 	fla.name,
 	fla.version,
-	fla.platform
+	fla.platform,
+	fla.updated_at
 FROM
 	fleet_library_apps fla
 WHERE NOT EXISTS (
@@ -136,6 +138,16 @@ WHERE NOT EXISTS (
 		args = append(args, match)
 	}
 
+	// perform a second query to grab the counts. Build the count statement before
+	// adding the pagination constraints to the stmt but after including the
+	// MatchQuery option sql.
+	dbReader := ds.reader(ctx)
+	getAppsCountStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, stmt)
+	var counts int
+	if err := sqlx.GetContext(ctx, dbReader, &counts, getAppsCountStmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get fleet maintained apps count")
+	}
+
 	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, args, &opt)
 
 	var avail []fleet.MaintainedApp
@@ -143,7 +155,7 @@ WHERE NOT EXISTS (
 		return nil, nil, ctxerr.Wrap(ctx, err, "selecting available fleet managed apps")
 	}
 
-	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: uint(counts)}
 	if len(avail) > int(opt.PerPage) {
 		meta.HasNextResults = true
 		avail = avail[:len(avail)-1]

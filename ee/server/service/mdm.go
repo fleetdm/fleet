@@ -1163,7 +1163,7 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, 
 
 	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetSCEPChallenge,
-	})
+	}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
 	}
@@ -1368,7 +1368,7 @@ func (svc *Service) decryptUploadedABMToken(ctx context.Context, token io.Reader
 	pair, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMCert,
 		fleet.MDMAssetABMKey,
-	})
+	}, nil)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{

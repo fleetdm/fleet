@@ -286,19 +286,19 @@ func (s *scriptBuilder) InstallPkg(pkg string, choices ...[]brewPkgConfig) error
 		return nil
 	}
 
-	choiceXML, err := plist.MarshalIndent(choices, "  ")
+	choiceXML, err := plist.MarshalIndent(choices[0], "  ")
 	if err != nil {
 		return err
 	}
 
 	s.Writef(`
-CHOICE_XML=$(mktemp /tmp/choice_xml)
+CHOICE_XML=$(mktemp /tmp/choice_xml_XXX)
 
 cat << EOF > "$CHOICE_XML"
 %s
 EOF
 
-sudo installer -pkg "$temp_dir"/%s -target / -applyChoiceChangesXML "$CHOICE_XML"
+sudo installer -pkg "$TMPDIR"/%s -target / -applyChoiceChangesXML "$CHOICE_XML"
 `, choiceXML, pkg)
 
 	return nil

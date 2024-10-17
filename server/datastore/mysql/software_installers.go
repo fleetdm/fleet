@@ -434,13 +434,13 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 	return nil
 }
 
-func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool) (string, error) {
+func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool, policyID *uint) (string, error) {
 	const (
 		insertStmt = `
 		  INSERT INTO host_software_installs
-		    (execution_id, host_id, software_installer_id, user_id, self_service)
+		    (execution_id, host_id, software_installer_id, user_id, self_service, policy_id)
 		  VALUES
-		    (?, ?, ?, ?, ?)
+		    (?, ?, ?, ?, ?, ?)
 		    `
 
 		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
@@ -468,6 +468,7 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 		softwareInstallerID,
 		userID,
 		selfService,
+		policyID,
 	)
 
 	return installID, ctxerr.Wrap(ctx, err, "inserting new install software request")
@@ -559,6 +560,7 @@ SELECT
 	hsi.install_script_exit_code,
 	hsi.self_service,
 	hsi.host_deleted_at,
+	hsi.policy_id,
 	hsi.created_at as created_at,
 	hsi.updated_at as updated_at,
 	si.user_id AS software_installer_user_id,

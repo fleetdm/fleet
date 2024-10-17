@@ -49,6 +49,9 @@ const (
 	// FleetPayloadIdentifier is the value for the "<key>PayloadIdentifier</key>"
 	// used by Fleet MDM on the enrollment profile.
 	FleetPayloadIdentifier = "com.fleetdm.fleet.mdm.apple"
+
+	// SCEPProxyPath is the HTTP path that serves the SCEP proxy service. The path is followed by identifier.
+	SCEPProxyPath = "/mdm/scep/proxy/"
 )
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {

@@ -397,9 +397,9 @@ func (c *Client) ApplyGroup(
 	logf func(format string, args ...interface{}),
 	appconfig *fleet.EnrichedAppConfig,
 	opts fleet.ApplyClientSpecOptions,
+	teamsSoftwareInstallers map[string][]fleet.SoftwarePackageResponse,
+	teamsScripts map[string][]fleet.ScriptResponse,
 ) (map[string]uint, map[string][]fleet.SoftwarePackageResponse, map[string][]fleet.ScriptResponse, error) {
-	teamSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
-	teamScripts := make(map[string][]fleet.ScriptResponse)
 
 	logfn := func(format string, args ...interface{}) {
 		if logf != nil {
@@ -498,9 +498,8 @@ func (c *Client) ApplyGroup(
 			}
 		}
 		if scripts := extractAppCfgScripts(specs.AppConfig); scripts != nil {
-			files := resolveApplyRelativePaths(baseDir, scripts)
-			scriptPayloads := make([]fleet.ScriptPayload, len(files))
-			for i, f := range files {
+			scriptPayloads := make([]fleet.ScriptPayload, len(scripts))
+			for i, f := range scripts {
 				b, err := os.ReadFile(f)
 				if err != nil {
 					return nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
@@ -514,7 +513,7 @@ func (c *Client) ApplyGroup(
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("applying no-team scripts: %w", err)
 			}
-			teamScripts["No team"] = noTeamScripts
+			teamsScripts["No team"] = noTeamScripts
 		}
 		if err := c.ApplyAppConfig(specs.AppConfig, opts.ApplySpecOptions); err != nil {
 			return nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
@@ -575,9 +574,8 @@ func (c *Client) ApplyGroup(
 		tmScripts := extractTmSpecsScripts(specs.Teams)
 		tmScriptsPayloads := make(map[string][]fleet.ScriptPayload, len(tmScripts))
 		for k, paths := range tmScripts {
-			files := resolveApplyRelativePaths(baseDir, paths)
-			scriptPayloads := make([]fleet.ScriptPayload, len(files))
-			for i, f := range files {
+			scriptPayloads := make([]fleet.ScriptPayload, len(paths))
+			for i, f := range paths {
 				b, err := os.ReadFile(f)
 				if err != nil {
 					return nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
@@ -685,7 +683,7 @@ func (c *Client) ApplyGroup(
 				if err != nil {
 					return nil, nil, nil, fmt.Errorf("applying scripts for team %q: %w", tmName, err)
 				}
-				teamScripts[tmName] = scriptResponses
+				teamsScripts[tmName] = scriptResponses
 			}
 		}
 		if len(tmSoftwarePackagesPayloads) > 0 {
@@ -697,7 +695,7 @@ func (c *Client) ApplyGroup(
 				if err != nil {
 					return nil, nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
 				}
-				teamSoftwareInstallers[tmName] = installers
+				teamsSoftwareInstallers[tmName] = installers
 			}
 		}
 		if len(tmSoftwareAppsPayloads) > 0 {
@@ -751,7 +749,7 @@ func (c *Client) ApplyGroup(
 		}
 	}
 
-	return teamIDsByName, teamSoftwareInstallers, teamScripts, nil
+	return teamIDsByName, teamsSoftwareInstallers, teamsScripts, nil
 }
 
 func buildSoftwarePackagesPayload(baseDir string, specs []fleet.SoftwarePackageSpec) ([]fleet.SoftwareInstallerPayload, error) {
@@ -1225,6 +1223,9 @@ func (c *Client) DoGitOps(
 	dryRun bool,
 	teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions,
 	appConfig *fleet.EnrichedAppConfig,
+	// pass-by-ref to build lists
+	teamsSoftwareInstallers map[string][]fleet.SoftwarePackageResponse,
+	teamsScripts map[string][]fleet.ScriptResponse,
 ) (*fleet.TeamSpecsDryRunAssumptions, error) {
 	baseDir := filepath.Dir(fullFilename)
 	filename := filepath.Base(fullFilename)
@@ -1255,6 +1256,10 @@ func (c *Client) DoGitOps(
 			integrations = map[string]interface{}{}
 			group.AppConfig.(map[string]interface{})["integrations"] = integrations
 		}
+		integrations, ok = integrations.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("org_settings.integrations config is not a map")
+		}
 		if jira, ok := integrations.(map[string]interface{})["jira"]; !ok || jira == nil {
 			integrations.(map[string]interface{})["jira"] = []interface{}{}
 		}
@@ -1263,6 +1268,14 @@ func (c *Client) DoGitOps(
 		}
 		if googleCal, ok := integrations.(map[string]interface{})["google_calendar"]; !ok || googleCal == nil {
 			integrations.(map[string]interface{})["google_calendar"] = []interface{}{}
+		}
+		if ndesSCEPProxy, ok := integrations.(map[string]interface{})["ndes_scep_proxy"]; !ok || ndesSCEPProxy == nil {
+			// Per backend patterns.md, best practice is to clear a JSON config field with `null`
+			integrations.(map[string]interface{})["ndes_scep_proxy"] = nil
+		} else {
+			if _, ok = ndesSCEPProxy.(map[string]interface{}); !ok {
+				return nil, errors.New("org_settings.integrations.ndes_scep_proxy config is not a map")
+			}
 		}
 
 		// Ensure mdm config exists
@@ -1470,7 +1483,7 @@ func (c *Client) DoGitOps(
 			DryRun: dryRun,
 		},
 		ExpandEnvConfigProfiles: true,
-	})
+	}, teamsSoftwareInstallers, teamsScripts)
 	if err != nil {
 		return nil, err
 	}

@@ -23,7 +23,7 @@
   task: "Sprint kickoff review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "Identify stories that did not make it into this sprint and remove them from the board. Notify relevant requesters/stakeholders. Ensure bugs have been effectively prioritized across teams. Recommend highlights for next release notes. Record the number of drops for KPI reporting. Consider product group staffing. Are we scheduling what we prioritized?  Did we finish what we scheduled in the sprint?  (Look at org chart.)" 
+  description: "Review stories that made it into this sprint and recommend highlights for next release notes. Then, review stories that did not make it into this sprint. Ensure stories/bugs have been effectively prioritized across teams." 
   moreInfoUrl: 
   dri: "noahtalerman"
 -
