@@ -17,7 +17,7 @@ type InitialStateType = {
   renderFlash: (
     alertType: "success" | "error" | "warning-filled" | null,
     message: JSX.Element | string | null,
-    options?: { dismissOnPageChange?: boolean }
+    options?: { persistOnPageChange?: boolean }
   ) => void;
   hideFlash: () => void;
 };
@@ -44,7 +44,7 @@ const reducer = (state: any, action: any) => {
           alertType: action.alertType,
           isVisible: true,
           message: action.message,
-          dismissOnPageChange: action.options?.dismissOnPageChange ?? false,
+          persistOnPageChange: action.options?.persistOnPageChange ?? false,
         },
       };
     case actionTypes.HIDE_FLASH:
@@ -65,11 +65,11 @@ const NotificationProvider = ({ children }: Props) => {
       alertType: "success" | "error" | "warning-filled" | null,
       message: JSX.Element | string | null,
       options?: {
-        dismissOnPageChange?: boolean;
+        persistOnPageChange?: boolean;
       }
     ) => {
       // wrapping the dispatch in a timeout ensures it is evaluated on the next event loop,
-      // preventing bugs related to the dismissOnPageChange option's dependence on URL changes.
+      // preventing bugs related to the FlashMessage's self-hiding behavior on URL changes.
       // react router v3 router.push is secretly asynchronous!
       setTimeout(() => {
         dispatch({

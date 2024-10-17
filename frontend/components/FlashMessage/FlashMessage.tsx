@@ -24,7 +24,7 @@ const FlashMessage = ({
   onRemoveFlash,
   pathname,
 }: IFlashMessage): JSX.Element | null => {
-  const { alertType, isVisible, message, dismissOnPageChange } =
+  const { alertType, isVisible, message, persistOnPageChange } =
     notification || {};
   const baseClasses = classnames(
     baseClass,
@@ -59,10 +59,10 @@ const FlashMessage = ({
   }, [notification, alertType, isVisible, setHide]);
 
   useEffect(() => {
-    if (dismissOnPageChange) {
+    if (!persistOnPageChange) {
       setHide(true);
     }
-    // intentionally omit dismissOnPageChange from dependencies to prevent hiding during initial
+    // intentionally omit persistOnPageChange from dependencies to prevent hiding during initial
     // update of the notification prop from its default empty value
   }, [pathname]);
 
