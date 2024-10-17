@@ -216,6 +216,9 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 			}
 
 			cmdUUID, err := svc.installSoftwareFromVPP(ctx, host, vppApp, true, false)
+			if err != nil {
+				return false, ctxerr.Wrap(ctx, err, "queueing vpp app installation")
+			}
 			app.NanoCommandUUID = &cmdUUID
 			app.Status = fleet.SetupExperienceStatusRunning
 			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, app); err != nil {

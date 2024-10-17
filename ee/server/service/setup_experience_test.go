@@ -29,6 +29,20 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	host1UUID := "123"
 	host1ID := uint(1)
 	installerID1 := uint(1)
+	scriptID1 := uint(1)
+	scriptContentID1 := uint(2)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnabledAndConfigured: true,
+			},
+		}, nil
+	}
+
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
 
 	var mockListSetupExperience []*fleet.SetupExperienceStatusResult
 	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
@@ -66,7 +80,7 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	assert.False(t, ds.UpdateSetupExperienceStatusResultFuncInvoked)
 	resetIndicators()
 
-	// Installer queued
+	// Only installer queued
 	mockListSetupExperience = []*fleet.SetupExperienceStatusResult{
 		{
 			HostUUID:            host1UUID,
@@ -85,5 +99,29 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	assert.Len(t, requestedInstalls, 1)
 	assert.Len(t, requestedUpdateSetupExperience, 1)
 	assert.Equal(t, "install-uuid", *requestedUpdateSetupExperience[0].HostSoftwareInstallsExecutionID)
+	resetIndicators()
+
+	// TODO VPP app queueing is better done in an integration
+	// test, the setup required would be too much
+
+	// Only script queued
+	mockListSetupExperience = []*fleet.SetupExperienceStatusResult{
+		{
+			HostUUID:                host1UUID,
+			SetupExperienceScriptID: &scriptID1,
+			ScriptContentID:         &scriptContentID1,
+			Status:                  fleet.SetupExperienceStatusPending,
+		},
+	}
+
+	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	require.NoError(t, err)
+	assert.False(t, finished)
+	assert.False(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+	assert.False(t, ds.InsertHostVPPSoftwareInstallFuncInvoked)
+	assert.True(t, ds.NewHostScriptExecutionRequestFuncInvoked)
+	assert.True(t, ds.UpdateSetupExperienceStatusResultFuncInvoked)
+	assert.Len(t, requestedInstalls, 1)
+	assert.Len(t, requestedUpdateSetupExperience, 1)
 	resetIndicators()
 }
