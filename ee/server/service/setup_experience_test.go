@@ -16,12 +16,14 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	svc := newTestService(t, ds)
 
 	requestedInstalls := make(map[uint][]uint)
+	requestedUpdateSetupExperience := []*fleet.SetupExperienceStatusResult{}
 	resetIndicators := func() {
 		ds.InsertSoftwareInstallRequestFuncInvoked = false
 		ds.InsertHostVPPSoftwareInstallFuncInvoked = false
 		ds.NewHostScriptExecutionRequestFuncInvoked = false
 		ds.UpdateSetupExperienceStatusResultFuncInvoked = false
 		clear(requestedInstalls)
+		clear(requestedUpdateSetupExperience)
 	}
 
 	host1UUID := "123"
@@ -44,6 +46,7 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	}
 
 	ds.UpdateSetupExperienceStatusResultFunc = func(ctx context.Context, status *fleet.SetupExperienceStatusResult) error {
+		requestedUpdateSetupExperience = append(requestedUpdateSetupExperience, status)
 		return nil
 	}
 
@@ -51,9 +54,9 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	_, err := svc.SetupExperienceNextStep(ctx, host1UUID)
 	require.Error(t, err)
 
+	// Host exists, nothing to do
 	mockListHostsLite = append(mockListHostsLite, &fleet.Host{UUID: host1UUID, ID: host1ID})
 
-	// Host exists, nothing to do
 	finished, err := svc.SetupExperienceNextStep(ctx, host1UUID)
 	require.NoError(t, err)
 	assert.True(t, finished)
@@ -80,5 +83,7 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	assert.False(t, ds.NewHostScriptExecutionRequestFuncInvoked)
 	assert.True(t, ds.UpdateSetupExperienceStatusResultFuncInvoked)
 	assert.Len(t, requestedInstalls, 1)
+	assert.Len(t, requestedUpdateSetupExperience, 1)
+	assert.Equal(t, "install-uuid", *requestedUpdateSetupExperience[0].HostSoftwareInstallsExecutionID)
 	resetIndicators()
 }
