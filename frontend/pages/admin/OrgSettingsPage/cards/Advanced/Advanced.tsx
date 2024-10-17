@@ -72,7 +72,7 @@ const Advanced = ({
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<IAdvancedConfigFormData>({
-    mdmAppleServerURL: appConfig.mdm?.client_url || "",
+    mdmAppleServerURL: appConfig.mdm?.apple_server_url || "",
     domain: appConfig.smtp_settings?.domain || "",
     verifySSLCerts: appConfig.smtp_settings?.verify_ssl_certs || false,
     enableStartTLS: appConfig.smtp_settings?.enable_start_tls,
@@ -144,6 +144,12 @@ const Advanced = ({
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
+
+    const errs = validateFormData(formData);
+    if (Object.keys(errs).length > 0) {
+      setFormErrors(errs);
+      return;
+    }
 
     // Formatting of API not UI
     const formDataToSubmit = {

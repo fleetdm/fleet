@@ -11,7 +11,7 @@ should be discussed within the team and documented before merged.
 - [Typing](#typing)
 - [Utilities](#utilities)
 - [Components](#components)
-- [Forms] (#forms)
+- [Forms](#forms)
 - [React hooks](#react-hooks)
 - [React Context](#react-context)
 - [Fleet API calls](#fleet-api-calls)
@@ -216,10 +216,10 @@ The output of `validate` should be used by the calling handler to set a `formErr
 state.
 
 #### When to validate
-Form fields should *set new errors* on blur only, and *set or remove* errors on change. This provides
+Form fields should *set only new errors* on blur and on save, and *set or remove* errors on change. This provides
 an "optimistic" user experience. The user is only told they have an error once they navigate
-away from a field, implying they are finished editing it, while they are informed they have fixed
-the error as soon as possible, that is, as soon as they make the fixing change. e.g.
+away from a field or hit enter, actions which imply they are finished editing the field, while they are informed they have fixed
+an error as soon as possible, that is, as soon as they make the fixing change. e.g.
 ```
 const onInputChange = ({ name, value }: IFormField) => {
   const newFormData = { ...formData, [name]: value };
@@ -237,13 +237,32 @@ const onInputChange = ({ name, value }: IFormField) => {
 };
 
 ```
-and
+
+,
+
 ```
 const onInputBlur = () => {
   setFormErrors(validateFormData(formData));
 };
 ```
 
+, and 
+
+```
+const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
+  evt.preventDefault();
+
+  // return null if there are errors
+  const errs = validateFormData(formData);
+  if (Object.keys(errs).length > 0) {
+    setFormErrors(errs);
+    return;
+  }
+
+  ...
+  // continue with submit logic if no errors
+
+```
 
 ## React hooks
 
