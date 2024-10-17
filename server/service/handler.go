@@ -578,6 +578,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Deprecated: GET /mdm/manual_enrollment_profile is now deprecated, replaced by the
 	// GET /enrollment_profiles/manual endpoint.
+	// Ref: https://github.com/fleetdm/fleet/issues/16252
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/manual_enrollment_profile", getManualEnrollmentProfileEndpoint, getManualEnrollmentProfileRequest{})
 	mdmAppleMW.GET("/api/_version_/fleet/enrollment_profiles/manual", getManualEnrollmentProfileEndpoint, getManualEnrollmentProfileRequest{})
 
