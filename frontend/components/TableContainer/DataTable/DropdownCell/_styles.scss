@@ -55,6 +55,13 @@
 
       .Select-input {
         height: auto;
+
+        // When tabbing
+        &:focus-visible {
+          outline: 2px solid $ui-vibrant-blue-25;
+          outline-offset: 1px;
+          border-radius: 4px;
+        }
       }
 
       .Select-arrow-zone {
