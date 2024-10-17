@@ -107,8 +107,7 @@ const EditSoftwareModal = ({
     if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
       renderFlash(
         "error",
-        `Couldn't edit software. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`,
-        { dismissOnPageChange: true }
+        `Couldn't edit software. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`
       );
       setIsUpdatingSoftware(false);
       return;
@@ -148,8 +147,7 @@ const EditSoftwareModal = ({
       if (isTimeout) {
         renderFlash(
           "error",
-          `Couldn’t upload. Request timeout. Please make sure your server and load balancer timeout is long enough.`,
-          { dismissOnPageChange: true }
+          `Couldn’t upload. Request timeout. Please make sure your server and load balancer timeout is long enough.`
         );
       } else if (reason.includes("Fleet couldn't read the version from")) {
         renderFlash(
@@ -171,7 +169,7 @@ const EditSoftwareModal = ({
           </>
         );
       } else {
-        renderFlash("error", getErrorMessage(e), { dismissOnPageChange: true });
+        renderFlash("error", getErrorMessage(e));
       }
     }
     setIsUpdatingSoftware(false);

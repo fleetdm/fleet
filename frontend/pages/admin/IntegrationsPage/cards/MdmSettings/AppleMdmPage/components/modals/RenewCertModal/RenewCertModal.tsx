@@ -37,9 +37,7 @@ const RenewCertModal = ({
   const onRenewClick = useCallback(async () => {
     if (!certFile) {
       // this shouldn't happen, but just in case
-      renderFlash("error", "Please provide a certificate file.", {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", "Please provide a certificate file.");
       return;
     }
     setIsUploading(true);
@@ -52,11 +50,9 @@ const RenewCertModal = ({
       console.error(e);
       const msg = getErrorReason(e);
       if (msg.toLowerCase().includes("valid certificate")) {
-        renderFlash("error", msg, { dismissOnPageChange: true });
+        renderFlash("error", msg);
       } else {
-        renderFlash("error", "Couldn’t renew. Please try again.", {
-          dismissOnPageChange: true,
-        });
+        renderFlash("error", "Couldn’t renew. Please try again.");
       }
       setIsUploading(false);
       onCancel();
@@ -69,11 +65,9 @@ const RenewCertModal = ({
       const msg = getErrorReason(e);
 
       if (msg.toLowerCase().includes("email address is not valid")) {
-        renderFlash("error", msg, { dismissOnPageChange: true });
+        renderFlash("error", msg);
       } else {
-        renderFlash("error", "Something's gone wrong. Please try again.", {
-          dismissOnPageChange: true,
-        });
+        renderFlash("error", "Something's gone wrong. Please try again.");
       }
     },
     [renderFlash]

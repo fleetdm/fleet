@@ -275,8 +275,7 @@ const EditQueryPage = ({
         } else {
           renderFlash(
             "error",
-            "Something went wrong creating your query. Please try again.",
-            { dismissOnPageChange: true }
+            "Something went wrong creating your query. Please try again."
           );
           setBackendValidators({});
         }
@@ -313,20 +312,13 @@ const EditQueryPage = ({
       console.error(updateError);
       const reason = getErrorReason(updateError);
       if (reason.includes("Duplicate")) {
-        renderFlash("error", "A query with this name already exists.", {
-          dismissOnPageChange: true,
-        });
+        renderFlash("error", "A query with this name already exists.");
       } else if (reason.includes(INVALID_PLATFORMS_REASON)) {
-        renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE, {
-          dismissOnPageChange: true,
-        });
+        renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE);
       } else {
         renderFlash(
           "error",
-          "Something went wrong updating your query. Please try again.",
-          {
-            dismissOnPageChange: true,
-          }
+          "Something went wrong updating your query. Please try again."
         );
       }
     }

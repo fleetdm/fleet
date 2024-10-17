@@ -320,8 +320,7 @@ const ManageQueriesPage = ({
       } catch (errorResponse) {
         renderFlash(
           "error",
-          `There was an error updating your query automations. Please try again later.`,
-          { dismissOnPageChange: true }
+          `There was an error updating your query automations. Please try again later.`
         );
       } finally {
         toggleManageAutomationsModal();

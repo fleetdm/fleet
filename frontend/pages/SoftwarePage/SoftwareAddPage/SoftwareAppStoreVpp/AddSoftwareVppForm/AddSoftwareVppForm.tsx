@@ -178,7 +178,7 @@ const AddSoftwareVppForm = ({
 
       goBackToSoftwareTitles(true);
     } catch (e) {
-      renderFlash("error", getErrorMessage(e), { dismissOnPageChange: true });
+      renderFlash("error", getErrorMessage(e));
     }
 
     setIsUploading(false);

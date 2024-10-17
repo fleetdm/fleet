@@ -149,9 +149,7 @@ const FleetMaintainedAppDetailsPage = ({
         </>
       );
     } catch (error) {
-      renderFlash("error", getErrorReason(error), {
-        dismissOnPageChange: true,
-      }); // TODO: handle error messages
+      renderFlash("error", getErrorReason(error)); // TODO: handle error messages
     }
 
     setShowAddFleetAppSoftwareModal(false);

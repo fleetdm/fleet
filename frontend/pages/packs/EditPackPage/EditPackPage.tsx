@@ -158,15 +158,10 @@ const EditPacksPage = ({
         ) {
           renderFlash(
             "error",
-            "Unable to update pack. Pack names must be unique.",
-            {
-              dismissOnPageChange: true,
-            }
+            "Unable to update pack. Pack names must be unique."
           );
         } else {
-          renderFlash("error", `Could not update pack. Please try again.`, {
-            dismissOnPageChange: true,
-          });
+          renderFlash("error", `Could not update pack. Please try again.`);
         }
       })
       .finally(() => {
@@ -187,9 +182,7 @@ const EditPacksPage = ({
         renderFlash("success", `Successfully updated this pack.`);
       })
       .catch(() => {
-        renderFlash("error", "Could not update this pack. Please try again.", {
-          dismissOnPageChange: true,
-        });
+        renderFlash("error", "Could not update this pack. Please try again.");
       })
       .finally(() => {
         togglePackQueryEditorModal();
@@ -218,10 +211,7 @@ const EditPacksPage = ({
       .catch(() => {
         renderFlash(
           "error",
-          `Unable to remove ${queryOrQueries} from this pack. Please try again.`,
-          {
-            dismissOnPageChange: true,
-          }
+          `Unable to remove ${queryOrQueries} from this pack. Please try again.`
         );
       })
       .finally(() => {

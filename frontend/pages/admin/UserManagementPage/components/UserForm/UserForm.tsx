@@ -276,9 +276,7 @@ const UserForm = ({
     }
 
     if (!formData.global_role && !formData.teams.length) {
-      renderFlash("error", `Please select at least one team for this user.`, {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", `Please select at least one team for this user.`);
       return false;
     }
 

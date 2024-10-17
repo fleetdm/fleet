@@ -192,9 +192,7 @@ const HostSoftware = ({
           "Software is installing or will install when the host comes online."
         );
       } catch (e) {
-        renderFlash("error", getInstallErrorMessage(e), {
-          dismissOnPageChange: true,
-        });
+        renderFlash("error", getInstallErrorMessage(e));
       }
       setSoftwareIdActionPending(null);
       refetchSoftware();
@@ -215,9 +213,7 @@ const HostSoftware = ({
           </>
         );
       } catch (e) {
-        renderFlash("error", getUninstallErrorMessage(e), {
-          dismissOnPageChange: true,
-        });
+        renderFlash("error", getUninstallErrorMessage(e));
       }
       setSoftwareIdActionPending(null);
       refetchSoftware();

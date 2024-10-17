@@ -191,16 +191,12 @@ const Integrations = (): JSX.Element => {
                 </>
               );
             } else {
-              renderFlash("error", VALIDATION_FAILED_ERROR, {
-                dismissOnPageChange: true,
-              });
+              renderFlash("error", VALIDATION_FAILED_ERROR);
             }
           } else if (addError.data?.message.includes("Bad request")) {
-            renderFlash("error", BAD_REQUEST_ERROR, {
-              dismissOnPageChange: true,
-            });
+            renderFlash("error", BAD_REQUEST_ERROR);
           } else if (addError.data?.message.includes("Unknown Error")) {
-            renderFlash("error", UNKNOWN_ERROR, { dismissOnPageChange: true });
+            renderFlash("error", UNKNOWN_ERROR);
           } else {
             renderFlash(
               "error",
@@ -323,19 +319,13 @@ const Integrations = (): JSX.Element => {
           })
           .catch((editError: { data: IApiError }) => {
             if (editError.data.message.includes("Validation Failed")) {
-              renderFlash("error", VALIDATION_FAILED_ERROR, {
-                dismissOnPageChange: true,
-              });
+              renderFlash("error", VALIDATION_FAILED_ERROR);
             }
             if (editError.data.message.includes("Bad request")) {
-              renderFlash("error", BAD_REQUEST_ERROR, {
-                dismissOnPageChange: true,
-              });
+              renderFlash("error", BAD_REQUEST_ERROR);
             }
             if (editError.data.message.includes("Unknown Error")) {
-              renderFlash("error", UNKNOWN_ERROR, {
-                dismissOnPageChange: true,
-              });
+              renderFlash("error", UNKNOWN_ERROR);
             } else {
               renderFlash(
                 "error",

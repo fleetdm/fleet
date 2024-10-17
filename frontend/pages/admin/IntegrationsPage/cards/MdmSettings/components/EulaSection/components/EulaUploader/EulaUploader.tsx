@@ -32,9 +32,7 @@ const EulaUploader = ({ onUpload }: IEulaUploaderProps) => {
 
     // quick exit if the file type is incorrect
     if (!file.name.includes(".pdf")) {
-      renderFlash("error", UPLOAD_ERROR_MESSAGES.wrongType.message, {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", UPLOAD_ERROR_MESSAGES.wrongType.message);
       setShowLoading(false);
       return;
     }
@@ -46,7 +44,7 @@ const EulaUploader = ({ onUpload }: IEulaUploaderProps) => {
     } catch (e) {
       const error = e as AxiosResponse<IApiError>;
       const errMessage = getErrorMessage(error);
-      renderFlash("error", errMessage, { dismissOnPageChange: true });
+      renderFlash("error", errMessage);
     } finally {
       setShowLoading(false);
     }

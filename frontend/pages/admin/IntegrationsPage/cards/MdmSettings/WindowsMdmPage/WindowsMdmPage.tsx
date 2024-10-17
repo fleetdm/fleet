@@ -52,7 +52,7 @@ const useSetWindowsMdm = ({
     } finally {
       router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
       if (flashErrMsg) {
-        renderFlash("error", flashErrMsg, { dismissOnPageChange: true });
+        renderFlash("error", flashErrMsg);
       } else {
         renderFlash("success", successMessage);
       }

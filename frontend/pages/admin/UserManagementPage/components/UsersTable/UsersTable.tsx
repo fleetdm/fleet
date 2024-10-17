@@ -254,9 +254,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
               password: "Password is over the character limit.",
             });
           } else {
-            renderFlash("error", "Could not create user. Please try again.", {
-              dismissOnPageChange: true,
-            });
+            renderFlash("error", "Could not create user. Please try again.");
           }
         })
         .finally(() => {
@@ -294,9 +292,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
               password: "Password is over the character limit.",
             });
           } else {
-            renderFlash("error", "Could not create user. Please try again.", {
-              dismissOnPageChange: true,
-            });
+            renderFlash("error", "Could not create user. Please try again.");
           }
         })
         .finally(() => {
@@ -343,9 +339,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
                 password: userUpdatedPasswordError,
               });
             } else {
-              renderFlash("error", userUpdatedError, {
-                dismissOnPageChange: true,
-              });
+              renderFlash("error", userUpdatedError);
             }
           })
           .finally(() => {
@@ -375,9 +369,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
               password: userUpdatedPasswordError,
             });
           } else {
-            renderFlash("error", userUpdatedError, {
-              dismissOnPageChange: true,
-            });
+            renderFlash("error", userUpdatedError);
           }
         })
         .finally(() => {
@@ -397,8 +389,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         .catch(() => {
           renderFlash(
             "error",
-            `Could not delete ${userEditing?.name}. Please try again.`,
-            { dismissOnPageChange: true }
+            `Could not delete ${userEditing?.name}. Please try again.`
           );
         })
         .finally(() => {
@@ -415,8 +406,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         .catch(() => {
           renderFlash(
             "error",
-            `Could not delete ${userEditing?.name}. Please try again.`,
-            { dismissOnPageChange: true }
+            `Could not delete ${userEditing?.name}. Please try again.`
           );
         })
         .finally(() => {
@@ -443,9 +433,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         renderFlash("success", "Successfully reset sessions.");
       })
       .catch(() => {
-        renderFlash("error", "Could not reset sessions. Please try again.", {
-          dismissOnPageChange: true,
-        });
+        renderFlash("error", "Could not reset sessions. Please try again.");
       })
       .finally(() => {
         toggleResetSessionsUserModal();
@@ -461,8 +449,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       .catch(() => {
         renderFlash(
           "error",
-          "Could not require a password reset. Please try again.",
-          { dismissOnPageChange: true }
+          "Could not require a password reset. Please try again."
         );
       })
       .finally(() => {

@@ -117,9 +117,7 @@ const OSSettingsErrorCell = ({
       await hostAPI.resendProfile(hostId, profile.profile_uuid);
       onProfileResent();
     } catch (e) {
-      renderFlash("error", "Couldn't resend. Please try again.", {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", "Couldn't resend. Please try again.");
     }
     setIsLoading(false);
   };

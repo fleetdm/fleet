@@ -44,9 +44,7 @@ const useDownloadABMKey = ({
         onSuccess && onSuccess();
       } catch (e) {
         const msg = getErrorReason(e);
-        renderFlash("error", msg, {
-          dismissOnPageChange: true,
-        });
+        renderFlash("error", msg);
         setDownloadState("error");
         onError && onError(e);
       }

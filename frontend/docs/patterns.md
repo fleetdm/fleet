@@ -432,7 +432,7 @@ The `renderFlash` method from notification context accepts a third `options` arg
 practice for flash messages is to set `options.dismissOnPageChange` to `true`.
 
 ```tsx
-renderFlash("error", "Something went wrong", {dismissOnPageChange: true});
+renderFlash("error", "Something went wrong");
 ```
 This is especially important for `"error"` messages, since they are not otherwise hidden. `"success"`
 messages will be hidden automatically after an interval.
@@ -443,5 +443,5 @@ the flash message may be immediately hidden by the router push.
 
 ```tsx
 router.push(newPath);
-renderFlash("error", "Something went wrong", {dismissOnPageChange: true});
+renderFlash("error", "Something went wrong");
 ```

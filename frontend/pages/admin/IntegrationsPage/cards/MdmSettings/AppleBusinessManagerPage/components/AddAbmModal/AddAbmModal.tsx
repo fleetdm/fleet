@@ -34,7 +34,7 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
     setIsUploading(true);
     if (!tokenFile) {
       setIsUploading(false);
-      renderFlash("error", "No token selected.", { dismissOnPageChange: true });
+      renderFlash("error", "No token selected.");
       return;
     }
 
@@ -43,7 +43,7 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
       renderFlash("success", "Added successfully.");
       onAdded();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e), { dismissOnPageChange: true });
+      renderFlash("error", getErrorMessage(e));
       onCancel();
     } finally {
       setIsUploading(false);

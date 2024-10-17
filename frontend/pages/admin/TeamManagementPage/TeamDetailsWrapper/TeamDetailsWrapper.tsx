@@ -280,11 +280,7 @@ const TeamDetailsWrapper = ({
       renderFlash("success", `Successfully deleted enroll secret.`);
     } catch (error) {
       console.error(error);
-      renderFlash(
-        "error",
-        "Could not delete enroll secret. Please try again.",
-        { dismissOnPageChange: true }
-      );
+      renderFlash("error", "Could not delete enroll secret. Please try again.");
     } finally {
       setIsUpdatingSecret(false);
     }
@@ -302,9 +298,7 @@ const TeamDetailsWrapper = ({
       return router.push(PATHS.ADMIN_TEAMS);
       renderFlash("success", "Team removed");
     } catch (response) {
-      renderFlash("error", "Something went wrong removing the team", {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", "Something went wrong removing the team");
       console.error(response);
       return false;
     } finally {
@@ -352,9 +346,7 @@ const TeamDetailsWrapper = ({
             name: `"No team" is a reserved team name. Please try another name.`,
           });
         } else {
-          renderFlash("error", "Could not create team. Please try again.", {
-            dismissOnPageChange: true,
-          });
+          renderFlash("error", "Could not create team. Please try again.");
         }
       } finally {
         setIsUpdatingTeams(false);

@@ -298,9 +298,7 @@ const SoftwarePackageCard = ({
       // The download occurs without any additional authentication.
       downloadFile(url, name);
     } catch (e) {
-      renderFlash("error", "Couldn't download. Please try again.", {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", "Couldn't download. Please try again.");
     }
   }, [renderFlash, softwareId, name, teamId]);
 

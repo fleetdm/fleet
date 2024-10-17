@@ -67,9 +67,7 @@ const ScriptListItem = ({ script, onDelete }: IScriptListItemProps) => {
       const file = new File([content], filename);
       FileSaver.saveAs(file);
     } catch {
-      renderFlash("error", "Couldn’t Download. Please try again.", {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", "Couldn’t Download. Please try again.");
     }
   };
 

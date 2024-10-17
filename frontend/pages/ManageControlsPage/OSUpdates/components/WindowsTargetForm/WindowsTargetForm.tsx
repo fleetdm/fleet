@@ -134,9 +134,7 @@ const WindowsTargetForm = ({
           "Successfully updated Windows OS update options."
         );
       } catch {
-        renderFlash("error", "Couldn’t update. Please try again.", {
-          dismissOnPageChange: true,
-        });
+        renderFlash("error", "Couldn’t update. Please try again.");
       } finally {
         currentTeamId === APP_CONTEXT_NO_TEAM_ID
           ? refetchAppConfig()

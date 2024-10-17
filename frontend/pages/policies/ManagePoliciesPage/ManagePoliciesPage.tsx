@@ -512,9 +512,7 @@ const ManagePolicyPage = ({
         : configAPI.update(requestBody));
       renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
-      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG, {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
     } finally {
       toggleOtherWorkflowsModal();
       setIsUpdatingPolicies(false);
@@ -569,9 +567,7 @@ const ManagePolicyPage = ({
       refetchTeamPolicies();
       renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
-      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG, {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
     } finally {
       toggleInstallSoftwareModal();
       setIsUpdatingPolicies(false);
@@ -624,9 +620,7 @@ const ManagePolicyPage = ({
       refetchTeamPolicies();
       renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
-      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG, {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
     } finally {
       togglePolicyRunScriptModal();
       setIsUpdatingPolicies(false);
@@ -689,9 +683,7 @@ const ManagePolicyPage = ({
 
       renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
-      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG, {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
     } finally {
       toggleCalendarEventsModal();
       setIsUpdatingPolicies(false);
@@ -733,10 +725,7 @@ const ManagePolicyPage = ({
         "error",
         `Unable to delete ${
           selectedPolicyIds?.length === 1 ? "policy" : "policies"
-        }. Please try again.`,
-        {
-          dismissOnPageChange: true,
-        }
+        }. Please try again.`
       );
     } finally {
       toggleDeletePolicyModal();

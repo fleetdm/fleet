@@ -68,9 +68,7 @@ const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
       router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
       renderFlash("success", "MDM turned off successfully.");
     } catch (e) {
-      renderFlash("error", "Couldn't turn off MDM. Please try again.", {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", "Couldn't turn off MDM. Please try again.");
       setIsUpdating(false);
     }
   }, [renderFlash, router]);

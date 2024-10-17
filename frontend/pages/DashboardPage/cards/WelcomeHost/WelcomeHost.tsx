@@ -79,16 +79,14 @@ const WelcomeHost = ({
               } else {
                 renderFlash(
                   "error",
-                  `This host is offline. Please try refetching host vitals later.`,
-                  { dismissOnPageChange: true }
+                  `This host is offline. Please try refetching host vitals later.`
                 );
                 setShowRefetchLoadingSpinner(false);
               }
             } else {
               renderFlash(
                 "error",
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`,
-                { dismissOnPageChange: true }
+                `We're having trouble fetching fresh vitals for this host. Please try again later.`
               );
               setShowRefetchLoadingSpinner(false);
             }
@@ -112,9 +110,7 @@ const WelcomeHost = ({
         });
       } catch (error) {
         console.error(error);
-        renderFlash("error", `Host "${host.display_name}" refetch error`, {
-          dismissOnPageChange: true,
-        });
+        renderFlash("error", `Host "${host.display_name}" refetch error`);
         setShowRefetchLoadingSpinner(false);
       }
     }

@@ -31,9 +31,7 @@ const UnenrollMdmModal = ({ hostId, onClose }: IUnenrollMdmModalProps) => {
       );
       onClose();
     } catch (unenrollMdmError: unknown) {
-      renderFlash("error", "Couldn't turn off MDM. Please try again.", {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", "Couldn't turn off MDM. Please try again.");
       console.log(unenrollMdmError);
       onClose();
     }

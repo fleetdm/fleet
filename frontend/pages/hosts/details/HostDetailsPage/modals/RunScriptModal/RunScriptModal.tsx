@@ -93,9 +93,7 @@ const RunScriptModal = ({
             );
             refetchHostScripts();
           } catch (e) {
-            renderFlash("error", getErrorReason(e), {
-              dismissOnPageChange: true,
-            });
+            renderFlash("error", getErrorReason(e));
             setRunScriptRequested(false);
           }
           break;

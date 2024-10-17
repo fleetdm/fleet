@@ -80,9 +80,7 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
       router.push(PATHS.MANAGE_HOSTS_LABEL(res.label.id));
       renderFlash("success", "Label updated successfully.");
     } catch {
-      renderFlash("error", "Couldn't edit label. Please try again.", {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", "Couldn't edit label. Please try again.");
     }
   };
 

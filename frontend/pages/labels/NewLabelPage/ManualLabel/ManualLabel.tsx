@@ -32,10 +32,7 @@ const ManualLabel = ({ router }: IManualLabelProps) => {
             "error",
             error.data.errors[0].reason.includes("Duplicate entry")
               ? DUPLICATE_ENTRY_ERROR
-              : "Couldn't add label. Please try again.",
-            {
-              dismissOnPageChange: true,
-            }
+              : "Couldn't add label. Please try again."
           );
         });
     },

@@ -347,8 +347,7 @@ const HostDetailsPage = ({
               } else {
                 renderFlash(
                   "error",
-                  `This host is offline. Please try refetching host vitals later.`,
-                  { dismissOnPageChange: true }
+                  `This host is offline. Please try refetching host vitals later.`
                 );
                 setShowRefetchSpinner(false);
               }
@@ -356,8 +355,7 @@ const HostDetailsPage = ({
               // totalElapsedTime > 60000
               renderFlash(
                 "error",
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`,
-                { dismissOnPageChange: true }
+                `We're having trouble fetching fresh vitals for this host. Please try again later.`
               );
               setShowRefetchSpinner(false);
             }
@@ -557,8 +555,7 @@ const HostDetailsPage = ({
         console.log(error);
         renderFlash(
           "error",
-          `Host "${host.display_name}" could not be deleted.`,
-          { dismissOnPageChange: true }
+          `Host "${host.display_name}" could not be deleted.`
         );
       } finally {
         setShowDeleteHostModal(false);
@@ -583,9 +580,7 @@ const HostDetailsPage = ({
         });
       } catch (error) {
         console.log(error);
-        renderFlash("error", `Host "${host.display_name}" refetch error`, {
-          dismissOnPageChange: true,
-        });
+        renderFlash("error", `Host "${host.display_name}" refetch error`);
         setShowRefetchSpinner(false);
       }
     }
@@ -690,9 +685,7 @@ const HostDetailsPage = ({
       setShowTransferHostModal(false);
     } catch (error) {
       console.log(error);
-      renderFlash("error", "Could not transfer host. Please try again.", {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", "Could not transfer host. Please try again.");
     } finally {
       setIsUpdatingHost(false);
     }

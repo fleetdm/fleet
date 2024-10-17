@@ -70,10 +70,7 @@ const QueryEditor = ({
     if (storedPolicyError) {
       renderFlash(
         "error",
-        "Something went wrong retrieving your policy. Please try again.",
-        {
-          dismissOnPageChange: true,
-        }
+        "Something went wrong retrieving your policy. Please try again."
       );
     }
   }, []);
@@ -113,9 +110,7 @@ const QueryEditor = ({
         setLastEditedQueryDescription(autofillResponse.description);
       } catch (error) {
         console.log(error);
-        renderFlash("error", "Couldn't autofill policy data.", {
-          dismissOnPageChange: true,
-        });
+        renderFlash("error", "Couldn't autofill policy data.");
       }
       setIsFetchingAutofillDescription(false);
     }
@@ -138,9 +133,7 @@ const QueryEditor = ({
         setLastEditedQueryResolution(autofillResponse.resolution);
       } catch (error) {
         console.log(error);
-        renderFlash("error", "Couldn't autofill policy data.", {
-          dismissOnPageChange: true,
-        });
+        renderFlash("error", "Couldn't autofill policy data.");
       }
       setIsFetchingAutofillResolution(false);
     }
@@ -179,10 +172,7 @@ const QueryEditor = ({
       } else {
         renderFlash(
           "error",
-          "Something went wrong creating your policy. Please try again.",
-          {
-            dismissOnPageChange: true,
-          }
+          "Something went wrong creating your policy. Please try again."
         );
       }
     } finally {
@@ -224,16 +214,11 @@ const QueryEditor = ({
     } catch (updateError: any) {
       console.error(updateError);
       if (updateError.data.errors[0].reason.includes("Duplicate")) {
-        renderFlash("error", "A policy with this name already exists.", {
-          dismissOnPageChange: true,
-        });
+        renderFlash("error", "A policy with this name already exists.");
       } else {
         renderFlash(
           "error",
-          "Something went wrong updating your policy. Please try again.",
-          {
-            dismissOnPageChange: true,
-          }
+          "Something went wrong updating your policy. Please try again."
         );
       }
     } finally {

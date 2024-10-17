@@ -39,9 +39,7 @@ const EndUserAuthForm = ({
       );
       renderFlash("success", "Successfully updated!");
     } catch {
-      renderFlash("error", "Couldn’t update. Please try again.", {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", "Couldn’t update. Please try again.");
     } finally {
       setIsUpdating(false);
     }

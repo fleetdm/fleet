@@ -187,9 +187,7 @@ const InstallerStatusAction = ({
         onInstall();
       }
     } catch (error) {
-      renderFlash("error", "Couldn't install. Please try again.", {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", "Couldn't install. Please try again.");
       if (isMountedRef.current) {
         setLocalStatus("failed_install");
       }

@@ -124,9 +124,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
         setIsValidWebhookUrl(false);
         return;
       }
-      renderFlash("error", "Could not update. Please try again.", {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", "Could not update. Please try again.");
     }
   };
 

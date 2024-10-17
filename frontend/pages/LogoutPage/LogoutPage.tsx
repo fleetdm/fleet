@@ -27,9 +27,7 @@ const LogoutPage = ({ router }: ILogoutPageProps) => {
       } catch (response) {
         console.error(response);
         router.goBack();
-        return renderFlash("error", "Unable to log out of your account", {
-          dismissOnPageChange: true,
-        });
+        return renderFlash("error", "Unable to log out of your account");
       }
     };
 

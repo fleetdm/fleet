@@ -101,9 +101,7 @@ const CustomSettings = ({
       onMutation();
       renderFlash("success", "Successfully deleted!");
     } catch (e) {
-      renderFlash("error", "Couldn't delete. Please try again.", {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", "Couldn't delete. Please try again.");
     } finally {
       selectedProfile.current = null;
       setShowDeleteProfileModal(false);

@@ -44,9 +44,7 @@ const ScriptPackageUploader = ({
         ? // per https://github.com/fleetdm/fleet/issues/14752#issuecomment-1809927441
           "The file should be .sh or .ps1 file."
         : apiErrMessage;
-      renderFlash("error", `Couldn't upload. ${renderErrMessage}`, {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", `Couldn't upload. ${renderErrMessage}`);
     } finally {
       setShowLoading(false);
     }

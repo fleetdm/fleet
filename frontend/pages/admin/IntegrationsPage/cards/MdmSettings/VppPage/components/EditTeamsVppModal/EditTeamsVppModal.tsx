@@ -182,9 +182,7 @@ const EditTeamsVppModal = ({
         renderFlash("success", "Edited successfully.");
         onSuccess();
       } catch (e) {
-        renderFlash("error", "Couldn’t edit. Please try again.", {
-          dismissOnPageChange: true,
-        });
+        renderFlash("error", "Couldn’t edit. Please try again.");
       }
     },
     [currentToken.id, selectedValue, renderFlash, onSuccess]

@@ -36,9 +36,7 @@ const BootstrapPackageUploader = ({
 
     // quick exit if the file type is incorrect
     if (!file.name.includes(".pkg")) {
-      renderFlash("error", UPLOAD_ERROR_MESSAGES.wrongType.message, {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", UPLOAD_ERROR_MESSAGES.wrongType.message);
       setShowLoading(false);
       return;
     }
@@ -50,7 +48,7 @@ const BootstrapPackageUploader = ({
     } catch (e) {
       const error = e as AxiosResponse<IApiError>;
       const errMessage = getErrorMessage(error);
-      renderFlash("error", errMessage, { dismissOnPageChange: true });
+      renderFlash("error", errMessage);
     } finally {
       setShowLoading(false);
     }

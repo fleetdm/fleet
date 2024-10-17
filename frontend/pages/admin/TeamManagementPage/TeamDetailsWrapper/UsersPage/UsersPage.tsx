@@ -163,9 +163,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
         }
       })
       .catch(() =>
-        renderFlash("error", "Unable to remove users. Please try again.", {
-          dismissOnPageChange: true,
-        })
+        renderFlash("error", "Unable to remove users. Please try again.")
       )
       .finally(() => {
         setIsUpdatingUsers(false);
@@ -196,9 +194,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           );
         })
         .catch(() =>
-          renderFlash("error", "Could not add users. Please try again.", {
-            dismissOnPageChange: true,
-          })
+          renderFlash("error", "Could not add users. Please try again.")
         )
         .finally(() => {
           toggleAddUserModal();
@@ -255,9 +251,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
               email: "A user with this email address has already been invited",
             });
           } else {
-            renderFlash("error", "Could not invite user. Please try again.", {
-              dismissOnPageChange: true,
-            });
+            renderFlash("error", "Could not invite user. Please try again.");
           }
         })
         .finally(() => {
@@ -294,9 +288,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
               password: "Password is over the character limit.",
             });
           } else {
-            renderFlash("error", "Could not create user. Please try again.", {
-              dismissOnPageChange: true,
-            });
+            renderFlash("error", "Could not create user. Please try again.");
           }
         })
         .finally(() => {
@@ -351,8 +343,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
             } else {
               renderFlash(
                 "error",
-                `Could not edit ${userName || "user"}. Please try again.`,
-                { dismissOnPageChange: true }
+                `Could not edit ${userName || "user"}. Please try again.`
               );
             }
           })

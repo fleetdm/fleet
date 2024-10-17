@@ -30,9 +30,7 @@ const AdvancedOptionsForm = ({
       await mdmAPI.updateReleaseDeviceSetting(currentTeamId, releaseDevice);
       renderFlash("success", "Successfully updated.");
     } catch {
-      renderFlash("error", "Something went wrong. Please try again.", {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", "Something went wrong. Please try again.");
     }
   };
 

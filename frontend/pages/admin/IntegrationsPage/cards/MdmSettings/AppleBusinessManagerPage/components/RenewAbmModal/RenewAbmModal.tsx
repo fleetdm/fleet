@@ -40,9 +40,7 @@ const RenewAbmModal = ({
   const onRenewToken = useCallback(async () => {
     if (!tokenFile) {
       // this shouldn't happen, but just in case
-      renderFlash("error", "Please provide a token file.", {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", "Please provide a token file.");
       return;
     }
     setIsUploading(true);
@@ -52,7 +50,7 @@ const RenewAbmModal = ({
       setIsUploading(false);
       onRenewedToken();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e), { dismissOnPageChange: true });
+      renderFlash("error", getErrorMessage(e));
       onCancel();
       setIsUploading(false);
     }

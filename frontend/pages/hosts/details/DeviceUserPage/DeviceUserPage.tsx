@@ -219,16 +219,14 @@ const DeviceUserPage = ({
               } else {
                 renderFlash(
                   "error",
-                  `This host is offline. Please try refetching host vitals later.`,
-                  { dismissOnPageChange: true }
+                  `This host is offline. Please try refetching host vitals later.`
                 );
                 setShowRefetchSpinner(false);
               }
             } else {
               renderFlash(
                 "error",
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`,
-                { dismissOnPageChange: true }
+                `We're having trouble fetching fresh vitals for this host. Please try again later.`
               );
               setShowRefetchSpinner(false);
             }
@@ -285,9 +283,7 @@ const DeviceUserPage = ({
           refetchExtensions();
         }, 1000);
       } catch (error) {
-        renderFlash("error", getErrorMessage(error, host.display_name), {
-          dismissOnPageChange: true,
-        });
+        renderFlash("error", getErrorMessage(error, host.display_name));
         setShowRefetchSpinner(false);
       }
     }

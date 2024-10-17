@@ -369,22 +369,17 @@ const EditQueryForm = ({
                   }
                   renderFlash(
                     "error",
-                    `A query called "Copy of ${lastEditedQueryName}" already exists for ${teamErrorText}.`,
-                    { dismissOnPageChange: true }
+                    `A query called "Copy of ${lastEditedQueryName}" already exists for ${teamErrorText}.`
                   );
                 }
                 setIsSaveAsNewLoading(false);
               });
           } else if (createErrorReason.includes(INVALID_PLATFORMS_REASON)) {
             setIsSaveAsNewLoading(false);
-            renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE, {
-              dismissOnPageChange: true,
-            });
+            renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE);
           } else {
             setIsSaveAsNewLoading(false);
-            renderFlash("error", "Could not create query. Please try again.", {
-              dismissOnPageChange: true,
-            });
+            renderFlash("error", "Could not create query. Please try again.");
           }
         });
     }

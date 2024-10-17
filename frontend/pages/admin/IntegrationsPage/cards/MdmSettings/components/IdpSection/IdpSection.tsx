@@ -69,9 +69,7 @@ const IdpSection = () => {
       });
       renderFlash("success", "Successfully updated end user authentication!");
     } catch (err) {
-      renderFlash("error", "Could not update. Please try again.", {
-        dismissOnPageChange: true,
-      });
+      renderFlash("error", "Could not update. Please try again.");
     }
   };
 
