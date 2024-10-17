@@ -110,15 +110,6 @@ const SoftwareCustomPackage = ({
           setUploadProgress(Math.max(progress - 0.03, 0.01));
         },
       });
-      renderFlash(
-        "success",
-        <>
-          <b>{formData.software?.name}</b> successfully added.
-          {formData.selfService
-            ? " The end user can install from Fleet Desktop."
-            : ""}
-        </>
-      );
 
       const newQueryParams: QueryParams = { team_id: currentTeamId };
       if (formData.selfService) {
@@ -128,6 +119,16 @@ const SoftwareCustomPackage = ({
       }
       router.push(
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(newQueryParams)}`
+      );
+
+      renderFlash(
+        "success",
+        <>
+          <b>{formData.software?.name}</b> successfully added.
+          {formData.selfService
+            ? " The end user can install from Fleet Desktop."
+            : ""}
+        </>
       );
     } catch (e) {
       const isTimeout =

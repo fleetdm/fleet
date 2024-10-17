@@ -136,17 +136,17 @@ const FleetMaintainedAppDetailsPage = ({
         ...formData,
         appId,
       });
-      renderFlash(
-        "success",
-        <>
-          <b>{data?.name}</b> successfully added.
-        </>
-      );
       router.push(
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
           team_id: teamId,
           available_for_install: true,
         })}`
+      );
+      renderFlash(
+        "success",
+        <>
+          <b>{data?.name}</b> successfully added.
+        </>
       );
     } catch (error) {
       renderFlash("error", getErrorReason(error), {
