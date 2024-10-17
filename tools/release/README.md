@@ -69,22 +69,23 @@ LinkedIn post: https://www.linkedin.com/feed/update/urn:li:activity:719950989670
 
 ## Patch Release (middle of sprint / critical)
 
-example
 ```
 # Build release candidate and changelogs and QA ticket
 ./tools/release/publish_release.sh
+
 # Do QA until ready to release
 
 # QA is passed on all teams and ready for release
 
 # Tag patch
 ./tools/release/publish_release.sh -g
+
 # Publish patch
 ./tools/release/publish_release.sh -u
+
+# Make sure to wait for the CLI to open NPM to publish fleetctl.
+# If that fails, manually publish by going to the `/tools/fleetctl-npm/` directory
+# and running `npm publish`
+
 # Go update osquery-slack version
 ```
-
-...
-TODO example output
-...
-
