@@ -4335,7 +4335,8 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 	for k := range setProfileUUIDs {
 		profUUIDs = append(profUUIDs, k)
 	}
-	deleteArgs := append(deleteParams, profUUIDs)
+	deleteArgs := deleteParams
+	deleteArgs = append(deleteArgs, profUUIDs)
 
 	deleteStmt, args, err := sqlx.In(deleteStmt, deleteArgs...)
 	if err != nil {

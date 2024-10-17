@@ -1602,7 +1602,8 @@ func (a *agent) hostUsers() []map[string]string {
 			"shell":     shells[i%len(shells)],
 		}
 	}
-	users := append(commonUsers, uniqueUsers...)
+	users := commonUsers
+	users = append(users, uniqueUsers...)
 	rand.Shuffle(len(users), func(i, j int) {
 		users[i], users[j] = users[j], users[i]
 	})
@@ -1669,7 +1670,8 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"installed_path":    fmt.Sprintf("/some/path/%s", sw.Name),
 		}
 	}
-	software := append(commonSoftware, uniqueSoftware...)
+	software := commonSoftware
+	software = append(software, uniqueSoftware...)
 	software = append(software, randomVulnerableSoftware...)
 	a.installedSoftware.Range(func(key, value interface{}) bool {
 		software = append(software, value.(map[string]string))
@@ -1712,7 +1714,8 @@ func (a *mdmAgent) softwareIOSandIPadOS(source string) []fleet.Software {
 		})
 		uniqueSoftware = uniqueSoftware[:a.softwareCount.unique-a.softwareCount.uniqueSoftwareUninstallCount]
 	}
-	software := append(commonSoftware, uniqueSoftware...)
+	software := commonSoftware
+	software = append(software, uniqueSoftware...)
 	rand.Shuffle(len(software), func(i, j int) {
 		software[i], software[j] = software[j], software[i]
 	})
@@ -1766,7 +1769,8 @@ func (a *agent) softwareVSCodeExtensions() []map[string]string {
 			"source":  vsCodeExtension.Source,
 		})
 	}
-	software := append(commonVSCodeExtensionsSoftware, uniqueVSCodeExtensionsSoftware...)
+	software := commonVSCodeExtensionsSoftware
+	software = append(software, uniqueVSCodeExtensionsSoftware...)
 	software = append(software, vulnerableVSCodeExtensionsSoftware...)
 	rand.Shuffle(len(software), func(i, j int) {
 		software[i], software[j] = software[j], software[i]

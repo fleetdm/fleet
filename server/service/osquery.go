@@ -1027,10 +1027,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 			team, err := svc.ds.Team(ctx, *host.TeamID)
 			if err != nil {
 				logging.WithErr(ctx, err)
-			} else {
-				if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
-					policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
-				}
+			} else if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
+				policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
 			}
 		}
 
@@ -1058,12 +1056,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
 			logging.WithErr(ctx, err)
 		}
-	} else {
-		if hostWithoutPolicies {
-			// RecordPolicyQueryExecutions called with results=nil will still update the host's policy_updated_at column.
-			if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
-				logging.WithErr(ctx, err)
-			}
+	} else if hostWithoutPolicies {
+		// RecordPolicyQueryExecutions called with results=nil will still update the host's policy_updated_at column.
+		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+			logging.WithErr(ctx, err)
 		}
 	}
 
@@ -2127,12 +2123,10 @@ func (svc *Service) preProcessOsqueryResults(
 			// 	field could not be unmarshalled.
 			//
 			// In both scenarios we want to add `result` to `unmarshaledResults`.
-		} else {
+		} else if result != nil && result.QueryName == "" {
 			// If the unmarshaled result doesn't have a "name" field then we ignore the result.
-			if result != nil && result.QueryName == "" {
-				level.Debug(svc.logger).Log("msg", "missing name field", "result", lograw(raw))
-				result = nil
-			}
+			level.Debug(svc.logger).Log("msg", "missing name field", "result", lograw(raw))
+			result = nil
 		}
 		unmarshaledResults = append(unmarshaledResults, result)
 	}

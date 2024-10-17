@@ -86,7 +86,7 @@ func MakeMacOSFatExecutable(outPath string, inPaths ...string) error {
 		if sixtyfour {
 			hdr = append(hdr, uint32(i.offset>>32)) //nolint:gosec // dismiss G115, big endian
 		}
-		hdr = append(hdr, uint32(i.offset))
+		hdr = append(hdr, uint32(i.offset)) //nolint:gosec // dismiss G115
 		if sixtyfour {
 			hdr = append(hdr, uint32(len(i.data)>>32)) //nolint:gosec // dismiss G115, big endian
 		}

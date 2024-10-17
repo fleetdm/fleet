@@ -319,7 +319,7 @@ func (newMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *htt
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = uint(teamID)
+		decoded.TeamID = uint(teamID) //nolint:gosec // dismiss G115
 	}
 
 	fhs, ok := r.MultipartForm.File["profile"]
@@ -2209,7 +2209,7 @@ func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = uint(teamID)
+		decoded.TeamID = uint(teamID) //nolint:gosec // dismiss G115
 	}
 
 	return &decoded, nil

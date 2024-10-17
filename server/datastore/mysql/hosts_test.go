@@ -458,7 +458,7 @@ func testSaveHostPackStatsDB(t *testing.T, ds *Datastore) {
 	})
 	assert.Equal(t, host.PackStats[1].PackName, "test2")
 	// Server calculates WallTimeMs if WallTimeMs==0 coming in. (osquery wall_time -> wall_time_ms -> DB wall_time)
-	stats2[0].WallTime = stats2[0].WallTime * 1000
+	stats2[0].WallTime *= 1000
 	assert.ElementsMatch(t, host.PackStats[1].QueryStats, stats2)
 }
 

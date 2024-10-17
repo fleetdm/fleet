@@ -80,10 +80,8 @@ Trying to login with SSO? First, login to the Fleet UI and retrieve your API tok
 				}
 				fmt.Println()
 				flPassword = string(passBytes)
-			} else {
-				if definedAsEnvOnly("--password", "PASSWORD") {
-					fmt.Printf("Using value of environment variable $PASSWORD as password.\n")
-				}
+			} else if definedAsEnvOnly("--password", "PASSWORD") {
+				fmt.Printf("Using value of environment variable $PASSWORD as password.\n")
 			}
 
 			token, err := fleet.Login(flEmail, flPassword)

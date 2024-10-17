@@ -72,8 +72,9 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 		mobileconfigForTest("N1", "I1"),
 		mobileconfigForTest("N2", "I2"),
 	}
-	wantGlobalProfiles := append(
-		globalProfiles,
+	wantGlobalProfiles := globalProfiles
+	wantGlobalProfiles = append(
+		wantGlobalProfiles,
 		setupExpectedFleetdProfile(t, s.server.URL, t.Name(), nil),
 	)
 
@@ -94,8 +95,9 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	teamProfiles := [][]byte{
 		mobileconfigForTest("N3", "I3"),
 	}
-	wantTeamProfiles := append(
-		teamProfiles,
+	wantTeamProfiles := teamProfiles
+	wantTeamProfiles = append(
+		wantTeamProfiles,
 		setupExpectedFleetdProfile(t, s.server.URL, "team1_enroll_sec", &tm.ID),
 	)
 	// add profiles to the team

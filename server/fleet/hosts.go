@@ -558,7 +558,7 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 		case MDMOperationTypeInstall:
 			switch {
 			case fvprof.Status != nil && (*fvprof.Status == MDMDeliveryVerifying || *fvprof.Status == MDMDeliveryVerified):
-				if d.rawDecryptable != nil && *d.rawDecryptable == 1 {
+				if d.rawDecryptable != nil && *d.rawDecryptable == 1 { //nolint:gocritic // ignore ifElseChain
 					//  if a FileVault profile has been successfully installed on the host
 					//  AND we have fetched and are able to decrypt the key
 					switch *fvprof.Status {
@@ -786,7 +786,7 @@ func (h *Host) Status(now time.Time) HostStatus {
 	onlineInterval += OnlineIntervalBuffer
 
 	switch {
-	case h.SeenTime.Add(time.Duration(onlineInterval) * time.Second).Before(now):
+	case h.SeenTime.Add(time.Duration(onlineInterval) * time.Second).Before(now): //nolint:gosec // dismiss G115
 		return StatusOffline
 	default:
 		return StatusOnline

@@ -181,7 +181,7 @@ func runLiveQueryOnHost(svc fleet.Service, ctx context.Context, host *fleet.Host
 
 	if len(queryResults) > 0 {
 		var err error
-		if queryResults[0].Err != nil {
+		if queryResults[0].Err != nil { //nolint:gocritic // ignore ifelseChain
 			err = queryResults[0].Err
 		} else if len(queryResults[0].Results) > 0 {
 			queryResult := queryResults[0].Results[0]

@@ -325,7 +325,8 @@ func TestGetDetailQueries(t *testing.T) {
 	ac.MDM.EnabledAndConfigured = true
 	// windows mdm is disabled by default, windows mdm queries should not be present
 	gotQueries := GetDetailQueries(context.Background(), config.FleetConfig{}, &ac, nil)
-	wantQueries := append(baseQueries, mdmQueriesBase...)
+	wantQueries := baseQueries
+	wantQueries = append(wantQueries, mdmQueriesBase...)
 	require.Len(t, gotQueries, len(wantQueries))
 	sortedKeysCompare(t, gotQueries, wantQueries)
 	// enable windows mdm, windows mdm queries should be present
@@ -1247,7 +1248,8 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				return nil
 			}
 
-			err := directIngestOSUnixLike(context.Background(), log.NewNopLogger(), &fleet.Host{ID: uint(i)}, ds, tc.data)
+			err := directIngestOSUnixLike(context.Background(), log.NewNopLogger(), &fleet.Host{ID: uint(i)}, ds,
+				tc.data) //nolint:gosec // dismiss G115
 
 			require.NoError(t, err)
 			require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)

@@ -543,8 +543,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		Version:          "2024-06-25_03-01-17",
 	}
 	downloadFleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/stable/meta.json":
+		if r.URL.Path == "/stable/meta.json" {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			require.NoError(s.T(), json.NewEncoder(w).Encode(s.mockedDownloadFleetdmMeta))
@@ -3346,10 +3345,10 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 			if manifest := fullCmd.Command.InstallEnterpriseApplication.Manifest; manifest != nil {
 				require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
 				require.NotNil(t, manifest)
-				require.Equal(t, "software-package", (*manifest).ManifestItems[0].Assets[0].Kind)
+				require.Equal(t, "software-package", manifest.ManifestItems[0].Assets[0].Kind)
 				wantURL, err := bp.URL(s.server.URL)
 				require.NoError(t, err)
-				require.Equal(t, wantURL, (*manifest).ManifestItems[0].Assets[0].URL)
+				require.Equal(t, wantURL, manifest.ManifestItems[0].Assets[0].URL)
 
 				// respond to the command accordingly
 				switch d.bootstrapResponse {

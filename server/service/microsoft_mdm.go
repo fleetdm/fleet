@@ -1610,7 +1610,8 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	}
 
 	// Combined cmd responses
-	resCmds := append(resIncomingCmds, resPendingCmds...)
+	resCmds := resIncomingCmds
+	resCmds = append(resCmds, resPendingCmds...)
 
 	// Create the response SyncML message
 	msg, err := svc.createResponseSyncML(ctx, reqMsg, resCmds)

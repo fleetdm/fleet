@@ -142,7 +142,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		Name:        teamNameDecomposed,
 		Description: "desc team1",
 	}
-	teamName = teamName + "가"
+	teamName += "가"
 
 	s.Do("POST", "/api/latest/fleet/teams", team, http.StatusOK)
 
@@ -5075,7 +5075,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	h1, err := s.ds.NewHost(ctx, &fleet.Host{
 		NodeKey:  ptr.String(t.Name() + "1"),
 		UUID:     t.Name() + "1",
-		Hostname: strings.Replace(t.Name()+"foo.local", "/", "_", -1),
+		Hostname: strings.ReplaceAll(t.Name()+"foo.local", "/", "_"),
 	})
 	require.NoError(t, err)
 	t1, err := s.ds.NewTeam(ctx, &fleet.Team{
@@ -5093,14 +5093,14 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	team1Host, err := s.ds.NewHost(ctx, &fleet.Host{
 		NodeKey:  ptr.String(t.Name() + "2"),
 		UUID:     t.Name() + "2",
-		Hostname: strings.Replace(t.Name()+"zoo.local", "/", "_", -1),
+		Hostname: strings.ReplaceAll(t.Name()+"zoo.local", "/", "_"),
 		TeamID:   &t1.ID,
 	})
 	require.NoError(t, err)
 	globalHost, err := s.ds.NewHost(ctx, &fleet.Host{
 		NodeKey:  ptr.String(t.Name() + "3"),
 		UUID:     t.Name() + "3",
-		Hostname: strings.Replace(t.Name()+"global.local", "/", "_", -1),
+		Hostname: strings.ReplaceAll(t.Name()+"global.local", "/", "_"),
 	})
 	require.NoError(t, err)
 	acr := appConfigResponse{}
@@ -13207,7 +13207,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		require.NoError(t, err)
 		newStartTime := st.Add(5 * time.Minute).Format(time.RFC3339)
 		e.Start.DateTime = newStartTime
-		e.Etag = e.Etag + "1"
+		e.Etag += "1"
 	}
 
 	// Grab the lock

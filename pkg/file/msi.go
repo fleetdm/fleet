@@ -269,7 +269,7 @@ func msiDecodeName(msiName string) string {
 }
 
 func msiDecodeRune(x rune) rune {
-	if x < 10 {
+	if x < 10 { //nolint:gocritic // ignore ifElseChain
 		return x + '0'
 	} else if x < 10+26 {
 		return x - 10 + 'A'

@@ -202,7 +202,7 @@ func (r *redisFailingPolicySet) removePolicyFromSetOfSets(policyID uint) error {
 }
 
 func (r *redisFailingPolicySet) policySetKey(policyID uint) string {
-	return r.testPrefix + policySetKeyPrefix + strconv.Itoa(int(policyID))
+	return r.testPrefix + policySetKeyPrefix + fmt.Sprint(policyID)
 }
 
 func (r *redisFailingPolicySet) policySetOfSetsKey() string {
@@ -210,7 +210,7 @@ func (r *redisFailingPolicySet) policySetOfSetsKey() string {
 }
 
 func hostEntry(host fleet.PolicySetHost) string {
-	return strconv.Itoa(int(host.ID)) + "," + host.Hostname
+	return fmt.Sprint(host.ID) + "," + host.Hostname
 }
 
 func parseHostEntry(v string) (*fleet.PolicySetHost, error) {

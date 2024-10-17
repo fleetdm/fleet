@@ -464,9 +464,7 @@ func capabilitiesResponseFunc(capabilities fleet.CapabilityMap) kithttp.ServerOp
 }
 
 func capabilitiesContextFunc() kithttp.ServerOption {
-	return kithttp.ServerBefore(func(ctx context.Context, r *http.Request) context.Context {
-		return capabilities.NewContext(ctx, r)
-	})
+	return kithttp.ServerBefore(capabilities.NewContext)
 }
 
 func writeCapabilitiesHeader(w http.ResponseWriter, capabilities fleet.CapabilityMap) {
