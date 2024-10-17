@@ -177,7 +177,7 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 	}
 
 	if len(hosts) == 0 {
-		return false, ctxerr.Errorf(ctx, "could not find host id for host UUID %s", hostUUID)
+		return false, ctxerr.Errorf(ctx, "could not find host id for host UUID %q", hostUUID)
 	}
 
 	host := hosts[0]

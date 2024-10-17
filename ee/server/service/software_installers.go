@@ -691,13 +691,12 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		return ctxerr.Wrap(ctx, err, "finding VPP app for title")
 	}
 
-	_, err = svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.AppleDevicePlatform(platform) == fleet.MacOSPlatform, false)
-	return err
+	return svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.AppleDevicePlatform(platform) == fleet.MacOSPlatform, false)
 }
 
-func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, appleDevice bool, selfService bool) (string, error) {
+func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, appleDevice bool, selfService bool) error {
 	if !appleDevice {
-		return "", &fleet.BadRequestError{
+		return &fleet.BadRequestError{
 			Message: "VPP apps can only be installed only on Apple hosts.",
 			InternalErr: ctxerr.NewWithData(
 				ctx, "invalid host platform for requested installer",
@@ -708,20 +707,20 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 
 	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "fetching config to check MDM status")
+		return ctxerr.Wrap(ctx, err, "fetching config to check MDM status")
 	}
 
 	if !config.MDM.EnabledAndConfigured {
-		return "", fleet.NewUserMessageError(errors.New("Couldn't install. MDM is turned off. Please make sure that MDM is turned on to install App Store apps."), http.StatusUnprocessableEntity)
+		return fleet.NewUserMessageError(errors.New("Couldn't install. MDM is turned off. Please make sure that MDM is turned on to install App Store apps."), http.StatusUnprocessableEntity)
 	}
 
 	mdmConnected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
 	if err != nil {
-		return "", ctxerr.Wrapf(ctx, err, "checking MDM status for host %d", host.ID)
+		return ctxerr.Wrapf(ctx, err, "checking MDM status for host %d", host.ID)
 	}
 
 	if !mdmConnected {
-		return "", &fleet.BadRequestError{
+		return &fleet.BadRequestError{
 			Message: "VPP apps can only be installed only on hosts enrolled in MDM.",
 			InternalErr: ctxerr.NewWithData(
 				ctx, "VPP install attempted on non-MDM host",
@@ -732,7 +731,7 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 
 	token, err := svc.getVPPToken(ctx, host.TeamID)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "getting VPP token")
+		return ctxerr.Wrap(ctx, err, "getting VPP token")
 	}
 
 	// at this moment, neither the UI or the back-end are prepared to
@@ -748,7 +747,7 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 	// [1]: https://developer.apple.com/documentation/devicemanagement/app_and_book_management/handling_error_responses#3729433
 	assignments, err := vpp.GetAssignments(token, &vpp.AssignmentFilter{AdamID: vppApp.AdamID, SerialNumber: host.HardwareSerial})
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "getting assignments from VPP API")
+		return ctxerr.Wrap(ctx, err, "getting assignments from VPP API")
 	}
 
 	var eventID string
@@ -758,7 +757,7 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 	if len(assignments) == 0 {
 		assets, err := vpp.GetAssets(token, &vpp.AssetFilter{AdamID: vppApp.AdamID})
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "getting assets from VPP API")
+			return ctxerr.Wrap(ctx, err, "getting assets from VPP API")
 		}
 
 		if len(assets) == 0 {
@@ -767,18 +766,18 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 				"adam_id", vppApp.AdamID,
 				"host_serial", host.HardwareSerial,
 			)
-			return "", &fleet.BadRequestError{
+			return &fleet.BadRequestError{
 				Message:     "Couldn't add software. <app_store_id> isn't available in Apple Business Manager. Please purchase license in Apple Business Manager and try again.",
 				InternalErr: ctxerr.Errorf(ctx, "VPP API didn't return any assets for adamID %s", vppApp.AdamID),
 			}
 		}
 
 		if len(assets) > 1 {
-			return "", ctxerr.Errorf(ctx, "VPP API returned more than one asset for adamID %s", vppApp.AdamID)
+			return ctxerr.Errorf(ctx, "VPP API returned more than one asset for adamID %s", vppApp.AdamID)
 		}
 
 		if assets[0].AvailableCount <= 0 {
-			return "", &fleet.BadRequestError{
+			return &fleet.BadRequestError{
 				Message: "Couldn't install. No available licenses. Please purchase license in Apple Business Manager and try again.",
 				InternalErr: ctxerr.NewWithData(
 					ctx, "license available count <= 0",
@@ -794,7 +793,7 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 
 		eventID, err = vpp.AssociateAssets(token, &vpp.AssociateAssetsRequest{Assets: assets, SerialNumbers: []string{host.HardwareSerial}})
 		if err != nil {
-			return "", ctxerr.Wrapf(ctx, err, "associating asset with adamID %s to host %s", vppApp.AdamID, host.HardwareSerial)
+			return ctxerr.Wrapf(ctx, err, "associating asset with adamID %s to host %s", vppApp.AdamID, host.HardwareSerial)
 		}
 
 	}
@@ -803,15 +802,15 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 	cmdUUID := uuid.NewString()
 	err = svc.mdmAppleCommander.InstallApplication(ctx, []string{host.UUID}, cmdUUID, vppApp.AdamID)
 	if err != nil {
-		return "", ctxerr.Wrapf(ctx, err, "sending command to install VPP %s application to host with serial %s", vppApp.AdamID, host.HardwareSerial)
+		return ctxerr.Wrapf(ctx, err, "sending command to install VPP %s application to host with serial %s", vppApp.AdamID, host.HardwareSerial)
 	}
 
 	err = svc.ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vppApp.VPPAppID, cmdUUID, eventID, selfService)
 	if err != nil {
-		return "", ctxerr.Wrapf(ctx, err, "inserting host vpp software install for host with serial %s and app with adamID %s", host.HardwareSerial, vppApp.AdamID)
+		return ctxerr.Wrapf(ctx, err, "inserting host vpp software install for host with serial %s and app with adamID %s", host.HardwareSerial, vppApp.AdamID)
 	}
 
-	return cmdUUID, nil
+	return nil
 }
 
 func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host *fleet.Host, installer *fleet.SoftwareInstaller) error {
@@ -1118,8 +1117,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 }
 
 const (
-	maxInstallerSizeBytes int64 = 1024 * 1024 * 500
-	batchSoftwarePrefix         = "software_batch_"
+	batchSoftwarePrefix = "software_batch_"
 )
 
 func (svc *Service) BatchSetSoftwareInstallers(
@@ -1233,7 +1231,7 @@ func (svc *Service) softwareBatchUpload(
 
 	downloadURLFn := func(ctx context.Context, url string) (http.Header, []byte, error) {
 		client := fleethttp.NewClient()
-		client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSizeBytes)
+		client.Transport = fleethttp.NewSizeLimitTransport(fleet.MaxSoftwareInstallerSize)
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
@@ -1246,7 +1244,7 @@ func (svc *Service) softwareBatchUpload(
 			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 				return nil, nil, fleet.NewInvalidArgumentError(
 					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d MiB", url, maxInstallerSizeBytes/(1024*1024)),
+					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d GB", url, fleet.MaxSoftwareInstallerSize/(1000*1024*1024)),
 				)
 			}
 
@@ -1277,7 +1275,7 @@ func (svc *Service) softwareBatchUpload(
 			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 				return nil, nil, fleet.NewInvalidArgumentError(
 					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d MiB", url, maxInstallerSizeBytes/(1024*1024)),
+					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d GB", url, fleet.MaxSoftwareInstallerSize/(1000*1024*1024)),
 				)
 			}
 			return nil, nil, fmt.Errorf("reading installer %q contents: %w", url, err)
@@ -1287,7 +1285,7 @@ func (svc *Service) softwareBatchUpload(
 	}
 
 	var g errgroup.Group
-	g.SetLimit(3) // TODO: consider lowering this limit, see https://github.com/fleetdm/fleet/issues/22704#issuecomment-2397407837
+	g.SetLimit(1) // TODO: consider whether we can increase this limit, see https://github.com/fleetdm/fleet/issues/22704#issuecomment-2397407837
 	// critical to avoid data race, the slice is pre-allocated and each
 	// goroutine only writes to its index.
 	installers := make([]*fleet.UploadSoftwareInstallerPayload, len(payloads))
@@ -1508,8 +1506,7 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 	platform := host.FleetPlatform()
 	mobileAppleDevice := fleet.AppleDevicePlatform(platform) == fleet.IOSPlatform || fleet.AppleDevicePlatform(platform) == fleet.IPadOSPlatform
 
-	_, err = svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.AppleDevicePlatform(platform) == fleet.MacOSPlatform, true)
-	return err
+	return svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.AppleDevicePlatform(platform) == fleet.MacOSPlatform, true)
 }
 
 // packageExtensionToPlatform returns the platform name based on the

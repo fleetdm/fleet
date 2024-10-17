@@ -215,10 +215,10 @@ func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uin
 	return fleet.ErrMissingLicense
 }
 
-func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string) error {
+func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string) (bool, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.ErrMissingLicense
+	return false, fleet.ErrMissingLicense
 }
