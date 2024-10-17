@@ -183,6 +183,7 @@ const SelectQueryModal = ({
     <Modal
       title="Select a query"
       onExit={onCancel}
+      onEnter={onCancel}
       className={baseClass}
       width="large"
     >

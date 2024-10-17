@@ -1256,6 +1256,10 @@ func (c *Client) DoGitOps(
 			integrations = map[string]interface{}{}
 			group.AppConfig.(map[string]interface{})["integrations"] = integrations
 		}
+		integrations, ok = integrations.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("org_settings.integrations config is not a map")
+		}
 		if jira, ok := integrations.(map[string]interface{})["jira"]; !ok || jira == nil {
 			integrations.(map[string]interface{})["jira"] = []interface{}{}
 		}
@@ -1264,6 +1268,14 @@ func (c *Client) DoGitOps(
 		}
 		if googleCal, ok := integrations.(map[string]interface{})["google_calendar"]; !ok || googleCal == nil {
 			integrations.(map[string]interface{})["google_calendar"] = []interface{}{}
+		}
+		if ndesSCEPProxy, ok := integrations.(map[string]interface{})["ndes_scep_proxy"]; !ok || ndesSCEPProxy == nil {
+			// Per backend patterns.md, best practice is to clear a JSON config field with `null`
+			integrations.(map[string]interface{})["ndes_scep_proxy"] = nil
+		} else {
+			if _, ok = ndesSCEPProxy.(map[string]interface{}); !ok {
+				return nil, errors.New("org_settings.integrations.ndes_scep_proxy config is not a map")
+			}
 		}
 
 		// Ensure mdm config exists
