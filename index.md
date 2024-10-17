@@ -38,7 +38,7 @@ Platform CIS policy requirements
 CIS is an organization that sets security policy recommendations
 
 #### [ee/fleetd-chrome](/ee/fleetd-chrom)
-Chrome exxtension (`fleetd-chrome`)
+Chrome extension (`fleetd-chrome`)
 
 ##### [ee/fleetd-chrome/tables](/ee/fleetd-chrome/table)
 Virtual database tables
@@ -234,10 +234,10 @@ Tools for removing `fleetd` services from all platforms
 Tool for profiling performance on Windows
 
 ### [pkg/](/pkg)
-Packages that are used by various fleet server and client commands
+Packages that are used by various Fleet server and client commands
 
 - [buildpkg](/pkg/buildpkg)
-   Package for building fleet components
+   Package for building Fleet components, specifically Fleet Desktop.
 - [certificate](/pkg/certificate)
    Package for handling TLS certificates
 - [download](/pkg/download)
@@ -256,7 +256,7 @@ Packages that are used by various fleet server and client commands
    public network
 - [open](/pkg/open)
    Package that provides a cross-platform method of opening links in
-   the browser
+   the browser.
 - [optjson](/pkg/optjson)
    Package provides types that can be used to represent optional JSON values.
 - [rawjson](/pkg/rawjson)
@@ -265,20 +265,68 @@ Packages that are used by various fleet server and client commands
    Package provides a method to re-attempt a function with cooldown
    and delay, or at various intervals
 - [scripts](/pkg/scripts)
-   Package contains constants used by fleetd and the server
+   Package contains constants used by fleetd and the server to coordinate script execution timeouts.
 - [secure](/pkg/secure)
    Package provides methods for checking the permissions on files
 - [spec](/pkg/spec)
-   Package provides methods for interacting with `GitOpts` spec files
-
+   Package provides methods for interacting with `GitOps` spec files
 
 ### [proposals/](/proposals)
+Contains docs with proposals the implementation of various Fleet features. Mostly historical.
 
 ### [schema/](/schema)
+Contains Fleet's osquery table documentation. See the [README](./schema/README.md) for more info.
 
 ### [scripts/](/scripts)
+Contains various shell scripts that can be run via Fleet to accomplish common tasks, such as
+changing passwords and locking/unlocking hosts.
 
 ### [server/](/server)
+The home of the Fleet server code. If you're working on backend code, this is most likely where it
+will live!
+
+TODO: link to architecture diagrams
+
+#### [server/authz/](./server/authz)
+Authorization-related code. Contains types and methods for doing authorization based on a
+[Rego](https://www.openpolicyagent.org/docs/latest/policy-language/) policy,
+[policy.rego](./server/policy.rego).
+
+#### [server/bindata/](./server/bindata)
+TODO
+
+#### [server/config/](./server/config)
+Contains Go types and functions related to the Fleet server config. This configuration is used to
+set various values needed by the Fleet server, including access to external resources like
+databases and logging, and values used by Fleet's code during its operation.
+
+#### [server/contexts/](./server/contexts)
+#### [server/cron/](./server/cron)
+#### [server/datastore/](./server/datastore)
+#### [server/docs/](./server/docs)
+#### [server/errorstore/](./server/errorstore)
+#### [server/fleet/](./server/fleet)
+#### [server/goose/](./server/goose)
+#### [server/health/](./server/health)
+#### [server/launcher/](./server/launcher)
+#### [server/live_query/](./server/live_query)
+#### [server/logging/](./server/logging)
+#### [server/mail/](./server/mail)
+#### [server/mdm/](./server/mdm)
+#### [server/mock/](./server/mock)
+#### [server/policies/](./server/policies)
+#### [server/ptr/](./server/ptr)
+#### [server/pubsub/](./server/pubsub)
+#### [server/service/](./server/service)
+#### [server/shellquote/](./server/shellquote)
+#### [server/sso/](./server/sso)
+#### [server/test/](./server/test)
+#### [server/version/](./server/version)
+#### [server/vulnerabilities/](./server/vulnerabilities)
+#### [server/webhooks/](./server/webhooks)
+#### [server/websocket/](./server/websocket)
+#### [server/worker/](./server/worker)
+
 
 ### [terraform/](/terraform)
 
