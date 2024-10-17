@@ -1,6 +1,8 @@
 .user-menu {
   button {
     background-color: transparent;
+    margin-right: 4px;
+    transition: transform 0.3s ease;
 
     &.focus-visible {
       border: 1px solid $ui-vibrant-blue-10;
@@ -17,6 +19,20 @@
 
     svg {
       transition: transform 0.25s ease;
+    }
+
+    &:hover svg {
+      animation: bounceDown 0.3s ease-in-out;
+    }
+
+    @keyframes bounceDown {
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(3px);
+      }
     }
   }
 

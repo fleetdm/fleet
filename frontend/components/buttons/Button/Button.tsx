@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Children } from "react";
 import classnames from "classnames";
 import Spinner from "components/Spinner";
 
@@ -35,6 +35,7 @@ export interface IButtonProps {
   tabIndex?: number;
   type?: "button" | "submit" | "reset";
   title?: string;
+  /** Default: "brand" */
   variant?: ButtonVariant;
   onClick?:
     | ((value?: any) => void)
@@ -44,6 +45,7 @@ export interface IButtonProps {
           | React.KeyboardEvent<HTMLButtonElement>
       ) => void);
   isLoading?: boolean;
+  customOnKeyDown?: (e: React.KeyboardEvent) => void;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -115,6 +117,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       title,
       variant,
       isLoading,
+      customOnKeyDown,
     } = this.props;
     const fullClassName = classnames(
       baseClass,
@@ -136,7 +139,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         className={fullClassName}
         disabled={disabled}
         onClick={handleClick}
-        onKeyDown={handleKeyDown}
+        onKeyDown={customOnKeyDown || handleKeyDown}
         tabIndex={tabIndex}
         type={type}
         title={title}
