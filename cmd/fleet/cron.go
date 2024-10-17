@@ -1165,7 +1165,7 @@ func appleMDMDEPSyncerJob(
 		}
 		if incompleteToken != nil {
 			logger.Log("msg", "migrated ABM token found, updating its metadata")
-			if err := apple_mdm.SetABMTokenMetadata(ctx, incompleteToken, depStorage, ds, logger); err != nil {
+			if err := apple_mdm.SetABMTokenMetadata(ctx, incompleteToken, depStorage, ds, logger, false); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating migrated ABM token metadata")
 			}
 			if err := ds.SaveABMToken(ctx, incompleteToken); err != nil {
