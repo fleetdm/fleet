@@ -100,4 +100,6 @@ func TestUp_20241017163402(t *testing.T) {
 	require.Equal(t, "to-delete-installer.pkg", result.Filename)
 	require.Equal(t, "1.2", result.Version)
 	require.Nil(t, result.InstallerID)
+
+	// TODO ensure host software installs updated_at doesn't change
 }
