@@ -299,7 +299,7 @@ const generateTableHeaders = (
         const checkboxProps = viewingTeamPolicies
           ? teamCheckboxProps
           : regularCheckboxProps;
-        return <Checkbox {...checkboxProps} />;
+        return <Checkbox {...checkboxProps} enableEnterToCheck />;
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
         const inheritedPolicy = cellProps.row.original.team_id === null;
@@ -314,7 +314,7 @@ const generateTableHeaders = (
           return <></>;
         }
 
-        return <Checkbox {...checkboxProps} />;
+        return <Checkbox {...checkboxProps} enableEnterToCheck />;
       },
       disableHidden: true,
     });

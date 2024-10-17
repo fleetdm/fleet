@@ -76,6 +76,11 @@
     @media (max-width: 825px) {
       padding: 15px 18px;
     }
+
+    &:focus-visible {
+      outline-offset: -3px; // Cleaner when tabbing
+      border-radius: $border-radius-medium;
+    }
   }
 
   &__logo-wrapper {
