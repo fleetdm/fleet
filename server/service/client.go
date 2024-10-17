@@ -702,6 +702,7 @@ func (c *Client) ApplyGroup(
 			for tmName, apps := range tmSoftwareAppsPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
+				logfn("[+] applying %d app store apps for team %s\n", len(apps), tmName)
 				if err := c.ApplyTeamAppStoreAppsAssociation(currentTeamName, apps, opts.ApplySpecOptions); err != nil {
 					return nil, nil, nil, fmt.Errorf("applying app store apps for team: %q: %w", tmName, err)
 				}
