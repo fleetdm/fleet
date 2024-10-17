@@ -156,7 +156,8 @@ const PlatformWrapper = ({
     } else {
       renderFlash(
         "error",
-        "Your certificate could not be downloaded. Please check your Fleet configuration."
+        "Your certificate could not be downloaded. Please check your Fleet configuration.",
+        { dismissOnPageChange: true }
       );
     }
     return false;

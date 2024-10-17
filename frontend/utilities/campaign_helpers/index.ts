@@ -137,7 +137,8 @@ export const updateCampaignState = (socketData: ISocketData) => {
           );
           renderFlash(
             "error",
-            `Fleet's connection to Redis failed (campaign ID ${campaignID}). If this issue persists, please contact your administrator.`
+            `Fleet's connection to Redis failed (campaign ID ${campaignID}). If this issue persists, please contact your administrator.`,
+            { dismissOnPageChange: true }
           );
         }
         return { campaign };

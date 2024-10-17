@@ -507,7 +507,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       } catch {
         renderFlash(
           "error",
-          "Couldn't update activity feed automations. Please try again."
+          "Couldn't update activity feed automations. Please try again.",
+          { dismissOnPageChange: true }
         );
       } finally {
         setUpdatingActivityFeedAutomations(false);

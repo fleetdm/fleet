@@ -275,7 +275,8 @@ const EditQueryPage = ({
         } else {
           renderFlash(
             "error",
-            "Something went wrong creating your query. Please try again."
+            "Something went wrong creating your query. Please try again.",
+            { dismissOnPageChange: true }
           );
           setBackendValidators({});
         }

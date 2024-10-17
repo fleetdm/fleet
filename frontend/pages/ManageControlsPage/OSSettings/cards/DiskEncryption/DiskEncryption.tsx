@@ -50,7 +50,8 @@ const DiskEncryption = ({
     } catch {
       renderFlash(
         "error",
-        "Could not retrieve updated app config. Please try again."
+        "Could not retrieve updated app config. Please try again.",
+        { dismissOnPageChange: true }
       );
     }
   };
@@ -91,7 +92,8 @@ const DiskEncryption = ({
     } catch {
       renderFlash(
         "error",
-        "Could not update the disk encryption enforcement. Please try again."
+        "Could not update the disk encryption enforcement. Please try again.",
+        { dismissOnPageChange: true }
       );
     }
   };

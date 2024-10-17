@@ -74,7 +74,8 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
           ) {
             renderFlash(
               "error",
-              "Could not connect to SMTP server. Please try again."
+              "Could not connect to SMTP server. Please try again.",
+              { dismissOnPageChange: true }
             );
           } else if (response?.data.errors) {
             const reason = response?.data.errors[0].reason;

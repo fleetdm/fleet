@@ -369,7 +369,8 @@ const EditQueryForm = ({
                   }
                   renderFlash(
                     "error",
-                    `A query called "Copy of ${lastEditedQueryName}" already exists for ${teamErrorText}.`
+                    `A query called "Copy of ${lastEditedQueryName}" already exists for ${teamErrorText}.`,
+                    { dismissOnPageChange: true }
                   );
                 }
                 setIsSaveAsNewLoading(false);

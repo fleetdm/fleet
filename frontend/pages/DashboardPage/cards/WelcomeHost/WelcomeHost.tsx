@@ -79,14 +79,16 @@ const WelcomeHost = ({
               } else {
                 renderFlash(
                   "error",
-                  `This host is offline. Please try refetching host vitals later.`
+                  `This host is offline. Please try refetching host vitals later.`,
+                  { dismissOnPageChange: true }
                 );
                 setShowRefetchLoadingSpinner(false);
               }
             } else {
               renderFlash(
                 "error",
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`
+                `We're having trouble fetching fresh vitals for this host. Please try again later.`,
+                { dismissOnPageChange: true }
               );
               setShowRefetchLoadingSpinner(false);
             }

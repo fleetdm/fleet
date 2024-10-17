@@ -80,7 +80,8 @@ const SoftwareCustomPackage = ({
     if (!formData.software) {
       renderFlash(
         "error",
-        `Couldn't add. Please refresh the page and try again.`
+        `Couldn't add. Please refresh the page and try again.`,
+        { dismissOnPageChange: true }
       );
       return;
     }
@@ -88,7 +89,8 @@ const SoftwareCustomPackage = ({
     if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
       renderFlash(
         "error",
-        `Couldn't add. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`
+        `Couldn't add. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`,
+        { dismissOnPageChange: true }
       );
       return;
     }
@@ -136,7 +138,8 @@ const SoftwareCustomPackage = ({
       if (isTimeout) {
         renderFlash(
           "error",
-          `Couldn’t upload. Request timeout. Please make sure your server and load balancer timeout is long enough.`
+          `Couldn’t upload. Request timeout. Please make sure your server and load balancer timeout is long enough.`,
+          { dismissOnPageChange: true }
         );
       } else if (reason.includes("Fleet couldn't read the version from")) {
         renderFlash(

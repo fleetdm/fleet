@@ -152,7 +152,8 @@ const TeamManagementPage = (): JSX.Element => {
         .catch(() => {
           renderFlash(
             "error",
-            `Could not delete ${teamEditing.name}. Please try again.`
+            `Could not delete ${teamEditing.name}. Please try again.`,
+            { dismissOnPageChange: true }
           );
         })
         .finally(() => {
@@ -208,7 +209,8 @@ const TeamManagementPage = (): JSX.Element => {
             } else {
               renderFlash(
                 "error",
-                `Could not rename ${teamEditing.name}. Please try again.`
+                `Could not rename ${teamEditing.name}. Please try again.`,
+                { dismissOnPageChange: true }
               );
             }
           })

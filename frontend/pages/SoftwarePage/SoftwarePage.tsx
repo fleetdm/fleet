@@ -283,7 +283,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     } catch {
       renderFlash(
         "error",
-        "Could not update vulnerability automations. Please try again."
+        "Could not update vulnerability automations. Please try again.",
+        { dismissOnPageChange: true }
       );
     } finally {
       toggleManageAutomationsModal();

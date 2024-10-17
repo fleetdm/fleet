@@ -37,7 +37,8 @@ const DeleteAbmModal = ({
       // TODO: Check API sends back correct error messages
       renderFlash(
         "error",
-        "Couldn’t disable automatic enrollment. Please try again."
+        "Couldn’t disable automatic enrollment. Please try again.",
+        { dismissOnPageChange: true }
       );
       onCancel();
     }

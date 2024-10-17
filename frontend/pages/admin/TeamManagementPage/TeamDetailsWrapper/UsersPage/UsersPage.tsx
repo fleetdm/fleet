@@ -351,7 +351,8 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
             } else {
               renderFlash(
                 "error",
-                `Could not edit ${userName || "user"}. Please try again.`
+                `Could not edit ${userName || "user"}. Please try again.`,
+                { dismissOnPageChange: true }
               );
             }
           })

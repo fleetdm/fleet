@@ -397,7 +397,8 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         .catch(() => {
           renderFlash(
             "error",
-            `Could not delete ${userEditing?.name}. Please try again.`
+            `Could not delete ${userEditing?.name}. Please try again.`,
+            { dismissOnPageChange: true }
           );
         })
         .finally(() => {
@@ -414,7 +415,8 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         .catch(() => {
           renderFlash(
             "error",
-            `Could not delete ${userEditing?.name}. Please try again.`
+            `Could not delete ${userEditing?.name}. Please try again.`,
+            { dismissOnPageChange: true }
           );
         })
         .finally(() => {
@@ -459,7 +461,8 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       .catch(() => {
         renderFlash(
           "error",
-          "Could not require a password reset. Please try again."
+          "Could not require a password reset. Please try again.",
+          { dismissOnPageChange: true }
         );
       })
       .finally(() => {

@@ -263,7 +263,8 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         .catch((errorResponse: { data: IApiError }) => {
           renderFlash(
             "error",
-            `Could not update team settings. ${errorResponse.data.errors[0].reason}`
+            `Could not update team settings. ${errorResponse.data.errors[0].reason}`,
+            { dismissOnPageChange: true }
           );
         })
         .finally(() => {

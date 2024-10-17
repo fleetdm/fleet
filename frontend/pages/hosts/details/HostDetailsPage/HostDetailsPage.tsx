@@ -347,7 +347,8 @@ const HostDetailsPage = ({
               } else {
                 renderFlash(
                   "error",
-                  `This host is offline. Please try refetching host vitals later.`
+                  `This host is offline. Please try refetching host vitals later.`,
+                  { dismissOnPageChange: true }
                 );
                 setShowRefetchSpinner(false);
               }
@@ -355,7 +356,8 @@ const HostDetailsPage = ({
               // totalElapsedTime > 60000
               renderFlash(
                 "error",
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`
+                `We're having trouble fetching fresh vitals for this host. Please try again later.`,
+                { dismissOnPageChange: true }
               );
               setShowRefetchSpinner(false);
             }
@@ -555,7 +557,8 @@ const HostDetailsPage = ({
         console.log(error);
         renderFlash(
           "error",
-          `Host "${host.display_name}" could not be deleted.`
+          `Host "${host.display_name}" could not be deleted.`,
+          { dismissOnPageChange: true }
         );
       } finally {
         setShowDeleteHostModal(false);
