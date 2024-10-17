@@ -6,7 +6,7 @@
             <h1>{{articleCategory}}</h1>
             <p>{{categoryDescription}}</p>
           </div>
-          <div purpose="search" id="docsearch-query">
+          <div purpose="search" id="docsearch-query" v-if="['Articles', 'Announcements', 'Guides'].includes(articleCategory)">
             <div purpose="disabled-search" class="d-flex w-100">
               <div class="input-group">
                 <div class="input-group-prepend">

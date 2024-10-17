@@ -60,19 +60,21 @@ parasails.registerPage('articles', {
   },
 
   mounted: async function() {
-    if(this.algoliaPublicKey) {// Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the handbook search will be disabled.
-      docsearch({
-        appId: 'NZXAYZXDGH',
-        apiKey: this.algoliaPublicKey,
-        indexName: 'fleetdm',
-        container: '#docsearch-query',
-        placeholder: 'Search',
-        debug: false,
-        clickAnalytics: true,
-        searchParameters: {
-          facetFilters: ['section:articles']
-        },
-      });
+    if(['Articles', 'Announcements', 'Guides'].includes(this.articleCategory)) {
+      if(this.algoliaPublicKey) {// Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the handbook search will be disabled.
+        docsearch({
+          appId: 'NZXAYZXDGH',
+          apiKey: this.algoliaPublicKey,
+          indexName: 'fleetdm',
+          container: '#docsearch-query',
+          placeholder: 'Search',
+          debug: false,
+          clickAnalytics: true,
+          searchParameters: {
+            facetFilters: ['section:articles']
+          },
+        });
+      }
     }
   },
 
@@ -92,19 +94,6 @@ parasails.registerPage('articles', {
           return 1;
         }
       });
-    },
-
-    filterBy: function(filter) {
-      if(filter !== 'all') {
-        this.selectedArticles = this.articles.filter((article)=>{
-          if(article.meta['category'] === filter) {
-            return article;
-          }
-        });
-      } else {
-        this.sortArticlesByDate();
-      }
-      this.filter = filter;
     },
     clickCopyRssLink: function(articleCategory) {
       let rssButton = $('a[purpose="rss-button"]');
