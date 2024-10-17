@@ -149,12 +149,12 @@
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/5478
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Configuration]
-  usualDepartment: IT
-  tier: Free
+  usualDepartment: Security
+  tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
   waysToUse:
-    - description: Enforce two-factor authentication when logging in to Fleet for added security.
+    - description: Enforce email two-factor authentication (2FA) when logging in to Fleet for added security.
   comingSoonOn: 2024-12-31 #customer-rosner
 #  
 #  ╦═╗╔═╗╦  ╔═╗  ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ╔═╗╔═╗╔╗╔╔╦╗╦═╗╔═╗╦  
