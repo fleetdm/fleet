@@ -9,6 +9,7 @@ import (
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/fleetdm/fleet/v4/server/bindata"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log"
 )
 
@@ -70,7 +71,7 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handl
 	})
 }
 
-func ServeEndUserEnrollOTA(urlPrefix string, logger log.Logger) http.Handler {
+func ServeEndUserEnrollOTA(svc fleet.Service, urlPrefix string, logger log.Logger) http.Handler {
 	herr := func(w http.ResponseWriter, err string) {
 		logger.Log("err", err)
 		http.Error(w, err, http.StatusInternalServerError)
@@ -78,6 +79,16 @@ func ServeEndUserEnrollOTA(urlPrefix string, logger log.Logger) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writeBrowserSecurityHeaders(w)
+		setupRequired, err := svc.SetupRequired(r.Context())
+		if err != nil {
+			herr(w, "setup required err: "+err.Error())
+			return
+		}
+
+		if setupRequired {
+			herr(w, "fleet instance not setup")
+			return
+		}
 
 		fs := newBinaryFileSystem("/frontend")
 		file, err := fs.Open("templates/enroll-ota.html")

@@ -1035,12 +1035,11 @@ the way that the Fleet server works.
 				if setupRequired {
 					apiHandler = service.WithSetup(svc, logger, apiHandler)
 					frontendHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler, config.Server.URLPrefix)
-					endUserEnrollOTAHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler, config.Server.URLPrefix)
 				} else {
 					frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler, config.Server.URLPrefix)
-					endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(config.Server.URLPrefix, logger)
 				}
 
+				endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(svc, config.Server.URLPrefix, logger)
 			}
 
 			healthCheckers := make(map[string]health.Checker)
@@ -1182,6 +1181,7 @@ the way that the Fleet server works.
 				}
 				apiHandler.ServeHTTP(rw, req)
 			})
+
 			rootMux.Handle("/enroll", endUserEnrollOTAHandler)
 			rootMux.Handle("/", frontendHandler)
 
