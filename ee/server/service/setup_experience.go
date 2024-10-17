@@ -235,7 +235,7 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 			}
 			res, err := svc.ds.NewHostScriptExecutionRequest(ctx, req)
 			if err != nil {
-				ctxerr.Wrap(ctx, err, "queueing setup experience script execution request")
+				return false, ctxerr.Wrap(ctx, err, "queueing setup experience script execution request")
 			}
 			script.ScriptExecutionID = &res.ExecutionID
 			script.Status = fleet.SetupExperienceStatusRunning
