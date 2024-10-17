@@ -17,13 +17,15 @@ func TestSetupExperienceNextStep(t *testing.T) {
 
 	requestedInstalls := make(map[uint][]uint)
 	requestedUpdateSetupExperience := []*fleet.SetupExperienceStatusResult{}
+	requestedScriptExecution := []*fleet.HostScriptRequestPayload{}
 	resetIndicators := func() {
 		ds.InsertSoftwareInstallRequestFuncInvoked = false
 		ds.InsertHostVPPSoftwareInstallFuncInvoked = false
 		ds.NewHostScriptExecutionRequestFuncInvoked = false
 		ds.UpdateSetupExperienceStatusResultFuncInvoked = false
 		clear(requestedInstalls)
-		clear(requestedUpdateSetupExperience)
+		requestedUpdateSetupExperience = []*fleet.SetupExperienceStatusResult{}
+		requestedScriptExecution = []*fleet.HostScriptRequestPayload{}
 	}
 
 	host1UUID := "123"
@@ -64,6 +66,13 @@ func TestSetupExperienceNextStep(t *testing.T) {
 		return nil
 	}
 
+	ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+		requestedScriptExecution = append(requestedScriptExecution, request)
+		return &fleet.HostScriptResult{
+			ExecutionID: "script-uuid",
+		}, nil
+	}
+
 	// No host exists
 	_, err := svc.SetupExperienceNextStep(ctx, host1UUID)
 	require.Error(t, err)
@@ -99,6 +108,12 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	assert.Len(t, requestedInstalls, 1)
 	assert.Len(t, requestedUpdateSetupExperience, 1)
 	assert.Equal(t, "install-uuid", *requestedUpdateSetupExperience[0].HostSoftwareInstallsExecutionID)
+
+	mockListSetupExperience[0].Status = fleet.SetupExperienceStatusSuccess
+	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	require.NoError(t, err)
+	assert.True(t, finished)
+
 	resetIndicators()
 
 	// TODO VPP app queueing is better done in an integration
@@ -121,7 +136,62 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	assert.False(t, ds.InsertHostVPPSoftwareInstallFuncInvoked)
 	assert.True(t, ds.NewHostScriptExecutionRequestFuncInvoked)
 	assert.True(t, ds.UpdateSetupExperienceStatusResultFuncInvoked)
-	assert.Len(t, requestedInstalls, 1)
+	assert.Len(t, requestedScriptExecution, 1)
 	assert.Len(t, requestedUpdateSetupExperience, 1)
+	assert.Equal(t, "script-uuid", *requestedUpdateSetupExperience[0].ScriptExecutionID)
+
+	mockListSetupExperience[0].Status = fleet.SetupExperienceStatusSuccess
+	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	require.NoError(t, err)
+	assert.True(t, finished)
+
 	resetIndicators()
+
+	// Both installer and script
+	mockListSetupExperience = []*fleet.SetupExperienceStatusResult{
+		{
+			HostUUID:            host1UUID,
+			SoftwareInstallerID: &installerID1,
+			Status:              fleet.SetupExperienceStatusPending,
+		},
+		{
+			HostUUID:                host1UUID,
+			SetupExperienceScriptID: &scriptID1,
+			ScriptContentID:         &scriptContentID1,
+			Status:                  fleet.SetupExperienceStatusPending,
+		},
+	}
+
+	// Only installer is queued
+	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	require.NoError(t, err)
+	assert.False(t, finished)
+	assert.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+	assert.False(t, ds.InsertHostVPPSoftwareInstallFuncInvoked)
+	assert.False(t, ds.NewHostScriptExecutionRequestFuncInvoked)
+	assert.True(t, ds.UpdateSetupExperienceStatusResultFuncInvoked)
+	assert.Len(t, requestedInstalls, 1)
+	assert.Len(t, requestedScriptExecution, 0)
+	assert.Len(t, requestedUpdateSetupExperience, 1)
+
+	// install finished, call it again. This time script is queued
+	mockListSetupExperience[0].Status = fleet.SetupExperienceStatusSuccess
+
+	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	require.NoError(t, err)
+	assert.False(t, finished)
+	assert.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+	assert.False(t, ds.InsertHostVPPSoftwareInstallFuncInvoked)
+	assert.True(t, ds.NewHostScriptExecutionRequestFuncInvoked)
+	assert.True(t, ds.UpdateSetupExperienceStatusResultFuncInvoked)
+	assert.Len(t, requestedInstalls, 1)
+	assert.Len(t, requestedScriptExecution, 1)
+	assert.Len(t, requestedUpdateSetupExperience, 2)
+
+	// both finished, now we're done
+	mockListSetupExperience[1].Status = fleet.SetupExperienceStatusFailure
+
+	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	require.NoError(t, err)
+	assert.True(t, finished)
 }

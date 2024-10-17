@@ -247,8 +247,8 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 			}
 		}
 	case installersRunning == 0 && appsRunning == 0 && scriptsRunning == 0:
-		return true, nil
 		// finished
+		return true, nil
 	}
 
 	return false, nil
