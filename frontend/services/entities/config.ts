@@ -69,8 +69,7 @@ export default {
 
     return sendRequest(
       "PATCH",
-      // TODO - UNDO!
-      CONFIG.concat("z"),
+      CONFIG,
       { mdm },
       undefined,
       undefined,
