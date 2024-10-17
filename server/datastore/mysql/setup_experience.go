@@ -302,8 +302,12 @@ SELECT
 	sesr.setup_experience_script_id,
 	sesr.script_execution_id,
 	sesr.error,
+	va.adam_id AS vpp_app_id,
+	va.platform AS vpp_app_platform,
+	ses.script_content_id,
 	COALESCE(si.title_id, COALESCE(va.title_id, NULL)) AS software_title_id
 FROM setup_experience_status_results sesr
+LEFT JOIN setup_experience_scripts ses ON ses.id = sesr.setup_experience_script_id
 LEFT JOIN software_installers si ON si.id = sesr.software_installer_id
 LEFT JOIN vpp_apps_teams vat ON vat.id = sesr.vpp_app_team_id
 LEFT JOIN vpp_apps va ON vat.adam_id = va.adam_id
@@ -314,6 +318,43 @@ WHERE host_uuid = ?
 		return nil, ctxerr.Wrap(ctx, err, "select setup experience status results by host uuid")
 	}
 	return results, nil
+}
+
+func (ds *Datastore) UpdateSetupExperienceStatusResult(ctx context.Context, status *fleet.SetupExperienceStatusResult) error {
+	const stmt = `
+UPDATE setup_experience_status_results
+SET
+	host_uuid = ?
+	name = ?
+	status = ?
+	software_installer_id = ?
+	host_software_installs_id = ?
+	vpp_app_team_id = ?
+	nano_command_uuid = ?
+	setup_experience_script_id = ?
+	script_execution_id = ?
+	error = ?
+WHERE id = ?
+`
+	if _, err := ds.writer(ctx).ExecContext(
+		ctx,
+		stmt,
+		status.HostUUID,
+		status.Name,
+		status.Status,
+		status.SoftwareInstallerID,
+		status.HostSoftwareInstallsExecutionID,
+		status.VPPAppTeamID,
+		status.NanoCommandUUID,
+		status.SetupExperienceScriptID,
+		status.ScriptExecutionID,
+		status.Error,
+		status.ID,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating setup experience status result")
+	}
+
+	return nil
 }
 
 func (ds *Datastore) GetSetupExperienceScript(ctx context.Context, teamID *uint) (*fleet.Script, error) {
