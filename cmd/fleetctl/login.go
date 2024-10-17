@@ -87,7 +87,7 @@ Trying to login with SSO? First, login to the Fleet UI and retrieve your API tok
 			token, err := fleet.Login(flEmail, flPassword)
 			if err != nil {
 				root := ctxerr.Cause(err)
-				switch root.(type) {
+				switch root.(type) { //nolint:gocritic // ignore singleCaseSwitch
 				case service.NotSetupErr:
 					return err
 				}

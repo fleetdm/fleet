@@ -2480,7 +2480,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 
 	// apply an empty set of batch profiles to the team
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
-		http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(team.ID)), "team_name", team.Name)
+		http.StatusUnprocessableEntity, "team_id", fmt.Sprint(team.ID), "team_name", team.Name)
 
 	// the configuration profile is still there
 	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
@@ -4947,7 +4947,7 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	}
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{
 		Profiles: teamProfiles,
-	}, http.StatusNoContent, "team_id", strconv.Itoa(int(t1.ID)))
+	}, http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
 
 	//
 	// Start running permission tests with user gitops2-mdm,
@@ -4974,7 +4974,7 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	}
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{
 		Profiles: teamProfiles,
-	}, http.StatusNoContent, "team_id", strconv.Itoa(int(t1.ID)))
+	}, http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
 
 	// Attempt to set profile batch for team t2, should not allow.
 	teamProfiles = [][]byte{
@@ -4983,7 +4983,7 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	}
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{
 		Profiles: teamProfiles,
-	}, http.StatusForbidden, "team_id", strconv.Itoa(int(t2.ID)))
+	}, http.StatusForbidden, "team_id", fmt.Sprint(t2.ID))
 
 	// Attempt to retrieve host profiles fails if the host doesn't belong to the team
 	h1, err := s.ds.NewHost(ctx, &fleet.Host{
@@ -10588,7 +10588,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// We're passing team 1 here, but we haven't added any app store apps to that team, so we get
 	// back all available apps in our VPP location.
 	var appResp getAppStoreAppsResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id", strconv.Itoa(int(team.ID)))
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id",
+		fmt.Sprint(team.ID))
 	require.NoError(t, appResp.Err)
 	macOSApp := fleet.VPPApp{
 		VPPAppTeam: fleet.VPPAppTeam{
@@ -10671,7 +10672,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Now we should be filtering out the app we added to team 1
 	appResp = getAppStoreAppsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id", strconv.Itoa(int(team.ID)))
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id",
+		fmt.Sprint(team.ID))
 	require.NoError(t, appResp.Err)
 	assert.ElementsMatch(t, expectedApps[1:], appResp.AppStoreApps)
 
@@ -10722,7 +10724,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Now we should be filtering out the app we added to team 1
 	appResp = getAppStoreAppsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id",
-		strconv.Itoa(int(team.ID)))
+		fmt.Sprint(team.ID))
 	require.NoError(t, appResp.Err)
 	assert.ElementsMatch(t, append(expectedApps[2:], expectedApps[0]), appResp.AppStoreApps)
 
@@ -10887,11 +10889,13 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Check if the host is listed as pending
 	var listResp listHostsResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "pending", "team_id", strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(errTitleID)))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "pending", "team_id", fmt.Sprint(team.ID),
+		"software_title_id", fmt.Sprint(errTitleID))
 	require.Len(t, listResp.Hosts, 1)
 	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
 	var countResp countHostsResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id", strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(errTitleID)))
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(errTitleID))
 	require.Equal(t, 1, countResp.Count)
 
 	// Simulate failed installation on the host
@@ -10900,7 +10904,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.NoError(t, err)
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
-		switch cmd.Command.RequestType {
+		switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
 		case "InstallApplication":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			failedCmdUUID = cmd.CommandUUID
@@ -10910,11 +10914,13 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	}
 
 	listResp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(errTitleID)))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
+		"software_title_id", fmt.Sprint(errTitleID))
 	require.Len(t, listResp.Hosts, 1)
 	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
 	countResp = countHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id", strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(errTitleID)))
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(errTitleID))
 	require.Equal(t, 1, countResp.Count)
 
 	s.lastActivityMatches(
@@ -10937,7 +10943,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		http.StatusAccepted, &installResp)
 	countResp = countHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
-		strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(macOSTitleID)))
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 1, countResp.Count)
 
 	// Simulate successful installation on the host
@@ -10946,7 +10952,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.NoError(t, err)
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
-		switch cmd.Command.RequestType {
+		switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
 		case "InstallApplication":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			cmdUUID = cmd.CommandUUID
@@ -10957,11 +10963,11 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
-		strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(macOSTitleID)))
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Len(t, listResp.Hosts, 1)
 	countResp = countHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
-		strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(macOSTitleID)))
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 1, countResp.Count)
 
 	s.lastActivityMatches(
@@ -11117,7 +11123,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			}
 			countResp = countHostsResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
-				strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(titleID)))
+				fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(titleID))
 			require.Equal(t, 1, countResp.Count)
 
 			// send an idle request to grab the command uuid
@@ -11162,11 +11168,11 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 			listResp = listHostsResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
-				strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(titleID)))
+				fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(titleID))
 			assert.Len(t, listResp.Hosts, install.hostCount)
 			countResp = countHostsResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
-				strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(titleID)))
+				fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(titleID))
 			assert.Equal(t, install.hostCount, countResp.Count)
 
 			s.lastActivityMatches(

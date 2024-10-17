@@ -35,13 +35,13 @@ func testCollectPolicyQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fl
 	t.Logf("real host IDs: %v", hostIDs)
 	t.Logf("real policy IDs: %v", policyIDs)
 	hid := func(id int) int {
-		return int(hostIDs[id-1])
+		return int(hostIDs[id-1]) //nolint:gosec // dismiss G115
 	}
 	pid := func(id int) int {
 		if id < 0 || id >= len(policyIDs) {
 			return id
 		}
-		return int(policyIDs[id-1])
+		return int(policyIDs[id-1]) //nolint:gosec // dismiss G115
 	}
 
 	nbTrue := sql.NullBool{Valid: true, Bool: true}

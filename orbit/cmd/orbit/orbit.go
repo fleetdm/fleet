@@ -314,7 +314,7 @@ func main() {
 				if keystore.Supported() && !c.Bool("disable-keystore") {
 					// Check if secret is already in the keystore.
 					secretFromKeystore, err := keystore.GetSecret()
-					if err != nil {
+					if err != nil { //nolint:gocritic // ignore ifElseChain
 						log.Warn().Err(err).Msgf("failed to retrieve enroll secret from %v", keystore.Name())
 					} else if secretFromKeystore == "" {
 						// Keystore secret not found, so we will add it to the keystore.
@@ -323,7 +323,7 @@ func main() {
 						} else {
 							// Sanity check that the secret was added to the keystore.
 							checkSecret, err := keystore.GetSecret()
-							if err != nil {
+							if err != nil { //nolint:gocritic // ignore ifElseChain
 								log.Warn().Err(err).Msgf("failed to check that enroll secret was saved in %v", keystore.Name())
 							} else if checkSecret != secret {
 								log.Warn().Msgf("enroll secret was not saved correctly in %v", keystore.Name())
@@ -339,7 +339,7 @@ func main() {
 						} else {
 							// Sanity check that the secret was updated in the keystore.
 							checkSecret, err := keystore.GetSecret()
-							if err != nil {
+							if err != nil { //nolint:gocritic // ignore ifElseChain
 								log.Warn().Err(err).Msgf("failed to check that enroll secret was updated in %v", keystore.Name())
 							} else if checkSecret != secret {
 								log.Warn().Msgf("enroll secret was not updated correctly in %v", keystore.Name())

@@ -294,7 +294,7 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 	var metaData *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
-		if len(vulns) > int(opt.ListOptions.PerPage) {
+		if len(vulns) > int(opt.ListOptions.PerPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			vulns = vulns[:len(vulns)-1]
 		}

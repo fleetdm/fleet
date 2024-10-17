@@ -1248,8 +1248,8 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				return nil
 			}
 
-			err := directIngestOSUnixLike(context.Background(), log.NewNopLogger(), &fleet.Host{ID: uint(i)}, ds,
-				tc.data) //nolint:gosec // dismiss G115
+			err := directIngestOSUnixLike(context.Background(), log.NewNopLogger(), &fleet.Host{ID: uint(i)}, //nolint:gosec // dismiss G115
+				ds, tc.data)
 
 			require.NoError(t, err)
 			require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)

@@ -91,7 +91,7 @@ func listFleetMaintainedAppsEndpoint(ctx context.Context, request any, svc fleet
 
 	listResp := listFleetMaintainedAppsResponse{
 		FleetMaintainedApps: apps,
-		Count:               int(meta.TotalResults),
+		Count:               int(meta.TotalResults), //nolint:gosec // dismiss G115
 		Meta:                meta,
 	}
 	if !latest.IsZero() {

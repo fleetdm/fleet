@@ -188,7 +188,7 @@ func TestActiveHostIDsSet(t *testing.T) {
 			}
 
 			// none ever get deleted, all are after tpurgeNone
-			n, err := storePurgeActiveHostID(pool, zkey, uint(i+1), time.Unix(ts[i], 0), tpurgeNone)
+			n, err := storePurgeActiveHostID(pool, zkey, uint(i+1), time.Unix(ts[i], 0), tpurgeNone) //nolint:gosec // dismiss G115
 			require.NoError(t, err)
 			require.Equal(t, 0, n)
 		}

@@ -642,5 +642,5 @@ func getDeviceSoftwareEndpoint(ctx context.Context, request interface{}, svc fle
 	if res == nil {
 		res = []*fleet.HostSoftwareWithInstaller{}
 	}
-	return getDeviceSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil
+	return getDeviceSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil //nolint:gosec // dismiss G115
 }

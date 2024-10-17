@@ -101,7 +101,7 @@ INSERT INTO
 
 	return &fleet.MDMAppleConfigProfile{
 		ProfileUUID:  profUUID,
-		ProfileID:    uint(profileID),
+		ProfileID:    uint(profileID), //nolint:gosec // dismiss G115
 		Identifier:   cp.Identifier,
 		Name:         cp.Name,
 		Mobileconfig: cp.Mobileconfig,
@@ -511,7 +511,7 @@ ON DUPLICATE KEY UPDATE
 	}
 	id, _ := res.LastInsertId()
 	return &fleet.MDMAppleEnrollmentProfile{
-		ID:         uint(id),
+		ID:         uint(id), //nolint:gosec // dismiss G115
 		Token:      payload.Token,
 		Type:       payload.Type,
 		DEPProfile: payload.DEPProfile,
@@ -683,7 +683,7 @@ func (ds *Datastore) NewMDMAppleInstaller(ctx context.Context, name string, size
 	}
 	id, _ := res.LastInsertId()
 	return &fleet.MDMAppleInstaller{
-		ID:        uint(id),
+		ID:        uint(id), //nolint:gosec // dismiss G115
 		Size:      size,
 		Name:      name,
 		Manifest:  manifest,
@@ -5070,7 +5070,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 
 	tokenID, _ := res.LastInsertId()
 
-	tok.ID = uint(tokenID)
+	tok.ID = uint(tokenID) //nolint:gosec // dismiss G115
 
 	cfg, err := ds.AppConfig(ctx)
 	if err != nil {

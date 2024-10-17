@@ -2654,7 +2654,7 @@ func testHostsAddToTeam(t *testing.T, ds *Datastore) {
 		host, err := ds.Host(context.Background(), uint(i))
 		require.NoError(t, err)
 		var expectedID *uint
-		switch {
+		switch { //nolint:gocritic // ignore singleCaseSwitch
 		case i >= 5:
 			expectedID = &team1.ID
 		}

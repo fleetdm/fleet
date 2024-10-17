@@ -341,7 +341,7 @@ func (m *swiftDialogMDMMigrator) waitForUnenrollment(isADEMigration bool) error 
 		}
 
 		statusEnrolled, serverURL, statusErr := checkStatusFn()
-		if statusErr != nil {
+		if statusErr != nil { //nolint:gocritic // ignore ifElseChain
 			log.Error().Err(statusErr).Msgf("checking profiles status in migration modal")
 		} else if statusEnrolled {
 			log.Info().Msgf("checking profiles status in migration modal: enrolled to %s", serverURL)

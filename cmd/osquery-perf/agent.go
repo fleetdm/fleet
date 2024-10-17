@@ -1285,7 +1285,7 @@ func (a *agent) installSoftwareItem(installerID string, orbitClient *service.Orb
 	failed := false
 	if installer.PreInstallCondition != "" {
 		time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
-		if installer.PreInstallCondition == "select 1" {
+		if installer.PreInstallCondition == "select 1" { //nolint:gocritic // ignore ifElseChain
 			// Always pass
 			payload.PreInstallConditionOutput = ptr.String("1")
 		} else if installer.PreInstallCondition == "select 0" ||
@@ -1317,7 +1317,7 @@ func (a *agent) installSoftwareItem(installerID string, orbitClient *service.Orb
 		}
 
 		time.Sleep(time.Duration(rand.Intn(30)) * time.Second)
-		if installer.InstallScript == "exit 0" {
+		if installer.InstallScript == "exit 0" { //nolint:gocritic // ignore ifElseChain
 			// Always pass
 			payload.InstallScriptExitCode = ptr.Int(0)
 			payload.InstallScriptOutput = ptr.String("Installed on osquery-perf (always pass)")
@@ -1364,7 +1364,7 @@ func (a *agent) installSoftwareItem(installerID string, orbitClient *service.Orb
 
 		if installer.PostInstallScript != "" {
 			time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
-			if installer.PostInstallScript == "exit 0" {
+			if installer.PostInstallScript == "exit 0" { //nolint:gocritic // ignore ifElseChain
 				// Always pass
 				payload.PostInstallScriptExitCode = ptr.Int(0)
 				payload.PostInstallScriptOutput = ptr.String("PostInstall on osquery-perf (always pass)")
@@ -2185,7 +2185,7 @@ func (a *agent) processQuery(name, query string) (
 			ss = fleet.OsqueryStatus(1)
 		}
 		if ss == fleet.StatusOK {
-			switch a.os {
+			switch a.os { //nolint:gocritic // ignore singleCaseSwitch
 			case "ubuntu":
 				results = ubuntuSoftware
 				a.installedSoftware.Range(func(key, value interface{}) bool {

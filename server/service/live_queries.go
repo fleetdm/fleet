@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -404,7 +403,7 @@ func (svc *Service) CompleteCampaign(ctx context.Context, campaign *fleet.Distri
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "saving distributed campaign after complete")
 	}
-	err = svc.liveQueryStore.StopQuery(strconv.Itoa(int(campaign.ID)))
+	err = svc.liveQueryStore.StopQuery(fmt.Sprint(campaign.ID))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "stopping query after after complete")
 	}

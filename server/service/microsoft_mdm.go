@@ -494,7 +494,7 @@ func NewSoapResponse(payload interface{}, relatesTo string) (fleet.SoapResponse,
 
 		// Setting the target action
 	case *mdm_types.SoapFault:
-		if msg.OriginalMessageType == mdm_types.MDEDiscovery {
+		if msg.OriginalMessageType == mdm_types.MDEDiscovery { //nolint:gocritic // ignore ifElseChain
 			action = urlDiscovery
 		} else if msg.OriginalMessageType == mdm_types.MDEPolicy {
 			action = urlPolicy

@@ -630,7 +630,7 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 
 	id, _ := res.LastInsertId()
 
-	vppTokenDB.ID = uint(id)
+	vppTokenDB.ID = uint(id) //nolint:gosec // dismiss G115
 
 	return vppTokenDB, nil
 }

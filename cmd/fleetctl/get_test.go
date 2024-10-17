@@ -1251,7 +1251,7 @@ func TestGetQueries(t *testing.T) {
 		return nil, &notFoundError{}
 	}
 	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
-		if opt.TeamID == nil {
+		if opt.TeamID == nil { //nolint:gocritic // ignore ifElseChain
 			return []*fleet.Query{
 				{
 					ID:             33,

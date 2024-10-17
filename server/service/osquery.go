@@ -242,7 +242,7 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 
 	case "instance":
 		r, ok := details["osquery_info"]
-		if !ok {
+		if !ok { //nolint:gocritic // ignore ifElseChain
 			level.Info(logger).Log(
 				"msg", "could not get host identifier",
 				"reason", "missing osquery_info",
@@ -260,7 +260,7 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 
 	case "uuid":
 		r, ok := details["osquery_info"]
-		if !ok {
+		if !ok { //nolint:gocritic // ignore ifElseChain
 			level.Info(logger).Log(
 				"msg", "could not get host identifier",
 				"reason", "missing osquery_info",
@@ -278,7 +278,7 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 
 	case "hostname":
 		r, ok := details["system_info"]
-		if !ok {
+		if !ok { //nolint:gocritic // ignore ifElseChain
 			level.Info(logger).Log(
 				"msg", "could not get host identifier",
 				"reason", "missing system_info",
@@ -1534,7 +1534,7 @@ func (svc *Service) ingestDistributedQuery(
 
 	// Write the results to the pubsub store
 	res := fleet.DistributedQueryResult{
-		DistributedQueryCampaignID: uint(campaignID),
+		DistributedQueryCampaignID: uint(campaignID), //nolint:gosec // dismiss G115
 		Host: fleet.ResultHostData{
 			ID:          host.ID,
 			Hostname:    host.Hostname,
@@ -1558,7 +1558,7 @@ func (svc *Service) ingestDistributedQuery(
 		// If there are no subscribers, the campaign is "orphaned"
 		// and should be closed so that we don't continue trying to
 		// execute that query when we can't write to any subscriber
-		campaign, err := svc.ds.DistributedQueryCampaign(ctx, uint(campaignID))
+		campaign, err := svc.ds.DistributedQueryCampaign(ctx, uint(campaignID)) //nolint:gosec // dismiss G115
 		if err != nil {
 			if err := svc.liveQueryStore.StopQuery(strconv.Itoa(campaignID)); err != nil {
 				return newOsqueryError("stop orphaned campaign after load failure: " + err.Error())
@@ -1620,9 +1620,9 @@ func ingestMembershipQuery(
 	// A label/policy query matches if there is at least one result for that
 	// query. We must also store negative results.
 	if failed {
-		results[uint(trimmedQueryNum)] = nil
+		results[uint(trimmedQueryNum)] = nil //nolint:gosec // dismiss G115
 	} else {
-		results[uint(trimmedQueryNum)] = ptr.Bool(len(rows) > 0)
+		results[uint(trimmedQueryNum)] = ptr.Bool(len(rows) > 0) //nolint:gosec // dismiss G115
 	}
 
 	return nil

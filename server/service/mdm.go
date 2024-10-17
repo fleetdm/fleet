@@ -1111,7 +1111,7 @@ func deleteMDMConfigProfileEndpoint(ctx context.Context, request interface{}, sv
 	req := request.(*deleteMDMConfigProfileRequest)
 
 	var err error
-	if isAppleProfileUUID(req.ProfileUUID) {
+	if isAppleProfileUUID(req.ProfileUUID) { //nolint:gocritic // ignore ifElseChain
 		err = svc.DeleteMDMAppleConfigProfile(ctx, req.ProfileUUID)
 	} else if isAppleDeclarationUUID(req.ProfileUUID) {
 		// TODO: we could potentially combined with the other service methods

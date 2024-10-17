@@ -4477,7 +4477,7 @@ func (renewABMTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) 
 
 	return &renewABMTokenRequest{
 		Token:   token[0],
-		TokenID: uint(id),
+		TokenID: uint(id), //nolint:gosec // dismiss G115
 	}, nil
 }
 

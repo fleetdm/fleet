@@ -403,7 +403,7 @@ func parseCertificateRequest(in *certificateRequest) (*x509.CertificateRequest, 
 	}
 
 	for _, extension := range out.Extensions {
-		switch {
+		switch { //nolint:gocritic // ignore singleCaseSwitch
 		case extension.Id.Equal(oidExtensionSubjectAltName):
 			out.DNSNames, out.EmailAddresses, out.IPAddresses, out.URIs, err = parseSANExtension(extension.Value)
 			if err != nil {
