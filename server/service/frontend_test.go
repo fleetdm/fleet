@@ -46,8 +46,11 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 	if !hasBuildTag("full") {
 		t.Skip("This test requires running with -tags full")
 	}
+
+	svc, _ := newTestService(t, nil, nil, nil)
+
 	logger := log.NewLogfmtLogger(os.Stdout)
-	h := ServeEndUserEnrollOTA("", logger)
+	h := ServeEndUserEnrollOTA(svc, "", logger)
 	ts := httptest.NewServer(h)
 	t.Cleanup(func() {
 		ts.Close()

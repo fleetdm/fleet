@@ -86,7 +86,7 @@ func ServeEndUserEnrollOTA(svc fleet.Service, urlPrefix string, logger log.Logge
 		}
 
 		if setupRequired {
-			herr(w, "fleet instance not setup: "+err.Error())
+			herr(w, "fleet instance not setup")
 			return
 		}
 
