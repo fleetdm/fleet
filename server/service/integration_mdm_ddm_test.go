@@ -565,6 +565,19 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	// create a host and then enroll in MDM.
 	mdmHost, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 
+	// Create and then immediately delete a declaration
+	delUUID := addDeclaration("TestImmediateDelete", 0, nil)
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", mdmHost.ID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host.MDM.Profiles)
+	require.Len(t, *hostResp.Host.MDM.Profiles, 1)
+	require.Equal(t, (*hostResp.Host.MDM.Profiles)[0].Name, "TestImmediateDelete")
+
+	deleteDeclaration(delUUID)
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", mdmHost.ID), nil, http.StatusOK, &hostResp)
+	require.Nil(t, hostResp.Host.MDM.Profiles)
+
 	// trigger the reconciler, no error
 	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)

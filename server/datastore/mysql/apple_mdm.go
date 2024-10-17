@@ -299,7 +299,18 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Conte
 func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error {
 	// TODO(roberto): this seems confusing to me, we should have a separate datastore method.
 	if strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix) {
-		return ds.deleteMDMAppleDeclaration(ctx, profileUUID)
+		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			if err := deleteMDMAppleDeclaration(ctx, tx, profileUUID); err != nil {
+				return err
+			}
+
+			if err := deleteUnsentAppleHostMDMDeclaration(ctx, tx, profileUUID); err != nil {
+				return err
+			}
+
+			return nil
+		})
+		// return ds.deleteMDMAppleDeclaration(ctx, profileUUID)
 	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := deleteMDMAppleConfigProfileByIDOrUUID(ctx, tx, 0, profileUUID); err != nil {
@@ -349,6 +360,15 @@ func deleteUnsentAppleHostMDMProfile(ctx context.Context, tx sqlx.ExtContext, uu
 	return nil
 }
 
+func deleteUnsentAppleHostMDMDeclaration(ctx context.Context, tx sqlx.ExtContext, uuid string) error {
+	const stmt = `DELETE FROM host_mdm_apple_declarations WHERE declaration_uuid = ? AND status IS NULL AND operation_type = ?`
+	if _, err := tx.ExecContext(ctx, stmt, uuid, fleet.MDMOperationTypeInstall); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host declaration that has not been sent to host")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) DeleteMDMAppleDeclarationByName(ctx context.Context, teamID *uint, name string) error {
 	const stmt = `DELETE FROM mdm_apple_declarations WHERE team_id = ? AND name = ?`
 
@@ -363,10 +383,10 @@ func (ds *Datastore) DeleteMDMAppleDeclarationByName(ctx context.Context, teamID
 	return nil
 }
 
-func (ds *Datastore) deleteMDMAppleDeclaration(ctx context.Context, uuid string) error {
+func deleteMDMAppleDeclaration(ctx context.Context, tx sqlx.ExtContext, uuid string) error {
 	stmt := `DELETE FROM mdm_apple_declarations WHERE declaration_uuid = ?`
 
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, uuid)
+	res, err := tx.ExecContext(ctx, stmt, uuid)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -456,7 +476,8 @@ WHERE
 }
 
 func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID string,
-	profileUUID string) (*fleet.HostMDMCertificateProfile, error) {
+	profileUUID string,
+) (*fleet.HostMDMCertificateProfile, error) {
 	stmt := `
 	SELECT
 		hmap.host_uuid,
@@ -4780,7 +4801,8 @@ func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.M
 }
 
 func (ds *Datastore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName,
-	queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	queryerContext sqlx.QueryerContext,
+) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 	if len(assetNames) == 0 {
 		return nil, nil
 	}
