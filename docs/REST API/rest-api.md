@@ -2504,7 +2504,7 @@ the `software` table.
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
-| populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. |
+| populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. (Note that software lists can be large, so this may cause significant CPU and RAM usage depending on page size and request concurrency.) |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host. |
 
 > `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
@@ -8425,6 +8425,8 @@ The script will be added to the host's list of upcoming activities.
 
 The new script will run after other activities finish. Failure of one activity won't cancel other activities.
 
+By default, script runs time out after 5 minutes. You can modify this default in your [agent configuration](https://fleetdm.com/docs/configuration/agent-configuration#script-execution-timeout).
+
 `POST /api/v1/fleet/scripts/run`
 
 #### Parameters
@@ -9480,7 +9482,9 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 
 _Available in Fleet Premium._
 
-Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` added to be installed.
+Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` to be installed.
+
+Package installs time out after 1 hour.
 
 `POST /api/v1/fleet/hosts/:id/software/:software_title_id/install`
 

@@ -167,6 +167,7 @@ func ExpandEnv(s string) (string, error) {
 	}
 
 	s = escapeString(s, preventEscapingPrefix)
+	s = escapeFleetVar(s, preventEscapingPrefix)
 	var err *multierror.Error
 	s = os.Expand(s, func(env string) string {
 		if strings.HasPrefix(env, preventEscapingPrefix) {
@@ -201,5 +202,13 @@ func escapeString(s string, preventEscapingPrefix string) string {
 			return match
 		}
 		return strings.Repeat("\\", (len(match)/2)-1) + "$" + preventEscapingPrefix
+	})
+}
+
+var escapeFleetVarPattern = regexp.MustCompile(`(\$FLEET_VAR_\w+)|(\${FLEET_VAR_\w+})`)
+
+func escapeFleetVar(s string, preventEscapingPrefix string) string {
+	return escapeFleetVarPattern.ReplaceAllStringFunc(s, func(match string) string {
+		return strings.ReplaceAll(match, "$", "$"+preventEscapingPrefix)
 	})
 }

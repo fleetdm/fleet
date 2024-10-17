@@ -558,7 +558,7 @@
 #  ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║  ║║║╠═╣║║║╠═╣║ ╦║╣ ║║║║╣ ║║║ ║ 
 #  ╩ ╩╩  ╩  ╩═╝╩╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝  ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩ 
 - industryName: Application management
-  description: Manage updates and patches for apps on macOS, Windows, and Linux computers.
+  description: Manage updates and apps on macOS, Windows, and Linux computers.
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no

@@ -72,6 +72,7 @@ const ManualEnrollMdmModal = ({
     <Modal
       title="Turn on MDM"
       onExit={onCancel}
+      onEnter={onCancel}
       className={baseClass}
       width="xlarge"
     >

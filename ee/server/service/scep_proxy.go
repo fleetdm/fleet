@@ -119,7 +119,12 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 	if profile.Status == nil || *profile.Status != fleet.MDMDeliveryPending {
 		// This could happen if Fleet DB was updated before the profile was updated on the host.
 		// We expect another certificate request from the host once the profile is updated.
-		return nil, &scepserver.BadRequestError{Message: "profile status is not 'pending'"}
+		status := "null"
+		if profile.Status != nil {
+			status = string(*profile.Status)
+		}
+		return nil, &scepserver.BadRequestError{Message: fmt.Sprintf("profile status (%s) is not 'pending' for host:%s profile:%s", status,
+			hostUUID, profileUUID)}
 	}
 	if profile.ChallengeRetrievedAt != nil && profile.ChallengeRetrievedAt.Add(NDESChallengeInvalidAfter).Before(time.Now()) {
 		// The challenge password was retrieved for this profile, and is now invalid.

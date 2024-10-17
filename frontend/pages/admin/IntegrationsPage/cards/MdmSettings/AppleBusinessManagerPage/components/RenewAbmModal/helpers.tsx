@@ -1,5 +1,3 @@
-import React from "react";
-
 import { getErrorReason } from "interfaces/errors";
 
 const DEFAULT_ERROR_MESSAGE = "Couldn’t renew. Please try again.";

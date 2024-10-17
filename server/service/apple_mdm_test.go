@@ -2663,11 +2663,16 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	}
 
 	t.Run("replace $FLEET_VAR_"+FleetVarNDESSCEPProxyURL, func(t *testing.T) {
-		var failedCount int
+		var upsertCount int
 		failedCall = false
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
-			failedCount++
-			require.Len(t, payload, 0)
+			upsertCount++
+			if upsertCount == 1 {
+				// We update the profile with a new command UUID
+				assert.Len(t, payload, 1, "at upsertCount %d", upsertCount)
+			} else {
+				assert.Len(t, payload, 0, "at upsertCount %d", upsertCount)
+			}
 		}
 		enqueueFailForOp = ""
 		newContents := "$FLEET_VAR_" + FleetVarNDESSCEPProxyURL
@@ -2682,7 +2687,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		})
 		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
 		require.NoError(t, err)
-		require.Equal(t, 1, failedCount)
+		assert.Equal(t, 2, upsertCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
@@ -2887,6 +2892,12 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+		for _, p := range payload {
+			assert.NotEqual(t, cmdUUID, p.CommandUUID)
+		}
+		return nil
+	}
 	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents, hostProfilesToInstallMap)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
@@ -2943,7 +2954,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	assert.Len(t, targets, 1)
 	for profUUID, target := range targets {
 		assert.NotEqual(t, profUUID, "p1") // new temporary UUID generated for specific host
-		assert.Equal(t, cmdUUID, target.cmdUUID)
+		assert.NotEqual(t, cmdUUID, target.cmdUUID)
 		assert.Equal(t, []string{hostUUID}, target.hostUUIDs)
 		assert.Equal(t, challenge, string(profileContents[profUUID]))
 	}
@@ -2966,7 +2977,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	assert.Len(t, targets, 1)
 	for profUUID, target := range targets {
 		assert.NotEqual(t, profUUID, "p1") // new temporary UUID generated for specific host
-		assert.Equal(t, cmdUUID, target.cmdUUID)
+		assert.NotEqual(t, cmdUUID, target.cmdUUID)
 		assert.Equal(t, []string{hostUUID}, target.hostUUIDs)
 		assert.Equal(t, expectedURL, string(profileContents[profUUID]))
 	}
@@ -3001,7 +3012,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	assert.Len(t, targets, 1)
 	for profUUID, target := range targets {
 		assert.NotEqual(t, profUUID, "p1") // new temporary UUID generated for specific host
-		assert.Equal(t, cmdUUID, target.cmdUUID)
+		assert.NotEqual(t, cmdUUID, target.cmdUUID)
 		assert.Equal(t, []string{hostUUID}, target.hostUUIDs)
 		assert.Equal(t, email, string(profileContents[profUUID]))
 	}
@@ -3011,7 +3022,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		targets = map[string]*cmdTarget{
 			"p1": {cmdUUID: cmdUUID, profIdent: "com.add.profile", hostUUIDs: []string{hostUUID, "host-2"}},  // fails
 			"p2": {cmdUUID: cmdUUID, profIdent: "com.add.profile2", hostUUIDs: []string{hostUUID, "host-3"}}, // works
-			"p3": {cmdUUID: cmdUUID, profIdent: "com.add.profile2", hostUUIDs: []string{hostUUID, "host-4"}}, // no variables
+			"p3": {cmdUUID: cmdUUID, profIdent: "com.add.profile3", hostUUIDs: []string{hostUUID, "host-4"}}, // no variables
 		}
 	}
 	populateTargets()
@@ -3021,12 +3032,30 @@ func TestPreprocessProfileContents(t *testing.T) {
 		"p2": []byte("$FLEET_VAR_" + FleetVarHostEndUserEmailIDP),
 		"p3": []byte("no variables"),
 	}
+	addProfileToInstall := func(hostUUID, profileUUID, profileIdentifier string) {
+		hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID,
+			ProfileUUID: profileUUID}] = &fleet.MDMAppleBulkUpsertHostProfilePayload{
+			ProfileUUID:       profileUUID,
+			ProfileIdentifier: profileIdentifier,
+			HostUUID:          hostUUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &fleet.MDMDeliveryPending,
+			CommandUUID:       cmdUUID,
+		}
+
+	}
+	addProfileToInstall(hostUUID, "p1", "com.add.profile")
+	addProfileToInstall("host-2", "p1", "com.add.profile")
+	addProfileToInstall(hostUUID, "p2", "com.add.profile2")
+	addProfileToInstall("host-3", "p2", "com.add.profile2")
+	addProfileToInstall(hostUUID, "p3", "com.add.profile3")
+	addProfileToInstall("host-4", "p3", "com.add.profile3")
 	expectedHostsToFail := []string{hostUUID, "host-2", "host-3"}
 	ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
 		updatedProfile = profile
 		require.NotNil(t, updatedProfile.Status)
 		assert.Equal(t, fleet.MDMDeliveryFailed, *updatedProfile.Status)
-		assert.Equal(t, cmdUUID, updatedProfile.CommandUUID)
+		assert.NotEqual(t, cmdUUID, updatedProfile.CommandUUID)
 		assert.Contains(t, expectedHostsToFail, updatedProfile.HostUUID)
 		assert.Equal(t, fleet.MDMOperationTypeInstall, updatedProfile.OperationType)
 		return nil
@@ -3034,13 +3063,16 @@ func TestPreprocessProfileContents(t *testing.T) {
 	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
 		for _, p := range payload {
 			require.NotNil(t, p.Status)
-			assert.Equal(t, fleet.MDMDeliveryFailed, *p.Status)
-			assert.Equal(t, cmdUUID, p.CommandUUID)
+			if fleet.MDMDeliveryFailed == *p.Status {
+				assert.Equal(t, cmdUUID, p.CommandUUID)
+			} else {
+				assert.NotEqual(t, cmdUUID, p.CommandUUID)
+			}
 			assert.Equal(t, fleet.MDMOperationTypeInstall, p.OperationType)
 		}
 		return nil
 	}
-	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents, nil)
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents, hostProfilesToInstallMap)
 	require.NoError(t, err)
 	require.NotEmpty(t, targets)
 	assert.Len(t, targets, 3)
@@ -3049,7 +3081,11 @@ func TestPreprocessProfileContents(t *testing.T) {
 	assert.NotNil(t, targets["p3"]) // normal, no variables
 	for profUUID, target := range targets {
 		assert.Contains(t, [][]string{{hostUUID}, {"host-3"}, {hostUUID, "host-4"}}, target.hostUUIDs)
-		assert.Equal(t, cmdUUID, target.cmdUUID)
+		if profUUID == "p3" {
+			assert.Equal(t, cmdUUID, target.cmdUUID)
+		} else {
+			assert.NotEqual(t, cmdUUID, target.cmdUUID)
+		}
 		assert.Contains(t, []string{email, "no variables"}, string(profileContents[profUUID]))
 	}
 }

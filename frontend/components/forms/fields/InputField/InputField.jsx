@@ -35,7 +35,7 @@ class InputField extends Component {
       PropTypes.number,
     ]).isRequired,
     parseTarget: PropTypes.bool,
-    tooltip: PropTypes.string,
+    tooltip: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
     labelTooltipPosition: PropTypes.string,
     helpText: PropTypes.oneOfType([
       PropTypes.string,
@@ -43,7 +43,7 @@ class InputField extends Component {
       PropTypes.object,
     ]),
     enableCopy: PropTypes.bool,
-    copyButtonPosition: PropTypes.oneOfType(["inside", "outside"]),
+    copyButtonPosition: PropTypes.oneOf(["inside", "outside"]),
     ignore1password: PropTypes.bool,
   };
 

@@ -1,3 +1,50 @@
+## Overview
+
+```mermaid
+sequenceDiagram
+    participant apns as APNS
+    participant mac as Mac
+    participant server as fleet server
+
+    note over server: Server sends automatic enrollment<br/>endpoint details to ABM as part of a<br/>ADE/DEP configuration cron job
+    alt Automatic Authenticated Enrollment
+        mac->>server: GET /api/v1/fleet/sso<br/>(endpoint configured using ADE)<br/>Opens authetication webpage in a webview
+        server->>mac: Enrollment Profile (specific response headers)
+    else Automatic Enrollment
+        mac->>server: GET /api/mdm/apple/enroll<br/>(endpoint configured using ADE)
+        server->>mac: Enrollment profile
+    else Manual Enrollment
+        note over mac,server: User downloads a profile<br/>containing the OTA endpoint
+        mac->>server: POST /api/latest/fleet/ota_enrollment
+        mac->server: Throw-away SCEP flow
+        server->>mac: Enrollment profile
+    end
+
+    mac->>server: GET /mdm/apple/scep?operation=GetCACaps<br/>SCEP Catability Check
+    server->>mac: List of SCEP catabilities
+
+    mac->>server: POST /mdm/apple/scep?operation=PKIOperation<br/>Certificate Signing Request
+    server->>mac: Signed Certificate
+
+    mac->>server: POST /mdm/apple/mdm<br/>MessageType: Authenticate<br/>Push notification token
+    server->>mac: 200 OK
+
+    mac->>server: POST /mdm/apple/mdm<br/>MessageType: Bootstrap Token<br/>Used to help grant Secure Tokens<br/>and erase the device
+    server->>mac: 200 OK
+
+    mac->>server: POST /mdm/apple/mdm<br/>MessageType: TokenUpdate
+    server->>mac: 200 OK
+
+    loop MDM mTLS
+        server->>apns: MDM Push Notification
+        apns->>mac: Push Notification
+        mac->>server: PUT /mdm/apple/mdm<br/>Status: Idle
+        server->>mac: Command
+        mac->>server: PUT /mdm/apple/mdm<br/>Acknowledged
+        server-->>mac: More commands...
+    end
+```
+
 ## Glossary
 
 ### SCEP: Simple Certificate Enrollment Protocol

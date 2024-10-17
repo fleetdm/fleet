@@ -108,6 +108,10 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedAppStoreApp{},
 	ActivityDeletedAppStoreApp{},
 	ActivityInstalledAppStoreApp{},
+
+	ActivityAddedNDESSCEPProxy{},
+	ActivityDeletedNDESSCEPProxy{},
+	ActivityEditedNDESSCEPProxy{},
 }
 
 type ActivityDetails interface {
@@ -1850,4 +1854,34 @@ func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
   "app_store_id": "1234567",
   "command_uuid": "98765432-1234-1234-1234-1234567890ab"
 }`
+}
+
+type ActivityAddedNDESSCEPProxy struct{}
+
+func (a ActivityAddedNDESSCEPProxy) ActivityName() string {
+	return "added_ndes_scep_proxy"
+}
+
+func (a ActivityAddedNDESSCEPProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when NDES SCEP proxy is configured in Fleet.", `This activity does not contain any detail fields.`, ``
+}
+
+type ActivityDeletedNDESSCEPProxy struct{}
+
+func (a ActivityDeletedNDESSCEPProxy) ActivityName() string {
+	return "deleted_ndes_scep_proxy"
+}
+
+func (a ActivityDeletedNDESSCEPProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when NDES SCEP proxy configuration is deleted in Fleet.", `This activity does not contain any detail fields.`, ``
+}
+
+type ActivityEditedNDESSCEPProxy struct{}
+
+func (a ActivityEditedNDESSCEPProxy) ActivityName() string {
+	return "edited_ndes_scep_proxy"
+}
+
+func (a ActivityEditedNDESSCEPProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when NDES SCEP proxy configuration is edited in Fleet.", `This activity does not contain any detail fields.`, ``
 }
