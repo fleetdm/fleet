@@ -1688,6 +1688,7 @@ _Available in Fleet Premium._
 
 ##### integrations.ndes_scep_proxy
 
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 `integrations.ndes_scep_proxy` is an object with the following structure:
 
 | Name      | Type   | Description                                             |
@@ -1699,7 +1700,6 @@ _Available in Fleet Premium._
 
 Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. Not specifying `integrations.ndes_scep_proxy` in the payload will not change the existing settings.
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 
 ##### Example request body
