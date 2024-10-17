@@ -439,7 +439,7 @@ messages will be hidden automatically after an interval.
 
 If the `renderFlash` is accompanied by a router push, it's important to push to the router *before*
 calling `renderFlash`. If the push comes after the `renderFlash` call with `dismissOnPageChange`,
-the flash message will be immediately hidden by the router push.
+the flash message may be immediately hidden by the router push.
 
 ```tsx
 router.push(newPath);

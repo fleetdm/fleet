@@ -70,7 +70,10 @@ const QueryEditor = ({
     if (storedPolicyError) {
       renderFlash(
         "error",
-        "Something went wrong retrieving your policy. Please try again."
+        "Something went wrong retrieving your policy. Please try again.",
+        {
+          dismissOnPageChange: true,
+        }
       );
     }
   }, []);
@@ -176,7 +179,10 @@ const QueryEditor = ({
       } else {
         renderFlash(
           "error",
-          "Something went wrong creating your policy. Please try again."
+          "Something went wrong creating your policy. Please try again.",
+          {
+            dismissOnPageChange: true,
+          }
         );
       }
     } finally {
@@ -224,7 +230,10 @@ const QueryEditor = ({
       } else {
         renderFlash(
           "error",
-          "Something went wrong updating your policy. Please try again."
+          "Something went wrong updating your policy. Please try again.",
+          {
+            dismissOnPageChange: true,
+          }
         );
       }
     } finally {

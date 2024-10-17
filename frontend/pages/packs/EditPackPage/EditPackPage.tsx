@@ -158,7 +158,10 @@ const EditPacksPage = ({
         ) {
           renderFlash(
             "error",
-            "Unable to update pack. Pack names must be unique."
+            "Unable to update pack. Pack names must be unique.",
+            {
+              dismissOnPageChange: true,
+            }
           );
         } else {
           renderFlash("error", `Could not update pack. Please try again.`, {
@@ -215,7 +218,10 @@ const EditPacksPage = ({
       .catch(() => {
         renderFlash(
           "error",
-          `Unable to remove ${queryOrQueries} from this pack. Please try again.`
+          `Unable to remove ${queryOrQueries} from this pack. Please try again.`,
+          {
+            dismissOnPageChange: true,
+          }
         );
       })
       .finally(() => {

@@ -37,7 +37,10 @@ const DeleteScriptModal = ({
         "error",
         apiErrMessage.includes("Policy automation")
           ? apiErrMessage
-          : "Couldn’t delete. Please try again."
+          : "Couldn’t delete. Please try again.",
+        {
+          dismissOnPageChange: true,
+        }
       );
     }
     onDone();

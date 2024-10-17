@@ -100,7 +100,10 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
       .catch(() => {
         renderFlash(
           "error",
-          `Unable to delete ${packOrPacks}. Please try again.`
+          `Unable to delete ${packOrPacks}. Please try again.`,
+          {
+            dismissOnPageChange: true,
+          }
         );
       })
       .finally(() => {
@@ -129,7 +132,10 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
         .catch(() => {
           renderFlash(
             "error",
-            `Unable to ${enableOrDisable} selected ${packOrPacks}. Please try again.`
+            `Unable to ${enableOrDisable} selected ${packOrPacks}. Please try again.`,
+            {
+              dismissOnPageChange: true,
+            }
           );
         })
         .finally(() => {

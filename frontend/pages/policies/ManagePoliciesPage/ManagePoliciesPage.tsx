@@ -733,7 +733,10 @@ const ManagePolicyPage = ({
         "error",
         `Unable to delete ${
           selectedPolicyIds?.length === 1 ? "policy" : "policies"
-        }. Please try again.`
+        }. Please try again.`,
+        {
+          dismissOnPageChange: true,
+        }
       );
     } finally {
       toggleDeletePolicyModal();

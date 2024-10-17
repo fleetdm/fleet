@@ -28,14 +28,15 @@ const ManualLabel = ({ router }: IManualLabelProps) => {
           renderFlash("success", "Label added successfully.");
         })
         .catch((error: { data: IApiError }) => {
-          if (error.data.errors[0].reason.includes("Duplicate entry")) {
-            renderFlash("error", DUPLICATE_ENTRY_ERROR, {
+          renderFlash(
+            "error",
+            error.data.errors[0].reason.includes("Duplicate entry")
+              ? DUPLICATE_ENTRY_ERROR
+              : "Couldn't add label. Please try again.",
+            {
               dismissOnPageChange: true,
-            });
-          } else
-            renderFlash("error", "Couldn't add label. Please try again.", {
-              dismissOnPageChange: true,
-            });
+            }
+          );
         });
     },
     [renderFlash, router]

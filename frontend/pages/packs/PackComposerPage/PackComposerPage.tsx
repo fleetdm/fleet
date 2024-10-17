@@ -62,7 +62,10 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
       ) {
         renderFlash(
           "error",
-          "Unable to create pack. Pack names must be unique."
+          "Unable to create pack. Pack names must be unique.",
+          {
+            dismissOnPageChange: true,
+          }
         );
       } else {
         renderFlash("error", "Unable to create pack.", {

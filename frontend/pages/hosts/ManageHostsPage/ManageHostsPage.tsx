@@ -1066,15 +1066,15 @@ const ManageHostsPage = ({
       renderFlash("success", "Successfully deleted label.");
     } catch (error) {
       console.error(error);
-      if (getErrorReason(error).includes("built-in")) {
-        renderFlash("error", "Built-in labels can’t be modified or deleted.", {
+      renderFlash(
+        "error",
+        getErrorReason(error).includes("built-in")
+          ? "Built-in labels can’t be modified or deleted."
+          : "Could not delete label. Please try again.",
+        {
           dismissOnPageChange: true,
-        });
-      } else {
-        renderFlash("error", "Could not delete label. Please try again.", {
-          dismissOnPageChange: true,
-        });
-      }
+        }
+      );
     } finally {
       setIsUpdatingLabel(false);
     }
