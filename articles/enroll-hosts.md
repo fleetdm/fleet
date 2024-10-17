@@ -17,11 +17,10 @@ The `fleetctl package` command is used to generate Fleet's agent (fleetd) instal
 The `--type` flag is used to specify the fleetd installer type.
 
 - macOS: .pkg
-  - When building from Linux, you'll need Docker to run the [fleetdm/bomutils](https://hub.docker.com/r/fleetdm/bomutils) image that contains necessary dependencies.
-- Windows: .msi (using [WiX](https://github.com/wixtoolset/wix3))
-  - When building from Intel Macs or Linux, you'll need Docker to run the [fleetdm/wix](https://hub.docker.com/r/fleetdm/wix) image that contains the necessary WiX utilities.
-  - When building from Windows, by default `fleetctl` will use Docker, but you can [use WiX without Docker instead](https://fleetdm.com/guides/enroll-hosts#generating-fleetd-for-windows-using-local-wix-toolset).
-  - When building from Apple Silicon Macs, you'll need to [install Wine](https://fleetdm.com/install-wine), as `fleetctl` uses a local installation of WiX.
+  - Generating a .pkg on Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running.
+- Windows: .msi
+  - Generating a .msi on Windows, Intel Macs, or Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running. On Windows, you can [use WiX without Docker instead](https://fleetdm.com/guides/enroll-hosts#generating-fleetd-for-windows-using-local-wix-toolset).
+  - Generating a .msi on Apple Silicon Macs requires [Wine](https://fleetdm.com/install-wine) to be installed.
 - Linux: .deb or .rpm
 
 > `fleetctl` on Windows can only generate MSI packages.
