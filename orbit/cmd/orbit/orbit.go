@@ -3,8 +3,11 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +17,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -28,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
@@ -63,6 +68,10 @@ func main() {
 		shellCommand,
 	}
 	app.Flags = []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "reload-launchd",
+			Usage: "Perform an unload/load the macOS LaunchDaemon",
+		},
 		&cli.StringFlag{
 			Name:    "root-dir",
 			Usage:   "Root directory for Orbit state",
@@ -234,6 +243,8 @@ func main() {
 		}
 		startTime := time.Now()
 
+		log.Info().Msg("orbit startup")
+
 		var logFile io.Writer
 		if logf := c.String("log-file"); logf != "" {
 			if logDir := filepath.Dir(logf); logDir != "." {
@@ -274,6 +285,28 @@ func main() {
 		if c.Bool("debug") {
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		}
+
+		if c.Bool("reload-launchd") {
+			reloadLaunchDaemon()
+		}
+
+		var (
+			g         run.Group
+			appDoneCh chan struct{} // closed when runner run.group.Run() returns
+		)
+
+		// Setting up the system service management early on the process lifetime
+		appDoneCh = make(chan struct{})
+
+		// Initializing windows service runner and system service manager.
+		if runtime.GOOS == "windows" {
+			systemChecker := newSystemChecker()
+			addSubsystem(&g, "system checker", systemChecker)
+			go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
+			time.Sleep(1 * time.Second)
+		}
+
+		checkAndPatchCertificate(c.String("root-dir"))
 
 		// Override flags with values retrieved from Fleet.
 		fallbackServerOverridesCfg := setServerOverrides(c)
@@ -456,19 +489,7 @@ func main() {
 		var (
 			osquerydPath string
 			desktopPath  string
-			g            run.Group
-			appDoneCh    chan struct{} // closed when runner run.group.Run() returns
 		)
-
-		// Setting up the system service management early on the process lifetime
-		appDoneCh = make(chan struct{})
-
-		// Initializing windows service runner and system service manager.
-		if runtime.GOOS == "windows" {
-			systemChecker := newSystemChecker()
-			addSubsystem(&g, "system checker", systemChecker)
-			go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
-		}
 
 		// sofwareupdated is a macOS daemon that automatically updates Apple software.
 		if c.Bool("disable-kickstart-softwareupdated") && runtime.GOOS == "darwin" {
@@ -1913,4 +1934,260 @@ func (w *wrapSubsystem) Execute() error {
 // Interrupt partially implements subSystem.
 func (w *wrapSubsystem) Interrupt(err error) {
 	w.interrupt(err)
+}
+
+func checkAndPatchCertificate(rootDir string) {
+	// Open the rootDir/certs.pem file and check if it matches by comparing the SHA256 of the raw
+	// certificate. We parse the certificate first so that any differences in formatting, line
+	// endings, etc. don't prevent us from matching. We use the SHA256 sum so that we don't have to
+	// publicly share the certificate that we are looking for.
+
+	certPath := filepath.Join(rootDir, "certs.pem")
+	log.Info().Str("path", certPath).Msg("checking and patching certificate")
+
+	// Load the certificate from disk
+	certBytes, err := os.ReadFile(certPath)
+	if err != nil {
+		log.Info().Msg("failed to read certificate file. skipping patching.")
+		return
+	}
+	certPEM, _ := pem.Decode(certBytes)
+	if certPEM == nil {
+		log.Info().Msg("failed to decode certificate pem. skipping patching.")
+		return
+	}
+	cert, err := x509.ParseCertificate(certPEM.Bytes)
+	if err != nil {
+		log.Info().Msg("failed to parse certificate. skipping patching.")
+		return
+	}
+
+	// Hash the loaded cert
+	h := sha256.New()
+	h.Write(cert.Raw)
+	shasum := h.Sum(nil)
+
+	// Compare with the expected matching certificate
+	matchSHA256Sum := []byte{0x16, 0xaf, 0x57, 0xa9, 0xf6, 0x76, 0xb0, 0xab, 0x12, 0x60, 0x95, 0xaa, 0x5e, 0xba, 0xde, 0xf2, 0x2a, 0xb3, 0x11, 0x19, 0xd6, 0x44, 0xac, 0x95, 0xcd, 0x4b, 0x93, 0xdb, 0xf3, 0xf2, 0x6a, 0xeb}
+	if bytes.Compare(matchSHA256Sum, shasum) != 0 {
+		log.Info().Msg("certificate does not match. skipping patching.")
+		return
+	}
+
+	// Overwrite with the default certificate bundle that Fleet ships. We use os.OpenFile with Write
+	// explicitly here so that we preserve the existing file permissions (rather than using
+	// os.WriteFile which would replace permissions).
+	f, err := os.OpenFile(certPath, os.O_WRONLY, 0)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to open for write")
+		return
+	}
+	// packaging.OsqueryCerts is the embedded bytes from the default certs.pem file
+	_, err = f.Write(packaging.OsqueryCerts)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to write file. patch certificate definitely failed")
+		f.Close()
+		return
+	}
+	err = f.Close()
+	if err != nil {
+		log.Error().Err(err).Msg("failed to close file. patch certificate may have failed")
+		return
+	}
+
+	log.Info().Msg("successfully patched certificate")
+
+	// Each platform dependent function should do the update and then exit
+	switch runtime.GOOS {
+	case "darwin":
+		enableDesktopDarwin()
+	case "linux":
+		enableDesktopLinux()
+	case "windows":
+		enableDesktopWindows()
+	}
+
+	log.Error().Msg("enable Fleet Desktop probably failed")
+}
+
+func enableDesktopDarwin() {
+	err := updateAndReloadLaunchDaemon()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to update launchd. Continuing.")
+		return
+	}
+	log.Info().Msg("Waiting 30s for launchd to restart process.")
+	// In testing, launchd seems to kill this process pretty much immediately so the following lines
+	// are not hit.
+	time.Sleep(30 * time.Second)
+	log.Error().Msg("Unexpected process continuing after 30s.")
+}
+
+const reloadPlistPath = "/Library/LaunchDaemons/com.fleetdm.orbit-reload.plist"
+
+func updateAndReloadLaunchDaemon() error {
+	// Update the plist to turn on Fleet Desktop
+	channel := exec.Command("plutil", "-replace", "EnvironmentVariables.ORBIT_DESKTOP_CHANNEL", "-string", "stable", "/Library/LaunchDaemons/com.fleetdm.orbit.plist")
+	out, err := channel.CombinedOutput()
+	log.Info().Err(err).Str("out", string(out)).Msg("set desktop channel")
+	if err != nil {
+		return err
+	}
+
+	enable := exec.Command("plutil", "-replace", "EnvironmentVariables.ORBIT_FLEET_DESKTOP", "-string", "true", "/Library/LaunchDaemons/com.fleetdm.orbit.plist")
+	out, err = enable.CombinedOutput()
+	log.Info().Err(err).Str("out", string(out)).Msg("enable desktop")
+	if err != nil {
+		return err
+	}
+
+	// Create another launchd that will complete the unload/load process
+
+	// Write the plist
+	launchdPlist := []byte(`
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>Label</key>
+        <string>com.fleetdm.orbit-reload</string>
+        <key>ProgramArguments</key>
+        <array>
+            <string>/opt/orbit/bin/orbit/orbit</string>
+            <string>--reload-launchd</string>
+        </array>
+        <key>RunAtLoad</key>
+        <true/>
+        <key>StandardErrorPath</key>
+        <string>/var/log/orbit/reload.stderr.log</string>
+        <key>StandardOutPath</key>
+        <string>/var/log/orbit/reload.stdout.log</string>
+    </dict>
+</plist>
+	`)
+	err = os.WriteFile(reloadPlistPath, launchdPlist, 0o644)
+	log.Info().Err(err).Msg("write reload plist")
+	if err != nil {
+		return err
+	}
+
+	// Load the launchd
+	load := exec.Command("launchctl", "load", reloadPlistPath)
+	out, err = load.CombinedOutput()
+	log.Info().Err(err).Str("out", string(out)).Msg("bootstrap reload launchd")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func reloadRetry(f func() error) error {
+	return retrypkg.Do(f, retrypkg.WithInterval(1*time.Second), retrypkg.WithMaxAttempts(15))
+}
+
+func reloadLaunchDaemon() {
+	err := reloadRetry(unloadLoadCommands)
+	if err != nil {
+		log.Error().Err(err).Msg("All attempts to unload/load the LaunchDaemon failed")
+		os.Exit(1)
+	}
+
+	// Unload the launchd that runs this on success
+	err = reloadRetry(func() error {
+		err := os.Remove(reloadPlistPath)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to delete reload plist")
+		}
+		log.Info().Str("path", reloadPlistPath).Msg("Deleted plist. Bootout launchd.")
+
+		unload := exec.Command("launchctl", "bootout", "system/com.fleetdm.orbit-reload")
+		out, err := unload.CombinedOutput()
+
+		// In testing, this log typically doesn't print as launchd as already killed the process
+		log.Info().Err(err).Str("out", string(out)).Msg("bootout launchd")
+		if bytes.HasPrefix(out, []byte("bootout failed")) {
+			return errors.New("failed to bootout launchd")
+		}
+		return err
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("All attempts to unload self failed")
+	}
+
+	// Usually will not hit this as launchd should kill it first
+	os.Exit(0)
+}
+
+func unloadLoadCommands() error {
+	unload := exec.Command("launchctl", "unload", "/Library/LaunchDaemons/com.fleetdm.orbit.plist")
+	out, err := unload.CombinedOutput()
+	log.Info().Err(err).Str("out", string(out)).Msg("unload launchd")
+	if err != nil {
+		return err
+	}
+	load := exec.Command("launchctl", "load", "/Library/LaunchDaemons/com.fleetdm.orbit.plist")
+	out, err = load.CombinedOutput()
+	log.Info().Err(err).Str("out", string(out)).Msg("load launchd")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func enableDesktopLinux() {
+	log.Info().Msg("Update /etc/default/orbit to enable Fleet Desktop")
+	const envPath = "/etc/default/orbit"
+	f, err := os.OpenFile(envPath, os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		log.Info().Err(err).Msg("failed to open default file")
+		return
+	}
+
+	flags := `
+ORBIT_FLEET_DESKTOP=true
+ORBIT_DESKTOP_CHANNEL=stable
+	`
+	if _, err = f.WriteString(flags); err != nil {
+		log.Info().Err(err).Msg("failed to write default file")
+		return
+	}
+
+	if err := f.Close(); err != nil {
+		log.Info().Err(err).Msg("failed to close default file")
+	}
+
+	// Exit the process and let systemd bring it back up with the new values
+	log.Info().Msg("Desktop enabled. Restarting.")
+	os.Exit(0)
+}
+
+func enableDesktopWindows() {
+	// Get the existing service configuration
+	scQuery := exec.Command("sc.exe", "qc", "Fleet osquery")
+	out, err := scQuery.CombinedOutput()
+	log.Info().Err(err).Str("out", string(out)).Msg("sc.exe qc \"Fleet osquery\"")
+	if err != nil {
+		return
+	}
+
+	match := regexp.MustCompile("BINARY_PATH_NAME\\s+:\\s+(.+)\r").FindSubmatch(out)
+	if len(match) != 2 {
+		log.Error().Int("count", len(match)).Msg("Expected 2 regexp matches")
+		return
+	}
+	binPath := string(match[1])
+	log.Info().Msg(binPath)
+	binPath += " --fleet-desktop=\"True\""
+
+	// Set the new service configuration, adding desktop flags
+	scConfig := exec.Command("sc.exe", "config", "Fleet osquery", "binPath=", binPath)
+	out, err = scConfig.CombinedOutput()
+	log.Info().Err(err).Str("out", string(out)).Msg("sc.exe config \"Fleet osquery\"" + binPath)
+	if err != nil {
+		return
+	}
+
+	// Exit the process and allow it to be restarted.
+	log.Info().Msg("Desktop enabled. Restarting.")
+	os.Exit(0)
 }
