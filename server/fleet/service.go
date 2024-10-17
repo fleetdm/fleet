@@ -1134,8 +1134,9 @@ type Service interface {
 	// DeleteSetupExperienceScript deletes the setup experience script for the given team.
 	DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error
 	// SetupExperienceNextStep is a callback that processes the
-	// setup experience status results table and enqueues the next step
-	SetupExperienceNextStep(ctx context.Context, hostUUID string) error
+	// setup experience status results table and enqueues the next
+	// step. It returns true when there is nothing left to do (setup finished)
+	SetupExperienceNextStep(ctx context.Context, hostUUID string) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Fleet-maintained apps

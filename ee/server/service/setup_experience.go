@@ -118,10 +118,10 @@ func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uin
 	return nil
 }
 
-func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string) error {
+func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string) (bool, error) {
 	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "retrieving setup experience status results for next step")
+		return false, ctxerr.Wrap(ctx, err, "retrieving setup experience status results for next step")
 	}
 
 	var installersPending, appsPending, scriptsPending []*fleet.SetupExperienceStatusResult
@@ -139,10 +139,10 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 			colsSet++
 		}
 		if colsSet > 1 {
-			return ctxerr.Errorf(ctx, "invalid setup experience status row, multiple underlying value columns set: %d", status.ID)
+			return false, ctxerr.Errorf(ctx, "invalid setup experience status row, multiple underlying value columns set: %d", status.ID)
 		}
 		if colsSet == 0 {
-			return ctxerr.Errorf(ctx, "invalid setup experience status row, no underlying value colunm set: %d", status.ID)
+			return false, ctxerr.Errorf(ctx, "invalid setup experience status row, no underlying value colunm set: %d", status.ID)
 		}
 		switch {
 		case status.SoftwareInstallerID != nil:
@@ -173,11 +173,11 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 	filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
 	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, filter, []string{hostUUID})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching host details using UUID")
+		return false, ctxerr.Wrap(ctx, err, "fetching host details using UUID")
 	}
 
 	if len(hosts) == 0 {
-		return ctxerr.Errorf(ctx, "could not find host id for host UUID %s", hostUUID)
+		return false, ctxerr.Errorf(ctx, "could not find host id for host UUID %s", hostUUID)
 	}
 
 	host := hosts[0]
@@ -188,12 +188,12 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 		for _, installer := range installersPending {
 			installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.ID, false, nil)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "queueing setup experience install request")
+				return false, ctxerr.Wrap(ctx, err, "queueing setup experience install request")
 			}
 			installer.HostSoftwareInstallsExecutionID = &installUUID
 			installer.Status = fleet.SetupExperienceStatusRunning
 			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, installer); err != nil {
-				return ctxerr.Wrap(ctx, err, "updating setup experience result with install uuid")
+				return false, ctxerr.Wrap(ctx, err, "updating setup experience result with install uuid")
 			}
 		}
 	case installersRunning == 0 && len(appsPending) > 0:
@@ -201,11 +201,11 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 		for _, app := range appsPending {
 			vppAppID, err := app.VPPAppID()
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "constructing vpp app details for installation")
+				return false, ctxerr.Wrap(ctx, err, "constructing vpp app details for installation")
 			}
 
 			if app.SoftwareTitleID == nil {
-				return ctxerr.Errorf(ctx, "setup experience software title id missing from vpp app install request: %d", app.ID)
+				return false, ctxerr.Errorf(ctx, "setup experience software title id missing from vpp app install request: %d", app.ID)
 			}
 
 			vppApp := &fleet.VPPApp{
@@ -219,14 +219,14 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 			app.NanoCommandUUID = &cmdUUID
 			app.Status = fleet.SetupExperienceStatusRunning
 			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, app); err != nil {
-				return ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
+				return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
 			}
 		}
 	case installersRunning == 0 && appsRunning == 0 && len(scriptsPending) > 0:
 		// enqueue scripts
 		for _, script := range scriptsPending {
 			if script.ScriptContentID == nil {
-				return ctxerr.Errorf(ctx, "setup experience script missing content id: %d", *script.SetupExperienceScriptID)
+				return false, ctxerr.Errorf(ctx, "setup experience script missing content id: %d", *script.SetupExperienceScriptID)
 			}
 			req := &fleet.HostScriptRequestPayload{
 				HostID:          host.ID,
@@ -240,12 +240,13 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 			script.ScriptExecutionID = &res.ExecutionID
 			script.Status = fleet.SetupExperienceStatusRunning
 			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, script); err != nil {
-				return ctxerr.Wrap(ctx, err, "updating setup experience script execution id")
+				return false, ctxerr.Wrap(ctx, err, "updating setup experience script execution id")
 			}
 		}
 	case installersRunning == 0 && appsRunning == 0 && scriptsRunning == 0:
+		return true, nil
 		// finished
 	}
 
-	return nil
+	return false, nil
 }
