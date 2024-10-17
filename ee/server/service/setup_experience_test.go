@@ -30,9 +30,9 @@ func TestSetupExperienceNextStep(t *testing.T) {
 
 	host1UUID := "123"
 	host1ID := uint(1)
-	installerID1 := uint(1)
-	scriptID1 := uint(1)
-	scriptContentID1 := uint(2)
+	installerID1 := uint(2)
+	scriptID1 := uint(3)
+	scriptContentID1 := uint(4)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
