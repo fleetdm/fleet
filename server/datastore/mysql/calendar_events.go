@@ -98,7 +98,7 @@ func (ds *Datastore) CreateOrUpdateCalendarEvent(
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	calendarEvent, err := getCalendarEventByID(ctx, ds.writer(ctx), uint(id))
+	calendarEvent, err := getCalendarEventByID(ctx, ds.writer(ctx), uint(id)) //nolint:gosec // dismiss G115
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get created calendar event by id")
 	}

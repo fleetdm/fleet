@@ -270,18 +270,18 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 
 			sName := strings.ToLower(software.Name)
 			for _, sN := range strings.Split(item.Product, "_") {
-				hasAllTerms = hasAllTerms && strings.Index(sName, sN) != -1
+				hasAllTerms = hasAllTerms && strings.Contains(sName, sN)
 			}
 
 			sVendor := strings.ToLower(software.Vendor)
 			sBundle := strings.ToLower(software.BundleIdentifier)
 			for _, sV := range strings.Split(item.Vendor, "_") {
 				if sVendor != "" {
-					hasAllTerms = hasAllTerms && strings.Index(sVendor, sV) != -1
+					hasAllTerms = hasAllTerms && strings.Contains(sVendor, sV)
 				}
 
 				if sBundle != "" {
-					hasAllTerms = hasAllTerms && strings.Index(sBundle, sV) != -1
+					hasAllTerms = hasAllTerms && strings.Contains(sBundle, sV)
 				}
 			}
 

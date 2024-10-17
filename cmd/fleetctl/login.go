@@ -69,10 +69,8 @@ Trying to login with SSO? First, login to the Fleet UI and retrieve your API tok
 				if err != nil {
 					return fmt.Errorf("error reading email: %w", err)
 				}
-			} else {
-				if definedAsEnvOnly("--email", "EMAIL") {
-					fmt.Printf("Using value of environment variable $EMAIL as email.\n")
-				}
+			} else if definedAsEnvOnly("--email", "EMAIL") {
+				fmt.Printf("Using value of environment variable $EMAIL as email.\n")
 			}
 			if flPassword == "" {
 				fmt.Print("Password: ")
@@ -82,16 +80,14 @@ Trying to login with SSO? First, login to the Fleet UI and retrieve your API tok
 				}
 				fmt.Println()
 				flPassword = string(passBytes)
-			} else {
-				if definedAsEnvOnly("--password", "PASSWORD") {
-					fmt.Printf("Using value of environment variable $PASSWORD as password.\n")
-				}
+			} else if definedAsEnvOnly("--password", "PASSWORD") {
+				fmt.Printf("Using value of environment variable $PASSWORD as password.\n")
 			}
 
 			token, err := fleet.Login(flEmail, flPassword)
 			if err != nil {
 				root := ctxerr.Cause(err)
-				switch root.(type) {
+				switch root.(type) { //nolint:gocritic // ignore singleCaseSwitch
 				case service.NotSetupErr:
 					return err
 				}

@@ -453,9 +453,7 @@ func TestGetHosts(t *testing.T) {
 		{
 			name:       "get hosts --yaml test_host",
 			goldenFile: "expectedHostDetailResponseYaml.yml",
-			scanner: func(s string) []string {
-				return spec.SplitYaml(s)
-			},
+			scanner:    spec.SplitYaml,
 			args:       []string{"get", "hosts", "--yaml", "test_host"},
 			prettifier: yamlPrettify,
 		},
@@ -1253,7 +1251,7 @@ func TestGetQueries(t *testing.T) {
 		return nil, &notFoundError{}
 	}
 	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
-		if opt.TeamID == nil {
+		if opt.TeamID == nil { //nolint:gocritic // ignore ifElseChain
 			return []*fleet.Query{
 				{
 					ID:             33,

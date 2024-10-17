@@ -56,7 +56,7 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
 		}
 
 		id, _ := result.LastInsertId()
-		user.ID = uint(id)
+		user.ID = uint(id) //nolint:gosec // dismiss G115
 
 		if err := saveTeamsForUserDB(ctx, tx, user); err != nil {
 			return err

@@ -75,12 +75,13 @@ func main() {
 	httpAddrSet := setByUser("http-addr", "SCEP_HTTP_ADDR")
 	portSet := setByUser("port", "SCEP_HTTP_LISTEN_PORT")
 	var httpAddr string
-	if httpAddrSet && portSet {
+	switch {
+	case httpAddrSet && portSet:
 		fmt.Fprintln(os.Stderr, "cannot set both -http-addr and -port")
 		os.Exit(1)
-	} else if httpAddrSet {
+	case httpAddrSet:
 		httpAddr = *flHTTPAddr
-	} else {
+	default:
 		httpAddr = ":" + *flPort
 	}
 

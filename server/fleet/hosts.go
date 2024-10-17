@@ -558,7 +558,7 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 		case MDMOperationTypeInstall:
 			switch {
 			case fvprof.Status != nil && (*fvprof.Status == MDMDeliveryVerifying || *fvprof.Status == MDMDeliveryVerified):
-				if d.rawDecryptable != nil && *d.rawDecryptable == 1 {
+				if d.rawDecryptable != nil && *d.rawDecryptable == 1 { //nolint:gocritic // ignore ifElseChain
 					//  if a FileVault profile has been successfully installed on the host
 					//  AND we have fetched and are able to decrypt the key
 					switch *fvprof.Status {
@@ -690,14 +690,14 @@ func (h *Host) IsEligibleForWindowsMDMUnenrollment(isConnectedToFleetMDM bool) b
 // empty. If Hostname is empty and both HardwareSerial and HardwareModel are not empty, it returns a
 // composite string with HardwareModel and HardwareSerial. If all else fails, it returns an empty
 // string.
-func HostDisplayName(ComputerName string, Hostname string, HardwareModel string, HardwareSerial string) string {
+func HostDisplayName(computerName string, hostname string, hardwareModel string, hardwareSerial string) string {
 	switch {
-	case ComputerName != "":
-		return ComputerName
-	case Hostname != "":
-		return Hostname
-	case HardwareModel != "" && HardwareSerial != "":
-		return fmt.Sprintf("%s (%s)", HardwareModel, HardwareSerial)
+	case computerName != "":
+		return computerName
+	case hostname != "":
+		return hostname
+	case hardwareModel != "" && hardwareSerial != "":
+		return fmt.Sprintf("%s (%s)", hardwareModel, hardwareSerial)
 	default:
 		return ""
 	}
@@ -786,7 +786,7 @@ func (h *Host) Status(now time.Time) HostStatus {
 	onlineInterval += OnlineIntervalBuffer
 
 	switch {
-	case h.SeenTime.Add(time.Duration(onlineInterval) * time.Second).Before(now):
+	case h.SeenTime.Add(time.Duration(onlineInterval) * time.Second).Before(now): //nolint:gosec // dismiss G115
 		return StatusOffline
 	default:
 		return StatusOnline
@@ -827,7 +827,8 @@ func IsLinux(hostPlatform string) bool {
 }
 
 func IsUnixLike(hostPlatform string) bool {
-	unixLikeOSs := append(HostLinuxOSs, "darwin")
+	unixLikeOSs := HostLinuxOSs
+	unixLikeOSs = append(unixLikeOSs, "darwin")
 	for _, p := range unixLikeOSs {
 		if p == hostPlatform {
 			return true

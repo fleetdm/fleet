@@ -278,11 +278,11 @@ func TestHelperProcess(t *testing.T) {
 		os.Exit(1)
 		return
 	}
-	fmt.Fprintf(os.Stdout, os.Getenv("GO_WANT_HELPER_PROCESS_STDOUT"))
+	fmt.Fprint(os.Stdout, os.Getenv("GO_WANT_HELPER_PROCESS_STDOUT"))
 
 	err := os.Getenv("GO_WANT_HELPER_PROCESS_STDERR")
 	if err != "" {
-		fmt.Fprintf(os.Stderr, err)
+		fmt.Fprint(os.Stderr, err)
 		os.Exit(1)
 	}
 

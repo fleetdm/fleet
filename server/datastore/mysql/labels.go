@@ -217,7 +217,7 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 	}
 
 	id, _ := result.LastInsertId()
-	label.ID = uint(id)
+	label.ID = uint(id) //nolint:gosec // dismiss G115
 	return label, nil
 }
 

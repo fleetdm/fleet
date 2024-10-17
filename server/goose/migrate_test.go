@@ -32,13 +32,14 @@ func validateMigrationSort(t *testing.T, ms Migrations, sorted []int64) {
 
 		var next, prev int64
 
-		if i == 0 {
+		switch i {
+		case 0:
 			prev = -1
 			next = ms[i+1].Version
-		} else if i == len(ms)-1 {
+		case len(ms) - 1:
 			prev = ms[i-1].Version
 			next = -1
-		} else {
+		default:
 			prev = ms[i-1].Version
 			next = ms[i+1].Version
 		}

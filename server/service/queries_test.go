@@ -359,7 +359,7 @@ func TestQueryAuth(t *testing.T) {
 		return query, nil
 	}
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
-		if teamID == nil && name == "global query" {
+		if teamID == nil && name == "global query" { //nolint:gocritic // ignore ifElseChain
 			return &globalQuery, nil
 		} else if teamID != nil && *teamID == team.ID && name == "team query" {
 			return &teamQuery, nil
@@ -377,7 +377,7 @@ func TestQueryAuth(t *testing.T) {
 		return nil
 	}
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
-		if id == 99 {
+		if id == 99 { //nolint:gocritic // ignore ifElseChain
 			return &globalQuery, nil
 		} else if id == 88 {
 			return &teamQuery, nil

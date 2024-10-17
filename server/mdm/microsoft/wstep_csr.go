@@ -3,10 +3,14 @@ package microsoft_mdm
 import (
 	"bytes"
 	"crypto"
+	"crypto/dsa" //lint:ignore required for crypto.RegisterHash
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rsa"
+	_ "crypto/sha1" //nolint:gosec
+	_ "crypto/sha256"
+	_ "crypto/sha512"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -26,12 +30,6 @@ import (
 
 	// Explicitly import these for their crypto.RegisterHash init side-effects.
 	// Keep these as blank imports, even if they're imported above.
-
-	"crypto/dsa" //lint:ignore required for crypto.RegisterHash
-
-	_ "crypto/sha1" //nolint:gosec
-	_ "crypto/sha256"
-	_ "crypto/sha512"
 
 	"golang.org/x/crypto/cryptobyte"
 	cryptobyte_asn1 "golang.org/x/crypto/cryptobyte/asn1"
@@ -405,7 +403,7 @@ func parseCertificateRequest(in *certificateRequest) (*x509.CertificateRequest, 
 	}
 
 	for _, extension := range out.Extensions {
-		switch {
+		switch { //nolint:gocritic // ignore singleCaseSwitch
 		case extension.Id.Equal(oidExtensionSubjectAltName):
 			out.DNSNames, out.EmailAddresses, out.IPAddresses, out.URIs, err = parseSANExtension(extension.Value)
 			if err != nil {
@@ -1293,8 +1291,8 @@ func parseInt64(bytes []byte) (ret int64, err error) {
 	}
 
 	// Shift up and down in order to sign extend the result.
-	ret <<= 64 - uint8(len(bytes))*8
-	ret >>= 64 - uint8(len(bytes))*8
+	ret <<= 64 - uint8(len(bytes))*8 //nolint:gosec // dismiss G115
+	ret >>= 64 - uint8(len(bytes))*8 //nolint:gosec // dismiss G115
 	return
 }
 
@@ -1484,10 +1482,10 @@ func parseInt32(bytes []byte) (int32, error) {
 	if err != nil {
 		return 0, err
 	}
-	if ret64 != int64(int32(ret64)) {
+	if ret64 != int64(int32(ret64)) { //nolint:gosec // dismiss G115
 		return 0, asn1.StructuralError{Msg: "integer too large"}
 	}
-	return int32(ret64), nil
+	return int32(ret64), nil //nolint:gosec // dismiss G115
 }
 
 var bigOne = big.NewInt(1)

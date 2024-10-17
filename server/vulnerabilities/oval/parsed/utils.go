@@ -15,7 +15,7 @@ import (
 // 'Fedora Linux 12.0.0' => 'Red Hat Enterprise Linux 6.0.0'
 // 'Fedora Linux 13.0.0' => 'Red Hat Enterprise Linux 6.0.0'
 func ReplaceFedoraOSVersion(version string) string {
-	if strings.Index(version, "Fedora") != -1 {
+	if strings.Contains(version, "Fedora") {
 		rules := map[string]*regexp.Regexp{
 			"Red Hat Enterprise Linux 6.0.0": regexp.MustCompile(`Fedora Linux (12|13|14|15|16|17|18)\.`),
 			"Red Hat Enterprise Linux 7.0.0": regexp.MustCompile(`Fedora Linux (19|20|21|22|23|24|25|26|27)\.`),

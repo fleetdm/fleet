@@ -32,7 +32,8 @@ func CombineRoots(a, b json.RawMessage) (json.RawMessage, error) {
 	}
 
 	// remove '}' from the first object and add a trailing ','
-	combined := append(a[:len(a)-1], ',')
+	combined := a[:len(a)-1]
+	combined = append(combined, ',')
 	// remove '{' from the second object and combine the two
 	combined = append(combined, b[1:]...)
 	return combined, nil

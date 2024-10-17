@@ -1114,7 +1114,8 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 
 	// bulk set for all created hosts, no profiles yet so nothing changed
-	allHosts := append(darwinHosts, unenrolledHost, linuxHost)
+	allHosts := darwinHosts
+	allHosts = append(allHosts, unenrolledHost, linuxHost)
 	allHosts = append(allHosts, windowsHosts...)
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, hostIDsFromHosts(allHosts...), nil, nil, nil)
 	require.NoError(t, err)

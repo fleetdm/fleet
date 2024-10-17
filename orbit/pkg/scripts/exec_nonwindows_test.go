@@ -70,7 +70,7 @@ func TestExecCmdNonWindows(t *testing.T) {
 			}
 			scriptPath := strings.ReplaceAll(tc.name, " ", "_") + ".sh"
 			scriptPath = filepath.Join(tmpDir, scriptPath)
-			err := os.WriteFile(scriptPath, []byte(tc.contents), os.ModePerm)
+			err := os.WriteFile(scriptPath, []byte(tc.contents), os.ModePerm) //nolint:gosec // ignore non-standard permissions
 			require.NoError(t, err)
 
 			output, exitCode, err := ExecCmd(context.Background(), scriptPath, nil)

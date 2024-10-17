@@ -105,7 +105,7 @@ func createHostsWithSoftware(t *testing.T, db *sqlx.DB) []*fleet.Host {
 		)
 		require.NoError(t, err)
 		id, _ := res.LastInsertId()
-		host.ID = uint(id)
+		host.ID = uint(id) //nolint:gosec // dismiss G115
 		hosts[i] = host
 	}
 
@@ -124,7 +124,7 @@ func createHostsWithSoftware(t *testing.T, db *sqlx.DB) []*fleet.Host {
 		res, err := db.Exec(insSw, sw.Name, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch, sw.BundleIdentifier)
 		require.NoError(t, err)
 		id, _ := res.LastInsertId()
-		sw.ID = uint(id)
+		sw.ID = uint(id) //nolint:gosec // dismiss G115
 	}
 
 	for _, host := range hosts {

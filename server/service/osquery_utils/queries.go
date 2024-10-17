@@ -1718,7 +1718,7 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 		groupname := row["groupname"]
 		shell := row["shell"]
 		u := fleet.HostUser{
-			Uid:       uint(uid),
+			Uid:       uint(uid), // nolint:gosec // dismiss G115
 			Username:  username,
 			Type:      type_,
 			GroupName: groupname,

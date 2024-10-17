@@ -204,7 +204,7 @@ func (ds *Datastore) ListSoftwareTitles(
 	var metaData *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
-		if len(softwareList) > int(opt.ListOptions.PerPage) {
+		if len(softwareList) > int(opt.ListOptions.PerPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			softwareList = softwareList[:len(softwareList)-1]
 		}

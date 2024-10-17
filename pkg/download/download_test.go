@@ -13,7 +13,7 @@ import (
 func TestDownloadNotFoundNoRetries(t *testing.T) {
 	c := fleethttp.NewClient()
 	tmpDir := t.TempDir()
-	outputFile := filepath.Join(tmpDir)
+	outputFile := filepath.Join(tmpDir, "not-used")
 	url, err := url.Parse("https://github.com/fleetdm/non-existent")
 	require.NoError(t, err)
 	start := time.Now()

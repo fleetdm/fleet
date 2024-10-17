@@ -242,7 +242,7 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 
 	case "instance":
 		r, ok := details["osquery_info"]
-		if !ok {
+		if !ok { //nolint:gocritic // ignore ifElseChain
 			level.Info(logger).Log(
 				"msg", "could not get host identifier",
 				"reason", "missing osquery_info",
@@ -260,7 +260,7 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 
 	case "uuid":
 		r, ok := details["osquery_info"]
-		if !ok {
+		if !ok { //nolint:gocritic // ignore ifElseChain
 			level.Info(logger).Log(
 				"msg", "could not get host identifier",
 				"reason", "missing osquery_info",
@@ -278,7 +278,7 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 
 	case "hostname":
 		r, ok := details["system_info"]
-		if !ok {
+		if !ok { //nolint:gocritic // ignore ifElseChain
 			level.Info(logger).Log(
 				"msg", "could not get host identifier",
 				"reason", "missing system_info",
@@ -1027,10 +1027,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 			team, err := svc.ds.Team(ctx, *host.TeamID)
 			if err != nil {
 				logging.WithErr(ctx, err)
-			} else {
-				if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
-					policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
-				}
+			} else if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
+				policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
 			}
 		}
 
@@ -1058,12 +1056,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
 			logging.WithErr(ctx, err)
 		}
-	} else {
-		if hostWithoutPolicies {
-			// RecordPolicyQueryExecutions called with results=nil will still update the host's policy_updated_at column.
-			if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
-				logging.WithErr(ctx, err)
-			}
+	} else if hostWithoutPolicies {
+		// RecordPolicyQueryExecutions called with results=nil will still update the host's policy_updated_at column.
+		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+			logging.WithErr(ctx, err)
 		}
 	}
 
@@ -1538,7 +1534,7 @@ func (svc *Service) ingestDistributedQuery(
 
 	// Write the results to the pubsub store
 	res := fleet.DistributedQueryResult{
-		DistributedQueryCampaignID: uint(campaignID),
+		DistributedQueryCampaignID: uint(campaignID), //nolint:gosec // dismiss G115
 		Host: fleet.ResultHostData{
 			ID:          host.ID,
 			Hostname:    host.Hostname,
@@ -1562,7 +1558,7 @@ func (svc *Service) ingestDistributedQuery(
 		// If there are no subscribers, the campaign is "orphaned"
 		// and should be closed so that we don't continue trying to
 		// execute that query when we can't write to any subscriber
-		campaign, err := svc.ds.DistributedQueryCampaign(ctx, uint(campaignID))
+		campaign, err := svc.ds.DistributedQueryCampaign(ctx, uint(campaignID)) //nolint:gosec // dismiss G115
 		if err != nil {
 			if err := svc.liveQueryStore.StopQuery(strconv.Itoa(campaignID)); err != nil {
 				return newOsqueryError("stop orphaned campaign after load failure: " + err.Error())
@@ -1624,9 +1620,9 @@ func ingestMembershipQuery(
 	// A label/policy query matches if there is at least one result for that
 	// query. We must also store negative results.
 	if failed {
-		results[uint(trimmedQueryNum)] = nil
+		results[uint(trimmedQueryNum)] = nil //nolint:gosec // dismiss G115
 	} else {
-		results[uint(trimmedQueryNum)] = ptr.Bool(len(rows) > 0)
+		results[uint(trimmedQueryNum)] = ptr.Bool(len(rows) > 0) //nolint:gosec // dismiss G115
 	}
 
 	return nil
@@ -2127,12 +2123,10 @@ func (svc *Service) preProcessOsqueryResults(
 			// 	field could not be unmarshalled.
 			//
 			// In both scenarios we want to add `result` to `unmarshaledResults`.
-		} else {
+		} else if result != nil && result.QueryName == "" {
 			// If the unmarshaled result doesn't have a "name" field then we ignore the result.
-			if result != nil && result.QueryName == "" {
-				level.Debug(svc.logger).Log("msg", "missing name field", "result", lograw(raw))
-				result = nil
-			}
+			level.Debug(svc.logger).Log("msg", "missing name field", "result", lograw(raw))
+			result = nil
 		}
 		unmarshaledResults = append(unmarshaledResults, result)
 	}

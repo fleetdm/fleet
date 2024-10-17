@@ -335,7 +335,7 @@ ON DUPLICATE KEY UPDATE
   updated_at = updated_at, -- preserve updated_at
   sha256 = VALUES(sha256),
   cert_not_valid_after = VALUES(cert_not_valid_after);
-	    `, device.UDID, hex.EncodeToString(certHash[:]), certExpiration, referenceTime, device.UDID, referenceTime))
+	    `, device.UDID, hex.EncodeToString(certHash), certExpiration, referenceTime, device.UDID, referenceTime))
 		}
 
 		sb.WriteString("\n")

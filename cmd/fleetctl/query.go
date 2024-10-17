@@ -119,10 +119,8 @@ func queryCommand() *cli.Command {
 				if queryID == nil {
 					return fmt.Errorf("Query '%s' not found", flQueryName)
 				}
-			} else {
-				if flQuery == "" {
-					return errors.New("Query must be specified with --query or --query-name")
-				}
+			} else if flQuery == "" {
+				return errors.New("Query must be specified with --query or --query-name")
 			}
 
 			var output outputWriter

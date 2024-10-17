@@ -33,7 +33,7 @@ func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (
 			continue
 		}
 
-		if product.HasDisplayVersion() && os.DisplayVersion != "" && strings.Index(string(product), os.DisplayVersion) != -1 {
+		if product.HasDisplayVersion() && os.DisplayVersion != "" && strings.Contains(string(product), os.DisplayVersion) {
 			dvMatch = pID
 			break
 		}
@@ -81,17 +81,17 @@ func NewProductFromOS(os fleet.OperatingSystem) Product {
 func (p Product) Arch() string {
 	val := string(p)
 	switch {
-	case strings.Index(val, "ARM 64-bit") != -1 ||
-		strings.Index(val, "ARM64") != -1:
+	case strings.Contains(val, "ARM 64-bit") ||
+		strings.Contains(val, "ARM64"):
 		return "arm64"
-	case strings.Index(val, "x64") != -1 ||
-		strings.Index(val, "64-bit") != -1 ||
-		strings.Index(val, "x86_64") != -1:
+	case strings.Contains(val, "x64") ||
+		strings.Contains(val, "64-bit") ||
+		strings.Contains(val, "x86_64"):
 		return "64-bit"
-	case strings.Index(val, "32-bit") != -1 ||
-		strings.Index(val, "x86") != -1:
+	case strings.Contains(val, "32-bit") ||
+		strings.Contains(val, "x86"):
 		return "32-bit"
-	case strings.Index(val, "Itanium-Based") != -1:
+	case strings.Contains(val, "Itanium-Based"):
 		return "itanium"
 	default:
 		return "all"
@@ -107,7 +107,7 @@ func (p Product) Arch() string {
 func (p Product) HasDisplayVersion() bool {
 	keywords := []string{"version", "edition"}
 	for _, k := range keywords {
-		if strings.Index(strings.ToLower(string(p)), k) != -1 {
+		if strings.Contains(strings.ToLower(string(p)), k) {
 			return true
 		}
 	}
@@ -123,34 +123,34 @@ func (p Product) Name() string {
 	val := string(p)
 	switch {
 	// Desktop versions
-	case strings.Index(val, "Windows 7") != -1:
+	case strings.Contains(val, "Windows 7"):
 		return "Windows 7"
-	case strings.Index(val, "Windows 8.1") != -1:
+	case strings.Contains(val, "Windows 8.1"):
 		return "Windows 8.1"
-	case strings.Index(val, "Windows RT 8.1") != -1:
+	case strings.Contains(val, "Windows RT 8.1"):
 		return "Windows RT 8.1"
-	case strings.Index(val, "Windows 10") != -1:
+	case strings.Contains(val, "Windows 10"):
 		return "Windows 10"
-	case strings.Index(val, "Windows 11") != -1:
+	case strings.Contains(val, "Windows 11"):
 		return "Windows 11"
 
 	// Server versions
-	case strings.Index(val, "Windows Server 2008 R2") != -1:
+	case strings.Contains(val, "Windows Server 2008 R2"):
 		return "Windows Server 2008 R2"
-	case strings.Index(val, "Windows Server 2012 R2") != -1:
+	case strings.Contains(val, "Windows Server 2012 R2"):
 		return "Windows Server 2012 R2"
 
-	case strings.Index(val, "Windows Server 2008") != -1:
+	case strings.Contains(val, "Windows Server 2008"):
 		return "Windows Server 2008"
-	case strings.Index(val, "Windows Server 2012") != -1:
+	case strings.Contains(val, "Windows Server 2012"):
 		return "Windows Server 2012"
-	case strings.Index(val, "Windows Server 2016") != -1:
+	case strings.Contains(val, "Windows Server 2016"):
 		return "Windows Server 2016"
-	case strings.Index(val, "Windows Server 2019") != -1:
+	case strings.Contains(val, "Windows Server 2019"):
 		return "Windows Server 2019"
-	case strings.Index(val, "Windows Server 2022") != -1:
+	case strings.Contains(val, "Windows Server 2022"):
 		return "Windows Server 2022"
-	case strings.Index(val, "Windows Server,") != -1:
+	case strings.Contains(val, "Windows Server,"):
 		return "Windows Server"
 
 	default:

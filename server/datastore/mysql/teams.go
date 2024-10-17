@@ -45,7 +45,7 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 		}
 
 		id, _ := result.LastInsertId()
-		team.ID = uint(id)
+		team.ID = uint(id) //nolint:gosec // dismiss G115
 
 		return saveTeamSecretsDB(ctx, tx, team)
 	})

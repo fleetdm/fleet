@@ -135,7 +135,7 @@ func (ds *Datastore) IsEnrollSecretAvailable(ctx context.Context, secret string,
 		return false, nil
 	}
 	// Secret is in use, but we're checking if it's already assigned to the team
-	if (teamID == nil && !secretTeamID.Valid) || (teamID != nil && secretTeamID.Valid && uint(secretTeamID.Int64) == *teamID) {
+	if (teamID == nil && !secretTeamID.Valid) || (teamID != nil && secretTeamID.Valid && uint(secretTeamID.Int64) == *teamID) { //nolint:gosec // dismiss G115
 		return true, nil
 	}
 

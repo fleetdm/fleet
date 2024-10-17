@@ -1410,11 +1410,12 @@ func GetEncodedBinarySecurityToken(typeID WindowsMDMEnrollmentType, payload stri
 	var pld WindowsMDMAccessTokenPayload
 	pld.Type = typeID
 
-	if typeID == WindowsMDMProgrammaticEnrollmentType {
+	switch typeID {
+	case WindowsMDMProgrammaticEnrollmentType:
 		pld.Payload.OrbitNodeKey = payload
-	} else if typeID == WindowsMDMAutomaticEnrollmentType {
+	case WindowsMDMAutomaticEnrollmentType:
 		pld.Payload.AuthToken = payload
-	} else {
+	default:
 		return "", fmt.Errorf("invalid enrollment type: %v", typeID)
 	}
 

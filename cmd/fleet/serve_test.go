@@ -1028,7 +1028,8 @@ func TestCronActivitiesStreaming(t *testing.T) {
 		// two pages of ActivitiesToStreamBatchCount and one extra page of one item.
 		as := make([]*fleet.Activity, ActivitiesToStreamBatchCount*2+1)
 		for i := range as {
-			as[i] = newActivity(uint(i), "foo", uint(i), "foog", "fooe", "bar", `{"bar": "foo"}`)
+			as[i] = newActivity(uint(i), "foo", uint(i), //nolint:gosec // dismiss G115
+				"foog", "fooe", "bar", `{"bar": "foo"}`)
 		}
 
 		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
@@ -1053,7 +1054,7 @@ func TestCronActivitiesStreaming(t *testing.T) {
 			firstBatch[i] = as[i].ID
 		}
 		for i := range as[ActivitiesToStreamBatchCount : ActivitiesToStreamBatchCount*2] {
-			secondBatch[i] = as[int(ActivitiesToStreamBatchCount)+i].ID
+			secondBatch[i] = as[int(ActivitiesToStreamBatchCount)+i].ID //nolint:gosec // dismiss G115
 		}
 		thirdBatch := []uint{as[len(as)-1].ID}
 		ds.MarkActivitiesAsStreamedFunc = func(ctx context.Context, activityIDs []uint) error {
@@ -1074,7 +1075,7 @@ func TestCronActivitiesStreaming(t *testing.T) {
 		var auditLogger jsonLogger
 		err := cronActivitiesStreaming(context.Background(), ds, log.NewNopLogger(), &auditLogger)
 		require.NoError(t, err)
-		require.Len(t, auditLogger.logs, int(ActivitiesToStreamBatchCount)*2+1)
+		require.Len(t, auditLogger.logs, int(ActivitiesToStreamBatchCount)*2+1) //nolint:gosec // dismiss G115
 		require.Equal(t, 3, call)
 	})
 }

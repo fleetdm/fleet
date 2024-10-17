@@ -64,7 +64,7 @@ func (s segment) compare(b segment) int {
 
 	// Both are numeric, in which case we compare
 	// their numeric values
-	if s.number != nil && b.number != nil {
+	if s.number != nil && b.number != nil { //nolint:gocritic // ignore ifElseChain
 		if *s.number == *b.number {
 			return 0
 		} else if *s.number < *b.number {

@@ -179,11 +179,11 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	if u.Script.IsOther {
 		addUserVar()
 		for _, path := range u.Script.Other {
-			sb.Writef(fmt.Sprintf(`sudo -u "$LOGGED_IN_USER" '%s'`, path))
+			sb.Writef(`sudo -u "$LOGGED_IN_USER" '%s'`, path)
 		}
 	} else if len(u.Script.String) > 0 {
 		addUserVar()
-		sb.Writef(fmt.Sprintf(`sudo -u "$LOGGED_IN_USER" '%s'`, u.Script.String))
+		sb.Writef(`sudo -u "$LOGGED_IN_USER" '%s'`, u.Script.String)
 	}
 
 	process(u.PkgUtil, func(pkgID string) {

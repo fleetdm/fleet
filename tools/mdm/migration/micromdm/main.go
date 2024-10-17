@@ -72,7 +72,7 @@ func main() {
 		ReadHeaderTimeout: 3 * time.Second,
 	}
 	if err := server.ListenAndServe(); err != nil {
-		log.Fatalf(err.Error())
+		log.Fatal(err.Error())
 	}
 }
 
@@ -134,14 +134,14 @@ func (m *microMDMClient) do(method, path string, data any) ([]byte, error) {
 	return m.doWithRequest(req)
 }
 
-func (m *microMDMClient) unmanageDevice(UUID string) error {
+func (m *microMDMClient) unmanageDevice(uuid string) error {
 	req := struct {
 		RequestType string `json:"request_type"`
 		UDID        string `json:"udid"`
 		Identifier  string `json:"identifier"`
 	}{
 		RequestType: "RemoveProfile",
-		UDID:        UUID,
+		UDID:        uuid,
 		Identifier:  "com.github.micromdm.micromdm.enroll",
 	}
 	_, err := m.do("POST", fmt.Sprintf("%s/v1/commands", m.url), &req)

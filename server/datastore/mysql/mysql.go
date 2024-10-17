@@ -886,7 +886,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 			team.Role == fleet.RoleMaintainer ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
-			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+			idStrs = append(idStrs, fmt.Sprint(team.ID))
 			if filter.TeamID != nil && *filter.TeamID == team.ID {
 				teamIDSeen = true
 			}
@@ -962,7 +962,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
 			team.Role == fleet.RoleMaintainer ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
-			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+			idStrs = append(idStrs, fmt.Sprint(team.ID))
 			if filter.TeamID != nil && *filter.TeamID == team.ID {
 				teamIDSeen = true
 			}
@@ -1021,7 +1021,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 			team.Role == fleet.RoleGitOps ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
-			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+			idStrs = append(idStrs, fmt.Sprint(team.ID))
 		}
 	}
 
@@ -1042,7 +1042,7 @@ func (ds *Datastore) whereOmitIDs(colName string, omit []uint) string {
 
 	var idStrs []string
 	for _, id := range omit {
-		idStrs = append(idStrs, strconv.Itoa(int(id)))
+		idStrs = append(idStrs, fmt.Sprint(id))
 	}
 
 	return fmt.Sprintf("%s NOT IN (%s)", colName, strings.Join(idStrs, ","))
@@ -1132,8 +1132,8 @@ type patternReplacer func(string) string
 
 // likePattern returns a pattern to match m with LIKE.
 func likePattern(m string) string {
-	m = strings.Replace(m, "_", "\\_", -1)
-	m = strings.Replace(m, "%", "\\%", -1)
+	m = strings.ReplaceAll(m, "_", "\\_")
+	m = strings.ReplaceAll(m, "%", "\\%")
 	return "%" + m + "%"
 }
 
@@ -1322,7 +1322,7 @@ func (ds *Datastore) optimisticGetOrInsertWithWriter(ctx context.Context, writer
 				return 0, ctxerr.Wrap(ctx, err, "insert")
 			}
 			id, _ := res.LastInsertId()
-			return uint(id), nil
+			return uint(id), nil //nolint:gosec // dismiss G115
 		}
 		return 0, ctxerr.Wrap(ctx, err, "get id from reader")
 	}

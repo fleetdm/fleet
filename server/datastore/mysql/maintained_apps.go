@@ -54,7 +54,7 @@ ON DUPLICATE KEY UPDATE
 		res, err := tx.ExecContext(ctx, upsertStmt, app.Name, app.Token, app.Version, app.Platform, app.InstallerURL,
 			app.SHA256, app.BundleIdentifier, installScriptID, uninstallScriptID)
 		id, _ := res.LastInsertId()
-		appID = uint(id)
+		appID = uint(id) //nolint:gosec // dismiss G115
 		return ctxerr.Wrap(ctx, err, "upsert maintained app")
 	})
 	if err != nil {
@@ -155,8 +155,8 @@ WHERE NOT EXISTS (
 		return nil, nil, ctxerr.Wrap(ctx, err, "selecting available fleet managed apps")
 	}
 
-	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: uint(counts)}
-	if len(avail) > int(opt.PerPage) {
+	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: uint(counts)} //nolint:gosec // dismiss G115
+	if len(avail) > int(opt.PerPage) {                                                              //nolint:gosec // dismiss G115
 		meta.HasNextResults = true
 		avail = avail[:len(avail)-1]
 	}

@@ -170,7 +170,7 @@ func assertVulns(
 			continue
 		}
 
-		if len(row) > 1 && row[1] == "#ignore:" || strings.Index(row[0], "ignore") != -1 {
+		if len(row) > 1 && row[1] == "#ignore:" || strings.Contains(row[0], "ignore") {
 			continue
 		}
 

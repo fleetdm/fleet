@@ -15,8 +15,8 @@ func TestUp_20240707134035(t *testing.T) {
 	endTime := time.Now().UTC().Add(30 * time.Minute)
 	data := []byte("{\"foo\": \"bar\"}")
 	const insertStmt = `INSERT INTO calendar_events (email, start_time, end_time, event) VALUES (?, ?, ?, ?)`
-	event1ID := uint(execNoErrLastID(t, db, insertStmt, "foo@example.com", startTime, endTime, data))
-	event2ID := uint(execNoErrLastID(t, db, insertStmt, "bar@example.com", startTime, endTime, data))
+	event1ID := uint(execNoErrLastID(t, db, insertStmt, "foo@example.com", startTime, endTime, data)) //nolint:gosec // dismiss G115
+	event2ID := uint(execNoErrLastID(t, db, insertStmt, "bar@example.com", startTime, endTime, data)) //nolint:gosec // dismiss G115
 
 	// Apply current migration.
 	applyNext(t, db)

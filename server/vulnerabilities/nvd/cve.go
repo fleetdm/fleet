@@ -402,7 +402,7 @@ func matchesExactTargetSW(softwareCPETargetSW string, targetSWs []string, config
 func checkCVEs(
 	ctx context.Context,
 	logger kitlog.Logger,
-	CPEItems []itemWithNVDMeta,
+	cpeItems []itemWithNVDMeta,
 	jsonFile string,
 	knownNVDBugRules CPEMatchingRules,
 ) ([]fleet.SoftwareVulnerability, []fleet.OSVulnerability, error) {
@@ -542,7 +542,7 @@ func checkCVEs(
 
 	level.Debug(logger).Log("msg", "pushing cpes")
 
-	for _, cpe := range CPEItems {
+	for _, cpe := range cpeItems {
 		CPEItemCh <- cpe
 	}
 	close(CPEItemCh)

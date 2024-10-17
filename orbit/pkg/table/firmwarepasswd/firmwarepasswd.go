@@ -41,17 +41,17 @@ func New(logger zerolog.Logger) *Table {
 			{
 				Match:   func(in string) bool { return strings.HasPrefix(in, "Password Enabled: ") },
 				KeyFunc: func(_ string) (string, error) { return "password_enabled", nil },
-				ValFunc: func(in string) (string, error) { return passwordValue(in) },
+				ValFunc: passwordValue,
 			},
 			{
 				Match:   func(in string) bool { return strings.HasPrefix(in, "Mode: ") },
 				KeyFunc: func(_ string) (string, error) { return "mode", nil },
-				ValFunc: func(in string) (string, error) { return modeValue(in) },
+				ValFunc: modeValue,
 			},
 			{
 				Match:   func(in string) bool { return strings.HasPrefix(in, "Option roms ") },
 				KeyFunc: func(_ string) (string, error) { return "option_roms_allowed", nil },
-				ValFunc: func(in string) (string, error) { return optionRomValue(in) },
+				ValFunc: optionRomValue,
 			},
 		})
 

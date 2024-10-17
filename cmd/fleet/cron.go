@@ -1350,7 +1350,7 @@ func cronActivitiesStreaming(
 			return multiErr
 		}
 
-		if len(activitiesToStream) < int(ActivitiesToStreamBatchCount) {
+		if len(activitiesToStream) < int(ActivitiesToStreamBatchCount) { //nolint:gosec // dismiss G115
 			return nil
 		}
 		page += 1

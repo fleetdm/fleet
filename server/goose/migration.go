@@ -34,7 +34,7 @@ const (
 )
 
 func (m *Migration) String() string {
-	return fmt.Sprintf(m.Source)
+	return fmt.Sprint(m.Source)
 }
 
 func (c *Client) runMigration(db *sql.DB, m *Migration, direction bool) error {

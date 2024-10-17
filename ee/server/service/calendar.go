@@ -230,7 +230,7 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 	if updated && event != nil {
 		// Event was updated, so we set a flag.
 		_, err = svc.distributedLock.SetIfNotExist(ctx, calendar.RecentUpdateKeyPrefix+event.UUID, calendar.RecentCalendarUpdateValue,
-			uint64(calendar.RecentCalendarUpdateDuration.Milliseconds()))
+			uint64(calendar.RecentCalendarUpdateDuration.Milliseconds())) //nolint:gosec // dismiss G115
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "set recent update flag")
 		}

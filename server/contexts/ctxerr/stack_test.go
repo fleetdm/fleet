@@ -205,7 +205,9 @@ func TestElasticStack(t *testing.T) {
 
 			// the culprit should be the function name of the top of the stack of the
 			// cause error.
-			fnName := strings.TrimSpace(c.causeStackContains[0][strings.Index(c.causeStackContains[0], "TestElasticStack"):])
+			fnIndex := strings.Index(c.causeStackContains[0], "TestElasticStack")
+			require.GreaterOrEqual(t, fnIndex, 0)
+			fnName := strings.TrimSpace(c.causeStackContains[0][fnIndex:])
 			require.Equal(t, fnName, apmErr.Culprit)
 
 			// the APM stack should match the cause stack (i.e. APM should have

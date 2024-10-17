@@ -121,9 +121,9 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 
 				switch score {
 				case 1:
-					inserts = append(inserts, [2]uint{uint(labelID), hostID})
+					inserts = append(inserts, [2]uint{uint(labelID), hostID}) //nolint:gosec // dismiss G115
 				case -1:
-					deletes = append(deletes, [2]uint{uint(labelID), hostID})
+					deletes = append(deletes, [2]uint{uint(labelID), hostID}) //nolint:gosec // dismiss G115
 				}
 			}
 			if items < cfg.RedisPopCount {

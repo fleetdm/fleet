@@ -19,7 +19,7 @@ import (
 const timeFormatString = "2006-01-02 15:04:05.999999999"
 
 var Logger = logger{}
-var MaxEntries uint = 10_000
+var maxEntries = 10_000
 
 func TablePlugin() *table.Plugin {
 	columns := []table.ColumnDefinition{
@@ -74,8 +74,8 @@ func (l *logger) Write(event []byte) (int, error) {
 
 	l.logs = append(l.logs, msgs...)
 
-	if MaxEntries > 0 && len(l.logs) > int(MaxEntries) {
-		l.logs = l.logs[len(l.logs)-int(MaxEntries):]
+	if maxEntries > 0 && len(l.logs) > maxEntries {
+		l.logs = l.logs[len(l.logs)-maxEntries:]
 	}
 
 	return len(event), nil
@@ -96,8 +96,8 @@ func (l *logger) WriteLevel(level zerolog.Level, event []byte) (int, error) {
 
 	l.logs = append(l.logs, msgs...)
 
-	if MaxEntries > 0 && len(l.logs) > int(MaxEntries) {
-		l.logs = l.logs[len(l.logs)-int(MaxEntries):]
+	if maxEntries > 0 && len(l.logs) > maxEntries {
+		l.logs = l.logs[len(l.logs)-maxEntries:]
 	}
 
 	return len(event), nil

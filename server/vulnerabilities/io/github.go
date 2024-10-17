@@ -50,8 +50,8 @@ func NewGitHubClient(client *http.Client, releases ReleaseLister, workDir string
 
 // Download downloads the metadata file located at 'URL' in 'workDir', returns the path of
 // the downloaded metadata file.
-func (gh GitHubClient) Download(URL string) (string, error) {
-	u, err := url.Parse(URL)
+func (gh GitHubClient) Download(urlStr string) (string, error) {
+	u, err := url.Parse(urlStr)
 	if err != nil {
 		return "", err
 	}

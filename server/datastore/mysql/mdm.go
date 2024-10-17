@@ -241,7 +241,7 @@ FROM (
 	var metaData *fleet.PaginationMetadata
 	if opt.IncludeMetadata {
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
-		if len(profs) > int(opt.PerPage) {
+		if len(profs) > int(opt.PerPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			profs = profs[:len(profs)-1]
 		}
@@ -375,7 +375,7 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 
 		// split into mac and win profiles
 		for _, puid := range profileUUIDs {
-			if strings.HasPrefix(puid, fleet.MDMAppleProfileUUIDPrefix) {
+			if strings.HasPrefix(puid, fleet.MDMAppleProfileUUIDPrefix) { //nolint:gocritic // ignore ifElseChain
 				macProfUUIDs = append(macProfUUIDs, puid)
 			} else if strings.HasPrefix(puid, fleet.MDMAppleDeclarationUUIDPrefix) {
 				hasAppleDecls = true
@@ -1104,7 +1104,8 @@ func batchSetProfileLabelAssociationsDB(
 	for k := range setProfileUUIDs {
 		profUUIDs = append(profUUIDs, k)
 	}
-	deleteArgs := append(deleteParams, profUUIDs)
+	deleteArgs := deleteParams
+	deleteArgs = append(deleteArgs, profUUIDs)
 
 	deleteStmt, args, err := sqlx.In(deleteStmt, deleteArgs...)
 	if err != nil {

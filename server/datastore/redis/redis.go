@@ -330,7 +330,8 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 					}
 
 					if conf.ConnectRetryAttempts > 0 {
-						boff := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), uint64(conf.ConnectRetryAttempts))
+						boff := backoff.WithMaxRetries(backoff.NewExponentialBackOff(),
+							uint64(conf.ConnectRetryAttempts)) //nolint:gosec // G115 false positive
 						if err := backoff.Retry(op, boff); err != nil {
 							return nil, err
 						}

@@ -1216,7 +1216,8 @@ func (ds *Datastore) applyHostFilters(
 	sqlStmt, whereParams, _ = hostSearchLike(sqlStmt, whereParams, opt.MatchQuery, append(hostSearchColumns, "display_name")...)
 	sqlStmt, whereParams = appendListOptionsWithCursorToSQL(sqlStmt, whereParams, &opt.ListOptions)
 
-	params := append(selectParams, joinParams...)
+	params := selectParams
+	params = append(params, joinParams...)
 	params = append(params, whereParams...)
 
 	return sqlStmt, params, nil
@@ -1278,7 +1279,7 @@ func filterHostsByConnectedToFleet(sql string, opt fleet.HostListOptions, params
 }
 
 func filterHostsByOS(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
-	if opt.OSIDFilter != nil {
+	if opt.OSIDFilter != nil { //nolint:gocritic // ignore ifElseChain
 		sql += ` AND hos.os_id = ?`
 		params = append(params, *opt.OSIDFilter)
 	} else if opt.OSNameFilter != nil && opt.OSVersionFilter != nil {

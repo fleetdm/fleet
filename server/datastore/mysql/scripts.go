@@ -30,7 +30,7 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 			}
 
 			id, _ := scRes.LastInsertId()
-			request.ScriptContentID = uint(id)
+			request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 		}
 		res, err = newHostScriptExecutionRequest(ctx, tx, request)
 		return err
@@ -148,7 +148,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			// software that receives them is responsible for casting
 			// it to a 32-bit signed integer.
 			// See /orbit/pkg/scripts/exec_windows.go
-			int32(result.ExitCode),
+			int32(result.ExitCode), //nolint:gosec // dismiss G115
 			result.Timeout,
 			result.HostID,
 			result.ExecutionID,
@@ -303,14 +303,14 @@ func (ds *Datastore) NewScript(ctx context.Context, script *fleet.Script) (*flee
 		id, _ := scRes.LastInsertId()
 
 		// then create the script entity
-		res, err = insertScript(ctx, tx, script, uint(id))
+		res, err = insertScript(ctx, tx, script, uint(id)) //nolint:gosec // dismiss G115
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
 	id, _ := res.LastInsertId()
-	return ds.getScriptDB(ctx, ds.writer(ctx), uint(id))
+	return ds.getScriptDB(ctx, ds.writer(ctx), uint(id)) //nolint:gosec // dismiss G115
 }
 
 func insertScript(ctx context.Context, tx sqlx.ExtContext, script *fleet.Script, scriptContentsID uint) (sql.Result, error) {
@@ -488,7 +488,7 @@ WHERE
 	var metaData *fleet.PaginationMetadata
 	if opt.IncludeMetadata {
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
-		if len(scripts) > int(opt.PerPage) {
+		if len(scripts) > int(opt.PerPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			scripts = scripts[:len(scripts)-1]
 		}
@@ -605,7 +605,7 @@ WHERE
 	var metaData *fleet.PaginationMetadata
 	if opt.IncludeMetadata {
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
-		if len(rows) > int(opt.PerPage) {
+		if len(rows) > int(opt.PerPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			rows = rows[:len(rows)-1]
 		}
@@ -742,7 +742,8 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrapf(ctx, err, "inserting script contents for script with name %q", s.Name)
 			}
 			id, _ := scRes.LastInsertId()
-			if _, err := tx.ExecContext(ctx, insertNewOrEditedScript, tmID, globalOrTeamID, s.Name, uint(id)); err != nil {
+			if _, err := tx.ExecContext(ctx, insertNewOrEditedScript, tmID, globalOrTeamID, s.Name,
+				uint(id)); err != nil { //nolint:gosec // dismiss G115
 				return ctxerr.Wrapf(ctx, err, "insert new/edited script with name %q", s.Name)
 			}
 		}
@@ -952,7 +953,7 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 		}
 
 		id, _ := scRes.LastInsertId()
-		request.ScriptContentID = uint(id)
+		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
 		res, err = newHostScriptExecutionRequest(ctx, tx, request)
 		if err != nil {
@@ -1002,7 +1003,7 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 		}
 
 		id, _ := scRes.LastInsertId()
-		request.ScriptContentID = uint(id)
+		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
 		res, err = newHostScriptExecutionRequest(ctx, tx, request)
 		if err != nil {
@@ -1053,7 +1054,7 @@ func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostS
 		}
 
 		id, _ := scRes.LastInsertId()
-		request.ScriptContentID = uint(id)
+		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
 		res, err = newHostScriptExecutionRequest(ctx, tx, request)
 		if err != nil {

@@ -61,5 +61,5 @@ func (ds *Datastore) deleteEntities(ctx context.Context, dbTable entity, ids []u
 		return 0, ctxerr.Wrapf(ctx, err, "fetching delete entities query rows affected %s", dbTable)
 	}
 
-	return uint(deleted), nil
+	return uint(deleted), nil //nolint:gosec // dismiss G115
 }

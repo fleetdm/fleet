@@ -129,7 +129,7 @@ func getTCCAccessRows(uid, tccPath string) ([]map[string]string, error) {
 
 func parseTCCDbReadOutput(dbOut []byte) [][]string {
 	// split by newLine for rows, then by "|" for columns
-	rawRows := strings.Split(string(dbOut[:]), "\n")
+	rawRows := strings.Split(string(dbOut), "\n")
 	n := len(rawRows)
 	if n == 0 {
 		return nil
@@ -202,7 +202,7 @@ func getUsersInfo() ([][]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	usersInfo := strings.Split(string(out[:]), "\n")
+	usersInfo := strings.Split(string(out), "\n")
 	for _, userInfo := range usersInfo {
 		if len(userInfo) > 0 {
 			split := strings.Fields(userInfo)

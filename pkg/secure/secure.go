@@ -22,7 +22,7 @@ func isMorePermissive(currentMode, newMode os.FileMode) bool {
 
 func checkPermPath(path string, perm os.FileMode) error {
 	if !perm.IsDir() {
-		perm = perm ^ os.ModeDir
+		perm ^= os.ModeDir
 	}
 
 	dir, err := os.Stat(path)

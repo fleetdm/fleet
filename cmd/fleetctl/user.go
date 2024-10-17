@@ -100,7 +100,7 @@ func createUserCommand() *cli.Command {
 
 			var globalRole *string
 			var teams []fleet.UserTeam
-			if globalRoleString != "" && len(teamStrings) > 0 {
+			if globalRoleString != "" && len(teamStrings) > 0 { //nolint:gocritic // ignore ifElseChain
 				return errors.New("Users may not have global_role and teams.")
 			} else if globalRoleString == "" && len(teamStrings) == 0 {
 				globalRole = ptr.String(fleet.RoleObserver)
@@ -123,7 +123,7 @@ func createUserCommand() *cli.Command {
 						return fmt.Errorf("'%s' is not a valid team role", parts[1])
 					}
 
-					teams = append(teams, fleet.UserTeam{Team: fleet.Team{ID: uint(teamID)}, Role: parts[1]})
+					teams = append(teams, fleet.UserTeam{Team: fleet.Team{ID: uint(teamID)}, Role: parts[1]}) //nolint:gosec // dismiss G115
 				}
 			}
 
@@ -237,7 +237,7 @@ func createBulkUsersCommand() *cli.Command {
 				var globalRole *string
 				var teams []fleet.UserTeam
 
-				if globalRoleString != "" && len(teamStrings) > 0 && teamStrings[0] != "" {
+				if globalRoleString != "" && len(teamStrings) > 0 && teamStrings[0] != "" { //nolint:gocritic // ignore ifElseChain
 					return errors.New("Users may not have global_role and teams.")
 				} else if globalRoleString == "" && (len(teamStrings) == 0 || teamStrings[0] == "") {
 					globalRole = ptr.String(fleet.RoleObserver)
@@ -260,7 +260,8 @@ func createBulkUsersCommand() *cli.Command {
 							return fmt.Errorf("'%s' is not a valid team role", parts[1])
 						}
 
-						teams = append(teams, fleet.UserTeam{Team: fleet.Team{ID: uint(teamID)}, Role: parts[1]})
+						teams = append(teams,
+							fleet.UserTeam{Team: fleet.Team{ID: uint(teamID)}, Role: parts[1]}) //nolint:gosec // dismiss G115
 					}
 				}
 

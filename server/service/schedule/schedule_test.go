@@ -760,7 +760,7 @@ func TestTriggerMultipleInstances(t *testing.T) {
 		}()
 
 		<-timer.C
-		require.Equal(t, uint32(c.jobsExpected), atomic.LoadUint32(&jobsRun))
+		require.EqualValues(t, c.jobsExpected, atomic.LoadUint32(&jobsRun))
 		cancelFunc()
 	}
 }

@@ -218,7 +218,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 	var metaData *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
-		if len(activities) > int(opt.ListOptions.PerPage) {
+		if len(activities) > int(opt.ListOptions.PerPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			activities = activities[:len(activities)-1]
 		}
@@ -483,7 +483,7 @@ WHERE
 
 	var metaData *fleet.PaginationMetadata
 	metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: count}
-	if len(activities) > int(opt.PerPage) {
+	if len(activities) > int(opt.PerPage) { //nolint:gosec // dismiss G115
 		metaData.HasNextResults = true
 		activities = activities[:len(activities)-1]
 	}
@@ -523,7 +523,7 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 	var metaData *fleet.PaginationMetadata
 	if opt.IncludeMetadata {
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
-		if len(activities) > int(opt.PerPage) {
+		if len(activities) > int(opt.PerPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			activities = activities[:len(activities)-1]
 		}

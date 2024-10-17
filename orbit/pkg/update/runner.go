@@ -173,7 +173,7 @@ func (r *Runner) Execute() error {
 	if err != nil {
 		log.Info().Err(err).Msg("randomization of initial update interval failed")
 	} else {
-		initialInterval = initialInterval + randomizedInterval
+		initialInterval += randomizedInterval
 	}
 
 	ticker := time.NewTicker(initialInterval)

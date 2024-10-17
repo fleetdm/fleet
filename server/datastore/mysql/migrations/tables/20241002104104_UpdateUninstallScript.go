@@ -80,7 +80,7 @@ ON DUPLICATE KEY UPDATE
 			return 0, fmt.Errorf("get last insert ID: %w", err)
 		}
 
-		return uint(newID), nil
+		return uint(newID), nil //nolint:gosec // dismiss G115
 	}
 
 	// Go to script contents and check if it is the default uninstall script

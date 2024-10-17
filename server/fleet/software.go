@@ -123,8 +123,7 @@ type VulnSoftwareFilter struct {
 type SliceString []string
 
 func (c *SliceString) Scan(v interface{}) error {
-	switch tv := v.(type) {
-	case []byte:
+	if tv, ok := v.([]byte); ok {
 		return json.Unmarshal(tv, &c)
 	}
 	return errors.New("unsupported type")

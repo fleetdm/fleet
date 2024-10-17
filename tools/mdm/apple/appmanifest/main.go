@@ -27,7 +27,7 @@ func main() {
 
 	m, err := appmanifest.NewPlist(fp, *pkgURL)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err) //nolint:gocritic // ignoring exitAfterDefer
 	}
 
 	fmt.Println(string(m))

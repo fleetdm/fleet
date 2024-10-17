@@ -32,7 +32,7 @@ func testCollectHostsLastSeen(t *testing.T, ds *mysql.Datastore, pool fleet.Redi
 	hostIDs := createHosts(t, ds, 4, startTime)
 	t.Logf("real host IDs: %v", hostIDs)
 	hid := func(id int) int {
-		return int(hostIDs[id-1])
+		return int(hostIDs[id-1]) //nolint:gosec // dismiss G115
 	}
 
 	// note that cases cannot be run in isolation, each case builds on the

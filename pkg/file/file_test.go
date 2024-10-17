@@ -22,7 +22,7 @@ func TestCopy(t *testing.T) {
 	dstPath := filepath.Join(tmp, "copy")
 	expectedContents := []byte("foo")
 	expectedMode := fs.FileMode(0644)
-	require.NoError(t, os.WriteFile(originalPath, expectedContents, os.ModePerm))
+	require.NoError(t, os.WriteFile(originalPath, expectedContents, os.ModePerm)) //nolint:gosec // allow write file with 0o777
 	require.NoError(t, os.WriteFile(dstPath, []byte("this should be overwritten"), expectedMode))
 
 	// Test
@@ -76,7 +76,7 @@ func TestExists(t *testing.T) {
 
 	// Setup
 	path := filepath.Join(tmp, "file")
-	require.NoError(t, os.WriteFile(path, []byte(""), os.ModePerm))
+	require.NoError(t, os.WriteFile(path, []byte(""), os.ModePerm)) //nolint:gosec // allow write file with 0o777
 	require.NoError(t, os.MkdirAll(filepath.Join(tmp, "dir", "nested"), os.ModePerm))
 
 	// Test

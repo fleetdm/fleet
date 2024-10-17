@@ -4,18 +4,19 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"github.com/cenkalti/backoff/v4"
-	"golang.org/x/oauth2/google"
-	"golang.org/x/oauth2/jwt"
-	"google.golang.org/api/calendar/v3"
-	"google.golang.org/api/googleapi"
-	"google.golang.org/api/option"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cenkalti/backoff/v4"
+	"golang.org/x/oauth2/google"
+	"golang.org/x/oauth2/jwt"
+	"google.golang.org/api/calendar/v3"
+	"google.golang.org/api/googleapi"
+	"google.golang.org/api/option"
 )
 
 // Delete all events with eventTitle from the primary calendar of the specified users.
@@ -35,7 +36,7 @@ func main() {
 		log.Fatal("FLEET_TEST_GOOGLE_CALENDAR_SERVICE_EMAIL and FLEET_TEST_GOOGLE_CALENDAR_PRIVATE_KEY must be set")
 	}
 	// Strip newlines from private key
-	privateKey = strings.Replace(privateKey, "\\n", "\n", -1)
+	privateKey = strings.ReplaceAll(privateKey, "\\n", "\n")
 	userEmails := flag.String("users", "", "Comma-separated list of user emails to impersonate")
 	flag.Parse()
 	if *userEmails == "" {
