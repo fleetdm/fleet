@@ -155,7 +155,6 @@ const SelectTargets = ({
   const { isPremiumTier, isOnGlobalTeam, currentUser } = useContext(AppContext);
 
   const [labels, setLabels] = useState<ILabelsByType | null>(null);
-  const [inputTabIndex, setInputTabIndex] = useState<number | null>(null);
   const [searchText, setSearchText] = useState("");
   const [debouncedSearchText, setDebouncedSearchText] = useState("");
   const [isDebouncing, setIsDebouncing] = useState(false);
@@ -262,12 +261,6 @@ const SelectTargets = ({
   useEffect(() => {
     labelsSummary && setLabels(parseLabels(labelsSummary));
   }, [labelsSummary]);
-
-  useEffect(() => {
-    if (inputTabIndex === null && labelsSummary && teams) {
-      setInputTabIndex(labelsSummary.length + teams.length || 0);
-    }
-  }, [inputTabIndex, labelsSummary, teams]);
 
   useEffect(() => {
     setIsDebouncing(true);
@@ -485,7 +478,6 @@ const SelectTargets = ({
         autofocus
         searchResultsTableConfig={resultsTableConfig}
         selectedHostsTableConifg={selectedHostsTableConfig}
-        tabIndex={inputTabIndex || 0}
         searchText={searchText}
         searchResults={searchResults || []}
         isTargetsLoading={isFetchingSearchResults || isDebouncing}

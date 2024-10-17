@@ -90,7 +90,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         indeterminate: props.indeterminate,
         onChange: () => cellProps.toggleAllRowsSelected(),
       };
-      return <Checkbox {...checkboxProps} />;
+      return <Checkbox {...checkboxProps} enableEnterToCheck />;
     },
     Cell: (cellProps: ISelectionCellProps) => {
       const props = cellProps.row.getToggleRowSelectedProps();
@@ -98,7 +98,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         value: props.checked,
         onChange: () => cellProps.row.toggleRowSelected(),
       };
-      return <Checkbox {...checkboxProps} />;
+      return <Checkbox {...checkboxProps} enableEnterToCheck />;
     },
     disableHidden: true,
   },
