@@ -318,14 +318,14 @@ func (ds *Datastore) CountVulnerabilities(ctx context.Context, opt fleet.VulnLis
 	`
 	var args []interface{}
 	if opt.TeamID == nil {
-		selectStmt = selectStmt + " AND global_stats = 1"
+		selectStmt += " AND global_stats = 1"
 	} else {
-		selectStmt = selectStmt + " AND global_stats = 0 AND vhc.team_id = ?"
+		selectStmt += " AND global_stats = 0 AND vhc.team_id = ?"
 		args = append(args, opt.TeamID)
 	}
 
 	if opt.KnownExploit {
-		selectStmt = selectStmt + " AND cm.cisa_known_exploit = 1"
+		selectStmt += " AND cm.cisa_known_exploit = 1"
 	}
 
 	if match := opt.ListOptions.MatchQuery; match != "" {

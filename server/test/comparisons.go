@@ -23,11 +23,8 @@ func ElementsMatchSkipID(t TestingT, listA, listB interface{}, msgAndArgs ...int
 
 	opt := cmp.FilterPath(func(p cmp.Path) bool {
 		for _, ps := range p {
-			switch ps := ps.(type) {
-			case cmp.StructField:
-				if strings.HasSuffix(ps.Name(), "ID") {
-					return true
-				}
+			if ps, ok := ps.(cmp.StructField); ok && strings.HasSuffix(ps.Name(), "ID") {
+				return true
 			}
 		}
 		return false

@@ -299,12 +299,15 @@ func TestGetDetailQueries(t *testing.T) {
 	require.Len(t, queriesWithoutWinOSVuln, 25)
 
 	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true})
-	qs := append(baseQueries, "users", "users_chrome", "scheduled_query_stats")
+	qs := baseQueries
+	qs = append(qs, "users", "users_chrome", "scheduled_query_stats")
 	require.Len(t, queriesWithUsers, len(qs))
 	sortedKeysCompare(t, queriesWithUsers, qs)
 
 	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
-	qs = append(baseQueries, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_chrome", "scheduled_query_stats", "software_macos_firefox")
+	qs = baseQueries
+	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions",
+		"software_chrome", "scheduled_query_stats", "software_macos_firefox")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -1239,7 +1242,7 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 	} {
 		t.Run(tc.expected.Name, func(t *testing.T) {
 			ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
-				require.Equal(t, uint(i), hostID)
+				require.Equal(t, uint(i), hostID) //nolint:gosec // dismiss G115
 				require.Equal(t, tc.expected, hostOS)
 				return nil
 			}

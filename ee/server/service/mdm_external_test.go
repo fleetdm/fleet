@@ -543,7 +543,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 					return nil, errors.New("team name already exists")
 				}
 			}
-			id := uint(len(teamStore) + 1)
+			id := uint(len(teamStore) + 1) //nolint:gosec // dismiss G115
 			_, ok := teamStore[id]
 			require.False(t, ok)                                                           // sanity check
 			require.Equal(t, "new team spec", team.Name)                                   // set

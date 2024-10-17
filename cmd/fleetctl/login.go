@@ -69,10 +69,8 @@ Trying to login with SSO? First, login to the Fleet UI and retrieve your API tok
 				if err != nil {
 					return fmt.Errorf("error reading email: %w", err)
 				}
-			} else {
-				if definedAsEnvOnly("--email", "EMAIL") {
-					fmt.Printf("Using value of environment variable $EMAIL as email.\n")
-				}
+			} else if definedAsEnvOnly("--email", "EMAIL") {
+				fmt.Printf("Using value of environment variable $EMAIL as email.\n")
 			}
 			if flPassword == "" {
 				fmt.Print("Password: ")

@@ -461,7 +461,7 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 
 // getInheritedPoliciesForTeam returns the list of global policies with the
 // passing and failing host counts for the provided teamID
-func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, TeamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, teamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 	var args []interface{}
 
 	query := `
@@ -478,7 +478,7 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, Tea
         WHERE p.team_id IS NULL
     `
 
-	args = append(args, TeamID)
+	args = append(args, teamID)
 
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	match := norm.NFC.String(opts.MatchQuery)

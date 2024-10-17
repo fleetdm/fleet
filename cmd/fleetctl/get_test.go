@@ -453,9 +453,7 @@ func TestGetHosts(t *testing.T) {
 		{
 			name:       "get hosts --yaml test_host",
 			goldenFile: "expectedHostDetailResponseYaml.yml",
-			scanner: func(s string) []string {
-				return spec.SplitYaml(s)
-			},
+			scanner:    spec.SplitYaml,
 			args:       []string{"get", "hosts", "--yaml", "test_host"},
 			prettifier: yamlPrettify,
 		},

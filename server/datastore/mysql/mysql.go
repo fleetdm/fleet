@@ -1132,8 +1132,8 @@ type patternReplacer func(string) string
 
 // likePattern returns a pattern to match m with LIKE.
 func likePattern(m string) string {
-	m = strings.Replace(m, "_", "\\_", -1)
-	m = strings.Replace(m, "%", "\\%", -1)
+	m = strings.ReplaceAll(m, "_", "\\_")
+	m = strings.ReplaceAll(m, "%", "\\%")
 	return "%" + m + "%"
 }
 

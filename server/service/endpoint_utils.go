@@ -272,7 +272,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 					if err != nil {
 						return nil, badRequestErr("parsing uint from query", err)
 					}
-					field.SetUint(uint64(queryValUint))
+					field.SetUint(uint64(queryValUint)) //nolint:gosec // dismiss G115
 				case reflect.Float64:
 					queryValFloat, err := strconv.ParseFloat(queryVal, 64)
 					if err != nil {

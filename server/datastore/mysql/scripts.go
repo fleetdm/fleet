@@ -148,7 +148,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			// software that receives them is responsible for casting
 			// it to a 32-bit signed integer.
 			// See /orbit/pkg/scripts/exec_windows.go
-			int32(result.ExitCode),
+			int32(result.ExitCode), //nolint:gosec // dismiss G115
 			result.Timeout,
 			result.HostID,
 			result.ExecutionID,

@@ -743,7 +743,7 @@ func main() {
 			certPath = filepath.Join(proxyDirectory, "fleet.crt")
 
 			// Write cert that proxy uses
-			err = os.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
+			err = os.WriteFile(certPath, []byte(insecure.ServerCert), os.FileMode(0o644))
 			if err != nil {
 				return fmt.Errorf("write server cert: %w", err)
 			}
@@ -940,11 +940,9 @@ func main() {
 		//	- `command_line_flags` (osquery startup flags)
 		if err := orbitClient.RunConfigReceivers(); err != nil {
 			log.Error().Msgf("failed initial config fetch: %s", err)
-		} else {
-			if orbitClient.RestartTriggered() {
-				log.Info().Msg("exiting after early config fetch")
-				return nil
-			}
+		} else if orbitClient.RestartTriggered() {
+			log.Info().Msg("exiting after early config fetch")
+			return nil
 		}
 
 		addSubsystem(&g, "config receivers", &wrapSubsystem{

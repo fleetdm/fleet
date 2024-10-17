@@ -534,7 +534,7 @@ func createPolicies(t *testing.T, ds *mysql.Datastore, count int) []uint {
 				return err
 			}
 			pid, _ := res.LastInsertId()
-			ids[i] = uint(pid)
+			ids[i] = uint(pid) //nolint:gosec // dismiss G115
 		}
 		return nil
 	})

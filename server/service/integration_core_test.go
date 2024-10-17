@@ -9934,8 +9934,8 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	}
 	for _, sqs := range scheduledQueriesStats {
 		row := rowsMap[sqs.ScheduledQueryName]
-		require.Equal(t, strconv.FormatInt(int64(sqs.AverageMemory), 10), row["average_memory"])
-		require.Equal(t, strconv.FormatInt(int64(sqs.Executions), 10), row["executions"])
+		require.Equal(t, fmt.Sprint(sqs.AverageMemory), row["average_memory"])
+		require.Equal(t, fmt.Sprint(sqs.Executions), row["executions"])
 		interval := row["interval"]
 		if sqs.ScheduledQueryName == "non-scheduled-global-query" {
 			interval = "0" // this query has metrics because it runs on a pack.

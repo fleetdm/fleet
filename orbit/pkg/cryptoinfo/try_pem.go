@@ -31,8 +31,7 @@ func tryPem(pemBytes []byte, _password string) ([]*KeyInfo, error) {
 }
 
 func expandPem(block *pem.Block) *KeyInfo {
-	switch block.Type {
-	case "CERTIFICATE":
+	if block.Type == "CERTIFICATE" {
 		return NewCertificate(kiPEM).SetHeaders(block.Headers).SetData(parseCertificate(block.Bytes))
 	}
 

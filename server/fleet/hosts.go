@@ -690,14 +690,14 @@ func (h *Host) IsEligibleForWindowsMDMUnenrollment(isConnectedToFleetMDM bool) b
 // empty. If Hostname is empty and both HardwareSerial and HardwareModel are not empty, it returns a
 // composite string with HardwareModel and HardwareSerial. If all else fails, it returns an empty
 // string.
-func HostDisplayName(ComputerName string, Hostname string, HardwareModel string, HardwareSerial string) string {
+func HostDisplayName(computerName string, hostname string, hardwareModel string, hardwareSerial string) string {
 	switch {
-	case ComputerName != "":
-		return ComputerName
-	case Hostname != "":
-		return Hostname
-	case HardwareModel != "" && HardwareSerial != "":
-		return fmt.Sprintf("%s (%s)", HardwareModel, HardwareSerial)
+	case computerName != "":
+		return computerName
+	case hostname != "":
+		return hostname
+	case hardwareModel != "" && hardwareSerial != "":
+		return fmt.Sprintf("%s (%s)", hardwareModel, hardwareSerial)
 	default:
 		return ""
 	}
@@ -827,7 +827,8 @@ func IsLinux(hostPlatform string) bool {
 }
 
 func IsUnixLike(hostPlatform string) bool {
-	unixLikeOSs := append(HostLinuxOSs, "darwin")
+	unixLikeOSs := HostLinuxOSs
+	unixLikeOSs = append(unixLikeOSs, "darwin")
 	for _, p := range unixLikeOSs {
 		if p == hostPlatform {
 			return true

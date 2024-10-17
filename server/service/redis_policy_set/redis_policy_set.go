@@ -49,7 +49,7 @@ func (r *redisFailingPolicySet) ListSets() ([]uint, error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	ids, err := redigo.Ints(conn.Do("SMEMBERS", r.policySetOfSetsKey()))
+	ids, err := redigo.Uint64s(conn.Do("SMEMBERS", r.policySetOfSetsKey()))
 	if err != nil && err != redigo.ErrNil {
 		return nil, err
 	}
@@ -218,7 +218,7 @@ func parseHostEntry(v string) (*fleet.PolicySetHost, error) {
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid format: %s", v)
 	}
-	id, err := strconv.Atoi(parts[0])
+	id, err := strconv.ParseUint(parts[0], 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid id: %s", v)
 	}

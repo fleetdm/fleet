@@ -2562,7 +2562,8 @@ func main() {
 
 		disableFleetDesktop = flag.Bool("disable_fleet_desktop", false, "Disable Fleet Desktop")
 		// logger_tls_max_lines is simulating the osquery setting with the same name.
-		loggerTLSMaxLines = flag.Int("", 1024, "Maximum number of buffered result log lines to send on every log request")
+		loggerTLSMaxLines = flag.Int("logger_tls_max_lines", 1024,
+			"Maximum number of buffered result log lines to send on every log request")
 	)
 
 	flag.Parse()
@@ -2638,7 +2639,7 @@ func main() {
 			for tmpl_, hostCount := range tmplsm {
 				if hostCount > 0 {
 					tmpl = tmpl_
-					tmplsm[tmpl_] = tmplsm[tmpl_] - 1
+					tmplsm[tmpl_]--
 					break
 				}
 			}
