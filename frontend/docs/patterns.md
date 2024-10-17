@@ -428,20 +428,18 @@ with a page that is only *reading* config values, get them from context.
 
 ### Rendering flash messages
 
-The `renderFlash` method from notification context accepts a third `options` argument. Our best
-practice for flash messages is to set `options.dismissOnPageChange` to `true`.
-
-```tsx
-renderFlash("error", "Something went wrong");
-```
-This is especially important for `"error"` messages, since they are not otherwise hidden. `"success"`
-messages will be hidden automatically after an interval.
+Flash messages by default will be hidden when the user performs any navigation that changes the URL,
+in addition to the timeout set for success messages. The `renderFlash` method from notification
+context accepts an optional third `options` argument which contains an optional
+`persistOnPageChange` boolean field that can be set to `true` to negate this default behavior.
 
 If the `renderFlash` is accompanied by a router push, it's important to push to the router *before*
-calling `renderFlash`. If the push comes after the `renderFlash` call with `dismissOnPageChange`,
-the flash message may be immediately hidden by the router push.
+calling `renderFlash`. If the push comes after the `renderFlash` call,
+the flash message may register the `push` and immediately hide itself.
 
 ```tsx
+// first push
 router.push(newPath);
+// then flash
 renderFlash("error", "Something went wrong");
 ```
