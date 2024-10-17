@@ -1064,10 +1064,6 @@ type Datastore interface {
 	// GetHostMDMAppleProfiles returns the MDM profile information for the specified host UUID.
 	GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)
 
-	// GetHostMDMAppleProfile returns the MDM profile information for the specified host UUID and profile UUID.
-	// nil is returned if the profile is not found.
-	GetHostMDMAppleProfile(ctx context.Context, hostUUID string, profileUUID string) (*HostMDMAppleProfile, error)
-
 	CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error
 
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
@@ -1747,6 +1743,13 @@ type Datastore interface {
 	SetSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, titleIDs []uint) error
 	ListSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, opts ListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 
+	// SetHostAwaitingConfiguration sets a boolean indicating whether or not the given host is
+	// in the setup experience flow (which runs during macOS Setup Assistant).
+	SetHostAwaitingConfiguration(ctx context.Context, hostUUID string, inSetupExperience bool) error
+	// GetHostAwaitingConfiguration returns a boolean indicating whether or not the given host is
+	// in the setup experience flow (which runs during macOS Setup Assistant).
+	GetHostAwaitingConfiguration(ctx context.Context, hostUUID string) (bool, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Setup Experience
 	//
@@ -1757,6 +1760,9 @@ type Datastore interface {
 	GetSetupExperienceScript(ctx context.Context, teamID *uint) (*Script, error)
 	SetSetupExperienceScript(ctx context.Context, script *Script) error
 	DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error
+	MaybeUpdateSetupExperienceScriptStatus(ctx context.Context, hostUUID string, executionID string, status SetupExperienceStatusResultStatus) (bool, error)
+	MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx context.Context, hostUUID string, executionID string, status SetupExperienceStatusResultStatus) (bool, error)
+	MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hostUUID string, commandUUID string, status SetupExperienceStatusResultStatus) (bool, error)
 
 	// Fleet-maintained apps
 	//
@@ -1771,6 +1777,19 @@ type Datastore interface {
 	// UpsertMaintainedApp inserts or updates a maintained app using the updated
 	// metadata provided via app.
 	UpsertMaintainedApp(ctx context.Context, app *MaintainedApp) (*MaintainedApp, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Certificate management
+
+	// BulkUpsertMDMManagedCertificates updates metadata regarding certificates on the host.
+	BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*MDMBulkUpsertManagedCertificatePayload) error
+
+	// GetHostMDMCertificateProfile returns the MDM profile information for the specified host UUID and profile UUID.
+	// nil is returned if the profile is not found.
+	GetHostMDMCertificateProfile(ctx context.Context, hostUUID string, profileUUID string) (*HostMDMCertificateProfile, error)
+
+	// CleanUpMDMManagedCertificates removes all managed certificates that are not associated with any host+profile.
+	CleanUpMDMManagedCertificates(ctx context.Context) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

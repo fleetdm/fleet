@@ -731,8 +731,6 @@ type DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc func(ctx context.Context
 
 type GetHostMDMAppleProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error)
 
-type GetHostMDMAppleProfileFunc func(ctx context.Context, hostUUID string, profileUUID string) (*fleet.HostMDMAppleProfile, error)
-
 type CleanupDiskEncryptionKeysOnTeamChangeFunc func(ctx context.Context, hostIDs []uint, newTeamID *uint) error
 
 type NewMDMAppleEnrollmentProfileFunc func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error)
@@ -1103,6 +1101,10 @@ type SetSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint,
 
 type ListSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error)
 
+type SetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string, inSetupExperience bool) error
+
+type GetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string) (bool, error)
+
 type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error)
 
 type UpdateSetupExperienceStatusResultFunc func(ctx context.Context, status *fleet.SetupExperienceStatusResult) error
@@ -1115,11 +1117,23 @@ type SetSetupExperienceScriptFunc func(ctx context.Context, script *fleet.Script
 
 type DeleteSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) error
 
+type MaybeUpdateSetupExperienceScriptStatusFunc func(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error)
+
+type MaybeUpdateSetupExperienceSoftwareInstallStatusFunc func(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error)
+
+type MaybeUpdateSetupExperienceVPPStatusFunc func(ctx context.Context, hostUUID string, commandUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error)
+
 type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
 
 type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint) (*fleet.MaintainedApp, error)
 
 type UpsertMaintainedAppFunc func(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error)
+
+type BulkUpsertMDMManagedCertificatesFunc func(ctx context.Context, payload []*fleet.MDMBulkUpsertManagedCertificatePayload) error
+
+type GetHostMDMCertificateProfileFunc func(ctx context.Context, hostUUID string, profileUUID string) (*fleet.HostMDMCertificateProfile, error)
+
+type CleanUpMDMManagedCertificatesFunc func(ctx context.Context) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -2187,9 +2201,6 @@ type DataStore struct {
 	GetHostMDMAppleProfilesFunc        GetHostMDMAppleProfilesFunc
 	GetHostMDMAppleProfilesFuncInvoked bool
 
-	GetHostMDMAppleProfileFunc        GetHostMDMAppleProfileFunc
-	GetHostMDMAppleProfileFuncInvoked bool
-
 	CleanupDiskEncryptionKeysOnTeamChangeFunc        CleanupDiskEncryptionKeysOnTeamChangeFunc
 	CleanupDiskEncryptionKeysOnTeamChangeFuncInvoked bool
 
@@ -2745,6 +2756,12 @@ type DataStore struct {
 	ListSetupExperienceSoftwareTitlesFunc        ListSetupExperienceSoftwareTitlesFunc
 	ListSetupExperienceSoftwareTitlesFuncInvoked bool
 
+	SetHostAwaitingConfigurationFunc        SetHostAwaitingConfigurationFunc
+	SetHostAwaitingConfigurationFuncInvoked bool
+
+	GetHostAwaitingConfigurationFunc        GetHostAwaitingConfigurationFunc
+	GetHostAwaitingConfigurationFuncInvoked bool
+
 	ListSetupExperienceResultsByHostUUIDFunc        ListSetupExperienceResultsByHostUUIDFunc
 	ListSetupExperienceResultsByHostUUIDFuncInvoked bool
 
@@ -2763,6 +2780,15 @@ type DataStore struct {
 	DeleteSetupExperienceScriptFunc        DeleteSetupExperienceScriptFunc
 	DeleteSetupExperienceScriptFuncInvoked bool
 
+	MaybeUpdateSetupExperienceScriptStatusFunc        MaybeUpdateSetupExperienceScriptStatusFunc
+	MaybeUpdateSetupExperienceScriptStatusFuncInvoked bool
+
+	MaybeUpdateSetupExperienceSoftwareInstallStatusFunc        MaybeUpdateSetupExperienceSoftwareInstallStatusFunc
+	MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked bool
+
+	MaybeUpdateSetupExperienceVPPStatusFunc        MaybeUpdateSetupExperienceVPPStatusFunc
+	MaybeUpdateSetupExperienceVPPStatusFuncInvoked bool
+
 	ListAvailableFleetMaintainedAppsFunc        ListAvailableFleetMaintainedAppsFunc
 	ListAvailableFleetMaintainedAppsFuncInvoked bool
 
@@ -2771,6 +2797,15 @@ type DataStore struct {
 
 	UpsertMaintainedAppFunc        UpsertMaintainedAppFunc
 	UpsertMaintainedAppFuncInvoked bool
+
+	BulkUpsertMDMManagedCertificatesFunc        BulkUpsertMDMManagedCertificatesFunc
+	BulkUpsertMDMManagedCertificatesFuncInvoked bool
+
+	GetHostMDMCertificateProfileFunc        GetHostMDMCertificateProfileFunc
+	GetHostMDMCertificateProfileFuncInvoked bool
+
+	CleanUpMDMManagedCertificatesFunc        CleanUpMDMManagedCertificatesFunc
+	CleanUpMDMManagedCertificatesFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5260,13 +5295,6 @@ func (s *DataStore) GetHostMDMAppleProfiles(ctx context.Context, hostUUID string
 	return s.GetHostMDMAppleProfilesFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) GetHostMDMAppleProfile(ctx context.Context, hostUUID string, profileUUID string) (*fleet.HostMDMAppleProfile, error) {
-	s.mu.Lock()
-	s.GetHostMDMAppleProfileFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetHostMDMAppleProfileFunc(ctx, hostUUID, profileUUID)
-}
-
 func (s *DataStore) CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {
 	s.mu.Lock()
 	s.CleanupDiskEncryptionKeysOnTeamChangeFuncInvoked = true
@@ -6562,6 +6590,20 @@ func (s *DataStore) ListSetupExperienceSoftwareTitles(ctx context.Context, teamI
 	return s.ListSetupExperienceSoftwareTitlesFunc(ctx, teamID, opts)
 }
 
+func (s *DataStore) SetHostAwaitingConfiguration(ctx context.Context, hostUUID string, inSetupExperience bool) error {
+	s.mu.Lock()
+	s.SetHostAwaitingConfigurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostAwaitingConfigurationFunc(ctx, hostUUID, inSetupExperience)
+}
+
+func (s *DataStore) GetHostAwaitingConfiguration(ctx context.Context, hostUUID string) (bool, error) {
+	s.mu.Lock()
+	s.GetHostAwaitingConfigurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostAwaitingConfigurationFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
 	s.mu.Lock()
 	s.ListSetupExperienceResultsByHostUUIDFuncInvoked = true
@@ -6604,6 +6646,27 @@ func (s *DataStore) DeleteSetupExperienceScript(ctx context.Context, teamID *uin
 	return s.DeleteSetupExperienceScriptFunc(ctx, teamID)
 }
 
+func (s *DataStore) MaybeUpdateSetupExperienceScriptStatus(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+	s.mu.Lock()
+	s.MaybeUpdateSetupExperienceScriptStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.MaybeUpdateSetupExperienceScriptStatusFunc(ctx, hostUUID, executionID, status)
+}
+
+func (s *DataStore) MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+	s.mu.Lock()
+	s.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.MaybeUpdateSetupExperienceSoftwareInstallStatusFunc(ctx, hostUUID, executionID, status)
+}
+
+func (s *DataStore) MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hostUUID string, commandUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+	s.mu.Lock()
+	s.MaybeUpdateSetupExperienceVPPStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.MaybeUpdateSetupExperienceVPPStatusFunc(ctx, hostUUID, commandUUID, status)
+}
+
 func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListAvailableFleetMaintainedAppsFuncInvoked = true
@@ -6623,4 +6686,25 @@ func (s *DataStore) UpsertMaintainedApp(ctx context.Context, app *fleet.Maintain
 	s.UpsertMaintainedAppFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpsertMaintainedAppFunc(ctx, app)
+}
+
+func (s *DataStore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMBulkUpsertManagedCertificatePayload) error {
+	s.mu.Lock()
+	s.BulkUpsertMDMManagedCertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkUpsertMDMManagedCertificatesFunc(ctx, payload)
+}
+
+func (s *DataStore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID string, profileUUID string) (*fleet.HostMDMCertificateProfile, error) {
+	s.mu.Lock()
+	s.GetHostMDMCertificateProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMCertificateProfileFunc(ctx, hostUUID, profileUUID)
+}
+
+func (s *DataStore) CleanUpMDMManagedCertificates(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanUpMDMManagedCertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanUpMDMManagedCertificatesFunc(ctx)
 }

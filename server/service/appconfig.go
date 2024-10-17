@@ -359,6 +359,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			appConfig.Integrations.NDESSCEPProxy.Value.AdminURL = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.AdminURL)
 			appConfig.Integrations.NDESSCEPProxy.Value.Username = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.Username)
 			// do not preprocess password
+			if len(svc.config.Server.PrivateKey) == 0 {
+				invalid.Append("integrations.ndes_scep_proxy",
+					"Cannot encrypt NDES password. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+			}
 
 			validateAdminURL, validateSCEPURL := false, false
 			newSCEPProxy := appConfig.Integrations.NDESSCEPProxy.Value

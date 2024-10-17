@@ -69,7 +69,6 @@ module.exports = {
       'lucasmrod',
       'ksatter',
       'hollidayn',
-      'roperzh',
       'ghernandez345',
       'rfairburn',
       'zayhanlon',

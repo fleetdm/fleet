@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -44,6 +45,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -69,6 +71,7 @@ var (
 		FleetVarNDESSCEPProxyURL))
 	fleetVarHostEndUserEmailIDPRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarHostEndUserEmailIDP,
 		FleetVarHostEndUserEmailIDP))
+	fleetVarsSupportedInConfigProfiles = []string{FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarHostEndUserEmailIDP}
 )
 
 type hostProfileUUID struct {
@@ -397,6 +400,10 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	} else {
 		cp.LabelsIncludeAll = labelMap
 	}
+	err = validateConfigProfileFleetVariables(string(cp.Mobileconfig))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
+	}
 
 	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
 	if err != nil {
@@ -438,6 +445,17 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	return newCP, nil
 }
 
+func validateConfigProfileFleetVariables(contents string) error {
+	fleetVars := findFleetVariables(contents)
+	for k := range fleetVars {
+		if !slices.Contains(fleetVarsSupportedInConfigProfiles, k) {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles",
+				k)}
+		}
+	}
+	return nil
+}
+
 func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string, labelsExcludeMode bool) (*fleet.MDMAppleDeclaration, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
@@ -477,6 +495,10 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 
 	validatedLabels, err := svc.validateDeclarationLabels(ctx, labels)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := validateDeclarationFleetVariables(string(data)); err != nil {
 		return nil, err
 	}
 
@@ -526,6 +548,13 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 	}
 
 	return decl, nil
+}
+
+func validateDeclarationFleetVariables(contents string) error {
+	if len(findFleetVariables(contents)) > 0 {
+		return &fleet.BadRequestError{Message: "Fleet variables ($FLEET_VAR_*) are not currently supported in DDM profiles"}
+	}
+	return nil
 }
 
 func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNames []string) (map[string]fleet.ConfigurationProfileLabel, error) {
@@ -2722,10 +2751,12 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	}
 
 	if m.AwaitingConfiguration {
+		// Enqueue setup experience items and mark the host as being in setup experience
 		_, err := svc.ds.EnqueueSetupExperienceItems(r.Context, r.ID, info.TeamID)
 		if err != nil {
 			return ctxerr.Wrap(r.Context, err, "queueing setup experience tasks")
 		}
+
 	}
 
 	return svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
@@ -2872,7 +2903,20 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.UDID, status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
 	case "InstallApplication":
-		// Create an activity for installing only if we're in a terminal state
+		// this might be a setup experience VPP install, so we'll try to update setup experience status
+		// TODO: consider limiting this to only macOS hosts
+		if updated, err := maybeUpdateSetupExperienceStatus(r.Context, svc.ds, fleet.SetupExperienceVPPInstallResult{
+			HostUUID:      cmdResult.UDID,
+			CommandUUID:   cmdResult.CommandUUID,
+			CommandStatus: cmdResult.Status,
+		}, true); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "updating setup experience status from VPP install result")
+		} else if updated {
+			// TODO: call next step of setup experience?
+			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", cmdResult.UDID, "execution_id", cmdResult.CommandUUID)
+		}
+
+		// create an activity for installing only if we're in a terminal state
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
 			cmdResult.Status == fleet.MDMAppleStatusError ||
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
@@ -2889,6 +2933,10 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			if err := newActivity(r.Context, user, act, svc.ds, svc.logger); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
 			}
+		}
+	case "DeviceConfigured":
+		if err := svc.ds.SetHostAwaitingConfiguration(r.Context, r.ID, false); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to mark host as non longer awaiting configuration")
 		}
 	}
 
@@ -3499,7 +3547,6 @@ func preprocessProfileContents(
 	profileContents map[string]mobileconfig.Mobileconfig,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 ) error {
-
 	// This method replaces Fleet variables ($FLEET_VAR_<NAME>) in the profile contents, generating a unique profile for each host.
 	// For a 2KB profile and 30K hosts, this method may generate ~60MB of profile data in memory.
 
@@ -3605,8 +3652,10 @@ func preprocessProfileContents(
 		if addedTargets == nil {
 			addedTargets = make(map[string]*cmdTarget, 1)
 		}
+		// We store the timestamp when the challenge was retrieved to know if it has expired.
+		var managedCertificatePayloads []*fleet.MDMBulkUpsertManagedCertificatePayload
 		for _, hostUUID := range target.hostUUIDs {
-			newProfUUID := uuid.NewString()
+			tempProfUUID := uuid.NewString()
 			hostContents := contentsStr
 
 			failed := false
@@ -3656,12 +3705,18 @@ func preprocessProfileContents(
 						failed = true
 						break
 					}
+					payload := &fleet.MDMBulkUpsertManagedCertificatePayload{
+						HostUUID:             hostUUID,
+						ProfileUUID:          profUUID,
+						ChallengeRetrievedAt: ptr.Time(time.Now()),
+					}
+					managedCertificatePayloads = append(managedCertificatePayloads, payload)
 
 					hostContents = replaceFleetVariable(fleetVarNDESSCEPChallengeRegexp, hostContents, challenge)
 				case FleetVarNDESSCEPProxyURL:
 					// Insert the SCEP URL into the profile contents
 					proxyURL := fmt.Sprintf("%s%s%s", appConfig.ServerSettings.ServerURL, apple_mdm.SCEPProxyPath,
-						url.QueryEscape(fmt.Sprintf("%s,%s", hostUUID, profUUID)))
+						url.PathEscape(fmt.Sprintf("%s,%s", hostUUID, profUUID)))
 					hostContents = replaceFleetVariable(fleetVarNDESSCEPProxyURLRegexp, hostContents, proxyURL)
 				case FleetVarHostEndUserEmailIDP:
 					// Insert the end user email IDP into the profile contents
@@ -3694,13 +3749,17 @@ func preprocessProfileContents(
 				}
 			}
 			if !failed {
-				addedTargets[newProfUUID] = &cmdTarget{
+				addedTargets[tempProfUUID] = &cmdTarget{
 					cmdUUID:   target.cmdUUID,
 					profIdent: target.profIdent,
 					hostUUIDs: []string{hostUUID},
 				}
-				profileContents[newProfUUID] = mobileconfig.Mobileconfig(hostContents)
+				profileContents[tempProfUUID] = mobileconfig.Mobileconfig(hostContents)
 			}
+		}
+		err := ds.BulkUpsertMDMManagedCertificates(ctx, managedCertificatePayloads)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating managed certificates")
 		}
 		// Remove the parent target, since we will use host-specific targets
 		delete(targets, profUUID)

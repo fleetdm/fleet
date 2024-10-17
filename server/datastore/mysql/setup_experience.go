@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -107,6 +108,10 @@ WHERE global_or_team_id = ?`
 			return ctxerr.Wrap(ctx, err, "retrieving number of inserted setup experience scripts")
 		}
 		totalInsertions += uint(inserts)
+
+		if err := setHostAwaitingConfiguration(ctx, tx, hostUUID, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting host awaiting configuration to true")
+		}
 
 		return nil
 	}); err != nil {
@@ -446,4 +451,112 @@ func (ds *Datastore) DeleteSetupExperienceScript(ctx context.Context, teamID *ui
 	// for setup experience scripts.
 
 	return nil
+}
+
+func (ds *Datastore) SetHostAwaitingConfiguration(ctx context.Context, hostUUID string, awaitingConfiguration bool) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return setHostAwaitingConfiguration(ctx, tx, hostUUID, awaitingConfiguration)
+	})
+}
+
+func setHostAwaitingConfiguration(ctx context.Context, tx sqlx.ExtContext, hostUUID string, awaitingConfiguration bool) error {
+	const stmt = `
+INSERT INTO host_mdm_apple_awaiting_configuration (host_uuid, awaiting_configuration)
+VALUES (?, ?)
+ON DUPLICATE KEY UPDATE
+	awaiting_configuration = VALUES(awaiting_configuration)
+	`
+
+	_, err := tx.ExecContext(ctx, stmt, hostUUID, awaitingConfiguration)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "setting host awaiting configuration")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetHostAwaitingConfiguration(ctx context.Context, hostUUID string) (bool, error) {
+	const stmt = `
+SELECT
+	awaiting_configuration
+FROM host_mdm_apple_awaiting_configuration 
+WHERE host_uuid = ?
+	`
+	var awaitingConfiguration bool
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &awaitingConfiguration, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+
+		return false, ctxerr.Wrap(ctx, err, "getting host awaiting configuration")
+	}
+
+	return awaitingConfiguration, nil
+}
+
+func (ds *Datastore) MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hostUUID string, nanoCommandUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+	selectStmt := "SELECT id FROM setup_experience_status_results WHERE host_uuid = ? AND nano_command_uuid = ?"
+	updateStmt := "UPDATE setup_experience_status_results SET status = ? WHERE id = ?"
+
+	var id uint
+	if err := ds.writer(ctx).GetContext(ctx, &id, selectStmt, hostUUID, nanoCommandUUID); err != nil {
+		// TODO: maybe we can use the reader instead for this query
+		if errors.Is(err, sql.ErrNoRows) {
+			// return early if no results found
+			return false, nil
+		}
+		return false, err
+	}
+	res, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, id)
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+
+	return n > 0, nil
+}
+
+func (ds *Datastore) MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+	selectStmt := "SELECT id FROM setup_experience_status_results WHERE host_uuid = ? AND host_software_installs_id = ?"
+	updateStmt := "UPDATE setup_experience_status_results SET status = ? WHERE id = ?"
+
+	var id uint
+	if err := ds.writer(ctx).GetContext(ctx, &id, selectStmt, hostUUID, executionID); err != nil {
+		// TODO: maybe we can use the reader instead for this query
+		if errors.Is(err, sql.ErrNoRows) {
+			// return early if no results found
+			return false, nil
+		}
+		return false, err
+	}
+	res, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, id)
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+
+	return n > 0, nil
+}
+
+func (ds *Datastore) MaybeUpdateSetupExperienceScriptStatus(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+	selectStmt := "SELECT id FROM setup_experience_status_results WHERE host_uuid = ? AND script_execution_id = ?"
+	updateStmt := "UPDATE setup_experience_status_results SET status = ? WHERE id = ?"
+
+	var id uint
+	if err := ds.writer(ctx).GetContext(ctx, &id, selectStmt, hostUUID, executionID); err != nil {
+		// TODO: maybe we can use the reader instead for this query
+		if errors.Is(err, sql.ErrNoRows) {
+			// return early if no results found
+			return false, nil
+		}
+		return false, err
+	}
+	res, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, id)
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+
+	return n > 0, nil
 }
