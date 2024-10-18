@@ -477,6 +477,7 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 		softwareInstallerID,
 		softwareInstallerID,
 		softwareInstallerID,
+		softwareInstallerID,
 	)
 
 	return installID, ctxerr.Wrap(ctx, err, "inserting new install software request")
