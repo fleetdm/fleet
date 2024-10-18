@@ -361,3 +361,47 @@ func TestFeaturesCopy(t *testing.T) {
 		require.Equal(t, f.DetailQueryOverrides, clone.DetailQueryOverrides)
 	})
 }
+
+func TestMDMUrl(t *testing.T) {
+	cases := []struct {
+		name      string
+		mdmURL    string
+		serverURL string
+		want      string
+	}{
+		{
+			name:      "mdm url set",
+			mdmURL:    "https://mdm.example.com",
+			serverURL: "https://fleet.example.com",
+			want:      "https://mdm.example.com",
+		},
+		{
+			name:      "mdm url not set",
+			mdmURL:    "",
+			serverURL: "https://mdm.example.com",
+			want:      "https://mdm.example.com",
+		},
+		{
+			name:      "mdm url and server url not set",
+			mdmURL:    "",
+			serverURL: "",
+			want:      "",
+		},
+		{
+			name:      "server url not set",
+			mdmURL:    "https://mdm.example.com",
+			serverURL: "",
+			want:      "https://mdm.example.com",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			appConfig := AppConfig{
+				MDM:            MDM{AppleServerURL: tc.mdmURL},
+				ServerSettings: ServerSettings{ServerURL: tc.serverURL},
+			}
+			require.Equal(t, tc.want, appConfig.MDMUrl())
+		})
+	}
+}
