@@ -442,8 +442,8 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 		  VALUES
 		    (?, ?, ?, ?, ?, ?,
 			 (SELECT filename FROM software_installers WHERE id = ?),
+			 (SELECT "version" FROM software_installers WHERE id = ?),
 		     (SELECT title_id FROM software installers WHERE id = ?),
-			 (SELECT version FROM software installers WHERE id = ?),
 		     (SELECT st.name FROM software_titles st JOIN software_installers si ON si.title_id = st.id AND si.id = ?)
 		     )
 		    `
@@ -523,10 +523,10 @@ func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executi
 		  INSERT INTO host_software_installs
 		    (execution_id, host_id, software_installer_id, user_id, uninstall, installer_filename, software_title_id, software_title_name, version)
 		  VALUES
-		    (?, ?, ?, ?, 1, "",
+		    (?, ?, ?, ?, 1, '',
 		     (SELECT title_id FROM software installers WHERE id = ?),
 		     (SELECT st.name FROM software_titles st JOIN software_installers si ON si.title_id = st.id AND si.id = ?),
-		     "unknown"
+		     'unknown'
 		     )
 		    `
 		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
@@ -567,7 +567,7 @@ SELECT
 	hsi.install_script_output,
 	hsi.host_id AS host_id,
 	COALESCE(st.name, hsi.software_title_name) AS software_title,
-	hsi.title_id AS software_title_id,
+	hsi.software_title_id,
 	COALESCE(hsi.status, '') AS status,
 	hsi.installer_filename AS software_package,
 	hsi.user_id AS user_id,
@@ -580,7 +580,7 @@ SELECT
 	hsi.updated_at as updated_at
 FROM
 	host_software_installs hsi
-	LEFT JOIN software_titles st ON hsi.title_id = st.id
+	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
 WHERE
 	hsi.execution_id = :execution_id
 	`)
