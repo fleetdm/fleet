@@ -1,7 +1,7 @@
 .software-app-store-vpp {
 
-  &__error {
-    margin-top: $pad-xxlarge;
+  &__premium-message, &__error {
+    margin-top: $pad-xxxlarge;
   }
 
   &__content {

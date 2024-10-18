@@ -544,6 +544,7 @@ module.exports.routes = {
   'GET /sign-in-to/microsoft-automatic-enrollment-tool': 'https://portal.azure.com',
   'GET /learn-more-about/custom-os-settings': '/docs/using-fleet/mdm-custom-os-settings',
   'GET /learn-more-about/ndes': 'https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview', // TODO: Confirm URL
+  'GET /learn-more-about/idp-email': 'https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping',
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
   'GET /learn-more-about/setup-assistant': '/docs/using-fleet/mdm-macos-setup-experience#macos-setup-assistant',
   'GET /learn-more-about/policy-automations': '/docs/using-fleet/automations',
@@ -557,7 +558,7 @@ module.exports.routes = {
   'GET /learn-more-about/rotating-enroll-secrets': 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/fleetctl-apply.md#rotating-enroll-secrets',
   'GET /learn-more-about/audit-logs': '/docs/using-fleet/audit-logs',
   'GET /learn-more-about/calendar-events': '/announcements/fleet-in-your-calendar-introducing-maintenance-windows',
-  'GET /learn-more-about/setup-windows-mdm': '/docs/using-fleet/mdm-setup',
+  'GET /learn-more-about/setup-windows-mdm': '/guides/windows-mdm-setup',
   'GET /learn-more-about/setup-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
   'GET /learn-more-about/renew-apns': '/docs/using-fleet/mdm-setup#apple-push-notification-service-apns',
   'GET /learn-more-about/renew-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
@@ -579,7 +580,9 @@ module.exports.routes = {
   'GET /learn-more-about/uninstall-scripts': '/guides/deploy-software-packages#uninstall-script',
   'GET /learn-more-about/read-package-version': '/guides/deploy-software-packages#add-a-software-package-to-a-team',
   'GET /learn-more-about/fleetctl': '/guides/fleetctl',
-
+  'GET /feature-request': 'https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~feature+fest%2C%3Aproduct&projects=&template=feature-request.md&title=',
+  'GET /learn-more-about/policy-automation-run-script': '/guides/policy-automation-run-script',
+  'GET /learn-more-about/installing-fleetctl': '/guides/fleetctl#installing-fleetctl',
 
   // Sitemap
   // =============================================================================================================

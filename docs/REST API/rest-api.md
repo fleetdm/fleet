@@ -2406,7 +2406,7 @@ the `software` table.
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
-| populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. |
+| populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. (Note that software lists can be large, so this may cause significant CPU and RAM usage depending on page size and request concurrency.) |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host. |
 
 > `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
@@ -2755,6 +2755,12 @@ Returns the count of all hosts organized by status. `online_count` includes all 
       "id": 14,
       "name": "iPadOS",
       "description": "All iPadOS hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 15,
+      "name": "Fedora Linux",
+      "description": "All Fedora hosts",
       "label_type": "builtin"
     }
   ],
@@ -6879,7 +6885,11 @@ Team policies work the same as policies, but at the team level.
       "passing_host_count": 2300,
       "failing_host_count": 0,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "calendar_events_enabled": false
+      "calendar_events_enabled": false,
+      "run_script": {
+        "name": "Encrypt Windows disk with BitLocker",
+        "id": 234
+      }
     },
     {
       "id": 3,
@@ -7062,7 +7072,15 @@ Team policies work the same as policies, but at the team level.
     "passing_host_count": 0,
     "failing_host_count": 0,
     "host_count_updated_at": null,
-    "calendar_events_enabled": true
+    "calendar_events_enabled": true,
+    "install_software": {
+      "name": "Adobe Acrobat.app",
+      "software_title_id": 1234
+    },
+    "run_script": {
+      "name": "Enable gatekeeper",
+      "id": 1337
+    }
   }
 }
 ```
@@ -7075,16 +7093,17 @@ The semantics for creating a team policy are the same as for global policies, se
 
 #### Parameters
 
-| Name        | Type    | In   | Description                          |
-| ----------  | ------- | ---- | ------------------------------------ |
-| id         | integer | path | Defines what team ID to operate on.  |
-| name        | string  | body | The policy's name.                    |
-| query       | string  | body | The policy's query in SQL.                    |
-| description | string  | body | The policy's description.             |
-| resolution  | string  | body | The resolution steps for the policy. |
-| platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
-| critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
-| software_title_id  | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. |
+| Name              | Type    | In   | Description                                                                                                                                            |
+|-------------------| ------- | ---- |--------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                | integer | path | Defines what team ID to operate on.                                                                                                                    |
+| name              | string  | body | The policy's name.                                                                                                                                     |
+| query             | string  | body | The policy's query in SQL.                                                                                                                             |
+| description       | string  | body | The policy's description.                                                                                                                              |
+| resolution        | string  | body | The resolution steps for the policy.                                                                                                                   |
+| platform          | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
+| critical          | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact.                                                                                     |
+| software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails.                                                                     |
+| script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
 
 Either `query` or `query_id` must be provided.
 
@@ -7132,6 +7151,10 @@ Either `query` or `query_id` must be provided.
     "install_software": {
       "name": "Adobe Acrobat.app",
       "software_title_id": 1234
+    },
+    "run_script": {
+      "name": "Enable gatekeeper",
+      "id": 1337
     }
   }
 }
@@ -7176,18 +7199,19 @@ Either `query` or `query_id` must be provided.
 
 #### Parameters
 
-| Name        | Type    | In   | Description                          |
-| ----------  | ------- | ---- | ------------------------------------ |
-| team_id     | integer | path | The team's ID.                       |
-| policy_id   | integer | path | The policy's ID.                     |
-| name        | string  | body | The query's name.                    |
-| query       | string  | body | The query in SQL.                    |
-| description | string  | body | The query's description.             |
-| resolution  | string  | body | The resolution steps for the policy. |
-| platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
-| critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
-| calendar_events_enabled    | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing. |
-| software_title_id  | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. |
+| Name                    | Type    | In   | Description                                                                                                                                             |
+|-------------------------| ------- | ---- |---------------------------------------------------------------------------------------------------------------------------------------------------------|
+| team_id                 | integer | path | The team's ID.                                                                                                                                          |
+| policy_id               | integer | path | The policy's ID.                                                                                                                                        |
+| name                    | string  | body | The query's name.                                                                                                                                       |
+| query                   | string  | body | The query in SQL.                                                                                                                                       |
+| description             | string  | body | The query's description.                                                                                                                                |
+| resolution              | string  | body | The resolution steps for the policy.                                                                                                                    |
+| platform                | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
+| critical                | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact.                                                                                      |
+| calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
+| software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `0` to remove the automation.                                   |
+| script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `0` to remove the automation.                                               |
 
 #### Example
 
@@ -7202,7 +7226,8 @@ Either `query` or `query_id` must be provided.
   "description": "Checks if gatekeeper is enabled on macOS devices",
   "critical": true,
   "resolution": "Resolution steps",
-  "platform": "darwin"
+  "platform": "darwin",
+  "script_id": 1337
 }
 ```
 
@@ -7233,6 +7258,10 @@ Either `query` or `query_id` must be provided.
     "install_software": {
       "name": "Adobe Acrobat.app",
       "software_title_id": 1234
+    },
+    "run_script": {
+      "name": "Enable gatekeeper",
+      "id": 1337
     }
   }
 }
@@ -8346,6 +8375,8 @@ The script will be added to the host's list of upcoming activities.
 
 The new script will run after other activities finish. Failure of one activity won't cancel other activities.
 
+By default, script runs time out after 5 minutes. You can modify this default in your [agent configuration](https://fleetdm.com/docs/configuration/agent-configuration#script-execution-timeout).
+
 `POST /api/v1/fleet/scripts/run`
 
 #### Parameters
@@ -8644,7 +8675,9 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Modify package](#modify-package)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
-- [Add Fleet library app](#add-fleet-library-app)
+- [List Fleet-maintained apps](#list-fleet-maintained-apps)
+- [Get Fleet-maintained app](#get-fleet-maintained-app)
+- [Add Fleet-maintained app](#add-fleet-maintained-app)
 - [Install package or App Store app](#install-package-or-app-store-app)
 - [Get package install result](#get-package-install-result)
 - [Download package](#download-package)
@@ -9168,7 +9201,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 _Available in Fleet Premium._
 
-Add a package (.pkg, .msi, .exe, .deb) to install on macOS, Windows, or Linux (Ubuntu) hosts.
+Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Linux hosts.
 
 
 `POST /api/v1/fleet/software/package`
@@ -9177,7 +9210,7 @@ Add a package (.pkg, .msi, .exe, .deb) to install on macOS, Windows, or Linux (U
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | form | **Required**. Installer package file. Supported packages are PKG, MSI, EXE, and DEB.   |
+| software        | file    | form | **Required**. Installer package file. Supported packages are PKG, MSI, EXE, DEB, and RPM.   |
 | team_id         | integer | form | **Required**. The team ID. Adds a software package to the specified team. |
 | install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs [default install script](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
@@ -9238,7 +9271,7 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | form | Installer package file. Supported packages are PKG, MSI, EXE, and DEB.   |
+| software        | file    | form | Installer package file. Supported packages are PKG, MSI, EXE, DEB, and RPM.   |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
@@ -9378,7 +9411,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 
 #### Example
 
-`POST /api/v1/fleet/software/app_store_apps?team_id=3`
+`POST /api/v1/fleet/software/app_store_apps`
 
 ##### Request body
 
@@ -9395,13 +9428,173 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 
 `Status: 200`
 
+### List Fleet-maintained apps
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+List available Fleet-maintained apps.
+
+`GET /api/v1/fleet/software/fleet_maintained_apps`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| team_id       | integer | query | **Required**. The team ID. Filters Fleet-maintained apps to only include apps available for the specified team.  |
+| page            | integer | query | Page number of the results to fetch.  |
+| per_page        | integer | query | Results per page.  |
+
+#### Example
+
+`GET /api/v1/fleet/software/fleet_maintained_apps?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "fleet_maintained_apps": [
+    {
+      "id": 1,
+      "name": "1Password",
+      "version": "8.10.40",
+      "platform": "darwin"
+    },
+    {
+      "id": 2,
+      "name": "Adobe Acrobat Reader",
+      "version": "24.002.21005",
+      "platform": "darwin"
+    },
+    {
+      "id": 3,
+      "name": "Box Drive",
+      "version": "2.39.179",
+      "platform": "darwin"
+    },
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+### Get Fleet-maintained app
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+Returns information about the specified Fleet-maintained app.
+
+`GET /api/v1/fleet/software/fleet_maintained_apps/:id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The Fleet-maintained app's ID. |
+
+
+#### Example
+
+`GET /api/v1/fleet/software/fleet_maintained_apps/1`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "fleet_maintained_app": {
+    "id": 1,
+    "name": "1Password",
+    "filename": "1Password-8.10.44-aarch64.zip",
+    "version": "8.10.40",
+    "platform": "darwin",
+    "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
+    "uninstall_script": "#!/bin/sh\npkg_ids=$PACKAGE_ID\nfor pkg_id in '${pkg_ids[@]}'...",
+  }
+}
+```
+
+### Add Fleet-maintained app
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+_Available in Fleet Premium._
+
+Add Fleet-maintained app so it's available for install.
+
+`POST /api/v1/fleet/software/fleet_maintained_apps`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| fleet_maintained_app_id   | integer | body | **Required.** The ID of Fleet-maintained app. |
+| team_id       | integer | body | **Required**. The team ID. Adds Fleet-maintained app to the specified team.  |
+| install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs default install command for each Fleet-maintained app. |
+| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
+| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
+| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+
+#### Example
+
+`POST /api/v1/fleet/software/fleet_maintained_apps`
+
+##### Request body
+
+```json
+{
+  "fleet_maintained_app_id": 3,
+  "team_id": 2
+}
+```
+
+##### Default response
+
+`Status: 204`
+
+### Download package
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+`GET /api/v1/fleet/software/titles/:software_title_id/package?alt=media`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| software_title_id   | integer | path | **Required**. The ID of the software title to download software package.|
+| team_id | integer | query | **Required**. The team ID. Downloads a software package added to the specified team. |
+| alt             | integer | query | **Required**. If specified and set to "media", downloads the specified software package. |
+
+#### Example
+
+`GET /api/v1/fleet/software/titles/123/package?alt=media?team_id=2`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
+
 ### Install package or App Store app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
-Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` added to be installed.
+Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` to be installed.
+
+Package installs time out after 1 hour.
 
 `POST /api/v1/fleet/hosts/:id/software/:software_title_id/install`
 

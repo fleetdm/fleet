@@ -64,6 +64,10 @@ export const ScepCertificateContent = ({
     return <PremiumFeatureMessage />;
   }
 
+  if (isLoading) {
+    return <Spinner />;
+  }
+
   if (!config?.mdm.enabled_and_configured) {
     return (
       <TurnOnMdmMessage
@@ -72,10 +76,6 @@ export const ScepCertificateContent = ({
         info="To help your end users connect to Wi-Fi, first turn on Apple MDM."
       />
     );
-  }
-
-  if (isLoading) {
-    return <Spinner />;
   }
 
   // TODO: error UI

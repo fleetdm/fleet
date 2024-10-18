@@ -1371,9 +1371,9 @@ describe("Activity Feed", () => {
     expect(screen.getByText("An end user")).toBeInTheDocument();
   });
 
-  it("renders createdNdesScepProxy activity correctly", () => {
+  it("renders addedNdesScepProxy activity correctly", () => {
     const activity = createMockActivity({
-      type: ActivityType.CreatedNdesScepProxy,
+      type: ActivityType.AddedNdesScepProxy,
     });
     render(<ActivityItem activity={activity} isPremiumTier={false} />);
 

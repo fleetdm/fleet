@@ -331,6 +331,11 @@ const mdmService = {
     const url = `${MDM_COMMANDS_RESULTS}?command_uuid=${command_uuid}`;
     return sendRequest("GET", url);
   },
+
+  downloadManualEnrollmentProfile: (token: string) => {
+    const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
+    return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
+  },
 };
 
 export default mdmService;

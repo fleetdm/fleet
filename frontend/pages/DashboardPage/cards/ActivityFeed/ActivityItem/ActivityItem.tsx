@@ -414,7 +414,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  createdNdesScepProxy: () => {
+  addedNdesScepProxy: () => {
     return (
       <>
         {" "}
@@ -1143,8 +1143,8 @@ const getDetail = (
     case ActivityType.EditedAppleOSProfile: {
       return TAGGED_TEMPLATES.editedAppleOSProfile(activity, isPremiumTier);
     }
-    case ActivityType.CreatedNdesScepProxy: {
-      return TAGGED_TEMPLATES.createdNdesScepProxy();
+    case ActivityType.AddedNdesScepProxy: {
+      return TAGGED_TEMPLATES.addedNdesScepProxy();
     }
     case ActivityType.DeletedNdesScepProxy: {
       return TAGGED_TEMPLATES.deletedNdesScepProxy();

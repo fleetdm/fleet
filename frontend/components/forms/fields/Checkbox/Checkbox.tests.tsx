@@ -32,4 +32,13 @@ describe("Checkbox - component", () => {
 
     expect(onUncheckedComponentChangeSpy).toHaveBeenCalledWith(true);
   });
+
+  it("renders as disabled when disabled prop is true", () => {
+    render(
+      <Checkbox name="test" value={false} disabled>
+        Test checkbox
+      </Checkbox>
+    );
+    expect(screen.getByLabelText("Test checkbox")).toBeDisabled();
+  });
 });

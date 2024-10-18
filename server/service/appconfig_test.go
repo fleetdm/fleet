@@ -1593,6 +1593,7 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 }
 `
 	// First, dry run.
+	appConfig.Integrations.NDESSCEPProxy.Valid = true
 	ac, err = svc.ModifyAppConfig(ctx, []byte(payload), fleet.ApplySpecOptions{DryRun: true})
 	require.NoError(t, err)
 	assert.False(t, ac.Integrations.NDESSCEPProxy.Valid)
@@ -1605,6 +1606,7 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	ds.NewActivityFuncInvoked = false
 
 	// Second, real run.
+	appConfig.Integrations.NDESSCEPProxy.Valid = true
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
 		createdAt time.Time) error {
 		assert.IsType(t, fleet.ActivityDeletedNDESSCEPProxy{}, activity)
@@ -1621,7 +1623,21 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	assert.False(t, validateNDESSCEPURLCalled)
 	assert.False(t, validateNDESSCEPAdminURLCalled)
 	assert.True(t, ds.HardDeleteMDMConfigAssetFuncInvoked)
+	ds.HardDeleteMDMConfigAssetFuncInvoked = false
 	assert.True(t, ds.NewActivityFuncInvoked)
+	ds.NewActivityFuncInvoked = false
+
+	// Deleting again should be a no-op
+	appConfig.Integrations.NDESSCEPProxy.Valid = false
+	ac, err = svc.ModifyAppConfig(ctx, []byte(payload), fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+	assert.False(t, ac.Integrations.NDESSCEPProxy.Valid)
+	assert.False(t, appConfig.Integrations.NDESSCEPProxy.Valid)
+	assert.False(t, validateNDESSCEPURLCalled)
+	assert.False(t, validateNDESSCEPAdminURLCalled)
+	assert.False(t, ds.HardDeleteMDMConfigAssetFuncInvoked)
+	ds.HardDeleteMDMConfigAssetFuncInvoked = false
+	assert.False(t, ds.NewActivityFuncInvoked)
 	ds.NewActivityFuncInvoked = false
 
 	// Cannot configure NDES without private key

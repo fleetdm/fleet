@@ -18,7 +18,9 @@ Install fleetctl with npm (included in Node.js).
 sudo npm install -g fleetctl
 ```
 
-To install fleetctl on Windows or Linux, download the fleectl binary here on [GitHub](https://github.com/fleetdm/fleet/releases).
+To install fleetctl on Windows or Linux, download the fleectl binary from [GitHub](https://github.com/fleetdm/fleet/releases).
+
+> To generate `fleetd` packages to enroll hosts, you may need [additional dependencies](https://fleetdm.com/guides/enroll-hosts#cli), depending on both your operating system and the OS you're packaging `fleetd` for.
 
 ### Upgrading fleetctl
 

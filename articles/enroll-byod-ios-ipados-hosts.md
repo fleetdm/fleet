@@ -25,6 +25,10 @@ By enrolling BYOD iPhones and iPads in Fleet, IT admins can manage software inst
 
 > Each team has a unique URL that includes the team's enrollment secret. This enrollment secret ensures that devices are assigned to the correct team during enrollment. When an incorrect enroll secret is provided, users can still download the enrollment profile, but the enrollment itself will fail (403 error).
 
+## Profile-based vs. account-driven enrollment
+
+Currently, BYOD enrollment in Fleet requires end users to install a configuration profile on their device. This is called profile-based _device_ enrollment. Apple recently deprecated profile-based _user_ enrollment (not supported in Fleet) in favor of the new account-driven enrollment: enrollment happens when end users add a Managed Apple Account to their device. Account-driven enrollment in Fleet is coming soon.
+
 ## Conclusion
 
 This guide covered how to invite and enroll BYOD iPhones and iPads into Fleet. This allows IT admins to manage software, enforce settings, and ensure compliance with organizational policies. Streamlining the enrollment process will enable you to secure access to company resources while maintaining control over end-user devices.
