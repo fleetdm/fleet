@@ -296,14 +296,14 @@ SELECT
 	sesr.name,
 	sesr.status,
 	sesr.software_installer_id,
-	sesr.host_software_installs_id,
+	sesr.host_software_installs_execution_id,
 	sesr.vpp_app_team_id,
 	sesr.nano_command_uuid,
 	sesr.setup_experience_script_id,
 	sesr.script_execution_id,
 	sesr.error,
-	va.adam_id AS vpp_app_id,
-	va.platform AS vpp_app_platform,
+	NULLIF(va.adam_id, '') AS vpp_app_adam_id,
+	NULLIF(va.platform, '') AS vpp_app_platform,
 	ses.script_content_id,
 	COALESCE(si.title_id, COALESCE(va.title_id, NULL)) AS software_title_id
 FROM setup_experience_status_results sesr
@@ -328,7 +328,7 @@ SET
 	name = ?
 	status = ?
 	software_installer_id = ?
-	host_software_installs_id = ?
+	host_software_installs_execution_id = ?
 	vpp_app_team_id = ?
 	nano_command_uuid = ?
 	setup_experience_script_id = ?
@@ -479,7 +479,7 @@ func (ds *Datastore) GetHostAwaitingConfiguration(ctx context.Context, hostUUID 
 	const stmt = `
 SELECT
 	awaiting_configuration
-FROM host_mdm_apple_awaiting_configuration 
+FROM host_mdm_apple_awaiting_configuration
 WHERE host_uuid = ?
 	`
 	var awaitingConfiguration bool
@@ -518,7 +518,7 @@ func (ds *Datastore) MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, ho
 }
 
 func (ds *Datastore) MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
-	selectStmt := "SELECT id FROM setup_experience_status_results WHERE host_uuid = ? AND host_software_installs_id = ?"
+	selectStmt := "SELECT id FROM setup_experience_status_results WHERE host_uuid = ? AND host_software_installs_execution_id = ?"
 	updateStmt := "UPDATE setup_experience_status_results SET status = ? WHERE id = ?"
 
 	var id uint
