@@ -65,8 +65,9 @@ const SetupExperience = ({
   if (!config?.mdm.enabled_and_configured) {
     return (
       <TurnOnMdmMessage
-        info="Turn on MDM to change setup experience for macOS hosts."
-        buttonText="Turn on Apple MDM"
+        header="Manage setup experience for macOS"
+        info="To install software and run scripts when Macs first boot, first turn on automatic enrollment."
+        buttonText="Turn on"
         router={router}
       />
     );

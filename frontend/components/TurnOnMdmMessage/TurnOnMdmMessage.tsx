@@ -45,6 +45,7 @@ const TurnOnMdmMessage = ({
 
   return (
     <EmptyTable
+      className={baseClass}
       header={header || "Manage your hosts"}
       info={info || "MDM must be turned on to change settings on your hosts."}
       primaryButton={renderConnectButton()}
