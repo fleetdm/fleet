@@ -521,11 +521,12 @@ func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executi
 	const (
 		insertStmt = `
 		  INSERT INTO host_software_installs
-		    (execution_id, host_id, software_installer_id, user_id, uninstall, installer_filename, software_title_id, software_title_name)
+		    (execution_id, host_id, software_installer_id, user_id, uninstall, installer_filename, software_title_id, software_title_name, version)
 		  VALUES
 		    (?, ?, ?, ?, 1, "",
 		     (SELECT title_id FROM software installers WHERE id = ?),
-		     (SELECT st.name FROM software_titles st JOIN software_installers si ON si.title_id = st.id AND si.id = ?)
+		     (SELECT st.name FROM software_titles st JOIN software_installers si ON si.title_id = st.id AND si.id = ?),
+		     "unknown"
 		     )
 		    `
 		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
