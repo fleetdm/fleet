@@ -4927,7 +4927,7 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl2.DeclarationUUID}, nil)
 	require.NoError(t, err)
 	assert.False(t, updates.AppleConfigProfile)
-	assert.True(t, updates.AppleDeclaration)
+	assert.False(t, updates.AppleDeclaration) // This is false because we delete references in `host_mdm_apple_declarations` for declarations that aren't sent to the host
 	assert.False(t, updates.WindowsConfigProfile)
 
 	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, host1.UUID)
@@ -7217,5 +7217,4 @@ func testMDMManagedCertificates(t *testing.T, ds *Datastore) {
 			badProfileUUID)
 	})
 	require.ErrorIs(t, err, sql.ErrNoRows)
-
 }
