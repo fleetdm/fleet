@@ -51,8 +51,8 @@ module.exports = {
       };
       await UndeployedSoftware.create(newSoftwareInfo);
     } else {
+      uploadedSoftware = await sails.uploadOne(newSoftware, {bucket: sails.config.uploads.bucketWithPostfix});
       for(let teamApid of teams) {
-        uploadedSoftware = await sails.uploadOne(newSoftware, {bucket: sails.config.uploads.bucketWithPostfix});
         var WritableStream = require('stream').Writable;
         await sails.cp(uploadedSoftware.fd, {bucket: sails.config.uploads.bucketWithPostfix}, {
           adapter: ()=>{
@@ -88,7 +88,7 @@ module.exports = {
                     doneWithThisFile();
                   })
                   .catch((err)=>{
-                    doneWithThisFile(err);
+                    doneWithThisFile(require('util').inspect(err, {depth:null}));
                   });
                 };//ƒ
                 return receiver__;
