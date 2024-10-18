@@ -286,11 +286,12 @@ will be disabled and/or hidden in the UI.
               }//ﬁ
 
               res.locals.me = sanitizedUser;
-
-              // start tracking a website page view in the CRM for logged-in users:
+              // Create a timestamp of thirty seconds ago. We'll use this to check the age of the user account before creating a fleetwebsite page view record in Salesforce.
+              let thirtySecondsAgoAt = Date.now() - (1000 * 30);
+              // Start tracking a website page view in the CRM for logged-in users:
               res.once('finish', function onceFinish() {
-                // Only track a page view if the requested URL is not a redirect.
-                if(res.statusCode === 200){
+                // Only track a page view if the requested URL is not a redirect and if this user record is over 30 seconds old (To give time for the background task queued by the signup action to create the initial contact record.
+                if(res.statusCode === 200 && sanitizedUser.createdAt < thirtySecondsAgoAt){
                   sails.helpers.flow.build(async ()=>{
                     if(sails.config.environment !== 'production') {
                       sails.log.verbose('Skipping Salesforce integration...');
