@@ -46,10 +46,10 @@ func TestUp_20241017163402(t *testing.T) {
 	    (1, 'Foo.app', 'apps', ''), (2, 'WillBeDeleted.app', 'apps', '');
 
 	  INSERT INTO software_installers
-	    (id, title_id, filename, version, platform, install_script_content_id, storage_id, package_ids, uninstall_script_content_id)
+	    (id, title_id, filename, version, platform, install_script_content_id, storage_id, package_ids, uninstall_script_content_id, uploaded_at)
 	  VALUES
-	    (1, 1, 'foo-installer.pkg', '1.1', 'darwin', 1, 'storage-id', '', 1),
-	    (2, 2, 'to-delete-installer.pkg', '1.2', 'darwin', 1, 'storage-id', '', 1);
+	    (1, 1, 'foo-installer.pkg', '1.1', 'darwin', 1, 'storage-id', '', 1, NOW() + INTERVAL 5 SECOND),
+	    (2, 2, 'to-delete-installer.pkg', '1.2', 'darwin', 1, 'storage-id', '', 1, '2024-09-30 00:00:00');
 	`
 	_, err := db.Exec(dataStmts)
 	require.NoError(t, err)
@@ -59,8 +59,9 @@ func TestUp_20241017163402(t *testing.T) {
 		host_id,
 		execution_id,
 		software_installer_id,
-		install_script_exit_code
-	) VALUES (?, ?, ?, ?)`
+		install_script_exit_code,
+		updated_at
+	) VALUES (?, ?, ?, ?, '2024-10-01 00:00:00')`
 	hsi1 := execNoErrLastID(t, db, hsiStmt, hostID1, "execution-id1", 1, 0)
 	hsi2 := execNoErrLastID(t, db, hsiStmt, hostID1, "execution-id2", 2, 0)
 
@@ -75,31 +76,33 @@ func TestUp_20241017163402(t *testing.T) {
 		InstallerID *uint  `db:"software_installer_id"`
 		TitleID     *uint  `db:"software_title_id"`
 		TitleName   string `db:"software_title_name"`
+		UpdatedAt   string `db:"updated_at"`
 	}{}
 
-	err = db.Get(&result, "SELECT installer_filename, installer_version, software_installer_id, software_title_id, software_title_name FROM host_software_installs WHERE id = ?", hsi1)
+	err = db.Get(&result, "SELECT installer_filename, installer_version, software_installer_id, software_title_id, software_title_name, updated_at FROM host_software_installs WHERE id = ?", hsi1)
 	require.NoError(t, err)
 	require.Equal(t, "foo-installer.pkg", result.Filename)
-	require.Equal(t, "1.1", result.Version)
+	require.Equal(t, "unknown", result.Version)
 	require.Equal(t, uint(1), *result.InstallerID)
 	require.Equal(t, uint(1), *result.TitleID)
 	require.Equal(t, "Foo.app", result.TitleName)
+	require.Equal(t, "2024-10-01T00:00:00Z", result.UpdatedAt)
 
-	err = db.Get(&result, "SELECT installer_filename, installer_version, software_installer_id, software_title_id, software_title_name FROM host_software_installs WHERE id = ?", hsi2)
+	err = db.Get(&result, "SELECT installer_filename, installer_version, software_installer_id, software_title_id, software_title_name, updated_at FROM host_software_installs WHERE id = ?", hsi2)
 	require.NoError(t, err)
 	require.Equal(t, "to-delete-installer.pkg", result.Filename)
 	require.Equal(t, "1.2", result.Version)
 	require.Equal(t, uint(2), *result.InstallerID)
 	require.Nil(t, result.TitleID)
 	require.Equal(t, "[deleted title]", result.TitleName)
+	require.Equal(t, "2024-10-01T00:00:00Z", result.UpdatedAt)
 
 	execNoErr(t, db, `DELETE FROM software_installers WHERE id = 2`) // sets installer ID to null for install 2
 
-	err = db.Get(&result, "SELECT installer_filename, installer_version, software_installer_id, software_title_id, software_title_name FROM host_software_installs WHERE id = ?", hsi2)
+	err = db.Get(&result, "SELECT installer_filename, installer_version, software_installer_id, software_title_id, software_title_name, updated_at FROM host_software_installs WHERE id = ?", hsi2)
 	require.NoError(t, err)
 	require.Equal(t, "to-delete-installer.pkg", result.Filename)
 	require.Equal(t, "1.2", result.Version)
 	require.Nil(t, result.InstallerID)
-
-	// TODO ensure host software installs updated_at doesn't change
+	require.Equal(t, "2024-10-01T00:00:00Z", result.UpdatedAt)
 }

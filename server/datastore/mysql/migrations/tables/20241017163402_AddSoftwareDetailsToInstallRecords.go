@@ -60,8 +60,8 @@ SET
     i.software_title_id = st.id,
     i.software_title_name = COALESCE(st.name, "[deleted title]"),
     i.installer_filename = si.filename,
-    i.installer_version = si.version,
-    updated_at = updated_at
+    i.installer_version = IF(i.created_at >= si.uploaded_at, si.version, "unknown"),
+    i.updated_at = i.updated_at
 `) // only one left join because prior to this migration software_installer_id wasn't nullable on host_software_installs
 	if err != nil {
 		return fmt.Errorf("failed to propagate software title and installer information into host_software_installs: %w", err)
