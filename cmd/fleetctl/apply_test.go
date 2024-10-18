@@ -2182,6 +2182,7 @@ func TestApplyMacosSetup(t *testing.T) {
 		"await_device_configured": true,
 	})
 
+	// TODO(mna): add tests with script and software (esp. the round-trip with get and apply)
 	const (
 		appConfigSpec = `
 apiVersion: v1
