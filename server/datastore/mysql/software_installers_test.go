@@ -32,7 +32,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"BatchSetSoftwareInstallers", testBatchSetSoftwareInstallers},
 		{"GetSoftwareInstallerMetadataByTeamAndTitleID", testGetSoftwareInstallerMetadataByTeamAndTitleID},
 		{"HasSelfServiceSoftwareInstallers", testHasSelfServiceSoftwareInstallers},
-		{"DeleteSoftwareInstallersAssignedToPolicy", testDeleteSoftwareInstallersAssignedToPolicy},
+		{"DeleteSoftwareInstallers", testDeleteSoftwareInstallers},
 		{"GetHostLastInstallData", testGetHostLastInstallData},
 		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
 	}
@@ -735,6 +735,41 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		{Name: ins1, Source: "apps", Browser: ""},
 	})
 
+	// mark ins0 as install_during_setup
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, ` UPDATE software_installers SET install_during_setup = 1 WHERE title_id = ?`, *softwareInstallers[0].TitleID)
+		return err
+	})
+
+	// remove ins0 fails due to install_during_setup
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:     "install",
+			PostInstallScript: "post-install",
+			InstallerFile:     ins1File,
+			StorageID:         ins1,
+			Filename:          ins1,
+			Title:             ins1,
+			Source:            "apps",
+			Version:           "2",
+			PreInstallQuery:   "select 1 from bar;",
+			UserID:            user1.ID,
+		},
+	})
+	require.Error(t, err)
+	require.ErrorIs(t, err, errDeleteInstallerInstalledDuringSetup)
+
+	// remove everything fails due to ins0 install_during_setup
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
+	require.Error(t, err)
+	require.ErrorIs(t, err, errDeleteInstallerInstalledDuringSetup)
+
+	// mark ins0 as NOT install_during_setup
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, ` UPDATE software_installers SET install_during_setup = 0 WHERE title_id = ?`, *softwareInstallers[0].TitleID)
+		return err
+	})
+
 	// remove ins0
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
@@ -926,7 +961,7 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	assert.True(t, hasSelfService)
 }
 
-func testDeleteSoftwareInstallersAssignedToPolicy(t *testing.T, ds *Datastore) {
+func testDeleteSoftwareInstallers(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	dir := t.TempDir()
@@ -971,8 +1006,29 @@ func testDeleteSoftwareInstallersAssignedToPolicy(t *testing.T, ds *Datastore) {
 	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{p1.ID})
 	require.NoError(t, err)
 
+	// mark the installer as "installed during setup", which prevents deletion
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET install_during_setup = 1 WHERE id = ?`, softwareInstallerID)
+		return err
+	})
+
+	err = ds.DeleteSoftwareInstaller(ctx, softwareInstallerID)
+	require.Error(t, err)
+	require.ErrorIs(t, err, errDeleteInstallerInstalledDuringSetup)
+
+	// clear "installed during setup", which allows deletion
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET install_during_setup = 0 WHERE id = ?`, softwareInstallerID)
+		return err
+	})
+
 	err = ds.DeleteSoftwareInstaller(ctx, softwareInstallerID)
 	require.NoError(t, err)
+
+	// deleting again returns an error, no such installer
+	err = ds.DeleteSoftwareInstaller(ctx, softwareInstallerID)
+	var nfe *notFoundError
+	require.ErrorAs(t, err, &nfe)
 }
 
 func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
