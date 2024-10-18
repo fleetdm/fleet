@@ -336,6 +336,10 @@ SET
 	error = ?
 WHERE id = ?
 `
+	if err := status.IsValid(); err != nil {
+		return ctxerr.Wrap(ctx, err, "invalid status update")
+	}
+
 	if _, err := ds.writer(ctx).ExecContext(
 		ctx,
 		stmt,
