@@ -168,6 +168,13 @@ func (s *SwiftDialog) Wait() (*SwiftDialogExit, error) {
 	}, s.exitErr
 }
 
+func (s *SwiftDialog) Closed() bool {
+	if err := s.context.Err(); err != nil {
+		return true
+	}
+	return false
+}
+
 func (s *SwiftDialog) sendCommand(command, arg string) error {
 	if err := s.context.Err(); err != nil {
 		return fmt.Errorf("could not send command: %w", context.Cause(s.context))
