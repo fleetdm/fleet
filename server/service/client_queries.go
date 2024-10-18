@@ -54,8 +54,8 @@ func (c *Client) DeleteQuery(name string) error {
 }
 
 // DeleteQueries deletes several queries.
-func (c *Client) DeleteQueries(IDs []uint) error {
-	req := deleteQueriesRequest{IDs: IDs}
+func (c *Client) DeleteQueries(ids []uint) error {
+	req := deleteQueriesRequest{IDs: ids}
 	verb, path := "POST", "/api/latest/fleet/queries/delete"
 	var responseBody deleteQueriesResponse
 	return c.authenticatedRequest(req, verb, path, &responseBody)

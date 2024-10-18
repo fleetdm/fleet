@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -181,7 +180,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 			return "null"
 		}
 
-		return strconv.Itoa(int(*tmID))
+		return fmt.Sprint(*tmID)
 	}
 
 	tmIDs := []*uint{nil, ptr.Uint(tm1.ID), ptr.Uint(tm2.ID)}

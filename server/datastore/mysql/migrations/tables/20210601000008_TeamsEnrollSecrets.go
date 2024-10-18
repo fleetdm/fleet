@@ -32,10 +32,10 @@ func Up_20210601000008(tx *sql.Tx) error {
 
 	// ********* TEST ONLY BEGIN *********
 	// This will make an enroll secrets test fail because it should end up with one unexpected secret
-	//if _, err := tx.Exec(
+	// if _, err := tx.Exec(
 	//	`INSERT INTO enroll_secrets (secret, name) VALUES ('aaaa', '1'), ('aaaa', '2'), ('aaaa', '3')`); err != nil {
 	//	return errors.Wrap(err, "add red hat label")
-	//}
+	// }
 	// ********* TEST ONLY ENDS  *********
 
 	//nolint

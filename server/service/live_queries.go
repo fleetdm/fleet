@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -181,7 +180,7 @@ func runLiveQueryOnHost(svc fleet.Service, ctx context.Context, host *fleet.Host
 
 	if len(queryResults) > 0 {
 		var err error
-		if queryResults[0].Err != nil {
+		if queryResults[0].Err != nil { //nolint:gocritic // ignore ifelseChain
 			err = queryResults[0].Err
 		} else if len(queryResults[0].Results) > 0 {
 			queryResult := queryResults[0].Results[0]
@@ -404,7 +403,7 @@ func (svc *Service) CompleteCampaign(ctx context.Context, campaign *fleet.Distri
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "saving distributed campaign after complete")
 	}
-	err = svc.liveQueryStore.StopQuery(strconv.Itoa(int(campaign.ID)))
+	err = svc.liveQueryStore.StopQuery(fmt.Sprint(campaign.ID))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "stopping query after after complete")
 	}

@@ -141,13 +141,14 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	teamRaw, teamOk := top["name"]
 	teamSettingsRaw, teamSettingsOk := top["team_settings"]
 	orgSettingsRaw, orgOk := top["org_settings"]
-	if orgOk {
+	switch {
+	case orgOk:
 		if teamOk || teamSettingsOk {
 			multiError = multierror.Append(multiError, errors.New("'org_settings' cannot be used with 'name', 'team_settings'"))
 		} else {
 			multiError = parseOrgSettings(orgSettingsRaw, result, baseDir, multiError)
 		}
-	} else if teamOk {
+	case teamOk:
 		multiError = parseName(teamRaw, result, multiError)
 		if result.IsNoTeam() {
 			if teamSettingsOk {
@@ -163,7 +164,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 				multiError = parseTeamSettings(teamSettingsRaw, result, baseDir, multiError)
 			}
 		}
-	} else {
+	default:
 		multiError = multierror.Append(multiError, errors.New("either 'org_settings' or 'name' and 'team_settings' is required"))
 	}
 

@@ -292,15 +292,16 @@ func downloadComponents(workflowName string, headBranch string, artifactNames ma
 		}
 		urls = make(map[string]string)
 		for _, artifact := range artifactList.Artifacts {
-			if *artifact.Name == artifactNames["linux"] {
+			switch {
+			case *artifact.Name == artifactNames["linux"]:
 				urls["linux"] = *artifact.ArchiveDownloadURL
-			} else if *artifact.Name == artifactNames["linux-arm64"] {
+			case *artifact.Name == artifactNames["linux-arm64"]:
 				urls["linux-arm64"] = *artifact.ArchiveDownloadURL
-			} else if *artifact.Name == artifactNames["macos"] {
+			case *artifact.Name == artifactNames["macos"]:
 				urls["macos"] = *artifact.ArchiveDownloadURL
-			} else if *artifact.Name == artifactNames["windows"] {
+			case *artifact.Name == artifactNames["windows"]:
 				urls["windows"] = *artifact.ArchiveDownloadURL
-			} else {
+			default:
 				fmt.Printf("skipping artifact name: %q\n", *artifact.Name)
 			}
 		}

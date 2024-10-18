@@ -313,11 +313,11 @@ Fleet records the last 10,000 characters to prevent downtime.
 		},
 		// TODO: this would take 5 minutes to run, we don't want that kind of slowdown in our test suite
 		// but can be useful to have around for manual testing.
-		//{
+		// {
 		//	name:         "host timeout",
 		//	scriptPath:   generateValidPath,
 		//	expectErrMsg: fleet.RunScriptHostTimeoutErrMsg,
-		//},
+		// },
 		{name: "disabled scripts globally", scriptPath: generateValidPath, expectErrMsg: fleet.RunScriptScriptsDisabledGloballyErrMsg},
 	}
 

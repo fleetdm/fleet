@@ -136,7 +136,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	if len(queryIDs) > 0 {
 		count, err := ts.ds.DeleteQueries(ctx, queryIDs)
 		require.NoError(t, err)
-		require.Equal(t, len(queries), int(count))
+		require.EqualValues(t, len(queries), count)
 	}
 
 	users, err := ts.ds.ListUsers(ctx, fleet.UserListOptions{})
