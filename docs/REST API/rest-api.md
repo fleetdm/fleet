@@ -8882,7 +8882,7 @@ Get a list of all software.
         "name": "FirefoxInsall.pkg",
         "version": "125.6",
         "self_service": true,
-	      "automatic_install": true,
+	"automatic_install": true,
         "fleet_maintained": false
       },
       "app_store_app": null,
