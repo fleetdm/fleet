@@ -73,7 +73,9 @@ To deliver on this mission, we need a clear, repeatable process for turning an i
 > Learn more about Fleet's philosophy and process for making interface changes to the product, and [why we use a wireframe-first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
 
 To make a change to Fleet:
-- First, [get it prioritized](https://fleetdm.com/handbook/product-design).
+- First, [write it down](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~feature+fest%2C%3Aproduct&projects=&template=feature-request.md&title=)
+- Then, it will be looked at by our Head of Product Design and a former Fleet buyer to [unpack the "why"](https://fleetdm.com/handbook/product-design#inbox-review)
+- Then, it will be [prioritized](https://fleetdm.com/handbook/product-design) and written up as one or more user stories.
 - Then, it will be [drafted](https://fleetdm.com/handbook/company/product-groups#drafting) (planned).
 - Next, it will be [implemented](https://fleetdm.com/handbook/company/product-groups#implementing) and [released](https://fleetdm.com/handbook/engineering#release-process).
 
