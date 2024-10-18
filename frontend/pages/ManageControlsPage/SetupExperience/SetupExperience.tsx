@@ -39,7 +39,7 @@ const SetupEmptyState = ({ router }: ISetupEmptyState) => {
 interface ISetupExperienceProps {
   params: Params;
   location: { search: string };
-  router: any;
+  router: InjectedRouter;
   teamIdForApi: number;
 }
 
@@ -63,7 +63,13 @@ const SetupExperience = ({
 
   // MDM is not on so show messaging for user to enable it.
   if (!config?.mdm.enabled_and_configured) {
-    return <TurnOnMdmMessage router={router} />;
+    return (
+      <TurnOnMdmMessage
+        info="Turn on MDM to change setup experience for macOS hosts."
+        buttonText="Turn on Apple MDM"
+        router={router}
+      />
+    );
   }
   // User has not set up Apple Business Manager.
   if (!config?.mdm.apple_bm_enabled_and_configured) {
