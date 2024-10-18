@@ -673,13 +673,13 @@ func (u *Updater) initializeDirectories() error {
 }
 
 func CanRun(rootDirPath, targetName string, targetInfo TargetInfo) bool {
-	_, swiftDialogPath, _ := LocalTargetPaths(
+	_, binaryPath, _ := LocalTargetPaths(
 		rootDirPath,
 		targetName,
 		targetInfo,
 	)
 
-	if _, err := os.Stat(swiftDialogPath); err != nil {
+	if _, err := os.Stat(binaryPath); err != nil {
 		return false
 	}
 
