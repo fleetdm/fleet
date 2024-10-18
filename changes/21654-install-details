@@ -1,0 +1,14 @@
+* Ensure details for a software installation run are available and accurate even after the corresponding installer has been edited or deleted
+
+NOTE: The database migration included with this feature does _not_ use activity data to backfill existing installs, due to the lack of indexes on that table.
+
+To backfill install data from activities (which will be more comprehensive and accurate than the migration default, which only populates from installers), run this database query:
+
+```sql
+UPDATE host_software_installs i
+JOIN activities a ON a.activity_type = 'installed_software'
+	AND i.execution_id = a.details->>"$.install_uuid"
+SET i.software_title_name = COALESCE(a.details->>"$.software_title", i.software_title_name),
+	i.installer_filename = COALESCE(a.details->>"$.software_package", i.installer_filename),
+	i.updated_at = i.updated_at
+```
