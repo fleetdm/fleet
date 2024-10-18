@@ -10,15 +10,21 @@ Fleet supports the [latest version of osquery](https://github.com/osquery/osquer
 
 ## CLI
 
-> You must have `fleetctl` installed. [Learn how to install `fleetctl`](https://fleetdm.com/docs/using-fleet/fleetctl-cli#installing-fleetctl).
+> You must have `fleetctl` installed. [Learn how to install `fleetctl`](https://fleetdm.com/guides/fleetctl#installing-fleetctl).
 
 The `fleetctl package` command is used to generate Fleet's agent (fleetd) install package..
 
-The `--type` flag is used to specify the fleetd installer type. Note that Windows can only generate an MSI package:
+The `--type` flag is used to specify the fleetd installer type.
+
 - macOS: .pkg
+  - Generating a .pkg on Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running.
 - Windows: .msi
+  - Generating a .msi on Windows, Intel Macs, or Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running. On Windows, you can [use WiX without Docker instead](https://fleetdm.com/guides/enroll-hosts#generating-fleetd-for-windows-using-local-wix-toolset).
+  - Generating a .msi on Apple Silicon Macs requires [Wine](https://fleetdm.com/install-wine) to be installed.
 - Linux: .deb or .rpm
-  
+
+> `fleetctl` on Windows can only generate MSI packages.
+
 A `--fleet-url` (Fleet instance URL) and `--enroll-secret` (Fleet enrollment secret) must be specified in order to communicate with Fleet instance.
 
 #### Example
