@@ -128,22 +128,10 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 	var installersRunning, appsRunning, scriptsRunning int
 
 	for _, status := range statuses {
-		var colsSet uint
-		if status.SoftwareInstallerID != nil {
-			colsSet++
+		if err := status.IsValid(); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "invalid row")
 		}
-		if status.VPPAppTeamID != nil {
-			colsSet++
-		}
-		if status.SetupExperienceScriptID != nil {
-			colsSet++
-		}
-		if colsSet > 1 {
-			return false, ctxerr.Errorf(ctx, "invalid setup experience status row, multiple underlying value columns set: %d", status.ID)
-		}
-		if colsSet == 0 {
-			return false, ctxerr.Errorf(ctx, "invalid setup experience status row, no underlying value colunm set: %d", status.ID)
-		}
+
 		switch {
 		case status.SoftwareInstallerID != nil:
 			switch status.Status {

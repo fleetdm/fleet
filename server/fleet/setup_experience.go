@@ -1,6 +1,9 @@
 package fleet
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 type SetupExperienceStatusResultStatus string
 
@@ -49,6 +52,37 @@ type SetupExperienceStatusResult struct {
 	Error                           *string                           `db:"error" json:"-" `
 	// SoftwareTitleID must be filled through a JOIN
 	SoftwareTitleID *uint `json:"software_title_id,omitempty" db:"software_title_id"`
+}
+
+func (s *SetupExperienceStatusResult) IsValid() error {
+	var colsSet uint
+	if s.SoftwareInstallerID != nil {
+		colsSet++
+		if s.NanoCommandUUID != nil || s.ScriptExecutionID != nil {
+			return fmt.Errorf("invalid setup experience staus row, software_installer_id set with incorrect secondary value column: %d", s.ID)
+		}
+	}
+	if s.VPPAppTeamID != nil {
+		colsSet++
+		if s.HostSoftwareInstallsExecutionID != nil || s.ScriptExecutionID != nil {
+			return fmt.Errorf("invalid setup experience staus row, vpp_app_team set with incorrect secondary value column: %d", s.ID)
+		}
+	}
+	if s.SetupExperienceScriptID != nil {
+		colsSet++
+		if s.HostSoftwareInstallsExecutionID != nil || s.NanoCommandUUID != nil {
+			return fmt.Errorf("invalid setup experience staus row, setip_experience_script_id set with incorrect secondary value column: %d", s.ID)
+		}
+	}
+	if colsSet > 1 {
+		return fmt.Errorf("invalid setup experience status row, multiple underlying value columns set: %d", s.ID)
+	}
+	if colsSet == 0 {
+		return fmt.Errorf("invalid setup experience status row, no underlying value colunm set: %d", s.ID)
+	}
+
+	return nil
+
 }
 
 func (s *SetupExperienceStatusResult) VPPAppID() (*VPPAppID, error) {

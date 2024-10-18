@@ -324,15 +324,15 @@ func (ds *Datastore) UpdateSetupExperienceStatusResult(ctx context.Context, stat
 	const stmt = `
 UPDATE setup_experience_status_results
 SET
-	host_uuid = ?
-	name = ?
-	status = ?
-	software_installer_id = ?
-	host_software_installs_execution_id = ?
-	vpp_app_team_id = ?
-	nano_command_uuid = ?
-	setup_experience_script_id = ?
-	script_execution_id = ?
+	host_uuid = ?,
+	name = ?,
+	status = ?,
+	software_installer_id = ?,
+	host_software_installs_execution_id = ?,
+	vpp_app_team_id = ?,
+	nano_command_uuid = ?,
+	setup_experience_script_id = ?,
+	script_execution_id = ?,
 	error = ?
 WHERE id = ?
 `
