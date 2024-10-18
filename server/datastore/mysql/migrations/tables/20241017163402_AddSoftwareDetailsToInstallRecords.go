@@ -15,9 +15,9 @@ func Up_20241017163402(tx *sql.Tx) error {
 		return fmt.Errorf("failed to create installer_filename column on host_software_installs table: %w", err)
 	}
 
-	_, err = tx.Exec("ALTER TABLE host_software_installs ADD COLUMN installer_version VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'unknown'")
+	_, err = tx.Exec("ALTER TABLE host_software_installs ADD COLUMN version VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'unknown'")
 	if err != nil {
-		return fmt.Errorf("failed to create installer_version column on host_software_installs table: %w", err)
+		return fmt.Errorf("failed to create version column on host_software_installs table: %w", err)
 	}
 
 	_, err = tx.Exec("ALTER TABLE host_software_installs ADD COLUMN software_title_id INT UNSIGNED DEFAULT NULL")
@@ -59,8 +59,8 @@ LEFT JOIN software_titles st ON st.id = si.title_id
 SET
     i.software_title_id = st.id,
     i.software_title_name = COALESCE(st.name, "[deleted title]"),
-    i.installer_filename = si.filename,
-    i.installer_version = IF(i.created_at >= si.uploaded_at, si.version, "unknown"),
+    i.installer_filename = IF(i.uninstall, "", si.filename),
+    i.version = IF(i.uninstall = 0 AND i.created_at >= si.uploaded_at, si.version, "unknown"),
     i.updated_at = i.updated_at
 `) // only one left join because prior to this migration software_installer_id wasn't nullable on host_software_installs
 	if err != nil {

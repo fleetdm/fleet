@@ -438,11 +438,12 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 	const (
 		insertStmt = `
 		  INSERT INTO host_software_installs
-		    (execution_id, host_id, software_installer_id, user_id, self_service, policy_id, installer_filename, software_title_id, software_title_name)
+		    (execution_id, host_id, software_installer_id, user_id, self_service, policy_id, installer_filename, version, software_title_id, software_title_name)
 		  VALUES
 		    (?, ?, ?, ?, ?, ?,
 			 SELECT filename FROM software_installers WHERE id = ?,
 		     SELECT title_id FROM software installers WHERE id = ?,
+			 SELECT version FROM software installers WHERE id = ?,
 		     SELECT st.name FROM software_titles JOIN software_installers si ON si.title_id = st.id AND si.id = ?
 		     )
 		    `
@@ -521,8 +522,7 @@ func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executi
 		  INSERT INTO host_software_installs
 		    (execution_id, host_id, software_installer_id, user_id, uninstall, installer_filename, software_title_id, software_title_name)
 		  VALUES
-		    (?, ?, ?, ?, 1,
-		     SELECT filename FROM software_installers WHERE id = ?,
+		    (?, ?, ?, ?, 1, "",
 		     SELECT title_id FROM software installers WHERE id = ?,
 		     SELECT st.name FROM software_titles JOIN software_installers si ON si.title_id = st.id AND si.id = ?
 		     )
@@ -549,7 +549,6 @@ func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executi
 		hostID,
 		softwareInstallerID,
 		userID,
-		softwareInstallerID,
 		softwareInstallerID,
 		softwareInstallerID,
 	)
