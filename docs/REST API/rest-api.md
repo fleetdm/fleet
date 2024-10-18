@@ -9153,7 +9153,6 @@ Returns information about the specified software. By default, `versions` are sor
       "uninstall_script": "/Library/CS/falconctl uninstall",
       "self_service": true,
       "automatic_install_policy_id": 343, 
-      "fleet_maintained": true,
       "status": {
         "installed": 3,
         "pending_install": 1,
