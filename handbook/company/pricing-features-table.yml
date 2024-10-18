@@ -26,7 +26,7 @@
 #  ║║║╠═╣║║║╠═╣║ ╦║╣  ║║  ║  ║  ║ ║║ ║ ║║
 #  ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝═╩╝  ╚═╝╩═╝╚═╝╚═╝═╩╝
 - industryName: Managed cloud
-  description: Have Fleet host it for you (currently only available for customers with 700+ hosts.  PS. Wish we could host for you?  We're working on it!  Please let us know if you know of a good partner.  In the meantime, join fleetdm.com/support and we're happy to help you deploy Fleet yourself.)
+  description: Have Fleet host it for you (currently only available for customers with 300+ hosts.  PS. Wish we could host for you?  We're working on it!  Please let us know if you know of a good partner.  In the meantime, join fleetdm.com/support and we're happy to help you deploy Fleet yourself.)
   pricingTableCategories: [Deployment]
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   tier: Premium
@@ -149,12 +149,12 @@
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/5478
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Configuration]
-  usualDepartment: IT
-  tier: Free
+  usualDepartment: Security
+  tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
   waysToUse:
-    - description: Enforce two-factor authentication when logging in to Fleet for added security.
+    - description: Enforce email two-factor authentication (2FA) when logging in to Fleet for added security.
   comingSoonOn: 2024-12-31 #customer-rosner
 #  
 #  ╦═╗╔═╗╦  ╔═╗  ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ╔═╗╔═╗╔╗╔╔╦╗╦═╗╔═╗╦  
@@ -558,7 +558,7 @@
 #  ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║  ║║║╠═╣║║║╠═╣║ ╦║╣ ║║║║╣ ║║║ ║ 
 #  ╩ ╩╩  ╩  ╩═╝╩╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝  ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩ 
 - industryName: Application management
-  description: Manage updates and patches for apps on macOS, Windows, and Linux computers.
+  description: Manage updates and apps on macOS, Windows, and Linux computers.
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
@@ -1108,6 +1108,16 @@
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
   # System for Cross-domain Identity Management (SCIM) provisioning comingSoonOn: 2024-12-31 #customer-rosner, https://github.com/fleetdm/fleet/issues/15671
+- industryName: Grant Wi-Fi access
+  description: Help your end users connect to Wi-Fi by adding your Simple Certificate Enrollment Protocol (SCEP) server.                
+  # documentationUrl: TODO
+  isExperimental: yes
+  productCategories: [Device management]
+  pricingTableCategories: [Integrations]
+  usualDepartment: IT
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
 #
 #  ╔╦╗╦ ╦╦╦═╗╔╦╗   ╔═╗╔═╗╦═╗╔╦╗╦ ╦  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╗╔
 #   ║ ╠═╣║╠╦╝ ║║───╠═╝╠═╣╠╦╝ ║ ╚╦╝  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║ ║║║║

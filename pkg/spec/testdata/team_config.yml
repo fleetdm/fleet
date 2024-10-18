@@ -17,8 +17,8 @@ queries:
     automations_enabled: true
     logging: snapshot
 policies:
-  - path: ./top.policies.yml
-  - path: ./top.policies2.yml
+  - path: ./policies/policies.yml
+  - path: ./policies/policies2.yml
   - path: ./empty.yml
   - name: 😊😊 Failing $POLICY
     platform: linux
@@ -26,6 +26,13 @@ policies:
     resolution: There is no resolution for this policy.
     query: SELECT 1 FROM osquery_info WHERE start_time < 0;
   - path: ./team_install_software.policies.yml
+  - name: Script run policy
+    platform: linux
+    description: This should run a script on failure
+    query: SELECT * from osquery_info;
+    run_script:
+      path: ./lib/collect-fleetd-logs.sh
+  - path: ./policies/script-policy.yml
 software:
   packages:
     - path: ./microsoft-teams.pkg.software.yml

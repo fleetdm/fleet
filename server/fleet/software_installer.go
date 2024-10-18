@@ -9,9 +9,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
+
+// MaxSoftwareInstallerSize is the maximum size allowed for software
+// installers. This is enforced by the endpoints that upload installers.
+const MaxSoftwareInstallerSize = 3000 * units.MiB
 
 // SoftwareInstallerStore is the interface to store and retrieve software
 // installer files. Fleet supports storing to the local filesystem and to an
@@ -116,6 +121,8 @@ type SoftwareInstaller struct {
 	SelfService bool `json:"self_service" db:"self_service"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
+	// FleetLibraryAppID is the related Fleet-maintained app for this installer (if not nil).
+	FleetLibraryAppID *uint `json:"-" db:"fleet_library_app_id"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -244,6 +251,9 @@ type HostSoftwareInstallerResult struct {
 	SoftwareInstallerUserName string `json:"-" db:"software_installer_user_name"`
 	// SoftwareInstallerUserEmail is the email of the user that uploaded the software installer.
 	SoftwareInstallerUserEmail string `json:"-" db:"software_installer_user_email"`
+	// PolicyID is the id of the policy that triggered the install, or
+	// nil if the install was not triggered by a policy failure
+	PolicyID *uint `json:"policy_id" db:"policy_id"`
 }
 
 const (
@@ -322,6 +332,7 @@ type UploadSoftwareInstallerPayload struct {
 	SelfService       bool
 	UserID            uint
 	URL               string
+	FleetLibraryAppID *uint
 	PackageIDs        []string
 	UninstallScript   string
 	Extension         string

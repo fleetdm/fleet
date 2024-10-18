@@ -104,6 +104,8 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) {
 	// Replace $PACKAGE_ID in the uninstall script with the package ID(s).
 	var packageID string
 	switch payload.Extension {
+	case "dmg", "zip":
+		return
 	case "pkg":
 		var sb strings.Builder
 		_, _ = sb.WriteString("(\n")
@@ -829,7 +831,7 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 		}
 	}
 
-	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, false)
+	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, false, nil)
 	return ctxerr.Wrap(ctx, err, "inserting software install request")
 }
 
@@ -1115,8 +1117,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 }
 
 const (
-	maxInstallerSizeBytes int64 = 1024 * 1024 * 500
-	batchSoftwarePrefix         = "software_batch_"
+	batchSoftwarePrefix = "software_batch_"
 )
 
 func (svc *Service) BatchSetSoftwareInstallers(
@@ -1230,7 +1231,7 @@ func (svc *Service) softwareBatchUpload(
 
 	downloadURLFn := func(ctx context.Context, url string) (http.Header, []byte, error) {
 		client := fleethttp.NewClient()
-		client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSizeBytes)
+		client.Transport = fleethttp.NewSizeLimitTransport(fleet.MaxSoftwareInstallerSize)
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
@@ -1243,7 +1244,7 @@ func (svc *Service) softwareBatchUpload(
 			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 				return nil, nil, fleet.NewInvalidArgumentError(
 					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d MiB", url, maxInstallerSizeBytes/(1024*1024)),
+					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d GB", url, fleet.MaxSoftwareInstallerSize/(1000*1024*1024)),
 				)
 			}
 
@@ -1274,7 +1275,7 @@ func (svc *Service) softwareBatchUpload(
 			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 				return nil, nil, fleet.NewInvalidArgumentError(
 					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d MiB", url, maxInstallerSizeBytes/(1024*1024)),
+					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d GB", url, fleet.MaxSoftwareInstallerSize/(1000*1024*1024)),
 				)
 			}
 			return nil, nil, fmt.Errorf("reading installer %q contents: %w", url, err)
@@ -1284,7 +1285,7 @@ func (svc *Service) softwareBatchUpload(
 	}
 
 	var g errgroup.Group
-	g.SetLimit(3)
+	g.SetLimit(1) // TODO: consider whether we can increase this limit, see https://github.com/fleetdm/fleet/issues/22704#issuecomment-2397407837
 	// critical to avoid data race, the slice is pre-allocated and each
 	// goroutine only writes to its index.
 	installers := make([]*fleet.UploadSoftwareInstallerPayload, len(payloads))
@@ -1471,7 +1472,7 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 			}
 		}
 
-		_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, true)
+		_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, true, nil)
 		return ctxerr.Wrap(ctx, err, "inserting self-service software install request")
 	}
 
@@ -1515,7 +1516,7 @@ func packageExtensionToPlatform(ext string) string {
 	switch ext {
 	case ".msi", ".exe":
 		requiredPlatform = "windows"
-	case ".pkg":
+	case ".pkg", ".dmg", ".zip":
 		requiredPlatform = "darwin"
 	case ".deb", ".rpm":
 		requiredPlatform = "linux"

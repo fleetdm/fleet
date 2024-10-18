@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -234,7 +235,8 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.NoError(t, err)
 		certPEM, keyPEM, tokenBytes, err := mysql.GenerateTestABMAssets(t)
 		require.NoError(t, err)
-		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+			_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 				fleet.MDMAssetABMCert:            {Name: fleet.MDMAssetABMCert, Value: certPEM},
 				fleet.MDMAssetABMKey:             {Name: fleet.MDMAssetABMKey, Value: keyPEM},

@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -49,13 +50,29 @@ func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, 
 }
 
 func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
-	configBytes, err := json.Marshal(info)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "marshaling config")
-	}
-
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx,
+		// Check if passwords need to be encrypted
+		if info.Integrations.NDESSCEPProxy.Valid {
+			if info.Integrations.NDESSCEPProxy.Set &&
+				info.Integrations.NDESSCEPProxy.Value.Password != "" &&
+				info.Integrations.NDESSCEPProxy.Value.Password != fleet.MaskedPassword {
+				err := ds.insertOrReplaceConfigAsset(ctx, tx, fleet.MDMConfigAsset{
+					Name:  fleet.MDMAssetNDESPassword,
+					Value: []byte(info.Integrations.NDESSCEPProxy.Value.Password),
+				})
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "processing NDES SCEP proxy password")
+				}
+			}
+			info.Integrations.NDESSCEPProxy.Value.Password = fleet.MaskedPassword
+		}
+
+		configBytes, err := json.Marshal(info)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "marshaling config")
+		}
+
+		_, err = tx.ExecContext(ctx,
 			`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
 			configBytes,
 		)
@@ -65,6 +82,30 @@ func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) e
 
 		return nil
 	})
+}
+
+func (ds *Datastore) insertOrReplaceConfigAsset(ctx context.Context, tx sqlx.ExtContext, asset fleet.MDMConfigAsset) error {
+	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{asset.Name}, tx)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{asset}, tx)
+		}
+		return ctxerr.Wrap(ctx, err, "get all mdm config assets by name")
+	}
+	if len(assets) == 0 {
+		// Should never happen
+		return ctxerr.New(ctx, fmt.Sprintf("no asset found for name %s", asset.Name))
+	}
+	currentAsset, ok := assets[asset.Name]
+	if !ok {
+		// Should never happen
+		return ctxerr.New(ctx, fmt.Sprintf("asset not found for name %s", asset.Name))
+	}
+	if !bytes.Equal(currentAsset.Value, asset.Value) {
+		return ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{asset}, tx)
+	}
+	// asset already exists and is the same, so not need to update
+	return nil
 }
 
 func (ds *Datastore) VerifyEnrollSecret(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {

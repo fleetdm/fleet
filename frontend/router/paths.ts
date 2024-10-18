@@ -43,6 +43,7 @@ export default {
   ADMIN_INTEGRATIONS_MDM_WINDOWS: `${URL_PREFIX}/settings/integrations/mdm/windows`,
   ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER: `${URL_PREFIX}/settings/integrations/mdm/abm`,
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS: `${URL_PREFIX}/settings/integrations/automatic-enrollment/windows`,
+  ADMIN_INTEGRATIONS_SCEP: `${URL_PREFIX}/settings/integrations/mdm/scep`,
   ADMIN_INTEGRATIONS_CALENDARS: `${URL_PREFIX}/settings/integrations/calendars`,
   ADMIN_INTEGRATIONS_VPP: `${URL_PREFIX}/settings/integrations/mdm/vpp`,
   ADMIN_INTEGRATIONS_VPP_SETUP: `${URL_PREFIX}/settings/integrations/vpp/setup`,
@@ -77,6 +78,11 @@ export default {
   SOFTWARE_VULNERABILITY_DETAILS: (cve: string): string => {
     return `${URL_PREFIX}/software/vulnerabilities/${cve}`;
   },
+  SOFTWARE_ADD_FLEET_MAINTAINED: `${URL_PREFIX}/software/add/fleet-maintained`,
+  SOFTWARE_FLEET_MAINTAINED_DETAILS: (id: number) =>
+    `${URL_PREFIX}/software/add/fleet-maintained/${id}`,
+  SOFTWARE_ADD_PACKAGE: `${URL_PREFIX}/software/add/package`,
+  SOFTWARE_ADD_APP_STORE: `${URL_PREFIX}/software/add/app-store`,
 
   // Label pages
   LABEL_NEW_DYNAMIC: `${URL_PREFIX}/labels/new/dynamic`,

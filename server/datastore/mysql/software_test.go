@@ -4572,7 +4572,7 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// install it on the host
-	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerTm1, false)
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerTm1, false, nil)
 	require.NoError(t, err)
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
@@ -4682,7 +4682,7 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 	require.NoError(t, err)
 
 	// fail to install it on the host
-	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerTm1, false)
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerTm1, false, nil)
 	require.NoError(t, err)
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,

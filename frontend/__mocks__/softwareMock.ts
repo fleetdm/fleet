@@ -7,6 +7,8 @@ import {
   ISoftwareTitle,
   ISoftwareTitleDetails,
   IAppStoreApp,
+  IFleetMaintainedApp,
+  IFleetMaintainedAppDetails,
 } from "interfaces/software";
 import {
   ISoftwareTitlesResponse,
@@ -69,8 +71,8 @@ const DEFAULT_SOFTWARE_VERSION_MOCK: ISoftwareVersion = {
   name: "test.app",
   version: "1.2.3",
   bundle_identifier: "com.test.Desktop",
-  source: "test_package",
-  browser: "",
+  source: "apps",
+  browser: "chrome",
   release: "1",
   vendor: "test_vendor",
   arch: "x86_64",
@@ -159,7 +161,7 @@ const DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK: ISoftwareTitleDetails = {
   name: "test.app",
   software_package: null,
   app_store_app: null,
-  source: "test_package",
+  source: "apps",
   hosts_count: 1,
   versions: [createMockSoftwareTitleVersion()],
   bundle_identifier: "com.test.Desktop",
@@ -252,4 +254,38 @@ export const createMockSoftwareTitlesResponse = (
   overrides?: Partial<ISoftwareTitlesResponse>
 ): ISoftwareTitlesResponse => {
   return { ...DEFAULT_SOFTWARE_TITLES_RESPONSE_MOCK, ...overrides };
+};
+
+const DEFAULT_FLEET_MAINTAINED_APPS_MOCK: IFleetMaintainedApp = {
+  id: 1,
+  name: "test app",
+  version: "1.2.3",
+  platform: "darwin",
+};
+
+export const createMockFleetMaintainedApp = (
+  overrides?: Partial<IFleetMaintainedApp>
+): IFleetMaintainedApp => {
+  return {
+    ...DEFAULT_FLEET_MAINTAINED_APPS_MOCK,
+    ...overrides,
+  };
+};
+
+const DEFAULT_FLEET_MAINTAINED_APP_DETAILS_MOCK: IFleetMaintainedAppDetails = {
+  id: 1,
+  name: "Test app",
+  version: "1.2.3",
+  platform: "darwin",
+  pre_install_script: "SELECT * FROM osquery_info WHERE start_time > 1",
+  install_script: '#!/bin/sh\n\ninstaller -pkg "$INSTALLER" -target /',
+  post_install_script: 'echo "Installed"',
+  uninstall_script:
+    "#!/bin/sh\n\n# Fleet extracts and saves package IDs\npkg_ids=$PACKAGE_ID",
+};
+
+export const createMockFleetMaintainedAppDetails = (
+  overrides?: Partial<IFleetMaintainedAppDetails>
+) => {
+  return { ...DEFAULT_FLEET_MAINTAINED_APP_DETAILS_MOCK, ...overrides };
 };

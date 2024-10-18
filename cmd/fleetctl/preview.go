@@ -387,7 +387,9 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 			// this only applies standard queries, the base directory is not used,
 			// so pass in the current working directory.
-			_, _, err = client.ApplyGroup(c.Context, specs, ".", logf, nil, fleet.ApplyClientSpecOptions{})
+			teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
+			teamsScripts := make(map[string][]fleet.ScriptResponse)
+			_, _, _, err = client.ApplyGroup(c.Context, specs, ".", logf, nil, fleet.ApplyClientSpecOptions{}, teamsSoftwareInstallers, teamsScripts)
 			if err != nil {
 				return err
 			}

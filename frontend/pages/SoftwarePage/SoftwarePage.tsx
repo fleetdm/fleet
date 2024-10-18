@@ -13,7 +13,8 @@ import {
   IZendeskIntegration,
   IZendeskJiraIntegrations,
 } from "interfaces/integration";
-import { ITeamConfig } from "interfaces/team";
+import { APP_CONTEXT_ALL_TEAMS_ID, ITeamConfig } from "interfaces/team";
+import { SelectedPlatform } from "interfaces/platform";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
@@ -114,6 +115,7 @@ interface ISoftwarePageProps {
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
+      platform?: SelectedPlatform;
     };
     hash?: string;
   };
@@ -148,6 +150,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     queryParams && queryParams.page
       ? parseInt(queryParams.page, 10)
       : DEFAULT_PAGE;
+  const platform = queryParams?.platform || "all";
   // TODO: move these down into the Software Titles component.
   const query = queryParams && queryParams.query ? queryParams.query : "";
   const showExploitedVulnerabilitiesOnly =
@@ -255,10 +258,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     setShowManageAutomationsModal(!showManageAutomationsModal);
   }, [setShowManageAutomationsModal, showManageAutomationsModal]);
 
-  const toggleAddSoftwareModal = useCallback(() => {
-    setShowAddSoftwareModal(!showAddSoftwareModal);
-  }, [showAddSoftwareModal]);
-
   const togglePreviewPayloadModal = useCallback(() => {
     setShowPreviewPayloadModal(!showPreviewPayloadModal);
   }, [setShowPreviewPayloadModal, showPreviewPayloadModal]);
@@ -293,6 +292,16 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       toggleManageAutomationsModal();
     }
   };
+
+  const onAddSoftware = useCallback(() => {
+    if (currentTeamId === APP_CONTEXT_ALL_TEAMS_ID) {
+      setShowAddSoftwareModal(true);
+    } else {
+      router.push(
+        `${PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}?team_id=${currentTeamId}`
+      );
+    }
+  }, [currentTeamId, router]);
 
   // NOTE: used to reset page number to 0 when modifying filters
   // NOTE: Solution reused from ManageHostPage.tsx
@@ -383,7 +392,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           </Button>
         )}
         {canAddSoftware && (
-          <Button onClick={toggleAddSoftwareModal} variant="brand">
+          <Button onClick={onAddSoftware} variant="brand">
             <span>Add software</span>
           </Button>
         )}
@@ -430,6 +439,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           currentPage: page,
           teamId: teamIdForApi,
           // TODO: move down into the Software Titles component
+          platform,
           query,
           showExploitedVulnerabilitiesOnly,
           softwareFilter,
@@ -473,10 +483,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         )}
         {showAddSoftwareModal && (
           <AddSoftwareModal
-            teamId={currentTeamId ?? 0}
-            router={router}
-            onExit={toggleAddSoftwareModal}
-            setAddedSoftwareToken={setAddedSoftwareToken}
+            onExit={() => setShowAddSoftwareModal(false)}
             isFreeTier={isFreeTier}
           />
         )}

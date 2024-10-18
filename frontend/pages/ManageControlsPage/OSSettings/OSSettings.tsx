@@ -9,7 +9,7 @@ import mdmAPI from "services/entities/mdm";
 
 import OS_SETTINGS_NAV_ITEMS from "./OSSettingsNavItems";
 import ProfileStatusAggregate from "./ProfileStatusAggregate";
-import TurnOnMdmMessage from "../components/TurnOnMdmMessage";
+import TurnOnMdmMessage from "../../../components/TurnOnMdmMessage";
 
 const baseClass = "os-settings";
 
@@ -40,6 +40,7 @@ const OSSettings = ({
   const {
     data: aggregateProfileStatusData,
     refetch: refetchAggregateProfileStatus,
+    isError: isErrorAggregateProfileStatus,
     isLoading: isLoadingAggregateProfileStatus,
   } = useQuery(
     ["aggregateProfileStatuses", teamId],
@@ -73,6 +74,7 @@ const OSSettings = ({
       </p>
       <ProfileStatusAggregate
         isLoading={isLoadingAggregateProfileStatus}
+        isError={isErrorAggregateProfileStatus}
         teamId={teamId}
         aggregateProfileStatusData={aggregateProfileStatusData}
       />

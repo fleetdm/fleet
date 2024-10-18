@@ -38,6 +38,10 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	SoftwareInstallerID *uint
+	// ScriptID is the ID of the script that will be executed if the policy fails.
+	//
+	// Only applies to team policies.
+	ScriptID *uint
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
@@ -68,6 +72,8 @@ type NewTeamPolicyPayload struct {
 	CalendarEventsEnabled bool
 	// SoftwareTitleID is the ID of the software title that will be installed if the policy fails.
 	SoftwareTitleID *uint
+	// ScriptID is the ID of the script that will be executed if the policy fails.
+	ScriptID *uint
 }
 
 var (
@@ -157,6 +163,11 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	SoftwareTitleID *uint `json:"software_title_id" premium:"true"`
+	// ScriptID is the ID of the script that will be executed if the policy fails.
+	// Value 0 will unset the current script from the policy.
+	//
+	// Only applies to team policies.
+	ScriptID *uint `json:"script_id" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.
@@ -211,6 +222,7 @@ type PolicyData struct {
 
 	CalendarEventsEnabled bool  `json:"calendar_events_enabled" db:"calendar_events_enabled"`
 	SoftwareInstallerID   *uint `json:"-" db:"software_installer_id"`
+	ScriptID              *uint `json:"-" db:"script_id"`
 
 	UpdateCreateTimestamps
 }
@@ -232,6 +244,13 @@ type Policy struct {
 	//
 	// This field is populated from PolicyData.SoftwareInstallerID.
 	InstallSoftware *PolicySoftwareTitle `json:"install_software,omitempty"`
+
+	// RunScript is used to trigger script execution when this policy fails.
+	//
+	// Only applies to team policies.
+	//
+	// This field is populated from PolicyData.ScriptID
+	RunScript *PolicyScript `json:"run_script,omitempty"`
 }
 
 type PolicyCalendarData struct {
@@ -244,9 +263,16 @@ type PolicySoftwareInstallerData struct {
 	InstallerID uint `db:"software_installer_id"`
 }
 
+type PolicyScriptData struct {
+	ID       uint `db:"id"`
+	ScriptID uint `db:"script_id"`
+}
+
 // PolicyLite is a stripped down version of the policy.
 type PolicyLite struct {
 	ID uint `db:"id"`
+	// Name is the name of the policy.
+	Name string `db:"name"`
 	// Description describes the policy.
 	Description string `db:"description"`
 	// Resolution describes how to solve a failing policy.
@@ -296,9 +322,12 @@ type PolicySpec struct {
 	//
 	// Only applies to team policies.
 	CalendarEventsEnabled bool `json:"calendar_events_enabled"`
-	// SoftwareTitleID is the title ID of the installer associated with this policy.
+	// SoftwareTitleID is the title ID of the installer associated with this policy (team policies only).
 	// When editing a policy, if this is nil or 0 then the title ID is unset from the policy.
 	SoftwareTitleID *uint `json:"software_title_id"`
+	// ScriptID is the ID of the script associated with this policy (team policies only).
+	// When editing a policy, if this is nil or 0 then the script ID is unset from the policy.
+	ScriptID *uint `json:"script_id"`
 }
 
 // PolicySoftwareTitle contains software title data for policies.
@@ -307,6 +336,14 @@ type PolicySoftwareTitle struct {
 	SoftwareTitleID uint `json:"software_title_id"`
 	// Name is the associated installer title name
 	// (not the package name, but the installed software title).
+	Name string `json:"name"`
+}
+
+// PolicyScript contains script data for policies.
+type PolicyScript struct {
+	// ID is the ID of the script associated with the policy
+	ID uint `json:"id"`
+	// Name is the script name
 	Name string `json:"name"`
 }
 

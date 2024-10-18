@@ -848,7 +848,7 @@ None.
     "contact_url": "https://fleetdm.com/company/contact"
   },
   "server_settings": {
-    "server_url": "https://localhost:8080",
+    "server_url": "https://instance.fleet.com",
     "enable_analytics": true,
     "live_query_disabled": false,
     "query_reports_disabled": false,
@@ -947,7 +947,8 @@ None.
       "enable_end_user_authentication": false,
       "macos_setup_assistant": "path/to/config.json",
       "enable_release_device_manually": true
-    }
+    },
+    "client_url": "https://instance.fleet.com"
   },
   "agent_options": {
     "spec": {
@@ -1134,7 +1135,7 @@ Modifies the Fleet's configuration with the supplied information.
     "contact_url": "https://fleetdm.com/company/contact"
   },
   "server_settings": {
-    "server_url": "https://localhost:8080",
+    "server_url": "https://instance.fleet.com",
     "enable_analytics": true,
     "live_query_disabled": false,
     "query_reports_disabled": false,
@@ -1240,7 +1241,8 @@ Modifies the Fleet's configuration with the supplied information.
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
       "macos_setup_assistant": "path/to/config.json"
-    }
+    },
+    "apple_server_url": "https://instance.fleet.com"
   },
   "agent_options": {
     "config": {
@@ -1717,6 +1719,9 @@ _Available in Fleet Premium._
 | macos_setup         | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
+| apple_server_url         | string  | Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)  |
+
+> Note: If `apple_server_url` changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
 
 <br/>
 
@@ -2431,8 +2436,6 @@ None.
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
 - [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
-- [List host OS versions](#list-host-os-versions)
-- [Get host OS version](#get-host-os-version)
 - [Get host's scripts](#get-hosts-scripts)
 - [Get host's software](#get-hosts-software)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
@@ -2510,7 +2513,7 @@ the `software` table.
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
-| populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. |
+| populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. (Note that software lists can be large, so this may cause significant CPU and RAM usage depending on page size and request concurrency.) |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host. |
 | populate_users     | boolean | query | If `true`, the response will include user data for each host. |
 | populate_labels     | boolean | query | If `true`, the response will include labels for each host. |
@@ -4287,8 +4290,12 @@ Resends a configuration profile for the specified host.
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required**. The host's ID. |
-| query   | string | query | Search query keywords. Searchable fields include `name`. |
-| available_for_install | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.  
+| query   | string | query | Search query keywords. Searchable fields include `name` and `vulnerabilities`. |
+| available_for_install | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`. |
+| vulnerable              | boolean | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
+| min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
+| max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
+| exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
 
@@ -4319,6 +4326,7 @@ Resends a configuration profile for the specified host.
       "app_store_app": null
       "source": "apps",
       "status": "failed",
+      "vulnerabilities": ["CVE-2023-9876", "CVE-2023-2367"],
       "installed_versions": [
         {
           "version": "121.0",
@@ -8491,6 +8499,8 @@ The script will be added to the host's list of upcoming activities.
 
 The new script will run after other activities finish. Failure of one activity won't cancel other activities.
 
+By default, script runs time out after 5 minutes. You can modify this default in your [agent configuration](https://fleetdm.com/docs/configuration/agent-configuration#script-execution-timeout).
+
 `POST /api/v1/fleet/scripts/run`
 
 #### Parameters
@@ -9115,7 +9125,7 @@ Returns information about the specified software. By default, `versions` are sor
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
       "uninstall_script": "/Library/CS/falconctl uninstall",
       "self_service": true,
-      "install_method": "automatic",
+      "automatic_install_policy_id": 343, 
       "fleet_maintained": true,
       "status": {
         "installed": 3,
@@ -9334,8 +9344,6 @@ Add a package (.pkg, .msi, .exe, .deb) to install on macOS, Windows, or Linux (U
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
-| automatic_install | boolean | form | Software will be automatically installed on each host. |
-| automatic_install_query  | string | form | Software is installed if the query doesn't return results. If not specified, Fleet runs default query. |
 
 
 #### Example
@@ -9682,7 +9690,9 @@ Add Fleet-maintained app so it's available for install.
 
 _Available in Fleet Premium._
 
-Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` added to be installed.
+Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` to be installed.
+
+Package installs time out after 1 hour.
 
 `POST /api/v1/fleet/hosts/:id/software/:software_title_id/install`
 
@@ -11072,7 +11082,7 @@ By default, the user will be forced to reset its password upon first login.
 | name        | string  | body | **Required**. The user's full name or nickname.                                                                                                                                                                                                                                                                                                          |
 | password    | string  | body | The user's password (required for non-SSO users).                                                                                                                                                                                                                                                                                                        |
 | sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
-| two_factor_authentication_enabled | boolean | body | Whether or not email two-factor authentication is enabled for the user.                                                                                                                                                                                                                                                                                                              |
+| two_factor_authentication_enabled | boolean | body | _Available in Fleet Premium_. Whether or not email two-factor authentication is enabled for the user.                                                                                                                                                                                                                                                                                                              |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
 | global_role | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access).                                                                                                                                                                        |
 | admin_forced_password_reset    | boolean | body | Sets whether the user will be forced to reset its password upon first login (default=true) |

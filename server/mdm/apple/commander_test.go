@@ -18,6 +18,7 @@ import (
 	svcmock "github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
+	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/require"
@@ -75,7 +76,8 @@ func TestMDMAppleCommander(t *testing.T) {
 	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
 		return false, nil
 	}
-	mdmStorage.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	mdmStorage.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		certPEM, err := os.ReadFile("../../service/testdata/server.pem")
 		require.NoError(t, err)
 		keyPEM, err := os.ReadFile("../../service/testdata/server.key")

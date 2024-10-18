@@ -71,12 +71,7 @@ go.mod @fleetdm/go
 /docs/Contributing/API-for-contributors.md      @lukeheath # « Advanced / contributors-only API reference documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
 /docs/Deploy/_kubernetes/ @dherder # « Kubernetes best practice
-##############################################################################################
-# 🫧 Pricing and features
-#
-# (see website/config/custom.js for DRIs of other paths not listed here)
-##############################################################################################
-/handbook/company/pricing-features-table.yml          @noahtalerman # « Head of Product Design is current DRI for features table
+/render.yaml                                    @edwardsb
 
 ##############################################################################################
 # 🌐 Repo automation and change control settings
@@ -113,6 +108,12 @@ go.mod @fleetdm/go
 # 🌐 GitHub issue templates
 ##############################################################################################
 #/.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # Covered in custom.js See https://github.com/fleetdm/fleet/pull/18668
+
+
+##############################################################################################
+# 🌐 Fleet website
+##############################################################################################
+/website/.sailsrc 		@eashaw # Note: eashaw will not approve any PR that changes this file. This codeowner exists to make sure no changes are committed to the repo.
 
 ##############################################################################################
 # 🌐 GitHub workflows

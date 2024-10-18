@@ -1,5 +1,6 @@
 import PropTypes from "prop-types";
 import { SelectedPlatformString } from "interfaces/platform";
+import { IScript } from "./script";
 
 // Legacy PropTypes used on host interface
 export default PropTypes.shape({
@@ -42,8 +43,8 @@ export interface IPolicy {
   critical: boolean;
   calendar_events_enabled: boolean;
   install_software?: IPolicySoftwareToInstall;
+  run_script?: Pick<IScript, "id" | "name">;
 }
-
 export interface IPolicySoftwareToInstall {
   name: string;
   software_title_id: number;
@@ -90,6 +91,10 @@ export interface ILoadTeamPoliciesResponse {
   policies?: IPolicyStats[];
 }
 
+export interface ILoadTeamPolicyResponse {
+  policy: IPolicyStats;
+}
+
 export interface IPolicyFormData {
   description?: string | number | boolean | undefined;
   resolution?: string | number | boolean | undefined;
@@ -102,6 +107,8 @@ export interface IPolicyFormData {
   calendar_events_enabled?: boolean;
   // undefined from GET/LIST when not set, null for PATCH to unset
   software_title_id?: number | null;
+  // null for PATCH to unset - note asymmetry with GET/LIST - see IPolicy.run_script
+  script_id?: number | null;
 }
 
 export interface IPolicyNew {

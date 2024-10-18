@@ -95,12 +95,12 @@ export interface ISoftwareTitle {
   id: number;
   name: string;
   versions_count: number;
-  source: string; // "apps" | "ios_apps" | "ipados_apps" | ?
+  source: SoftwareSource;
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
-  browser?: string;
+  browser?: BrowserType;
 }
 
 export interface ISoftwareTitleDetails {
@@ -108,12 +108,12 @@ export interface ISoftwareTitleDetails {
   name: string;
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
-  source: string; // "apps" | "ios_apps" | "ipados_apps" | ?
+  source: SoftwareSource;
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
   versions_updated_at?: string;
   bundle_identifier?: string;
-  browser?: string;
+  browser?: BrowserType;
   versions_count?: number;
 }
 
@@ -134,8 +134,8 @@ export interface ISoftwareVersion {
   name: string; // e.g., "Figma.app"
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string; // e.g., "com.figma.Desktop"
-  source: string; // "apps" | "ipados_apps" | "ios_apps" | ?
-  browser: string; // e.g., "chrome"
+  source: SoftwareSource;
+  browser: BrowserType;
   release: string; // TODO: on software/verions/:id?
   vendor: string;
   arch: string; // e.g., "x86_64" // TODO: on software/verions/:id?
@@ -144,7 +144,7 @@ export interface ISoftwareVersion {
   hosts_count?: number;
 }
 
-export const SOURCE_TYPE_CONVERSION: Record<string, string> = {
+export const SOURCE_TYPE_CONVERSION = {
   apt_sources: "Package (APT)",
   deb_packages: "Package (deb)",
   portage_packages: "Package (Portage)",
@@ -167,7 +167,9 @@ export const SOURCE_TYPE_CONVERSION: Record<string, string> = {
   vscode_extensions: "IDE extension (VS Code)",
 } as const;
 
-const BROWSER_TYPE_CONVERSION: Record<string, string> = {
+export type SoftwareSource = keyof typeof SOURCE_TYPE_CONVERSION;
+
+const BROWSER_TYPE_CONVERSION = {
   chrome: "Chrome",
   chromium: "Chromium",
   opera: "Opera",
@@ -177,14 +179,16 @@ const BROWSER_TYPE_CONVERSION: Record<string, string> = {
   edge_beta: "Edge Beta",
 } as const;
 
+export type BrowserType = keyof typeof BROWSER_TYPE_CONVERSION;
+
 export const formatSoftwareType = ({
   source,
   browser,
 }: {
-  source: string;
-  browser?: string;
+  source: SoftwareSource;
+  browser?: BrowserType;
 }) => {
-  let type = SOURCE_TYPE_CONVERSION[source] || "Unknown";
+  let type: string = SOURCE_TYPE_CONVERSION[source] || "Unknown";
   if (browser) {
     type = `Browser plugin (${
       BROWSER_TYPE_CONVERSION[browser] || startCase(browser)
@@ -310,7 +314,7 @@ export interface IHostSoftware {
   name: string;
   software_package: IHostSoftwarePackage | null;
   app_store_app: IHostAppStoreApp | null;
-  source: string;
+  source: SoftwareSource;
   bundle_identifier?: string;
   status: Exclude<SoftwareInstallStatus, "uninstalled"> | null;
   installed_versions: ISoftwareInstallVersion[] | null;
@@ -389,3 +393,21 @@ export const hasHostSoftwareAppLastInstall = (
 
 export const isIpadOrIphoneSoftwareSource = (source: string) =>
   ["ios_apps", "ipados_apps"].includes(source);
+
+export interface IFleetMaintainedApp {
+  id: number;
+  name: string;
+  version: string;
+  platform: string;
+}
+
+export interface IFleetMaintainedAppDetails {
+  id: number;
+  name: string;
+  version: string;
+  platform: string;
+  pre_install_script: string; // TODO: is this needed?
+  install_script: string;
+  post_install_script: string; // TODO: is this needed?
+  uninstall_script: string;
+}

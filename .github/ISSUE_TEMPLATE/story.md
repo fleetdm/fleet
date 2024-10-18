@@ -19,8 +19,15 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 | I want to _________________________________________
 | so that I can _________________________________________.
 
+## Objective
+
+<!-- What quarterly objective does this story contribute to, if any? If it doesn't contribute to an objective, explain why it's being prioritized. -->
+
+## Original requests
+
+<!-- Insert the link to the feature request(s) that this story contributes to. Put "None" if it doesn't contribute to a request. For customer requests, add the `customer-xyz` label(s). -->
+
 ## Context
-- Requestor(s): _________________________ <!-- Who are the non-customer requestor(s) for this story, if any? Put their GitHub usernames here. They should be notified if the story gets de-prioritized. For customer requestors, use the `customer-xyz` label instead. -->
 - Product designer: _________________________ <!-- Who is the product designer to contact if folks have questions about the UI, CLI, or API changes? -->
   
 <!--

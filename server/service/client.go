@@ -397,8 +397,9 @@ func (c *Client) ApplyGroup(
 	logf func(format string, args ...interface{}),
 	appconfig *fleet.EnrichedAppConfig,
 	opts fleet.ApplyClientSpecOptions,
-) (map[string]uint, map[string][]fleet.SoftwarePackageResponse, error) {
-	teamSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
+	teamsSoftwareInstallers map[string][]fleet.SoftwarePackageResponse,
+	teamsScripts map[string][]fleet.ScriptResponse,
+) (map[string]uint, map[string][]fleet.SoftwarePackageResponse, map[string][]fleet.ScriptResponse, error) {
 
 	logfn := func(format string, args ...interface{}) {
 		if logf != nil {
@@ -412,7 +413,7 @@ func (c *Client) ApplyGroup(
 			logfn("[!] ignoring queries, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
 			if err := c.ApplyQueries(specs.Queries); err != nil {
-				return nil, nil, fmt.Errorf("applying queries: %w", err)
+				return nil, nil, nil, fmt.Errorf("applying queries: %w", err)
 			}
 			logfn("[+] applied %d queries\n", len(specs.Queries))
 		}
@@ -423,7 +424,7 @@ func (c *Client) ApplyGroup(
 			logfn("[!] ignoring labels, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
 			if err := c.ApplyLabels(specs.Labels); err != nil {
-				return nil, nil, fmt.Errorf("applying labels: %w", err)
+				return nil, nil, nil, fmt.Errorf("applying labels: %w", err)
 			}
 			logfn("[+] applied %d labels\n", len(specs.Labels))
 		}
@@ -434,7 +435,7 @@ func (c *Client) ApplyGroup(
 			logfn("[!] ignoring packs, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
 			if err := c.ApplyPacks(specs.Packs); err != nil {
-				return nil, nil, fmt.Errorf("applying packs: %w", err)
+				return nil, nil, nil, fmt.Errorf("applying packs: %w", err)
 			}
 			logfn("[+] applied %d packs\n", len(specs.Packs))
 		}
@@ -454,7 +455,7 @@ func (c *Client) ApplyGroup(
 		if (windowsCustomSettings != nil && macosCustomSettings != nil) || len(windowsCustomSettings)+len(macosCustomSettings) > 0 {
 			fileContents, err := getProfilesContents(baseDir, macosCustomSettings, windowsCustomSettings, opts.ExpandEnvConfigProfiles)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			// Figure out if MDM should be enabled.
 			assumeEnabled := false
@@ -468,53 +469,54 @@ func (c *Client) ApplyGroup(
 				}
 			}
 			if err := c.ApplyNoTeamProfiles(fileContents, opts.ApplySpecOptions, assumeEnabled); err != nil {
-				return nil, nil, fmt.Errorf("applying custom settings: %w", err)
+				return nil, nil, nil, fmt.Errorf("applying custom settings: %w", err)
 			}
 		}
 		if macosSetup := extractAppCfgMacOSSetup(specs.AppConfig); macosSetup != nil {
 			if macosSetup.BootstrapPackage.Value != "" {
 				pkg, err := c.ValidateBootstrapPackageFromURL(macosSetup.BootstrapPackage.Value)
 				if err != nil {
-					return nil, nil, fmt.Errorf("applying fleet config: %w", err)
+					return nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 				}
 
 				if !opts.DryRun {
 					if err := c.EnsureBootstrapPackage(pkg, uint(0)); err != nil {
-						return nil, nil, fmt.Errorf("applying fleet config: %w", err)
+						return nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 					}
 				}
 			}
 			if macosSetup.MacOSSetupAssistant.Value != "" {
 				content, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, macosSetup.MacOSSetupAssistant.Value))
 				if err != nil {
-					return nil, nil, fmt.Errorf("applying fleet config: %w", err)
+					return nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 				}
 				if !opts.DryRun {
 					if err := c.uploadMacOSSetupAssistant(content, nil, macosSetup.MacOSSetupAssistant.Value); err != nil {
-						return nil, nil, fmt.Errorf("applying fleet config: %w", err)
+						return nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 					}
 				}
 			}
 		}
 		if scripts := extractAppCfgScripts(specs.AppConfig); scripts != nil {
-			files := resolveApplyRelativePaths(baseDir, scripts)
-			scriptPayloads := make([]fleet.ScriptPayload, len(files))
-			for i, f := range files {
+			scriptPayloads := make([]fleet.ScriptPayload, len(scripts))
+			for i, f := range scripts {
 				b, err := os.ReadFile(f)
 				if err != nil {
-					return nil, nil, fmt.Errorf("applying fleet config: %w", err)
+					return nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 				}
 				scriptPayloads[i] = fleet.ScriptPayload{
 					ScriptContents: b,
 					Name:           filepath.Base(f),
 				}
 			}
-			if err := c.ApplyNoTeamScripts(scriptPayloads, opts.ApplySpecOptions); err != nil {
-				return nil, nil, fmt.Errorf("applying custom settings: %w", err)
+			noTeamScripts, err := c.ApplyNoTeamScripts(scriptPayloads, opts.ApplySpecOptions)
+			if err != nil {
+				return nil, nil, nil, fmt.Errorf("applying no-team scripts: %w", err)
 			}
+			teamsScripts["No team"] = noTeamScripts
 		}
 		if err := c.ApplyAppConfig(specs.AppConfig, opts.ApplySpecOptions); err != nil {
-			return nil, nil, fmt.Errorf("applying fleet config: %w", err)
+			return nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 		}
 		if opts.DryRun {
 			logfn("[+] would've applied fleet config\n")
@@ -525,7 +527,7 @@ func (c *Client) ApplyGroup(
 
 	if specs.EnrollSecret != nil {
 		if err := c.ApplyEnrollSecretSpec(specs.EnrollSecret, opts.ApplySpecOptions); err != nil {
-			return nil, nil, fmt.Errorf("applying enroll secrets: %w", err)
+			return nil, nil, nil, fmt.Errorf("applying enroll secrets: %w", err)
 		}
 		if opts.DryRun {
 			logfn("[+] would've applied enroll secrets\n")
@@ -544,7 +546,7 @@ func (c *Client) ApplyGroup(
 		for k, profileSpecs := range tmMDMSettings {
 			fileContents, err := getProfilesContents(baseDir, profileSpecs.macos, profileSpecs.windows, opts.ExpandEnvConfigProfiles)
 			if err != nil {
-				return nil, nil, fmt.Errorf("Team %s: %w", k, err) // TODO: consider adding team name to improve error messages generally for other parts of the config because multiple team configs can be processed at once
+				return nil, nil, nil, fmt.Errorf("Team %s: %w", k, err) // TODO: consider adding team name to improve error messages generally for other parts of the config because multiple team configs can be processed at once
 			}
 			tmFileContents[k] = fileContents
 		}
@@ -556,14 +558,14 @@ func (c *Client) ApplyGroup(
 			if setup.BootstrapPackage.Value != "" {
 				bp, err := c.ValidateBootstrapPackageFromURL(setup.BootstrapPackage.Value)
 				if err != nil {
-					return nil, nil, fmt.Errorf("applying teams: %w", err)
+					return nil, nil, nil, fmt.Errorf("applying teams: %w", err)
 				}
 				tmBootstrapPackages[k] = bp
 			}
 			if setup.MacOSSetupAssistant.Value != "" {
 				b, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, setup.MacOSSetupAssistant.Value))
 				if err != nil {
-					return nil, nil, fmt.Errorf("applying teams: %w", err)
+					return nil, nil, nil, fmt.Errorf("applying teams: %w", err)
 				}
 				tmMacSetupAssistants[k] = b
 			}
@@ -572,12 +574,11 @@ func (c *Client) ApplyGroup(
 		tmScripts := extractTmSpecsScripts(specs.Teams)
 		tmScriptsPayloads := make(map[string][]fleet.ScriptPayload, len(tmScripts))
 		for k, paths := range tmScripts {
-			files := resolveApplyRelativePaths(baseDir, paths)
-			scriptPayloads := make([]fleet.ScriptPayload, len(files))
-			for i, f := range files {
+			scriptPayloads := make([]fleet.ScriptPayload, len(paths))
+			for i, f := range paths {
 				b, err := os.ReadFile(f)
 				if err != nil {
-					return nil, nil, fmt.Errorf("applying fleet config: %w", err)
+					return nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 				}
 				scriptPayloads[i] = fleet.ScriptPayload{
 					ScriptContents: b,
@@ -592,7 +593,7 @@ func (c *Client) ApplyGroup(
 		for tmName, software := range tmSoftwarePackages {
 			softwarePayloads, err := buildSoftwarePackagesPayload(baseDir, software)
 			if err != nil {
-				return nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
+				return nil, nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
 			}
 			tmSoftwarePackagesPayloads[tmName] = softwarePayloads
 		}
@@ -617,7 +618,7 @@ func (c *Client) ApplyGroup(
 		// In dry-run, the team names returned are the old team names (when team name is modified via gitops)
 		teamIDsByName, err = c.ApplyTeams(specs.Teams, teamOpts)
 		if err != nil {
-			return nil, nil, fmt.Errorf("applying teams: %w", err)
+			return nil, nil, nil, fmt.Errorf("applying teams: %w", err)
 		}
 
 		// When using GitOps, the team name could change, so we need to check for that
@@ -644,7 +645,7 @@ func (c *Client) ApplyGroup(
 				} else {
 					logfn("[+] applying MDM profiles for team %s\n", tmName)
 					if err := c.ApplyTeamProfiles(currentTeamName, profs, teamOpts); err != nil {
-						return nil, nil, fmt.Errorf("applying custom settings for team %q: %w", tmName, err)
+						return nil, nil, nil, fmt.Errorf("applying custom settings for team %q: %w", tmName, err)
 					}
 				}
 			}
@@ -653,7 +654,7 @@ func (c *Client) ApplyGroup(
 			for tmName, tmID := range teamIDsByName {
 				if bp, ok := tmBootstrapPackages[tmName]; ok {
 					if err := c.EnsureBootstrapPackage(bp, tmID); err != nil {
-						return nil, nil, fmt.Errorf("uploading bootstrap package for team %q: %w", tmName, err)
+						return nil, nil, nil, fmt.Errorf("uploading bootstrap package for team %q: %w", tmName, err)
 					}
 				}
 				if b, ok := tmMacSetupAssistants[tmName]; ok {
@@ -665,11 +666,11 @@ func (c *Client) ApplyGroup(
 							// to render a more helpful error message.
 							parts := strings.Split(err.Error(), ".")
 							if len(parts) < 2 {
-								return nil, nil, fmt.Errorf("unexpected error while uploading macOS setup assistant for team %q: %w", tmName, err)
+								return nil, nil, nil, fmt.Errorf("unexpected error while uploading macOS setup assistant for team %q: %w", tmName, err)
 							}
-							return nil, nil, fmt.Errorf("Couldn't edit macos_setup_assistant. Response from Apple: %s. Learn more at %s", strings.Trim(parts[1], " "), "https://fleetdm.com/learn-more-about/dep-profile")
+							return nil, nil, nil, fmt.Errorf("Couldn't edit macos_setup_assistant. Response from Apple: %s. Learn more at %s", strings.Trim(parts[1], " "), "https://fleetdm.com/learn-more-about/dep-profile")
 						}
-						return nil, nil, fmt.Errorf("uploading macOS setup assistant for team %q: %w", tmName, err)
+						return nil, nil, nil, fmt.Errorf("uploading macOS setup assistant for team %q: %w", tmName, err)
 					}
 				}
 			}
@@ -678,9 +679,11 @@ func (c *Client) ApplyGroup(
 			for tmName, scripts := range tmScriptsPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
-				if err := c.ApplyTeamScripts(currentTeamName, scripts, opts.ApplySpecOptions); err != nil {
-					return nil, nil, fmt.Errorf("applying scripts for team %q: %w", tmName, err)
+				scriptResponses, err := c.ApplyTeamScripts(currentTeamName, scripts, opts.ApplySpecOptions)
+				if err != nil {
+					return nil, nil, nil, fmt.Errorf("applying scripts for team %q: %w", tmName, err)
 				}
+				teamsScripts[tmName] = scriptResponses
 			}
 		}
 		if len(tmSoftwarePackagesPayloads) > 0 {
@@ -690,9 +693,9 @@ func (c *Client) ApplyGroup(
 				logfn("[+] applying %d software packages for team %s\n", len(software), tmName)
 				installers, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions)
 				if err != nil {
-					return nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
+					return nil, nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
 				}
-				teamSoftwareInstallers[tmName] = installers
+				teamsSoftwareInstallers[tmName] = installers
 			}
 		}
 		if len(tmSoftwareAppsPayloads) > 0 {
@@ -700,7 +703,7 @@ func (c *Client) ApplyGroup(
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
 				if err := c.ApplyTeamAppStoreAppsAssociation(currentTeamName, apps, opts.ApplySpecOptions); err != nil {
-					return nil, nil, fmt.Errorf("applying app store apps for team: %q: %w", tmName, err)
+					return nil, nil, nil, fmt.Errorf("applying app store apps for team: %q: %w", tmName, err)
 				}
 			}
 		}
@@ -715,7 +718,7 @@ func (c *Client) ApplyGroup(
 	if len(specs.Policies) > 0 {
 		// Policy names must be unique, return error if duplicate policy names are found
 		if policyName := fleet.FirstDuplicatePolicySpecName(specs.Policies); policyName != "" {
-			return nil, nil, fmt.Errorf(
+			return nil, nil, nil, fmt.Errorf(
 				"applying policies: policy names must be unique. Please correct policy %q and try again.", policyName,
 			)
 		}
@@ -729,7 +732,7 @@ func (c *Client) ApplyGroup(
 				}
 			}
 			if err := c.ApplyPolicies(specs.Policies); err != nil {
-				return nil, nil, fmt.Errorf("applying policies: %w", err)
+				return nil, nil, nil, fmt.Errorf("applying policies: %w", err)
 			}
 			logfn("[+] applied %d policies\n", len(specs.Policies))
 		}
@@ -740,13 +743,13 @@ func (c *Client) ApplyGroup(
 			logfn("[!] ignoring user roles, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
 			if err := c.ApplyUsersRoleSecretSpec(specs.UsersRoles); err != nil {
-				return nil, nil, fmt.Errorf("applying user roles: %w", err)
+				return nil, nil, nil, fmt.Errorf("applying user roles: %w", err)
 			}
 			logfn("[+] applied user roles\n")
 		}
 	}
 
-	return teamIDsByName, teamSoftwareInstallers, nil
+	return teamIDsByName, teamsSoftwareInstallers, teamsScripts, nil
 }
 
 func buildSoftwarePackagesPayload(baseDir string, specs []fleet.SoftwarePackageSpec) ([]fleet.SoftwareInstallerPayload, error) {
@@ -1220,6 +1223,9 @@ func (c *Client) DoGitOps(
 	dryRun bool,
 	teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions,
 	appConfig *fleet.EnrichedAppConfig,
+	// pass-by-ref to build lists
+	teamsSoftwareInstallers map[string][]fleet.SoftwarePackageResponse,
+	teamsScripts map[string][]fleet.ScriptResponse,
 ) (*fleet.TeamSpecsDryRunAssumptions, error) {
 	baseDir := filepath.Dir(fullFilename)
 	filename := filepath.Base(fullFilename)
@@ -1250,6 +1256,10 @@ func (c *Client) DoGitOps(
 			integrations = map[string]interface{}{}
 			group.AppConfig.(map[string]interface{})["integrations"] = integrations
 		}
+		integrations, ok = integrations.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("org_settings.integrations config is not a map")
+		}
 		if jira, ok := integrations.(map[string]interface{})["jira"]; !ok || jira == nil {
 			integrations.(map[string]interface{})["jira"] = []interface{}{}
 		}
@@ -1258,6 +1268,14 @@ func (c *Client) DoGitOps(
 		}
 		if googleCal, ok := integrations.(map[string]interface{})["google_calendar"]; !ok || googleCal == nil {
 			integrations.(map[string]interface{})["google_calendar"] = []interface{}{}
+		}
+		if ndesSCEPProxy, ok := integrations.(map[string]interface{})["ndes_scep_proxy"]; !ok || ndesSCEPProxy == nil {
+			// Per backend patterns.md, best practice is to clear a JSON config field with `null`
+			integrations.(map[string]interface{})["ndes_scep_proxy"] = nil
+		} else {
+			if _, ok = ndesSCEPProxy.(map[string]interface{}); !ok {
+				return nil, errors.New("org_settings.integrations.ndes_scep_proxy config is not a map")
+			}
 		}
 
 		// Ensure mdm config exists
@@ -1460,17 +1478,18 @@ func (c *Client) DoGitOps(
 	}
 
 	// Apply org settings, scripts, enroll secrets, team entities (software, scripts, etc.), and controls.
-	teamIDsByName, teamsSoftwareInstallers, err := c.ApplyGroup(ctx, &group, baseDir, logf, appConfig, fleet.ApplyClientSpecOptions{
+	teamIDsByName, teamsSoftwareInstallers, teamsScripts, err := c.ApplyGroup(ctx, &group, baseDir, logf, appConfig, fleet.ApplyClientSpecOptions{
 		ApplySpecOptions: fleet.ApplySpecOptions{
 			DryRun: dryRun,
 		},
 		ExpandEnvConfigProfiles: true,
-	})
+	}, teamsSoftwareInstallers, teamsScripts)
 	if err != nil {
 		return nil, err
 	}
 
 	var teamSoftwareInstallers []fleet.SoftwarePackageResponse
+	var teamScripts []fleet.ScriptResponse
 	if config.TeamName != nil {
 		if !config.IsNoTeam() {
 			if len(teamIDsByName) != 1 {
@@ -1488,16 +1507,18 @@ func (c *Client) DoGitOps(
 				config.TeamID = &teamID
 			}
 			teamSoftwareInstallers = teamsSoftwareInstallers[*config.TeamName]
+			teamScripts = teamsScripts[*config.TeamName]
 		} else {
 			noTeamSoftwareInstallers, err := c.doGitOpsNoTeamSoftware(config, baseDir, appConfig, logFn, dryRun)
 			if err != nil {
 				return nil, err
 			}
 			teamSoftwareInstallers = noTeamSoftwareInstallers
+			teamScripts = teamsScripts["No team"]
 		}
 	}
 
-	err = c.doGitOpsPolicies(config, teamSoftwareInstallers, logFn, dryRun)
+	err = c.doGitOpsPolicies(config, teamSoftwareInstallers, teamScripts, logFn, dryRun)
 	if err != nil {
 		return nil, err
 	}
@@ -1542,7 +1563,7 @@ func (c *Client) doGitOpsNoTeamSoftware(config *spec.GitOps, baseDir string, app
 	return softwareInstallers, nil
 }
 
-func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []fleet.SoftwarePackageResponse, logFn func(format string, args ...interface{}), dryRun bool) error {
+func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []fleet.SoftwarePackageResponse, teamScripts []fleet.ScriptResponse, logFn func(format string, args ...interface{}), dryRun bool) error {
 	var teamID *uint // Global policies (nil)
 	switch {
 	case config.TeamID != nil: // Team policies
@@ -1550,8 +1571,8 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 	case config.IsNoTeam(): // "No team" policies
 		teamID = ptr.Uint(0)
 	}
-	// Get software titles of packages for the team.
 	if teamID != nil {
+		// Get software titles of packages for the team.
 		softwareTitleURLs := make(map[string]uint)
 		for _, softwareInstaller := range teamSoftwareInstallers {
 			if softwareInstaller.TitleID == nil {
@@ -1581,6 +1602,27 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				continue
 			}
 			config.Policies[i].SoftwareTitleID = &softwareTitleID
+		}
+
+		// Get scripts for the team.
+		scriptIDsByName := make(map[string]uint)
+		for _, script := range teamScripts {
+			scriptIDsByName[script.Name] = script.ID
+		}
+		for i := range config.Policies {
+			config.Policies[i].ScriptID = ptr.Uint(0) // 0 unsets the script
+
+			if config.Policies[i].RunScript == nil {
+				continue
+			}
+			scriptID, ok := scriptIDsByName[*config.Policies[i].RunScriptName]
+			if !ok {
+				if !dryRun { // this shouldn't happen
+					logFn("[!] reference to an unknown script: %s\n", *config.Policies[i].RunScriptName)
+				}
+				continue
+			}
+			config.Policies[i].ScriptID = &scriptID
 		}
 	}
 

@@ -1,25 +1,33 @@
 #basic-documentation {
 
   h1 {
-    font-size: 28px;
-    line-height: 34px;
+    font-size: 30px;
   }
 
   h2 {
-    font-size: 24px;
-    line-height: 28px;
+    font-size: 28px;
   }
 
   h3 {
-    font-size: 20px;
-    line-height: 24px;
+    font-size: 24px;
   }
 
   h4 {
-    margin-top: 24px;
-    font-size: 18px;
-    line-height: 24px;
+    font-size: 20px;
   }
+
+  h5 {
+    font-size: 18px;
+  }
+
+  h6 {
+    font-size: 16px;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    line-height: 1.2;
+  }
+
 
 
   a:not(.btn) {
@@ -532,25 +540,33 @@
 
       h3 {
         padding-bottom: 16px;
-        margin-top: 24px;
-        margin-bottom: 40px;
-        border-bottom: 1px dashed @core-fleet-black-25;
+        margin-top: 40px;
         scroll-margin-top: 104px;
       }
 
       h4 {
         padding-bottom: 24px;
+        margin-top: 24px;
         margin-bottom: 0px;
         scroll-margin-top: 104px;
       }
 
       h5 {
-        font-size: 16px;
         font-weight: 700;
         font-family: @main-font;
-        margin-bottom: 16px;
+        margin-top: 16px;
+        margin-bottom: 24px;
         scroll-margin-top: 104px;
       }
+
+      h6 {
+        font-weight: 700;
+        font-family: @main-font;
+        margin-top: 16px;
+        margin-bottom: 24px;
+        scroll-margin-top: 104px;
+      }
+
       pre + hr + h3 {
         padding-top: 0px;
       }
@@ -750,7 +766,7 @@
         border-collapse: collapse;
         font-size: 16px;
         line-height: 24px;
-        margin-bottom: 16px;
+        margin-bottom: 0;
         word-wrap: break-word;
 
         th {
@@ -767,6 +783,11 @@
           padding: 8px 7px 7px 8px;
         }
       }
+
+      .table-responsive {
+        margin-bottom: 32px;
+      }
+
       .note {
         background-color: @core-vibrant-blue-10;
         border-radius: 12px;

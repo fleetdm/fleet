@@ -24,6 +24,10 @@ import targetsAPI, {
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { formatSelectedTargetsForApi } from "utilities/helpers";
 import permissions from "utilities/permissions";
+import {
+  LABEL_DISPLAY_MAP,
+  PlatformLabelNameFromAPI,
+} from "utilities/constants";
 
 import PageError from "components/DataError";
 import TargetsInput from "components/LiveQuery/TargetsInput";
@@ -108,23 +112,15 @@ const TargetPillSelector = ({
   isSelected,
   onClick,
 }: ITargetPillSelectorProps): JSX.Element => {
-  const displayText = () => {
+  const displayText = (): string => {
     if (isBuiltInLabel(entity)) {
-      switch (entity.name) {
-        case "All Hosts":
-          return "All hosts";
-        case "All Linux":
-          return "Linux";
-        case "chrome":
-          return "ChromeOS";
-        case "MS Windows":
-          return "Windows";
-        default:
-          return entity.name || "Missing display name"; // TODO
+      const labelName = entity.name as PlatformLabelNameFromAPI;
+      if (labelName in LABEL_DISPLAY_MAP) {
+        return LABEL_DISPLAY_MAP[labelName] || labelName;
       }
     }
 
-    return entity.name || "Missing display name"; // TODO
+    return entity.name || "Missing display name";
   };
 
   return (
@@ -159,7 +155,6 @@ const SelectTargets = ({
   const { isPremiumTier, isOnGlobalTeam, currentUser } = useContext(AppContext);
 
   const [labels, setLabels] = useState<ILabelsByType | null>(null);
-  const [inputTabIndex, setInputTabIndex] = useState<number | null>(null);
   const [searchText, setSearchText] = useState("");
   const [debouncedSearchText, setDebouncedSearchText] = useState("");
   const [isDebouncing, setIsDebouncing] = useState(false);
@@ -266,12 +261,6 @@ const SelectTargets = ({
   useEffect(() => {
     labelsSummary && setLabels(parseLabels(labelsSummary));
   }, [labelsSummary]);
-
-  useEffect(() => {
-    if (inputTabIndex === null && labelsSummary && teams) {
-      setInputTabIndex(labelsSummary.length + teams.length || 0);
-    }
-  }, [inputTabIndex, labelsSummary, teams]);
 
   useEffect(() => {
     setIsDebouncing(true);
@@ -489,7 +478,6 @@ const SelectTargets = ({
         autofocus
         searchResultsTableConfig={resultsTableConfig}
         selectedHostsTableConifg={selectedHostsTableConfig}
-        tabIndex={inputTabIndex || 0}
         searchText={searchText}
         searchResults={searchResults || []}
         isTargetsLoading={isFetchingSearchResults || isDebouncing}
