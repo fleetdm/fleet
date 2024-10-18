@@ -41,6 +41,15 @@ If you would like to use Fleet's macOS MDM features, the following endpoints nee
 > The `/mdm/apple/scep` and `/mdm/apple/mdm` endpoints are outside of the `/api` path because they
 > are not RESTful and are not intended for use by API clients or browsers.
 
+## iOS and iPadOS
+
+If you would like your end-users to be able to download an enrollment profile for BYOD devices, the following endpoints needs to be exposed:
+
+- `/enroll`: Allows users to access step-by-step instructions.
+  - This is a Fleet UI route.
+  - See [this guide](https://fleetdm.com/guides/enroll-byod-ios-ipados-hosts) for more information.
+- `api/v1/fleet/enrollment_profiles/ota`: Allows users to download the BYOD enrollment profile.
+
 ### Windows
 
 If you would like to use Fleet's Windows MDM features, the following endpoints need to be exposed:
