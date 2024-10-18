@@ -2,14 +2,17 @@ import React, { useState, useEffect, useContext } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
+import axios from "axios";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import {
   DEFAULT_QUERY,
   DOCUMENT_TITLE_SUFFIX,
+  getUpdatedMinOsqueryVersionOptions,
   INVALID_PLATFORMS_FLASH_MESSAGE,
   INVALID_PLATFORMS_REASON,
+  MIN_OSQUERY_VERSION_OPTIONS,
 } from "utilities/constants";
 import configAPI from "services/entities/config";
 import queryAPI from "services/entities/queries";
@@ -49,6 +52,13 @@ interface IEditQueryPageProps {
     search: string;
   };
 }
+
+const fetchOsqueryVersions = async () => {
+  const response = await axios.get(
+    "https://api.github.com/repos/osquery/osquery/releases"
+  );
+  return response.data.map((release: any) => release.tag_name);
+};
 
 const baseClass = "edit-query-page";
 
@@ -118,6 +128,9 @@ const EditQueryPage = ({
     showConfirmSaveChangesModal,
     setShowConfirmSaveChangesModal,
   ] = useState(false);
+  const [minOsqueryVersionOptions, setMinOsqueryVersionOptions] = useState(
+    MIN_OSQUERY_VERSION_OPTIONS
+  );
 
   const { data: appConfig } = useQuery<IConfig, Error, IConfig>(
     ["config"],
@@ -129,6 +142,23 @@ const EditQueryPage = ({
       },
     }
   );
+
+  const {
+    data: osqueryRecentReleases,
+    error: osqueryRecentReleaseVersionsError,
+    isLoading: isOsqueryRecentReleaseVersionsLoading,
+  } = useQuery({
+    queryKey: ["osqueryVersions"],
+    queryFn: fetchOsqueryVersions,
+    onSuccess: (data) => {
+      const osqueryRecentReleasesTagNames = data.map((version: any) => version);
+      setMinOsqueryVersionOptions(
+        getUpdatedMinOsqueryVersionOptions(osqueryRecentReleasesTagNames)
+      );
+    },
+  });
+
+  console.log("minOsqueryVersionOptions", minOsqueryVersionOptions);
 
   // disabled on page load so we can control the number of renders
   // else it will re-populate the context on occasion
