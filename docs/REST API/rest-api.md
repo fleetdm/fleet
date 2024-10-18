@@ -8853,7 +8853,8 @@ Get a list of all software.
         "name": "FirefoxInsall.pkg",
         "version": "125.6",
         "self_service": true,
-	"automatic_install": true
+	      "automatic_install": true,
+        "fleet_maintained": false
       },
       "app_store_app": null,
       "versions_count": 3,
@@ -9121,7 +9122,6 @@ Returns information about the specified software. By default, `versions` are sor
       "uploaded_at": "2024-04-01T14:22:58Z",
       "install_script": "sudo installer -pkg '$INSTALLER_PATH' -target /",
       "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
-      "automatic_install_query": "SELECT 1 FROM apps WHERE name='Falcon.app';",
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
       "uninstall_script": "/Library/CS/falconctl uninstall",
       "self_service": true,
@@ -9664,7 +9664,6 @@ Add Fleet-maintained app so it's available for install.
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
-| install_method | string | body | Defines if software install will be triggered automatically. Possible options are `manual` and `automatic`. If not specified default is `manual`. |
 
 
 #### Example
