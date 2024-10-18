@@ -9696,7 +9696,6 @@ Add Fleet-maintained app so it's available for install.
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
 
-
 #### Example
 
 `POST /api/v1/fleet/software/fleet_maintained_apps`
