@@ -117,4 +117,36 @@ func TestUp_20241017163402(t *testing.T) {
 	require.Equal(t, "1.2", result.Version)
 	require.Nil(t, result.InstallerID)
 	require.Equal(t, "2024-10-01T00:00:00Z", result.UpdatedAt)
+
+	// test activity hydration manual query
+	execNoErr(t, db, `INSERT INTO activities (activity_type, details) VALUES 
+		("installed_software", '{"install_uuid": "execution-id1", "software_title": "Foo", "software_package": "foo.pkg"}'),
+		("installed_software", '{"install_uuid": "execution-id2", "software_title": "A Real Title"}'),
+		("uninstalled_software", '{"execution_id": "execution-id3", "software_title": "Ignore Me"}')`)
+
+	execNoErr(t, db, `UPDATE host_software_installs i
+JOIN activities a ON a.activity_type = 'installed_software'
+	AND i.execution_id = a.details->>"$.install_uuid"
+SET i.software_title_name = COALESCE(a.details->>"$.software_title", i.software_title_name),
+	i.installer_filename = COALESCE(a.details->>"$.software_package", i.installer_filename),
+	i.updated_at = i.updated_at`)
+
+	err = db.Get(&result, "SELECT installer_filename, version, software_installer_id, software_title_id, software_title_name, updated_at FROM host_software_installs WHERE id = ?", hsi1)
+	require.NoError(t, err)
+	require.Equal(t, "foo.pkg", result.Filename)
+	require.Equal(t, "Foo", result.TitleName)
+	require.Equal(t, "2024-10-01T00:00:00Z", result.UpdatedAt)
+
+	err = db.Get(&result, "SELECT installer_filename, version, software_installer_id, software_title_id, software_title_name, updated_at FROM host_software_installs WHERE id = ?", hsi2)
+	require.NoError(t, err)
+	require.Equal(t, "to-delete-installer.pkg", result.Filename)
+	require.Equal(t, "A Real Title", result.TitleName)
+	require.Equal(t, "2024-10-01T00:00:00Z", result.UpdatedAt)
+
+	// uninstall should not have been modified
+	err = db.Get(&result, "SELECT installer_filename, version, software_installer_id, software_title_id, software_title_name, updated_at FROM host_software_installs WHERE id = ?", hsiUn)
+	require.NoError(t, err)
+	require.Equal(t, "", result.Filename)
+	require.Equal(t, "[deleted title]", result.TitleName)
+	require.Equal(t, "2024-10-01T00:00:00Z", result.UpdatedAt)
 }
