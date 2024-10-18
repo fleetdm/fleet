@@ -141,10 +141,11 @@ func bindValueURI(s string) string {
 	}
 	for i := 0; i < len(s); i++ {
 		b := s[i]
-		if b >= '0' && b <= '9' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b == '_' {
+		switch {
+		case b >= '0' && b <= '9' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b == '_':
 			// alnum + '_' pass untouched
 			out = append(out, b)
-		} else if b == '\\' {
+		case b == '\\':
 			// percent-encode escaped characters
 			// sanity check should be done during unbinding, so here we silently skip all
 			// illegal characters
@@ -153,9 +154,9 @@ func bindValueURI(s string) string {
 				break
 			}
 			out = append(out, pctEncode(s[i])...)
-		} else if b == '?' { // unquoted '?' -> "%01"
+		case b == '?': // unquoted '?' -> "%01"
 			out = append(out, '%', '0', '1')
-		} else if b == '*' { // unquoted '*' -> "%02"
+		case b == '*': // unquoted '*' -> "%02"
 			out = append(out, '%', '0', '2')
 		}
 	}

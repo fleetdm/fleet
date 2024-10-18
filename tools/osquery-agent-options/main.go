@@ -81,7 +81,7 @@ func main() {
 	defer os.RemoveAll(tmpDir)
 	osquerydAppTarGzPath := filepath.Join(tmpDir, "osqueryd.app.tar.gz")
 	if err := download.Download(http.DefaultClient, osqueryTUFURL, osquerydAppTarGzPath); err != nil {
-		log.Fatalf("download osqueryd.app.tar.gz to %s: %s", osquerydAppTarGzPath, err)
+		log.Fatalf("download osqueryd.app.tar.gz to %s: %s", osquerydAppTarGzPath, err) //nolint:gocritic // ignore exitAfterDefer
 	}
 	if err := extractTarGz(osquerydAppTarGzPath); err != nil {
 		log.Fatalf("extract tar.gz %q: %s", osquerydAppTarGzPath, err)

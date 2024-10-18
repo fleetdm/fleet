@@ -90,8 +90,7 @@ func (ov *optionValue) Scan(src interface{}) error {
 	if err := json.Unmarshal(src.([]byte), &ov.Val); err != nil {
 		return err
 	}
-	switch v := ov.Val.(type) {
-	case float64:
+	if v, ok := ov.Val.(float64); ok {
 		ov.Val = int(v)
 	}
 	return nil

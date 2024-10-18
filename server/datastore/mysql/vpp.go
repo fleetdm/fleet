@@ -630,7 +630,7 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 
 	id, _ := res.LastInsertId()
 
-	vppTokenDB.ID = uint(id)
+	vppTokenDB.ID = uint(id) //nolint:gosec // dismiss G115
 
 	return vppTokenDB, nil
 }
@@ -876,7 +876,7 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 		if errors.As(err, &mysqlErr) && IsDuplicate(err) {
 			var dupeTeamID uint
 			var dupeTeamName string
-			fmt.Sscanf(mysqlErr.Message, "Duplicate entry '%d' for", &dupeTeamID)
+			_, _ = fmt.Sscanf(mysqlErr.Message, "Duplicate entry '%d' for", &dupeTeamID)
 			if err := sqlx.GetContext(ctx, ds.reader(ctx), &dupeTeamName, stmtTeamName, dupeTeamID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "getting team name for vpp token conflict error")
 			}

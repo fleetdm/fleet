@@ -57,7 +57,7 @@ func TestUp_20240222073518(t *testing.T) {
 	require.Equal(t, sha1, assoc.SHA256)
 	require.Equal(t, threeDaysAgo, assoc.CreatedAt)
 	require.Equal(t, threeDaysAgo, assoc.UpdatedAt)
-	require.Equal(t, "2025-02-20 19:57:24", (*assoc.CertNotValidAfter).Format("2006-01-02 15:04:05"))
+	require.Equal(t, "2025-02-20 19:57:24", assoc.CertNotValidAfter.Format("2006-01-02 15:04:05"))
 	require.Nil(t, assoc.RenewCommandUUID)
 
 	err = sqlx.Get(db, &assoc, selectStmt, "uuid-2")
@@ -66,7 +66,7 @@ func TestUp_20240222073518(t *testing.T) {
 	require.Equal(t, sha2, assoc.SHA256)
 	require.Equal(t, threeDaysAgo, assoc.CreatedAt)
 	require.Equal(t, threeDaysAgo, assoc.UpdatedAt)
-	require.Equal(t, "2025-02-20 19:57:25", (*assoc.CertNotValidAfter).Format("2006-01-02 15:04:05"))
+	require.Equal(t, "2025-02-20 19:57:25", assoc.CertNotValidAfter.Format("2006-01-02 15:04:05"))
 	require.Nil(t, assoc.RenewCommandUUID)
 
 	err = sqlx.Get(db, &assoc, selectStmt, "uuid-3")
@@ -75,7 +75,7 @@ func TestUp_20240222073518(t *testing.T) {
 	require.Equal(t, sha2, assoc.SHA256)
 	require.Equal(t, threeDaysAgo, assoc.CreatedAt)
 	require.Equal(t, threeDaysAgo, assoc.UpdatedAt)
-	require.Equal(t, "2025-02-20 19:57:25", (*assoc.CertNotValidAfter).Format("2006-01-02 15:04:05"))
+	require.Equal(t, "2025-02-20 19:57:25", assoc.CertNotValidAfter.Format("2006-01-02 15:04:05"))
 	require.Nil(t, assoc.RenewCommandUUID)
 
 	// creating a new association sets NULL as default values
