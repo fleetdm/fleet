@@ -84,7 +84,7 @@ This provides an opportunity to go over the tickets and their attached PRs.
 Specifically check cases where more than one ticket have the same PR and vice versa.
 
 
-Build release candidate and changelogs and QA ticket
+Build release candidate, changelogs and QA ticket
 ```
 ./tools/release/publish_release.sh
 ```
