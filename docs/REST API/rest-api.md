@@ -9712,7 +9712,6 @@ Add Fleet-maintained app so it's available for install.
 
 `Status: 204`
 
-
 ### Download package
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
