@@ -34,11 +34,18 @@
   moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#design-reviews" 
   dri: "noahtalerman"
 -
-  task: "🦢🔄 Product design sync"
+  task: "🦢📬 Product design inbox review"
+  startedOn: "2023-10-07" 
+  frequency: "Daily" 
+  description: "Noah and Allen review the new customer/community requests on the product board to synthisize “What users expect” from Allen" 
+  moreInfoUrl: "https://fleetdm.com/handbook/product-design#inbox-review" 
+  dri: "noahtalerman"
+-
+  task: "🦢🔄 Product design check-in"
   startedOn: "2023-07-11" 
   frequency: "Weekly" 
   description: "Weekly time to chat about product design work (design reviews, conventions & best practices, using Figma, etc.)" 
-  moreInfoUrl: "https://docs.google.com/document/d/1GDEcXuTUjHI2CD9Jqega_GyF9DL6-PBmcyJpj55Lmos/edit" # 2024-03-06 TODO: Add responsibility to README and link to it here
+  moreInfoUrl: "https://fleetdm.com/handbook/product-design#product-design-check-in" # 2024-03-06 TODO: Add responsibility to README and link to it here
   dri: "noahtalerman"
 -
   task: "🦢🗣 Product office hours"
