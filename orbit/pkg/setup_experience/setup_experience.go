@@ -33,6 +33,7 @@ type SetupExperiencer struct {
 	// and no other parts of Orbit need access to this field (or any other parts of the
 	// SetupExperiencer), it's OK to not protect this with a lock.
 	sd      *swiftdialog.SwiftDialog
+	steps   map[string]struct{}
 	started bool
 }
 
@@ -40,12 +41,17 @@ func NewSetupExperiencer(client Client, rootDirPath string) *SetupExperiencer {
 	return &SetupExperiencer{
 		OrbitClient: client,
 		closeChan:   make(chan struct{}),
+		steps:       make(map[string]struct{}),
 		rootDirPath: rootDirPath,
 	}
 }
 
 func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
-	// We should only launch swiftDialog if we get the notification from Fleet.
+	if !oc.Notifications.RunSetupExperience {
+		log.Debug().Msg("skipping setup experience")
+		return nil
+	}
+
 	_, binaryPath, _ := update.LocalTargetPaths(
 		s.rootDirPath,
 		"swiftDialog",
@@ -53,11 +59,6 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	)
 
 	if _, err := os.Stat(binaryPath); err != nil {
-		return nil
-	}
-
-	if !oc.Notifications.RunSetupExperience {
-		log.Debug().Msg("skipping setup experience")
 		return nil
 	}
 
@@ -104,9 +105,9 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		var stepsDone int
 		var prog uint
 		steps := append(payload.Software, payload.Script)
-		for _, r := range steps {
-			item := resultToListItem(r)
-			if s.started {
+		for _, step := range steps {
+			item := resultToListItem(step)
+			if _, ok := s.steps[step.Name]; ok {
 				err = s.sd.UpdateListItemByTitle(item.Title, item.StatusText, item.Status)
 				if err != nil {
 					log.Info().Err(err).Msg("updating list item in setup experience UI")
@@ -116,8 +117,10 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 				if err != nil {
 					log.Info().Err(err).Msg("adding list item in setup experience UI")
 				}
+				s.steps[step.Name] = struct{}{}
 			}
-			if r.Status == fleet.SetupExperienceStatusFailure || r.Status == fleet.SetupExperienceStatusSuccess {
+
+			if step.Status == fleet.SetupExperienceStatusFailure || step.Status == fleet.SetupExperienceStatusSuccess {
 				stepsDone++
 				// The swiftDialog progress bar is out of 100
 				for range int(float32(1) / float32(len(steps)) * 100) {
