@@ -215,6 +215,14 @@ func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uin
 	return fleet.ErrMissingLicense
 }
 
+func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string) (bool, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return false, fleet.ErrMissingLicense
+}
+
 // maybeUpdateSetupExperienceStatus attempts to update the status of a setup experience result in
 // the database. If the given result is of a supported type (namely SetupExperienceScriptResult,
 // SetupExperienceSoftwareInstallResult, and SetupExperienceVPPInstallResult), it returns a boolean

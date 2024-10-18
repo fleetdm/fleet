@@ -1107,6 +1107,8 @@ type GetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string)
 
 type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error)
 
+type UpdateSetupExperienceStatusResultFunc func(ctx context.Context, status *fleet.SetupExperienceStatusResult) error
+
 type EnqueueSetupExperienceItemsFunc func(ctx context.Context, hostUUID string, teamID uint) (bool, error)
 
 type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) (*fleet.Script, error)
@@ -2762,6 +2764,9 @@ type DataStore struct {
 
 	ListSetupExperienceResultsByHostUUIDFunc        ListSetupExperienceResultsByHostUUIDFunc
 	ListSetupExperienceResultsByHostUUIDFuncInvoked bool
+
+	UpdateSetupExperienceStatusResultFunc        UpdateSetupExperienceStatusResultFunc
+	UpdateSetupExperienceStatusResultFuncInvoked bool
 
 	EnqueueSetupExperienceItemsFunc        EnqueueSetupExperienceItemsFunc
 	EnqueueSetupExperienceItemsFuncInvoked bool
@@ -6604,6 +6609,13 @@ func (s *DataStore) ListSetupExperienceResultsByHostUUID(ctx context.Context, ho
 	s.ListSetupExperienceResultsByHostUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListSetupExperienceResultsByHostUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) UpdateSetupExperienceStatusResult(ctx context.Context, status *fleet.SetupExperienceStatusResult) error {
+	s.mu.Lock()
+	s.UpdateSetupExperienceStatusResultFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateSetupExperienceStatusResultFunc(ctx, status)
 }
 
 func (s *DataStore) EnqueueSetupExperienceItems(ctx context.Context, hostUUID string, teamID uint) (bool, error) {
