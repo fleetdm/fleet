@@ -29,6 +29,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/smallstep/pkcs7"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -595,6 +596,8 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	s.enableABM(t.Name())
 	s.runDEPSchedule()
 
+	fmt.Println(">>> INITIAL ENROLL")
+
 	// add a device that's manually enrolled
 	desktopToken := uuid.New().String()
 	manualHost := createOrbitEnrolledHost(t, "darwin", "h1", s.ds)
@@ -674,15 +677,21 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 		}
 	}
 
+	// run the worker to complete enrollment and get any worker-generated commands
+	s.runWorker()
+
 	// ack all commands to install profiles
 	ackAllCommands(manualEnrolledDevice)
 	ackAllCommands(automaticEnrolledDevice)
 	ackAllCommands(automaticEnrolledDeviceWithRef)
 	ackAllCommands(migratedDevice)
 
+	fmt.Println(">>> MANUAL DEVICE RE-ENROLL to get 2 certs")
+
 	// simulate a device with two certificates by re-enrolling one of them
 	err = manualEnrolledDevice.Enroll()
 	require.NoError(t, err)
+	s.runWorker()
 	ackAllCommands(manualEnrolledDevice)
 
 	cert, key, err := generateCertWithAPNsTopic()
@@ -710,13 +719,24 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
+	fmt.Println(">>> manual host: ", manualHost.UUID)
+	fmt.Println(">>> automatic host: ", automaticHost.UUID)
+	fmt.Println(">>> automatic with ref host: ", automaticHostWithRef.UUID)
+	fmt.Println(">>> migrated device host: ", migratedDevice.UUID)
+
 	expireCerts := func() {
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `
+			res, err := q.ExecContext(ctx, `
                   UPDATE nano_cert_auth_associations
-                  SET cert_not_valid_after = DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+                  SET cert_not_valid_after = DATE_SUB(CURDATE(), INTERVAL 400 DAY)
                   WHERE id IN (?, ?, ?, ?)
 		`, manualHost.UUID, automaticHost.UUID, automaticHostWithRef.UUID, migratedDevice.UUID)
+			if err != nil {
+				return err
+			}
+			n, _ := res.RowsAffected()
+			t.Logf("%d devices had their certs expired", n)
+			require.EqualValues(t, 5, n) // manualHost was enrolled twice to generate 2 certs
 			return err
 		})
 	}
@@ -780,6 +800,11 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
 	require.NoError(t, err)
 
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "nano_cert_auth_associations")
+		return nil
+	})
+
 	cmd, err = manualEnrolledDevice.Idle()
 	require.NoError(t, err)
 	require.Nil(t, cmd)
@@ -796,20 +821,28 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
+	fmt.Println(">>> RE-ENROLL FOR RENEWAL")
+
 	// devices renew their SCEP cert by re-enrolling.
 	require.NoError(t, manualEnrolledDevice.Enroll())
 	require.NoError(t, automaticEnrolledDevice.Enroll())
 	require.NoError(t, automaticEnrolledDeviceWithRef.Enroll())
 	require.NoError(t, migratedDevice.Enroll())
 
+	s.runWorker()
+
 	// no new commands are enqueued right after enrollment
 	cmd, err = manualEnrolledDevice.Idle()
 	require.NoError(t, err)
-	require.Nil(t, cmd)
+	if !assert.Nil(t, cmd) {
+		t.Logf("got unexpected non-nil command: %v", string(cmd.Raw))
+	}
 
 	cmd, err = automaticEnrolledDevice.Idle()
 	require.NoError(t, err)
-	require.Nil(t, cmd)
+	if !assert.Nil(t, cmd) {
+		t.Logf("got unexpected non-nil command: %v", string(cmd.Raw))
+	}
 
 	cmd, err = automaticEnrolledDeviceWithRef.Idle()
 	require.NoError(t, err)
