@@ -8883,7 +8883,6 @@ Get a list of all software.
         "version": "125.6",
         "self_service": true,
 	"automatic_install": true,
-        "fleet_maintained": false
       },
       "app_store_app": null,
       "versions_count": 3,
