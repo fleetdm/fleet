@@ -495,8 +495,14 @@ func main() {
 			if err != nil {
 				return fmt.Errorf("create updater: %w", err)
 			}
+
 			if err := updater.UpdateMetadata(); err != nil {
-				log.Info().Err(err).Msg("update metadata. using saved metadata")
+				log.Info().Err(err).Msg("update metadata, using saved metadata")
+			}
+
+			signaturesExpiredAtStartup := updater.SignaturesExpired()
+			if signaturesExpiredAtStartup {
+				log.Info().Err(err).Msg("detected signatures expired at startup")
 			}
 
 			targets := []string{"orbit", "osqueryd"}
@@ -507,8 +513,9 @@ func main() {
 				targets = targets[1:] // exclude orbit itself on dev-mode.
 			}
 			updateRunner, err = update.NewRunner(updater, update.RunnerOptions{
-				CheckInterval: c.Duration("update-interval"),
-				Targets:       targets,
+				CheckInterval:              c.Duration("update-interval"),
+				Targets:                    targets,
+				SignaturesExpiredAtStartup: signaturesExpiredAtStartup,
 			})
 			if err != nil {
 				return err
@@ -1305,6 +1312,46 @@ func getFleetdComponentPaths(
 ) (osquerydPath string, desktopPath string, err error) {
 	if err := updater.UpdateMetadata(); err != nil {
 		log.Error().Err(err).Msg("update metadata before getting components")
+	}
+
+	// "root", "targets", or "snapshot" signatures have expired, thus
+	// we attempt to get local paths for the targets (updater.Get will fail
+	// because of the expired signatures).
+	if updater.SignaturesExpired() {
+		log.Error().Err(err).Msg("expired metadata, using local targets")
+
+		// Attempt to get local path of osqueryd.
+		osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
+		if err != nil {
+			log.Info().Err(err).Msg("failed to get local path for osqueryd target")
+			// Attempt to use fallback path.
+			if fallbackCfg.OsquerydPath == "" {
+				log.Info().Err(err).Msg("no fallback local path for osqueryd")
+				return "", "", fmt.Errorf("get local osqueryd target: %w", err)
+			}
+			log.Info().Err(err).Msgf("get local osqueryd target failed, fallback to using %s", fallbackCfg.OsquerydPath)
+			osquerydPath = fallbackCfg.OsquerydPath
+		}
+		// Attempt to get local path of Fleet Desktop.
+		if c.Bool("fleet-desktop") {
+			if runtime.GOOS == "darwin" {
+				desktopPath, err = updater.DirLocalPath("desktop")
+			} else {
+				desktopPath, err = updater.ExecutableLocalPath("desktop")
+			}
+			if err != nil {
+				log.Info().Err(err).Msg("failed to get local path for desktop target")
+				// Attempt to use fallback path.
+				if fallbackCfg.DesktopPath == "" {
+					log.Info().Err(err).Msg("no fallback local path for desktop")
+					return "", "", fmt.Errorf("get local desktop target: %w", err)
+				}
+				log.Info().Err(err).Msgf("get local desktop target failed, fallback to using %s", fallbackCfg.DesktopPath)
+				desktopPath = fallbackCfg.DesktopPath
+			}
+		}
+
+		return osquerydPath, desktopPath, nil
 	}
 
 	// osqueryd
