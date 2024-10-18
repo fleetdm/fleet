@@ -2,6 +2,7 @@ package setupexperience
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -32,7 +33,6 @@ type SetupExperiencer struct {
 	// and no other parts of Orbit need access to this field (or any other parts of the
 	// SetupExperiencer), it's OK to not protect this with a lock.
 	sd      *swiftdialog.SwiftDialog
-	counter int
 	started bool
 }
 
@@ -160,7 +160,9 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	}
 
 	// If we get here, we can enable the button to allow the user to close the window.
-	s.sd.EnableButton1(true)
+	if err := s.sd.EnableButton1(true); err != nil {
+		log.Info().Err(err).Msg("enabling close buttong in setup experience UI")
+	}
 
 	return nil
 }
@@ -183,7 +185,7 @@ func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 	created := make(chan struct{})
 	swiftDialog, err := swiftdialog.Create(context.Background(), binaryPath)
 	if err != nil {
-		return fmt.Errorf("creating swiftDialog instance: %w")
+		return errors.New("creating swiftDialog instance: %w")
 	}
 	s.sd = swiftDialog
 	go func() {

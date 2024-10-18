@@ -93,6 +93,8 @@ func (s *SwiftDialog) Start(ctx context.Context, opts *SwiftDialogOptions) error
 		"--json",
 	)
 
+	s.cmd = cmd
+
 	outBuf := &bytes.Buffer{}
 	cmd.Stdout = outBuf
 
