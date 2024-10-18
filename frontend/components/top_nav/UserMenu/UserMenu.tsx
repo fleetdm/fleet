@@ -13,7 +13,7 @@ const baseClass = "user-menu";
 
 interface IUserMenuProps {
   onLogout: () => void;
-  onNavItemClick: (path: string) => void;
+  onUserMenuItemClick: (path: string) => void;
   isAnyTeamAdmin: boolean | undefined;
   isGlobalAdmin: boolean | undefined;
   currentUser: IUser;
@@ -21,12 +21,12 @@ interface IUserMenuProps {
 
 const UserMenu = ({
   onLogout,
-  onNavItemClick,
+  onUserMenuItemClick,
   isAnyTeamAdmin,
   isGlobalAdmin,
   currentUser,
 }: IUserMenuProps): JSX.Element => {
-  const accountNavigate = onNavItemClick(PATHS.ACCOUNT);
+  const accountNavigate = onUserMenuItemClick(PATHS.ACCOUNT);
   const dropdownItems = [
     {
       label: "My account",
@@ -43,7 +43,7 @@ const UserMenu = ({
   ];
 
   if (isGlobalAdmin) {
-    const manageUsersNavigate = onNavItemClick(PATHS.ADMIN_USERS);
+    const manageUsersNavigate = onUserMenuItemClick(PATHS.ADMIN_USERS);
 
     const manageUserNavItem = {
       label: "Manage users",
@@ -61,7 +61,7 @@ const UserMenu = ({
       currentUser.global_role === "admin"
         ? PATHS.ADMIN_ORGANIZATION
         : `${PATHS.TEAM_DETAILS_USERS(sortedTeams[0].value)}`;
-    const settingsNavigate = onNavItemClick(settingsPath);
+    const settingsNavigate = onUserMenuItemClick(settingsPath);
     const adminNavItem = {
       label: "Settings",
       onClick: settingsNavigate,
