@@ -31,8 +31,11 @@ module.exports = {
     Provided context:
     \`\`\`
     ${JSON.stringify(prunedTables.map((table)=>{
-      let lighterTable = _.pick(table, ['name','description']);
-      lighterTable.columns = _.pluck(table.columns, 'name');
+      let lighterTable = _.pick(table, ['name','description','platforms']);
+      lighterTable.columns = table.columns.map((column)=>{
+        let lighterColumn = _.pick(column, ['name', 'description', 'platforms']);
+        return lighterColumn;
+      });
       return lighterTable;
     }))}
     \`\`\`
@@ -69,9 +72,13 @@ Please give me all of the above in JSON, with this data shape:
   "macOSQuery": "TODO",
   "windowsQuery": "TODO",
   "linuxQuery": "TODO",
-  "chromeOSQuery": "TODO"
+  "chromeOSQuery": "TODO",
+  "macOSCaveats": "TODO",
+  "windowsCaveats": "TODO",
+  "linuxCaveats": "TODO",
+  "chromeOSCaveats": "TODO",
 }`;
-    let sqlReport = await sails.helpers.ai.prompt(sqlPrompt, 'gpt-4o', true);
+    let sqlReport = await sails.helpers.ai.prompt(sqlPrompt, 'o1-preview', true);
 
 
     // Which of my computers dont have filevault enabled?
