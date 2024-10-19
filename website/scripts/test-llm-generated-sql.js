@@ -13,12 +13,6 @@ module.exports = {
 
   fn: async function ({naturalLanguageQuestion}) {
 
-    sails.log('Running custom shell script... (`sails run test-llm-generated-sql`)');
-
-    if (!sails.config.custom.openAiSecret) {
-      throw new Error('sails.config.custom.openAiSecret not set.');
-    }//•
-
     let completeTables = await sails.helpers.getExtendedOsquerySchema();
     let prunedTables = completeTables.map((table)=>{
       let newTable = _.pick(table,['name','description','platforms', 'examples']);

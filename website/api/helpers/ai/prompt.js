@@ -26,6 +26,11 @@ module.exports = {
 
 
   fn: async function ({prompt, baseModel, expectJson}) {
+
+    if (!sails.config.custom.openAiSecret) {
+      throw new Error('sails.config.custom.openAiSecret not set.');
+    }//•
+
     // The base model to use.  https://platform.openai.com/docs/models/o1
     let failureMessage = 'Failed to generate result via generative AI.';// Fallback message in case LLM API request fails.
 
