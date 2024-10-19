@@ -13,6 +13,8 @@ module.exports = {
 
   fn: async function ({naturalLanguageQuestion}) {
 
+    let assert = require('assert');
+
     let completeTables = await sails.helpers.getExtendedOsquerySchema();
     let prunedTables = completeTables.map((table)=>{
       let newTable = _.pick(table,['name','description','platforms', 'examples']);
@@ -113,6 +115,37 @@ Please give me all of the above in JSON, with this data shape:
 
 
     // console.log('QUESTION:',naturalLanguageQuestion,'\nFILTRATION PROMPT:', schemaFiltrationPrompt, '\nFILTERED TABLES:', filteredTables, '\nSQL PROMPT:', sqlPrompt);
+
+
+    console.log(sqlReport);
+
+
+
+    // Now talk to Fleet.
+    // -----
+    // TODO: https://github.com/fleetdm/fleet/issues/23037
+    // [?] A more complicated example + caveats about this API endpoint: https://github.com/mikermcneil/fleet-at-uber-via-sal-like-dashboard/blob/84660d0a10b4426261bd766400d72bbbaf2e7d5a/scripts/update-reports.js#L159-L218
+    // -----
+
+    //   if (!sails.config.custom.fleetBaseUrl || !sails.config.custom.fleetApiToken) {
+    //     throw new Error('sails.config.custom.fleetBaseUrl and sails.config.custom.fleetApiToken must both be provided.');
+    //   }
+    //   let fleetBaseUrl = sails.config.custom.fleetBaseUrl;
+    //   let headers = {
+    //     Authorization: `Bearer ${sails.config.custom.fleetApiToken}`
+    //   };
+
+    //   let httpResponse = await sails.helpers.http.sendHttpRequest.with({
+    //   method: 'GET',
+    //   url: '/api/v1/fleet/queries/run',
+    //   body: {
+    //     query_ids: [ specialQueryApid ],//eslint-disable-line camelcase
+    //     host_ids: theseApids,//eslint-disable-line camelcase
+    //   },
+    //   baseUrl: fleetBaseUrl,
+    //   headers
+    // });
+
 
 
     return sqlReport;
