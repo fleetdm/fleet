@@ -559,6 +559,7 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 				rows, err := q.QueryContext(ctx, `SELECT "version" FROM host_software_installs WHERE execution_id = ?`,
 					installUUID)
 				require.NoError(t, err)
+				require.NoError(t, rows.Err())
 
 				defer rows.Close()
 				var version string
