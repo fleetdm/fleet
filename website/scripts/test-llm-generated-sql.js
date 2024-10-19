@@ -26,14 +26,8 @@ module.exports = {
       return newTable;
     });
 
-    let JSON_PROMPT_SUFFIX = `In the resulting JSON report:
-1. Never use newline characters within double quotes, and ensure the result is valid JSON.
-2. Please do not add any text outside of the JSON report, nor wrap it in a code fence.
-3. Ensure your response is valid JSON.`;
-
-
     // Filter down the schema.
-    let schemaFiltrationPrompt = `Given this question from an IT admin, and using the provided context (the osquery schema), return the subset of tables that might be relevant for designing an osquery SQL query to answer this question.
+    let schemaFiltrationPrompt = `Given this question from an IT admin, and using the provided context (the osquery schema), return the subset of tables that might be relevant for designing an osquery SQL query to answer this question for computers running macOS, Windows, Linux, and/or ChromeOS.
 
     Here is the question:
     \`\`\`
@@ -43,14 +37,14 @@ module.exports = {
     Provided context:
     \`\`\`
     ${JSON.stringify(prunedTables.map((table)=>{
-      return table.name;
+      let lighterTable = _.pick(table, ['name','description']);
+      lighterTable.columns = _.pluck(table.columns, 'name');
+      return lighterTable;
     }))}
     \`\`\`
 
-    Please respond in JSON, with the same data shape as the provided context, but with the array filtered to include only relevant tables.
-
-    ${JSON_PROMPT_SUFFIX}`;
-    let filteredTables = await _prompt(schemaFiltrationPrompt, 'gpt-3.5-turbo');
+    Please respond in JSON, with the same data shape as the provided context, but with the array filtered to include only relevant tables.`;
+    let filteredTables = await sails.helpers.ai.prompt(schemaFiltrationPrompt, 'gpt-4o', true);
 
 
 
@@ -65,10 +59,10 @@ ${naturalLanguageQuestion}
 When generating the SQL:
 1. Please do not use the SQL "AS" operator, nor alias tables.  Always reference tables by their full name.
 2. If this question is related to an application or program, consider using LIKE instead of something verbatim.
-3. If this question is not possible to ask given the osquery schema for a particular operating system, then use empty string.
-4. If this question is a "yes" or "no" question, then build the query such that a "yes" returns exactly one row and a "no" returns zero rows.  In other words, if this question is about finding out which hosts match a "yes" or "no" question, then if a host does not match, do not include any rows for it.
-5. For each table that you use, only use columns that are documented for that table, as documented in the provided context.
-6. Use only tables that are supported for each target platform, as documented here in the provided context, considering the examples if they exist, and the available columns.
+3. If this question is not possible to ask given the tables and columns available in the provided context (the osquery schema) for a particular operating system, then use empty string.
+4. If this question is a "yes" or "no" question, or a "how many people" question, or a "how many hosts" question, then build the query such that a "yes" returns exactly one row and a "no" returns zero rows.  In other words, if this question is about finding out which hosts match a "yes" or "no" question, then if a host does not match, do not include any rows for it.
+5. Use only tables that are supported for each target platform, as documented in the provided context, considering the examples if they exist, and the available columns.
+6. For each table that you use, only use columns that are documented for that table, as documented in the provided context.
 
 Provided context:
 \`\`\`
@@ -78,14 +72,12 @@ ${JSON.stringify(filteredTables)}
 Please give me all of the above in JSON, with this data shape:
 
 {
-  macOSQuery: 'TODO',
-  windowsQuery: 'TODO',
-  linuxQuery: 'TODO',
-  chromeOSQuery: 'TODO'
-}
-
-${JSON_PROMPT_SUFFIX}`;
-    let sqlReport = await _prompt(sqlPrompt, 'gpt-4o');
+  "macOSQuery": "TODO",
+  "windowsQuery": "TODO",
+  "linuxQuery": "TODO",
+  "chromeOSQuery": "TODO"
+}`;
+    let sqlReport = await sails.helpers.ai.prompt(sqlPrompt, 'gpt-4o', true);
 
 
     // Which of my computers dont have filevault enabled?
@@ -129,29 +121,3 @@ ${JSON_PROMPT_SUFFIX}`;
 
 
 };
-
-
-
-async function _prompt(prompt, baseModel){// TODO: =>mike: to self: deal with this better, you naughty programmer
-  // The base model to use.  https://platform.openai.com/docs/models/o1
-  let failureMessage = 'Failed to generate result via generative AI.';// Fallback message in case LLM API request fails.
-
-  // [?] API: https://platform.openai.com/docs/api-reference/chat/create
-  let openAiResponse = await sails.helpers.http.post('https://api.openai.com/v1/chat/completions', {
-    model: baseModel,
-    messages: [ { role: 'user', content: prompt } ],
-  }, {
-    Authorization: `Bearer ${sails.config.custom.openAiSecret}`
-  })
-  .intercept((err)=>{
-    return new Error(failureMessage+'  Error details from LLM: '+err.stack);
-  });
-
-  let report;
-  try {
-    report = JSON.parse(openAiResponse.choices[0].message.content);
-  } catch (err) {
-    throw new Error('When trying to parse a JSON report returned from the Open AI API, an error occurred. Error details from JSON.parse: '+err.stack+'\n Report returned from Open AI:'+openAiResponse.choices[0].message.content);
-  }
-  return report;
-}//ƒ
