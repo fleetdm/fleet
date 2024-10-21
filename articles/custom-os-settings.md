@@ -20,6 +20,8 @@ Fleet UI:
 
 4. To modify the OS setting, first remove the old configuration profile and then add the new one.
 
+> On macOS, iOS, and iPadOS, removing a configuration profile will remove enforcement of the OS setting.
+
 Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile)
 
 ### OS settings status
