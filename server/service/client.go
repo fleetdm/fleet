@@ -389,6 +389,12 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 	return result, nil
 }
 
+// fileContent is used to store the name of a file and its content.
+type fileContent struct {
+	Filename string
+	Content  []byte
+}
+
 // ApplyGroup applies the given spec group to Fleet.
 func (c *Client) ApplyGroup(
 	ctx context.Context,
@@ -554,6 +560,7 @@ func (c *Client) ApplyGroup(
 		tmMacSetup := extractTmSpecsMacOSSetup(specs.Teams)
 		tmBootstrapPackages := make(map[string]*fleet.MDMAppleBootstrapPackage, len(tmMacSetup))
 		tmMacSetupAssistants := make(map[string][]byte, len(tmMacSetup))
+		tmMacSetupScript := make(map[string]fileContent, len(tmMacSetup))
 		for k, setup := range tmMacSetup {
 			if setup.BootstrapPackage.Value != "" {
 				bp, err := c.ValidateBootstrapPackageFromURL(setup.BootstrapPackage.Value)
@@ -568,6 +575,13 @@ func (c *Client) ApplyGroup(
 					return nil, nil, nil, fmt.Errorf("applying teams: %w", err)
 				}
 				tmMacSetupAssistants[k] = b
+			}
+			if setup.Script.Value != "" {
+				b, err := c.validateMacOSSetupScript(resolveApplyRelativePath(baseDir, setup.Script.Value))
+				if err != nil {
+					return nil, nil, nil, fmt.Errorf("applying teams: %w", err)
+				}
+				tmMacSetupScript[k] = fileContent{Filename: filepath.Base(setup.Script.Value), Content: b}
 			}
 		}
 
@@ -650,7 +664,7 @@ func (c *Client) ApplyGroup(
 				}
 			}
 		}
-		if len(tmBootstrapPackages)+len(tmMacSetupAssistants) > 0 && !opts.DryRun {
+		if len(tmBootstrapPackages)+len(tmMacSetupAssistants)+len(tmMacSetupScript) > 0 && !opts.DryRun {
 			for tmName, tmID := range teamIDsByName {
 				if bp, ok := tmBootstrapPackages[tmName]; ok {
 					if err := c.EnsureBootstrapPackage(bp, tmID); err != nil {
@@ -671,6 +685,11 @@ func (c *Client) ApplyGroup(
 							return nil, nil, nil, fmt.Errorf("Couldn't edit macos_setup_assistant. Response from Apple: %s. Learn more at %s", strings.Trim(parts[1], " "), "https://fleetdm.com/learn-more-about/dep-profile")
 						}
 						return nil, nil, nil, fmt.Errorf("uploading macOS setup assistant for team %q: %w", tmName, err)
+					}
+				}
+				if fc, ok := tmMacSetupScript[tmName]; ok {
+					if err := c.uploadMacOSSetupScript(fc.Filename, fc.Content, &tmID); err != nil {
+						return nil, nil, nil, fmt.Errorf("uploading setup experience script for team %q: %w", tmName, err)
 					}
 				}
 			}
