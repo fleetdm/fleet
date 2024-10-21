@@ -7537,10 +7537,10 @@ Returns a list of global queries or team queries.
     }
   ],
   "meta": {
-    "count": 200,
     "has_next_results": true,
     "has_previous_results": false
-  }
+  },
+  "count": 200
 }
 ```
 
