@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
+	"syscall"
 	"time"
 
 	"fyne.io/systray"
@@ -448,6 +450,21 @@ func main() {
 		summaryTicker.Stop()
 		cancelOfflineWatcherCtx()
 	}
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(
+		sigChan,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
+
+	// Catch signals and exit gracefully
+	go func() {
+		s := <-sigChan
+		log.Info().Stringer("signal", s).Msg("Caught signal, exiting")
+		systray.Quit()
+	}()
 
 	systray.Run(onReady, onExit)
 }
