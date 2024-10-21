@@ -210,10 +210,10 @@ type HostSoftwareInstallerResult struct {
 	InstallUUID string `json:"install_uuid" db:"execution_id"`
 	// SoftwareTitle is the title of the software.
 	SoftwareTitle string `json:"software_title" db:"software_title"`
-	// SoftwareVersion is the version of the software.
-	SoftwareTitleID uint `json:"software_title_id" db:"software_title_id"`
+	// SoftwareTitleID is the unique numerical ID of the software title assigned by the datastore.
+	SoftwareTitleID *uint `json:"software_title_id" db:"software_title_id"`
 	// SoftwareInstallerID is the unique numerical ID of the software installer assigned by the datastore.
-	SoftwareInstallerID uint `json:"-" db:"software_installer_id"`
+	SoftwareInstallerID *uint `json:"-" db:"software_installer_id"`
 	// SoftwarePackage is the name of the software installer package.
 	SoftwarePackage string `json:"software_package" db:"software_package"`
 	// HostID is the ID of the host.
@@ -245,12 +245,6 @@ type HostSoftwareInstallerResult struct {
 	// HostDeletedAt indicates if the data is associated with a
 	// deleted host
 	HostDeletedAt *time.Time `json:"-" db:"host_deleted_at"`
-	// SoftwareInstallerUserID is the ID of the user that uploaded the software installer.
-	SoftwareInstallerUserID *uint `json:"-" db:"software_installer_user_id"`
-	// SoftwareInstallerUserID is the name of the user that uploaded the software installer.
-	SoftwareInstallerUserName string `json:"-" db:"software_installer_user_name"`
-	// SoftwareInstallerUserEmail is the email of the user that uploaded the software installer.
-	SoftwareInstallerUserEmail string `json:"-" db:"software_installer_user_email"`
 	// PolicyID is the id of the policy that triggered the install, or
 	// nil if the install was not triggered by a policy failure
 	PolicyID *uint `json:"policy_id" db:"policy_id"`
