@@ -556,19 +556,10 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error { // ensure version is not changed, though we don't expose it yet
-				rows, err := q.QueryContext(ctx, `SELECT "version" FROM host_software_installs WHERE execution_id = ?`,
-					installUUID)
-				require.NoError(t, err)
-				require.NoError(t, rows.Err())
-
-				defer rows.Close()
 				var version string
-				for rows.Next() {
-					if err := rows.Scan(&version); err != nil {
-						return err
-					}
-					require.Equal(t, "1.11", version)
-				}
+				err := sqlx.GetContext(ctx, q, &version, `SELECT "version" FROM host_software_installs WHERE execution_id = ?`, installUUID)
+				require.NoError(t, err)
+				require.Equal(t, "1.11", version)
 
 				return nil
 			})
