@@ -1396,6 +1396,15 @@ func (svc *Service) editTeamFromSpec(
 		}
 	}
 
+	// if the setup experience script was cleared, remove it for that team
+	if spec.MDM.MacOSSetup.Script.Set &&
+		spec.MDM.MacOSSetup.Script.Value == "" &&
+		oldMacOSSetup.Script.Value != "" {
+		if err := svc.DeleteSetupExperienceScript(ctx, &team.ID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "clear setup experience script for team %d", team.ID)
+		}
+	}
+
 	if didUpdateMacOSEndUserAuth {
 		if err := svc.updateMacOSSetupEnableEndUserAuth(
 			ctx, spec.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name,

@@ -145,6 +145,13 @@ github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableReleaseDeviceManually	
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Value	bool
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	Script	optjson.String
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	Software	optjson.Slice[*github.com/fleetdm/fleet/v4/server/fleet.MacOSSetupSoftware]
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[*github.com/fleetdm/fleet/v4/server/fleet.MacOSSetupSoftware]	Set	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[*github.com/fleetdm/fleet/v4/server/fleet.MacOSSetupSoftware]	Valid	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[*github.com/fleetdm/fleet/v4/server/fleet.MacOSSetupSoftware]	Value	[]*fleet.MacOSSetupSoftware
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetupSoftware	AppStoreID	string
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetupSoftware	PackagePath	string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSMigration	fleet.MacOSMigration
 github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	Enable	bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	Mode	fleet.MacOSMigrationMode	string
