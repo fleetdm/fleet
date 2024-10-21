@@ -4,7 +4,6 @@ import strUtils from "utilities/strings";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import CustomLink from "components/CustomLink";
 
 const baseClass = "delete-host-modal";
 
@@ -59,12 +58,7 @@ const DeleteHostModal = ({
   };
 
   return (
-    <Modal
-      title="Delete host"
-      onExit={onCancel}
-      onEnter={onSubmit}
-      className={baseClass}
-    >
+    <Modal title="Delete host" onExit={onCancel} className={baseClass}>
       <>
         <p>
           This will remove the record of <b>{hostText()}</b>.{largeVolumeText()}
