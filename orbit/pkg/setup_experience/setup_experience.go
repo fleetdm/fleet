@@ -32,8 +32,9 @@ type SetupExperiencer struct {
 	// its Run method is called within a WaitGroup,
 	// and no other parts of Orbit need access to this field (or any other parts of the
 	// SetupExperiencer), it's OK to not protect this with a lock.
-	sd      *swiftdialog.SwiftDialog
-	steps   map[string]struct{}
+	sd *swiftdialog.SwiftDialog
+	// Name of each step -> is that step done
+	steps   map[string]bool
 	started bool
 }
 
@@ -41,7 +42,7 @@ func NewSetupExperiencer(client Client, rootDirPath string) *SetupExperiencer {
 	return &SetupExperiencer{
 		OrbitClient: client,
 		closeChan:   make(chan struct{}),
-		steps:       make(map[string]struct{}),
+		steps:       make(map[string]bool),
 		rootDirPath: rootDirPath,
 	}
 }
@@ -88,17 +89,29 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	// and account configuration to verify) right off the bat, so we can just no-op if any of those
 	// are not terminal
 
-	if payload.BootstrapPackage != nil && payload.BootstrapPackage.Status == fleet.MDMBootstrapPackagePending {
-		return nil
+	if payload.BootstrapPackage != nil {
+		if payload.BootstrapPackage.Status != fleet.MDMBootstrapPackageFailed || payload.BootstrapPackage.Status != fleet.MDMBootstrapPackageInstalled {
+			return nil
+		}
 	}
+
+	s.steps["bootstrap"] = true
 
 	if anyProfilePending(payload.ConfigurationProfiles) {
 		return nil
 	}
 
-	if payload.AccountConfiguration != nil && payload.AccountConfiguration.Status == "pending" {
-		return nil
+	s.steps["config_profiles"] = true
+
+	if payload.AccountConfiguration != nil {
+		if payload.AccountConfiguration.Status != fleet.MDMAppleStatusAcknowledged &&
+			payload.AccountConfiguration.Status != fleet.MDMAppleStatusError &&
+			payload.AccountConfiguration.Status != fleet.MDMAppleStatusCommandFormatError {
+			return nil
+		}
 	}
+
+	s.steps["account_config"] = true
 
 	// Now render the UI for the software and script.
 	if len(payload.Software) > 0 || payload.Script != nil {
@@ -117,11 +130,12 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 				if err != nil {
 					log.Info().Err(err).Msg("adding list item in setup experience UI")
 				}
-				s.steps[step.Name] = struct{}{}
+				s.steps[step.Name] = false
 			}
 
 			if step.Status == fleet.SetupExperienceStatusFailure || step.Status == fleet.SetupExperienceStatusSuccess {
 				stepsDone++
+				s.steps[step.Name] = true
 				// The swiftDialog progress bar is out of 100
 				for range int(float32(1) / float32(len(steps)) * 100) {
 					prog++
@@ -141,33 +155,46 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 			log.Info().Err(err).Msg("updating progress text in setup experience UI")
 		}
 
-		if stepsDone == len(steps) {
-			if err := s.sd.SetMessage(doneMessage); err != nil {
-				log.Info().Err(err).Msg("setting message in setup experience UI")
-			}
+	}
 
-			if err := s.sd.CompleteProgress(); err != nil {
-				log.Info().Err(err).Msg("completing progress bar in setup experience UI")
-			}
+	// If we get here, we can render the "done" UI.
 
+	if s.allStepsDone() {
+		if err := s.sd.SetMessage(doneMessage); err != nil {
+			log.Info().Err(err).Msg("setting message in setup experience UI")
+		}
+
+		if err := s.sd.CompleteProgress(); err != nil {
+			log.Info().Err(err).Msg("completing progress bar in setup experience UI")
+		}
+
+		if len(payload.Software) > 0 || payload.Script != nil {
 			// need to call this because SetMessage removes the list from the view for some reason :(
 			if err := s.sd.ShowList(); err != nil {
 				log.Info().Err(err).Msg("showing list in setup experience UI")
 			}
-
-			if err := s.sd.EnableButton1(true); err != nil {
-				log.Info().Err(err).Msg("enabling close button in setup experience UI")
-			}
 		}
-		return nil
-	}
 
-	// If we get here, we can enable the button to allow the user to close the window.
-	if err := s.sd.EnableButton1(true); err != nil {
-		log.Info().Err(err).Msg("enabling close buttong in setup experience UI")
+		if err := s.sd.UpdateProgressText("100%"); err != nil {
+			log.Info().Err(err).Msg("updating progress text in setup experience UI")
+		}
+
+		if err := s.sd.EnableButton1(true); err != nil {
+			log.Info().Err(err).Msg("enabling close button in setup experience UI")
+		}
 	}
 
 	return nil
+}
+
+func (s *SetupExperiencer) allStepsDone() bool {
+	for _, done := range s.steps {
+		if !done {
+			return false
+		}
+	}
+
+	return true
 }
 
 func anyProfilePending(profiles []*fleet.SetupExperienceConfigurationProfileResult) bool {
@@ -178,6 +205,12 @@ func anyProfilePending(profiles []*fleet.SetupExperienceConfigurationProfileResu
 	}
 
 	return false
+}
+
+func setupExperienceDone(payload *fleet.SetupExperienceStatusPayload) bool {
+	var done bool
+
+	return done
 }
 
 func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
