@@ -69,6 +69,12 @@ func main() {
 		}
 	}
 
+	// All macOS apps are expected to have a bundle identifier, which influences CPE generation.
+	if softwareSource != nil && *softwareSource == "apps" && softwareBundleIdentifier != nil && *softwareBundleIdentifier == "" {
+		printf("Must set --software_bundle_identifier for macOS apps when specifying -software_source apps\n")
+		return
+	}
+
 	if err := os.MkdirAll(*dbDir, os.ModePerm); err != nil {
 		panic(err)
 	}
@@ -76,7 +82,7 @@ func main() {
 	if *debug {
 		// Sample the process CPU and memory usage every second
 		// and store it on a file under the dbDir.
-		process, err := process.NewProcess(int32(os.Getpid()))
+		myProcess, err := process.NewProcess(int32(os.Getpid())) //nolint:gosec // dismiss G115
 		if err != nil {
 			panic(err)
 		}
@@ -89,11 +95,11 @@ func main() {
 			for {
 				select {
 				case <-time.After(1 * time.Second):
-					cpuPercent, err := process.CPUPercent()
+					cpuPercent, err := myProcess.CPUPercent()
 					if err != nil {
 						panic(err)
 					}
-					memInfo, err := process.MemoryInfo()
+					memInfo, err := myProcess.MemoryInfo()
 					if err != nil {
 						panic(err)
 					}

@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -25,13 +25,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.mozilla.org/pkcs7"
 )
 
 func (s *integrationMDMTestSuite) signedProfilesMatch(want, got [][]byte) {
@@ -40,7 +41,7 @@ func (s *integrationMDMTestSuite) signedProfilesMatch(want, got [][]byte) {
 
 	assets, err := s.ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
 		fleet.MDMAssetCACert,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	require.True(t, rootCA.AppendCertsFromPEM(assets[fleet.MDMAssetCACert].Value))
@@ -70,8 +71,9 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 		mobileconfigForTest("N1", "I1"),
 		mobileconfigForTest("N2", "I2"),
 	}
-	wantGlobalProfiles := append(
-		globalProfiles,
+	wantGlobalProfiles := globalProfiles
+	wantGlobalProfiles = append(
+		wantGlobalProfiles,
 		setupExpectedFleetdProfile(t, s.server.URL, t.Name(), nil),
 	)
 
@@ -92,12 +94,14 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	teamProfiles := [][]byte{
 		mobileconfigForTest("N3", "I3"),
 	}
-	wantTeamProfiles := append(
-		teamProfiles,
+	wantTeamProfiles := teamProfiles
+	wantTeamProfiles = append(
+		wantTeamProfiles,
 		setupExpectedFleetdProfile(t, s.server.URL, "team1_enroll_sec", &tm.ID),
 	)
 	// add profiles to the team
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent,
+		"team_id", fmt.Sprint(tm.ID))
 
 	// create a non-macOS host
 	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
@@ -173,7 +177,8 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 		mobileconfigForTest("N5", "I5"),
 	}
 	wantTeamProfiles = teamProfiles
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent,
+		"team_id", fmt.Sprint(tm.ID))
 
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
@@ -393,8 +398,9 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		mobileconfigForTest("N1", "I1"),
 		mobileconfigForTest("N2", "I2"),
 	}
-	initialExpectedProfiles := append(
-		testProfiles,
+	initialExpectedProfiles := testProfiles
+	initialExpectedProfiles = append(
+		initialExpectedProfiles,
 		setupExpectedFleetdProfile(t, s.server.URL, enrollSecret, nil),
 		setupExpectedCAProfile(t, s.ds),
 	)
@@ -949,6 +955,9 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	ctx := context.Background()
 	t := s.T()
 
+	// before we switch to a gitops token, ensure ABM is setup
+	s.enableABM(t.Name())
+
 	// Use a gitops user for all Puppet actions
 	u := &fleet.User{
 		Name:       "GitOps",
@@ -982,7 +991,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	// create a setup assistant for no team, for this we need to:
 	// 1. mock the ABM API, as it gets called to set the profile
 	// 2. run the DEP schedule, as this registers the default profile
-	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
 	}))
@@ -1154,18 +1163,16 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	s.awaitTriggerProfileSchedule(t)
 
 	// useful for debugging
-	//mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-	//	mysql.DumpTable(t, q, "host_mdm_apple_profiles")
-	//	return nil
-	//})
+	// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	// 	mysql.DumpTable(t, q, "host_mdm_apple_profiles")
+	// 	return nil
+	// })
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		mdmHost: {
 			{Identifier: "i1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
-			{Identifier: "i2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "i4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
-			{Identifier: mobileconfig.FleetFileVaultPayloadIdentifier, OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 		},
 	})
 
@@ -1231,6 +1238,21 @@ func (s *integrationMDMTestSuite) TestPuppetRun() {
 	host2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	host3, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	s.runWorker()
+
+	// Set up a mock Apple DEP API
+	s.enableABM(t.Name())
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
+		case "/account":
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
+		case "/profile":
+			w.WriteHeader(http.StatusOK)
+			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
+		}
+	}))
 
 	// Use a gitops user for all Puppet actions
 	u := &fleet.User{
@@ -1651,7 +1673,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleListConfigProfiles() {
 		require.NotNil(t, resp.ConfigProfiles)
 		require.Len(t, resp.ConfigProfiles, 2)
 		for _, p := range resp.ConfigProfiles {
-			if p.Name == p2.Name {
+			if p.Name == p2.Name { //nolint:gocritic // ignore ifElseChain
 				require.Equal(t, p2.Identifier, p.Identifier)
 			} else if p.Name == p3.Name {
 				require.Equal(t, p3.Identifier, p.Identifier)
@@ -1921,7 +1943,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 
 	// apply to both team id and name
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
-		http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)), "team_name", tm.Name)
+		http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID), "team_name", tm.Name)
 
 	// invalid team name
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
@@ -1936,14 +1958,14 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
 		mobileconfigForTest("N1", "I1"),
 		mobileconfigForTest("N1", "I2"),
-	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 
 	// profiles with reserved identifiers
 	for p := range mobileconfig.FleetPayloadIdentifiers() {
 		res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
 			mobileconfigForTest("N1", "I1"),
 			mobileconfigForTest(p, p),
-		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: payload identifier %s is not allowed", p))
 	}
@@ -1952,7 +1974,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 	for p := range mobileconfig.FleetPayloadTypes() {
 		res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
 			mobileconfigForTestWithContent("N1", "I1", "II1", p, ""),
-		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
 	}
@@ -1961,7 +1983,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 	for p := range mobileconfig.FleetPayloadIdentifiers() {
 		res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
 			mobileconfigForTestWithContent("N1", "I1", p, "random", ""),
-		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadIdentifier(s): %s", p))
 	}
@@ -1969,7 +1991,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 	// successfully apply a profile for the team
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
 		mobileconfigForTest("N1", "I1"),
-	}}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
+	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm.ID, tm.Name),
@@ -2057,7 +2079,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	}
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: tm1Profiles}, http.StatusNoContent,
-		"team_id", strconv.Itoa(int(tm1.ID)))
+		"team_id", fmt.Sprint(tm1.ID))
 	// create the team 1 enroll secret
 	var teamResp teamEnrollSecretsResponse
 	tm1EnrollSec := "team1_enroll_sec"
@@ -2074,7 +2096,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	}
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: tm2Profiles}, http.StatusNoContent,
-		"team_id", strconv.Itoa(int(tm2.ID)))
+		"team_id", fmt.Sprint(tm2.ID))
 
 	// enroll a couple hosts in no team
 	h1 := createManualMDMEnrollWithOrbit(globalEnrollSec)
@@ -2607,7 +2629,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	addLabelsFields := func(labelNames []string) map[string][]string {
 		var deprLabels, inclLabels, exclLabels []string
 		for _, lbl := range labelNames {
-			if strings.HasPrefix(lbl, "-") {
+			if strings.HasPrefix(lbl, "-") { //nolint:gocritic // ignore ifElseChain
 				exclLabels = append(exclLabels, strings.TrimPrefix(lbl, "-"))
 			} else if strings.HasPrefix(lbl, "!") {
 				deprLabels = append(deprLabels, strings.TrimPrefix(lbl, "!"))
@@ -2922,7 +2944,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", prof.ProfileUUID), nil, http.StatusOK, "alt", "media")
 		require.NotZero(t, resp.ContentLength)
 		require.Contains(t, resp.Header.Get("Content-Disposition"), "attachment;")
-		if strings.HasPrefix(prof.ProfileUUID, "a") {
+		if strings.HasPrefix(prof.ProfileUUID, "a") { //nolint:gocritic // ignore ifElseChain
 			require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
 		} else if strings.HasPrefix(prof.ProfileUUID, fleet.MDMAppleDeclarationUUIDPrefix) {
 			require.Contains(t, resp.Header.Get("Content-Type"), "application/json")
@@ -3779,17 +3801,18 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 
 	// apply an empty set to no-team
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil}, http.StatusNoContent)
-	s.lastActivityOfTypeMatches(
+	// Nothing changed, so no activity items
+	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
 		`{"team_id": null, "team_name": null}`,
 		0,
 	)
-	s.lastActivityOfTypeMatches(
+	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(),
 		`{"team_id": null, "team_name": null}`,
 		0,
 	)
-	s.lastActivityOfTypeMatches(
+	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedDeclarationProfile{}.ActivityName(),
 		`{"team_id": null, "team_name": null}`,
 		0,
@@ -3797,7 +3820,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 
 	// apply to both team id and name
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil},
-		http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)), "team_name", tm.Name)
+		http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID), "team_name", tm.Name)
 
 	// invalid team name
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil},
@@ -3809,7 +3832,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		{Name: "N2", Contents: mobileconfigForTest("N1", "I2")},
 		{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
 		{Name: "N4", Contents: declarationForTest("D1")},
-	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 
 	// profiles with reserved macOS identifiers
 	for p := range mobileconfig.FleetPayloadIdentifiers() {
@@ -3818,7 +3841,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 			{Name: p, Contents: mobileconfigForTest(p, p)},
 			{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
 			{Name: "N4", Contents: declarationForTest("D1")},
-		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: payload identifier %s is not allowed", p))
 	}
@@ -3829,7 +3852,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 			{Name: "N1", Contents: mobileconfigForTestWithContent("N1", "I1", "II1", p, "")},
 			{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
 			{Name: "N4", Contents: declarationForTest("D1")},
-		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
 	}
@@ -3840,7 +3863,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 			{Name: "N1", Contents: mobileconfigForTestWithContent("N1", "I1", p, "random", "")},
 			{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
 			{Name: "N4", Contents: declarationForTest("D1")},
-		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadIdentifier(s): %s", p))
 	}
@@ -3851,7 +3874,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 			{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 			{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
 			{Name: "N4", Contents: declarationForTestWithType("D1", dt)},
-		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, "Only configuration declarations that don’t require an asset reference are supported", dt)
 	}
@@ -3860,7 +3883,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 		{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
 		{Name: "N4", Contents: declarationForTestWithType("D1", "com.apple.configuration.softwareupdate.enforcement.specific")},
-	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
 
@@ -3869,7 +3892,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 		{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
 		{Name: "N4", Contents: []byte(`{"foo":}`)},
-	}}, http.StatusBadRequest, "team_id", strconv.Itoa(int(tm.ID)))
+	}}, http.StatusBadRequest, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "The file should include valid JSON")
 
@@ -3879,7 +3902,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 		{Name: syncml.FleetBitLockerTargetLocURI, Contents: syncMLForTest(fmt.Sprintf("%s/Foo", syncml.FleetBitLockerTargetLocURI))},
 		{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
-	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Custom configuration profiles can't include BitLocker settings. To control these settings, use the mdm.enable_disk_encryption option.")
 
@@ -3888,21 +3911,21 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 		{Name: syncml.FleetOSUpdateTargetLocURI, Contents: syncMLForTest(fmt.Sprintf("%s/Foo", syncml.FleetOSUpdateTargetLocURI))},
 		{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
-	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Custom configuration profiles can't include Windows updates settings. To control these settings, use the mdm.windows_updates option.")
 
 	// invalid windows tag
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N3", Contents: []byte(`<Exec></Exec>`)},
-	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Windows configuration profiles can only have <Replace> or <Add> top level elements.")
 
 	// invalid xml
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N3", Contents: []byte(`foo`)},
-	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Windows configuration profiles can only have <Replace> or <Add> top level elements.")
 
@@ -3911,7 +3934,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 		{Name: "N2", Contents: syncMLForTest("./Foo/Bar")},
 		{Name: "N4", Contents: declarationForTest("D1")},
-	}}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)), "dry_run", "true")
+	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID), "dry_run", "true")
 	s.assertConfigProfilesByIdentifier(&tm.ID, "I1", false)
 	s.assertWindowsConfigProfilesByName(&tm.ID, "N1", false)
 
@@ -3920,7 +3943,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 		{Name: "N2", Contents: syncMLForTest("./Foo/Bar")},
 		{Name: "N4", Contents: declarationForTest("D1")},
-	}}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
+	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 	s.assertConfigProfilesByIdentifier(&tm.ID, "I1", true)
 	s.assertWindowsConfigProfilesByName(&tm.ID, "N2", true)
 	s.lastActivityOfTypeMatches(
@@ -4039,7 +4062,8 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		},
 	} {
 		// team profiles
-		res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: p.payload}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+		res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: p.payload},
+			http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, p.expectErr)
 		// no team profiles
@@ -4059,12 +4083,13 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 
 	// apply an empty set to no-team
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": nil}, http.StatusNoContent)
-	s.lastActivityOfTypeMatches(
+	// Nothing changed, so no activity
+	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
 		`{"team_id": null, "team_name": null}`,
 		0,
 	)
-	s.lastActivityOfTypeMatches(
+	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(),
 		`{"team_id": null, "team_name": null}`,
 		0,
@@ -4072,7 +4097,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 
 	// apply to both team id and name
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": nil},
-		http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)), "team_name", tm.Name)
+		http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID), "team_name", tm.Name)
 
 	// invalid team name
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": nil},
@@ -4083,7 +4108,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 		"N1": mobileconfigForTest("N1", "I1"),
 		"N2": mobileconfigForTest("N1", "I2"),
 		"N3": syncMLForTest("./Foo/Bar"),
-	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 
 	// profiles with reserved macOS identifiers
 	for p := range mobileconfig.FleetPayloadIdentifiers() {
@@ -4091,7 +4116,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 			"N1": mobileconfigForTest("N1", "I1"),
 			p:    mobileconfigForTest(p, p),
 			"N3": syncMLForTest("./Foo/Bar"),
-		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: payload identifier %s is not allowed", p))
 	}
@@ -4101,7 +4126,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{
 			"N1": mobileconfigForTestWithContent("N1", "I1", "II1", p, ""),
 			"N3": syncMLForTest("./Foo/Bar"),
-		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
 	}
@@ -4111,7 +4136,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{
 			"N1": mobileconfigForTestWithContent("N1", "I1", p, "random", ""),
 			"N3": syncMLForTest("./Foo/Bar"),
-		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadIdentifier(s): %s", p))
 	}
@@ -4122,7 +4147,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 		"N1":                              mobileconfigForTest("N1", "I1"),
 		syncml.FleetBitLockerTargetLocURI: syncMLForTest(fmt.Sprintf("%s/Foo", syncml.FleetBitLockerTargetLocURI)),
 		"N3":                              syncMLForTest("./Foo/Bar"),
-	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Custom configuration profiles can't include BitLocker settings. To control these settings, use the mdm.enable_disk_encryption option.")
 
@@ -4131,21 +4156,21 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 		"N1":                             mobileconfigForTest("N1", "I1"),
 		syncml.FleetOSUpdateTargetLocURI: syncMLForTest(fmt.Sprintf("%s/Foo", syncml.FleetOSUpdateTargetLocURI)),
 		"N3":                             syncMLForTest("./Foo/Bar"),
-	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Custom configuration profiles can't include Windows updates settings. To control these settings, use the mdm.windows_updates option.")
 
 	// invalid windows tag
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{
 		"N3": []byte(`<Exec></Exec>`),
-	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Windows configuration profiles can only have <Replace> or <Add> top level elements.")
 
 	// invalid xml
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{
 		"N3": []byte(`foo`),
-	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Windows configuration profiles can only have <Replace> or <Add> top level elements.")
 
@@ -4153,7 +4178,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{
 		"N1": mobileconfigForTest("N1", "I1"),
 		"N2": syncMLForTest("./Foo/Bar"),
-	}}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)), "dry_run", "true")
+	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID), "dry_run", "true")
 	s.assertConfigProfilesByIdentifier(&tm.ID, "I1", false)
 	s.assertWindowsConfigProfilesByName(&tm.ID, "N1", false)
 
@@ -4161,7 +4186,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{
 		"N1": mobileconfigForTest("N1", "I1"),
 		"N2": syncMLForTest("./Foo/Bar"),
-	}}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
+	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 	s.assertConfigProfilesByIdentifier(&tm.ID, "I1", true)
 	s.assertWindowsConfigProfilesByName(&tm.ID, "N2", true)
 	s.lastActivityOfTypeMatches(
@@ -4174,10 +4199,6 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
-}
-
-func (s *integrationMDMTestSuite) TestGetManualEnrollmentProfile() {
-	s.downloadAndVerifyEnrollmentProfile("/api/latest/fleet/enrollment_profiles/manual")
 }
 
 func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
@@ -4313,7 +4334,8 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 		Name:     "n1",
 		Contents: newWinProfile,
 	})
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testTeamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tmResp.Team.ID)))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testTeamProfiles}, http.StatusNoContent,
+		"team_id", fmt.Sprint(tmResp.Team.ID))
 	checkMacProfs(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSProfileNames()...)
 	checkWinProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedWindowsProfileNames(), "n1")...)
 
@@ -4322,7 +4344,8 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 		Name:     "n2",
 		Contents: newMacProfile,
 	})
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testTeamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tmResp.Team.ID)))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testTeamProfiles}, http.StatusNoContent,
+		"team_id", fmt.Sprint(tmResp.Team.ID))
 	checkMacProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedMacOSProfileNames(), "n2")...)
 	checkWinProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedWindowsProfileNames(), "n1")...)
 
@@ -4331,7 +4354,8 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 		Name:     "n2",
 		Contents: newMacProfile,
 	}}
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testTeamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tmResp.Team.ID)))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testTeamProfiles}, http.StatusNoContent,
+		"team_id", fmt.Sprint(tmResp.Team.ID))
 	checkMacProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedMacOSProfileNames(), "n2")...)
 	checkWinProfs(&tmResp.Team.ID, servermdm.ListFleetReservedWindowsProfileNames()...)
 }
@@ -4341,6 +4365,9 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	ctx := context.Background()
 
 	testTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestTeam"})
+	require.NoError(t, err)
+
+	teamDelete, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TeamDelete"})
 	require.NoError(t, err)
 
 	testProfiles := make(map[string]fleet.MDMAppleConfigProfile)
@@ -4386,6 +4413,12 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 		require.Equal(t, expected.Identifier, actual.Identifier)
 	}
 
+	host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &teamDelete.ID,
+		HostIDs: []uint{host.ID},
+	}, http.StatusOK)
+
 	// create new profile (no team)
 	generateTestProfile("TestNoTeam", "")
 	body, headers := generateNewReq("TestNoTeam", nil)
@@ -4405,9 +4438,42 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	require.NotEmpty(t, newCP.ProfileID)
 	setTestProfileID("TestWithTeamID", newCP.ProfileID)
 
+	// Create a profile that we're going to remove immediately
+	generateTestProfile("TestImmediateDelete", "")
+	body, headers = generateNewReq("TestImmediateDelete", &teamDelete.ID)
+	newResp = s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
+	newCP = fleet.MDMAppleConfigProfile{}
+	err = json.NewDecoder(newResp.Body).Decode(&newCP)
+	require.NoError(t, err)
+	require.NotEmpty(t, newCP.ProfileID)
+	setTestProfileID("TestImmediateDelete", newCP.ProfileID)
+
+	// check that host_mdm_apple_profiles entry was created
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host.MDM.Profiles)
+	require.Len(t, *hostResp.Host.MDM.Profiles, 1)
+	require.Equal(t, (*hostResp.Host.MDM.Profiles)[0].Name, "TestImmediateDelete")
+
+	// now delete the profile before it's sent, we should see the host_mdm_apple_profiles entry go
+	// away
+	deletedCP := testProfiles["TestImmediateDelete"]
+	deletePath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	var deleteResp deleteMDMAppleConfigProfileResponse
+	s.DoJSON("DELETE", deletePath, nil, http.StatusOK, &deleteResp)
+	// confirm deleted
+	var listResp listMDMAppleConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", listMDMAppleConfigProfilesRequest{TeamID: teamDelete.ID}, http.StatusOK, &listResp)
+	require.Len(t, listResp.ConfigProfiles, 0)
+	getPath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	_ = s.DoRawWithHeaders("GET", getPath, nil, http.StatusNotFound, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
+	// confirm no host profiles
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.Nil(t, hostResp.Host.MDM.Profiles)
+
 	// list profiles (no team)
 	expectedCP := testProfiles["TestNoTeam"]
-	var listResp listMDMAppleConfigProfilesResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.ConfigProfiles, 1)
 	respCP := listResp.ConfigProfiles[0]
@@ -4429,7 +4495,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 
 	// get profile (no team)
 	expectedCP = testProfiles["TestNoTeam"]
-	getPath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", expectedCP.ProfileID)
+	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", expectedCP.ProfileID)
 	getResp := s.DoRawWithHeaders("GET", getPath, nil, http.StatusOK, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
 	checkGetResponse(getResp, expectedCP)
 
@@ -4440,9 +4506,8 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	checkGetResponse(getResp, expectedCP)
 
 	// delete profile (no team)
-	deletedCP := testProfiles["TestNoTeam"]
-	deletePath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
-	var deleteResp deleteMDMAppleConfigProfileResponse
+	deletedCP = testProfiles["TestNoTeam"]
+	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
 	s.DoJSON("DELETE", deletePath, nil, http.StatusOK, &deleteResp)
 	// confirm deleted
 	listResp = listMDMAppleConfigProfilesResponse{}
@@ -4809,4 +4874,37 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
 		},
 	})
+}
+
+func (s *integrationMDMTestSuite) TestOTAProfile() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Getting profile for non-existent secret it's ok
+	s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", getOTAProfileRequest{}, http.StatusOK, "enroll_secret", "not-real")
+
+	// Create an enroll secret; has some special characters that should be escaped in the profile
+	globalEnrollSec := "global_enroll+_/sec"
+	escSec := url.QueryEscape(globalEnrollSec)
+	s.Do("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: globalEnrollSec}},
+		},
+	}, http.StatusOK)
+
+	cfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+
+	// Get profile with that enroll secret
+	resp := s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", getOTAProfileRequest{}, http.StatusOK, "enroll_secret", globalEnrollSec)
+	require.NotZero(t, resp.ContentLength)
+	require.Contains(t, resp.Header.Get("Content-Disposition"), `attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"`)
+	require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
+	require.Contains(t, resp.Header.Get("X-Content-Type-Options"), "nosniff")
+	b, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, resp.ContentLength, int64(len(b)))
+	require.Contains(t, string(b), "com.fleetdm.fleet.mdm.apple.ota")
+	require.Contains(t, string(b), fmt.Sprintf("%s/api/v1/fleet/ota_enrollment?enroll_secret=%s", cfg.ServerSettings.ServerURL, escSec))
+	require.Contains(t, string(b), cfg.OrgInfo.OrgName)
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jmoiron/sqlx"
 	"github.com/patrickmn/go-cache"
 )
 
@@ -403,7 +404,8 @@ func (ds *cachedMysql) ResultCountForQuery(ctx context.Context, queryID uint) (i
 	return count, nil
 }
 
-func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName,
+	queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 	// always reach the database to get the latest hashes
 	latestHashes, err := ds.Datastore.GetAllMDMConfigAssetsHashes(ctx, assetNames)
 	if err != nil {
@@ -434,7 +436,7 @@ func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNam
 	}
 
 	// fetch missing assets from the database
-	assetMap, err := ds.Datastore.GetAllMDMConfigAssetsByName(ctx, missingAssets)
+	assetMap, err := ds.Datastore.GetAllMDMConfigAssetsByName(ctx, missingAssets, queryerContext)
 	if err != nil {
 		return nil, err
 	}

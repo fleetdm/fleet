@@ -156,6 +156,7 @@ func TestExpandEnv(t *testing.T) {
 		checkErr    func(error)
 	}{
 		{map[string]string{"foo": "1"}, `$foo`, `1`, nil},
+		{map[string]string{"foo": "1"}, `$foo $FLEET_VAR_BAR ${FLEET_VAR_BAR}x ${foo}`, `1 $FLEET_VAR_BAR ${FLEET_VAR_BAR}x 1`, nil},
 		{map[string]string{"foo": ""}, `$foo`, ``, nil},
 		{map[string]string{"foo": "", "bar": "", "zoo": ""}, `$foo${bar}$zoo`, ``, nil},
 		{map[string]string{}, `$foo`, ``, checkMultiErrors("environment variable \"foo\" not set")},
@@ -177,11 +178,13 @@ func TestExpandEnv(t *testing.T) {
 		{map[string]string{"foo": ""}, `${foo}var`, `var`, nil},
 		{map[string]string{"foo": "", "$": "2"}, `${$}${foo}var`, `2var`, nil},
 		{map[string]string{}, `${foo}var`, ``, checkMultiErrors("environment variable \"foo\" not set")},
-		{map[string]string{}, `foo PREVENT_ESCAPING_bar`, `foo PREVENT_ESCAPING_bar`, nil}, // nothing to replace
+		{map[string]string{}, `foo PREVENT_ESCAPING_bar $ FLEET_VAR_`, `foo PREVENT_ESCAPING_bar $ FLEET_VAR_`, nil}, // nothing to replace
+		{map[string]string{"foo": "BAR"}, `\$FLEET_VAR_$foo \${FLEET_VAR_$foo} \${FLEET_VAR_${foo}2}`,
+			`$FLEET_VAR_BAR ${FLEET_VAR_BAR} ${FLEET_VAR_BAR2}`, nil}, // nested variables
 	} {
 		os.Clearenv()
 		for k, v := range tc.environment {
-			os.Setenv(k, v)
+			_ = os.Setenv(k, v)
 		}
 		result, err := ExpandEnv(tc.s)
 		if tc.checkErr == nil {

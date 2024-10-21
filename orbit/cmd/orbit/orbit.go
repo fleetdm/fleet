@@ -314,7 +314,7 @@ func main() {
 				if keystore.Supported() && !c.Bool("disable-keystore") {
 					// Check if secret is already in the keystore.
 					secretFromKeystore, err := keystore.GetSecret()
-					if err != nil {
+					if err != nil { //nolint:gocritic // ignore ifElseChain
 						log.Warn().Err(err).Msgf("failed to retrieve enroll secret from %v", keystore.Name())
 					} else if secretFromKeystore == "" {
 						// Keystore secret not found, so we will add it to the keystore.
@@ -323,7 +323,7 @@ func main() {
 						} else {
 							// Sanity check that the secret was added to the keystore.
 							checkSecret, err := keystore.GetSecret()
-							if err != nil {
+							if err != nil { //nolint:gocritic // ignore ifElseChain
 								log.Warn().Err(err).Msgf("failed to check that enroll secret was saved in %v", keystore.Name())
 							} else if checkSecret != secret {
 								log.Warn().Msgf("enroll secret was not saved correctly in %v", keystore.Name())
@@ -339,7 +339,7 @@ func main() {
 						} else {
 							// Sanity check that the secret was updated in the keystore.
 							checkSecret, err := keystore.GetSecret()
-							if err != nil {
+							if err != nil { //nolint:gocritic // ignore ifElseChain
 								log.Warn().Err(err).Msgf("failed to check that enroll secret was updated in %v", keystore.Name())
 							} else if checkSecret != secret {
 								log.Warn().Msgf("enroll secret was not updated correctly in %v", keystore.Name())
@@ -743,7 +743,7 @@ func main() {
 			certPath = filepath.Join(proxyDirectory, "fleet.crt")
 
 			// Write cert that proxy uses
-			err = os.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
+			err = os.WriteFile(certPath, []byte(insecure.ServerCert), os.FileMode(0o644))
 			if err != nil {
 				return fmt.Errorf("write server cert: %w", err)
 			}
@@ -940,11 +940,9 @@ func main() {
 		//	- `command_line_flags` (osquery startup flags)
 		if err := orbitClient.RunConfigReceivers(); err != nil {
 			log.Error().Msgf("failed initial config fetch: %s", err)
-		} else {
-			if orbitClient.RestartTriggered() {
-				log.Info().Msg("exiting after early config fetch")
-				return nil
-			}
+		} else if orbitClient.RestartTriggered() {
+			log.Info().Msg("exiting after early config fetch")
+			return nil
 		}
 
 		addSubsystem(&g, "config receivers", &wrapSubsystem{
@@ -1223,7 +1221,12 @@ func main() {
 			if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEscrowBuddy) {
 				orbitClient.RegisterConfigReceiver(update.NewEscrowBuddyRunner(updateRunner, 5*time.Minute))
 			} else {
-				orbitClient.RegisterConfigReceiver(update.ApplyDiskEncryptionRunnerMiddleware())
+				orbitClient.RegisterConfigReceiver(
+					update.ApplyDiskEncryptionRunnerMiddleware(
+						orbitClient.GetServerCapabilities,
+						orbitClient.TriggerOrbitRestart,
+					),
+				)
 			}
 		}
 

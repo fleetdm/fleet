@@ -826,7 +826,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		return err
 	}
 	if !skipBulkPending {
-		if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 		}
 	}
@@ -962,7 +962,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
 		return err
 	}
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 	serials, err := svc.ds.ListMDMAppleDEPSerialsInHostIDs(ctx, hostIDs)
@@ -1036,19 +1036,56 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 	}
 
 	if host != nil && (host.Platform == "ios" || host.Platform == "ipados") {
-		err := svc.verifyMDMConfiguredAndConnected(ctx, host)
+		// Get MDM commands already sent
+		commands, err := svc.ds.GetHostMDMCommands(ctx, host.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get host MDM commands")
+		}
+		doAppRefetch := true
+		doDeviceInfoRefetch := true
+		for _, cmd := range commands {
+			switch cmd.CommandType {
+			case fleet.RefetchDeviceCommandUUIDPrefix:
+				doDeviceInfoRefetch = false
+			case fleet.RefetchAppsCommandUUIDPrefix:
+				doAppRefetch = false
+			}
+		}
+		if !doAppRefetch && !doDeviceInfoRefetch {
+			// Nothing to do.
+			return nil
+		}
+		err = svc.verifyMDMConfiguredAndConnected(ctx, host)
 		if err != nil {
 			return err
 		}
+		hostMDMCommands := make([]fleet.HostMDMCommand, 0, 2)
 		cmdUUID := uuid.NewString()
-		err = svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
+		if doAppRefetch {
+			err = svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
+			}
+			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
+				HostID:      host.ID,
+				CommandType: fleet.RefetchAppsCommandUUIDPrefix,
+			})
 		}
-		// DeviceInformation is last because the refetch response clears the refetch_requested flag
-		err = svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchCommandUUIDPrefix+cmdUUID)
+		if doDeviceInfoRefetch {
+			// DeviceInformation is last because the refetch response clears the refetch_requested flag
+			err = svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchDeviceCommandUUIDPrefix+cmdUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "refetch host with MDM")
+			}
+			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
+				HostID:      host.ID,
+				CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
+			})
+		}
+		// Add commands to the database to track the commands sent
+		err = svc.ds.AddHostMDMCommands(ctx, hostMDMCommands)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "refetch host with MDM")
+			return ctxerr.Wrap(ctx, err, "add host mdm commands")
 		}
 	}
 
@@ -1113,18 +1150,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 			return nil, ctxerr.Wrap(ctx, err, "list upcoming host maintenance windows - invalid google calendar timezone")
 		}
 		nextMw.StartsAt = nextMw.StartsAt.In(gCalLoc)
-	}
-
-	// Due to a known osquery issue with M1 Macs, we are ignoring the stored value in the db
-	// and replacing it at the service layer with custom values determined by the cycle count.
-	// See https://github.com/fleetdm/fleet/issues/6763.
-	// TODO: Update once the underlying osquery issue has been resolved.
-	for _, b := range bats {
-		if b.CycleCount < 1000 {
-			b.Health = "Normal"
-		} else {
-			b.Health = "Replacement recommended"
-		}
 	}
 
 	var policies *[]*fleet.HostPolicy
@@ -2566,7 +2591,7 @@ func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet
 	if res == nil {
 		res = []*fleet.HostSoftwareWithInstaller{}
 	}
-	return getHostSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil
+	return getHostSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil //nolint:gosec // dismiss G115
 }
 
 func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {

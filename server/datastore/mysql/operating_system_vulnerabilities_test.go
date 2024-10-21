@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -233,10 +234,15 @@ func testInsertOSVulnerability(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, didInsert)
 
-	// Inserting the same vulnerability should not insert
-	didInsert, err = ds.InsertOSVulnerability(ctx, vulnsUpdate, fleet.MSRCSource)
+	// Inserting the same vulnerability should not insert, but update
+	didInsertOrUpdate, err := ds.InsertOSVulnerability(ctx, vulnsUpdate, fleet.MSRCSource)
 	require.NoError(t, err)
-	require.Equal(t, false, didInsert)
+	assert.True(t, didInsertOrUpdate)
+
+	// Inserting the exact same vulnerability again should not insert and not update
+	didInsertOrUpdate, err = ds.InsertOSVulnerability(ctx, vulnsUpdate, fleet.MSRCSource)
+	require.NoError(t, err)
+	assert.False(t, didInsertOrUpdate)
 
 	expected := vulnsUpdate
 	expected.Source = fleet.MSRCSource

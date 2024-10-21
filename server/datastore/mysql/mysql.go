@@ -82,6 +82,8 @@ type Datastore struct {
 	testDeleteMDMProfilesBatchSize int
 	// for tests, set to override the default batch size.
 	testUpsertMDMDesiredProfilesBatchSize int
+	// for tests set to override the default batch size.
+	testSelectMDMProfilesBatchSize int
 
 	// set this in tests to simulate an error at various stages in the
 	// batchSetMDMAppleProfilesDB execution: if the string starts with "insert", it
@@ -884,7 +886,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 			team.Role == fleet.RoleMaintainer ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
-			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+			idStrs = append(idStrs, fmt.Sprint(team.ID))
 			if filter.TeamID != nil && *filter.TeamID == team.ID {
 				teamIDSeen = true
 			}
@@ -960,7 +962,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
 			team.Role == fleet.RoleMaintainer ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
-			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+			idStrs = append(idStrs, fmt.Sprint(team.ID))
 			if filter.TeamID != nil && *filter.TeamID == team.ID {
 				teamIDSeen = true
 			}
@@ -1019,7 +1021,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 			team.Role == fleet.RoleGitOps ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
-			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+			idStrs = append(idStrs, fmt.Sprint(team.ID))
 		}
 	}
 
@@ -1040,7 +1042,7 @@ func (ds *Datastore) whereOmitIDs(colName string, omit []uint) string {
 
 	var idStrs []string
 	for _, id := range omit {
-		idStrs = append(idStrs, strconv.Itoa(int(id)))
+		idStrs = append(idStrs, fmt.Sprint(id))
 	}
 
 	return fmt.Sprintf("%s NOT IN (%s)", colName, strings.Join(idStrs, ","))
@@ -1130,8 +1132,8 @@ type patternReplacer func(string) string
 
 // likePattern returns a pattern to match m with LIKE.
 func likePattern(m string) string {
-	m = strings.Replace(m, "_", "\\_", -1)
-	m = strings.Replace(m, "%", "\\%", -1)
+	m = strings.ReplaceAll(m, "_", "\\_")
+	m = strings.ReplaceAll(m, "%", "\\%")
 	return "%" + m + "%"
 }
 
@@ -1240,21 +1242,7 @@ func (ds *Datastore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, err
 	return processList, nil
 }
 
-func insertOnDuplicateDidInsert(res sql.Result) bool {
-	// Note that connection string sets CLIENT_FOUND_ROWS (see
-	// generateMysqlConnectionString in this package), so LastInsertId is 0
-	// and RowsAffected 1 when a row is set to its current values.
-	//
-	// See [the docs][1] or @mna's comment in `insertOnDuplicateDidUpdate`
-	// below for more details
-	//
-	// [1]: https://dev.mysql.com/doc/refman/5.7/en/insert-on-duplicate.html
-	lastID, _ := res.LastInsertId()
-	affected, _ := res.RowsAffected()
-	return lastID != 0 && affected == 1
-}
-
-func insertOnDuplicateDidUpdate(res sql.Result) bool {
+func insertOnDuplicateDidInsertOrUpdate(res sql.Result) bool {
 	// From mysql's documentation:
 	//
 	// With ON DUPLICATE KEY UPDATE, the affected-rows value per row is 1 if
@@ -1264,7 +1252,10 @@ func insertOnDuplicateDidUpdate(res sql.Result) bool {
 	// connecting to mysqld, the affected-rows value is 1 (not 0) if an
 	// existing row is set to its current values.
 	//
-	// https://dev.mysql.com/doc/refman/5.7/en/insert-on-duplicate.html
+	// If a table contains an AUTO_INCREMENT column and INSERT ... ON DUPLICATE KEY UPDATE
+	// inserts or updates a row, the LAST_INSERT_ID() function returns the AUTO_INCREMENT value.
+	//
+	// https://dev.mysql.com/doc/refman/8.4/en/insert-on-duplicate.html
 	//
 	// Note that connection string sets CLIENT_FOUND_ROWS (see
 	// generateMysqlConnectionString in this package), so it does return 1 when
@@ -1279,7 +1270,8 @@ func insertOnDuplicateDidUpdate(res sql.Result) bool {
 
 	lastID, _ := res.LastInsertId()
 	aff, _ := res.RowsAffected()
-	return lastID == 0 || aff != 1
+	// something was updated (lastID != 0) AND row was found (aff == 1 or higher if more rows were found)
+	return lastID != 0 && aff > 0
 }
 
 type parameterizedStmt struct {
@@ -1330,7 +1322,7 @@ func (ds *Datastore) optimisticGetOrInsertWithWriter(ctx context.Context, writer
 				return 0, ctxerr.Wrap(ctx, err, "insert")
 			}
 			id, _ := res.LastInsertId()
-			return uint(id), nil
+			return uint(id), nil //nolint:gosec // dismiss G115
 		}
 		return 0, ctxerr.Wrap(ctx, err, "get id from reader")
 	}

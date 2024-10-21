@@ -7,7 +7,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                               | Contributor(s)
 |:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Digital Marketing Manager          | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@drewbakerfdm](https://github.com/drewbakerfdm))_
+| Head of Marketing                   | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@drewbakerfdm](https://github.com/drewbakerfdm))_
 
 
 ## Contact us
@@ -16,7 +16,7 @@ This handbook page details processes specific to working [with](#contact-us) and
   - Please use **issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board?sprints=none) for this department, including pending tasks and the status of new requests.
 
-> To **make a request** related to **product marketing**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [Head of Product Marketing](#team) in the [#help-leadership](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
+> To **make a request** related to **product marketing**, **brand**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [CEO](https://fleetdm.com/handbook/digital-experience#team) in the [#help-leadership](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
 
 
 ## Responsibilities
@@ -29,20 +29,6 @@ The Demand department is directly responsible for achieving revenue pipeline ta
 Fleet's public relations firm is directly responsible for the accuracy of event locations, attendance dates, and CFP deadlines in the event strategy workbook.  At the end of every quarter, the PR firm updates every event in the ["Event strategy workbook"](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit) (private Google doc) by following these steps:
 1. Visit the latest website for each event.
 2. Update the workbook with the latest location, dates, and CFP deadlines from the website.
-
-
-### Respond to a "Contact us" submission
-
-1. Check the [_from-prospective-customers](https://fleetdm.slack.com/archives/C01HE9GQW6B) Slack channel for "Contact us" submissions. 
-2. Mark submission as seen with the "👀" emoji.
-3. Within 4 business hours, use the [best practices template (private Google doc)](https://docs.google.com/document/d/1D02k0tc5v-sEJ4uahAouuqnvZ6phxA_gP-IqmkBdMTE/edit) to respond to general asks.
-4. Answer any technical questions to the best of your ability. If you are unable to answer a technical/product question, ask a Solutions Consultant in `#help-solutions-consulting`. If an SC is unavailable, post in `#g-mdm`or `#g-endpoint-ops`and notify @on-call.
-5. log in to [Salesforce](https://fleetdm.lightning.force.com/lightning/o/Lead/list?filterName=00B4x00000DtaRDEAZ) and search the lead list by first name and match the corresponding email to find the right lead.
-6. Enrich each lead with company information and buying situation.
-7. If a lead is completed or out of ICP, update the lead status in Salesforce to "Closed" or "Disqualified". If within ICP at-mention the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel and move lead to their name in SFDC.
-8. Mark the Slack message as complete with the "✅" emoji.
-
-> For any support-related questions, forward the submission to [Fleet's support team](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 
 
 ### Begin or modify an advertising campaign
@@ -58,6 +44,49 @@ To propose an ad, or a change to an ad:
 7. Create a calendar reminder to check ad performance two weeks from the date changes were made.
 
 
+### Measure intent signals
+
+Intent signals help measure an individual's current level of engagement with the Fleet brand. Use the following steps to decide if:  
+
+(a) A contact and/or account needs to be created/updated. 
+
+(b) An account should be prioritized for [manual research](https://fleetdm.com/handbook/demand#research-an-account).
+
+(c) An account/contact would benefit from a sales conversation.
+
+(in order of how worthwhile it is to spend time looking at the intent signal)
+
+1. Accounts currently assigned to reps (i.e. pipeline + stage0 + pre-pipeline IQMs).
+2. Accounts with trending psychological progression (as measured by fleetdm.com website signups (i.e. new contacts ± contacts that have increased their psystage to a certain point).
+3. Accounts that fleeties have suggested to go after in ABM maneuver sheet.
+4. [MacAdmins Slack traffic](https://macadmins.slack.com/archives/C0214NELAE7/p1722561481530559) in the #fleet AND #osquery channels (channel joins, posts, reactions, thread replies, thread reactions).
+5. [LinkedIn page follows](https://www.linkedin.com/company/71111416/admin/analytics/followers/).
+6. [GitHub stars to fleetdm/fleet](https://github.com/fleetdm/fleet/stargazers) from non-fleeties.
+
+
+### Research an account
+
+Follow these steps to research an account and move it toward sales-readiness **after** discovering [relevant intent signals](https://fleetdm.com/handbook/demand#measure-intent-signals).
+
+1. Create the account in SalesForce if it doesn't already exist.
+2. Update any incorrect, mistagged, or incomplete contacts already on the account and merge any duplicates that are found. Verify the following data is current for each existing contact:
+  - "Title"
+  - "Role"
+  - "Primary buying situation" 
+  - "LinkedIn"
+  - "Psychological stage" 
+  - "intent signals" 
+3. If you any reason that the account organization wouldn't benefit from a relationship with Fleet, change the "Type" to "Distraction" stop here. If you haven't disqualified the account at this point, update the "Marketing stage" to "Research-ready". 
+After an account is marked "[Research-ready](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001LerV2AS/view?queryScope=userFolders)".
+
+1. Research missing contacts and add them to salesforce if they are real by using the [ABM maneuvers spreadsheet](https://docs.google.com/spreadsheets/d/1ijtBKTjPg_AodnKEZY0ivia70ttDR3VMURT8rpYwYiw/edit?gid=0#gid=0) to generate a Sales Nav search. Make sure they have "role", "buying situation", "linkedinUrl", "psychological stage", "intent signals" completely filled out and correct.
+2. For "Contact source" for any new contacts, use "Manual research".
+3. Rank the account in terms of closability and fit based on what we see from it and its contacts. Mark any account that is not a fit as "Distraction" instead of "Prospect".
+4. Research and discover mutual connections between fleeties and Mac admin community members within those contacts to help determine fit.
+5. Check Snitcher activity for the account and the psystages of its contacts in Salesforce.
+6. Update the "marketing stage" AND "type" accordingly (qualify or disqualify based on whether the contacts look good). Start running ABM ads on the account if moving it to "Ads running" for a total of 60 days otherwise, stop them if moving it out of "Ads running".
+
+
 ### Promote a post on LinkedIn
 
 1. Create a classic campaign under ["Experiments"](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B678398233%5D) following the YYYY-MM-DD.buying-situation - ad description with a goal of website visits or engagement to run for two weeks.
@@ -66,9 +95,24 @@ To propose an ad, or a change to an ad:
 4. Launch campaign once approved.
 
 
+### Settle content strategy
+
+The Head of Marketing is the DRI for deploying Fleet's outward-facing content. The content schedule is settled significantly in advance to provide ample time for strategy and planning. Use the following steps to settle content strategy:
+
+1. Using the [content calendar](https://docs.google.com/spreadsheets/d/1KUMsb5OkAsCBQHGkGnNoj__UCPJ7Vbhk1LaEWGEARsg/edit?gid=1931288160#gid=1931288160), propose the content that Fleet will produce in the current quarter, and the strategy behind that content, including:
+  - Content type and title (e.g. "Article: Fleet takes bacon to new heights with flying pigs release").
+  - Create date: The date by which the DRI will start crafting the content.
+  - Release date: The date by which the content will be complete and finalized.
+  - Primary buying situation: The intended audience.
+  - DRI: Person(s) responsible for the project management of this content.
+  - Author: Person(s) responsible for the creation of this content.
+  - Related event?: Related community or Fleet event, if any.
+2. Attend a 30m meeting with Fleet's Client Platform Engineer & Community Advocate, CTO, and CEO to review and settle the proposed content.
+
+
 ### Settle event strategy
 
-The Head of Demand is the DRI for deploying Fleet's event budget, and events are settled significantly in advance to provide ample time for strategy and planning.  Fleet's [Client Platform Engineer & Community Advocate](https://fleetdm.com/handbook/engineering#team) is the DRI for executing Fleet events efficiently, on-brand, and on-strategy.
+The Head of Marketing is the DRI for deploying Fleet's event budget, and events are settled significantly in advance to provide ample time for strategy and planning.  Fleet's [Client Platform Engineer & Community Advocate](https://fleetdm.com/handbook/engineering#team) is the DRI for executing Fleet events efficiently, on-brand, and on-strategy.
 
 1. Using the [event strategy workbook](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1411322737), propose the events that Fleet will attend in the next 6 months, and the strategy for those events, including:
   - target buying situation of the audience
@@ -78,7 +122,7 @@ The Head of Demand is the DRI for deploying Fleet's event budget, and events are
   - all event materials, including printouts, banners, swag given out, and even the clothing worn by fleeties
   - estimated budget, including sponsorship or airfare, and lodging for attendees
 2. Set up and attend a 30m meeting with the Fleet's Client Platform Engineer & Community Advocate and CEO:
-  - First during this meeting, the Head of Demand proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from Fleet's Client Platform Engineer & Community Advocate and CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
+  - First during this meeting, the Head of Marketing proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from Fleet's Client Platform Engineer & Community Advocate and CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
   - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
   - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
 

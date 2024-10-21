@@ -217,7 +217,7 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 	}
 
 	id, _ := result.LastInsertId()
-	label.ID = uint(id)
+	label.ID = uint(id) //nolint:gosec // dismiss G115
 	return label, nil
 }
 
@@ -636,6 +636,12 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		  LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type = 'Device'
 		  LEFT JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid AND mwe.device_state = ?`
 		joinParams = append(joinParams, microsoft_mdm.MDMDeviceStateEnrolled)
+	}
+
+	if opt.OSSettingsFilter.IsValid() ||
+		opt.MacOSSettingsFilter.IsValid() {
+		query += sqlJoinMDMAppleProfilesStatus()
+		query += sqlJoinMDMAppleDeclarationsStatus()
 	}
 
 	query += fmt.Sprintf(` WHERE lm.label_id = ? AND %s `, ds.whereFilterHostsByTeams(filter, "h"))

@@ -50,6 +50,27 @@ WHERE
 	return count > 0
 }
 
+func tableExists(tx *sql.Tx, table string) bool {
+	var count int
+	err := tx.QueryRow(
+		`
+SELECT
+    count(*)
+FROM
+    information_schema.columns
+WHERE
+    TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = ?
+`,
+		table,
+	).Scan(&count)
+	if err != nil {
+		return false
+	}
+
+	return count > 0
+}
+
 func indexExists(tx *sqlx.DB, table, index string) bool {
 	var count int
 	err := tx.QueryRow(`

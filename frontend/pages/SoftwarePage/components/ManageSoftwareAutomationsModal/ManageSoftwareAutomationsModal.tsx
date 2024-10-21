@@ -461,7 +461,7 @@ const ManageAutomationsModal = ({
               id="ticket-radio-btn"
               checked={integrationEnabled}
               value="ticket"
-              name="ticket"
+              name="workflow-type"
               onChange={onRadioChange(true)}
             />
             <Radio
@@ -470,7 +470,7 @@ const ManageAutomationsModal = ({
               id="webhook-radio-btn"
               checked={!integrationEnabled}
               value="webhook"
-              name="webhook"
+              name="workflow-type"
               onChange={onRadioChange(false)}
             />
           </div>

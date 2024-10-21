@@ -45,6 +45,9 @@ export enum ActivityType {
   DeletedAppleOSProfile = "deleted_macos_profile",
   /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
   EditedAppleOSProfile = "edited_macos_profile",
+  AddedNdesScepProxy = "added_ndes_scep_proxy",
+  DeletedNdesScepProxy = "deleted_ndes_scep_proxy",
+  EditedNdesScepProxy = "edited_ndes_scep_proxy",
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
@@ -78,8 +81,10 @@ export enum ActivityType {
   EditedDeclarationProfile = "edited_declaration_profile",
   ResentConfigurationProfile = "resent_configuration_profile",
   AddedSoftware = "added_software",
+  EditedSoftware = "edited_software",
   DeletedSoftware = "deleted_software",
   InstalledSoftware = "installed_software",
+  UninstalledSoftware = "uninstalled_software",
   EnabledVpp = "enabled_vpp",
   DisabledVpp = "disabled_vpp",
   AddedAppStoreApp = "added_app_store_app",
@@ -93,12 +98,14 @@ export type IHostPastActivityType =
   | ActivityType.LockedHost
   | ActivityType.UnlockedHost
   | ActivityType.InstalledSoftware
+  | ActivityType.UninstalledSoftware
   | ActivityType.InstalledAppStoreApp;
 
 // This is a subset of ActivityType that are shown only for the host upcoming activities
 export type IHostUpcomingActivityType =
   | ActivityType.RanScript
   | ActivityType.InstalledSoftware
+  | ActivityType.UninstalledSoftware
   | ActivityType.InstalledAppStoreApp;
 
 export interface IActivity {
@@ -169,4 +176,5 @@ export interface IActivityDetails {
   self_service?: boolean;
   command_uuid?: string;
   app_store_id?: number;
+  location?: string; // name of location associated with VPP token
 }

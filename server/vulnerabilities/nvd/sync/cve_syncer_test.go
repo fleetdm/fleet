@@ -31,6 +31,7 @@ var (
 )
 
 func TestStoreCVEsLegacyFormat(t *testing.T) {
+	t.Parallel()
 	year := 2023
 	t.Run(fmt.Sprintf("%d", year), func(t *testing.T) {
 		// Load CVEs from legacy feed.

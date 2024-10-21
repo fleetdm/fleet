@@ -73,7 +73,6 @@ spec:
             distributed_tls_max_attempts: 10
             logger_tls_endpoint: /api/osquery/log
             logger_tls_period: 300
-            disable_tables: chrome_extensions
             docker_socket: /var/run/docker.sock
           file_paths:
             users:
@@ -132,6 +131,7 @@ agent_options:
   command_line_flags: # requires Fleet's agent (fleetd)
     verbose: true
     disable_watchdog: false
+    disable_tables: chrome_extensions
     logger_path: /path/to/logger
 ```
 
@@ -404,7 +404,6 @@ agent_options:
           distributed_tls_max_attempts: 10
           logger_tls_endpoint: /api/osquery/log
           logger_tls_period: 300
-          disable_tables: chrome_extensions
           docker_socket: /var/run/docker.sock
         file_paths:
           users:

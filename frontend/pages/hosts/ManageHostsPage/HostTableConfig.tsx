@@ -23,6 +23,7 @@ import {
   humanHostMemory,
   humanHostLastSeen,
   hostTeamName,
+  tooltipTextWithLineBreaks,
 } from "utilities/helpers";
 import { COLORS } from "styles/var/colors";
 import {
@@ -69,17 +70,6 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
     : condensed;
 };
 
-const tooltipTextWithLineBreaks = (lines: string[]) => {
-  return lines.map((line) => {
-    return (
-      <span key={Math.random().toString().slice(2)}>
-        {line}
-        <br />
-      </span>
-    );
-  });
-};
-
 const lastSeenTime = (status: string, seenTime: string): string => {
   if (status !== "online") {
     return `Last Seen: ${humanHostLastSeen(seenTime)} UTC`;
@@ -100,7 +90,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         indeterminate: props.indeterminate,
         onChange: () => cellProps.toggleAllRowsSelected(),
       };
-      return <Checkbox {...checkboxProps} />;
+      return <Checkbox {...checkboxProps} enableEnterToCheck />;
     },
     Cell: (cellProps: ISelectionCellProps) => {
       const props = cellProps.row.getToggleRowSelectedProps();
@@ -108,7 +98,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         value: props.checked,
         onChange: () => cellProps.row.toggleRowSelected(),
       };
-      return <Checkbox {...checkboxProps} />;
+      return <Checkbox {...checkboxProps} enableEnterToCheck />;
     },
     disableHidden: true,
   },

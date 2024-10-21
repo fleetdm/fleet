@@ -167,12 +167,6 @@ services:
     volumes:
       - data-minio:/data
 
-  toxiproxy:
-    image: shopify/toxiproxy
-    ports:
-      - "22220:22220"
-      - "8474:8474"
-
 volumes:
   mysql-persistent-volume:
   data-minio:

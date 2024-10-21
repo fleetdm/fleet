@@ -371,10 +371,15 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	u2 := test.NewUser(t, ds, "user2", "user2@example.com", false)
 	ctx := viewer.NewContext(noUserCtx, viewer.Viewer{User: u2})
 
+	test.CreateInsertGlobalVPPToken(t, ds)
+
 	// create three hosts
 	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, h1, false)
 	h2 := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, h2, false)
 	h3 := test.NewHost(t, ds, "h3.local", "10.10.10.3", "3", "3", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, h3, false)
 
 	// create a couple of named scripts
 	scr1, err := ds.NewScript(ctx, &fleet.Script{
@@ -398,6 +403,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		Title:         "foo",
 		Source:        "apps",
 		Version:       "0.0.1",
+		UserID:        u.ID,
 	})
 	require.NoError(t, err)
 	sw2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -408,11 +414,41 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		Title:         "bar",
 		Source:        "apps",
 		Version:       "0.0.2",
+		UserID:        u.ID,
 	})
 	require.NoError(t, err)
 	sw1Meta, err := ds.GetSoftwareInstallerMetadataByID(ctx, sw1)
 	require.NoError(t, err)
 	sw2Meta, err := ds.GetSoftwareInstallerMetadataByID(ctx, sw2)
+	require.NoError(t, err)
+
+	// insert a VPP app
+	vppCommand1, vppCommand2 := "vpp-command-1", "vpp-command-2"
+	vppApp := &fleet.VPPApp{
+		Name: "vpp_no_team_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}},
+		BundleIdentifier: "b3",
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil)
+	require.NoError(t, err)
+
+	// install the VPP app on h1
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp.VPPAppID, vppCommand1, "event-id-1", false)
+	require.NoError(t, err)
+	err = commander.EnqueueCommand(
+		ctx,
+		[]string{h1.UUID},
+		createRawAppleCmd("InstallApplication", vppCommand1),
+	)
+	require.NoError(t, err)
+	// install the VPP app on h2, self-service
+	err = ds.InsertHostVPPSoftwareInstall(noUserCtx, h2.ID, vppApp.VPPAppID, vppCommand2, "event-id-2", true)
+	require.NoError(t, err)
+	err = commander.EnqueueCommand(
+		ctx,
+		[]string{h1.UUID},
+		createRawAppleCmd("InstallApplication", vppCommand2),
+	)
 	require.NoError(t, err)
 
 	// create a sync script request for h1 that has been pending for > MaxWaitTime, will not show up
@@ -441,9 +477,9 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	h1E := hsr.ExecutionID
 	// create some software installs requests for h1, make some complete
-	h1FooFailed, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID, false)
+	h1FooFailed, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID, false, nil)
 	require.NoError(t, err)
-	h1Bar, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw2Meta.InstallerID, false)
+	h1Bar, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw2Meta.InstallerID, false, nil)
 	require.NoError(t, err)
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                    h1.ID,
@@ -451,7 +487,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		PreInstallConditionOutput: ptr.String(""), // pre-install failed
 	})
 	require.NoError(t, err)
-	h1FooInstalled, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID, false)
+	h1FooInstalled, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID, false, nil)
 	require.NoError(t, err)
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                    h1.ID,
@@ -460,7 +496,14 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		InstallScriptExitCode:     ptr.Int(0),
 	})
 	require.NoError(t, err)
-	h1Foo, err := ds.InsertSoftwareInstallRequest(noUserCtx, h1.ID, sw1Meta.InstallerID, false) // no user for this one
+
+	// No user for this one and not Self-service, means it was installed by Fleet
+	policy, err := ds.NewTeamPolicy(ctx, 0, &u.ID, fleet.PolicyPayload{
+		Name:  "Test Policy",
+		Query: "SELECT 1",
+	})
+	require.NoError(t, err)
+	h1Fleet, err := ds.InsertSoftwareInstallRequest(noUserCtx, h1.ID, sw1Meta.InstallerID, false, &policy.ID)
 	require.NoError(t, err)
 
 	// create a single pending request for h2, as well as a non-pending one
@@ -469,11 +512,15 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	h2A := hsr.ExecutionID
 	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h2.ID, ScriptContents: "F", UserID: &u.ID})
 	require.NoError(t, err)
-	_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{HostID: h2.ID, ExecutionID: hsr.ExecutionID, Output: "ok", ExitCode: 0})
+	_, _, err = ds.SetHostScriptExecutionResult(ctx,
+		&fleet.HostScriptResultPayload{HostID: h2.ID, ExecutionID: hsr.ExecutionID, Output: "ok", ExitCode: 0})
 	require.NoError(t, err)
 	h2F := hsr.ExecutionID
 	// add a pending software install request for h2
-	h2Bar, err := ds.InsertSoftwareInstallRequest(ctx, h2.ID, sw2Meta.InstallerID, false)
+	h2Bar, err := ds.InsertSoftwareInstallRequest(ctx, h2.ID, sw2Meta.InstallerID, false, nil)
+	require.NoError(t, err)
+	// No user for this one and Self-service, means it was installed by the end user, so the user_id should be null/nil.
+	h2SelfService, err := ds.InsertSoftwareInstallRequest(noUserCtx, h2.ID, sw1Meta.InstallerID, true, nil)
 	require.NoError(t, err)
 
 	// nothing for h3
@@ -482,21 +529,27 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	endTime := SetOrderedCreatedAtTimestamps(t, ds, time.Now(), "host_script_results", "execution_id", h1A, h1B)
 	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1FooFailed, h1Bar)
 	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h1C, h1D, h1E)
-	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1FooInstalled, h1Foo)
+	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1FooInstalled, h1Fleet)
+	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1Fleet)
+	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h2SelfService)
 	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h2Bar)
-	SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h2A, h2F)
+	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h2A, h2F)
+	SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_vpp_software_installs", "command_uuid", vppCommand1, vppCommand2)
 
 	execIDsWithUser := map[string]bool{
-		h1A:   true,
-		h1B:   true,
-		h1C:   true,
-		h1D:   false,
-		h1E:   false,
-		h2A:   true,
-		h2F:   true,
-		h1Foo: false,
-		h1Bar: true,
-		h2Bar: true,
+		h1A:           true,
+		h1B:           true,
+		h1C:           true,
+		h1D:           false,
+		h1E:           false,
+		h2A:           true,
+		h2F:           true,
+		h1Fleet:       false,
+		h2SelfService: false,
+		h1Bar:         true,
+		h2Bar:         true,
+		vppCommand1:   true,
+		vppCommand2:   false,
 	}
 	execIDsScriptName := map[string]string{
 		h1A: scr1.Name,
@@ -504,9 +557,13 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		h2A: scr1.Name,
 	}
 	execIDsSoftwareTitle := map[string]string{
-		h1Foo: "foo",
-		h1Bar: "bar",
-		h2Bar: "bar",
+		h1Fleet:       "foo",
+		h1Bar:         "bar",
+		h2Bar:         "bar",
+		h2SelfService: "foo",
+	}
+	execIDsFromPolicyAutomation := map[string]struct{}{
+		h1Fleet: {},
 	}
 
 	cases := []struct {
@@ -519,49 +576,49 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 			opts:      fleet.ListOptions{PerPage: 2},
 			hostID:    h1.ID,
 			wantExecs: []string{h1A, h1B},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 7},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 8},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 1, PerPage: 2},
 			hostID:    h1.ID,
 			wantExecs: []string{h1Bar, h1C},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 7},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 8},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 2, PerPage: 2},
 			hostID:    h1.ID,
 			wantExecs: []string{h1D, h1E},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 7},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 8},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 3, PerPage: 2},
 			hostID:    h1.ID,
-			wantExecs: []string{h1Foo},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 7},
+			wantExecs: []string{h1Fleet, vppCommand1},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
 		},
 		{
 			opts:      fleet.ListOptions{PerPage: 4},
 			hostID:    h1.ID,
 			wantExecs: []string{h1A, h1B, h1Bar, h1C},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 7},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 8},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 1, PerPage: 4},
 			hostID:    h1.ID,
-			wantExecs: []string{h1D, h1E, h1Foo},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 7},
+			wantExecs: []string{h1D, h1E, h1Fleet, vppCommand1},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 2, PerPage: 4},
 			hostID:    h1.ID,
 			wantExecs: []string{},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 7},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
 		},
 		{
-			opts:      fleet.ListOptions{PerPage: 3},
+			opts:      fleet.ListOptions{PerPage: 4},
 			hostID:    h2.ID,
-			wantExecs: []string{h2Bar, h2A},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 2},
+			wantExecs: []string{h2SelfService, h2Bar, h2A, vppCommand2},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 4},
 		},
 		{
 			opts:      fleet.ListOptions{},
@@ -604,11 +661,26 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 					require.Equal(t, execIDsSoftwareTitle[wantExec], details["software_title"], "result %d", i)
 					wantUser = u2
 
+				case fleet.ActivityInstalledAppStoreApp{}.ActivityName():
+					require.Equal(t, wantExec, details["command_uuid"], "result %d", i)
+					require.Equal(t, "vpp_no_team_app_1", details["software_title"], "result %d", i)
+					require.Equal(t, !execIDsWithUser[wantExec], details["self_service"], "result %d", i)
+					wantUser = u2
+
 				default:
 					t.Fatalf("unknown activity type %s", a.Type)
 				}
 
-				if execIDsWithUser[wantExec] {
+				if _, ok := execIDsFromPolicyAutomation[wantExec]; ok {
+					require.Nil(t, a.ActorID, "result %d", i)
+					require.NotNil(t, a.ActorFullName, "result %d", i)
+					require.Equal(t, "Fleet", *a.ActorFullName, "result %d", i)
+					require.Nil(t, a.ActorEmail, "result %d", i)
+					require.NotNil(t, details["policy_id"])
+					require.Equal(t, float64(policy.ID), details["policy_id"], "result %d", i)
+					require.NotNil(t, details["policy_name"])
+					require.Equal(t, policy.Name, details["policy_name"], "result %d", i)
+				} else if execIDsWithUser[wantExec] {
 					require.NotNil(t, a.ActorID, "result %d", i)
 					require.Equal(t, wantUser.ID, *a.ActorID, "result %d", i)
 					require.NotNil(t, a.ActorFullName, "result %d", i)
@@ -928,7 +1000,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
-	require.Equal(t, 1000, queriesLen)
+	require.Equal(t, 250, queriesLen) // All expired queries should be cleaned up.
 
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)
@@ -939,7 +1011,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
-	require.Equal(t, 500, queriesLen)
+	require.Equal(t, 250, queriesLen)
 
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)

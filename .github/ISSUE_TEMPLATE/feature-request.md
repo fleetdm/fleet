@@ -11,6 +11,8 @@ assignees: ''
 Thanks for filing an issue!  Please use the prompts below to provide as much context as you can about your use case and motivations.
 -->
 
+Gong snippet: TODO <!-- Insert the link to the relevant, private Gong snippet ("Share internally" button). Remove this item if you don't have access to Fleet's Gong or there is no Gong recording available -->
+
 ## Problem
 
 <!-- Describe the problem you're trying to solve. What are you trying to accomplish? 

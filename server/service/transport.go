@@ -87,6 +87,19 @@ func uintFromRequest(r *http.Request, name string) (uint64, error) {
 	return u, nil
 }
 
+func uint32FromRequest(r *http.Request, name string) (uint32, error) {
+	vars := mux.Vars(r)
+	s, ok := vars[name]
+	if !ok {
+		return 0, errBadRoute
+	}
+	u, err := strconv.ParseUint(s, 10, 32)
+	if err != nil {
+		return 0, ctxerr.Wrap(r.Context(), err, "uint32FromRequest")
+	}
+	return uint32(u), nil
+}
+
 func intFromRequest(r *http.Request, name string) (int64, error) {
 	vars := mux.Vars(r)
 	s, ok := vars[name]
@@ -182,8 +195,8 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 	query := r.URL.Query().Get("query")
 
 	return fleet.ListOptions{
-		Page:           uint(page),
-		PerPage:        uint(perPage),
+		Page:           uint(page),    //nolint:gosec // dismiss G115
+		PerPage:        uint(perPage), //nolint:gosec // dismiss G115
 		OrderKey:       orderKey,
 		OrderDirection: orderDirection,
 		MatchQuery:     strings.TrimSpace(query),

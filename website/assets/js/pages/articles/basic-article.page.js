@@ -5,6 +5,7 @@ parasails.registerPage('basic-article', {
   data: {
     articleHasSubtitle: false,
     articleSubtitle: undefined,
+    subtopics: [],
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -14,7 +15,16 @@ parasails.registerPage('basic-article', {
     //…
   },
   mounted: async function() {
-    //…
+    this.subtopics = (() => {
+      let subtopics = $('[purpose="article-content"]').find('h2.markdown-heading').map((_, el) => el);
+      subtopics = $.makeArray(subtopics).map((subheading) => {
+        return {
+          title: subheading.innerText,
+          url: $(subheading).find('a.markdown-link').attr('href'),
+        };
+      });
+      return subtopics;
+    })();
     // If the article has a subtitle (an H2 immediatly after an H1), we'll set articleSubtitle to be the text of that heading
     this.articleHasSubtitle = $('[purpose="article-content"]').find('h1 + h2');
     if(this.articleHasSubtitle.length > 0 && this.articleHasSubtitle[0].innerText) {
@@ -25,6 +35,23 @@ parasails.registerPage('basic-article', {
       let startValue = parseInt(ol.getAttribute('start'), 10) - 1;
       ol.style.counterReset = 'custom-counter ' + startValue;
     });
+    // Add an event listener to add a class to the right sidebar when the header is hidden.
+    window.addEventListener('scroll', this.handleScrollingInArticle);
+
+    if(this.algoliaPublicKey) {// Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the handbook search will be disabled.
+      docsearch({
+        appId: 'NZXAYZXDGH',
+        apiKey: this.algoliaPublicKey,
+        indexName: 'fleetdm',
+        container: '#docsearch-query',
+        placeholder: 'Search',
+        debug: false,
+        clickAnalytics: true,
+        searchParameters: {
+          facetFilters: ['section:docs']
+        },
+      });
+    }
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -45,6 +72,20 @@ parasails.registerPage('basic-article', {
       } else {
         window.open('https://fleetdm.com/rss/'+articleCategory, '_blank');
       }
+    },
+    handleScrollingInArticle: function () {
+      let rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
+      let scrollTop = window.pageYOffset;
+      let windowHeight = window.innerHeight;
+      // Add/remove the 'header-hidden' class to the right sidebar to scroll it upwards with the website's header.
+      if (rightNavBar) {
+        if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
+          rightNavBar.classList.add('header-hidden');
+        } else {
+          rightNavBar.classList.remove('header-hidden');
+        }
+      }
+      this.scrollDistance = scrollTop;
     },
   }
 });

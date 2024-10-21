@@ -80,7 +80,7 @@ Fleet supports the following operating system versions on hosts.
 | Linux   | CentOS 7.1+,  Ubuntu 20.04+, Fedora 38+ |
 | ChromeOS | 112.0.5615.134+                        |
 
-While Fleet may still function partially or fully with OS versions older than those above, Fleet does not actively test against unsupported versions and does not pursue bugs on them. 
+While Fleet may still function partially or fully with OS versions older than those above, Fleet does not actively test against unsupported versions and does not pursue bugs on them.
 
 ## Some notes on compatibility
 
@@ -91,9 +91,11 @@ If a table is not available for your host, Fleet will generally handle things be
 
 ### Linux
 
-Fleet Desktop is supported on Ubuntu and Fedora. 
+Fleet Desktop is supported on Ubuntu and Fedora.
 
 Fedora requires a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) and Google Chrome for Fleet Desktop.
+
+Fleet's default (un)install scripts use `apt-get` for Debian-based distributions, and `dnf` for Red Hat-based distributions. To install packages on CentOS versions prior to 8, either add `dnf` or edit install and uninstall scripts to use the `yum` or `rpm` command.
 
 On Ubuntu, Fleet Desktop currently supports Xorg as X11 server, Wayland is currently not supported. Ubuntu 24.04 comes with Wayland enabled by default. To use X11 instead of Wayland you can set `WaylandEnable=false` in `/etc/gdm3/custom.conf` and reboot.
 
@@ -668,7 +670,7 @@ Yes! Please sign up for the [Fleet Cloud Beta](https://kqphpqst851.typeform.com/
 
 ### What MySQL versions are supported?
 
-Fleet is tested with MySQL 8.0.36. Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.07.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
+Fleet is tested with MySQL 8.0.36 and 8.4.2. Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.07.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
 
 ### What are the MySQL user requirements?
 
@@ -731,7 +733,7 @@ If you would like to use Fleet's MDM features, the following endpoints need to b
 
 ### What is the minimum version of MySQL required by Fleet?
 
-Fleet requires at least MySQL version 8.0.
+Fleet requires at least MySQL version 8.0.36, and is tested [with versions 8.0.36 and 8.4.2](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L47)
 
 ### How do I migrate from Fleet Free to Fleet Premium?
 

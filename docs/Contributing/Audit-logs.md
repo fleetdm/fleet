@@ -526,9 +526,9 @@ This activity contains the following fields:
 Generated when a host is enrolled in Fleet's MDM.
 
 This activity contains the following fields:
-- "host_serial": Serial number of the host.
+- "host_serial": Serial number of the host (Apple enrollments only, always empty for Microsoft).
 - "host_display_name": Display name of the host.
-- "installed_from_dep": Whether the host was enrolled via DEP.
+- "installed_from_dep": Whether the host was enrolled via DEP (Apple enrollments only, always false for Microsoft).
 - "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.
 
 #### Example
@@ -887,6 +887,8 @@ This activity contains the following fields:
 - "script_execution_id": Execution ID of the script run.
 - "script_name": Name of the script (empty if it was an anonymous script).
 - "async": Whether the script was executed asynchronously.
+- "policy_id": ID of the policy whose failure triggered the script run. Null if no associated policy.
+- "policy_name": Name of the policy whose failure triggered the script run. Null if no associated policy.
 
 #### Example
 
@@ -896,7 +898,9 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "script_name": "set-timezones.sh",
   "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
-  "async": false
+  "async": false,
+  "policy_id": 123,
+  "policy_name": "Ensure photon torpedoes are primed"
 }
 ```
 
@@ -1155,6 +1159,9 @@ This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "status": Status of the software installation.
+- "policy_id": ID of the policy whose failure triggered the installation. Null if no associated policy.
+- "policy_name": Name of the policy whose failure triggered installation. Null if no associated policy.
+
 
 #### Example
 
@@ -1166,7 +1173,32 @@ This activity contains the following fields:
   "software_package": "FalconSensor-6.44.pkg",
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
-  "status": "pending"
+  "status": "pending",
+  "policy_id": 1337,
+  "policy_name": "Ensure 1Password is installed and up to date"
+}
+```
+
+## uninstalled_software
+
+Generated when a software is uninstalled on a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "script_execution_id": ID of the software uninstall script.
+- "status": Status of the software uninstallation.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Falcon.app",
+  "script_execution_id": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
+  "status": "uninstalled"
 }
 ```
 
@@ -1179,6 +1211,29 @@ This activity contains the following fields:
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added. `null` if it was added to no team." +
 - "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
+- "self_service": Whether the software is available for installation by the end user.
+
+#### Example
+
+```json
+{
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "team_name": "Workstations",
+  "team_id": 123,
+  "self_service": true
+}
+```
+
+## edited_software
+
+Generated when a software installer is updated in Fleet.
+
+This activity contains the following fields:
+- "software_title": Name of the software.
+- "software_package": Filename of the installer as of this update (including if unchanged).
+- "team_name": Name of the team on which this software was updated. `null` if it was updated on no team.
+- "team_id": The ID of the team on which this software was updated. `null` if it was updated on no team.
 - "self_service": Whether the software is available for installation by the end user.
 
 #### Example
@@ -1218,15 +1273,33 @@ This activity contains the following fields:
 
 ## enabled_vpp
 
-Generated when the VPP feature is enabled in Fleet.
+Generated when VPP features are enabled in Fleet.
 
+This activity contains the following fields:
+- "location": Location associated with the VPP content token for the enabled VPP features.
 
+#### Example
+
+```json
+{
+  "location": "Acme Inc."
+}
+```
 
 ## disabled_vpp
 
-Generated when the VPP feature is disabled in Fleet.
+Generated when VPP features are disabled in Fleet.
 
+This activity contains the following fields:
+- "location": Location associated with the VPP content token for the disabled VPP features.
 
+#### Example
+
+```json
+{
+  "location": "Acme Inc."
+}
+```
 
 ## added_app_store_app
 
@@ -1300,6 +1373,24 @@ This activity contains the following fields:
   "command_uuid": "98765432-1234-1234-1234-1234567890ab"
 }
 ```
+
+## added_ndes_scep_proxy
+
+Generated when NDES SCEP proxy is configured in Fleet.
+
+This activity does not contain any detail fields.
+
+## deleted_ndes_scep_proxy
+
+Generated when NDES SCEP proxy configuration is deleted in Fleet.
+
+This activity does not contain any detail fields.
+
+## edited_ndes_scep_proxy
+
+Generated when NDES SCEP proxy configuration is edited in Fleet.
+
+This activity does not contain any detail fields.
 
 
 <meta name="title" value="Audit logs">

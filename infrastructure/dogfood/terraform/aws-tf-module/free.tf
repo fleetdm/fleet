@@ -88,7 +88,7 @@ module "free" {
       prefix  = local.customer_free
       enabled = true
     }
-    idle_timeout = 300
+    idle_timeout = 605
   }
 }
 

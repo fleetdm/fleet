@@ -367,6 +367,10 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 			}
 			r.Inserted = inserted
 
+			if err = checkForDeletedInstalledSoftware(ctx, tx, deleted, inserted, hostID); err != nil {
+				return err
+			}
+
 			if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, ds.minLastOpenedAtDiff); err != nil {
 				return err
 			}
@@ -381,6 +385,76 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		return nil, err
 	}
 	return r, err
+}
+
+func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, deleted []fleet.Software, inserted []fleet.Software,
+	hostID uint,
+) error {
+	// Between deleted and inserted software, check which software titles were deleted.
+	// If software titles were deleted, get the software titles of the installed software.
+	// See if deleted titles match installed software titles.
+	// If so, mark the installed software as removed.
+	var deletedTitles map[string]struct{}
+	if len(deleted) > 0 {
+		deletedTitles = make(map[string]struct{}, len(deleted))
+		for _, d := range deleted {
+			// We don't support installing browser plugins as of 2024/08/22
+			if d.Browser == "" {
+				deletedTitles[UniqueSoftwareTitleStr(d.Name, d.Source, d.BundleIdentifier)] = struct{}{}
+			}
+		}
+		for _, i := range inserted {
+			// We don't support installing browser plugins as of 2024/08/22
+			if i.Browser == "" {
+				key := UniqueSoftwareTitleStr(i.Name, i.Source, i.BundleIdentifier)
+				if _, ok := deletedTitles[key]; ok {
+					delete(deletedTitles, key)
+				}
+			}
+		}
+	}
+	if len(deletedTitles) > 0 {
+		installedTitles, err := getInstalledByFleetSoftwareTitles(ctx, tx, hostID)
+		if err != nil {
+			return err
+		}
+		type deletedValue struct {
+			vpp bool
+		}
+		deletedTitleIDs := make(map[uint]deletedValue, 0)
+		for _, title := range installedTitles {
+			bundleIdentifier := ""
+			if title.BundleIdentifier != nil {
+				bundleIdentifier = *title.BundleIdentifier
+			}
+			key := UniqueSoftwareTitleStr(title.Name, title.Source, bundleIdentifier)
+			if _, ok := deletedTitles[key]; ok {
+				deletedTitleIDs[title.ID] = deletedValue{vpp: title.VPPAppsCount > 0}
+			}
+		}
+		if len(deletedTitleIDs) > 0 {
+			IDs := make([]uint, 0, len(deletedTitleIDs))
+			vppIDs := make([]uint, 0, len(deletedTitleIDs))
+			for id, value := range deletedTitleIDs {
+				if value.vpp {
+					vppIDs = append(vppIDs, id)
+				} else {
+					IDs = append(IDs, id)
+				}
+			}
+			if len(IDs) > 0 {
+				if err = markHostSoftwareInstallsRemoved(ctx, tx, hostID, IDs); err != nil {
+					return err
+				}
+			}
+			if len(vppIDs) > 0 {
+				if err = markHostVPPSoftwareInstallsRemoved(ctx, tx, hostID, vppIDs); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (ds *Datastore) getExistingSoftware(
@@ -609,7 +683,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
 				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier) VALUES %s", titlesValues)
 				titlesArgs := make([]interface{}, 0, totalTitlesToProcess*numberOfArgsPerSoftwareTitles)
-				titleChecksums := make([]string, totalTitlesToProcess)
+				titleChecksums := make([]string, 0, totalTitlesToProcess)
 				for checksum, title := range newTitlesNeeded {
 					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier)
 					titleChecksums = append(titleChecksums, checksum)
@@ -940,7 +1014,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 				"shc.team_id",
 			)
 
-		if opts.TeamID == nil {
+		if opts.TeamID == nil { //nolint:gocritic // ignore ifElseChain
 			ds = ds.Where(
 				goqu.And(
 					goqu.I("shc.team_id").Eq(0),
@@ -1339,7 +1413,7 @@ func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpt
 			perPage = defaultSelectLimit
 		}
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
-		if len(software) > int(perPage) {
+		if len(software) > int(perPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			software = software[:len(software)-1]
 		}
@@ -1947,7 +2021,7 @@ func (ds *Datastore) InsertSoftwareVulnerability(
 		return false, ctxerr.Wrap(ctx, err, "insert software vulnerability")
 	}
 
-	return insertOnDuplicateDidInsert(res), nil
+	return insertOnDuplicateDidInsertOrUpdate(res), nil
 }
 
 func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(
@@ -2082,69 +2156,36 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 	return result, nil
 }
 
-// tblAlias is the table alias to use as prefix for the host_software_installs
-// column names, no prefix used if empty.
-// colAlias is the name to be assigned to the computed status column, pass
-// empty to have the value only, no column alias set.
-func softwareInstallerHostStatusNamedQuery(tblAlias, colAlias string) string {
-	if tblAlias != "" {
-		tblAlias += "."
-	}
-	if colAlias != "" {
-		colAlias = " AS " + colAlias
-	}
-	// the computed column assumes that all results (pre, install and post) are
-	// stored at once, so that if there is an exit code for the install script
-	// and none for the post-install, it is because there is no post-install.
-	return fmt.Sprintf(`
-			CASE
-				WHEN %[1]spost_install_script_exit_code IS NOT NULL AND
-					%[1]spost_install_script_exit_code = 0 THEN :software_status_installed
-
-				WHEN %[1]spost_install_script_exit_code IS NOT NULL AND
-					%[1]spost_install_script_exit_code != 0 THEN :software_status_failed
-
-				WHEN %[1]sinstall_script_exit_code IS NOT NULL AND
-					%[1]sinstall_script_exit_code = 0 THEN :software_status_installed
-
-				WHEN %[1]sinstall_script_exit_code IS NOT NULL AND
-					%[1]sinstall_script_exit_code != 0 THEN :software_status_failed
-
-				WHEN %[1]spre_install_query_output IS NOT NULL AND
-					%[1]spre_install_query_output = '' THEN :software_status_failed
-
-				WHEN %[1]shost_id IS NOT NULL THEN :software_status_pending
-
-				ELSE NULL -- not installed from Fleet installer
-			END %[2]s `, tblAlias, colAlias)
-}
-
 func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
 	var onlySelfServiceClause string
 	if opts.SelfServiceOnly {
-		onlySelfServiceClause = ` AND si.self_service = 1 `
+		onlySelfServiceClause = ` AND ( si.self_service = 1 OR vat.self_service = 1 ) `
 	}
 
-	var onlyVulnerableClause string
+	var onlyVulnerableJoin string
 	if opts.VulnerableOnly {
-		onlyVulnerableClause = `
-AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id = s.id WHERE s.title_id = st.id)
+		onlyVulnerableJoin = `
+INNER JOIN software_cve scve ON scve.software_id = s.id
 		`
 	}
 
-	var softwareIsInstalledOnHostClause string
-	if !opts.OnlyAvailableForInstall {
-		softwareIsInstalledOnHostClause = `
+	softwareIsInstalledOnHostClause := fmt.Sprintf(`
 			EXISTS (
 				SELECT 1
 				FROM
 					host_software hs
 				INNER JOIN
 					software s ON hs.software_id = s.id
+					%s
 				WHERE
 					hs.host_id = :host_id AND
 					s.title_id = st.id
-			) OR `
+			) OR `, onlyVulnerableJoin)
+	status := fmt.Sprintf(`COALESCE(%s, %s)`, "hsi.last_status", vppAppHostStatusNamedQuery("hvsi", "ncr", ""))
+	if opts.OnlyAvailableForInstall {
+		// Get software that has a package/VPP installer but was not installed with Fleet
+		softwareIsInstalledOnHostClause = fmt.Sprintf(` %s IS NULL AND (si.id IS NOT NULL OR vat.adam_id IS NOT NULL) AND %s`, status,
+			softwareIsInstalledOnHostClause)
 	}
 
 	// this statement lists only the software that is reported as installed on
@@ -2157,41 +2198,82 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			si.self_service as package_self_service,
 			si.filename as package_name,
 			si.version as package_version,
-			-- in a future iteration, will be supported for VPP apps
-			NULL as vpp_app_self_service,
+			vat.self_service as vpp_app_self_service,
 			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
 			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
-			COALESCE(hsi.created_at, hvsi.created_at) as last_install_installed_at,
-			COALESCE(hsi.execution_id, hvsi.command_uuid) as last_install_install_uuid,
-			-- get either the softare installer status or the vpp app status
-			COALESCE(%s, %s) as status
+			COALESCE(hsi.last_installed_at, hvsi.created_at) as last_install_installed_at,
+			COALESCE(hsi.last_install_execution_id, hvsi.command_uuid) as last_install_install_uuid,
+			hsi.last_uninstalled_at as last_uninstall_uninstalled_at,
+			hsi.last_uninstall_execution_id as last_uninstall_script_execution_id,
+			-- get either the software installer status or the vpp app status
+			%s as status
 		FROM
 			software_titles st
 		LEFT OUTER JOIN
 			software_installers si ON st.id = si.title_id AND si.global_or_team_id = :global_or_team_id
-		LEFT OUTER JOIN
-			host_software_installs hsi ON si.id = hsi.software_installer_id AND hsi.host_id = :host_id
+		LEFT OUTER JOIN -- get the latest status and install/uninstall attempts (merge 3 host_software_installs rows into 1)
+			(
+				SELECT
+					hsi_group.host_id,
+					hsi_group.software_installer_id,
+					TIMESTAMP(GROUP_CONCAT(hsi_installed_at)) as last_installed_at,
+					GROUP_CONCAT(hsi_install_execution_id) as last_install_execution_id,
+					TIMESTAMP(GROUP_CONCAT(hsi_uninstalled_at)) as last_uninstalled_at,
+					GROUP_CONCAT(hsi_uninstall_execution_id) as last_uninstall_execution_id,
+					IF(GROUP_CONCAT(hsi_status) = '', NULL, GROUP_CONCAT(hsi_status)) as last_status
+				FROM (
+					-- get latest install/uninstall status
+					SELECT
+						host_id, software_installer_id,
+						NULL as hsi_installed_at, NULL as hsi_install_execution_id,
+						NULL as hsi_uninstalled_at, NULL as hsi_uninstall_execution_id,
+						-- get the status of the latest attempt; 27-1 is the length of the timestamp
+					    SUBSTRING(MAX(CONCAT(created_at, COALESCE(status, ''))), 27) AS hsi_status
+					FROM host_software_installs
+					WHERE host_id = :host_id AND removed = 0
+					GROUP BY host_id, software_installer_id
+					UNION
+					-- get latest install attempt
+					SELECT
+						host_id, software_installer_id,
+						MAX(created_at) as hsi_installed_at,
+						-- get the execution_id of the latest attempt; 27-1 is the length of the timestamp
+					    SUBSTRING(MAX(CONCAT(created_at, execution_id)), 27) AS hsi_install_execution_id,
+						NULL as hsi_uninstalled_at, NULL as hsi_uninstall_execution_id,
+						NULL as hsi_status
+					FROM host_software_installs
+					WHERE host_id = :host_id AND removed = 0 AND uninstall = 0
+					GROUP BY host_id, software_installer_id
+					UNION
+					-- get latest uninstall attempt
+					SELECT
+						host_id, software_installer_id,
+						NULL as hsi_installed_at, NULL as hsi_install_execution_id,
+						MAX(created_at) as hsi_uninstalled_at,
+						-- get the execution_id of the latest attempt; 27-1 is the length of the timestamp
+					    SUBSTRING(MAX(CONCAT(created_at, execution_id)), 27) AS hsi_uninstall_execution_id,
+						NULL as hsi_status
+						FROM host_software_installs
+					WHERE host_id = :host_id AND removed = 0 AND uninstall = 1
+					GROUP BY host_id, software_installer_id
+				) as hsi_group
+				GROUP BY hsi_group.host_id, hsi_group.software_installer_id
+			) as hsi ON si.id = hsi.software_installer_id
 		LEFT OUTER JOIN
 			vpp_apps vap ON st.id = vap.title_id AND vap.platform = :host_platform
 		LEFT OUTER JOIN
 			vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vap.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
 		LEFT OUTER JOIN
-			host_vpp_software_installs hvsi ON vat.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id
+			host_vpp_software_installs hvsi ON vat.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id AND hvsi.removed = 0
 		LEFT OUTER JOIN
 			nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 		WHERE
-			-- use the latest install attempt only
-			( hsi.id IS NULL OR hsi.id = (
-				SELECT hsi2.id
-				FROM host_software_installs hsi2
-				WHERE hsi2.host_id = hsi.host_id AND hsi2.software_installer_id = hsi.software_installer_id
-				ORDER BY hsi2.created_at DESC
-				LIMIT 1 ) ) AND
+			-- use the latest VPP install attempt only
 			( hvsi.id IS NULL OR hvsi.id = (
 				SELECT hvsi2.id
 				FROM host_vpp_software_installs hvsi2
-				WHERE hvsi2.host_id = hvsi.host_id AND hvsi2.adam_id = hvsi.adam_id AND hvsi2.platform = hvsi.platform
+				WHERE hvsi2.host_id = hvsi.host_id AND hvsi2.adam_id = hvsi.adam_id AND hvsi2.platform = hvsi.platform AND hvsi2.removed = 0
 				ORDER BY hvsi2.created_at DESC
 				LIMIT 1 ) ) AND
 
@@ -2200,9 +2282,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			-- requested, then the software installed on host clause is empty.
 			( %s hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
 			%s
-			%s
-`, softwareInstallerHostStatusNamedQuery("hsi", ""), vppAppHostStatusNamedQuery("hvsi", "ncr", ""),
-		softwareIsInstalledOnHostClause, onlySelfServiceClause, onlyVulnerableClause)
+`, status, softwareIsInstalledOnHostClause, onlySelfServiceClause)
 
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be
@@ -2215,13 +2295,14 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			si.self_service as package_self_service,
 			si.filename as package_name,
 			si.version as package_version,
-			-- in a future iteration, will be supported for VPP apps
-			NULL as vpp_app_self_service,
-			vap.adam_id as vpp_app_adam_id,
+			vat.self_service as vpp_app_self_service,
+			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
 			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
 			NULL as last_install_installed_at,
 			NULL as last_install_install_uuid,
+			NULL as last_uninstall_uninstalled_at,
+			NULL as last_uninstall_script_execution_id,
 			NULL as status
 		FROM
 			software_titles st
@@ -2252,7 +2333,8 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 					host_software_installs hsi
 				WHERE
 					hsi.host_id = :host_id AND
-					hsi.software_installer_id = si.id
+					hsi.software_installer_id = si.id AND
+					hsi.removed = 0
 			) AND
 			NOT EXISTS (
 				SELECT 1
@@ -2260,7 +2342,8 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 					host_vpp_software_installs hvsi
 				WHERE
 					hvsi.host_id = :host_id AND
-					hvsi.adam_id = vat.adam_id
+					hvsi.adam_id = vat.adam_id AND
+					hvsi.removed = 0
 			) AND
 			-- either the software installer or the vpp app exists for the host's team
 			( si.id IS NOT NULL OR vat.platform = :host_platform )
@@ -2283,6 +2366,8 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		vpp_app_icon_url,
 		last_install_installed_at,
 		last_install_install_uuid,
+		last_uninstall_uninstalled_at,
+		last_uninstall_script_execution_id,
 		status
 `
 
@@ -2293,9 +2378,9 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 	namedArgs := map[string]any{
 		"host_id":                   host.ID,
 		"host_platform":             host.FleetPlatform(),
-		"software_status_failed":    fleet.SoftwareInstallerFailed,
-		"software_status_pending":   fleet.SoftwareInstallerPending,
-		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_pending":   fleet.SoftwareInstallPending,
+		"software_status_installed": fleet.SoftwareInstalled,
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
@@ -2304,7 +2389,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 
 	stmt := stmtInstalled
 	if opts.OnlyAvailableForInstall || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
-		namedArgs["vpp_apps_platforms"] = []fleet.AppleDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform}
+		namedArgs["vpp_apps_platforms"] = fleet.VPPAppsPlatforms
 		if fleet.IsLinux(host.Platform) {
 			namedArgs["host_compatible_platforms"] = fleet.HostLinuxOSs
 		} else {
@@ -2343,15 +2428,17 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 
 	type hostSoftware struct {
 		fleet.HostSoftwareWithInstaller
-		LastInstallInstalledAt *time.Time `db:"last_install_installed_at"`
-		LastInstallInstallUUID *string    `db:"last_install_install_uuid"`
-		PackageSelfService     *bool      `db:"package_self_service"`
-		PackageName            *string    `db:"package_name"`
-		PackageVersion         *string    `db:"package_version"`
-		VPPAppSelfService      *bool      `db:"vpp_app_self_service"`
-		VPPAppAdamID           *string    `db:"vpp_app_adam_id"`
-		VPPAppVersion          *string    `db:"vpp_app_version"`
-		VPPAppIconURL          *string    `db:"vpp_app_icon_url"`
+		LastInstallInstalledAt         *time.Time `db:"last_install_installed_at"`
+		LastInstallInstallUUID         *string    `db:"last_install_install_uuid"`
+		LastUninstallUninstalledAt     *time.Time `db:"last_uninstall_uninstalled_at"`
+		LastUninstallScriptExecutionID *string    `db:"last_uninstall_script_execution_id"`
+		PackageSelfService             *bool      `db:"package_self_service"`
+		PackageName                    *string    `db:"package_name"`
+		PackageVersion                 *string    `db:"package_version"`
+		VPPAppSelfService              *bool      `db:"vpp_app_self_service"`
+		VPPAppAdamID                   *string    `db:"vpp_app_adam_id"`
+		VPPAppVersion                  *string    `db:"vpp_app_version"`
+		VPPAppIconURL                  *string    `db:"vpp_app_icon_url"`
 	}
 	var hostSoftwareList []*hostSoftware
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
@@ -2383,6 +2470,16 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 				}
 				if hs.LastInstallInstalledAt != nil {
 					hs.SoftwarePackage.LastInstall.InstalledAt = *hs.LastInstallInstalledAt
+				}
+			}
+
+			// promote the last uninstall info to the proper destination fields
+			if hs.LastUninstallScriptExecutionID != nil && *hs.LastUninstallScriptExecutionID != "" {
+				hs.SoftwarePackage.LastUninstall = &fleet.HostSoftwareUninstall{
+					ExecutionID: *hs.LastUninstallScriptExecutionID,
+				}
+				if hs.LastUninstallUninstalledAt != nil {
+					hs.SoftwarePackage.LastUninstall.UninstalledAt = *hs.LastUninstallUninstalledAt
 				}
 			}
 		}
@@ -2526,7 +2623,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			HasPreviousResults: opts.ListOptions.Page > 0,
 			TotalResults:       titleCount,
 		}
-		if len(hostSoftwareList) > int(perPage) {
+		if len(hostSoftwareList) > int(perPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			hostSoftwareList = hostSoftwareList[:len(hostSoftwareList)-1]
 		}
@@ -2576,6 +2673,88 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
 		return ctxerr.Wrap(ctx, notFound("HostSoftwareInstall").WithName(result.InstallUUID), "host software installation not found")
+	}
+	return nil
+}
+
+func getInstalledByFleetSoftwareTitles(ctx context.Context, qc sqlx.QueryerContext, hostID uint) ([]fleet.SoftwareTitle, error) {
+	// We are overloading vpp_apps_count to indicate whether installed title is a VPP app or not.
+	const stmt = `
+SELECT
+	st.id,
+	st.name,
+	st.source,
+	st.browser,
+	st.bundle_identifier,
+	0 as vpp_apps_count
+FROM software_titles st
+INNER JOIN software_installers si ON si.title_id = st.id
+INNER JOIN host_software_installs hsi ON hsi.host_id = :host_id AND hsi.software_installer_id = si.id
+WHERE hsi.removed = 0 AND hsi.status = :software_status_installed
+
+UNION
+
+SELECT
+	st.id,
+	st.name,
+	st.source,
+	st.browser,
+	st.bundle_identifier,
+	1 as vpp_apps_count
+FROM software_titles st
+INNER JOIN vpp_apps vap ON vap.title_id = st.id
+INNER JOIN host_vpp_software_installs hvsi ON hvsi.host_id = :host_id AND hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
+INNER JOIN nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
+WHERE hvsi.removed = 0 AND ncr.status = :mdm_status_acknowledged
+`
+	selectStmt, args, err := sqlx.Named(stmt, map[string]interface{}{
+		"host_id":                   hostID,
+		"software_status_installed": fleet.SoftwareInstalled,
+		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build query to get installed software titles")
+	}
+
+	var titles []fleet.SoftwareTitle
+	if err := sqlx.SelectContext(ctx, qc, &titles, selectStmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get installed software titles")
+	}
+	return titles, nil
+}
+
+func markHostSoftwareInstallsRemoved(ctx context.Context, ex sqlx.ExtContext, hostID uint, titleIDs []uint) error {
+	const stmt = `
+UPDATE host_software_installs hsi
+INNER JOIN software_installers si ON hsi.software_installer_id = si.id
+INNER JOIN software_titles st ON si.title_id = st.id
+SET hsi.removed = 1
+WHERE hsi.host_id = ? AND st.id IN (?)
+`
+	stmtExpanded, args, err := sqlx.In(stmt, hostID, titleIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build query args to mark host software install removed")
+	}
+	if _, err := ex.ExecContext(ctx, stmtExpanded, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "mark host software install removed")
+	}
+	return nil
+}
+
+func markHostVPPSoftwareInstallsRemoved(ctx context.Context, ex sqlx.ExtContext, hostID uint, titleIDs []uint) error {
+	const stmt = `
+UPDATE host_vpp_software_installs hvsi
+INNER JOIN vpp_apps vap ON hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
+INNER JOIN software_titles st ON vap.title_id = st.id
+SET hvsi.removed = 1
+WHERE hvsi.host_id = ? AND st.id IN (?)
+`
+	stmtExpanded, args, err := sqlx.In(stmt, hostID, titleIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build query args to mark host vpp software install removed")
+	}
+	if _, err := ex.ExecContext(ctx, stmtExpanded, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "mark host vpp software install removed")
 	}
 	return nil
 }

@@ -27,7 +27,9 @@ func NewCACert(opts ...CACertOption) *CACert {
 		organization:       "scep-ca",
 		organizationalUnit: "SCEP CA",
 		years:              10,
-		keyUsage:           x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		keyUsage: x509.KeyUsageCertSign |
+			x509.KeyUsageCRLSign |
+			x509.KeyUsageDigitalSignature,
 	}
 	for _, opt := range opts {
 		opt(c)

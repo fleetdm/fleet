@@ -9,7 +9,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
 | VP of Customer Success                | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
 | Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_
-| Customer Support (CSE/CSA)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Grant Bilstad](https://www.linkedin.com/in/grantbilstad/) _([@Pacamaster](https://github.com/Pacamaster))_ <br> [Dale Ribeiro](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_ <br> [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_
+| Customer Support (CSE/CSA)            | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Rebecca Cowart](https://www.linkedin.com/in/rebeccaui/) _([@rebeccaui](https://github.com/rebeccaui))_ <br> [Brock Walters (CSA)](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_ <br> [Dale Ribeiro (CSA)](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_ 
 | Customer Success Manager (CSM)        | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_ <br> [Michael Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) _([@pintomi1989](https://github.com/pintomi1989))_
 
 
@@ -29,7 +29,7 @@ The customer success department is directly responsible for ensuring that custom
 
 Occasionally, we will need to track public issues for customers and prospects who wish to remain anonymous on our public issue tracker. To do this: 
 
-1. The team member creating the issue will choose an appropriate minor planet name from this [Minor planets page](https://minorplanetcenter.net//iau/lists/MPNames.html) (alphabetical).
+1. The team member creating the issue will choose an appropriate minor planet name from this [minor planets page](https://minorplanetcenter.net//iau/lists/MPNames.html) (alphabetical).
 2. Create a label in the fleetdm/fleet and fleetdm/confidential repos which can be attached to current and future issues for the customer or prospect. As part of the label description in the fleetdm/confidential repo, add the customer or prospect name. This way, we maintain a confidential mapping of codename to customer or prospect.
 
 
@@ -145,7 +145,7 @@ The acting developer on-call rotation is reflected in the [📈KPIs spreadsheet 
 ### Generate a trial license key
 
 1. Fleet's self-service license key creator is the best way to generate a proof of concept (POC) or renewal/expansion Fleet Premium license key. 
-    - [Here is a tutorial on using the self-service method](https://www.loom.com/share/b519e6a42a7d479fa628e394ee1d1517) (internal video)
+    - [Here is a tutorial on using the self-service method](https://www.loom.com/share/048474d7199048e1bf0c4fc106632129) (internal video)
     - Pre-sales license key DRI is the Director of Solutions Consulting
     - Post-sales license key DRI is the VP of Customer Success
 

@@ -75,7 +75,13 @@ define HELP_TEXT
 	make generate-js  - Generate and bundle required js code
 	make generate-dev - Generate and bundle required code in a watch loop
 
-    make clean        - Clean all build artifacts
+	make migration - create a database migration file (supply name=TheNameOfYourMigration)
+
+	make generate-doc     - Generate updated API documentation for activities, osquery flags
+	make dump-test-schema - update schema.sql from current migrations
+	make generate-mock    - update mock data store
+
+	make clean        - Clean all build artifacts
 	make clean-assets - Clean assets only
 
 	make build        - Build the code
@@ -130,7 +136,7 @@ lint-js:
 	yarn lint
 
 lint-go:
-	golangci-lint run --skip-dirs ./node_modules --timeout 15m
+	golangci-lint run --exclude-dirs ./node_modules --timeout 15m
 
 lint: lint-go lint-js
 
@@ -220,6 +226,12 @@ docker-push-release: docker-build-release
 
 fleetctl-docker: xp-fleetctl
 	docker build -t fleetdm/fleetctl --platform=linux/amd64 -f tools/fleetctl-docker/Dockerfile .
+
+bomutils-docker:
+	cd tools/bomutils-docker && docker build -t fleetdm/bomutils --platform=linux/amd64 -f Dockerfile .
+
+wix-docker:
+	cd tools/wix-docker && docker build -t fleetdm/wix --platform=linux/amd64 -f Dockerfile .
 
 .pre-binary-bundle:
 	rm -rf build/binary-bundle

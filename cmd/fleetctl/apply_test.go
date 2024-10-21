@@ -23,9 +23,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
+	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
@@ -139,7 +141,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 
 	i := 1
 	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
-		team.ID = uint(i)
+		team.ID = uint(i) //nolint:gosec // dismiss G115
 		i++
 		teamsByName[team.Name] = team
 		return team, nil
@@ -167,12 +169,15 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
-	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration) error {
-		return nil
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
-		return nil
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 
 	ds.NewActivityFunc = func(
@@ -586,6 +591,10 @@ func TestApplyAppConfig(t *testing.T) {
 		return userRoleSpecList, nil
 	}
 
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {
@@ -623,8 +632,9 @@ func TestApplyAppConfig(t *testing.T) {
 		return nil
 	}
 
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
-		return nil
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
@@ -639,6 +649,24 @@ func TestApplyAppConfig(t *testing.T) {
 
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}}, nil
+	}
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{{Name: "team1", ID: 1}}, nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{{OrganizationName: t.Name()}}, nil
 	}
 
 	name := writeTmpYml(t, `---
@@ -659,8 +687,8 @@ spec:
 `)
 
 	newMDMSettings := fleet.MDM{
-		AppleBMDefaultTeam:  "team1",
-		AppleBMTermsExpired: false,
+		DeprecatedAppleBMDefaultTeam: "team1",
+		AppleBMTermsExpired:          false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.1.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
@@ -714,8 +742,8 @@ spec:
 `)
 
 	newMDMSettings = fleet.MDM{
-		AppleBMDefaultTeam:  "team1",
-		AppleBMTermsExpired: false,
+		DeprecatedAppleBMDefaultTeam: "team1",
+		AppleBMTermsExpired:          false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.1.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
@@ -764,6 +792,18 @@ func TestApplyAppConfigDryRunIssue(t *testing.T) {
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		currentAppConfig = config
 		return nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	// first, set the default app config's agent options as set after fleetctl setup
@@ -896,6 +936,18 @@ func TestApplyAppConfigDeprecatedFields(t *testing.T) {
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
 		return nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	name := writeTmpYml(t, `---
@@ -1157,6 +1209,9 @@ func TestApplyAsGitOps(t *testing.T) {
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 	fleetCfg := config.TestConfig()
+	// Mock Apple DEP API
+	depStorage := SetupMockDEPStorageAndMockDEPServer(t)
+
 	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 
 	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
@@ -1164,6 +1219,7 @@ func TestApplyAsGitOps(t *testing.T) {
 		MDMStorage:  enqueuer,
 		MDMPusher:   mockPusher{},
 		FleetConfig: &fleetCfg,
+		DEPStorage:  depStorage,
 	})
 
 	gitOps := &fleet.User{
@@ -1240,11 +1296,14 @@ func TestApplyAsGitOps(t *testing.T) {
 		teamEnrollSecrets = secrets
 		return nil
 	}
-	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration) error {
-		return nil
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
-		return nil
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 	ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
 		return nil, &notFoundError{}
@@ -1277,6 +1336,28 @@ func TestApplyAsGitOps(t *testing.T) {
 	}
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
+	}
+
+	ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
+		return &fleet.MDMAppleEnrollmentProfile{Token: "foobar"}, nil
+	}
+	ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
+		return 0, nil
+	}
+
+	ds.GetABMTokenOrgNamesAssociatedWithTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
+		return []string{"foobar"}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{{ID: 1}}, nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
 	}
 
 	// Apply global config.
@@ -1615,6 +1696,34 @@ spec:
 	assert.Equal(t, "select * from app_schemes;", appliedQueries[0].Query)
 }
 
+func SetupMockDEPStorageAndMockDEPServer(t *testing.T) *nanodep_mock.Storage {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "/server/devices"):
+			_, err := w.Write([]byte("{}"))
+			require.NoError(t, err)
+		case strings.Contains(r.URL.Path, "/session"):
+			_, err := w.Write([]byte(`{"auth_session_token": "yoo"}`))
+			require.NoError(t, err)
+		case strings.Contains(r.URL.Path, "/profile"):
+			_, err := w.Write([]byte(`{"profile_uuid": "profile123"}`))
+			require.NoError(t, err)
+		}
+	}))
+	depStorage := &nanodep_mock.Storage{}
+	depStorage.RetrieveConfigFunc = func(context.Context, string) (*nanodep_client.Config, error) {
+		return &nanodep_client.Config{
+			BaseURL: ts.URL,
+		}, nil
+	}
+	depStorage.RetrieveAuthTokensFunc = func(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
+		return &nanodep_client.OAuth1Tokens{}, nil
+	}
+	t.Cleanup(func() { ts.Close() })
+
+	return depStorage
+}
+
 func TestApplyEnrollSecrets(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
@@ -1808,6 +1917,18 @@ func TestCanApplyIntervalsInNanoseconds(t *testing.T) {
 		return nil
 	}
 
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
 	name := writeTmpYml(t, `---
 apiVersion: v1
 kind: config
@@ -1843,6 +1964,18 @@ func TestCanApplyIntervalsUsingDurations(t *testing.T) {
 		return nil
 	}
 
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
 	name := writeTmpYml(t, `---
 apiVersion: v1
 kind: config
@@ -1868,7 +2001,8 @@ func TestApplyMacosSetup(t *testing.T) {
 			tier = fleet.TierPremium
 		}
 		license := &fleet.LicenseInfo{Tier: tier, Expiration: time.Now().Add(24 * time.Hour)}
-		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
+		depStorage := SetupMockDEPStorageAndMockDEPServer(t)
+		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license, DEPStorage: depStorage})
 
 		tm1 := &fleet.Team{ID: 1, Name: "tm1"}
 		teamsByName := map[string]*fleet.Team{
@@ -1897,7 +2031,7 @@ func TestApplyMacosSetup(t *testing.T) {
 		tmID := 1 // new teams will start at 2
 		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			tmID++
-			team.ID = uint(tmID)
+			team.ID = uint(tmID) //nolint:gosec // dismiss G115
 			clone := *team
 			teamsByName[team.Name] = &clone
 			teamsByID[team.ID] = &clone
@@ -1970,7 +2104,7 @@ func TestApplyMacosSetup(t *testing.T) {
 		asstID := 0
 		ds.SetOrUpdateMDMAppleSetupAssistantFunc = func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
 			asstID++
-			asst.ID = uint(asstID)
+			asst.ID = uint(asstID) //nolint:gosec // dismiss G115
 			asst.UploadedAt = time.Now()
 
 			var tmID uint
@@ -2010,6 +2144,33 @@ func TestApplyMacosSetup(t *testing.T) {
 		ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
 			return nil, nil
 		}
+
+		ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
+			return &fleet.MDMAppleEnrollmentProfile{Token: "foobar"}, nil
+		}
+		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
+			return 0, nil
+		}
+
+		ds.GetABMTokenOrgNamesAssociatedWithTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
+			return []string{"foobar"}, nil
+		}
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{{ID: 1}}, nil
+		}
+
+		ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+			return nil
+		}
+
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+			return []*fleet.VPPTokenDB{}, nil
+		}
+
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{}, nil
+		}
+
 		return ds
 	}
 
@@ -2599,6 +2760,7 @@ spec:
 }
 
 func TestApplySpecs(t *testing.T) {
+	t.Parallel()
 	// create a macos setup json file (content not important)
 	macSetupFile := writeTmpJSON(t, map[string]any{})
 
@@ -2628,7 +2790,7 @@ func TestApplySpecs(t *testing.T) {
 		i := 1 // new teams will start at 2
 		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			i++
-			team.ID = uint(i)
+			team.ID = uint(i) //nolint:gosec // dismiss G115
 			teamsByName[team.Name] = team
 			return team, nil
 		}
@@ -2681,6 +2843,17 @@ func TestApplySpecs(t *testing.T) {
 		}
 		ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
 			return nil
+		}
+
+		// VPP/AMB
+		ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+			return nil
+		}
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+			return []*fleet.VPPTokenDB{}, nil
+		}
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{}, nil
 		}
 	}
 

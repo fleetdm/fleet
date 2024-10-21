@@ -74,16 +74,17 @@ module.exports = {
       throw 'invalidEmailDomain';
     }
 
-    if(numberOfHosts >= 700){
-      sails.helpers.salesforce.updateOrCreateContactAndAccountAndCreateLead.with({
+    if(numberOfHosts >= 300){
+      sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: emailAddress,
         firstName: firstName,
         lastName: lastName,
         organization: organization,
-        numberOfHosts: numberOfHosts,
         primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-        leadSource: 'Website - Contact forms',
-        leadDescription: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event.`,
+        contactSource: 'Website - Contact forms',
+        description: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event.`,
+        psychologicalStage: '4 - Has use case',
+        psychologicalStageChangeReason: 'Website - Contact forms'
       }).exec((err)=>{
         if(err) {
           sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);
@@ -96,7 +97,7 @@ module.exports = {
         lastName: lastName,
         organization: organization,
         primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-        leadSource: 'Website - Contact forms',
+        contactSource: 'Website - Contact forms',
         description: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Let\'s get you set up!" event.`,
       }).exec((err)=>{
         if(err) {

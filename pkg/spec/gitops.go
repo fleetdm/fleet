@@ -7,9 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"unicode"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
 	"github.com/hashicorp/go-multierror"
 	"golang.org/x/text/unicode/norm"
@@ -35,16 +37,56 @@ type Controls struct {
 	EnableDiskEncryption interface{} `json:"enable_disk_encryption"`
 
 	Scripts []BaseItem `json:"scripts"`
+
+	Defined bool
+}
+
+func (c Controls) Set() bool {
+	return c.MacOSUpdates != nil || c.IOSUpdates != nil ||
+		c.IPadOSUpdates != nil || c.MacOSSettings != nil ||
+		c.MacOSSetup != nil || c.MacOSMigration != nil ||
+		c.WindowsUpdates != nil || c.WindowsSettings != nil || c.WindowsEnabledAndConfigured != nil ||
+		c.EnableDiskEncryption != nil || len(c.Scripts) > 0
 }
 
 type Policy struct {
 	BaseItem
+	GitOpsPolicySpec
+}
+
+type GitOpsPolicySpec struct {
 	fleet.PolicySpec
+	RunScript       *PolicyRunScript       `json:"run_script"`
+	InstallSoftware *PolicyInstallSoftware `json:"install_software"`
+	// InstallSoftwareURL is populated after parsing the software installer yaml
+	// referenced by InstallSoftware.PackagePath.
+	InstallSoftwareURL string `json:"-"`
+	// RunScriptName is populated after confirming the script exists on both the file system
+	// and in the controls scripts list for the same team
+	RunScriptName *string `json:"-"`
+}
+
+type PolicyRunScript struct {
+	Path string `json:"path"`
+}
+
+type PolicyInstallSoftware struct {
+	PackagePath string `json:"package_path"`
 }
 
 type Query struct {
 	BaseItem
 	fleet.QuerySpec
+}
+
+type SoftwarePackage struct {
+	BaseItem
+	fleet.SoftwarePackageSpec
+}
+
+type Software struct {
+	Packages     []SoftwarePackage           `json:"packages"`
+	AppStoreApps []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
 }
 
 type GitOps struct {
@@ -54,7 +96,7 @@ type GitOps struct {
 	OrgSettings  map[string]interface{}
 	AgentOptions *json.RawMessage
 	Controls     Controls
-	Policies     []*fleet.PolicySpec
+	Policies     []*GitOpsPolicySpec
 	Queries      []*fleet.QuerySpec
 	// Software is only allowed on teams, not on global config.
 	Software GitOpsSoftware
@@ -65,8 +107,10 @@ type GitOpsSoftware struct {
 	AppStoreApps []*fleet.TeamSpecAppStoreApp
 }
 
+type Logf func(format string, a ...interface{})
+
 // GitOpsFromFile parses a GitOps yaml file.
-func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig) (*GitOps, error) {
+func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig, logFn Logf) (*GitOps, error) {
 	b, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %s: %w", filePath, err)
@@ -97,28 +141,44 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	teamRaw, teamOk := top["name"]
 	teamSettingsRaw, teamSettingsOk := top["team_settings"]
 	orgSettingsRaw, orgOk := top["org_settings"]
-	if orgOk {
+	switch {
+	case orgOk:
 		if teamOk || teamSettingsOk {
 			multiError = multierror.Append(multiError, errors.New("'org_settings' cannot be used with 'name', 'team_settings'"))
 		} else {
 			multiError = parseOrgSettings(orgSettingsRaw, result, baseDir, multiError)
 		}
-	} else if teamOk && teamSettingsOk {
+	case teamOk:
 		multiError = parseName(teamRaw, result, multiError)
-		multiError = parseTeamSettings(teamSettingsRaw, result, baseDir, multiError)
-	} else {
+		if result.IsNoTeam() {
+			if teamSettingsOk {
+				multiError = multierror.Append(multiError, fmt.Errorf("cannot set 'team_settings' on 'No team' file: %q", filePath))
+			}
+			if filepath.Base(filePath) != "no-team.yml" {
+				multiError = multierror.Append(multiError, fmt.Errorf("file %q for 'No team' must be named 'no-team.yml'", filePath))
+			}
+		} else {
+			if !teamSettingsOk {
+				multiError = multierror.Append(multiError, errors.New("'team_settings' is required when 'name' is provided"))
+			} else {
+				multiError = parseTeamSettings(teamSettingsRaw, result, baseDir, multiError)
+			}
+		}
+	default:
 		multiError = multierror.Append(multiError, errors.New("either 'org_settings' or 'name' and 'team_settings' is required"))
 	}
 
 	// Validate the required top level options
 	multiError = parseControls(top, result, baseDir, multiError)
-	multiError = parseAgentOptions(top, result, baseDir, multiError)
-	multiError = parsePolicies(top, result, baseDir, multiError)
-	multiError = parseQueries(top, result, baseDir, multiError)
+	multiError = parseAgentOptions(top, result, baseDir, logFn, multiError)
+	multiError = parseQueries(top, result, baseDir, logFn, multiError)
 
 	if appConfig != nil && appConfig.License.IsPremium() {
 		multiError = parseSoftware(top, result, baseDir, multiError)
 	}
+
+	// Policies can reference software installers and scripts, thus we parse them after parseSoftware and parseControls.
+	multiError = parsePolicies(top, result, baseDir, multiError)
 
 	return result, multiError.ErrorOrNil()
 }
@@ -135,6 +195,20 @@ func parseName(raw json.RawMessage, result *GitOps, multiError *multierror.Error
 	result.TeamName = &normalized
 	return multiError
 }
+
+func (g *GitOps) global() bool {
+	return g.TeamName == nil || *g.TeamName == ""
+}
+
+func (g *GitOps) IsNoTeam() bool {
+	return g.TeamName != nil && isNoTeam(*g.TeamName)
+}
+
+func isNoTeam(teamName string) bool {
+	return strings.ToLower(teamName) == strings.ToLower(noTeam)
+}
+
+const noTeam = "No team"
 
 func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	var orgSettingsTop BaseItem
@@ -289,9 +363,14 @@ func parseSecrets(result *GitOps, multiError *multierror.Error) *multierror.Erro
 	return multiError
 }
 
-func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, multiError *multierror.Error) *multierror.Error {
 	agentOptionsRaw, ok := top["agent_options"]
-	if !ok {
+	if result.IsNoTeam() {
+		if ok {
+			logFn("[!] 'agent_options' is not supported for \"No team\". This key will be ignored.\n")
+		}
+		return multiError
+	} else if !ok {
 		return multierror.Append(multiError, errors.New("'agent_options' is required"))
 	}
 	var agentOptionsTop BaseItem
@@ -341,16 +420,20 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	controlsRaw, ok := top["controls"]
 	if !ok {
-		return multierror.Append(multiError, errors.New("'controls' is required"))
+		// Nothing to do, return.
+		return multiError
 	}
 	var controlsTop Controls
 	if err := json.Unmarshal(controlsRaw, &controlsTop); err != nil {
 		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal controls: %v", err))
 	}
+	controlsTop.Defined = true
 	if controlsTop.Path == nil {
+		controlsTop.Scripts = resolvePaths(controlsTop.Scripts, baseDir)
 		result.Controls = controlsTop
 	} else {
-		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *controlsTop.Path))
+		controlsFilePath := resolveApplyRelativePath(baseDir, *controlsTop.Path)
+		fileBytes, err := os.ReadFile(controlsFilePath)
 		if err != nil {
 			return multierror.Append(multiError, fmt.Errorf("failed to read controls file %s: %v", *controlsTop.Path, err))
 		}
@@ -371,10 +454,25 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					fmt.Errorf("nested paths are not supported: %s in %s", *pathControls.Path, *controlsTop.Path),
 				)
 			}
+
+			pathControls.Scripts = resolvePaths(pathControls.Scripts, filepath.Dir(controlsFilePath))
 			result.Controls = pathControls
 		}
 	}
 	return multiError
+}
+
+func resolvePaths(input []BaseItem, baseDir string) []BaseItem {
+	var resolved []BaseItem
+	for _, item := range input {
+		if item.Path != nil {
+			resolvedPath := resolveApplyRelativePath(baseDir, *item.Path)
+			item.Path = &resolvedPath
+		}
+		resolved = append(resolved, item)
+	}
+
+	return resolved
 }
 
 func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
@@ -389,9 +487,18 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	for _, item := range policies {
 		item := item
 		if item.Path == nil {
-			result.Policies = append(result.Policies, &item.PolicySpec)
+			if err := parsePolicyInstallSoftware(baseDir, result.TeamName, &item, result.Software.Packages); err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy install_software %q: %v", item.Name, err))
+				continue
+			}
+			if err := parsePolicyRunScript(baseDir, result.TeamName, &item, result.Controls.Scripts); err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy run_script %q: %v", item.Name, err))
+				continue
+			}
+			result.Policies = append(result.Policies, &item.GitOpsPolicySpec)
 		} else {
-			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
+			filePath := resolveApplyRelativePath(baseDir, *item.Path)
+			fileBytes, err := os.ReadFile(filePath)
 			if err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to read policies file %s: %v", *item.Path, err))
 				continue
@@ -416,7 +523,15 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 								multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pp.Path, *item.Path),
 							)
 						} else {
-							result.Policies = append(result.Policies, &pp.PolicySpec)
+							if err := parsePolicyInstallSoftware(filepath.Dir(filePath), result.TeamName, pp, result.Software.Packages); err != nil {
+								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy install_software %q: %v", pp.Name, err))
+								continue
+							}
+							if err := parsePolicyRunScript(filepath.Dir(filePath), result.TeamName, pp, result.Controls.Scripts); err != nil {
+								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy run_script %q: %v", pp.Name, err))
+								continue
+							}
+							result.Policies = append(result.Policies, &pp.GitOpsPolicySpec)
 						}
 					}
 				}
@@ -438,9 +553,12 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		} else {
 			item.Team = ""
 		}
+		if item.CalendarEventsEnabled && result.IsNoTeam() {
+			multiError = multierror.Append(multiError, fmt.Errorf("calendar events are not supported on \"No team\" policies: %q", item.Name))
+		}
 	}
 	duplicates := getDuplicateNames(
-		result.Policies, func(p *fleet.PolicySpec) string {
+		result.Policies, func(p *GitOpsPolicySpec) string {
 			return p.Name
 		},
 	)
@@ -450,9 +568,88 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	return multiError
 }
 
-func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+func parsePolicyRunScript(baseDir string, teamName *string, policy *Policy, scripts []BaseItem) error {
+	if policy.RunScript == nil {
+		policy.ScriptID = ptr.Uint(0) // unset the script
+		return nil
+	}
+	if policy.RunScript != nil && policy.RunScript.Path != "" && teamName == nil {
+		return errors.New("run_script can only be set on team policies")
+	}
+
+	if policy.RunScript.Path == "" {
+		return errors.New("empty run_script path")
+	}
+
+	scriptPath := resolveApplyRelativePath(baseDir, policy.RunScript.Path)
+	_, err := os.Stat(scriptPath)
+	if err != nil {
+		return fmt.Errorf("script file does not exist %q: %v", policy.RunScript.Path, err)
+	}
+
+	scriptOnTeamFound := false
+	var foundScriptPaths []string
+	for _, script := range scripts {
+		foundScriptPaths = append(foundScriptPaths, *script.Path)
+		if scriptPath == *script.Path {
+			scriptOnTeamFound = true
+			break
+		}
+	}
+	if !scriptOnTeamFound {
+		if *teamName == noTeam {
+			return fmt.Errorf("policy script %s was not defined in controls in no-team.yml", scriptPath)
+		}
+		return fmt.Errorf("policy script %s was not defined in controls for %s", scriptPath, *teamName)
+	}
+
+	scriptName := filepath.Base(policy.RunScript.Path)
+	policy.RunScriptName = &scriptName
+
+	return nil
+}
+
+func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec) error {
+	if policy.InstallSoftware == nil {
+		policy.SoftwareTitleID = ptr.Uint(0) // unset the installer
+		return nil
+	}
+	if policy.InstallSoftware != nil && policy.InstallSoftware.PackagePath != "" && teamName == nil {
+		return errors.New("install_software can only be set on team policies")
+	}
+	if policy.InstallSoftware.PackagePath == "" {
+		return errors.New("empty package_path")
+	}
+	fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, policy.InstallSoftware.PackagePath))
+	if err != nil {
+		return fmt.Errorf("failed to read install_software.package_path file %q: %v", policy.InstallSoftware.PackagePath, err)
+	}
+	var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
+	if err := yaml.Unmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
+		return fmt.Errorf("failed to unmarshal install_software.package_path file %s: %v", policy.InstallSoftware.PackagePath, err)
+	}
+	installerOnTeamFound := false
+	for _, pkg := range packages {
+		if pkg.URL == policyInstallSoftwareSpec.URL {
+			installerOnTeamFound = true
+			break
+		}
+	}
+	if !installerOnTeamFound {
+		return fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, policy.InstallSoftware.PackagePath)
+	}
+	policy.InstallSoftwareURL = policyInstallSoftwareSpec.URL
+	return nil
+}
+
+func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, multiError *multierror.Error) *multierror.Error {
 	queriesRaw, ok := top["queries"]
-	if !ok {
+	if result.IsNoTeam() {
+		if ok {
+			logFn("[!] 'queries' is not supported for \"No team\". This key will be ignored.\n")
+		}
+		return multiError
+	} else if !ok {
 		return multierror.Append(multiError, errors.New("'queries' key is required"))
 	}
 	var queries []Query
@@ -527,34 +724,60 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 
 func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	softwareRaw, ok := top["software"]
-	if !ok {
+	if result.global() {
+		if ok && string(softwareRaw) != "null" {
+			return multierror.Append(multiError, errors.New("'software' cannot be set on global file"))
+		}
+	} else if !ok {
 		return multierror.Append(multiError, errors.New("'software' is required"))
 	}
-	var software fleet.SoftwareSpec
+	var software Software
 	if len(softwareRaw) > 0 {
 		if err := json.Unmarshal(softwareRaw, &software); err != nil {
+			var typeErr *json.UnmarshalTypeError
+			if errors.As(err, &typeErr) {
+				typeErrField := typeErr.Field
+				if typeErrField == "" {
+					// UnmarshalTypeError.Field is empty when trying to set an invalid type on the root node.
+					typeErrField = "software"
+				}
+				return multierror.Append(multiError, fmt.Errorf("Couldn't edit software. %q must be a %s, found %s", typeErrField, typeErr.Type.String(), typeErr.Value))
+			}
 			return multierror.Append(multiError, fmt.Errorf("failed to unmarshall softwarespec: %v", err))
 		}
 	}
-	if software.AppStoreApps.Set {
-		for _, item := range software.AppStoreApps.Value {
-			item := item
-			if item.AppStoreID == "" {
-				multiError = multierror.Append(multiError, errors.New("software app store id required"))
-				continue
-			}
-			result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
+	for _, item := range software.AppStoreApps {
+		item := item
+		if item.AppStoreID == "" {
+			multiError = multierror.Append(multiError, errors.New("software app store id required"))
+			continue
 		}
+		result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
 	}
-	if software.Packages.Set {
-		for _, item := range software.Packages.Value {
-			item := item
-			if item.URL == "" {
-				multiError = multierror.Append(multiError, errors.New("software URL is required"))
+	for _, item := range software.Packages {
+		var softwarePackageSpec fleet.SoftwarePackageSpec
+		if item.Path != nil {
+			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
+			if err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to read policies file %s: %v", *item.Path, err))
 				continue
 			}
-			result.Software.Packages = append(result.Software.Packages, &item)
+			if err := yaml.Unmarshal(fileBytes, &softwarePackageSpec); err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal software package file %s: %v", *item.Path, err))
+				continue
+			}
+		} else {
+			softwarePackageSpec = item.SoftwarePackageSpec
 		}
+		if softwarePackageSpec.URL == "" {
+			multiError = multierror.Append(multiError, errors.New("software URL is required"))
+			continue
+		}
+		if len(softwarePackageSpec.URL) > fleet.SoftwareInstallerURLMaxLength {
+			multiError = multierror.Append(multiError, fmt.Errorf("software URL %q is too long, must be less than 256 characters", softwarePackageSpec.URL))
+			continue
+		}
+		result.Software.Packages = append(result.Software.Packages, &softwarePackageSpec)
 	}
 
 	return multiError

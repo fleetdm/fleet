@@ -626,6 +626,15 @@ fi
 
 start_ver_tag=fleet-$start_version
 
+# Check if there are updates to fleetctl dependencies (only when doing security updates to base images).
+if [[ $(git diff $start_ver_tag ./tools/wix-docker ./tools/bomutils-docker) ]]; then
+	echo "⚠️  Changes in fleetctl dependencies detected, please run the following before continuing the release:"
+	echo "1. git tag fleetctl-docker-deps-$next_ver && git push origin fleetctl-docker-deps-$next_ver"
+	echo "2. Wait for the triggered https://github.com/fleetdm/fleet/actions/workflows/release-fleetctl-docker-deps.yaml build to finish."
+	echo "3. Smoke test the pushed images by manually running the following action: https://github.com/fleetdm/fleet/actions/workflows/test-packaging.yml"
+	exit 1
+fi
+
 if [[ "$minor" == "true" ]]; then
     echo "Minor release from $start_version to $next_ver"
     # For scheduled minor releases, we want to branch off of main
@@ -652,9 +661,9 @@ target_milestone="${next_ver:1}"
 # 79
 target_milestone_number=$(gh api repos/:owner/:repo/milestones | jq -r ".[] | select(.title==\"$target_milestone\") | .number")
 # patch-fleet-v4.48.0
-target_branch="patch-fleet-$next_ver"
+target_branch="rc-patch-fleet-$next_ver"
 if [[ "$minor" == "true" ]]; then
-    target_branch="minor-fleet-$next_ver"
+    target_branch="rc-minor-fleet-$next_ver"
 fi
 
 # fleet-v4.48.0

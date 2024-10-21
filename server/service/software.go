@@ -21,7 +21,7 @@ type listSoftwareRequest struct {
 	fleet.SoftwareListOptions
 }
 
-// DEPRECATED: listSoftwareResponse is the response struct for the deprecated
+// Deprecated: listSoftwareResponse is the response struct for the deprecated
 // listSoftwareEndpoint. It differs from listSoftwareVersionsResponse in that
 // the latter includes a count of the total number of software items.
 type listSoftwareResponse struct {
@@ -32,7 +32,7 @@ type listSoftwareResponse struct {
 
 func (r listSoftwareResponse) error() error { return r.Err }
 
-// DEPRECATED: use listSoftwareVersionsEndpoint instead
+// Deprecated: use listSoftwareVersionsEndpoint instead
 func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listSoftwareRequest)
 	resp, _, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
@@ -213,7 +213,7 @@ type countSoftwareResponse struct {
 
 func (r countSoftwareResponse) error() error { return r.Err }
 
-// DEPRECATED: counts are now included directly in the listSoftwareVersionsResponse. This
+// Deprecated: counts are now included directly in the listSoftwareVersionsResponse. This
 // endpoint is retained for backwards compatibility.
 func countSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*countSoftwareRequest)
@@ -239,6 +239,11 @@ func (svc Service) CountSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	// Vulnerability filters are only available in premium
 	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
 		return 0, fleet.ErrMissingLicense
+	}
+
+	// required for vulnerability filters
+	if lic.IsPremium() {
+		opt.IncludeCVEScores = true
 	}
 
 	return svc.ds.CountSoftware(ctx, opt)
