@@ -542,6 +542,24 @@ This activity contains the following fields:
 }
 ```
 
+## fleet_enrolled
+
+Generated when a host is enrolled to Fleet (Fleet's agent fleetd is installed).
+
+This activity contains the following fields:
+- "host_serial": Serial number of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_uuid": "d071f0b1-2836-41c2-879f-3f08e1fbd29f",
+  "host_display_name": "WIN-DESKTOP-JGS78KJ7C",
+}
+```
+
 ## mdm_unenrolled
 
 Generated when a host is unenrolled from Fleet's MDM.
