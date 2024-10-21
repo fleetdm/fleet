@@ -34,17 +34,17 @@
   moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#design-reviews" 
   dri: "noahtalerman"
 -
-  task: "🦢📬 Product design inbox review"
-  startedOn: "2023-10-07" 
+  task: "🦢📨 Unpacking the 'why'"
+  startedOn: "2024-09-30" 
   frequency: "Daily" 
-  description: "Noah and Allen review the new customer/community requests on the product board to synthisize “What users expect” from Allen" 
-  moreInfoUrl: "https://fleetdm.com/handbook/product-design#inbox-review" 
+  description: "Break down the 'why' for new customer requests in the 'Inbox' column on the drafting board." 
+  moreInfoUrl: "https://fleetdm.com/handbook/product-design#unpacking-the-why" 
   dri: "noahtalerman"
 -
   task: "🦢🔄 Product design check-in"
   startedOn: "2023-07-11" 
   frequency: "Weekly" 
-  description: "Weekly time to chat about product design work (design reviews, conventions & best practices, using Figma, etc.)" 
+  description: "The Head of Product Design summarizes the current week's design reviews to discuss with the CEO" 
   moreInfoUrl: "https://fleetdm.com/handbook/product-design#product-design-check-in" # 2024-03-06 TODO: Add responsibility to README and link to it here
   dri: "noahtalerman"
 -
