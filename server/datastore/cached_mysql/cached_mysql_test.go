@@ -70,8 +70,7 @@ func TestClone(t *testing.T) {
 
 			// ensure that writing to src does not alter the cloned value (i.e. that
 			// the nested fields are deeply cloned too).
-			switch src := tc.src.(type) {
-			case *fleet.AppConfig:
+			if src, ok := tc.src.(*fleet.AppConfig); ok {
 				if len(src.ServerSettings.DebugHostIDs) > 0 {
 					src.ServerSettings.DebugHostIDs[0] = 999
 					require.NotEqual(t, src.ServerSettings.DebugHostIDs, clone.(*fleet.AppConfig).ServerSettings.DebugHostIDs)

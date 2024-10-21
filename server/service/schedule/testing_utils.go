@@ -64,7 +64,7 @@ func (ml *MockLock) Lock(ctx context.Context, name string, owner string, expirat
 	if ml.owner == owner || now.After(ml.expiresAt) {
 		ml.owner = owner
 		ml.expiresAt = now.Add(expiration)
-		ml.LockCount = ml.LockCount + 1
+		ml.LockCount++
 		if ml.Locked != nil {
 			ml.Locked <- struct{}{}
 		}
@@ -84,7 +84,7 @@ func (ml *MockLock) Unlock(ctx context.Context, name string, owner string) error
 	if owner != ml.owner {
 		return errors.New("owner doesn't match")
 	}
-	ml.UnlockCount = ml.UnlockCount + 1
+	ml.UnlockCount++
 	if ml.Unlocked != nil {
 		ml.Unlocked <- struct{}{}
 	}

@@ -93,7 +93,7 @@ func testRedisAcquireLock(t *testing.T, lock fleet.Lock) {
 	assert.True(t, result)
 
 	// Try to acquire the same lock after waiting
-	duration := time.Duration(expire+1) * time.Millisecond
+	duration := time.Duration(expire+1) * time.Millisecond //nolint:gosec // dismiss G115
 	time.Sleep(duration)
 	result, err = lock.SetIfNotExist(ctx, "testE", "1", 0)
 	require.NoError(t, err)

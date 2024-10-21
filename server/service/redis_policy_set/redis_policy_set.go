@@ -49,7 +49,7 @@ func (r *redisFailingPolicySet) ListSets() ([]uint, error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	ids, err := redigo.Ints(conn.Do("SMEMBERS", r.policySetOfSetsKey()))
+	ids, err := redigo.Uint64s(conn.Do("SMEMBERS", r.policySetOfSetsKey()))
 	if err != nil && err != redigo.ErrNil {
 		return nil, err
 	}
@@ -202,7 +202,7 @@ func (r *redisFailingPolicySet) removePolicyFromSetOfSets(policyID uint) error {
 }
 
 func (r *redisFailingPolicySet) policySetKey(policyID uint) string {
-	return r.testPrefix + policySetKeyPrefix + strconv.Itoa(int(policyID))
+	return r.testPrefix + policySetKeyPrefix + fmt.Sprint(policyID)
 }
 
 func (r *redisFailingPolicySet) policySetOfSetsKey() string {
@@ -210,7 +210,7 @@ func (r *redisFailingPolicySet) policySetOfSetsKey() string {
 }
 
 func hostEntry(host fleet.PolicySetHost) string {
-	return strconv.Itoa(int(host.ID)) + "," + host.Hostname
+	return fmt.Sprint(host.ID) + "," + host.Hostname
 }
 
 func parseHostEntry(v string) (*fleet.PolicySetHost, error) {
@@ -218,7 +218,7 @@ func parseHostEntry(v string) (*fleet.PolicySetHost, error) {
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid format: %s", v)
 	}
-	id, err := strconv.Atoi(parts[0])
+	id, err := strconv.ParseUint(parts[0], 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid id: %s", v)
 	}

@@ -35,7 +35,7 @@ func main() {
 	// Disable foreign key checks to improve performance
 	_, err = db.Exec("SET FOREIGN_KEY_CHECKS=0")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err) //nolint:gocritic // ignore exitAfterDefer
 	}
 
 	// Prepare the insert statement

@@ -464,7 +464,7 @@ func refreshMenuItems(sum fleet.DesktopSummary, selfServiceItem *systray.MenuIte
 
 	failingPolicies := 0
 	if sum.FailingPolicies != nil {
-		failingPolicies = int(*sum.FailingPolicies)
+		failingPolicies = int(*sum.FailingPolicies) //nolint:gosec // dismiss G115
 	}
 
 	if failingPolicies > 0 {
