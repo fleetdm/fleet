@@ -26,7 +26,6 @@ export default {
       message: "I am a message. Hear me roar!",
       alertType: "success",
       isVisible: true,
-      undoAction: noop,
     },
   },
 } as Meta;
