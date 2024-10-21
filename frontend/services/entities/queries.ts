@@ -6,8 +6,18 @@ import { ISelectedTargetsForApi } from "interfaces/target";
 import {
   ICreateQueryRequestBody,
   IModifyQueryRequestBody,
+  ISchedulableQuery,
 } from "interfaces/schedulable_query";
 import { buildQueryStringFromParams } from "utilities/url";
+
+export interface IQueriesResponse {
+  queries: ISchedulableQuery[];
+  count: number;
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+}
 
 export default {
   create: (createQueryRequestBody: ICreateQueryRequestBody) => {
@@ -35,11 +45,16 @@ export default {
 
     return sendRequest("GET", path);
   },
-  loadAll: (teamId?: number, mergeInherited = false) => {
+  // loadAll: (teamId?: number, perPage?: number, mergeInherited = false) => {
+  loadAll: (
+    teamId?: number,
+    mergeInherited = false
+  ): Promise<IQueriesResponse> => {
     const { QUERIES } = endpoints;
     const queryString = buildQueryStringFromParams({
       team_id: teamId,
       merge_inherited: mergeInherited || null,
+      // per_page: perPage || null,
     });
     const path = `${QUERIES}`;
 
