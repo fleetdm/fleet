@@ -112,7 +112,7 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
 
 ### Settle event strategy
 
-The Head of Marketing is the DRI for deploying Fleet's event budget, and events are settled significantly in advance to provide ample time for strategy and planning.  Fleet's [Head of Marketing](https://fleetdm.com/handbook/demand#team) is the DRI for executing Fleet events efficiently, on-brand, and on-strategy.
+ Fleet's [Head of Marketing](https://fleetdm.com/handbook/demand#team) is the DRI for executing Fleet events efficiently, on-brand, and on-strategy within Fleet's event budget. Events are settled significantly in advance to provide ample time for strategy and planning.  
 
 1. Using the [event strategy workbook](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1411322737), propose the events that Fleet will attend in the next 6 months, and the strategy for those events, including:
   - target buying situation of the audience
@@ -129,7 +129,7 @@ The Head of Marketing is the DRI for deploying Fleet's event budget, and events 
 
 ### Book an event
 
-Fleet's Client Platform Engineer & Community Advocate is responsible for booking events that Fleet has chosen to attend and/or sponsor. To book an event, complete the steps in each event issue. Contact the [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/demand#team) as needed with any questions or blockers to booking an event.
+Fleet's Head of Marketing is responsible for booking events that Fleet has chosen to attend and/or sponsor. To book an event, complete the steps in each event issue. Contact the [🫧 Head of Marketing](https://fleetdm.com/handbook/demand#team) as needed with any questions or blockers to booking an event.
 
 > Note: The Demand department [settles all event strategy](https://fleetdm.com/handbook/demand#settle-event-strategy) prior to booking an event. 
 
