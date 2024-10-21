@@ -95,6 +95,7 @@
 		},
 		"mdm": {
 			"apple_bm_terms_expired": false,
+			"apple_server_url": "",
 			"apple_bm_enabled_and_configured": false,
 			"enabled_and_configured": false,
 			"apple_business_manager": null,

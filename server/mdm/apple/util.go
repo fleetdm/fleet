@@ -99,7 +99,7 @@ func FmtDDMError(reasons []fleet.MDMAppleDDMStatusErrorReason) string {
 }
 
 func EnrollURL(token string, appConfig *fleet.AppConfig) (string, error) {
-	enrollURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
+	enrollURL, err := url.Parse(appConfig.MDMUrl())
 	if err != nil {
 		return "", err
 	}
