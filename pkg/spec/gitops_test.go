@@ -5,8 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -51,9 +53,22 @@ func createTempFile(t *testing.T, pattern, contents string) (filePath string, ba
 	return tmpFile.Name(), filepath.Dir(tmpFile.Name())
 }
 
+func createNamedFileOnTempDir(t *testing.T, name string, contents string) (filePath string, baseDir string) {
+	tmpFilePath := filepath.Join(t.TempDir(), name)
+	tmpFile, err := os.Create(tmpFilePath)
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(contents)
+	require.NoError(t, err)
+	require.NoError(t, tmpFile.Close())
+	return tmpFile.Name(), filepath.Dir(tmpFile.Name())
+}
+
 func gitOpsFromString(t *testing.T, s string) (*GitOps, error) {
 	path, basePath := createTempFile(t, "", s)
-	return GitOpsFromFile(path, basePath, nil)
+	return GitOpsFromFile(path, basePath, nil, nopLogf)
+}
+
+func nopLogf(_ string, _ ...interface{}) {
 }
 
 func TestValidGitOpsYaml(t *testing.T) {
@@ -104,11 +119,17 @@ func TestValidGitOpsYaml(t *testing.T) {
 							os.Unsetenv(k)
 						}
 					})
-				} else {
-					t.Parallel()
 				}
 
-				gitops, err := GitOpsFromFile(test.filePath, "./testdata", nil)
+				var appConfig *fleet.EnrichedAppConfig
+				if test.isTeam {
+					appConfig = &fleet.EnrichedAppConfig{}
+					appConfig.License = &fleet.LicenseInfo{
+						Tier: fleet.TierPremium,
+					}
+				}
+
+				gitops, err := GitOpsFromFile(test.filePath, "./testdata", appConfig, nopLogf)
 				require.NoError(t, err)
 
 				if test.isTeam {
@@ -132,6 +153,14 @@ func TestValidGitOpsYaml(t *testing.T) {
 					require.Len(t, secrets.([]*fleet.EnrollSecret), 2)
 					assert.Equal(t, "SampleSecret123", secrets.([]*fleet.EnrollSecret)[0].Secret)
 					assert.Equal(t, "ABC", secrets.([]*fleet.EnrollSecret)[1].Secret)
+					require.Len(t, gitops.Software.Packages, 2)
+					for _, pkg := range gitops.Software.Packages {
+						if strings.Contains(pkg.URL, "MicrosoftTeams") {
+							assert.Equal(t, "uninstall.sh", pkg.UninstallScript.Path)
+						} else {
+							assert.Empty(t, pkg.UninstallScript.Path)
+						}
+					}
 				} else {
 					// Check org settings
 					serverSettings, ok := gitops.OrgSettings["server_settings"]
@@ -201,14 +230,41 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.Equal(t, "darwin,linux,windows", gitops.Queries[1].Platform)
 				assert.Equal(t, "osquery_info", gitops.Queries[2].Name)
 
+				// Check software
+				if test.isTeam {
+					require.Len(t, gitops.Software.Packages, 2)
+					require.Equal(t, "https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg", gitops.Software.Packages[0].URL)
+					require.False(t, gitops.Software.Packages[0].SelfService)
+					require.Equal(t, "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg", gitops.Software.Packages[1].URL)
+					require.True(t, gitops.Software.Packages[1].SelfService)
+				}
+
 				// Check policies
-				require.Len(t, gitops.Policies, 5)
+				expectedPoliciesCount := 5
+				if test.isTeam {
+					expectedPoliciesCount = 8
+				}
+				require.Len(t, gitops.Policies, expectedPoliciesCount)
 				assert.Equal(t, "😊 Failing policy", gitops.Policies[0].Name)
 				assert.Equal(t, "Passing policy", gitops.Policies[1].Name)
 				assert.Equal(t, "No root logins (macOS, Linux)", gitops.Policies[2].Name)
 				assert.Equal(t, "🔥 Failing policy", gitops.Policies[3].Name)
 				assert.Equal(t, "linux", gitops.Policies[3].Platform)
 				assert.Equal(t, "😊😊 Failing policy", gitops.Policies[4].Name)
+				if test.isTeam {
+					assert.Equal(t, "Microsoft Teams on macOS installed and up to date", gitops.Policies[5].Name)
+					assert.NotNil(t, gitops.Policies[5].InstallSoftware)
+					assert.Equal(t, "./microsoft-teams.pkg.software.yml", gitops.Policies[5].InstallSoftware.PackagePath)
+
+					assert.Equal(t, "Script run policy", gitops.Policies[6].Name)
+					assert.NotNil(t, gitops.Policies[6].RunScript)
+					assert.Equal(t, "./lib/collect-fleetd-logs.sh", gitops.Policies[6].RunScript.Path)
+
+					assert.Equal(t, "🔥 Failing policy with script", gitops.Policies[7].Name)
+					assert.NotNil(t, gitops.Policies[7].RunScript)
+					// . or .. depending on whether with paths or without
+					assert.Contains(t, gitops.Policies[7].RunScript.Path, "./lib/collect-fleetd-logs.sh")
+				}
 			},
 		)
 	}
@@ -415,14 +471,44 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "must have a 'secret' key")
 
+					// Missing team_settings.
+					config = getConfig([]string{"team_settings"})
+					_, err = gitOpsFromString(t, config)
+					assert.ErrorContains(t, err, "'team_settings' is required when 'name' is provided")
+
+					// team_settings set on a "no-team.yml".
+					config = getConfig([]string{"name"})
+					config += "name: No team\n"
+					noTeamPath1, noTeamBasePath1 := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath1, noTeamBasePath1, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("cannot set 'team_settings' on 'No team' file: %q", noTeamPath1))
+
+					// 'No team' file with invalid name.
+					config = getConfig([]string{"name", "team_settings"})
+					config += "name: No team\n"
+					noTeamPath2, noTeamBasePath2 := createNamedFileOnTempDir(t, "foobar.yml", config)
+					_, err = GitOpsFromFile(noTeamPath2, noTeamBasePath2, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("file %q for 'No team' must be named 'no-team.yml'", noTeamPath2))
+
 					// Missing secrets
 					config = getConfig([]string{"team_settings"})
 					config += "team_settings:\n"
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "'team_settings.secrets' is required")
 				} else {
+					// 'software' is not allowed in global config
+					config := getConfig(nil)
+					config += "software:\n  packages:\n    - url: https://example.com\n"
+					path1, basePath1 := createTempFile(t, "", config)
+					appConfig := fleet.EnrichedAppConfig{}
+					appConfig.License = &fleet.LicenseInfo{
+						Tier: fleet.TierPremium,
+					}
+					_, err = GitOpsFromFile(path1, basePath1, &appConfig, nopLogf)
+					assert.ErrorContains(t, err, "'software' cannot be set on global file")
+
 					// Invalid org_settings
-					config := getConfig([]string{"org_settings"})
+					config = getConfig([]string{"org_settings"})
 					config += "org_settings:\n  path: [2]\n"
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "failed to unmarshal org_settings")
@@ -567,9 +653,6 @@ func TestTopLevelGitOpsValidation(t *testing.T) {
 		"missing_all": {
 			optsToExclude: []string{"controls", "queries", "policies", "agent_options", "org_settings"},
 		},
-		"missing_controls": {
-			optsToExclude: []string{"controls"},
-		},
 		"missing_queries": {
 			optsToExclude: []string{"queries"},
 		},
@@ -696,7 +779,7 @@ func TestGitOpsPaths(t *testing.T) {
 				err = os.WriteFile(mainTmpFile.Name(), []byte(config), 0o644)
 				require.NoError(t, err)
 
-				_, err = GitOpsFromFile(mainTmpFile.Name(), dir, nil)
+				_, err = GitOpsFromFile(mainTmpFile.Name(), dir, nil, nopLogf)
 				assert.NoError(t, err)
 
 				// Test a bad path
@@ -709,7 +792,7 @@ func TestGitOpsPaths(t *testing.T) {
 				err = os.WriteFile(mainTmpFile.Name(), []byte(config), 0o644)
 				require.NoError(t, err)
 
-				_, err = GitOpsFromFile(mainTmpFile.Name(), dir, nil)
+				_, err = GitOpsFromFile(mainTmpFile.Name(), dir, nil, nopLogf)
 				assert.ErrorContains(t, err, "no such file or directory")
 
 				// Test a bad file -- cannot be unmarshalled
@@ -744,11 +827,197 @@ func TestGitOpsPaths(t *testing.T) {
 				}
 				err = os.WriteFile(mainTmpFile.Name(), []byte(config), 0o644)
 				require.NoError(t, err)
-				_, err = GitOpsFromFile(mainTmpFile.Name(), dir, nil)
+				_, err = GitOpsFromFile(mainTmpFile.Name(), dir, nil, nopLogf)
 				assert.ErrorContains(t, err, "nested paths are not supported")
 			},
 		)
 	}
+}
+
+func TestGitOpsGlobalPolicyWithInstallSoftware(t *testing.T) {
+	t.Parallel()
+	config := getGlobalConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  install_software:
+    package_path: ./some_path.yml
+`
+	_, err := gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "install_software can only be set on team policies")
+}
+
+func TestGitOpsGlobalPolicyWithRunScript(t *testing.T) {
+	t.Parallel()
+	config := getGlobalConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  run_script:
+    path: ./some_path.sh
+`
+	_, err := gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "run_script can only be set on team policies")
+}
+
+func TestGitOpsTeamPolicyWithInvalidInstallSoftware(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  install_software:
+    package_path: ./some_path.yml
+`
+	_, err := gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "failed to read install_software.package_path file")
+
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  install_software:
+    package_path:
+`
+	_, err = gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "empty package_path")
+
+	// Software has a URL that's too big
+	tooBigURL := fmt.Sprintf("https://ftp.mozilla.org/%s", strings.Repeat("a", 232))
+	config = getTeamConfig([]string{"software"})
+	config += fmt.Sprintf(`
+software:
+  packages:
+    - url: %s
+`, tooBigURL)
+	appConfig := fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	path, basePath := createTempFile(t, "", config)
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	assert.ErrorContains(t, err, fmt.Sprintf("software URL \"%s\" is too long, must be less than 256 characters", tooBigURL))
+
+	// Policy references a software installer not present in the team.
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+  - path: ./team_install_software.policies.yml
+software:
+  packages:
+    - url: https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg
+      self_service: true
+
+`
+	path, basePath = createTempFile(t, "", config)
+	err = file.Copy(
+		filepath.Join("testdata", "team_install_software.policies.yml"),
+		filepath.Join(basePath, "team_install_software.policies.yml"),
+		0o755,
+	)
+	require.NoError(t, err)
+	err = file.Copy(
+		filepath.Join("testdata", "microsoft-teams.pkg.software.yml"),
+		filepath.Join(basePath, "microsoft-teams.pkg.software.yml"),
+		0o755,
+	)
+	require.NoError(t, err)
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	assert.ErrorContains(t, err,
+		"install_software.package_path URL https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg not found on team",
+	)
+
+	// Policy references a software installer file that has an invalid yaml.
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+  - path: ./team_install_software.policies.yml
+software:
+  packages:
+    - url: https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg
+      self_service: true
+`
+	path, basePath = createTempFile(t, "", config)
+	err = file.Copy(
+		filepath.Join("testdata", "team_install_software.policies.yml"),
+		filepath.Join(basePath, "team_install_software.policies.yml"),
+		0o755,
+	)
+	require.NoError(t, err)
+	err = os.WriteFile( // nolint:gosec
+		filepath.Join(basePath, "microsoft-teams.pkg.software.yml"),
+		[]byte("invalid yaml"),
+		0o755,
+	)
+	require.NoError(t, err)
+	appConfig = fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	assert.ErrorContains(t, err, "failed to unmarshal install_software.package_path file")
+}
+
+func TestGitOpsTeamPolicyWithInvalidRunScript(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  run_script:
+    path: ./some_path.sh
+`
+	_, err := gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "script file does not exist")
+
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  run_script:
+    path:
+`
+	_, err = gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "empty run_script path")
+
+	// Policy references a script not present in the team.
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+  - path: ./policies/script-policy.yml
+software:
+controls:
+  scripts:
+    - path: ./policies/policies2.yml
+
+`
+	path, basePath := createTempFile(t, "", config)
+	err = file.Copy(
+		filepath.Join("testdata", "policies", "script-policy.yml"),
+		filepath.Join(basePath, "policies", "script-policy.yml"),
+		0o755,
+	)
+	require.NoError(t, err)
+	err = file.Copy(
+		filepath.Join("testdata", "lib", "collect-fleetd-logs.sh"),
+		filepath.Join(basePath, "lib", "collect-fleetd-logs.sh"),
+		0o755,
+	)
+	require.NoError(t, err)
+	appConfig := fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	assert.ErrorContains(t, err,
+		"was not defined in controls for TeamName",
+	)
 }
 
 func getGlobalConfig(optsToExclude []string) string {

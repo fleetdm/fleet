@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -297,6 +298,8 @@ func TestConfigReloadCheck(t *testing.T) {
 }
 
 func TestJobPanicRecover(t *testing.T) {
+	os.Setenv("TEST_CRON_NO_RECOVER", "0")
+	defer os.Unsetenv("TEST_CRON_NO_RECOVER")
 	ctx, cancel := context.WithCancel(context.Background())
 
 	jobRan := false
@@ -590,6 +593,7 @@ func TestMultipleScheduleInstancesConfigChangesDS(t *testing.T) {
 }
 
 func TestTriggerSingleInstance(t *testing.T) {
+	t.Parallel()
 	ctx, cancelFn := context.WithCancel(context.Background())
 
 	name := "test_trigger_single_instance"
@@ -756,7 +760,7 @@ func TestTriggerMultipleInstances(t *testing.T) {
 		}()
 
 		<-timer.C
-		require.Equal(t, uint32(c.jobsExpected), atomic.LoadUint32(&jobsRun))
+		require.EqualValues(t, c.jobsExpected, atomic.LoadUint32(&jobsRun))
 		cancelFunc()
 	}
 }

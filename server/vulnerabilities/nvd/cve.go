@@ -402,7 +402,7 @@ func matchesExactTargetSW(softwareCPETargetSW string, targetSWs []string, config
 func checkCVEs(
 	ctx context.Context,
 	logger kitlog.Logger,
-	CPEItems []itemWithNVDMeta,
+	cpeItems []itemWithNVDMeta,
 	jsonFile string,
 	knownNVDBugRules CPEMatchingRules,
 ) ([]fleet.SoftwareVulnerability, []fleet.OSVulnerability, error) {
@@ -542,7 +542,7 @@ func checkCVEs(
 
 	level.Debug(logger).Log("msg", "pushing cpes")
 
-	for _, cpe := range CPEItems {
+	for _, cpe := range cpeItems {
 		CPEItemCh <- cpe
 	}
 	close(CPEItemCh)
@@ -584,6 +584,14 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 			cpeItem2 := *cpeItem
 			cpeItem2.Product = "visual_studio_code"
 			cpeItem2.TargetSW = "python"
+			cpeItems = append(cpeItems, &cpeItem2)
+		}
+	}
+
+	for _, cpeItem := range cpeItems {
+		if cpeItem.Vendor == "oracle" && cpeItem.Product == "virtualbox" {
+			cpeItem2 := *cpeItem
+			cpeItem2.Product = "vm_virtualbox"
 			cpeItems = append(cpeItems, &cpeItem2)
 		}
 	}

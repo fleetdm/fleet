@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -79,6 +80,20 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				return nil
 			}
 
+			tokenExpiration := time.Now().Add(24 * time.Hour)
+			token, err := test.CreateVPPTokenEncoded(tokenExpiration, "fleet", "ca")
+			require.NoError(t, err)
+			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+				return &fleet.VPPTokenDB{
+					ID:        1,
+					OrgName:   "Fleet",
+					Location:  "Earth",
+					RenewDate: tokenExpiration,
+					Token:     string(token),
+					Teams:     nil,
+				}, nil
+			}
+
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{}, nil
 			}
@@ -100,11 +115,12 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				return false, nil
 			}
 
-			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+				_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{}, nil
 			}
 
-			_, err := svc.DownloadSoftwareInstaller(ctx, 1, tt.teamID)
+			_, err = svc.DownloadSoftwareInstaller(ctx, false, "media", 1, tt.teamID)
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else {
@@ -123,19 +139,15 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 			_, err = svc.GetAppStoreApps(ctx, tt.teamID)
 			if tt.teamID == nil {
 				require.Error(t, err)
-			} else {
-				if tt.shouldFailRead {
-					checkAuthErr(t, true, err)
-				}
+			} else if tt.shouldFailRead {
+				checkAuthErr(t, true, err)
 			}
 
 			err = svc.AddAppStoreApp(ctx, tt.teamID, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "123", Platform: fleet.IOSPlatform}})
 			if tt.teamID == nil {
 				require.Error(t, err)
-			} else {
-				if tt.shouldFailWrite {
-					checkAuthErr(t, true, err)
-				}
+			} else if tt.shouldFailWrite {
+				checkAuthErr(t, true, err)
 			}
 
 			// TODO: configure test with mock software installer store and add tests to check upload auth

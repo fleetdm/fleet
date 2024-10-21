@@ -77,13 +77,14 @@ func (s *fileStore) Close() error {
 
 func (s *fileStore) readData() error {
 	stat, err := os.Stat(s.filename)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	switch {
+	case err != nil && !errors.Is(err, os.ErrNotExist):
 		return fmt.Errorf("stat file store: %w", err)
-	} else if errors.Is(err, os.ErrNotExist) {
+	case errors.Is(err, os.ErrNotExist):
 		// initialize empty
 		s.metadata = metadataMap{}
 		return nil
-	} else if !stat.Mode().IsRegular() {
+	case !stat.Mode().IsRegular():
 		return errors.New("expected file store to be regular file")
 	}
 

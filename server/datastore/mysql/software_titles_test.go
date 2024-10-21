@@ -271,6 +271,8 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
 
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
 	software1 := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", Browser: "chrome"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", Browser: "chrome"},
@@ -303,6 +305,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 		Source:        "apps",
 		InstallScript: "echo",
 		Filename:      "installer1.pkg",
+		UserID:        user1.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
@@ -317,10 +320,14 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 		Source:        "apps",
 		InstallScript: "echo",
 		Filename:      "installer2.pkg",
+		UserID:        user1.ID,
 	})
 	require.NoError(t, err)
-	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2, false)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2, false, nil)
 	require.NoError(t, err)
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+
 	// create a VPP app not installed anywhere
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
@@ -594,6 +601,10 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	require.NoError(t, ds.AddHostsToTeam(ctx, &team1.ID, []uint{host1.ID}))
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
@@ -627,6 +638,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 		Filename:         "installer1.pkg",
 		BundleIdentifier: "foo.bar",
 		TeamID:           &team1.ID,
+		UserID:           user1.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
@@ -642,6 +654,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 		InstallScript: "echo",
 		Filename:      "installer2.pkg",
 		TeamID:        &team2.ID,
+		UserID:        user1.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
@@ -653,10 +666,10 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	}, &team2.ID)
 	require.NoError(t, err)
 
-	// create a VPP app for "No team"
+	// create a VPP app for "No team", allowing self-service
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}},
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}, SelfService: true},
 	}, ptr.Uint(0))
 	require.NoError(t, err)
 
@@ -708,6 +721,9 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), titles[0].VersionsCount)
 	require.Nil(t, titles[0].SoftwarePackage)
 	require.Equal(t, "vpp3", titles[0].Name)
+	require.NotNil(t, titles[0].AppStoreApp)
+	require.NotNil(t, titles[0].AppStoreApp.SelfService)
+	require.True(t, *titles[0].AppStoreApp.SelfService)
 
 	// Get title of bar software.
 	title, err := ds.SoftwareTitleByID(context.Background(), barTitle.ID, nil, globalTeamFilter)
@@ -835,6 +851,15 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.Len(t, titles, 0)
+
+	// Testing the no-team filter with self-service only
+	titles, _, _, err = ds.ListSoftwareTitles(context.Background(), fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}, SelfServiceOnly: true, TeamID: ptr.Uint(0)}, fleet.TeamFilter{
+		User:            userGlobalAdmin,
+		IncludeObserver: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, "vpp3", titles[0].Name)
 }
 
 func sortTitlesByName(titles []fleet.SoftwareTitleListResult) {
@@ -844,12 +869,17 @@ func sortTitlesByName(titles []fleet.SoftwareTitleListResult) {
 func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+
 	// create a couple software installers not installed on any host
 	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:         "installer1",
 		Source:        "apps",
 		InstallScript: "echo",
 		Filename:      "installer1.pkg",
+		UserID:        user1.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
@@ -858,6 +888,7 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 		Source:        "apps",
 		InstallScript: "echo",
 		Filename:      "installer2.pkg",
+		UserID:        user1.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
@@ -943,6 +974,9 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 
 func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	test.CreateInsertGlobalVPPToken(t, ds)
 
 	// create 2 software installers
 	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -950,6 +984,7 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		Source:        "apps",
 		InstallScript: "echo",
 		Filename:      "installer1.pkg",
+		UserID:        user1.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
@@ -958,6 +993,7 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		Source:        "apps",
 		InstallScript: "echo",
 		Filename:      "installer2.pkg",
+		UserID:        user1.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
@@ -989,6 +1025,8 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+		{Name: "vpp1", Version: "0.0.1", Source: "apps"},
+		{Name: "installer1", Version: "0.0.1", Source: "apps"},
 	}
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -1030,6 +1068,63 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		{name: "vpp2", source: "apps"},
 	}, names)
 
+	var vppVersionID uint
+	var installer1ID uint
+	var fooID uint
+	for _, title := range titles {
+		switch title.Name {
+		case "vpp1":
+			vppVersionID = title.Versions[0].ID
+		case "installer1":
+			installer1ID = title.Versions[0].ID
+		case "foo":
+			fooID = title.Versions[0].ID
+		}
+	}
+
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: vppVersionID,
+		CVE:        "CVE-2021-1234",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: installer1ID,
+		CVE:        "CVE-2021-1234",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: fooID,
+		CVE:        "CVE-2021-1234",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	titles, counts, _, err = ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "name",
+				OrderDirection: fleet.OrderAscending,
+			},
+			TeamID:              ptr.Uint(0),
+			AvailableForInstall: true,
+			VulnerableOnly:      true,
+		},
+		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
+	)
+	require.NoError(t, err)
+	require.EqualValues(t, 2, counts)
+	require.Len(t, titles, 2)
+	names = make([]nameSource, 0, len(titles))
+	for _, title := range titles {
+		names = append(names, nameSource{name: title.Name, source: title.Source})
+	}
+	assert.ElementsMatch(t, []nameSource{
+		{name: "installer1", source: "apps"},
+		{name: "vpp1", source: "apps"},
+	}, names)
+
 	// with filter returns only available for install
 	titles, counts, _, err = ds.ListSoftwareTitles(
 		ctx,
@@ -1064,10 +1159,14 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	test.CreateInsertGlobalVPPToken(t, ds)
+
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	// Create a macOS software foobar installer on "No team".
 	macOSInstallerNoTeam, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -1077,6 +1176,7 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 		InstallScript:    "echo",
 		Filename:         "foobar.pkg",
 		TeamID:           nil,
+		UserID:           user1.ID,
 	})
 	require.NoError(t, err)
 
@@ -1251,6 +1351,7 @@ func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {
 
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Foo"})
 	require.NoError(t, err)
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:            "installer1",
@@ -1258,6 +1359,7 @@ func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {
 		InstallScript:    "echo",
 		Filename:         "installer1.pkg",
 		BundleIdentifier: "com.foo.installer1",
+		UserID:           user1.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
@@ -1268,6 +1370,7 @@ func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {
 		Filename:         "installer2.pkg",
 		TeamID:           &tm.ID,
 		BundleIdentifier: "com.foo.installer2",
+		UserID:           user1.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer2)

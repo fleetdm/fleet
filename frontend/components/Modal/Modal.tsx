@@ -12,17 +12,30 @@ export interface IModalProps {
   children: JSX.Element;
   onExit: () => void;
   onEnter?: () => void;
-  /**     default 650px, large 800px, xlarge 850px, auto auto-width */
+  /**     medium 650px, large 800px, xlarge 850px, auto auto-width
+   * @default "medium"
+   */
   width?: ModalWidth;
-  /**    isHidden can be set true to hide the modal when opening another modal */
+  /**    isHidden can be set true to hide the modal when opening another modal
+   * @default false
+   */
   isHidden?: boolean;
-  /**    isLoading can be set true to enable targeting elements by loading state */
+  /**    isLoading can be set true to enable targeting elements by loading state
+   * @default false
+   */
   isLoading?: boolean;
-  /** isContentDisabled can be set to true to display the modal content as disabled.
+  /** `isContentDisabled` can be set to true to display the modal content as disabled.
    * At the moment this will place an overlay over the modal content and make it
-   * unclickable.
+   * unclickable. The top right will not be disabled and will still be clickable.
+   *
+   * @default false
    */
   isContentDisabled?: boolean;
+  /** `disableClosingModal` can be set to disable the users ability to manually
+   * close the modal.
+   * @default false
+   * */
+  disableClosingModal?: boolean;
   className?: string;
 }
 
@@ -35,6 +48,7 @@ const Modal = ({
   isHidden = false,
   isLoading = false,
   isContentDisabled = false,
+  disableClosingModal = false,
   className,
 }: IModalProps): JSX.Element => {
   useEffect(() => {
@@ -44,12 +58,16 @@ const Modal = ({
       }
     };
 
-    document.addEventListener("keydown", closeWithEscapeKey);
+    if (!disableClosingModal) {
+      document.addEventListener("keydown", closeWithEscapeKey);
+    }
 
     return () => {
-      document.removeEventListener("keydown", closeWithEscapeKey);
+      if (!disableClosingModal) {
+        document.removeEventListener("keydown", closeWithEscapeKey);
+      }
     };
-  }, []);
+  }, [disableClosingModal, onExit]);
 
   useEffect(() => {
     if (onEnter) {
@@ -93,11 +111,13 @@ const Modal = ({
       <div className={modalContainerClasses}>
         <div className={`${baseClass}__header`}>
           <span>{title}</span>
-          <div className={`${baseClass}__ex`}>
-            <Button className="button button--unstyled" onClick={onExit}>
-              <Icon name="close" color="core-fleet-black" size="medium" />
-            </Button>
-          </div>
+          {!disableClosingModal && (
+            <div className={`${baseClass}__ex`}>
+              <Button className="button button--unstyled" onClick={onExit}>
+                <Icon name="close" color="core-fleet-black" size="medium" />
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className={contentWrapperClasses}>

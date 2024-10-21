@@ -1,0 +1,31 @@
+.edit-software-modal {
+  &__form-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__input-field {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &--hidden {
+    display: none;
+  }
+
+
+  // formatting the form buttons to be on the right side of the modal.
+  // this is done here and not with .modal-cta-wrap because this form
+  // can be used in other places where the buttons should be on the left.
+  &__package-form {
+    .form-buttons {
+      align-self: flex-end;
+      display: flex;
+      flex-direction: row-reverse;
+      margin-top: $pad-xlarge;
+      gap: $pad-medium;
+    }
+  }
+}

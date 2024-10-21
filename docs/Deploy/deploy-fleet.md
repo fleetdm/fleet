@@ -17,6 +17,7 @@ Deploy to Render for an easy one-click proof of concept. Or, choose AWS with Ter
     </a>
 </div>
 
+Looking for other deployment options? Check out the [guides](https://fleetdm.com/guides).
 
 <h2 class="d-none markdown-heading">Render</h2>
 <h2 id="render">Deploy to Render in 5 minutes</h2>
@@ -43,11 +44,11 @@ Render is a cloud hosting service that makes it easy to get up and running fast,
     </a>
 </div>
 
-1. Click "Deploy to Render" to open the Fleet Blueprint on Render. You will be prompted to create or log in to your Render account with associated payment information.
+1. Click "Deploy to Render" to open the Fleet Blueprint on Render. Ensure that the Redis instance is manually set to the same region as your other resources. You will be prompted to create or log in to your Render account with associated payment information.
 
 2. Give the Blueprint a unique name like `yourcompany-fleet`.
 
-3. Click "**Apply.**" Render will provision your services, which should take less than five minutes. 
+3. Click "**Deploy Blueprint.**" Render will provision your services, which should take less than five minutes. 
 
 4. Click the "**Dashboard**" tab in Render when provisioning is complete to see your new services. 
 
@@ -105,13 +106,13 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
 
     > This step will take around 15 minutes.
 
-5. Run the following commands in Terminal:
+5. Run the following command in Terminal:
 
     ```
     terraform apply -target module.fleet.module.vpc
     ```
 
-6. Next, run this command:
+6. Run the following command in Terminal:
     
     ```
     terraform apply -target module.osquery-carve -target module.firehose-logging
@@ -119,20 +120,20 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
 
 7. Log in to your AWS Route 53 instance
 
-8. Run the following commands in Terminal:
+8. Run the following command in Terminal:
     ```
     terraform apply -target aws_route53_zone.main
     ```
 
 9. From the Terminal output, obtain the NS records created for the zone and add them to the parent DNS zone in the AWS Route 53 GUI.
 
-10. Run the following commands in Terminal:
+10. Run the following command in Terminal:
     
     ```
     terraform apply -target module.fleet
     ```
 
-11. Lastly, run the following in Terminal:
+11. Run the following command in Terminal:
     
     ```
     terraform apply

@@ -108,6 +108,7 @@
 
         .manage-hosts__filter-dropdowns {
           display: flex;
+          flex-direction: row;
           margin-left: $pad-medium;
 
           // Dropdown height matches search bar height
@@ -118,13 +119,6 @@
             }
             .Select-value {
               line-height: 38px;
-            }
-          }
-
-          .manage-hosts__status-dropdown-sandbox {
-            width: auto;
-            .Select-control {
-              width: 182px;
             }
           }
         }
@@ -166,10 +160,12 @@
         }
 
         .controls {
-          order: 1;
-          margin-bottom: $pad-medium;
+          order: -2;
+          margin-bottom: $pad-small;
 
           .manage-hosts__filter-dropdowns {
+            display: flex;
+            flex-direction: row;
             flex: 1;
 
             .form-field--dropdown,
@@ -179,12 +175,6 @@
 
             .manage-hosts__status_dropdown {
               width: auto;
-            }
-
-            .manage-hosts__status-dropdown-sandbox {
-              .Select-control {
-                width: 100%;
-              }
             }
           }
         }
@@ -243,7 +233,7 @@
 
     .Select-menu-outer {
       width: 364px;
-      max-height: 325px;
+      max-height: min-content;
 
       .Select-menu {
         max-height: none;

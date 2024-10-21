@@ -77,7 +77,7 @@ interface IFileDetailsProps {
 
 // TODO: if we reuse this one more time, we should consider moving this
 // into FileUploader as a default preview. Currently we have this in
-// AddSoftwareForm.tsx and here.
+// AddPackageForm.tsx and here.
 const FileDetails = ({ details: { name, platform } }: IFileDetailsProps) => (
   <div className={`${baseClass}__selected-file`}>
     <ProfileGraphic baseClass={baseClass} />
@@ -108,7 +108,7 @@ const TargetChooser = ({
         id="all-hosts-target-radio-btn"
         checked={selectedTarget === "All hosts"}
         value="All hosts"
-        name="all-hosts-target"
+        name="target-type"
         onChange={setSelectedTarget}
       />
       <Radio
@@ -117,7 +117,7 @@ const TargetChooser = ({
         id="custom-target-radio-btn"
         checked={selectedTarget === "Custom"}
         value="Custom"
-        name="custom-target"
+        name="target-type"
         onChange={setSelectedTarget}
       />
     </div>

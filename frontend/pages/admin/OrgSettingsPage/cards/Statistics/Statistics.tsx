@@ -72,11 +72,7 @@ const Statistics = ({
             name="enableUsageStatistics"
             value={isPremiumTier ? true : enableUsageStatistics} // Set to true for all premium customers
             parseTarget
-            wrapperClassName={
-              isPremiumTier
-                ? `${baseClass}__disabled-usage-statistics-checkbox`
-                : ""
-            }
+            disabled={isPremiumTier}
           >
             Enable usage statistics
           </Checkbox>

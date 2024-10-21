@@ -12,7 +12,8 @@ You can specify configuration options in the following formats:
 2. Environment variables
 3. Command-line flags
 
-All duration-based settings accept valid time units of `s`, `m`, `h`.
+- All duration-based settings accept valid time units of `s`, `m`, `h`.
+- Command-line flags can also be piped in via stdin.
 
 #### MySQL
 
@@ -2153,7 +2154,7 @@ for the email address specified in the Source parameter of SendRawEmail.
 
 ##### s3_software_installers_bucket
 
-Name of the S3 bucket for storing software.
+Name of the S3 bucket for storing software and bootstrap package.
 
 - Default value: none
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_BUCKET`

@@ -2,11 +2,17 @@ import {
   IAppStoreApp,
   ISoftwareTitleDetails,
   isSoftwarePackage,
+  aggregateInstallStatusCounts,
 } from "interfaces/software";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 /**
- * Generates the data needed to render the package card.
+ * Generates the data needed to render the package card. It differentiates between
+ * software packages and app store apps and returns the appropriate data.
+ *
+ * FIXME: This function ought to be refactored or renamed to better reflect its purpose.
+ * "PackageCard" is a bit ambiguous in this context (it refers to the card that displays
+ * package or app information, as applicable).
  */
 // eslint-disable-next-line import/prefer-default-export
 export const getPackageCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
@@ -16,17 +22,19 @@ export const getPackageCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
     ? softwareTitle.software_package
     : (softwareTitle.app_store_app as IAppStoreApp);
 
+  const isPackage = isSoftwarePackage(packageData);
+
   return {
-    softwarePackage: isSoftwarePackage(packageData) ? packageData : undefined,
-    name: softwareTitle.name,
+    softwarePackage: isPackage ? packageData : undefined,
+    name: (isPackage && packageData.name) || softwareTitle.name,
     version:
       (isSoftwarePackage(packageData)
         ? packageData.version
         : packageData.latest_version) || DEFAULT_EMPTY_CELL_VALUE,
     uploadedAt: isSoftwarePackage(packageData) ? packageData.uploaded_at : "",
-    status: packageData.status,
-    isSelfService: isSoftwarePackage(packageData)
-      ? packageData.self_service
-      : false,
+    status: isSoftwarePackage(packageData)
+      ? aggregateInstallStatusCounts(packageData.status)
+      : packageData.status,
+    isSelfService: packageData.self_service,
   };
 };

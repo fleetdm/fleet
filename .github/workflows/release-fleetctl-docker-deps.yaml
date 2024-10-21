@@ -1,0 +1,84 @@
+# Builds and releases to production the fleetdm/bomutils:latest and fleetdm/wix:latest
+# docker images, which are the docker image dependencies of the fleetctl command.
+#
+# This is separate from Fleet releases because we only release
+# fleetdm/bomutils and fleetdm/wix only if we add new dependencies
+# or for security updates.
+name: Release fleetctl docker dependencies
+
+on:
+  push:
+    tags:
+      - "fleetctl-docker-deps-*"
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  push_latest:
+    runs-on: ubuntu-latest
+    environment: Docker Hub
+    permissions:
+      contents: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout Code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: Install Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
+
+      - name: Build fleetdm/wix
+        run: make wix-docker
+
+      - name: Build fleetdm/bomutils
+        run: make bomutils-docker
+
+      #
+      # After fleetdm/wix and fleetdm/bomutils are built,
+      # let's smoke test pkg/msi generation before pushing.
+      #
+
+      - name: Install Go Dependencies
+        run: make deps-go
+
+      - name: Build fleetctl
+        run: make fleetctl
+
+      - name: Build MSI
+        run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
+
+      - name: Build PKG
+        run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080
+
+      #
+      # Now push to production
+      #
+
+      - name: Push fleetdm/bomutils to docker hub
+        run: docker push fleetdm/bomutils:latest
+
+      - name: Push fleetdm/wix to docker hub
+        run: docker push fleetdm/wix:latest

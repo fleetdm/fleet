@@ -66,7 +66,7 @@ func main() {
 	vi, err := createVersionInfo(vParts, targetIconPath, manifestPath)
 	if err != nil {
 		zlog.Fatal().Err(err).Msg("parsing versioninfo")
-		os.Exit(1)
+		os.Exit(1) //nolint:gocritic // ignore exitAfterDefer
 	}
 
 	// and finally we can write the 'resource.syso' file

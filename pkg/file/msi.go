@@ -9,7 +9,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/sassoftware/relic/v7/lib/comdoc"
+	"github.com/sassoftware/relic/v8/lib/comdoc"
 )
 
 func ExtractMSIMetadata(r io.Reader) (*InstallerMetadata, error) {
@@ -77,10 +77,12 @@ func ExtractMSIMetadata(r io.Reader) (*InstallerMetadata, error) {
 		return nil, err
 	}
 
+	// MSI installer product information properties: https://learn.microsoft.com/en-us/windows/win32/msi/property-reference#product-information-properties
 	return &InstallerMetadata{
-		Name:    strings.TrimSpace(props["ProductName"]),
-		Version: strings.TrimSpace(props["ProductVersion"]),
-		SHASum:  h.Sum(nil),
+		Name:       strings.TrimSpace(props["ProductName"]),
+		Version:    strings.TrimSpace(props["ProductVersion"]),
+		PackageIDs: []string{strings.TrimSpace(props["ProductCode"])},
+		SHASum:     h.Sum(nil),
 	}, nil
 }
 
@@ -250,15 +252,16 @@ func decodeStrings(dataReader, poolReader io.Reader) ([]string, error) {
 func msiDecodeName(msiName string) string {
 	out := ""
 	for _, x := range msiName {
-		if x >= 0x3800 && x < 0x4800 {
+		switch {
+		case x >= 0x3800 && x < 0x4800:
 			x -= 0x3800
 			out += string(msiDecodeRune(x&0x3f)) + string(msiDecodeRune(x>>6))
-		} else if x >= 0x4800 && x < 0x4840 {
+		case x >= 0x4800 && x < 0x4840:
 			x -= 0x4800
 			out += string(msiDecodeRune(x))
-		} else if x == 0x4840 {
+		case x == 0x4840:
 			out += "Table."
-		} else {
+		default:
 			out += string(x)
 		}
 	}
@@ -266,7 +269,7 @@ func msiDecodeName(msiName string) string {
 }
 
 func msiDecodeRune(x rune) rune {
-	if x < 10 {
+	if x < 10 { //nolint:gocritic // ignore ifElseChain
 		return x + '0'
 	} else if x < 10+26 {
 		return x - 10 + 'A'

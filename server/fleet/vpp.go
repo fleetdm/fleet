@@ -1,6 +1,9 @@
 package fleet
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type VPPAppID struct {
 	// AdamID is a unique identifier assigned to each app in
@@ -30,8 +33,11 @@ type VPPApp struct {
 	Name string `db:"name" json:"name"`
 	// LatestVersion is the latest version of this app.
 	LatestVersion string `db:"latest_version" json:"latest_version"`
-	TeamID        *uint  `db:"-" json:"-"`
-	TitleID       uint   `db:"title_id" json:"-"`
+	// TeamID is used for authorization, it must be json serialized to be available
+	// to the rego script. We don't set it outside authorization anyway, so it
+	// won't render otherwise.
+	TeamID  *uint `db:"-" json:"team_id,omitempty"`
+	TitleID uint  `db:"title_id" json:"-"`
 
 	CreatedAt time.Time `db:"created_at" json:"-"`
 	UpdatedAt time.Time `db:"updated_at" json:"-"`
@@ -61,4 +67,13 @@ type VPPAppStatusSummary struct {
 	Pending uint `json:"pending" db:"pending"`
 	// Failed is the number of hosts that have the VPP app installation failed.
 	Failed uint `json:"failed" db:"failed"`
+}
+
+type ErrVPPTokenTeamConstraint struct {
+	Name string
+	ID   *uint
+}
+
+func (e ErrVPPTokenTeamConstraint) Error() string {
+	return fmt.Sprintf("Error: %q team already has a VPP token. Each team can only have one VPP token.", e.Name)
 }

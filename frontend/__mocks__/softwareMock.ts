@@ -7,6 +7,8 @@ import {
   ISoftwareTitle,
   ISoftwareTitleDetails,
   IAppStoreApp,
+  IFleetMaintainedApp,
+  IFleetMaintainedAppDetails,
 } from "interfaces/software";
 import {
   ISoftwareTitlesResponse,
@@ -14,6 +16,8 @@ import {
   ISoftwareVersionsResponse,
   ISoftwareVersionResponse,
 } from "services/entities/software";
+import { IOSVersionsResponse } from "../services/entities/operating_systems";
+import { IOperatingSystemVersion } from "../interfaces/operating_system";
 
 const DEFAULT_SOFTWARE_MOCK: ISoftware = {
   hosts_count: 1,
@@ -67,8 +71,8 @@ const DEFAULT_SOFTWARE_VERSION_MOCK: ISoftwareVersion = {
   name: "test.app",
   version: "1.2.3",
   bundle_identifier: "com.test.Desktop",
-  source: "test_package",
-  browser: "",
+  source: "apps",
+  browser: "chrome",
   release: "1",
   vendor: "test_vendor",
   arch: "x86_64",
@@ -93,10 +97,46 @@ const DEFAULT_SOFTWARE_VERSIONS_RESPONSE_MOCK: ISoftwareVersionsResponse = {
   },
 };
 
-export const createMockSoftwareVersionsReponse = (
+export const createMockSoftwareVersionsResponse = (
   overrides?: Partial<ISoftwareVersionsResponse>
 ): ISoftwareVersionsResponse => {
   return { ...DEFAULT_SOFTWARE_VERSIONS_RESPONSE_MOCK, ...overrides };
+};
+
+const DEFAULT_OS_VERSION_MOCK = {
+  os_version_id: 1,
+  name: "macOS 14.6.1",
+  name_only: "macOS",
+  version: "14.6.1",
+  platform: "darwin",
+  hosts_count: 42,
+  generated_cpes: [],
+  vulnerabilities: [],
+};
+
+export const createMockOSVersion = (
+  overrides?: Partial<IOperatingSystemVersion>
+): IOperatingSystemVersion => {
+  return {
+    ...DEFAULT_OS_VERSION_MOCK,
+    ...overrides,
+  };
+};
+
+const DEFAULT_OS_VERSIONS_RESPONSE_MOCK: IOSVersionsResponse = {
+  counts_updated_at: "2020-01-01T00:00:00.000Z",
+  count: 1,
+  os_versions: [createMockOSVersion()],
+  meta: {
+    has_next_results: false,
+    has_previous_results: false,
+  },
+};
+
+export const createMockOSVersionsResponse = (
+  overrides?: Partial<IOSVersionsResponse>
+): IOSVersionsResponse => {
+  return { ...DEFAULT_OS_VERSIONS_RESPONSE_MOCK, ...overrides };
 };
 
 const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
@@ -104,6 +144,7 @@ const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
   app_store_id: 1,
   icon_url: "https://via.placeholder.com/512",
   latest_version: "1.2.3",
+  self_service: true,
   status: {
     installed: 1,
     pending: 2,
@@ -120,7 +161,7 @@ const DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK: ISoftwareTitleDetails = {
   name: "test.app",
   software_package: null,
   app_store_app: null,
-  source: "test_package",
+  source: "apps",
   hosts_count: 1,
   versions: [createMockSoftwareTitleVersion()],
   bundle_identifier: "com.test.Desktop",
@@ -165,8 +206,10 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
   icon_url: null,
   status: {
     installed: 1,
-    pending: 2,
-    failed: 3,
+    pending_install: 2,
+    failed_install: 1,
+    pending_uninstall: 1,
+    failed_uninstall: 1,
   },
 };
 
@@ -207,8 +250,42 @@ const DEFAULT_SOFTWARE_TITLES_RESPONSE_MOCK: ISoftwareTitlesResponse = {
   },
 };
 
-export const createMockSoftwareTitlesReponse = (
+export const createMockSoftwareTitlesResponse = (
   overrides?: Partial<ISoftwareTitlesResponse>
 ): ISoftwareTitlesResponse => {
   return { ...DEFAULT_SOFTWARE_TITLES_RESPONSE_MOCK, ...overrides };
+};
+
+const DEFAULT_FLEET_MAINTAINED_APPS_MOCK: IFleetMaintainedApp = {
+  id: 1,
+  name: "test app",
+  version: "1.2.3",
+  platform: "darwin",
+};
+
+export const createMockFleetMaintainedApp = (
+  overrides?: Partial<IFleetMaintainedApp>
+): IFleetMaintainedApp => {
+  return {
+    ...DEFAULT_FLEET_MAINTAINED_APPS_MOCK,
+    ...overrides,
+  };
+};
+
+const DEFAULT_FLEET_MAINTAINED_APP_DETAILS_MOCK: IFleetMaintainedAppDetails = {
+  id: 1,
+  name: "Test app",
+  version: "1.2.3",
+  platform: "darwin",
+  pre_install_script: "SELECT * FROM osquery_info WHERE start_time > 1",
+  install_script: '#!/bin/sh\n\ninstaller -pkg "$INSTALLER" -target /',
+  post_install_script: 'echo "Installed"',
+  uninstall_script:
+    "#!/bin/sh\n\n# Fleet extracts and saves package IDs\npkg_ids=$PACKAGE_ID",
+};
+
+export const createMockFleetMaintainedAppDetails = (
+  overrides?: Partial<IFleetMaintainedAppDetails>
+) => {
+  return { ...DEFAULT_FLEET_MAINTAINED_APP_DETAILS_MOCK, ...overrides };
 };

@@ -6,7 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 
-	"go.mozilla.org/pkcs7"
+	"github.com/smallstep/pkcs7"
 )
 
 // MaxProfileRetries is the maximum times an install profile command may be

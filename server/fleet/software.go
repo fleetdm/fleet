@@ -123,8 +123,7 @@ type VulnSoftwareFilter struct {
 type SliceString []string
 
 func (c *SliceString) Scan(v interface{}) error {
-	switch tv := v.(type) {
-	case []byte:
+	if tv, ok := v.([]byte); ok {
 		return json.Unmarshal(tv, &c)
 	}
 	return errors.New("unsupported type")
@@ -227,6 +226,7 @@ type SoftwareTitleListOptions struct {
 	KnownExploit        bool    `query:"exploit,optional"`
 	MinimumCVSS         float64 `query:"min_cvss_score,optional"`
 	MaximumCVSS         float64 `query:"max_cvss_score,optional"`
+	PackagesOnly        bool    `query:"packages_only,optional"`
 }
 
 type HostSoftwareTitleListOptions struct {

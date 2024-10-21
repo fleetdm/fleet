@@ -326,7 +326,7 @@ func processFailingHostExistingCalendarEvent(
 	// Try to acquire the lock. Lock is needed to ensure calendar callback is not processed for this event at the same time.
 	eventUUID := calendarEvent.UUID
 	lockValue := uuid.New().String()
-	lockAcquired, err := distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, calendar.DistributedLockExpireMs)
+	lockAcquired, err := distributedLock.SetIfNotExist(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, calendar.DistributedLockExpireMs)
 	if err != nil {
 		return fmt.Errorf("acquire calendar lock: %w", err)
 	}
@@ -334,7 +334,7 @@ func processFailingHostExistingCalendarEvent(
 	lockReserved := false
 	if !lockAcquired {
 		// Lock was not acquired. We reserve the lock and try to acquire it until we do.
-		lockAcquired, err = distributedLock.AcquireLock(ctx, calendar.ReservedLockKeyPrefix+eventUUID, lockValue,
+		lockAcquired, err = distributedLock.SetIfNotExist(ctx, calendar.ReservedLockKeyPrefix+eventUUID, lockValue,
 			calendar.ReserveLockExpireMs)
 		if err != nil {
 			return fmt.Errorf("reserve calendar lock: %w", err)
@@ -348,7 +348,7 @@ func processFailingHostExistingCalendarEvent(
 		go func() {
 			for {
 				// Keep trying to get the lock.
-				lockAcquired, err = distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue,
+				lockAcquired, err = distributedLock.SetIfNotExist(ctx, calendar.LockKeyPrefix+eventUUID, lockValue,
 					calendar.DistributedLockExpireMs)
 				if err != nil || lockAcquired {
 					done <- struct{}{}

@@ -387,7 +387,9 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 			// this only applies standard queries, the base directory is not used,
 			// so pass in the current working directory.
-			_, err = client.ApplyGroup(c.Context, specs, ".", logf, nil, fleet.ApplyClientSpecOptions{})
+			teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
+			teamsScripts := make(map[string][]fleet.ScriptResponse)
+			_, _, _, err = client.ApplyGroup(c.Context, specs, ".", logf, nil, fleet.ApplyClientSpecOptions{}, teamsSoftwareInstallers, teamsScripts)
 			if err != nil {
 				return err
 			}
@@ -455,11 +457,9 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 					fmt.Println(string(out))
 					return fmt.Errorf("Failed to run %s", compose)
 				}
-			} else {
-				if !c.Bool(disableOpenBrowser) {
-					if err := open.Browser("http://localhost:1337/previewlogin"); err != nil {
-						fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
-					}
+			} else if !c.Bool(disableOpenBrowser) {
+				if err := open.Browser("http://localhost:1337/previewlogin"); err != nil {
+					fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
 				}
 			}
 

@@ -392,7 +392,7 @@ const OtherWorkflowsModal = ({
               id="ticket-radio-btn"
               checked={!isWebhookEnabled}
               value="ticket"
-              name="ticket"
+              name="workflow-type"
               onChange={onChangeRadio}
             />
             <Radio
@@ -401,7 +401,7 @@ const OtherWorkflowsModal = ({
               id="webhook-radio-btn"
               checked={isWebhookEnabled}
               value="webhook"
-              name="webhook"
+              name="workflow-type"
               onChange={onChangeRadio}
             />
           </div>
@@ -416,8 +416,8 @@ const OtherWorkflowsModal = ({
                       const { isChecked, name, id } = policyItem;
                       return (
                         <div
-                          className="checkbox-row"
-                          id={`checkbox-row--${id}`}
+                          className="policy-row"
+                          id={`policy-row--${id}`}
                           key={id}
                         >
                           <Checkbox

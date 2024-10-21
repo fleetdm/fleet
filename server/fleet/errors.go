@@ -20,9 +20,10 @@ var (
 	ErrMissingLicense        = &licenseError{}
 	ErrMDMNotConfigured      = &MDMNotConfiguredError{}
 
-	MDMNotConfiguredMessage        = "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet"
-	WindowsMDMNotConfiguredMessage = "Windows MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
-	AppleMDMNotConfiguredMessage   = "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
+	MDMNotConfiguredMessage              = "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet"
+	WindowsMDMNotConfiguredMessage       = "Windows MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
+	AppleMDMNotConfiguredMessage         = "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
+	AppleABMDefaultTeamDeprecatedMessage = "mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business_manager key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops"
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
@@ -276,6 +277,36 @@ func (e PermissionError) Error() string {
 func (e PermissionError) PermissionError() []map[string]string {
 	var forbidden []map[string]string
 	return forbidden
+}
+
+// OTAForbiddenError is a special kind of forbidden error that intentionally
+// exposes information about the error so it can be shown in iPad/iPhone native
+// dialogs during OTA enrollment.
+//
+// I couldn't find any documentation but the way it works is:
+//
+// - if the response has a status code 403
+// - and the body has a `message` field
+//
+// the content of `message` will be displayed to the end user.
+type OTAForbiddenError struct {
+	ErrorWithUUID
+	InternalErr error
+}
+
+func (e OTAForbiddenError) Error() string {
+	return "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin."
+}
+
+func (e OTAForbiddenError) StatusCode() int {
+	return http.StatusForbidden
+}
+
+func (e OTAForbiddenError) Internal() string {
+	if e.InternalErr == nil {
+		return ""
+	}
+	return e.InternalErr.Error()
 }
 
 // licenseError is returned when the application is not properly licensed.

@@ -34,9 +34,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
+	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/go-kit/kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -72,11 +74,16 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		softwareInstallStore  fleet.SoftwareInstallerStore
 		bootstrapPackageStore fleet.MDMBootstrapPackageStore
 		distributedLock       fleet.Lock
+		keyValueStore         fleet.KeyValueStore
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
 			c = opts[0].Clock
 		}
+	}
+
+	if len(opts) > 0 && opts[0].KeyValueStore != nil {
+		keyValueStore = opts[0].KeyValueStore
 	}
 
 	task := async.NewTask(ds, nil, c, config.OsqueryConfig{})
@@ -99,6 +106,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			ssoStore = sso.NewSessionStore(opts[0].Pool)
 			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
 			distributedLock = redis_lock.NewLock(opts[0].Pool)
+			keyValueStore = redis_key_value.New(opts[0].Pool)
 		}
 		if opts[0].ProfileMatcher != nil {
 			profMatcher = opts[0].ProfileMatcher
@@ -203,6 +211,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			softwareInstallStore,
 			bootstrapPackageStore,
 			distributedLock,
+			keyValueStore,
 		)
 		if err != nil {
 			panic(err)
@@ -317,6 +326,8 @@ type TestServerOpts struct {
 	NoCacheDatastore      bool
 	SoftwareInstallStore  fleet.SoftwareInstallerStore
 	BootstrapPackageStore fleet.MDMBootstrapPackageStore
+	KeyValueStore         fleet.KeyValueStore
+	EnableSCEPProxy       bool
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -370,6 +381,26 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 			)
 			require.NoError(t, err)
 		}
+		if opts[0].EnableSCEPProxy {
+			err := RegisterSCEPProxy(
+				rootMux,
+				ds,
+				logger,
+			)
+			require.NoError(t, err)
+			origValidateNDESSCEPURL := validateNDESSCEPURL
+			origValidateNDESSCEPAdminURL := validateNDESSCEPAdminURL
+			t.Cleanup(func() {
+				validateNDESSCEPURL = origValidateNDESSCEPURL
+				validateNDESSCEPAdminURL = origValidateNDESSCEPAdminURL
+			})
+			validateNDESSCEPURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration, _ log.Logger) error {
+				return nil
+			}
+			validateNDESSCEPAdminURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
+				return nil
+			}
+		}
 	}
 
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(1000)))
@@ -379,6 +410,10 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 
 	server := httptest.NewUnstartedServer(rootMux)
 	server.Config = cfg.Server.DefaultHTTPServer(ctx, rootMux)
+	// WriteTimeout is set for security purposes.
+	// If we don't set it, (bugy or malignant) clients making long running
+	// requests could DDOS Fleet.
+	require.NotZero(t, server.Config.WriteTimeout)
 	if len(opts) > 0 && opts[0].HTTPServerConfig != nil {
 		server.Config = opts[0].HTTPServerConfig
 		// make sure we use the application handler we just created
@@ -632,7 +667,6 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"DELETE", "/api/latest/fleet/mdm/apple/installers/1", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/installers", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/devices", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/dep/devices", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/profiles", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
@@ -688,12 +722,12 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		// parsed before the MDM check, we need to refactor this
 		// function to return more information to the caller, or find a
 		// better way to test these endpoints.
-		//{"POST", "/api/latest/fleet/mdm/profiles", false, false},
-		//{"POST", "/api/latest/fleet/configuration_profiles", false, false},
-		//{"POST", "/api/latest/fleet/mdm/setup/eula"},
-		//{"POST", "/api/latest/fleet/setup_experience/eula"},
-		//{"POST", "/api/latest/fleet/mdm/bootstrap", false, true},
-		//{"POST", "/api/latest/fleet/bootstrap", false, true},
+		// {"POST", "/api/latest/fleet/mdm/profiles", false, false},
+		// {"POST", "/api/latest/fleet/configuration_profiles", false, false},
+		// {"POST", "/api/latest/fleet/mdm/setup/eula"},
+		// {"POST", "/api/latest/fleet/setup_experience/eula"},
+		// {"POST", "/api/latest/fleet/mdm/bootstrap", false, true},
+		// {"POST", "/api/latest/fleet/bootstrap", false, true},
 		{"GET", "/api/latest/fleet/mdm/profiles", false, false},
 		{"GET", "/api/latest/fleet/configuration_profiles", false, false},
 		{"GET", "/api/latest/fleet/mdm/manual_enrollment_profile", false, true},

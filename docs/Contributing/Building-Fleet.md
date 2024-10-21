@@ -38,7 +38,7 @@ sudo npm install -g yarn
 # Install nvm to manage node versions (apt very out of date) https://github.com/nvm-sh/nvm#install--update-script
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
 # refresh your session before continuing
-nvm install v19.7.0
+nvm install v20.11.1
 ```
 
 #### Windows
@@ -149,11 +149,11 @@ The following assumes that you already installed  [Docker](https://docs.docker.c
 To set up a canonical development environment via Docker, run the following from the root of the repository:
 
 ```sh
-docker-compose up
+docker compose up
 ```
 
 > Note: you can customize the DB Docker image via the environment variables FLEET_MYSQL_IMAGE and FLEET_MYSQL_PLATFORM. For example:
-> - To run in macOS M1, set FLEET_MYSQL_IMAGE=arm64v8/mysql:oracle FLEET_MYSQL_PLATFORM=linux/arm64/v8
+> - To run in macOS M1+, set FLEET_MYSQL_PLATFORM=linux/arm64/v8
 > - To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:10.6 or the like (note MariaDB is not officially supported).
 
 ### Stopping the local development environment
@@ -161,12 +161,12 @@ docker-compose up
 If you'd like to shut down the virtual infrastructure created by Docker, run the following from the root of the repository:
 
 ```sh
-docker-compose down
+docker compose down
 ```
 
 ### Setting up the database tables
 
-Once you `docker-compose up` and are running the databases, you can build the code and run the following command to create the database tables:
+Once you `docker compose up` and are running the databases, you can build the code and run the following command to create the database tables:
 
 ```sh
 ./build/fleet prepare db --dev

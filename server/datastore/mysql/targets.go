@@ -60,7 +60,7 @@ func targetSQLCondAndArgs(targets fleet.HostTargets) (sql string, args []interfa
 	OR
 	(
 		/* 'All hosts' builtin label was selected. */
-		id IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id = 6 AND label_id IN (? /* queryLabelIDs */))
+		id IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id = (SELECT id from labels WHERE name = 'All Hosts') AND label_id IN (? /* queryLabelIDs */))
 	)
 	OR
 	(
@@ -95,11 +95,11 @@ func targetSQLCondAndArgs(targets fleet.HostTargets) (sql string, args []interfa
 	// all situations (no need to remove the clause when there are no values)
 	queryLabelIDs := []int{-1}
 	for _, id := range targets.LabelIDs {
-		queryLabelIDs = append(queryLabelIDs, int(id))
+		queryLabelIDs = append(queryLabelIDs, int(id)) //nolint:gosec // dismiss G115
 	}
 	queryHostIDs := []int{-1}
 	for _, id := range targets.HostIDs {
-		queryHostIDs = append(queryHostIDs, int(id))
+		queryHostIDs = append(queryHostIDs, int(id)) //nolint:gosec // dismiss G115
 	}
 	queryTeamIDs := []int{-1}
 	extraTeamIDCondition := ""
@@ -108,7 +108,7 @@ func targetSQLCondAndArgs(targets fleet.HostTargets) (sql string, args []interfa
 			extraTeamIDCondition = "OR team_id IS NULL"
 			continue
 		}
-		queryTeamIDs = append(queryTeamIDs, int(id))
+		queryTeamIDs = append(queryTeamIDs, int(id)) //nolint:gosec // dismiss G115
 	}
 
 	labelsSpecified := len(queryLabelIDs) > 1

@@ -24,7 +24,7 @@ interface IMdmSolutionModalProps {
   onCancel: () => void;
 }
 
-const MdmSolutionsModal = ({
+const MdmSolutionModal = ({
   mdmSolutions,
   selectedPlatformLabelId,
   selectedTeamId,
@@ -45,6 +45,7 @@ const MdmSolutionsModal = ({
       title={mdmSolutions[0].name || DEFAULT_TITLE}
       width="large"
       onExit={onCancel}
+      onEnter={onCancel}
     >
       <>
         <div className={`${baseClass}__modal-content`}>
@@ -73,4 +74,4 @@ const MdmSolutionsModal = ({
   );
 };
 
-export default MdmSolutionsModal;
+export default MdmSolutionModal;

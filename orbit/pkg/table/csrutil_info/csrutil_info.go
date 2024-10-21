@@ -5,11 +5,12 @@ package csrutil_info
 
 import (
 	"context"
-	"github.com/osquery/osquery-go/plugin/table"
-	"github.com/rs/zerolog/log"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog/log"
 )
 
 // Columns is the schema of the table.
@@ -28,16 +29,16 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	}, err
 }
 
-func getSSVEnabled(ctx context.Context) (SSVEnabled string, err error) {
+func getSSVEnabled(ctx context.Context) (ssvEnabled string, err error) {
 	res, err := runCommand(ctx, "/usr/bin/csrutil", "authenticated-root", "status")
-	SSVEnabled = ""
+	ssvEnabled = ""
 	if err == nil {
-		SSVEnabled = "0"
+		ssvEnabled = "0"
 		if strings.Contains(res, "Authenticated Root status: enabled") {
-			SSVEnabled = "1"
+			ssvEnabled = "1"
 		}
 	}
-	return SSVEnabled, err
+	return ssvEnabled, err
 }
 
 func runCommand(ctx context.Context, name string, arg ...string) (res string, err error) {

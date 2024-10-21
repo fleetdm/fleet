@@ -132,6 +132,9 @@ $max-width: 2560px;
   font-size: $xx-small;
   font-weight: $regular;
   @include grey-text;
+  .custom-link {
+    font-size: inherit;
+  }
 }
 
 @mixin link {
@@ -144,6 +147,7 @@ $max-width: 2560px;
     outline-offset: 3px;
     outline-style: solid;
     outline-width: 2px;
+    border-radius: 2px;
   }
 }
 

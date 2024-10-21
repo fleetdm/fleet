@@ -2,7 +2,7 @@
   <div purpose="page-container" class="d-flex flex-column container">
     <div purpose="page-title">
       <h1>Try Fleet</h1>
-      <p>The quickest way to try Fleet is to run a local demo with <a href="https://docs.docker.com/get-docker/" target="_blank">Docker</a>.</p>
+      <p>The quickest way to try Fleet Premium is to run a local demo with <a href="https://docs.docker.com/get-docker/" target="_blank">Docker</a>.</p>
       <p class="mb-0">Follow the instructions below to test Fleet on your macOS, Windows, and Linux device.</p>
     </div>
     <div purpose="prerequisites">
@@ -27,11 +27,28 @@
         <div purpose="numbered-steps">
           <div purpose="step">
               <p>Install the <code>fleetctl</code> command line tool:</p>
-              <div purpose="terminal-commands"> <p>curl -sSL https://fleetdm.com/resources/install-fleetctl.sh | bash</p></div>
+              <div purpose="terminal-commands">
+                <div purpose="command-container">
+                  <code>{{installCommands[selectedPlatform]}}</code>
+                </div>
+                <span purpose="install-copy-button" @click="clickCopyInstallCommand(selectedPlatform)"></span>
+              </div>
           </div>
           <div purpose="step">
             <p>Run a local demo of the Fleet server:</p>
-            <div purpose="terminal-commands"> <p>~/.fleetctl/fleetctl preview</p></div>
+            <div purpose="terminal-commands">
+              <div purpose="command-container">
+                <code v-if="trialLicenseKey && !userHasExpiredTrialLicense">{{fleetctlPreviewTerminalCommand[selectedPlatform]}} --license-key {{trialLicenseKey}}</code>
+                <code v-else>{{fleetctlPreviewTerminalCommand[selectedPlatform]}}</code>
+              </div>
+              <a purpose="command-copy-button" @click="clickCopyTerminalCommand(selectedPlatform)"></a>
+            </div>
+            <blockquote purpose="tip" v-if="userHasExpiredTrialLicense">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div class="d-block">
+                <p>Your Fleet Premium trial license has expired. You can still run the free version of Fleet locally.</p>
+              </div>
+            </blockquote>
           </div>
           <div purpose="step">
             <p>The Fleet UI is now available at <a href="http://localhost:1337" target="_blank">http://localhost:1337</a>. Use the credentials below to login:</p>
@@ -44,12 +61,29 @@
       <div v-else-if="selectedPlatform === 'linux'">
         <div purpose="numbered-steps">
           <div purpose="step">
-              <p>Install the <code>fleetctl</code> command line tool:</p>
-              <div purpose="terminal-commands"> <p>curl -sSL https://fleetdm.com/resources/install-fleetctl.sh | bash</p></div>
+            <p>Install the <code>fleetctl</code> command line tool:</p>
+            <div purpose="terminal-commands">
+              <div purpose="command-container">
+                <code>{{installCommands[selectedPlatform]}}</code>
+              </div>
+              <span purpose="install-copy-button" @click="clickCopyInstallCommand(selectedPlatform)"></span>
+            </div>
           </div>
           <div purpose="step">
             <p>Run a local demo of the Fleet server:</p>
-            <div purpose="terminal-commands"> <p>~/.fleetctl/fleetctl preview</p></div>
+            <div purpose="terminal-commands">
+              <div purpose="command-container">
+                <code v-if="trialLicenseKey && !userHasExpiredTrialLicense">{{fleetctlPreviewTerminalCommand[selectedPlatform]}} --license-key {{trialLicenseKey}}</code>
+                <code v-else>{{fleetctlPreviewTerminalCommand[selectedPlatform]}}</code>
+              </div>
+              <a purpose="copy-button" @click="clickCopyTerminalCommand(selectedPlatform)"></a>
+            </div>
+            <blockquote purpose="tip" v-if="userHasExpiredTrialLicense">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div class="d-block">
+                <p>Your Fleet Premium trial license has expired. You can still run the free version of Fleet locally.</p>
+              </div>
+            </blockquote>
           </div>
           <div purpose="step">
             <p>The Fleet UI is now available at <a href="http://localhost:1337" target="_blank">http://localhost:1337</a>. Use the credentials below to login:</p>
@@ -63,11 +97,28 @@
         <div purpose="numbered-steps">
           <div purpose="step">
               <p>Install the <code>fleetctl</code> command line tool:</p>
-              <div purpose="terminal-commands"><p>for /f "tokens=1,* delims=:" %a in ('curl -s https://api.github.com/repos/fleetdm/fleet/releases/latest ^| findstr "browser_download_url" ^| findstr "_windows.zip"') do (curl -kOL %b) && if not exist "%USERPROFILE%\.fleetctl" mkdir "%USERPROFILE%\.fleetctl" && for /f "delims=" %a in ('dir /b fleetctl_*_windows.zip') do tar -xf "%a" --strip-components=1 -C "%USERPROFILE%\.fleetctl" && del "%a"</p></div>
+              <div purpose="terminal-commands">
+                <div purpose="command-container">
+                  <code>{{installCommands[selectedPlatform]}}</code>
+                </div>
+                <span purpose="install-copy-button" @click="clickCopyInstallCommand(selectedPlatform)"></span>
+              </div>
           </div>
           <div purpose="step">
             <p>Run a local demo of the Fleet server:</p>
-            <div purpose="terminal-commands"> <p>%USERPROFILE%\.fleetctl\fleetctl preview</p></div>
+            <div purpose="terminal-commands">
+              <div purpose="command-container">
+                <code v-if="trialLicenseKey && !userHasExpiredTrialLicense">{{fleetctlPreviewTerminalCommand[selectedPlatform]}} --license-key {{trialLicenseKey}}</code>
+                <code v-else>{{fleetctlPreviewTerminalCommand[selectedPlatform]}}</code>
+              </div>
+              <a purpose="command-copy-button" @click="clickCopyTerminalCommand(selectedPlatform)"></a>
+            </div>
+            <blockquote purpose="tip" v-if="userHasExpiredTrialLicense">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div class="d-block">
+                <p>Your Fleet Premium trial license has expired. You can still run the free version of Fleet locally.</p>
+              </div>
+            </blockquote>
           </div>
           <div purpose="step">
             <p>The Fleet UI is now available at <a href="http://localhost:1337" target="_blank">http://localhost:1337</a>. Use the credentials below to login:</p>
@@ -88,11 +139,28 @@
           </div>
           <div purpose="step">
             <p>Install the <code>fleetctl</code> command line tool:</p>
-            <div purpose="terminal-commands"> <p>npm install fleetctl -g</p></div>
+            <div purpose="terminal-commands">
+              <div purpose="command-container">
+                <code>{{installCommands[selectedPlatform]}}</code>
+              </div>
+              <span purpose="install-copy-button" @click="clickCopyInstallCommand(selectedPlatform)"></span>
+            </div>
           </div>
           <div purpose="step">
             <p>Run a local demo of the Fleet server:</p>
-            <div purpose="terminal-commands"> <p>fleetctl preview</p></div>
+            <div purpose="terminal-commands">
+              <div purpose="command-container">
+                <code v-if="trialLicenseKey && !userHasExpiredTrialLicense">{{fleetctlPreviewTerminalCommand[selectedPlatform]}} --license-key {{trialLicenseKey}}</code>
+                <code v-else>{{fleetctlPreviewTerminalCommand[selectedPlatform]}}</code>
+              </div>
+              <a purpose="command-copy-button" @click="clickCopyTerminalCommand(selectedPlatform)"></a>
+            </div>
+            <blockquote purpose="tip" v-if="userHasExpiredTrialLicense">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div class="d-block">
+                <p>Your Fleet Premium trial license has expired. You can still run the free version of Fleet locally.</p>
+              </div>
+            </blockquote>
           </div>
           <div purpose="step">
             <p>The Fleet UI is now available at <a href="http://localhost:1337" target="_blank">http://localhost:1337</a>. Use the credentials below to login:</p>

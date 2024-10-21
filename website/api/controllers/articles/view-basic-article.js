@@ -86,6 +86,7 @@ module.exports = {
       pageImageForMeta: thisPage.meta.articleImageUrl || undefined,
       articleCategorySlug,
       currentSection,
+      algoliaPublicKey: sails.config.custom.algoliaPublicKey,
     };
 
   }

@@ -6286,7 +6286,7 @@ func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts/123/scripts", nil, http.StatusNotFound, &getHostScriptDetailsResp)
 
 	// batch set scripts
-	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil}, http.StatusNoContent)
+	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil}, http.StatusOK)
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
@@ -7822,10 +7822,10 @@ func (s *integrationTestSuite) TestPasswordReset() {
 
 	// TODO: tested manually (adds too much time to the test), works but hitting the rate
 	// limit returns 500 instead of 429, see #4406. We get the authz check missing error instead.
-	//// trigger the rate limit with a batch of requests in a short burst
-	//for i := 0; i < 20; i++ {
+	// // trigger the rate limit with a batch of requests in a short burst
+	// for i := 0; i < 20; i++ {
 	//	s.DoJSON("POST", "/api/latest/fleet/forgot_password", forgotPasswordRequest{Email: "invalid@asd.com"}, http.StatusAccepted, &forgotResp)
-	//}
+	// }
 
 	// request forgot password, valid email
 	res = s.DoRawNoAuth("POST", "/api/latest/fleet/forgot_password", jsonMustMarshal(t, forgotPasswordRequest{Email: u.Email}), http.StatusAccepted)
@@ -8310,24 +8310,6 @@ func (s *integrationTestSuite) TestSSODisabled() {
 	require.Contains(t, string(body), "/login?status=org_disabled") // html contains a script that redirects to this path
 }
 
-func (s *integrationTestSuite) TestSandboxEndpoints() {
-	t := s.T()
-	validEmail := testUsers["user1"].Email
-	validPwd := testUsers["user1"].PlaintextPassword
-	hdrs := map[string]string{"Content-Type": "application/x-www-form-urlencoded"}
-
-	// demo login endpoint always fails
-	formBody := make(url.Values)
-	formBody.Set("email", validEmail)
-	formBody.Set("password", validPwd)
-	res := s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusInternalServerError, hdrs)
-	require.NotEqual(t, http.StatusOK, res.StatusCode)
-
-	// installers endpoint is not enabled
-	url, installersBody := installerPOSTReq(enrollSecret, "pkg", s.token, false)
-	s.DoRaw("POST", url, installersBody, http.StatusInternalServerError)
-}
-
 func (s *integrationTestSuite) TestGetHostBatteries() {
 	t := s.T()
 
@@ -8345,8 +8327,8 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	require.NoError(t, err)
 
 	bats := []*fleet.HostBattery{
-		{HostID: host.ID, SerialNumber: "a", CycleCount: 1, Health: "Good"},
-		{HostID: host.ID, SerialNumber: "b", CycleCount: 1002, Health: "Poor"},
+		{HostID: host.ID, SerialNumber: "a", CycleCount: 1, Health: "Normal"},
+		{HostID: host.ID, SerialNumber: "b", CycleCount: 1002, Health: "Service recommended"},
 	}
 	require.NoError(t, s.ds.ReplaceHostBatteries(context.Background(), host.ID, bats))
 
@@ -8356,7 +8338,7 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	// only cycle count and health are returned
 	require.ElementsMatch(t, []*fleet.HostBattery{
 		{CycleCount: 1, Health: "Normal"},
-		{CycleCount: 1002, Health: "Replacement recommended"},
+		{CycleCount: 1002, Health: "Service recommended"},
 	}, *getHostResp.Host.Batteries)
 
 	// same for get host by identifier
@@ -8365,7 +8347,7 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	// only cycle count and health are returned
 	require.ElementsMatch(t, []*fleet.HostBattery{
 		{CycleCount: 1, Health: "Normal"},
-		{CycleCount: 1002, Health: "Replacement recommended"},
+		{CycleCount: 1002, Health: "Service recommended"},
 	}, *getHostResp.Host.Batteries)
 }
 
@@ -8718,8 +8700,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.NoError(t, err)
 
 	// insert CVEMeta
-	knownCVEWoPrefix := "2021-12999"
-	knownCVE := "cve-" + knownCVEWoPrefix
+	knownCVE := "cve-2021-12999"
 	mockTime := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
 	err = s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
 		{
@@ -8767,7 +8748,6 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.Equal(t, resp.Count, uint(3))
 	require.False(t, resp.Meta.HasPreviousResults)
 	require.False(t, resp.Meta.HasNextResults)
-	assert.Nil(t, resp.KnownVulnerability)
 
 	expected := map[string]struct {
 		fleet.CVEMeta
@@ -8805,7 +8785,6 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.Equal(t, resp.Count, uint(2))
 	require.False(t, resp.Meta.HasPreviousResults)
 	require.False(t, resp.Meta.HasNextResults)
-	assert.Nil(t, resp.KnownVulnerability)
 
 	expected = map[string]struct {
 		fleet.CVEMeta
@@ -8839,7 +8818,6 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.Equal(t, resp.Count, uint(0))
 	require.False(t, resp.Meta.HasPreviousResults)
 	require.False(t, resp.Meta.HasNextResults)
-	assert.Nil(t, resp.KnownVulnerability)
 
 	// test with a known CVE that does not match on software/OS
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", knownCVE)
@@ -8848,43 +8826,15 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	assert.Equal(t, resp.Count, uint(0))
 	assert.False(t, resp.Meta.HasPreviousResults)
 	assert.False(t, resp.Meta.HasNextResults)
-	assert.Equal(t, ptr.Bool(true), resp.KnownVulnerability)
 
-	// test with a known CVE that does not match on software/OS, but without CVE- prefix
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", knownCVEWoPrefix)
-	require.Empty(t, resp.Err)
-	assert.Len(s.T(), resp.Vulnerabilities, 0)
-	assert.Equal(t, resp.Count, uint(0))
-	assert.False(t, resp.Meta.HasPreviousResults)
-	assert.False(t, resp.Meta.HasNextResults)
-	assert.Equal(t, ptr.Bool(true), resp.KnownVulnerability)
-
-	// test with a substring of a known CVE -- results are returned but the exact match is not known to Fleet
+	// test with a substring of a known CVE -- results are returned
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", "CVE-2021-1234")
 	require.Empty(t, resp.Err)
 	assert.Len(s.T(), resp.Vulnerabilities, 1)
 	assert.Equal(t, resp.Count, uint(1))
 	assert.False(t, resp.Meta.HasPreviousResults)
 	assert.False(t, resp.Meta.HasNextResults)
-	assert.Equal(t, ptr.Bool(false), resp.KnownVulnerability)
-
-	// test with exact match of a known CVE -- results are returned and CVE is known to Fleet
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", "2021-12345")
-	require.Empty(t, resp.Err)
-	assert.Len(s.T(), resp.Vulnerabilities, 1)
-	assert.Equal(t, resp.Count, uint(1))
-	assert.False(t, resp.Meta.HasPreviousResults)
-	assert.False(t, resp.Meta.HasNextResults)
-	assert.Equal(t, ptr.Bool(true), resp.KnownVulnerability)
-
-	// test with a unknown CVE that does not match on software/OS
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", knownCVE+"1")
-	require.Empty(t, resp.Err)
-	assert.Len(s.T(), resp.Vulnerabilities, 0)
-	assert.Equal(t, resp.Count, uint(0))
-	assert.False(t, resp.Meta.HasPreviousResults)
-	assert.False(t, resp.Meta.HasNextResults)
-	assert.Equal(t, ptr.Bool(false), resp.KnownVulnerability)
+	_ = s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusNotFound)
 
 	// Team 1 Filter
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "1")
@@ -8933,19 +8883,20 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 
 	var gResp getVulnerabilityResponse
 	// invalid cve
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/foobar", nil, http.StatusNotFound, &gResp)
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/foobar", nil, http.StatusBadRequest, &gResp)
 
 	// Valid CVE but not in team scope
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1246", nil, http.StatusNotFound, &gResp, "team_id", fmt.Sprintf("%d", team.ID))
+	s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1246", nil, http.StatusNoContent, "team_id",
+		fmt.Sprintf("%d", team.ID))
 
 	// Valid CVE in "no team" scope
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1246", nil, http.StatusOK, &gResp, "team_id", "0")
 
-	// Valid CVD not in "no team" scope
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusNotFound, &gResp, "team_id", "0")
+	// Valid CVE not in "no team" scope
+	s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusNoContent, "team_id", "0")
 
 	// Invalid TeamID
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusForbidden, &gResp, "team_id", "100")
+	s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusForbidden, "team_id", "100")
 
 	// Valid Global Request
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusOK, &gResp)
@@ -9260,7 +9211,11 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
 	// simulate ABM assignment
-	err = s.ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hFleetMDM})
+	encTok := uuid.NewString()
+	abmToken, err := s.ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+	err = s.ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hFleetMDM}, abmToken.ID)
 	require.NoError(t, err)
 	err = s.ds.SetOrUpdateMDMData(context.Background(), hSimpleMDM.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "")
 	require.NoError(t, err)
@@ -9979,8 +9934,8 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	}
 	for _, sqs := range scheduledQueriesStats {
 		row := rowsMap[sqs.ScheduledQueryName]
-		require.Equal(t, strconv.FormatInt(int64(sqs.AverageMemory), 10), row["average_memory"])
-		require.Equal(t, strconv.FormatInt(int64(sqs.Executions), 10), row["executions"])
+		require.Equal(t, fmt.Sprint(sqs.AverageMemory), row["average_memory"])
+		require.Equal(t, fmt.Sprint(sqs.Executions), row["executions"])
 		interval := row["interval"]
 		if sqs.ScheduledQueryName == "non-scheduled-global-query" {
 			interval = "0" // this query has metrics because it runs on a pack.
@@ -9989,10 +9944,10 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		lastExecuted, err := strconv.ParseInt(row["last_executed"], 10, 64)
 		require.NoError(t, err)
 		require.WithinDuration(t, sqs.LastExecuted, time.Unix(lastExecuted, 0), 1*time.Second)
-		require.Equal(t, strconv.FormatInt(int64(sqs.OutputSize), 10), row["output_size"])
-		require.Equal(t, strconv.FormatInt(int64(sqs.SystemTime), 10), row["system_time"])
-		require.Equal(t, strconv.FormatInt(int64(sqs.UserTime), 10), row["user_time"])
-		assert.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time_ms"])
+		require.Equal(t, fmt.Sprint(sqs.OutputSize), row["output_size"])
+		require.Equal(t, fmt.Sprint(sqs.SystemTime), row["system_time"])
+		require.Equal(t, fmt.Sprint(sqs.UserTime), row["user_time"])
+		assert.Equal(t, fmt.Sprint(sqs.WallTime), row["wall_time_ms"])
 	}
 
 	// Now let's simulate a osquery instance running in the global host returning the
@@ -10048,16 +10003,16 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	queryName := parts[len(parts)-1]
 	sqs := scheduledQueriesStats[0]
 	require.Equal(t, scheduledQueriesStats[0].ScheduledQueryName, queryName)
-	require.Equal(t, strconv.FormatInt(int64(sqs.AverageMemory), 10), row["average_memory"])
-	require.Equal(t, strconv.FormatInt(int64(sqs.Executions), 10), row["executions"])
-	require.Equal(t, strconv.FormatInt(int64(sqs.Interval), 10), row["interval"])
+	require.Equal(t, fmt.Sprint(sqs.AverageMemory), row["average_memory"])
+	require.Equal(t, fmt.Sprint(sqs.Executions), row["executions"])
+	require.Equal(t, fmt.Sprint(sqs.Interval), row["interval"])
 	lastExecuted, err := strconv.ParseInt(row["last_executed"], 10, 64)
 	require.NoError(t, err)
 	require.WithinDuration(t, sqs.LastExecuted, time.Unix(lastExecuted, 0), 1*time.Second)
-	require.Equal(t, strconv.FormatInt(int64(sqs.OutputSize), 10), row["output_size"])
-	require.Equal(t, strconv.FormatInt(int64(sqs.SystemTime), 10), row["system_time"])
-	require.Equal(t, strconv.FormatInt(int64(sqs.UserTime), 10), row["user_time"])
-	require.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time_ms"])
+	require.Equal(t, fmt.Sprint(sqs.OutputSize), row["output_size"])
+	require.Equal(t, fmt.Sprint(sqs.SystemTime), row["system_time"])
+	require.Equal(t, fmt.Sprint(sqs.UserTime), row["user_time"])
+	require.Equal(t, fmt.Sprint(sqs.WallTime), row["wall_time_ms"])
 }
 
 // TestDirectIngestSoftwareWithLongFields tests that software with reported long fields
@@ -11622,6 +11577,9 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	t := s.T()
 	ctx := context.Background()
 
+	adminUser, err := s.ds.UserByEmail(ctx, "admin1@example.com")
+	require.NoError(t, err)
+
 	// there is already a datastore-layer test that verifies that correct values
 	// are returned for users, saved scripts, etc. so this is more focused on
 	// verifying that the service layer passes the proper options and the
@@ -11666,11 +11624,12 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 		Title:         "foo",
 		Source:        "apps",
 		Version:       "0.0.1",
+		UserID:        adminUser.ID,
 	})
 	require.NoError(t, err)
 	s1Meta, err := s.ds.GetSoftwareInstallerMetadataByID(ctx, sw1)
 	require.NoError(t, err)
-	h1Foo, err := s.ds.InsertSoftwareInstallRequest(ctx, host1.ID, s1Meta.InstallerID, false)
+	h1Foo, err := s.ds.InsertSoftwareInstallRequest(ctx, host1.ID, s1Meta.InstallerID, false, nil)
 	require.NoError(t, err)
 
 	// force an order to the activities
@@ -12189,4 +12148,64 @@ func (s *integrationTestSuite) TestAutofillPolicies() {
 	s.Do("PATCH", "/api/latest/fleet/config", appConfigSpec, http.StatusOK)
 	resp = s.Do("POST", "/api/latest/fleet/autofill/policy", req, http.StatusBadRequest)
 	assertBodyContains(t, resp, "AI features are disabled")
+}
+
+func (s *integrationTestSuite) TestHostWithNoPoliciesClearsPolicyCounts() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Zoobar"})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("foobar"),
+		UUID:            "foobar",
+		Hostname:        "com.foobar.local",
+		Platform:        "linux",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:  "Barfoo",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	distributedWriteResp := submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host,
+		map[uint]*bool{
+			policy.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedWriteResp)
+
+	listHostsResp := listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 1)
+	require.Equal(t, uint64(1), listHostsResp.Hosts[0].FailingPoliciesCount)
+
+	_, err = s.ds.DeleteTeamPolicies(ctx, team.ID, []uint{policy.ID})
+	require.NoError(t, err)
+
+	distributedWriteResp = submitDistributedQueryResultsResponse{}
+	results := make(map[string]json.RawMessage)
+	results[hostNoPoliciesWildcard] = json.RawMessage("{\"1\": \"1\"}")
+	statuses := make(map[string]interface{})
+	statuses[hostNoPoliciesWildcard] = 0
+	s.DoJSON("POST", "/api/osquery/distributed/write", submitDistributedQueryResultsRequestShim{
+		NodeKey:  *host.NodeKey,
+		Results:  results,
+		Statuses: statuses,
+		Stats:    map[string]*fleet.Stats{},
+	}, http.StatusOK, &distributedWriteResp)
+
+	listHostsResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 1)
+	require.Equal(t, uint64(0), listHostsResp.Hosts[0].FailingPoliciesCount)
 }

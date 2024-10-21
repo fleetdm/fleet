@@ -192,7 +192,7 @@ func ScheduledQueryFromQuery(query *Query) *ScheduledQuery {
 		snapshot *bool
 		removed  *bool
 	)
-	if query.Logging == "" || query.Logging == "snapshot" {
+	if query.Logging == "" || query.Logging == "snapshot" { //nolint:gocritic // ignore ifElseChain
 		snapshot = ptr.Bool(true)
 		removed = ptr.Bool(false)
 	} else if query.Logging == "differential" {
@@ -221,7 +221,7 @@ func ScheduledQueryFromQuery(query *Query) *ScheduledQuery {
 func ScheduledQueryToQueryPayloadForNewQuery(originalQuery *Query, scheduledQuery *ScheduledQuery) QueryPayload {
 	logging := ptr.String(LoggingSnapshot) // default is snapshot.
 	if scheduledQuery.Snapshot != nil && scheduledQuery.Removed != nil {
-		if *scheduledQuery.Snapshot {
+		if *scheduledQuery.Snapshot { //nolint:gocritic // ignore ifElseChain
 			logging = ptr.String(LoggingSnapshot)
 		} else if *scheduledQuery.Removed {
 			logging = ptr.String(LoggingDifferential)
@@ -249,7 +249,7 @@ func ScheduledQueryToQueryPayloadForNewQuery(originalQuery *Query, scheduledQuer
 func ScheduledQueryPayloadToQueryPayloadForModifyQuery(payload ScheduledQueryPayload) QueryPayload {
 	var logging *string
 	if payload.Snapshot != nil && payload.Removed != nil {
-		if *payload.Snapshot {
+		if *payload.Snapshot { //nolint:gocritic // ignore ifElseChain
 			logging = ptr.String(LoggingSnapshot)
 		} else if *payload.Removed {
 			logging = ptr.String(LoggingDifferential)

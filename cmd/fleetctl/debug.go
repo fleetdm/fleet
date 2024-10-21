@@ -464,23 +464,21 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 					// if a certificate is provided, use it as root CA
 					cc.RootCA = certPath
 					cc.TLSSkipVerify = false
-				} else { // --fleet-certificate is not set
-					if cc.RootCA == "" {
-						// If a certificate is not provided and a cc.RootCA is not set in the configuration,
-						// then use the embedded root CA which is used by osquery to connect to Fleet.
-						usingEmbeddedCA = true
-						tmpDir, err := os.MkdirTemp("", "")
-						if err != nil {
-							return fmt.Errorf("failed to create temporary directory: %w", err)
-						}
-						certPath := filepath.Join(tmpDir, "certs.pem")
-						if err := os.WriteFile(certPath, packaging.OsqueryCerts, 0o600); err != nil {
-							return fmt.Errorf("failed to create temporary certs.pem file: %s", err)
-						}
-						defer os.RemoveAll(certPath)
-						cc.RootCA = certPath
-						cc.TLSSkipVerify = false
+				} else if cc.RootCA == "" { // --fleet-certificate is not set
+					// If a certificate is not provided and a cc.RootCA is not set in the configuration,
+					// then use the embedded root CA which is used by osquery to connect to Fleet.
+					usingEmbeddedCA = true
+					tmpDir, err := os.MkdirTemp("", "")
+					if err != nil {
+						return fmt.Errorf("failed to create temporary directory: %w", err)
 					}
+					certPath := filepath.Join(tmpDir, "certs.pem")
+					if err := os.WriteFile(certPath, packaging.OsqueryCerts, 0o600); err != nil {
+						return fmt.Errorf("failed to create temporary certs.pem file: %s", err)
+					}
+					defer os.RemoveAll(certPath)
+					cc.RootCA = certPath
+					cc.TLSSkipVerify = false
 				}
 			}
 

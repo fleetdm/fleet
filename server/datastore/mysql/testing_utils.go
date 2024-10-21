@@ -33,8 +33,8 @@ import (
 	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/require"
-	"go.mozilla.org/pkcs7"
 )
 
 const (
@@ -495,12 +495,19 @@ func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
 }
 
 func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error) {
+	tb.Helper()
 	err := fn(ds.primary)
 	require.NoError(tb, err)
 }
 
 func ExecAdhocSQLWithError(ds *Datastore, fn func(q sqlx.ExtContext) error) error {
 	return fn(ds.primary)
+}
+
+// EncryptWithPrivateKey encrypts data with the server private key associated
+// with the Datastore.
+func EncryptWithPrivateKey(tb testing.TB, ds *Datastore, data []byte) ([]byte, error) {
+	return encrypt(data, ds.serverPrivateKey)
 }
 
 // TruncateTables truncates the specified tables, in order, using ds.writer.
@@ -683,7 +690,7 @@ func GetAggregatedStats(ctx context.Context, ds *Datastore, aggregate fleet.Aggr
 func SetOrderedCreatedAtTimestamps(t testing.TB, ds *Datastore, afterTime time.Time, table, keyCol string, keys ...any) time.Time {
 	now := afterTime
 	for i := 0; i < len(keys); i++ {
-		now = afterTime.Add(time.Second)
+		now = now.Add(time.Second)
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(),
 				fmt.Sprintf(`UPDATE %s SET created_at=? WHERE %s=?`, table, keyCol), now, keys[i])
@@ -693,7 +700,83 @@ func SetOrderedCreatedAtTimestamps(t testing.TB, ds *Datastore, afterTime time.T
 	return now
 }
 
-func SetTestABMAssets(t testing.TB, ds *Datastore) {
+func CreateABMKeyCertIfNotExists(t testing.TB, ds *Datastore) {
+	certPEM, keyPEM, _, err := GenerateTestABMAssets(t)
+	require.NoError(t, err)
+	var assets []fleet.MDMConfigAsset
+	_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
+		fleet.MDMAssetABMKey,
+	}, nil)
+	if err != nil {
+		var nfe fleet.NotFoundError
+		require.ErrorAs(t, err, &nfe)
+		assets = append(assets, fleet.MDMConfigAsset{Name: fleet.MDMAssetABMKey, Value: keyPEM})
+	}
+
+	_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
+		fleet.MDMAssetABMCert,
+	}, nil)
+	if err != nil {
+		var nfe fleet.NotFoundError
+		require.ErrorAs(t, err, &nfe)
+		assets = append(assets, fleet.MDMConfigAsset{Name: fleet.MDMAssetABMCert, Value: certPEM})
+	}
+
+	if len(assets) != 0 {
+		err = ds.InsertMDMConfigAssets(context.Background(), assets, ds.writer(context.Background()))
+		require.NoError(t, err)
+	}
+}
+
+// CreateAndSetABMToken creates a new ABM token (using an existing ABM key/cert) and stores it in the DB.
+func CreateAndSetABMToken(t testing.TB, ds *Datastore, orgName string) *fleet.ABMToken {
+	assets, err := ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
+		fleet.MDMAssetABMKey,
+		fleet.MDMAssetABMCert,
+	}, nil)
+	require.NoError(t, err)
+
+	certPEM := assets[fleet.MDMAssetABMCert].Value
+
+	testBMToken := &nanodep_client.OAuth1Tokens{
+		ConsumerKey:       "test_consumer",
+		ConsumerSecret:    "test_secret",
+		AccessToken:       "test_access_token",
+		AccessSecret:      "test_access_secret",
+		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+
+	rawToken, err := json.Marshal(testBMToken)
+	require.NoError(t, err)
+
+	smimeToken := fmt.Sprintf(
+		"Content-Type: text/plain;charset=UTF-8\r\n"+
+			"Content-Transfer-Encoding: 7bit\r\n"+
+			"\r\n%s", rawToken,
+	)
+
+	block, _ := pem.Decode(certPEM)
+	require.NotNil(t, block)
+	require.Equal(t, "CERTIFICATE", block.Type)
+	cert, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+
+	encryptedToken, err := pkcs7.Encrypt([]byte(smimeToken), []*x509.Certificate{cert})
+	require.NoError(t, err)
+
+	tokenBytes := fmt.Sprintf(
+		"Content-Type: application/pkcs7-mime; name=\"smime.p7m\"; smime-type=enveloped-data\r\n"+
+			"Content-Transfer-Encoding: base64\r\n"+
+			"Content-Disposition: attachment; filename=\"smime.p7m\"\r\n"+
+			"Content-Description: S/MIME Encrypted Message\r\n"+
+			"\r\n%s", base64.StdEncoding.EncodeToString(encryptedToken))
+
+	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{EncryptedToken: []byte(tokenBytes), OrganizationName: orgName})
+	require.NoError(t, err)
+	return tok
+}
+
+func SetTestABMAssets(t testing.TB, ds *Datastore, orgName string) *fleet.ABMToken {
 	apnsCert, apnsKey, err := GenerateTestCertBytes()
 	require.NoError(t, err)
 
@@ -702,14 +785,16 @@ func SetTestABMAssets(t testing.TB, ds *Datastore) {
 	assets := []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetABMCert, Value: certPEM},
 		{Name: fleet.MDMAssetABMKey, Value: keyPEM},
-		{Name: fleet.MDMAssetABMToken, Value: tokenBytes},
 		{Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
 		{Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
 		{Name: fleet.MDMAssetCACert, Value: certPEM},
 		{Name: fleet.MDMAssetCAKey, Value: keyPEM},
 	}
 
-	err = ds.InsertMDMConfigAssets(context.Background(), assets)
+	err = ds.InsertMDMConfigAssets(context.Background(), assets, nil)
+	require.NoError(t, err)
+
+	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{EncryptedToken: tokenBytes, OrganizationName: orgName})
 	require.NoError(t, err)
 
 	appCfg, err := ds.AppConfig(context.Background())
@@ -718,6 +803,8 @@ func SetTestABMAssets(t testing.TB, ds *Datastore) {
 	appCfg.MDM.AppleBMEnabledAndConfigured = true
 	err = ds.SaveAppConfig(context.Background(), appCfg)
 	require.NoError(t, err)
+
+	return tok
 }
 
 func GenerateTestABMAssets(t testing.TB) ([]byte, []byte, []byte, error) {

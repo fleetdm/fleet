@@ -32,7 +32,7 @@ To sign and notarize a generated `pkg` you must have:
 2. An Apple Store Connect API key
 
 > Note: the Developer ID certificate must be in PEM format because this image
-> can be run in automated enviroments where secrets are passed via environment
+> can be run in automated environments where secrets are passed via environment
 > variables, and thus they must be in plain text.
 >
 > To convert a PKCS 12 certificate to PEM, you can run the following command:

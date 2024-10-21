@@ -1057,6 +1057,29 @@ describe("Activity Feed", () => {
     expect(withNoTeams).toBeNull();
   });
 
+  it("renders an 'edited_script' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedScript,
+      details: { team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("edited scripts", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(" for the ", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(
+      screen.getByText(" team via fleetctl.", { exact: false })
+    ).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("no team");
+    expect(withNoTeams).toBeNull();
+  });
+
   it("renders a 'deleted_script' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedScript,
@@ -1095,6 +1118,21 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders an 'edited_script' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedScript,
+      details: {},
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("edited scripts", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("for no team via fleetctl.", { exact: false })
+    ).toBeInTheDocument();
+  });
+
   it("renders a 'deleted_script' type activity for hosts with no team.", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedScript,
@@ -1111,42 +1149,141 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders an 'edited_script' type activity for a team", () => {
+  it("renders an 'added_software' type activity for a team", () => {
     const activity = createMockActivity({
-      type: ActivityType.EditedScript,
-      details: { team_name: "Alphas" },
+      type: ActivityType.AddedSoftware,
+      details: {
+        software_title: "Foo bar",
+        software_package: "foobar.pkg",
+        team_name: "Alphas",
+      },
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("edited scripts", { exact: false })
+      screen.getByText("added software ", { exact: false })
     ).toBeInTheDocument();
     expect(
-      screen.getByText(" for the ", {
+      screen.getByText("foobar.pkg", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(" to the ", {
         exact: false,
       })
     ).toBeInTheDocument();
     expect(screen.getByText("Alphas")).toBeInTheDocument();
-    expect(
-      screen.getByText(" team via fleetctl.", { exact: false })
-    ).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
     const withNoTeams = screen.queryByText("no team");
     expect(withNoTeams).toBeNull();
   });
-  it("renders an 'edited_script' type activity for hosts with no team.", () => {
+
+  it("renders an 'edited_software' type activity for a team", () => {
     const activity = createMockActivity({
-      type: ActivityType.EditedScript,
-      details: {},
+      type: ActivityType.EditedSoftware,
+      details: {
+        software_title: "Foo bar",
+        software_package: "foobar.pkg",
+        team_name: "Alphas",
+      },
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("edited scripts", { exact: false })
+      screen.getByText("edited software", { exact: false })
     ).toBeInTheDocument();
     expect(
-      screen.getByText("for no team via fleetctl.", { exact: false })
+      screen.getByText(" on the ", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders a 'deleted_software' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedSoftware,
+      details: {
+        software_title: "Foo bar",
+        software_package: "foobar.pkg",
+        team_name: "Alphas",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("deleted software ", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("foobar.pkg", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(" from the ", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders an 'added_software' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AddedSoftware,
+      details: { software_title: "Foo bar", software_package: "foobar.pkg" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("added software ", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("foobar.pkg", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("to no team.", { exact: false })
     ).toBeInTheDocument();
   });
+
+  it("renders an 'edited_software' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedSoftware,
+      details: {
+        software_title: "Foo bar",
+        software_package: "foobar.pkg",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("edited software", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("on no team", { exact: false })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'deleted_software' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedSoftware,
+      details: { software_title: "Foo bar", software_package: "foobar.pkg" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("deleted software ", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("foobar.pkg", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("from no team.", { exact: false })
+    ).toBeInTheDocument();
+  });
+
   it("renders a pluralized 'deleted_multiple_saved_query' type activity when deleting multiple queries.", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedMultipleSavedQuery,
@@ -1202,5 +1339,77 @@ describe("Activity Feed", () => {
 
     render(<ActivityItem activity={activity} isPremiumTier />);
     expect(screen.getByText("An end user")).toBeInTheDocument();
+  });
+
+  it("renders the correct actor for a installed_app_store_app activity without self_service", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAppStoreApp,
+      actor_id: 1,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Foo Software",
+        host_display_name: "Foo Host",
+      },
+    });
+
+    render(<ActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Test Admin")).toBeInTheDocument();
+  });
+
+  it("renders the correct actor for a installed_app_store_app activity that was self_service", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAppStoreApp,
+      actor_id: 1,
+      details: {
+        software_title: "Foo Software",
+        self_service: true,
+        host_display_name: "Foo Host",
+      },
+    });
+
+    render(<ActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("An end user")).toBeInTheDocument();
+  });
+
+  it("renders addedNdesScepProxy activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AddedNdesScepProxy,
+    });
+    render(<ActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /added Microsoft's Network Device Enrollment Service \(NDES\) as your SCEP server/
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("renders editedNdesScepProxy activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedNdesScepProxy,
+    });
+    render(<ActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /edited configurations for Microsoft's Network Device Enrollment Service \(NDES\) as your SCEP server/
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("renders deletedNdesScepProxy activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedNdesScepProxy,
+    });
+    render(<ActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /removed Microsoft's Network Device Enrollment Service \(NDES\) as your SCEP server/
+      )
+    ).toBeInTheDocument();
   });
 });

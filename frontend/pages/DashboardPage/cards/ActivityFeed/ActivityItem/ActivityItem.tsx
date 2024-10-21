@@ -1,5 +1,5 @@
 import React from "react";
-import { find, lowerCase, noop } from "lodash";
+import { find, lowerCase, noop, trimEnd } from "lodash";
 import { formatDistanceToNowStrict } from "date-fns";
 
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
@@ -41,16 +41,19 @@ const PREMIUM_ACTIVITIES = new Set([
 
 const getProfileMessageSuffix = (
   isPremiumTier: boolean,
+  platform: "apple" | "windows",
   teamName?: string | null
 ) => {
-  let messageSuffix = <>hosts</>;
+  const platformDisplayName =
+    platform === "apple" ? "macOS, iOS, and iPadOS" : "Windows";
+  let messageSuffix = <>all {platformDisplayName} hosts</>;
   if (isPremiumTier) {
     messageSuffix = teamName ? (
       <>
-        the <b>{teamName}</b> team
+        {platformDisplayName} hosts assigned to the <b>{teamName}</b> team
       </>
     ) : (
-      <>hosts with no team</>
+      <>{platformDisplayName} hosts with no team</>
     );
   }
   return messageSuffix;
@@ -364,7 +367,12 @@ const TAGGED_TEMPLATES = {
         ) : (
           <>a configuration profile</>
         )}{" "}
-        to {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "apple",
+          activity.details?.team_name
+        )}
         .
       </>
     );
@@ -383,7 +391,12 @@ const TAGGED_TEMPLATES = {
           <>a configuration profile</>
         )}{" "}
         from{" "}
-        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "apple",
+          activity.details?.team_name
+        )}
+        .
       </>
     );
   },
@@ -394,9 +407,37 @@ const TAGGED_TEMPLATES = {
         edited configuration profiles for{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
+          "apple",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
+      </>
+    );
+  },
+  addedNdesScepProxy: () => {
+    return (
+      <>
+        {" "}
+        added Microsoft&apos;s Network Device Enrollment Service (NDES) as your
+        SCEP server.
+      </>
+    );
+  },
+  deletedNdesScepProxy: () => {
+    return (
+      <>
+        {" "}
+        removed Microsoft&apos;s Network Device Enrollment Service (NDES) as
+        your SCEP server.
+      </>
+    );
+  },
+  editedNdesScepProxy: () => {
+    return (
+      <>
+        {" "}
+        edited configurations for Microsoft&apos;s Network Device Enrollment
+        Service (NDES) as your SCEP server.
       </>
     );
   },
@@ -413,7 +454,12 @@ const TAGGED_TEMPLATES = {
         ) : (
           <>a configuration profile</>
         )}{" "}
-        to {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "windows",
+          activity.details?.team_name
+        )}
         .
       </>
     );
@@ -432,7 +478,12 @@ const TAGGED_TEMPLATES = {
           <>a configuration profile</>
         )}{" "}
         from{" "}
-        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "windows",
+          activity.details?.team_name
+        )}
+        .
       </>
     );
   },
@@ -443,6 +494,7 @@ const TAGGED_TEMPLATES = {
         edited configuration profiles for{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
+          "windows",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
@@ -762,7 +814,12 @@ const TAGGED_TEMPLATES = {
         added declaration (DDM) profile <b>
           {activity.details?.profile_name}
         </b>{" "}
-        to {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "apple",
+          activity.details?.team_name
+        )}
         .
       </>
     );
@@ -773,7 +830,12 @@ const TAGGED_TEMPLATES = {
         {" "}
         removed declaration (DDM) profile{" "}
         <b>{activity.details?.profile_name}</b> from{" "}
-        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "apple",
+          activity.details?.team_name
+        )}
+        .
       </>
     );
   },
@@ -783,7 +845,11 @@ const TAGGED_TEMPLATES = {
         {" "}
         edited declaration (DDM) profiles{" "}
         <b>{activity.details?.profile_name}</b> for{" "}
-        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "apple",
+          activity.details?.team_name
+        )}{" "}
         via fleetctl.
       </>
     );
@@ -802,8 +868,25 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        added <b>{activity.details?.software_title}</b> (
+        added software <b>{activity.details?.software_title}</b> (
         {activity.details?.software_package}) to{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
+      </>
+    );
+  },
+  editedSoftware: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        edited software <b>{activity.details?.software_title}</b> (
+        {activity.details?.software_package}) on{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
@@ -819,7 +902,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted <b>{activity.details?.software_title}</b> (
+        deleted software <b>{activity.details?.software_title}</b> (
         {activity.details?.software_package}) from{" "}
         {activity.details?.team_name ? (
           <>
@@ -868,19 +951,71 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  enabledVpp: () => {
+  uninstalledSoftware: (
+    activity: IActivity,
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
+  ) => {
+    const { details } = activity;
+    if (!details) {
+      return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
+    }
+
+    const { host_display_name: hostName, software_title: title } = details;
+    const status =
+      details.status === "failed" ? "failed_uninstall" : details.status;
+
+    const showSoftwarePackage =
+      !!details.software_package &&
+      activity.type === ActivityType.InstalledSoftware;
+
     return (
       <>
         {" "}
-        enabled <b>Volume Purchasing Program (VPP)</b>.
+        {getInstallStatusPredicate(status)} software <b>{title}</b>
+        {showSoftwarePackage && ` (${details.software_package})`} from{" "}
+        <b>{hostName}</b>.{" "}
+        <Button
+          className={`${baseClass}__show-query-link`}
+          variant="text-link"
+          onClick={() => onDetailsClick?.(activity.type, details)}
+        >
+          Show details{" "}
+          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+        </Button>
       </>
     );
   },
-  disabledVpp: () => {
+  enabledVpp: (activity: IActivity) => {
     return (
       <>
         {" "}
-        disabled <b>Volume Purchasing Program (VPP)</b>.
+        enabled <b>Volume Purchasing Program (VPP)</b>
+        {activity.details?.location ? (
+          <>
+            {" "}
+            for <b>{trimEnd(activity.details?.location, ".")}</b>
+          </>
+        ) : (
+          ""
+        )}
+        .
+      </>
+    );
+  },
+  disabledVpp: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        disabled <b>Volume Purchasing Program (VPP)</b>
+        {activity.details?.location ? (
+          <>
+            {" "}
+            for <b>{trimEnd(activity.details?.location, ".")}</b>
+          </>
+        ) : (
+          ""
+        )}
+        .
       </>
     );
   },
@@ -996,7 +1131,6 @@ const getDetail = (
     case ActivityType.EditedIpadosMinVersion: {
       return TAGGED_TEMPLATES.editedAppleosMinVersion("iPadOS", activity);
     }
-
     case ActivityType.ReadHostDiskEncryptionKey: {
       return TAGGED_TEMPLATES.readHostDiskEncryptionKey(activity);
     }
@@ -1008,6 +1142,15 @@ const getDetail = (
     }
     case ActivityType.EditedAppleOSProfile: {
       return TAGGED_TEMPLATES.editedAppleOSProfile(activity, isPremiumTier);
+    }
+    case ActivityType.AddedNdesScepProxy: {
+      return TAGGED_TEMPLATES.addedNdesScepProxy();
+    }
+    case ActivityType.DeletedNdesScepProxy: {
+      return TAGGED_TEMPLATES.deletedNdesScepProxy();
+    }
+    case ActivityType.EditedNdesScepProxy: {
+      return TAGGED_TEMPLATES.editedNdesScepProxy();
     }
     case ActivityType.CreatedWindowsProfile: {
       return TAGGED_TEMPLATES.createdWindowsProfile(activity, isPremiumTier);
@@ -1105,11 +1248,17 @@ const getDetail = (
     case ActivityType.AddedSoftware: {
       return TAGGED_TEMPLATES.addedSoftware(activity);
     }
+    case ActivityType.EditedSoftware: {
+      return TAGGED_TEMPLATES.editedSoftware(activity);
+    }
     case ActivityType.DeletedSoftware: {
       return TAGGED_TEMPLATES.deletedSoftware(activity);
     }
     case ActivityType.InstalledSoftware: {
       return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
+    }
+    case ActivityType.UninstalledSoftware: {
+      return TAGGED_TEMPLATES.uninstalledSoftware(activity, onDetailsClick);
     }
     case ActivityType.AddedAppStoreApp: {
       return TAGGED_TEMPLATES.addedAppStoreApp(activity);
@@ -1121,10 +1270,10 @@ const getDetail = (
       return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
     }
     case ActivityType.EnabledVpp: {
-      return TAGGED_TEMPLATES.enabledVpp();
+      return TAGGED_TEMPLATES.enabledVpp(activity);
     }
     case ActivityType.DisabledVpp: {
-      return TAGGED_TEMPLATES.disabledVpp();
+      return TAGGED_TEMPLATES.disabledVpp(activity);
     }
 
     default: {
@@ -1177,6 +1326,8 @@ const ActivityItem = ({
           DEFAULT_ACTOR_DISPLAY
         );
       case ActivityType.InstalledSoftware:
+      case ActivityType.UninstalledSoftware:
+      case ActivityType.InstalledAppStoreApp:
         return activity.details?.self_service ? (
           <span>An end user</span>
         ) : (
