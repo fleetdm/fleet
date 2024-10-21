@@ -562,6 +562,17 @@ func (c *Client) ApplyGroup(
 		tmMacSetupAssistants := make(map[string][]byte, len(tmMacSetup))
 		tmMacSetupScript := make(map[string]fileContent, len(tmMacSetup))
 		tmMacSetupSoftware := make(map[string][]*fleet.MacOSSetupSoftware, len(tmMacSetup))
+
+		// this is a set of software packages or VPP apps that are configured as
+		// install_during_setup, by team. If a team has no software to install
+		// during setup, but the macos_setup.software key WAS set (but empty or
+		// null), then an empty map is created under the team's key, meaning that
+		// all existing software must have its install_during_setup flag set to
+		// false. If the macos_setup.software key is not set at all, then the
+		// existing install_during_setup values are maintained (by leaving the
+		// field nil in the call to batch-set the software).
+		tmMacSetupSoftwareByKey := make(map[string]map[fleet.MacOSSetupSoftware]struct{})
+
 		for k, setup := range tmMacSetup {
 			if setup.BootstrapPackage.Value != "" {
 				bp, err := c.ValidateBootstrapPackageFromURL(setup.BootstrapPackage.Value)
@@ -585,10 +596,13 @@ func (c *Client) ApplyGroup(
 				tmMacSetupScript[k] = fileContent{Filename: filepath.Base(setup.Script.Value), Content: b}
 			}
 			if setup.Software.Set {
+				tmMacSetupSoftwareByKey[k] = make(map[fleet.MacOSSetupSoftware]struct{}, len(setup.Software.Value))
 				for _, sw := range setup.Software.Value {
 					if sw.AppStoreID != "" && sw.PackagePath != "" {
 						return nil, nil, nil, errors.New("applying teams: only one of app_store_id or package_path can be set")
 					}
+					sw.PackagePath = resolveApplyRelativePath(baseDir, sw.PackagePath)
+					tmMacSetupSoftwareByKey[k][*sw] = struct{}{}
 				}
 				tmMacSetupSoftware[k] = setup.Software.Value
 			}
@@ -611,20 +625,18 @@ func (c *Client) ApplyGroup(
 			tmScriptsPayloads[k] = scriptPayloads
 		}
 
-		for _, raw := range specs.Teams {
-			fmt.Println(">>>> ", string(raw))
-		}
 		tmSoftwarePackages := extractTmSpecsSoftwarePackages(specs.Teams)
 		tmSoftwarePackagesPayloads := make(map[string][]fleet.SoftwareInstallerPayload, len(tmSoftwarePackages))
 		tmSoftwarePackageByPath := make(map[string]map[string]fleet.SoftwarePackageSpec, len(tmSoftwarePackages))
 		for tmName, software := range tmSoftwarePackages {
-			softwarePayloads, err := buildSoftwarePackagesPayload(baseDir, software)
+			installDuringSetupKeys := tmMacSetupSoftwareByKey[tmName]
+			fmt.Println(">>>>> installDuringSetupKeys:", installDuringSetupKeys)
+			softwarePayloads, err := buildSoftwarePackagesPayload(baseDir, software, installDuringSetupKeys)
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
 			}
 			tmSoftwarePackagesPayloads[tmName] = softwarePayloads
 			for _, swSpec := range software {
-				fmt.Println(">>>> referenced yaml path? ", swSpec.URL, swSpec.ReferencedYamlPath)
 				if swSpec.ReferencedYamlPath != "" {
 					// can be referenced by macos_setup.software.package_path
 					if tmSoftwarePackageByPath[tmName] == nil {
@@ -660,8 +672,8 @@ func (c *Client) ApplyGroup(
 					// check that it exists in the team's Apps
 					_, valid = tmSoftwareAppsByAppID[tmName][ssw.AppStoreID]
 				} else if ssw.PackagePath != "" {
-					// check that it exists in the team's Software installers
-					_, valid = tmSoftwarePackageByPath[tmName][resolveApplyRelativePath(baseDir, ssw.PackagePath)]
+					// check that it exists in the team's Software installers (PackagePath is already resolved to abs dir)
+					_, valid = tmSoftwarePackageByPath[tmName][ssw.PackagePath]
 				}
 				if !valid {
 					label := ssw.AppStoreID
@@ -778,7 +790,6 @@ func (c *Client) ApplyGroup(
 				}
 			}
 		}
-		// TODO(mna): apply the setup software here, after installers and apps have been saved
 		if opts.DryRun {
 			logfn("[+] would've applied %d teams\n", len(specs.Teams))
 		} else {
@@ -824,7 +835,7 @@ func (c *Client) ApplyGroup(
 	return teamIDsByName, teamsSoftwareInstallers, teamsScripts, nil
 }
 
-func buildSoftwarePackagesPayload(baseDir string, specs []fleet.SoftwarePackageSpec) ([]fleet.SoftwareInstallerPayload, error) {
+func buildSoftwarePackagesPayload(baseDir string, specs []fleet.SoftwarePackageSpec, installDuringSetupKeys map[fleet.MacOSSetupSoftware]struct{}) ([]fleet.SoftwareInstallerPayload, error) {
 	softwarePayloads := make([]fleet.SoftwareInstallerPayload, len(specs))
 	for i, si := range specs {
 		var qc string
@@ -910,15 +921,21 @@ func buildSoftwarePackagesPayload(baseDir string, specs []fleet.SoftwarePackageS
 			}
 		}
 
-		softwarePayloads[i] = fleet.SoftwareInstallerPayload{
-			URL:               si.URL,
-			SelfService:       si.SelfService,
-			PreInstallQuery:   qc,
-			InstallScript:     string(ic),
-			PostInstallScript: string(pc),
-			UninstallScript:   string(us),
+		var installDuringSetup *bool
+		if installDuringSetupKeys != nil {
+			_, ok := installDuringSetupKeys[fleet.MacOSSetupSoftware{PackagePath: si.ReferencedYamlPath}]
+			installDuringSetup = &ok
+			fmt.Println(">>>> installDuringSetup? ", ok)
 		}
-
+		softwarePayloads[i] = fleet.SoftwareInstallerPayload{
+			URL:                si.URL,
+			SelfService:        si.SelfService,
+			PreInstallQuery:    qc,
+			InstallScript:      string(ic),
+			PostInstallScript:  string(pc),
+			UninstallScript:    string(us),
+			InstallDuringSetup: installDuringSetup,
+		}
 	}
 
 	return softwarePayloads, nil
@@ -1616,7 +1633,8 @@ func (c *Client) doGitOpsNoTeamSoftware(config *spec.GitOps, baseDir string, app
 				packages = append(packages, *software)
 			}
 		}
-		payload, err := buildSoftwarePackagesPayload(baseDir, packages)
+		// TODO(mna): probably needs some changes around here to support No team
+		payload, err := buildSoftwarePackagesPayload(baseDir, packages, nil)
 		if err != nil {
 			return nil, fmt.Errorf("applying software installers: %w", err)
 		}

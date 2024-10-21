@@ -1301,15 +1301,16 @@ func (svc *Service) softwareBatchUpload(
 			}
 
 			installer := &fleet.UploadSoftwareInstallerPayload{
-				TeamID:            teamID,
-				InstallScript:     p.InstallScript,
-				PreInstallQuery:   p.PreInstallQuery,
-				PostInstallScript: p.PostInstallScript,
-				UninstallScript:   p.UninstallScript,
-				InstallerFile:     bytes.NewReader(bodyBytes),
-				SelfService:       p.SelfService,
-				UserID:            userID,
-				URL:               p.URL,
+				TeamID:             teamID,
+				InstallScript:      p.InstallScript,
+				PreInstallQuery:    p.PreInstallQuery,
+				PostInstallScript:  p.PostInstallScript,
+				UninstallScript:    p.UninstallScript,
+				InstallerFile:      bytes.NewReader(bodyBytes),
+				SelfService:        p.SelfService,
+				UserID:             userID,
+				URL:                p.URL,
+				InstallDuringSetup: p.InstallDuringSetup,
 			}
 
 			// set the filename before adding metadata, as it is used as fallback
@@ -1367,15 +1368,6 @@ func (svc *Service) softwareBatchUpload(
 			return
 		}
 	}
-
-	// TODO(mna): the goal would be to get that list of installers to include
-	// the "include_during_setup" flag if it was set in the gitops yaml. Otherwise
-	// storing the installers and setting the "install_during_setup" flags would be
-	// two distinct steps with the possibility of inconsistencies.
-	//
-	// The alternative is to batch-set the include_during_setup after the installers
-	// have been processed. Could be done too, but note that it means dry-run would
-	// not be able to catch that a software marked as during setup that does not exist.
 
 	if err := svc.ds.BatchSetSoftwareInstallers(ctx, teamID, installers); err != nil {
 		batchErr = fmt.Errorf("batch set software installers: %w", err)

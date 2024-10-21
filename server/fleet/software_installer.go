@@ -317,25 +317,26 @@ func (s *HostSoftwareInstallerResultAuthz) AuthzType() string {
 }
 
 type UploadSoftwareInstallerPayload struct {
-	TeamID            *uint
-	InstallScript     string
-	PreInstallQuery   string
-	PostInstallScript string
-	InstallerFile     io.ReadSeeker // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
-	StorageID         string
-	Filename          string
-	Title             string
-	Version           string
-	Source            string
-	Platform          string
-	BundleIdentifier  string
-	SelfService       bool
-	UserID            uint
-	URL               string
-	FleetLibraryAppID *uint
-	PackageIDs        []string
-	UninstallScript   string
-	Extension         string
+	TeamID             *uint
+	InstallScript      string
+	PreInstallQuery    string
+	PostInstallScript  string
+	InstallerFile      io.ReadSeeker // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
+	StorageID          string
+	Filename           string
+	Title              string
+	Version            string
+	Source             string
+	Platform           string
+	BundleIdentifier   string
+	SelfService        bool
+	UserID             uint
+	URL                string
+	FleetLibraryAppID  *uint
+	PackageIDs         []string
+	UninstallScript    string
+	Extension          string
+	InstallDuringSetup *bool // keep saved value if nil, otherwise set as indicated
 }
 
 type UpdateSoftwareInstallerPayload struct {

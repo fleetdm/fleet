@@ -852,8 +852,8 @@ WHERE
 SELECT
   COUNT(*)
 FROM
-  software_installers 
-WHERE 
+  software_installers
+WHERE
   global_or_team_id = ? AND
   title_id NOT IN (?) AND
   install_during_setup = 1
@@ -897,11 +897,12 @@ INSERT INTO software_installers (
 	user_name,
 	user_email,
 	url,
-	package_ids
+	package_ids,
+	install_during_setup
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
   (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''),
-  ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?
+  ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false)
 )
 ON DUPLICATE KEY UPDATE
   install_script_content_id = VALUES(install_script_content_id),
@@ -917,7 +918,8 @@ ON DUPLICATE KEY UPDATE
   user_id = VALUES(user_id),
   user_name = VALUES(user_name),
   user_email = VALUES(user_email),
-  url = VALUES(url)
+  url = VALUES(url),
+	install_during_setup = COALESCE(?, install_during_setup)
 `
 
 	// use a team id of 0 if no-team
@@ -1071,6 +1073,8 @@ ON DUPLICATE KEY UPDATE
 				installer.UserID,
 				installer.URL,
 				strings.Join(installer.PackageIDs, ","),
+				installer.InstallDuringSetup,
+				installer.InstallDuringSetup,
 			}
 			upsertQuery := insertNewOrEditedInstaller
 			if len(existing) > 0 && existing[0].IsPackageModified { // update uploaded_at for updated installer package

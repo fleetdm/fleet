@@ -687,21 +687,23 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	})
 
 	// add a new installer + ins0 installer
+	// mark ins0 as install_during_setup
 	ins1 := "installer1"
 	ins1File := bytes.NewReader([]byte("installer1"))
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
-			InstallScript:   "install",
-			InstallerFile:   ins0File,
-			StorageID:       ins0,
-			Filename:        ins0,
-			Title:           ins0,
-			Source:          "apps",
-			Version:         "1",
-			PreInstallQuery: "select 0 from foo;",
-			UserID:          user1.ID,
-			Platform:        "darwin",
-			URL:             "https://example.com",
+			InstallScript:      "install",
+			InstallerFile:      ins0File,
+			StorageID:          ins0,
+			Filename:           ins0,
+			Title:              ins0,
+			Source:             "apps",
+			Version:            "1",
+			PreInstallQuery:    "select 0 from foo;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example.com",
+			InstallDuringSetup: ptr.Bool(true),
 		},
 		{
 			InstallScript:     "install",
@@ -735,12 +737,6 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		{Name: ins1, Source: "apps", Browser: ""},
 	})
 
-	// mark ins0 as install_during_setup
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, ` UPDATE software_installers SET install_during_setup = 1 WHERE title_id = ?`, *softwareInstallers[0].TitleID)
-		return err
-	})
-
 	// remove ins0 fails due to install_during_setup
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
@@ -759,16 +755,77 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.ErrorIs(t, err, errDeleteInstallerInstalledDuringSetup)
 
+	// batch-set both installers again, this time with nil install_during_setup for ins0,
+	// will keep it as true.
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:      "install",
+			InstallerFile:      ins0File,
+			StorageID:          ins0,
+			Filename:           ins0,
+			Title:              ins0,
+			Source:             "apps",
+			Version:            "1",
+			PreInstallQuery:    "select 0 from foo;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example.com",
+			InstallDuringSetup: nil,
+		},
+		{
+			InstallScript:     "install",
+			PostInstallScript: "post-install",
+			InstallerFile:     ins1File,
+			StorageID:         ins1,
+			Filename:          ins1,
+			Title:             ins1,
+			Source:            "apps",
+			Version:           "2",
+			PreInstallQuery:   "select 1 from bar;",
+			UserID:            user1.ID,
+			Platform:          "darwin",
+			URL:               "https://example2.com",
+		},
+	})
+	require.NoError(t, err)
+
 	// remove everything fails due to ins0 install_during_setup
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
 	require.Error(t, err)
 	require.ErrorIs(t, err, errDeleteInstallerInstalledDuringSetup)
 
 	// mark ins0 as NOT install_during_setup
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, ` UPDATE software_installers SET install_during_setup = 0 WHERE title_id = ?`, *softwareInstallers[0].TitleID)
-		return err
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:      "install",
+			InstallerFile:      ins0File,
+			StorageID:          ins0,
+			Filename:           ins0,
+			Title:              ins0,
+			Source:             "apps",
+			Version:            "1",
+			PreInstallQuery:    "select 0 from foo;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example.com",
+			InstallDuringSetup: ptr.Bool(false),
+		},
+		{
+			InstallScript:     "install",
+			PostInstallScript: "post-install",
+			InstallerFile:     ins1File,
+			StorageID:         ins1,
+			Filename:          ins1,
+			Title:             ins1,
+			Source:            "apps",
+			Version:           "2",
+			PreInstallQuery:   "select 1 from bar;",
+			UserID:            user1.ID,
+			Platform:          "darwin",
+			URL:               "https://example2.com",
+		},
 	})
+	require.NoError(t, err)
 
 	// remove ins0
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
