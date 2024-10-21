@@ -319,7 +319,7 @@ func (newMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *htt
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = uint(teamID)
+		decoded.TeamID = uint(teamID) //nolint:gosec // dismiss G115
 	}
 
 	fhs, ok := r.MultipartForm.File["profile"]
@@ -2209,7 +2209,7 @@ func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = uint(teamID)
+		decoded.TeamID = uint(teamID) //nolint:gosec // dismiss G115
 	}
 
 	return &decoded, nil
@@ -3649,13 +3649,25 @@ func preprocessProfileContents(
 		// Currently, all supported Fleet variables are unique per host, so we split the profile into multiple profiles.
 		// We generate a new temporary profileUUID which is currently only used to install the profile.
 		// The profileUUID in host_mdm_apple_profiles is still the original profileUUID.
+		// We also generate a new commandUUID which is used to install the profile via nano_commands table.
 		if addedTargets == nil {
 			addedTargets = make(map[string]*cmdTarget, 1)
 		}
 		// We store the timestamp when the challenge was retrieved to know if it has expired.
 		var managedCertificatePayloads []*fleet.MDMBulkUpsertManagedCertificatePayload
+		// We need to update the profiles of each host with the new command UUID
+		profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.hostUUIDs))
 		for _, hostUUID := range target.hostUUIDs {
 			tempProfUUID := uuid.NewString()
+			// Use the same UUID for command UUID, which will be the primary key for nano_commands
+			tempCmdUUID := tempProfUUID
+			profile, ok := hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]
+			if !ok { // Should never happen
+				continue
+			}
+			profile.CommandUUID = tempCmdUUID
+			profilesToUpdate = append(profilesToUpdate, profile)
+
 			hostContents := contentsStr
 
 			failed := false
@@ -3750,12 +3762,16 @@ func preprocessProfileContents(
 			}
 			if !failed {
 				addedTargets[tempProfUUID] = &cmdTarget{
-					cmdUUID:   target.cmdUUID,
+					cmdUUID:   tempCmdUUID,
 					profIdent: target.profIdent,
 					hostUUIDs: []string{hostUUID},
 				}
 				profileContents[tempProfUUID] = mobileconfig.Mobileconfig(hostContents)
 			}
+		}
+		// Update profiles with the new command UUID
+		if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, profilesToUpdate); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating host profiles")
 		}
 		err := ds.BulkUpsertMDMManagedCertificates(ctx, managedCertificatePayloads)
 		if err != nil {
@@ -4486,7 +4502,7 @@ func (renewABMTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) 
 
 	return &renewABMTokenRequest{
 		Token:   token[0],
-		TokenID: uint(id),
+		TokenID: uint(id), //nolint:gosec // dismiss G115
 	}, nil
 }
 

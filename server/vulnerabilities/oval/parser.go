@@ -74,8 +74,7 @@ func parseRhelXML(reader io.Reader) (*oval_input.RhelResultXML, error) {
 			return nil, fmt.Errorf("decoding token: %v", err)
 		}
 
-		switch t := t.(type) {
-		case xml.StartElement:
+		if t, ok := t.(xml.StartElement); ok {
 			if t.Name.Local == "definition" {
 				def := oval_input.DefinitionXML{}
 				if err = d.DecodeElement(&def, &t); err != nil {
@@ -286,8 +285,7 @@ func parseUbuntuXML(reader io.Reader) (*oval_input.UbuntuResultXML, error) {
 			return nil, fmt.Errorf("decoding token: %v", err)
 		}
 
-		switch t := t.(type) {
-		case xml.StartElement:
+		if t, ok := t.(xml.StartElement); ok {
 			if t.Name.Local == "definition" {
 				def := oval_input.DefinitionXML{}
 				if err = d.DecodeElement(&def, &t); err != nil {

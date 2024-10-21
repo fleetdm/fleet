@@ -186,6 +186,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
               label="Voluntary"
               onChange={onChangeMode}
               className={`${baseClass}__voluntary-radio`}
+              name="mode-type"
             />
             <Radio
               disabled={!formData.isEnabled}
@@ -195,6 +196,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
               label="Forced"
               onChange={onChangeMode}
               className={`${baseClass}__forced-radio`}
+              name="mode-type"
             />
           </div>
           <p>

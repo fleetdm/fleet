@@ -72,7 +72,7 @@ func TestUp_20240829165448(t *testing.T) {
 		tmID := execNoErrLastID(t, db, `INSERT INTO teams (name) VALUES (?)`, "team1")
 
 		// create a host with a DEP assignment
-		hostID := insertHost(t, db, ptr.Uint(uint(tmID)))
+		hostID := insertHost(t, db, ptr.Uint(uint(tmID))) //nolint:gosec // dismiss G115
 		execNoErr(t, db, `INSERT INTO host_dep_assignments (host_id) VALUES (?)`, hostID)
 
 		// Apply current migration.
@@ -132,7 +132,7 @@ LIMIT 1`)
 		tmID := execNoErrLastID(t, db, `INSERT INTO teams (name) VALUES (?)`, "team1")
 
 		// create a host with a DEP assignment
-		hostID := insertHost(t, db, ptr.Uint(uint(tmID)))
+		hostID := insertHost(t, db, ptr.Uint(uint(tmID))) //nolint:gosec // dismiss G115
 		execNoErr(t, db, `INSERT INTO host_dep_assignments (host_id) VALUES (?)`, hostID)
 
 		// Apply current migration.

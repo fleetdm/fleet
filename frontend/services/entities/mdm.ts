@@ -342,6 +342,11 @@ const mdmService = {
     return sendRequest("GET", url);
   },
 
+  downloadManualEnrollmentProfile: (token: string) => {
+    const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
+    return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
+  },
+
   updateSetupExperienceSoftware: (
     teamId: number,
     softwareTitlesIds: number[]

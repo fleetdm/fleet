@@ -1374,6 +1374,24 @@ This activity contains the following fields:
 }
 ```
 
+## added_ndes_scep_proxy
+
+Generated when NDES SCEP proxy is configured in Fleet.
+
+This activity does not contain any detail fields.
+
+## deleted_ndes_scep_proxy
+
+Generated when NDES SCEP proxy configuration is deleted in Fleet.
+
+This activity does not contain any detail fields.
+
+## edited_ndes_scep_proxy
+
+Generated when NDES SCEP proxy configuration is edited in Fleet.
+
+This activity does not contain any detail fields.
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">

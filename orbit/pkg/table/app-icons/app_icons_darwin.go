@@ -80,7 +80,7 @@ func generateAppIcons(ctx context.Context, queryContext table.QueryContext) ([]m
 
 func getAppIcon(appPath string, queryContext table.QueryContext) (image.Image, uint64, error) {
 	var data C.CFDataRef
-	C.Icon(&data, C.CString(appPath))
+	C.Icon(&data, C.CString(appPath)) //nolint:gocritic // ignore dubSubExpr
 	defer C.CFRelease(C.CFTypeRef(data))
 
 	tiffBytes := C.GoBytes(unsafe.Pointer(C.CFDataGetBytePtr(data)), C.int(C.CFDataGetLength(data)))

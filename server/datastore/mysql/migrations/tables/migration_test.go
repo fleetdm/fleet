@@ -151,7 +151,7 @@ func insertQuery(t *testing.T, db *sqlx.DB) uint {
 	id, err := res.LastInsertId()
 	require.NoError(t, err)
 
-	return uint(id)
+	return uint(id) //nolint:gosec // dismiss G115
 }
 
 func insertHost(t *testing.T, db *sqlx.DB, teamID *uint) uint {
@@ -187,7 +187,7 @@ func insertHost(t *testing.T, db *sqlx.DB, teamID *uint) uint {
 	id, err := res.LastInsertId()
 	require.NoError(t, err)
 
-	return uint(id)
+	return uint(id) //nolint:gosec // dismiss G115
 }
 
 func assertRowCount(t *testing.T, db *sqlx.DB, table string, count int) {

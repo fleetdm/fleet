@@ -33,13 +33,14 @@ func TestWFNize(t *testing.T) {
 	}
 	for _, c := range cases {
 		res, err := WFNize(c.in)
-		if err != nil {
+		switch {
+		case err != nil:
 			if !c.expectErr {
 				t.Errorf("WFNize(%q) returned error: %v", c.in, err)
 			}
-		} else if c.expectErr {
+		case c.expectErr:
 			t.Errorf("WFNize(%q) was expected to fail, but succedeed", c.in)
-		} else if res != c.expected {
+		case res != c.expected:
 			t.Errorf("WFNize(%q) returned %q, %q was expected", c.in, res, c.expected)
 		}
 	}

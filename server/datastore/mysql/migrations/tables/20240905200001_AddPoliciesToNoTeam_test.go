@@ -10,12 +10,12 @@ import (
 func TestUp_20240905200001(t *testing.T) {
 	db := applyUpToPrev(t)
 
-	team1ID := uint(execNoErrLastID(t, db, `INSERT INTO teams (name) VALUES ('team1');`))
-	globalPolicy0 := uint(execNoErrLastID(t, db,
+	team1ID := uint(execNoErrLastID(t, db, `INSERT INTO teams (name) VALUES ('team1');`)) //nolint:gosec // dismiss G115
+	globalPolicy0 := uint(execNoErrLastID(t, db,                                          //nolint:gosec // dismiss G115
 		`INSERT INTO policies (name, query, description, checksum) VALUES
 		('globalPolicy0', 'SELECT 0', 'Description', 'checksum');`,
 	))
-	policy1Team1 := uint(execNoErrLastID(t, db,
+	policy1Team1 := uint(execNoErrLastID(t, db, //nolint:gosec // dismiss G115
 		`INSERT INTO policies (name, query, description, team_id, checksum)
 		VALUES ('policy1Team1', 'SELECT 1', 'Description', ?, 'checksum2');`,
 		team1ID,

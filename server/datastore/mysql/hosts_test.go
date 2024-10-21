@@ -458,7 +458,7 @@ func testSaveHostPackStatsDB(t *testing.T, ds *Datastore) {
 	})
 	assert.Equal(t, host.PackStats[1].PackName, "test2")
 	// Server calculates WallTimeMs if WallTimeMs==0 coming in. (osquery wall_time -> wall_time_ms -> DB wall_time)
-	stats2[0].WallTime = stats2[0].WallTime * 1000
+	stats2[0].WallTime *= 1000
 	assert.ElementsMatch(t, host.PackStats[1].QueryStats, stats2)
 }
 
@@ -2654,7 +2654,7 @@ func testHostsAddToTeam(t *testing.T, ds *Datastore) {
 		host, err := ds.Host(context.Background(), uint(i))
 		require.NoError(t, err)
 		var expectedID *uint
-		switch {
+		switch { //nolint:gocritic // ignore singleCaseSwitch
 		case i >= 5:
 			expectedID = &team1.ID
 		}
@@ -6389,6 +6389,17 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 		{HostsCount: 1, Name: "macOS 12.1.0", NameOnly: "macOS", Version: "12.1.0", Platform: "darwin", OSVersionID: 1},
 		{HostsCount: 3, Name: "macOS 12.2.1", NameOnly: "macOS", Version: "12.2.1", Platform: "darwin", OSVersionID: 2},
 		{HostsCount: 3, Name: "macOS 12.3.0", NameOnly: "macOS", Version: "12.3.0", Platform: "darwin", OSVersionID: 3},
+	}
+	require.Equal(t, expected, osVersions.OSVersions)
+
+	// filter by Linux pseudo-platform
+	platform = "linux"
+	osVersions, err = ds.OSVersions(ctx, nil, &platform, nil, nil)
+	require.NoError(t, err)
+
+	expected = []fleet.OSVersion{
+		{HostsCount: 1, Name: "CentOS 8.0.0", NameOnly: "CentOS", Version: "8.0.0", Platform: "rhel", OSVersionID: 4},
+		{HostsCount: 2, Name: "Ubuntu 20.4.0", NameOnly: "Ubuntu", Version: "20.4.0", Platform: "ubuntu", OSVersionID: 5},
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
 

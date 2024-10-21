@@ -3,6 +3,9 @@ import ArrowInternalLink from "./ArrowInternalLink";
 import Calendar from "./Calendar";
 import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
+import Checkbox from "./Checkbox";
+import CheckboxIndeterminate from "./CheckboxIndeterminate";
+import CheckboxUnchecked from "./CheckboxUnchecked";
 import ChevronLeft from "./ChevronLeft";
 import ChevronRight from "./ChevronRight";
 import ChevronUp from "./ChevronUp";
@@ -73,6 +76,9 @@ export const ICON_MAP = {
   "chevron-up": ChevronUp,
   "chevron-down": ChevronDown,
   check: Check,
+  checkbox: Checkbox,
+  "checkbox-indeterminate": CheckboxIndeterminate,
+  "checkbox-unchecked": CheckboxUnchecked,
   columns: Columns,
   disable: Disable,
   close: Close,

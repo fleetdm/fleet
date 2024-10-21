@@ -326,7 +326,8 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		switch cmd.Command.RequestType {
 		case "InstallProfile":
 			installProfileCount++
-			if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", customProfileIdent)) {
+			if strings.Contains(string(cmd.Command.InstallProfile.Payload), //nolint:gocritic // ignore ifElseChain
+				fmt.Sprintf("<string>%s</string>", customProfileIdent)) {
 				profileCustomSeen = true
 			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)) {
 				profileFleetdSeen = true

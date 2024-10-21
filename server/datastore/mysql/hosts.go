@@ -1218,7 +1218,8 @@ func (ds *Datastore) applyHostFilters(
 	sqlStmt, whereParams, _ = hostSearchLike(sqlStmt, whereParams, opt.MatchQuery, append(hostSearchColumns, "display_name")...)
 	sqlStmt, whereParams = appendListOptionsWithCursorToSQL(sqlStmt, whereParams, &opt.ListOptions)
 
-	params := append(selectParams, joinParams...)
+	params := selectParams
+	params = append(params, joinParams...)
 	params = append(params, whereParams...)
 
 	return sqlStmt, params, nil
@@ -1280,7 +1281,7 @@ func filterHostsByConnectedToFleet(sql string, opt fleet.HostListOptions, params
 }
 
 func filterHostsByOS(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
-	if opt.OSIDFilter != nil {
+	if opt.OSIDFilter != nil { //nolint:gocritic // ignore ifElseChain
 		sql += ` AND hos.os_id = ?`
 		params = append(params, *opt.OSIDFilter)
 	} else if opt.OSNameFilter != nil && opt.OSVersionFilter != nil {
@@ -4693,7 +4694,7 @@ func (ds *Datastore) OSVersions(
 	// filter by platform, name, and version
 	var filtered []fleet.OSVersion
 	for _, os := range counts {
-		if (platform == nil || *platform == os.Platform) && (name == nil || version == nil || (*name == os.NameOnly && *version == os.Version)) {
+		if (platform == nil || *platform == os.Platform || (*platform == "linux" && fleet.IsLinux(os.Platform))) && (name == nil || version == nil || (*name == os.NameOnly && *version == os.Version)) {
 			filtered = append(filtered, os)
 		}
 	}
@@ -5385,7 +5386,8 @@ func (ds *Datastore) UpdateHostIssuesVulnerabilities(ctx context.Context) error 
 	}
 	var criticalCounts []issuesCount
 	// We must batch the query extracting the critical vulnerabilities count because the query is too complex for MySQL to handle in one go.
-	// We saw MySQL error 1114 (HY000), where the temporary table reached its max capacity.
+	// We saw MySQL error 1114 (HY000), where the temporary table reached its max capacity.  Temporary table size is reduced further by
+	// filtering cvss_score in the subqueries.
 	for i := 0; i < len(allHostIDs); i += hostIssuesInsertBatchSize {
 		start := i
 		end := i + hostIssuesInsertBatchSize
@@ -5394,21 +5396,27 @@ func (ds *Datastore) UpdateHostIssuesVulnerabilities(ctx context.Context) error 
 		}
 		criticalVulnerabilitiesCountStmt := `
 		SELECT combined.host_id, COUNT(*) as count
-		FROM (SELECT host_id, cve
+		FROM (
+			SELECT host_id, sc.cve
 			FROM host_software hs
 			INNER JOIN software_cve sc ON sc.software_id = hs.software_id
+			INNER JOIN cve_meta cm ON cm.cve = sc.cve
 			WHERE host_id IN (?)
+			AND cm.cvss_score > ?
+
 			UNION
-			SELECT host_id, cve
+
+			SELECT host_id, osv.cve
 			FROM host_operating_system hos
 			INNER JOIN operating_system_vulnerabilities osv ON osv.operating_system_id = hos.os_id
+			INNER JOIN cve_meta cm ON cm.cve = osv.cve
 			WHERE host_id IN (?)
+			AND cm.cvss_score > ?
 		) combined
 		INNER JOIN cve_meta cm ON cm.cve = combined.cve
-		WHERE cm.cvss_score > ?
 		GROUP BY combined.host_id
 		ORDER BY combined.host_id`
-		stmt, args, err := sqlx.In(criticalVulnerabilitiesCountStmt, allHostIDs[start:end], allHostIDs[start:end], criticalCVSSScoreCutoff)
+		stmt, args, err := sqlx.In(criticalVulnerabilitiesCountStmt, allHostIDs[start:end], criticalCVSSScoreCutoff, allHostIDs[start:end], criticalCVSSScoreCutoff)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building IN statement for getting critical vulnerabilities count")
 		}

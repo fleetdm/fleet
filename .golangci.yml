@@ -26,10 +26,10 @@ linters-settings:
   errcheck:
     check-type-assertions: false
     check-blank: false
-    ignore: fmt:.*
     disable-default-exclusions: false
     exclude-functions:
       - "(github.com/go-kit/log.Logger).Log"
+      - fmt:.*
   
   gosec:
     config:

@@ -166,7 +166,7 @@ INSERT INTO software_installers (
 
 	id, _ := res.LastInsertId()
 
-	return uint(id), nil
+	return uint(id), nil //nolint:gosec // dismiss G115
 }
 
 func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {

@@ -1,12 +1,15 @@
 package service
 
 import (
+	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -743,4 +746,41 @@ func TestGetProfilesContents(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGitOpsErrors(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	client, err := NewClient("https://foo.bar", true, "", "")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name    string
+		rawJSON string
+		wantErr string
+	}{
+		{
+			name:    "invalid integrations value",
+			rawJSON: `{ "integrations": false }`,
+			wantErr: "org_settings.integrations",
+		},
+		{
+			name:    "invalid ndes_scep_proxy value",
+			rawJSON: `{ "integrations": { "ndes_scep_proxy": [] } }`,
+			wantErr: "org_settings.integrations.ndes_scep_proxy",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &spec.GitOps{}
+			config.OrgSettings = make(map[string]interface{})
+			err = json.Unmarshal([]byte(tt.rawJSON), &config.OrgSettings)
+			require.NoError(t, err)
+			config.OrgSettings["secrets"] = []*fleet.EnrollSecret{}
+			_, err = client.DoGitOps(ctx, config, "/filename", nil, false, nil, nil, nil, nil)
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+
 }

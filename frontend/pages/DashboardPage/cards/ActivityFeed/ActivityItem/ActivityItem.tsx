@@ -414,6 +414,33 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  addedNdesScepProxy: () => {
+    return (
+      <>
+        {" "}
+        added Microsoft&apos;s Network Device Enrollment Service (NDES) as your
+        SCEP server.
+      </>
+    );
+  },
+  deletedNdesScepProxy: () => {
+    return (
+      <>
+        {" "}
+        removed Microsoft&apos;s Network Device Enrollment Service (NDES) as
+        your SCEP server.
+      </>
+    );
+  },
+  editedNdesScepProxy: () => {
+    return (
+      <>
+        {" "}
+        edited configurations for Microsoft&apos;s Network Device Enrollment
+        Service (NDES) as your SCEP server.
+      </>
+    );
+  },
   createdWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
@@ -1104,7 +1131,6 @@ const getDetail = (
     case ActivityType.EditedIpadosMinVersion: {
       return TAGGED_TEMPLATES.editedAppleosMinVersion("iPadOS", activity);
     }
-
     case ActivityType.ReadHostDiskEncryptionKey: {
       return TAGGED_TEMPLATES.readHostDiskEncryptionKey(activity);
     }
@@ -1116,6 +1142,15 @@ const getDetail = (
     }
     case ActivityType.EditedAppleOSProfile: {
       return TAGGED_TEMPLATES.editedAppleOSProfile(activity, isPremiumTier);
+    }
+    case ActivityType.AddedNdesScepProxy: {
+      return TAGGED_TEMPLATES.addedNdesScepProxy();
+    }
+    case ActivityType.DeletedNdesScepProxy: {
+      return TAGGED_TEMPLATES.deletedNdesScepProxy();
+    }
+    case ActivityType.EditedNdesScepProxy: {
+      return TAGGED_TEMPLATES.editedNdesScepProxy();
     }
     case ActivityType.CreatedWindowsProfile: {
       return TAGGED_TEMPLATES.createdWindowsProfile(activity, isPremiumTier);
