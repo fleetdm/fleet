@@ -1039,7 +1039,7 @@ Learn how to communicate as Fleet with guidelines for tone of voice, our approac
 ### Writing style
 
   - Infuse the core [values](https://fleetdm.com/handbook/company#values) into everything you write. 
-  - Read and reread, then rewrite to make it shorter. Use links rather than explanations, short sentences. 
+  - Read and reread, then rewrite to make it shorter. Use links rather than explanations, and favor short sentences. 
   - Get to where you feel like it’s really good, short, simple, and clear, hack away at any word that’s too confusing. 
   - Don’t sound formal, sound welcoming so that anyone can understand. Translate "[puffery](https://www.linkedin.com/pulse/puffery-adam-frankl%3FtrackingId=SBVWxzqXTBm9qlO7Rw3ddw%253D%253D/?trackingId=SBVWxzqXTBm9qlO7Rw3ddw%3D%3D)" into "ease of use" or "readability".
     - Disarm puffery for engineers by replacing puffery with real data.
