@@ -90,7 +90,7 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	// are not terminal
 
 	if payload.BootstrapPackage != nil {
-		if payload.BootstrapPackage.Status != fleet.MDMBootstrapPackageFailed || payload.BootstrapPackage.Status != fleet.MDMBootstrapPackageInstalled {
+		if payload.BootstrapPackage.Status != fleet.MDMBootstrapPackageFailed && payload.BootstrapPackage.Status != fleet.MDMBootstrapPackageInstalled {
 			return nil
 		}
 	}
@@ -117,7 +117,15 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	if len(payload.Software) > 0 || payload.Script != nil {
 		var stepsDone int
 		var prog uint
-		steps := append(payload.Software, payload.Script)
+		var steps []*fleet.SetupExperienceStatusResult
+		if len(payload.Software) > 0 {
+			steps = payload.Software
+		}
+
+		if payload.Script != nil {
+			steps = append(steps, payload.Script)
+		}
+
 		for _, step := range steps {
 			item := resultToListItem(step)
 			if _, ok := s.steps[step.Name]; ok {
