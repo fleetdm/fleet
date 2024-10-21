@@ -3462,19 +3462,10 @@ spec:
       2. The key to include is ShowOverlayStatusBar 
       3. The key must be set to: <true/>
   query: |
-    SELECT 1 WHERE 
-      EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.Safari' AND 
-            name='ShowOverlayStatusBar' AND 
-            (value = 1 OR value = 'true')
-        )
-      AND NOT EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.Safari' AND 
-            name='ShowOverlayStatusBar' AND 
-            (value != 1 AND value != 'true')
-        );  
+    SELECT 1 FROM managed_policies WHERE 
+      domain='com.apple.Safari' AND 
+      name='ShowOverlayStatusBar' AND 
+      (value = 1 OR value = 'true');
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: defensivedepth
