@@ -57,15 +57,10 @@ Once notified, Digital Experience takes the following steps:
 
 ### Inform managers about hours worked
 
-Every Friday at 2:00 PM CT, we collect hours worked for all hourly employees at Fleet, including core team members and consultants, regardless of their location.
-
-Here's how:
-
-1. Consultants submit their hours through Gusto (US consultants) or Plane.com (international consultants) and require DRI approval (generally their manager) for hours worked. Find the DRI using the [Digital Experience KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
-2. Send the teammate's DRI a direct message in Slack with a screenshot of the HRIS portal, showing hours logged since last Saturday at midnight, and ask them to confirm the hours are expected. Ensure the screenshot does not include compensation information.
-     - For international teammates, they cannot enter hours weekly in Plane.com, so you will need to request the hours worked from them in order to have the DRI approve them.
-3. The following Monday, check for updates to logged hours and ensure the KPI sheet aligns with HRIS records.
-     - If there are discrepancies between what was previously reported, reconfirm logged hours with the teammate's DRI and update the KPI sheet to reflect the correct amount.
+Every Friday, we collect hours worked for all hourly employees at Fleet, including core team members and consultants, regardless of their location. Consultants submit their hours through Gusto (US consultants) or Plane.com (international consultants) for DRI (generally their manager) review. Here's how:
+1. Find the DRI using the [Digital Experience KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+2. Copy the template in the consultants column of the KPIs and send the teammate's DRI a direct message in Slack hours with an FYI including the total hours logged since last Saturday at midnight. For international teammates, they cannot enter hours weekly in Plane.com, so you will need to request the hours worked from them in order to have the DRI approve them.
+3. The following Monday, check for updates to logged hours and ensure the KPI sheet aligns with HRIS records. If there are discrepancies between what was previously reported, reconfirm logged hours with the teammate's DRI and update the KPI sheet to reflect the correct amount.
 
 
 ### Change the DRI of a consultant
@@ -130,12 +125,13 @@ When Digital Experience receives notification of a Fleetie's manager changing, f
 
 > **Note:** The Fleeties spreadsheet is the source of truth for who everyone's manager is and their job titles.
 
+
 ### Recognize employee workiversaries
 
 At Fleet, everyone is recognized on their [workiversary](https://fleetdm.com/handbook/company/communications#workiversaries). To ensure this happens, take the following steps:
 
-1. Bimonthly, use [Fleeties (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) to determine who is celebrating their workiversary in the following two months.
-2. Post in the #help-classifed Slack channel and cc the Head of Digital Experience. Use the following template:
+1. On the 15th of every month, use [Fleeties (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) to determine who is celebrating their workiversary in the next month.
+2. At-mention the Head of Digital Experience. Use the following template:
 
    
     ```
@@ -143,7 +139,6 @@ At Fleet, everyone is recognized on their [workiversary](https://fleetdm.com/han
     [workiversary date (DD-MMM)] - [teammate name] - [number of years at Fleet]
     ```
 
-    
    The Head of Digital Experience will also use this post to update the [All hands](https://fleetdm.com/handbook/company/communications#all-hands) deck.
 3. On the day prior to a workiversary, send the teammate’s manager a DM on Slack:
 
@@ -190,6 +185,7 @@ Annually, around mid-year, Fleet will be prompted by Gusto to review company ben
 3. Complete the survey questions, aiming for minimal changes.
 4. Approximately 2-3 months after survery completion, Gusto will suggest plans based on Fleet's responses. Choose plans with minimal changes.
 5. Gusto will offer these plans to employees during open enrollment, with new coverage starting 3-4 weeks afterward.
+
 
 ### Grant equity
 
@@ -782,12 +778,9 @@ Fleet has several brand fronts that need to be updated from time to time. Check 
 
 1. Check the [_from-prospective-customers](https://fleetdm.slack.com/archives/C01HE9GQW6B) Slack channel for "Contact us" submissions. 
 2. Mark submission as seen with the "👀" emoji.
-3. Within 4 business hours, use the [best practices template (private Google doc)](https://docs.google.com/document/d/1D02k0tc5v-sEJ4uahAouuqnvZ6phxA_gP-IqmkBdMTE/edit) to respond to general asks.
+3. Within 4 business hours, use the [_from-prospective-customers workflow (private Google doc)](https://docs.google.com/document/d/1D02k0tc5v-sEJ4uahAouuqnvZ6phxA_gP-IqmkBdMTE/edit) to respond to general asks. Follow the "High-level workflow" to understand how to respond and who to loop into the conversation. 
 4. Answer any technical questions to the best of your ability. If you are unable to answer a technical/product question, ask a Solutions Consultant in `#help-solutions-consulting`. If an SC is unavailable, post in `#g-mdm`or `#g-endpoint-ops`and notify @on-call.
-5. log in to [Salesforce](https://fleetdm.lightning.force.com/lightning/o/Lead/list?filterName=00B4x00000DtaRDEAZ) and search the lead list by first name and match the corresponding email to find the right lead.
-6. Enrich each lead with company information and buying situation.
-7. If a lead is completed or out of ICP, update the lead status in Salesforce to "Closed" or "Disqualified". If within ICP at-mention the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel and move lead to their name in SFDC.
-8. Mark the Slack message as complete with the "✅" emoji.
+5. Mark the Slack message as complete with the "✅" emoji.
 
 > For any support-related questions, forward the submission to [Fleet's support team](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 

@@ -526,9 +526,9 @@ This activity contains the following fields:
 Generated when a host is enrolled in Fleet's MDM.
 
 This activity contains the following fields:
-- "host_serial": Serial number of the host.
+- "host_serial": Serial number of the host (Apple enrollments only, always empty for Microsoft).
 - "host_display_name": Display name of the host.
-- "installed_from_dep": Whether the host was enrolled via DEP.
+- "installed_from_dep": Whether the host was enrolled via DEP (Apple enrollments only, always false for Microsoft).
 - "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.
 
 #### Example
@@ -887,6 +887,8 @@ This activity contains the following fields:
 - "script_execution_id": Execution ID of the script run.
 - "script_name": Name of the script (empty if it was an anonymous script).
 - "async": Whether the script was executed asynchronously.
+- "policy_id": ID of the policy whose failure triggered the script run. Null if no associated policy.
+- "policy_name": Name of the policy whose failure triggered the script run. Null if no associated policy.
 
 #### Example
 
@@ -896,7 +898,9 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "script_name": "set-timezones.sh",
   "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
-  "async": false
+  "async": false,
+  "policy_id": 123,
+  "policy_name": "Ensure photon torpedoes are primed"
 }
 ```
 
@@ -1155,6 +1159,9 @@ This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "status": Status of the software installation.
+- "policy_id": ID of the policy whose failure triggered the installation. Null if no associated policy.
+- "policy_name": Name of the policy whose failure triggered installation. Null if no associated policy.
+
 
 #### Example
 
@@ -1166,7 +1173,9 @@ This activity contains the following fields:
   "software_package": "FalconSensor-6.44.pkg",
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
-  "status": "pending"
+  "status": "pending",
+  "policy_id": 1337,
+  "policy_name": "Ensure 1Password is installed and up to date"
 }
 ```
 
@@ -1364,6 +1373,24 @@ This activity contains the following fields:
   "command_uuid": "98765432-1234-1234-1234-1234567890ab"
 }
 ```
+
+## added_ndes_scep_proxy
+
+Generated when NDES SCEP proxy is configured in Fleet.
+
+This activity does not contain any detail fields.
+
+## deleted_ndes_scep_proxy
+
+Generated when NDES SCEP proxy configuration is deleted in Fleet.
+
+This activity does not contain any detail fields.
+
+## edited_ndes_scep_proxy
+
+Generated when NDES SCEP proxy configuration is edited in Fleet.
+
+This activity does not contain any detail fields.
 
 
 <meta name="title" value="Audit logs">

@@ -30,7 +30,7 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 			}
 
 			id, _ := scRes.LastInsertId()
-			request.ScriptContentID = uint(id)
+			request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 		}
 		res, err = newHostScriptExecutionRequest(ctx, tx, request)
 		return err
@@ -39,8 +39,8 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 
 func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 	const (
-		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, script_id, user_id, sync_request) VALUES (?, ?, ?, '', ?, ?, ?)`
-		getStmt = `SELECT hsr.id, hsr.host_id, hsr.execution_id, hsr.created_at, hsr.script_id, hsr.user_id, hsr.sync_request, sc.contents as script_contents FROM host_script_results hsr JOIN script_contents sc WHERE sc.id = hsr.script_content_id AND hsr.id = ?`
+		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, script_id, policy_id, user_id, sync_request) VALUES (?, ?, ?, '', ?, ?, ?, ?)`
+		getStmt = `SELECT hsr.id, hsr.host_id, hsr.execution_id, hsr.created_at, hsr.script_id, hsr.policy_id, hsr.user_id, hsr.sync_request, sc.contents as script_contents FROM host_script_results hsr JOIN script_contents sc WHERE sc.id = hsr.script_content_id AND hsr.id = ?`
 	)
 
 	execID := uuid.New().String()
@@ -49,6 +49,7 @@ func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, requ
 		execID,
 		request.ScriptContentID,
 		request.ScriptID,
+		request.PolicyID,
 		request.UserID,
 		request.SyncRequest,
 	)
@@ -147,7 +148,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			// software that receives them is responsible for casting
 			// it to a 32-bit signed integer.
 			// See /orbit/pkg/scripts/exec_windows.go
-			int32(result.ExitCode),
+			int32(result.ExitCode), //nolint:gosec // dismiss G115
 			result.Timeout,
 			result.HostID,
 			result.ExecutionID,
@@ -260,6 +261,7 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
     hsr.execution_id,
     sc.contents as script_contents,
     hsr.script_id,
+    hsr.policy_id,
     hsr.output,
     hsr.runtime,
     hsr.exit_code,
@@ -301,14 +303,14 @@ func (ds *Datastore) NewScript(ctx context.Context, script *fleet.Script) (*flee
 		id, _ := scRes.LastInsertId()
 
 		// then create the script entity
-		res, err = insertScript(ctx, tx, script, uint(id))
+		res, err = insertScript(ctx, tx, script, uint(id)) //nolint:gosec // dismiss G115
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
 	id, _ := res.LastInsertId()
-	return ds.getScriptDB(ctx, ds.writer(ctx), uint(id))
+	return ds.getScriptDB(ctx, ds.writer(ctx), uint(id)) //nolint:gosec // dismiss G115
 }
 
 func insertScript(ctx context.Context, tx sqlx.ExtContext, script *fleet.Script, scriptContentsID uint) (sql.Result, error) {
@@ -486,7 +488,7 @@ WHERE
 	var metaData *fleet.PaginationMetadata
 	if opt.IncludeMetadata {
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
-		if len(scripts) > int(opt.PerPage) {
+		if len(scripts) > int(opt.PerPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			scripts = scripts[:len(scripts)-1]
 		}
@@ -603,7 +605,7 @@ WHERE
 	var metaData *fleet.PaginationMetadata
 	if opt.IncludeMetadata {
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
-		if len(rows) > int(opt.PerPage) {
+		if len(rows) > int(opt.PerPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			rows = rows[:len(rows)-1]
 		}
@@ -740,7 +742,8 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrapf(ctx, err, "inserting script contents for script with name %q", s.Name)
 			}
 			id, _ := scRes.LastInsertId()
-			if _, err := tx.ExecContext(ctx, insertNewOrEditedScript, tmID, globalOrTeamID, s.Name, uint(id)); err != nil {
+			if _, err := tx.ExecContext(ctx, insertNewOrEditedScript, tmID, globalOrTeamID, s.Name,
+				uint(id)); err != nil { //nolint:gosec // dismiss G115
 				return ctxerr.Wrapf(ctx, err, "insert new/edited script with name %q", s.Name)
 			}
 		}
@@ -950,7 +953,7 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 		}
 
 		id, _ := scRes.LastInsertId()
-		request.ScriptContentID = uint(id)
+		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
 		res, err = newHostScriptExecutionRequest(ctx, tx, request)
 		if err != nil {
@@ -1000,7 +1003,7 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 		}
 
 		id, _ := scRes.LastInsertId()
-		request.ScriptContentID = uint(id)
+		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
 		res, err = newHostScriptExecutionRequest(ctx, tx, request)
 		if err != nil {
@@ -1051,7 +1054,7 @@ func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostS
 		}
 
 		id, _ := scRes.LastInsertId()
-		request.ScriptContentID = uint(id)
+		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
 		res, err = newHostScriptExecutionRequest(ctx, tx, request)
 		if err != nil {

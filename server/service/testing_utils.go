@@ -38,6 +38,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/go-kit/kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -326,6 +327,7 @@ type TestServerOpts struct {
 	SoftwareInstallStore  fleet.SoftwareInstallerStore
 	BootstrapPackageStore fleet.MDMBootstrapPackageStore
 	KeyValueStore         fleet.KeyValueStore
+	EnableSCEPProxy       bool
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -378,6 +380,26 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 				},
 			)
 			require.NoError(t, err)
+		}
+		if opts[0].EnableSCEPProxy {
+			err := RegisterSCEPProxy(
+				rootMux,
+				ds,
+				logger,
+			)
+			require.NoError(t, err)
+			origValidateNDESSCEPURL := validateNDESSCEPURL
+			origValidateNDESSCEPAdminURL := validateNDESSCEPAdminURL
+			t.Cleanup(func() {
+				validateNDESSCEPURL = origValidateNDESSCEPURL
+				validateNDESSCEPAdminURL = origValidateNDESSCEPAdminURL
+			})
+			validateNDESSCEPURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration, _ log.Logger) error {
+				return nil
+			}
+			validateNDESSCEPAdminURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
+				return nil
+			}
 		}
 	}
 
@@ -700,12 +722,12 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		// parsed before the MDM check, we need to refactor this
 		// function to return more information to the caller, or find a
 		// better way to test these endpoints.
-		//{"POST", "/api/latest/fleet/mdm/profiles", false, false},
-		//{"POST", "/api/latest/fleet/configuration_profiles", false, false},
-		//{"POST", "/api/latest/fleet/mdm/setup/eula"},
-		//{"POST", "/api/latest/fleet/setup_experience/eula"},
-		//{"POST", "/api/latest/fleet/mdm/bootstrap", false, true},
-		//{"POST", "/api/latest/fleet/bootstrap", false, true},
+		// {"POST", "/api/latest/fleet/mdm/profiles", false, false},
+		// {"POST", "/api/latest/fleet/configuration_profiles", false, false},
+		// {"POST", "/api/latest/fleet/mdm/setup/eula"},
+		// {"POST", "/api/latest/fleet/setup_experience/eula"},
+		// {"POST", "/api/latest/fleet/mdm/bootstrap", false, true},
+		// {"POST", "/api/latest/fleet/bootstrap", false, true},
 		{"GET", "/api/latest/fleet/mdm/profiles", false, false},
 		{"GET", "/api/latest/fleet/configuration_profiles", false, false},
 		{"GET", "/api/latest/fleet/mdm/manual_enrollment_profile", false, true},

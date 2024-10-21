@@ -179,11 +179,11 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	if u.Script.IsOther {
 		addUserVar()
 		for _, path := range u.Script.Other {
-			sb.Writef(fmt.Sprintf(`sudo -u "$LOGGED_IN_USER" '%s'`, path))
+			sb.Writef(`sudo -u "$LOGGED_IN_USER" '%s'`, path)
 		}
 	} else if len(u.Script.String) > 0 {
 		addUserVar()
-		sb.Writef(fmt.Sprintf(`sudo -u "$LOGGED_IN_USER" '%s'`, u.Script.String))
+		sb.Writef(`sudo -u "$LOGGED_IN_USER" '%s'`, u.Script.String)
 	}
 
 	process(u.PkgUtil, func(pkgID string) {
@@ -286,19 +286,19 @@ func (s *scriptBuilder) InstallPkg(pkg string, choices ...[]brewPkgConfig) error
 		return nil
 	}
 
-	choiceXML, err := plist.MarshalIndent(choices, "  ")
+	choiceXML, err := plist.MarshalIndent(choices[0], "  ")
 	if err != nil {
 		return err
 	}
 
 	s.Writef(`
-CHOICE_XML=$(mktemp /tmp/choice_xml)
+CHOICE_XML=$(mktemp /tmp/choice_xml_XXX)
 
 cat << EOF > "$CHOICE_XML"
 %s
 EOF
 
-sudo installer -pkg "$temp_dir"/%s -target / -applyChoiceChangesXML "$CHOICE_XML"
+sudo installer -pkg "$TMPDIR"/%s -target / -applyChoiceChangesXML "$CHOICE_XML"
 `, choiceXML, pkg)
 
 	return nil

@@ -1751,7 +1751,7 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 			case lts != nil && rts == nil:
 				return false
 			default:
-				return (*lts).Before(*rts) || ((*lts).Equal(*rts) && lsw.Name < rsw.Name)
+				return lts.Before(*rts) || (lts.Equal(*rts) && lsw.Name < rsw.Name)
 			}
 		}
 	}
@@ -1972,7 +1972,7 @@ func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 
 		occurrence := make(map[string]int)
 		for _, v := range storedVulns[host.ID] {
-			occurrence[v.CVE] = occurrence[v.CVE] + 1
+			occurrence[v.CVE]++
 		}
 		require.Equal(t, 1, occurrence["cve-1"])
 	})
@@ -2016,7 +2016,7 @@ func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 
 		occurrence := make(map[string]int)
 		for _, v := range storedVulns[host.ID] {
-			occurrence[v.CVE] = occurrence[v.CVE] + 1
+			occurrence[v.CVE]++
 		}
 		require.Equal(t, 1, occurrence["cve-1"])
 		require.Equal(t, 1, occurrence["cve-2"])
@@ -4572,7 +4572,7 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// install it on the host
-	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerTm1, false)
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerTm1, false, nil)
 	require.NoError(t, err)
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
@@ -4682,7 +4682,7 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 	require.NoError(t, err)
 
 	// fail to install it on the host
-	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerTm1, false)
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerTm1, false, nil)
 	require.NoError(t, err)
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,

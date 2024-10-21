@@ -60,7 +60,7 @@ func EncodePrivateKeyPEM(key *rsa.PrivateKey) []byte {
 //
 // The implementation details have been mostly taken from https://github.com/pquerna/otp
 func GenerateRandomPin(length int) string {
-	counter := uint64(time.Now().Unix())
+	counter := uint64(time.Now().Unix()) //nolint:gosec // dismiss G115
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, counter)
 	m := sha256.New()
@@ -71,7 +71,7 @@ func GenerateRandomPin(length int) string {
 		((int(sum[offset+1] & 0xff)) << 16) |
 		((int(sum[offset+2] & 0xff)) << 8) |
 		(int(sum[offset+3]) & 0xff))
-	v := int32(value % int64(math.Pow10(length)))
+	v := int32(value % int64(math.Pow10(length))) //nolint:gosec // dismiss G115
 	f := fmt.Sprintf("%%0%dd", length)
 	return fmt.Sprintf(f, v)
 }

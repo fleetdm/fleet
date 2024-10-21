@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useContext } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
@@ -7,9 +7,11 @@ import mdmAppleAPI, {
   IGetVppTokensResponse,
 } from "services/entities/mdm_apple";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { AppContext } from "context/app";
 
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
 import AddSoftwareVppForm from "./AddSoftwareVppForm";
 import { teamHasVPPToken } from "./helpers";
@@ -25,6 +27,8 @@ const SoftwareAppStoreVpp = ({
   currentTeamId,
   router,
 }: ISoftwareAppStoreProps) => {
+  const { isPremiumTier } = useContext(AppContext);
+
   const {
     data: vppInfo,
     isLoading: isLoadingVppInfo,
@@ -57,6 +61,12 @@ const SoftwareAppStoreVpp = ({
   );
 
   const renderContent = () => {
+    if (!isPremiumTier) {
+      return (
+        <PremiumFeatureMessage className={`${baseClass}__premium-message`} />
+      );
+    }
+
     if (isLoadingVppInfo || isLoadingVppApps) {
       return <Spinner />;
     }

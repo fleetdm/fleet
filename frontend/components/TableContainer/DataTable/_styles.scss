@@ -37,7 +37,7 @@ $shadow-transition-width: 10px;
       background-attachment: local, local, scroll, scroll;
       // End shadow
     }
-    
+
     // applied to same element as data-table__table while loading
     &__no-rows {
       min-height: 272px;
@@ -67,6 +67,12 @@ $shadow-transition-width: 10px;
         .fleet-checkbox__label {
           padding-left: 0;
         }
+      }
+
+      // Cleaner when tabbing
+      a:focus-visible {
+        outline-offset: 0;
+        border-radius: $border-radius-medium;
       }
     }
 

@@ -683,7 +683,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
 				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier) VALUES %s", titlesValues)
 				titlesArgs := make([]interface{}, 0, totalTitlesToProcess*numberOfArgsPerSoftwareTitles)
-				titleChecksums := make([]string, totalTitlesToProcess)
+				titleChecksums := make([]string, 0, totalTitlesToProcess)
 				for checksum, title := range newTitlesNeeded {
 					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier)
 					titleChecksums = append(titleChecksums, checksum)
@@ -1014,7 +1014,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 				"shc.team_id",
 			)
 
-		if opts.TeamID == nil {
+		if opts.TeamID == nil { //nolint:gocritic // ignore ifElseChain
 			ds = ds.Where(
 				goqu.And(
 					goqu.I("shc.team_id").Eq(0),
@@ -1413,7 +1413,7 @@ func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpt
 			perPage = defaultSelectLimit
 		}
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
-		if len(software) > int(perPage) {
+		if len(software) > int(perPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			software = software[:len(software)-1]
 		}
@@ -2623,7 +2623,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			HasPreviousResults: opts.ListOptions.Page > 0,
 			TotalResults:       titleCount,
 		}
-		if len(hostSoftwareList) > int(perPage) {
+		if len(hostSoftwareList) > int(perPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			hostSoftwareList = hostSoftwareList[:len(hostSoftwareList)-1]
 		}

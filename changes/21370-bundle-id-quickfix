@@ -1,1 +1,0 @@
-- Fix "no rows" error when adding a software installer that matches an existing title's name and source but not its bundle ID

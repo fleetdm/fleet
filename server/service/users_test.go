@@ -728,7 +728,7 @@ func testUsersChangePassword(t *testing.T, ds *mysql.Datastore) {
 			ctx = viewer.NewContext(ctx, viewer.Viewer{User: &tt.user})
 
 			err := svc.ChangePassword(ctx, tt.oldPassword, tt.newPassword)
-			if tt.anyErr {
+			if tt.anyErr { //nolint:gocritic // ignore ifElseChain
 				require.NotNil(t, err)
 			} else if tt.wantErr != nil {
 				require.Equal(t, tt.wantErr, ctxerr.Cause(err))

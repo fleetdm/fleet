@@ -26,8 +26,10 @@ const policyCols = `
 	p.calendar_events_enabled, p.software_installer_id, p.script_id
 `
 
-var errSoftwareTitleIDOnGlobalPolicy = errors.New("install software title id can be only be set on team policies")
-var errScriptIDOnGlobalPolicy = errors.New("run script id can only be set on team or \"no team\" policies")
+var (
+	errSoftwareTitleIDOnGlobalPolicy = errors.New("install software title id can be only be set on team policies")
+	errScriptIDOnGlobalPolicy        = errors.New("run script id can only be set on team or \"no team\" policies")
+)
 
 var policySearchColumns = []string{"p.name"}
 
@@ -68,7 +70,7 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting last id after inserting policy")
 	}
-	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), nil)
+	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), nil) //nolint:gosec // dismiss G115
 }
 
 func policiesChecksumComputedColumn() string {
@@ -123,7 +125,7 @@ func (ds *Datastore) PolicyLite(ctx context.Context, id uint) (*fleet.PolicyLite
 	var policy fleet.PolicyLite
 	err := sqlx.GetContext(
 		ctx, ds.reader(ctx), &policy,
-		`SELECT id, description, resolution FROM policies WHERE id=?`, id,
+		`SELECT id, name, description, resolution FROM policies WHERE id=?`, id,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -177,8 +179,10 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	)
 }
 
-var errMismatchedInstallerTeam = &fleet.BadRequestError{Message: "software installer is associated with a different team"}
-var errMismatchedScriptTeam = &fleet.BadRequestError{Message: "script is associated with a different team"}
+var (
+	errMismatchedInstallerTeam = &fleet.BadRequestError{Message: "software installer is associated with a different team"}
+	errMismatchedScriptTeam    = &fleet.BadRequestError{Message: "script is associated with a different team"}
+)
 
 func (ds *Datastore) assertTeamMatches(ctx context.Context, teamID uint, softwareInstallerID *uint, scriptID *uint) error {
 	if softwareInstallerID != nil {
@@ -382,10 +386,12 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	if err != nil {
 		return err
 	}
-	if len(results) > 0 {
-		if err := ds.UpdateHostIssuesFailingPolicies(ctx, []uint{host.ID}); err != nil {
-			return err
-		}
+
+	// ds.UpdateHostIssuesFailingPolicies should be executed even if len(results) == 0
+	// because this means the host is configured to run no policies and we would like
+	// to cleanup the counts (if any).
+	if err := ds.UpdateHostIssuesFailingPolicies(ctx, []uint{host.ID}); err != nil {
+		return err
 	}
 
 	if deferredSaveHost {
@@ -455,7 +461,7 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 
 // getInheritedPoliciesForTeam returns the list of global policies with the
 // passing and failing host counts for the provided teamID
-func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, TeamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, teamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 	var args []interface{}
 
 	query := `
@@ -472,7 +478,7 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, Tea
         WHERE p.team_id IS NULL
     `
 
-	args = append(args, TeamID)
+	args = append(args, teamID)
 
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	match := norm.NFC.String(opts.MatchQuery)
@@ -679,7 +685,7 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting last id after inserting policy")
 	}
-	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), &teamID)
+	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), &teamID) //nolint:gosec // dismiss G115
 }
 
 func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
@@ -925,7 +931,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 							}
 						}
 						if err = cleanupPolicy(
-							ctx, tx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, ds.logger,
+							ctx, tx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, //nolint:gosec // dismiss G115
+							removePolicyStats, ds.logger,
 						); err != nil {
 							return err
 						}
@@ -1416,7 +1423,7 @@ func amountPolicyViolationDaysDB(ctx context.Context, tx sqlx.QueryerContext) (i
 		return 0, 0, ctxerr.Wrap(ctx, err, "unmarshal policy violation counts")
 	}
 
-	return int(counts.FailingHostCount), int(counts.TotalHostCount), nil
+	return int(counts.FailingHostCount), int(counts.TotalHostCount), nil //nolint:gosec // dismiss G115
 }
 
 func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {

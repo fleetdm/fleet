@@ -38,7 +38,11 @@ export interface IButtonProps {
   variant?: ButtonVariant;
   onClick?:
     | ((value?: any) => void)
-    | ((evt: React.MouseEvent<HTMLButtonElement>) => void);
+    | ((
+        evt:
+          | React.MouseEvent<HTMLButtonElement>
+          | React.KeyboardEvent<HTMLButtonElement>
+      ) => void);
   isLoading?: boolean;
 }
 
@@ -75,22 +79,32 @@ class Button extends React.Component<IButtonProps, IButtonState> {
 
   inputs: Inputs = {};
 
-  handleClick = (evt: React.MouseEvent<HTMLButtonElement>): boolean => {
+  handleClick = (evt: React.MouseEvent<HTMLButtonElement>): void => {
     const { disabled, onClick } = this.props;
 
     if (disabled) {
-      return false;
+      return;
     }
 
     if (onClick) {
       onClick(evt);
     }
+  };
 
-    return false;
+  handleKeyDown = (evt: React.KeyboardEvent<HTMLButtonElement>): void => {
+    const { disabled, onClick } = this.props;
+
+    if (disabled || evt.key !== "Enter") {
+      return;
+    }
+
+    if (onClick) {
+      onClick(evt as any);
+    }
   };
 
   render(): JSX.Element {
-    const { handleClick, setRef } = this;
+    const { handleClick, handleKeyDown, setRef } = this;
     const {
       children,
       className,
@@ -122,6 +136,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         className={fullClassName}
         disabled={disabled}
         onClick={handleClick}
+        onKeyDown={handleKeyDown}
         tabIndex={tabIndex}
         type={type}
         title={title}

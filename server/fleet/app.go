@@ -520,6 +520,9 @@ func (c *AppConfig) Obfuscate() {
 	for _, zdIntegration := range c.Integrations.Zendesk {
 		zdIntegration.APIToken = MaskedPassword
 	}
+	if c.Integrations.NDESSCEPProxy.Valid {
+		c.Integrations.NDESSCEPProxy.Value.Password = MaskedPassword
+	}
 }
 
 // Clone implements cloner.

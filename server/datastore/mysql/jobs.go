@@ -30,7 +30,7 @@ VALUES (?, ?, ?, ?, ?, COALESCE(?, NOW()))
 	}
 
 	id, _ := result.LastInsertId()
-	job.ID = uint(id)
+	job.ID = uint(id) //nolint:gosec // dismiss G115
 
 	return job, nil
 }

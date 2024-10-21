@@ -1370,4 +1370,46 @@ describe("Activity Feed", () => {
     render(<ActivityItem activity={activity} isPremiumTier />);
     expect(screen.getByText("An end user")).toBeInTheDocument();
   });
+
+  it("renders addedNdesScepProxy activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AddedNdesScepProxy,
+    });
+    render(<ActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /added Microsoft's Network Device Enrollment Service \(NDES\) as your SCEP server/
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("renders editedNdesScepProxy activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedNdesScepProxy,
+    });
+    render(<ActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /edited configurations for Microsoft's Network Device Enrollment Service \(NDES\) as your SCEP server/
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("renders deletedNdesScepProxy activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedNdesScepProxy,
+    });
+    render(<ActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /removed Microsoft's Network Device Enrollment Service \(NDES\) as your SCEP server/
+      )
+    ).toBeInTheDocument();
+  });
 });
