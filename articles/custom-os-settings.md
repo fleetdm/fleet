@@ -18,7 +18,7 @@ Fleet UI:
 
 3. Select **Upload** and choose your configuration profile.
 
-4. To modify the OS setting, first add a new configuration profile and then remove the old one.
+4. To modify the OS setting, first remove the old configuration profile and then add the new one.
 
 Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile)
 
