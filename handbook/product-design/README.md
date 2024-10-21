@@ -23,15 +23,18 @@ This handbook page details processes specific to working [with](#contact-us) and
 The Product Design department is responsible for reviewing and collecting feedback from users, would-be users, and future users, prioritizing changes, designing the changes, and delivering these changes to the engineering team. Product Design prioritizes and shapes all changes involving functionality or usage, including the UI, REST API, command line, and webhooks. 
 
 
+### Unpacking the why
 
-### Inbox review
+The Head of Product Design and a former IT admin review the new customer/prospect/community requests in the "Inbox" column the [drafting board](https://github.com/fleetdm/fleet/issues#workspaces/drafting-6192dd66ea2562000faea25c/board) to synthesize why users are making the request (i.e. what problem are they trying to solve).
 
-The Head of Product Design and relevant internal SME(s) from review the new customer/community requests on the [drafting board](https://github.com/fleetdm/fleet/issues#workspaces/drafting-6192dd66ea2562000faea25c/board) to synthesize what users will expect. 
+If a customer/prospect request is missing a Gong snippet or requires additional information to understand the "why", the Head of Product Design will @ mention the relevant Customer Success Manager (CSM) or Account Executive (AE), assign them, and move the request to the "Waiting" column.
 
 
-### Unpack the how
+### Unpacking the how
 
-3 weeks before end of quarter, The Head of Product Design will start daily 1h meetings with the CEO. The Head of Product Design brings the appropriate SME to provide feedback on how fleet will design a particular feature, then as soon as we've addressed the next quarter's issues cleared, we're good. 
+3 weeks before end of each quarter, The Head of Product Design starts a daily 1h meeting with the CEO. The Head of Product Design brings an objective for the next quarter and the appropriate subject matter expert to understand what users will expect. This helps Product Designers at Fleet understand how Fleet will design a particular feature. 
+
+As soon as we've addressed the next quarter's objectives, the Head of Product Design cancels the daily meeting. 
 
 
 ### Product design check in

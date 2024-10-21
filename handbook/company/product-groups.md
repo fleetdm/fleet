@@ -74,8 +74,9 @@ To deliver on this mission, we need a clear, repeatable process for turning an i
 
 To make a change to Fleet:
 - First, [write it down](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~feature+fest%2C%3Aproduct&projects=&template=feature-request.md&title=)
-- Then, it will be looked at by our Head of Product Design and a former Fleet buyer to [unpack the "why"](https://fleetdm.com/handbook/product-design#inbox-review)
-- Then, it will be [prioritized](https://fleetdm.com/handbook/product-design) and written up as one or more user stories.
+- Then, it will be looked at by Fleet's [Head of Product Design](https://fleetdm.com/handbook/product-design#team) and a former IT admin [unpack the "why"](https://fleetdm.com/handbook/product-design#inbox-review).
+  - For a customer/prospect request to be looked at, it must have a Gong snippet.
+- Then, it will be [prioritized](https://fleetdm.com/handbook/company/product-groups#feature-fest) and written up as one or more user stories.
 - Then, it will be [drafted](https://fleetdm.com/handbook/company/product-groups#drafting) (planned).
 - Next, it will be [implemented](https://fleetdm.com/handbook/company/product-groups#implementing) and [released](https://fleetdm.com/handbook/engineering#release-process).
 
