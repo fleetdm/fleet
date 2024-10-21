@@ -8,7 +8,6 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Role                            | Contributor(s)           |
 |:--------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Chief Technology Officer (CTO)  | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
-| Client Platform Engineer &amp; Community Advocate     | [JD Strong](https://www.linkedin.com/in/jackdaniyelstrong/) _([@spokanemac](https://github.com/spokanemac/spokanemac))_
 | Engineering Manager (EM)        | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 | Quality Assurance Engineer (QA) | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 | Software Engineer               | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
@@ -45,7 +44,7 @@ We write [guides](https://fleetdm.com/guides) for all new features. Feature guid
 1. Review and follow the [Fleet writing style guide](https://fleetdm.com/handbook/company/communications#writing).
 2. Make a copy of the ["Article: Guide Template"](https://docs.google.com/document/d/1OPcDouyfyFPg3ScrN4bo6ol8vMfMa3P9-BIfbnEdcg4/copy) and rename "Article: [Guide] {feature name}".
 3. Open the template and insert your [drafted content](https://fleetdm.com/handbook/company/product-groups#defining-done) into the provided template format. 
-4. Create a [new GitHub issue](https://github.com/fleetdm/fleet/issues/new?assignees=spokanemac&labels=:help-it&title=New%20guide:) with the guide title, and add the `:help-it` label. It will be processed and added to the website by our [Community Advocate](https://fleetdm.com/handbook/engineering#team).
+4. Create a [new GitHub issue](https://github.com/fleetdm/fleet/issues/new?assignees=rachaelshaw&labels=:help-it&title=New%20guide:) with the guide title, and add the `:help-it` label. It will be processed and added to the website by our [Community Advocate](https://fleetdm.com/handbook/engineering#team).
 
 
 ### Create an engineering-initiated story
@@ -207,24 +206,7 @@ Immediately after publishing a new release, we close out the associated GitHub i
 The [Fleet releases Google calendar](https://calendar.google.com/calendar/embed?src=c_v7943deqn1uns488a65v2d94bs%40group.calendar.google.com&ctz=America%2FChicago) is kept up-to-date by the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). Any change to targeted release dates is reflected on this calendar.
 
 
-### Secure company-issued equipment for a team member
 
-As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time.
-
-- [**Check the Fleet IT warehouse**](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) before purchasing any equipment including laptops, monitors, and Yubikeys to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). If Fleet IT warehouse inventory can meet the needs of the request, file a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request).
-
-- Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The IT engineer can arrange for same-day pickup at a store local to the Fleetie if needed.
-  - **Note:** Most Fleeties use 16-inch MacBook Pros. Team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](https://www.fleetdm.com/handbook/communications#spending-company-money). 
-
-  - When ordering through the Apple eCommerce Portal, look for a banner with *Apple Store for FLEET DEVICE MANAGEMENT | Welcome [Your Name].* Hovering over *Welcome* should display *Your Profile.* If Fleet's account number is displayed, purchases will be automatically made available in Apple Business Manager (ABM).
-
-- Apple computers for Fleeties in other countries should be purchased through an authorized reseller to ensure the device is enrolled in ADE. In countries that Apple does not operate or that do not allow ADE, work with the authorized reseller to find the best solution, or consider shipping to a US based Fleetie and then shipping on to the teammate. 
-
- > A 3-year AppleCare+ Protection Plan (APP) should be considered default for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
-
- - Order a pack of two [YubiKey 5C NFC security keys](https://www.yubico.com/product/yubikey-5-series/yubikey-5c-nfc/) for new team member, shipped to them directly.
-
-- Include delivery tracking information when closing the support request so the new employee can be notified.
 
 
 ### Register a domain for Fleet
@@ -287,57 +269,6 @@ ChromeOS devices are automatically enrolled in dogfood after the IT admin sets u
   - Get disk encryption key from Fleet dogfood (using the action menu from the individual host page).
   - Enter disk encryption key on laptop. This should prompt you to create a new password.
 - You will then be logged into the default device profile, and can complete any needed actions (wipe, recover data).
-
-
-### Book an event
-
-Fleet's Client Platform Engineer & Community Advocate is responsible for booking events that Fleet has chosen to attend and/or sponsor. To book an event, complete the steps in each event issue. Contact the [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/demand#team) as needed with any questions or blockers to booking an event.
-
-> Note: The Demand department [settles all event strategy](https://fleetdm.com/handbook/demand#settle-event-strategy) prior to booking an event. 
-
-<!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to engineering.rituals.yml
-
-### Create an article
-Article creation begins with creation of an issue using the "Article request" template.
-
-1. Create a [new GitHub issue for the #g-demand board](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%23g-demand=&template=custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
-2. Move the issue into the "📃 Planned articles" column.
-
-### Review ongoing articles
-Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
--->
-
-
-### Order SWAG
-
-**To order T-shirts:**
-
-  - Check [Postal](https://app.postal.io/items/postals) first and see if the warehouse has enough shirts.
-  - Navigate to the [approved items page](https://app.postal.io/items/postals).
-      - Hover over the shirt design and click on the airplane.
-      - Click bulk send and choose one shirt size and the expected quantity of that particular shirt size.
-      - Make sure the address matches the expected receiving address.
-  - If the Postal warehouse can't fulfill the order or To order swag quickly: 
-      - Login to [https://www.rushordertees.com/my-account/login/) (saved in 1Password).
-      - Choose Fleet logo design t-shirt under [my designs](https://www.rushordertees.com/my-account/designs/).
-      - Order shirts based on the pre-determined number (~5% of total event attendees).
-      - Submit the order. Ensure the address matches the expected receiving address.
-
-**To order stickers:**
-
-  - Login to [StickerMule](https://www.stickermule.com/) (saved in 1Password).
-  - Find the [brand kit](https://www.stickermule.com/studio/brand-kits) after logging in.
-  - Click on the "Fleet Device Management" brand kit and order preapproved stickers from the templates.
-  - Total sticker quantity should be ~10% of total event attendees.
-  - Complete the checkout process. Ensure the address matches the expected receiving address.
-
-**To order pens and sticky note pads**
-
-  - Pens and sticky note pads are ordered through Everything Branded.
-  - Email our sales representative Jake William (saved in 1Password) to order any of the following:
-    - [Javalina™ Metallic Stylus Pen](https://www.everythingbranded.com/product/javalina-metallic-stylus-pen-us-pat-8847930-9092077-350220)
-    - [Sharpie Fine Point Markers](https://www.everythingbranded.com/product/sharpie-fine-point-332908)
-    - [Custom sticky note pads](https://www.everythingbranded.com/product/custom-sticky-notes-585601) (design is in the StickerMule [brand kit](https://www.stickermule.com/studio/brand-kits))
 
 
 ### Review another product group's pull request
@@ -519,32 +450,6 @@ Conduct a postmortem meetings for every service or feature outage and every crit
 [Example Finished Document](https://docs.google.com/document/d/1YnETKhH9R7STAY-PaFnPy2qxhNht2EAFfkv-kyEwebQ/edit?usp=share_link)
 
 
-### Process incoming equipment
-
-Upon receiving any device, follow these steps to process incoming equipment.
-1. Search for the SN of the physical device in the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) to confirm the correct equipment was received.
-3. Visibly inspect equipment and all related components (e.g. laptop charger) for damage.
-4. Remove any stickers and clean devices and components.
-5. Using the device's charger plug in the device.
-6. Turn on the device and enter recovery mode using the [appropriate method](https://support.apple.com/en-us/HT204904).
-7. Connect the device to WIFI.
-8. Using the "Recovery assistant" tab (In the top left corner), select "Delete this Mac".
-9. Follow the prompts to activate the device and reinstall the appropriate version of macOS.
-> If you are prevented from completing the steps above, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=%40spokanemac&labels=%3Ahelp-it&projects=&template=request-it-support.md&title=%F0%9F%92%BB+Request+IT+support) for IT, for the device to be scheduled for troubleshooting and remediation. Please note in the issue where you encountered blockers to completing the steps.
-
-
-### Ship approved equipment
-
-Once the Digital Experience department approves inventory to be shipped from Fleet IT, follow these step to ship the equipment.
-1. Compare the equipment request issue with the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) and verify physical inventory.
-2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
-3. Package equipment for shipment and include Yubikeys (if requested).
-4. Change the "Company equipment" spreadsheet to reflect the new user.
-  - If you encounter any issues, repeat the [process incoming equipment steps](https://fleetdm.com/handbook/engineering#process-incoming-equipment). If problems persist, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=%40spokanemac&labels=%3Ahelp-it&projects=&template=request-it-support.md&title=%F0%9F%92%BB+Request+IT+support) for IT to troubleshoot the device.
-6. Ship via FedEx to the address listed in the equipment request.
-7. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
-
-
 ### Provide same-day support for major version macOS releases
 
 Beginning with macOS 16, Fleet will offer same-day support for all major version macOS releases. 
@@ -565,193 +470,7 @@ Beginning with macOS 16, Fleet will offer same-day support for all major version
 #### Stubs
 The following stubs are included only to make links backward compatible.
 
-##### Weekly bug review
-[handbook/company/product-groups#weekly-bug-review](https://fleetdm.com/handbook/company/product-groups#weekly-bug-review)
 
-Please see [docs/contributing/infrastructure](https://fleetdm.com/docs/contributing/infrastructure) for **below**
-##### Infrastructure
-##### Infrastructure links
-##### Best practices for containers
-Please see [docs/contributing/infrastructure](https://fleetdm.com/docs/contributing/infrastructure) for **above**
-
-##### Measurement
-Please see [handbook/engineering#record-engineering-kpis](https://fleetdm.com/handbook/engineering#record-engineering-kpis)
-
-##### Critical bug notification process
-Please see [handbook/engineering#notify-community-members-about-a-critical-bug](https://fleetdm.com/handbook/engineering#notify-community-members-about-a-critical-bug)
-
-##### Finding bugs
-Please see [handbook/engineering#run-fleet-locally-for-qa-purposes](https://fleetdm.com/handbook/engineering#run-fleet-localy-for-qa-purposes)
-
-##### Scrum at Fleet
-Please see [handbook/company/product-groups#scrum-at-fleet](https://fleetdm.com/handbook/company/product-groups#scrum-at-fleet)
-
-##### Scrum items
-Please see [handbook/company/product-groups#scrum-items)](https://fleetdm.com/handbook/company/product-groups#scrum-items)
-
-##### Sprint ceremonies
-Please see [handbook/company/product-groups#sprint-ceremonies](https://fleetdm.com/handbook/company/product-groups#sprint-ceremonies)
-
-##### Meetings
-Please see [handbook/company/product-groups#meetings](https://fleetdm.com/handbook/company/product-groups#meetings)
-
-##### Principles
-Please see [handbook/company/product-groups#principles](https://fleetdm.com/handbook/company/product-groups#principles)
-
-Please see [handbook/company/product-groups#eng-together](https://fleetdm.com/handbook/company/product-groups#eng-together) for **below**
-##### Eng Together
-##### Participants
-##### Agenda
-Please see [handbook/company/product-groups#eng-together](https://fleetdm.com/handbook/company/product-groups#eng-together) for **above**
-
-Please see [handbook/company/product-groups#group-weeklies](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **below**
-##### User story discovery
-##### Participants
-##### Agenda
-Please see [handbook/company/product-groups#group-weeklies](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **above**
-
-Please see [handbook/company/product-groups#group-weeklies](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **below**
-##### Group weeklies
-##### Participants
-##### Sample agenda (Frontend weekly)
-Please see [handbook/company/product-groups#group-weeklies](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **above**
-
-##### Engineering-initiated stories
-##### Creating an engineering-initiated story
-
-Please see [handbook/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story) for **above**
-
-Please see [handbook/engineering#accept-new-apple-developer-account-terms](https://fleetdm.com/handbook/engineering#accept-new-apple-developer-account-terms) for **below**
-##### Accounts  
-##### Apple developer account
-Please see [handbook/engineering#accept-new-apple-developer-account-terms](https://fleetdm.com/handbook/engineering#accept-new-apple-developer-account-terms) for **above**
-
-##### Merging during the freeze period
-Please see [handbook/engineering#merge-a-pull-request-during-the-freeze-period](https://fleetdm.com/handbook/engineering#merge-a-pull-request-during-the-freeze-period)
-
-##### Merge a bug fix during the freeze period
-Please see [merge-bug-fixes-into-the-release-candidate](https://fleetdm.com/handbook/engineering#merge-bug-fixes-into-the-release-candidate)
-
-##### Merge a pull request during the freeze period
-Please see [merge-bug-fixes-into-the-release-candidate](https://fleetdm.com/handbook/engineering#merge-bug-fixes-into-the-release-candidate)
-
-##### Begin a merge freeze
-Please see [handbook/engineering#create-a-release-candidate](https://fleetdm.com/handbook/engineering#create-a-release-candidate)
-
-##### Scrum boards
-Please see [handbook//product-groups#current-product-groups](https://fleetdm.com/handbook/engineering#contact-us)
-
-Please see [handbook/engineering#begin-a-merge-freeze](https://fleetdm.com/handbook/engineering#begin-a-merge-freeze) for **below**
-##### Release freeze period
-##### Freeze day
-Please see [handbook/engineering#begin-a-merge-freeze](https://fleetdm.com/handbook/engineering#begin-a-merge-freeze) for **above**
-
-##### Release day
-Please see [handbook/engineering#prepare-fleet-release](https://fleetdm.com/handbook/engineering#prepare-fleet-release)
-
-##### Deploying to dogfood
-Please see [handbook/engineering#deploy-a-new-release-to-dogfood](https://fleetdm.com/handbook/engineering#deploy-a-new-release-to-dogfood)
-
-Please see [handbook/engineering#conclude-current-milestone](https://fleetdm.com/handbook/engineering#conclude-current-milestone) for **below**
-##### Milestone release ritual
-##### Update milestone in GitHub
-##### ZenHub housekeeping
-Please see [handbook/engineering#conclude-current-milestone](https://fleetdm.com/handbook/engineering#conclude-current-milestone) for **above**
-
-##### Clearing the plate
-Please see [handbook/engineering#schedule-developer-on-call-workload](https://fleetdm.com/handbook/engineering#schedule-developer-on-call-workload)
-
-##### Check dependencies
-Please see [handbook/engineering#confirm-latest-versions-of-dependencies](https://fleetdm.com/handbook/engineering#confirm-latest-versions-of-dependencies)
-
-##### Release readiness
-Please see [handbook/engineering#indicate-your-product-group-is-release-ready](https://fleetdm.com/handbook/engineering#indicate-your-product-group-is-release-ready)
-
-##### Improve documentation
-Please see [handbook/company/product-groups#documentation-for-contributors](https://fleetdm.com/handbook/company/product-groups#documentation-for-contributors)
-
-##### How to reach the on-call engineer
-Please see [handbook/company/product-groups#how-to-reach-the-developer-on-call](https://fleetdm.com/handbook/company/product-groups#how-to-reach-the-developer-on-call)
-
-##### The rotation
-Please see [handbook/company/product-groups#the-developer-on-call-rotation](https://fleetdm.com/handbook/company/product-groups#the-developer-on-call-rotation)
-
-Please see [handbook/company/product-groups#the-developer-on-call-rotation](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities) for **below**
-##### Second-line response
-##### PR reviews
-##### Customer success meetings
-Please see [handbook/company/product-groups#the-developer-on-call-rotation](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities) for **above**
-
-##### Escalations
-Please see [handbook/company/product-groups#escalations](https://fleetdm.com/handbook/company/product-groups#escalations)
-
-##### Handoff
-Please see [handbook/company/product-groups#changing-of-the-guard](https://fleetdm.com/handbook/company/product-groups#changing-of-the-guard)
-
-Please see [handbook/company/product-groups#quality](https://fleetdm.com/handbook/company/product-groups#quality) for **below**
-##### Quality
-##### Human-oriented QA
-##### Bug process
-##### Debugging
-##### Bug states
-Please see [handbook/company/product-groups#quality](https://fleetdm.com/handbook/company/product-groups#quality) for **above**
-
-##### Inbox
-Please see [handbook/company/product-groups#inbox](https://fleetdm.com/handbook/company/product-groups#inbox)
-
-Please see [handbook/company/product-groups#reproduced](https://fleetdm.com/handbook/company/product-groups#reproduced) for **below**
-##### Reproduced
-##### Fast track for Fleeties
-Please see [handbook/company/product-groups#reproduced](https://fleetdm.com/handbook/company/product-groups#reproduced) for **above**
-
-##### In product drafting (as needed)
-Please see [handbook/company/product-groups#in-product-drafting-as-needed](https://fleetdm.com/handbook/company/product-groups#in-product-drafting-as-needed)
-
-##### In engineering
-Please see [handbook/company/product-groups#in-engineering](https://fleetdm.com/handbook/company/product-groups#in-engineering)
-
-##### Awaiting QA
-Please see [handbook/company/product-groups#awaiting-qa](https://fleetdm.com/handbook/company/product-groups#awaiting-qa)
-
-Please see [handbook/company/product-groups#all-bugs](https://fleetdm.com/handbook/company/product-groups#all-bugs) for **below**
-##### All bugs
-##### Bugs closed this week
-##### Bugs closed this week
-Please see [handbook/company/product-groups#all-bugs](https://fleetdm.com/handbook/company/product-groups#all-bugs) for **above**
-
-Please see [handbook/company/product-groups#release-testing](https://fleetdm.com/handbook/company/product-groups#release-testing) for **below**
-##### Release testing
-##### Release blockers
-##### Critical bugs
-Please see [handbook/company/product-groups#release-testing](https://fleetdm.com/handbook/company/product-groups#release-testing) for **above**
-
-##### Reviewing PRs from the community
-Please see [handbook/engineering#review-a-community-pull-request](https://fleetdm.com/handbook/engineering#review-a-community-pull-request)
-
-##### Merging community PRs
-Please see [handbook/engineering#merge-a-community-pull-request](https://fleetdm.com/handbook/engineering#merge-a-community-pull-request)
-
-##### Changes to tables' schema
-Please see [handbook/company/product-groups#changes-to-tables-schema](https://fleetdm.com/handbook/company/product-groups#changes-to-tables-schema)
-
-Please see [handbook/engineering#preform-an-incident-postmortem](https://fleetdm.com/handbook/engineering#preform-an-incident-postmortem) for **below**
-##### Incident postmortems
-##### Postmortem document
-##### Postmortem meeting
-##### Postmortem action items
-Please see [handbook/engineering#preform-an-incident-postmortem](https://fleetdm.com/handbook/engineering#preform-an-incident-postmortem) for **below**
-
-##### Outages
-[handbook/company/product-groups#outages](https://fleetdm.com/handbook/company/product-groups#outages)
-
-##### Scaling Fleet
-[handbook/company/product-groups#scaling-fleet](https://fleetdm.com/handbook/company/product-groups#scaling-fleet)
-
-##### Load testing
-[handbook/company/product-groups#load-testing](https://fleetdm.com/handbook/company/product-groups#load-testing)
-
-##### Version support
-[handbook/company/product-groups#version-support](https://fleetdm.com/handbook/company/product-groups#version-support)
 
 <meta name="maintainedBy" value="lukeheath">
 <meta name="title" value="🚀 Engineering">
