@@ -33,6 +33,10 @@ module.exports = {
       statusCode: 409,
     },
 
+    softwareUploadFailed: {
+      description:'An unexpected error occurred communicating with the Fleet API'
+    }
+
   },
 
 
@@ -88,7 +92,7 @@ module.exports = {
                     doneWithThisFile();
                   })
                   .catch((err)=>{
-                    doneWithThisFile(require('util').inspect(err, {depth:null}));
+                    doneWithThisFile(err);
                   });
                 };//ƒ
                 return receiver__;
@@ -96,8 +100,14 @@ module.exports = {
             };
           }
         })
-        .intercept({response: {status: 409}}, (error)=>{
+        .intercept({response: {status: 409}}, async (error)=>{
+          await sails.rm(sails.config.uploads.prefixForFileDeletion+uploadedSoftware.fd);
           return {'softwareAlreadyExistsOnThisTeam': error};
+        })
+        .intercept({name: 'AxiosError'}, async (error)=>{
+          await sails.rm(sails.config.uploads.prefixForFileDeletion+uploadedSoftware.fd);
+          sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, ${require('util').inspect(error, {depth: 0})}`)
+          return {'softwareUploadFailed': error};
         });
       }
       // Remove the file from the s3 bucket after it has been sent to the Fleet server.
