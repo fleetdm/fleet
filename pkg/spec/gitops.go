@@ -757,7 +757,8 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	for _, item := range software.Packages {
 		var softwarePackageSpec fleet.SoftwarePackageSpec
 		if item.Path != nil {
-			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
+			softwarePackageSpec.ReferencedYamlPath = resolveApplyRelativePath(baseDir, *item.Path)
+			fileBytes, err := os.ReadFile(softwarePackageSpec.ReferencedYamlPath)
 			if err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to read policies file %s: %v", *item.Path, err))
 				continue

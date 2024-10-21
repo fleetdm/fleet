@@ -444,6 +444,16 @@ type SoftwarePackageSpec struct {
 	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
 	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
 	UninstallScript   TeamSpecSoftwareAsset `json:"uninstall_script"`
+
+	// ReferencedYamlPath is the resolved path of the file used to fill the
+	// software package. Only present after parsing a GitOps file on the fleetctl
+	// side of processing. This is required to match a macos_setup.software to
+	// its corresponding software package, as we do this matching by yaml path.
+	//
+	// It must be JSON-marshaled because it gets set during gitops file processing,
+	// which is then re-marshaled to JSON from this struct and later re-unmarshaled
+	// during ApplyGroup...
+	ReferencedYamlPath string `json:"referenced_yaml_path"`
 }
 
 type SoftwareSpec struct {

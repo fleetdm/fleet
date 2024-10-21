@@ -561,6 +561,7 @@ func (c *Client) ApplyGroup(
 		tmBootstrapPackages := make(map[string]*fleet.MDMAppleBootstrapPackage, len(tmMacSetup))
 		tmMacSetupAssistants := make(map[string][]byte, len(tmMacSetup))
 		tmMacSetupScript := make(map[string]fileContent, len(tmMacSetup))
+		tmMacSetupSoftware := make(map[string][]*fleet.MacOSSetupSoftware, len(tmMacSetup))
 		for k, setup := range tmMacSetup {
 			if setup.BootstrapPackage.Value != "" {
 				bp, err := c.ValidateBootstrapPackageFromURL(setup.BootstrapPackage.Value)
@@ -583,6 +584,14 @@ func (c *Client) ApplyGroup(
 				}
 				tmMacSetupScript[k] = fileContent{Filename: filepath.Base(setup.Script.Value), Content: b}
 			}
+			if setup.Software.Set {
+				for _, sw := range setup.Software.Value {
+					if sw.AppStoreID != "" && sw.PackagePath != "" {
+						return nil, nil, nil, errors.New("applying teams: only one of app_store_id or package_path can be set")
+					}
+				}
+				tmMacSetupSoftware[k] = setup.Software.Value
+			}
 		}
 
 		tmScripts := extractTmSpecsScripts(specs.Teams)
@@ -602,24 +611,66 @@ func (c *Client) ApplyGroup(
 			tmScriptsPayloads[k] = scriptPayloads
 		}
 
+		for _, raw := range specs.Teams {
+			fmt.Println(">>>> ", string(raw))
+		}
 		tmSoftwarePackages := extractTmSpecsSoftwarePackages(specs.Teams)
 		tmSoftwarePackagesPayloads := make(map[string][]fleet.SoftwareInstallerPayload, len(tmSoftwarePackages))
+		tmSoftwarePackageByPath := make(map[string]map[string]fleet.SoftwarePackageSpec, len(tmSoftwarePackages))
 		for tmName, software := range tmSoftwarePackages {
 			softwarePayloads, err := buildSoftwarePackagesPayload(baseDir, software)
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
 			}
 			tmSoftwarePackagesPayloads[tmName] = softwarePayloads
+			for _, swSpec := range software {
+				fmt.Println(">>>> referenced yaml path? ", swSpec.URL, swSpec.ReferencedYamlPath)
+				if swSpec.ReferencedYamlPath != "" {
+					// can be referenced by macos_setup.software.package_path
+					if tmSoftwarePackageByPath[tmName] == nil {
+						tmSoftwarePackageByPath[tmName] = make(map[string]fleet.SoftwarePackageSpec, len(software))
+					}
+					tmSoftwarePackageByPath[tmName][swSpec.ReferencedYamlPath] = swSpec
+				}
+			}
 		}
 
 		tmSoftwareApps := extractTmSpecsSoftwareApps(specs.Teams)
 		tmSoftwareAppsPayloads := make(map[string][]fleet.VPPBatchPayload)
+		tmSoftwareAppsByAppID := make(map[string]map[string]fleet.TeamSpecAppStoreApp, len(tmSoftwareApps))
 		for tmName, apps := range tmSoftwareApps {
 			appPayloads := make([]fleet.VPPBatchPayload, 0, len(apps))
 			for _, app := range apps {
 				appPayloads = append(appPayloads, fleet.VPPBatchPayload{AppStoreID: app.AppStoreID, SelfService: app.SelfService})
+				// can be referenced by macos_setup.software.app_store_id
+				if tmSoftwareAppsByAppID[tmName] == nil {
+					tmSoftwareAppsByAppID[tmName] = make(map[string]fleet.TeamSpecAppStoreApp, len(apps))
+				}
+				tmSoftwareAppsByAppID[tmName][app.AppStoreID] = app
 			}
 			tmSoftwareAppsPayloads[tmName] = appPayloads
+		}
+
+		// if macos_setup.software has some values, they must exist in the software
+		// packages or vpp apps.
+		for tmName, setupSw := range tmMacSetupSoftware {
+			for _, ssw := range setupSw {
+				var valid bool
+				if ssw.AppStoreID != "" {
+					// check that it exists in the team's Apps
+					_, valid = tmSoftwareAppsByAppID[tmName][ssw.AppStoreID]
+				} else if ssw.PackagePath != "" {
+					// check that it exists in the team's Software installers
+					_, valid = tmSoftwarePackageByPath[tmName][resolveApplyRelativePath(baseDir, ssw.PackagePath)]
+				}
+				if !valid {
+					label := ssw.AppStoreID
+					if label == "" {
+						label = ssw.PackagePath
+					}
+					return nil, nil, nil, fmt.Errorf("applying macOS setup experience software for team %q: software %q does not exist for that team", tmName, label)
+				}
+			}
 		}
 
 		// Next, apply the teams specs before saving the profiles, so that any
@@ -727,6 +778,7 @@ func (c *Client) ApplyGroup(
 				}
 			}
 		}
+		// TODO(mna): apply the setup software here, after installers and apps have been saved
 		if opts.DryRun {
 			logfn("[+] would've applied %d teams\n", len(specs.Teams))
 		} else {
