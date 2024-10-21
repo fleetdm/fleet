@@ -487,17 +487,21 @@ for pagination. For a comprehensive list of activity types and detailed informat
     {
       "created_at": "2023-07-27T14:35:08Z",
       "id": 25,
-      "actor_full_name": "Anna Chao",
-      "actor_id": 3,
+      "actor_full_name": "Fleet",
       "actor_gravatar": "",
       "actor_email": "",
-      "type": "uninstalled_software",
+      "type": "installed_software",
+      "fleet_initiated": "true",
       "details": {
         "host_id": 1,
         "host_display_name": "Marko's MacBook Pro",
         "software_title": "Adobe Acrobat.app",
-        "script_execution_id": "eeeddb94-52d3-4071-8b18-7322cd382abb",
-        "status": "failed"
+        "install_uuid": "eeeddb94-52d3-4071-8b18-7322cd382abb",
+        "status": "installed"
+        "policy": {
+          "name": "Install Adobe Acrobat",
+          "id": 324
+        }
       }
     },
     {
@@ -508,6 +512,7 @@ for pagination. For a comprehensive list of activity types and detailed informat
       "actor_gravatar": "",
       "actor_email": "name@example.com",
       "type": "live_query",
+      "fleet_initiated": "false",
       "details": {
         "targets_count": 231
       }
@@ -520,6 +525,7 @@ for pagination. For a comprehensive list of activity types and detailed informat
       "actor_gravatar": "",
       "actor_email": "name@example.com",
       "type": "deleted_multiple_saved_query",
+      "fleet_initiated": "false",
       "details": {
         "query_ids": [
           2,
@@ -536,6 +542,7 @@ for pagination. For a comprehensive list of activity types and detailed informat
       "actor_gravatar": "",
       "actor_email": "name@example.com",
       "type": "created_team",
+      "fleet_initiated": "false",
       "details": {
         "team_id": 3,
         "team_name": "Oranges"
@@ -549,6 +556,7 @@ for pagination. For a comprehensive list of activity types and detailed informat
       "actor_gravatar": "",
       "actor_email": "name@example.com",
       "type": "created_team",
+      "fleet_initiated": "false",
       "details": {
         "team_id": 2,
         "team_name": "Apples"
@@ -562,6 +570,7 @@ for pagination. For a comprehensive list of activity types and detailed informat
       "actor_gravatar": "",
       "actor_email": "name@example.com",
       "type": "created_pack",
+      "fleet_initiated": "false",
       "details": {
         "pack_id": 2,
         "pack_name": "New pack"
@@ -575,6 +584,7 @@ for pagination. For a comprehensive list of activity types and detailed informat
       "actor_gravatar": "",
       "actor_email": "name@example.com",
       "type": "live_query",
+      "fleet_initiated": "false",
       "details": {
         "targets_count": 14
       }
@@ -587,6 +597,7 @@ for pagination. For a comprehensive list of activity types and detailed informat
       "actor_gravatar": "",
       "actor_email": "name@example.com",
       "type": "live_query",
+      "fleet_initiated": "false",
       "details": {
         "targets_count": 14
       }
@@ -599,6 +610,7 @@ for pagination. For a comprehensive list of activity types and detailed informat
       "actor_gravatar": "",
       "actor_email": "name@example.com",
       "type": "live_query",
+      "fleet_initiated": "false",
       "details": {
         "target_counts": 1
       }
@@ -611,6 +623,7 @@ for pagination. For a comprehensive list of activity types and detailed informat
       "actor_gravatar": "",
       "actor_email": "name@example.com",
       "type": "live_query",
+      "fleet_initiated": "false",
       "details": {
         "target_counts": 14
       }
@@ -623,6 +636,7 @@ for pagination. For a comprehensive list of activity types and detailed informat
       "actor_gravatar": "",
       "actor_email": "name@example.com",
       "type": "live_query",
+      "fleet_initiated": "false",
       "details": {
         "target_counts": 14
       }
