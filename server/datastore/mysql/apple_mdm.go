@@ -1493,8 +1493,10 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, serials []str
 	}
 
 	var args []interface{}
+	var deletePendingArgs []interface{}
 	for _, serial := range serials {
 		args = append(args, serial)
+		deletePendingArgs = append(deletePendingArgs, serial)
 	}
 	stmt, args, err := sqlx.In(`
           UPDATE host_dep_assignments
@@ -1505,10 +1507,26 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, serials []str
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building IN statement")
 	}
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting DEP assignment by serial")
+
+	// If pending host is no longer in ABM, we should delete it because it will never enroll in Fleet.
+	// If the host is later re-added to ABM, it will be re-created.
+	deletePendingStmt, deletePendingArgs, err := sqlx.In(`
+		DELETE h FROM hosts h
+		JOIN host_mdm hmdm ON h.id = hmdm.host_id
+		WHERE h.hardware_serial IN (?) AND hmdm.status = 'Pending'`, deletePendingArgs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building delete IN statement")
 	}
-	return nil
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting DEP assignment by serial")
+		}
+		if _, err := tx.ExecContext(ctx, deletePendingStmt, deletePendingArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting pending hosts by serial")
+		}
+		return nil
+	})
 }
 
 func (ds *Datastore) RestoreMDMApplePendingDEPHost(ctx context.Context, host *fleet.Host) error {

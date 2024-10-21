@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -28,6 +29,7 @@ import (
 	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -745,6 +747,14 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		{SerialNumber: addedSerial, Model: "MacBook Mini", OS: "osx", OpType: "added"},
 	}
 	profileAssignmentReqs = []profileAssignmentReq{}
+
+	// Enroll the host to be deleted. It will stay in Fleet after deletion from DEP.
+	mdmDeviceToDelete := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+	mdmDeviceToDelete.SerialNumber = deletedSerial
+	require.NoError(t, mdmDeviceToDelete.Enroll())
+	// make sure the host gets post enrollment requests
+	checkPostEnrollmentCommands(mdmDeviceToDelete, true)
+
 	s.runDEPSchedule()
 
 	// all hosts should be returned from the hosts endpoint
@@ -831,6 +841,50 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// it should get the post-enrollment commands
 	require.NoError(t, mdmDevice.Enroll())
 	checkPostEnrollmentCommands(mdmDevice, true)
+
+	// Delete a pending device from DEP
+	addedModifiedDeletedSerial := uuid.NewString() // no-op
+	deletedAddedSerial := devices[0].SerialNumber  // stay as is
+	deletedSerial = devices[1].SerialNumber
+	devices = []godep.Device{
+		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added", OpDate: time.Now()},
+		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "modified",
+			OpDate: time.Now().Add(time.Second)},
+		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "deleted",
+			OpDate: time.Now().Add(2 * time.Second)},
+		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added",
+			OpDate: time.Now().Add(3 * time.Second)},
+		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "deleted",
+			OpDate: time.Now().Add(4 * time.Second)},
+
+		{SerialNumber: deletedAddedSerial, Model: "MacBook Pro", OS: "osx", OpType: "deleted", OpDate: time.Now()},
+		{SerialNumber: deletedAddedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added", OpDate: time.Now().Add(time.Second)},
+		{SerialNumber: deletedAddedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added", OpDate: time.Now().Add(2 * time.Second)},
+
+		{SerialNumber: deletedSerial, Model: "MacBook Mini", OS: "osx", OpType: "modified", OpDate: time.Now()},
+		{SerialNumber: deletedSerial, Model: "MacBook Mini", OS: "osx", OpType: "modified", OpDate: time.Now().Add(time.Second)},
+		{SerialNumber: deletedSerial, Model: "MacBook Mini", OS: "osx", OpType: "deleted", OpDate: time.Now().Add(2 * time.Second)},
+	}
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runDEPSchedule()
+	// all hosts should be returned from the hosts endpoint
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	// all previous devices minus the pending deleted one
+	wantSerials = slices.DeleteFunc(wantSerials, func(s string) bool { return s == deletedSerial })
+	assert.Len(t, listHostsRes.Hosts, len(wantSerials))
+	gotSerials = []string{}
+	for _, device := range listHostsRes.Hosts {
+		gotSerials = append(gotSerials, device.HardwareSerial)
+	}
+	assert.ElementsMatch(t, wantSerials, gotSerials)
+	assert.Len(t, profileAssignmentReqs, 2)
+	gotSerials = []string{}
+	for _, req := range profileAssignmentReqs {
+		assert.Len(t, req.Devices, 1)
+		gotSerials = append(gotSerials, req.Devices...)
+	}
+	assert.ElementsMatch(t, []string{addedModifiedDeletedSerial, deletedAddedSerial}, gotSerials)
 
 	// delete all MDM info
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
