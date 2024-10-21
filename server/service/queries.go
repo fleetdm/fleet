@@ -64,6 +64,8 @@ type listQueriesRequest struct {
 
 type listQueriesResponse struct {
 	Queries []fleet.Query `json:"queries"`
+	Count int `json:"count"`
+	Meta *fleet.PaginationMetadata `json:"meta"`
 	Err     error         `json:"error,omitempty"`
 }
 
@@ -77,7 +79,7 @@ func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		teamID = &req.TeamID
 	}
 
-	queries, err := svc.ListQueries(ctx, req.ListOptions, teamID, nil, req.MergeInherited)
+	queries, count, meta, err := svc.ListQueries(ctx, req.ListOptions, teamID, nil, req.MergeInherited)
 	if err != nil {
 		return listQueriesResponse{Err: err}, nil
 	}
@@ -86,30 +88,37 @@ func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	for _, query := range queries {
 		respQueries = append(respQueries, *query)
 	}
+	
+
 	return listQueriesResponse{
 		Queries: respQueries,
+		Count: count,
+		Meta: meta,
 	}, nil
 }
 
-func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool, mergeInherited bool) ([]*fleet.Query, error) {
+func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool, mergeInherited bool) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 	// Check the user is allowed to list queries on the given team.
 	if err := svc.authz.Authorize(ctx, &fleet.Query{
 		TeamID: teamID,
 	}, fleet.ActionRead); err != nil {
-		return nil, err
+		return nil, 0, nil, err
 	}
 
-	queries, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
+	// always include metadata for queries
+	opt.IncludeMetadata = true
+
+	queries, count, meta, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
 		ListOptions:    opt,
 		TeamID:         teamID,
 		IsScheduled:    scheduled,
 		MergeInherited: mergeInherited,
 	})
 	if err != nil {
-		return nil, err
+		return nil, 0, nil, err
 	}
 
-	return queries, nil
+	return queries, count, meta, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -745,7 +754,8 @@ func getQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) GetQuerySpecs(ctx context.Context, teamID *uint) ([]*fleet.QuerySpec, error) {
-	queries, err := svc.ListQueries(ctx, fleet.ListOptions{}, teamID, nil, false)
+	// TODO - return count and meta from this endpoint?
+	queries, _, _, err := svc.ListQueries(ctx, fleet.ListOptions{}, teamID, nil, false)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting queries")
 	}

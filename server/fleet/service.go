@@ -262,6 +262,7 @@ type Service interface {
 	// ApplyQuerySpecs applies a list of queries (creating or updating them as necessary)
 	ApplyQuerySpecs(ctx context.Context, specs []*QuerySpec) error
 	// GetQuerySpecs gets the YAML file representing all the stored queries.
+	// TODO - return count and meta from this endpoint?
 	GetQuerySpecs(ctx context.Context, teamID *uint) ([]*QuerySpec, error)
 	// GetQuerySpec gets the spec for the query with the given name on a team.
 	// A nil or 0 teamID means the query is looked for in the global domain.
@@ -273,7 +274,7 @@ type Service interface {
 	// and only non-scheduled queries will be returned if `*scheduled == false`.
 	// If mergeInherited is true and a teamID is provided, then queries from the global team will be
 	// included in the results.
-	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool, mergeInherited bool) ([]*Query, error)
+	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool, mergeInherited bool) ([]*Query, int, *PaginationMetadata, error)
 	GetQuery(ctx context.Context, id uint) (*Query, error)
 	// GetQueryReportResults returns all the stored results of a query for hosts the requestor has access to.
 	// Returns a boolean indicating whether the report is clipped.
