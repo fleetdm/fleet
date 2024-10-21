@@ -215,12 +215,6 @@ func anyProfilePending(profiles []*fleet.SetupExperienceConfigurationProfileResu
 	return false
 }
 
-func setupExperienceDone(payload *fleet.SetupExperienceStatusPayload) bool {
-	var done bool
-
-	return done
-}
-
 func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 	if s.started {
 		return nil
