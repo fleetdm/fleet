@@ -440,14 +440,18 @@ func main() {
 	// FIXME: it doesn't look like this is actually triggering, at least when desktop gets
 	// killed (https://github.com/fleetdm/fleet/issues/21256)
 	onExit := func() {
-		log.Info().Msg("exit")
+		log.Info().Msg("exiting")
 		if mdmMigrator != nil {
+			log.Debug().Err(err).Msg("exiting mdmMigrator")
 			mdmMigrator.Exit()
 		}
 		if swiftDialogCh != nil {
+			log.Debug().Err(err).Msg("exiting swiftDialogCh")
 			close(swiftDialogCh)
 		}
+		log.Debug().Msg("stopping ticker")
 		summaryTicker.Stop()
+		log.Debug().Msg("canceling offline watcher ctx")
 		cancelOfflineWatcherCtx()
 	}
 
