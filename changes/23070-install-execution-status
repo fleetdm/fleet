@@ -1,1 +1,1 @@
-* Pass through original install status (rather than blank) when retrieving install details from the activity feed when the installer package has been updated or the software has since been removed from the host
+* Fixed blank install status when retrieving install details from the activity feed when the installer package has been updated or the software has since been removed from the host.
