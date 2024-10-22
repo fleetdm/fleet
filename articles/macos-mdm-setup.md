@@ -48,7 +48,7 @@ macOS, iOS, and iPadOS hosts listed in ABM and associated to a Fleet instance wi
 
 Hosts that automatically enroll will be assigned to a default team. You can configure the default team for macOS, iOS, and iPadOS hosts by:
 
-1. If you have not already, create teams following [this guide](https://fleetdm.com/guides/teams#basic-article). Our [best practice](#best-practice) recommendation is to have a team for each device type.
+1. Creating teams, if you have not already, following [this guide](https://fleetdm.com/guides/teams#basic-article). Our [best practice](#best-practice) recommendation is to have a team for each device type.
 2. Navigating to the **Settings > Integrations > Mobile device management (MDM)** page and clicking "Edit" under "Automatic enrollment".
 3. Click on the "Actions" dropdown for the ABM token you want to update, and then click "Edit teams".
 4. Use the dropdowns in the modal to select the default team for each type of host, and click "Save" to save your selections.
