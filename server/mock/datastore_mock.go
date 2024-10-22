@@ -851,7 +851,7 @@ type GetMDMAppleDefaultSetupAssistantFunc func(ctx context.Context, teamID *uint
 
 type GetMatchingHostSerialsFunc func(ctx context.Context, serials []string) (map[string]*fleet.Host, error)
 
-type DeleteHostDEPAssignmentsFunc func(ctx context.Context, serials []string) error
+type DeleteHostDEPAssignmentsFunc func(ctx context.Context, abmTokenID uint, serials []string) error
 
 type UpdateHostDEPAssignProfileResponsesFunc func(ctx context.Context, resp *godep.ProfileResponse) error
 
@@ -5650,11 +5650,11 @@ func (s *DataStore) GetMatchingHostSerials(ctx context.Context, serials []string
 	return s.GetMatchingHostSerialsFunc(ctx, serials)
 }
 
-func (s *DataStore) DeleteHostDEPAssignments(ctx context.Context, serials []string) error {
+func (s *DataStore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID uint, serials []string) error {
 	s.mu.Lock()
 	s.DeleteHostDEPAssignmentsFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteHostDEPAssignmentsFunc(ctx, serials)
+	return s.DeleteHostDEPAssignmentsFunc(ctx, abmTokenID, serials)
 }
 
 func (s *DataStore) UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse) error {

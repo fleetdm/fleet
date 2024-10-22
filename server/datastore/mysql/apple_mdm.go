@@ -1487,43 +1487,52 @@ func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fl
 	return &res, nil
 }
 
-func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, serials []string) error {
+func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID uint, serials []string) error {
 	if len(serials) == 0 {
 		return nil
 	}
 
-	var args []interface{}
-	var deletePendingArgs []interface{}
-	for _, serial := range serials {
-		args = append(args, serial)
-		deletePendingArgs = append(deletePendingArgs, serial)
-	}
-	stmt, args, err := sqlx.In(`
-          UPDATE host_dep_assignments
-          SET deleted_at = NOW()
-          WHERE host_id IN (
-            SELECT id FROM hosts WHERE hardware_serial IN (?)
-          )`, args)
+	selectStmt, selectArgs, err := sqlx.In(`
+		SELECT h.id
+		FROM hosts h
+		JOIN host_dep_assignments hdep ON h.id = hdep.host_id
+		WHERE hdep.abm_token_id = ? AND h.hardware_serial IN (?)`, abmTokenID, serials)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building IN statement")
-	}
-
-	// If pending host is no longer in ABM, we should delete it because it will never enroll in Fleet.
-	// If the host is later re-added to ABM, it will be re-created.
-	deletePendingStmt, deletePendingArgs, err := sqlx.In(`
-		DELETE h FROM hosts h
-		JOIN host_mdm hmdm ON h.id = hmdm.host_id
-		WHERE h.hardware_serial IN (?) AND hmdm.status = 'Pending'`, deletePendingArgs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building delete IN statement")
+		return ctxerr.Wrap(ctx, err, "building IN statement for selecting host IDs")
 	}
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting DEP assignment by serial")
+		var hostIDs []uint
+		if err = sqlx.SelectContext(ctx, tx, &hostIDs, selectStmt, selectArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "selecting host IDs")
 		}
-		if _, err := tx.ExecContext(ctx, deletePendingStmt, deletePendingArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting pending hosts by serial")
+		if len(hostIDs) == 0 {
+			// Nothing to delete. Hosts may have already been transferred to another ABM.
+			return nil
+		}
+
+		stmt, args, err := sqlx.In(`
+          UPDATE host_dep_assignments
+          SET deleted_at = NOW()
+          WHERE host_id IN (?)`, hostIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building IN statement")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting DEP assignment by host_id")
+		}
+
+		// If pending host is no longer in ABM, we should delete it because it will never enroll in Fleet.
+		// If the host is later re-added to ABM, it will be re-created.
+		deletePendingStmt, args, err := sqlx.In(`
+		DELETE h, hmdm FROM hosts h
+		JOIN host_mdm hmdm ON h.id = hmdm.host_id
+		WHERE h.id IN (?) AND hmdm.enrollment_status = 'Pending'`, hostIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building delete IN statement")
+		}
+		if _, err := tx.ExecContext(ctx, deletePendingStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting pending hosts by host_id")
 		}
 		return nil
 	})

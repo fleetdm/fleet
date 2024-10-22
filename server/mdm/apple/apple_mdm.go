@@ -657,7 +657,7 @@ func (d *DEPService) processDeviceResponse(
 		}
 	}
 
-	err = d.ds.DeleteHostDEPAssignments(ctx, deletedSerials)
+	err = d.ds.DeleteHostDEPAssignments(ctx, abmTokenID, deletedSerials)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting DEP assignments")
 	}
@@ -715,7 +715,9 @@ func (d *DEPService) processDeviceResponse(
 	for _, existingHost := range existingSerials {
 		dd, ok := modifiedDevices[existingHost.HardwareSerial]
 		if !ok {
-			level.Error(kitlog.With(d.logger)).Log("msg", "serial coming from ABM is in the databse, but it's not in the list of modified devices", "serial", existingHost.HardwareSerial)
+			level.Error(kitlog.With(d.logger)).Log("msg",
+				"serial coming from ABM is in the database, but it's not in the list of modified devices", "serial",
+				existingHost.HardwareSerial)
 			continue
 		}
 		existingHosts = append(existingHosts, *existingHost)

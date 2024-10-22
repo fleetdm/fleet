@@ -10,10 +10,10 @@ func init() {
 }
 
 func Up_20241021140321(tx *sql.Tx) error {
-	if !columnsExists(tx, "host_mdm", "status", "created_at", "updated_at") {
+	if !columnsExists(tx, "host_mdm", "enrollment_status", "created_at", "updated_at") {
 		if _, err := tx.Exec(`
 ALTER TABLE host_mdm
-ADD COLUMN status ENUM('On (manual)', 'On (automatic)', 'Pending', 'Off')
+ADD COLUMN enrollment_status ENUM('On (manual)', 'On (automatic)', 'Pending', 'Off')
 GENERATED ALWAYS AS (
 	CASE
 		WHEN is_server = 1 THEN NULL
