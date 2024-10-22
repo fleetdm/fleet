@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20241021140321, Down_20241021140321)
+	MigrationClient.AddMigration(Up_20241022140321, Down_20241022140321)
 }
 
-func Up_20241021140321(tx *sql.Tx) error {
+func Up_20241022140321(tx *sql.Tx) error {
 	if !columnsExists(tx, "host_mdm", "enrollment_status", "created_at", "updated_at") {
 		if _, err := tx.Exec(`
 ALTER TABLE host_mdm
@@ -34,6 +34,6 @@ ADD COLUMN updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDA
 	return nil
 }
 
-func Down_20241021140321(_ *sql.Tx) error {
+func Down_20241022140321(_ *sql.Tx) error {
 	return nil
 }
