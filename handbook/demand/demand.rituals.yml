@@ -73,7 +73,9 @@
   dri: "Drew-P-drawers"
 -
   task: "Check ongoing events"
+
   startedOn: "2024-10-21"
+
   frequency: "Daily"
   description: "Check event issues and complete steps."
   moreInfoUrl: "https://fleetdm.com/handbook/engineering#book-an-event"
@@ -85,3 +87,4 @@
   description: "Populate ideas for future events"
   moreInfoUrl: "https://fleetdm.com/handbook/demand#settle-event-strategy"
   dri: "Drew-P-drawers"
+

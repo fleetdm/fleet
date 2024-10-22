@@ -33,7 +33,7 @@ describe("SiteTopNav - component", () => {
         currentUser={createMockUser()}
         location={urlLocation}
         onLogoutUser={noop}
-        onNavItemClick={noop}
+        onUserMenuItemClick={noop}
       />
     );
 
@@ -69,7 +69,7 @@ describe("SiteTopNav - component", () => {
         })}
         location={urlLocation}
         onLogoutUser={noop}
-        onNavItemClick={noop}
+        onUserMenuItemClick={noop}
       />
     );
 
@@ -105,7 +105,7 @@ describe("SiteTopNav - component", () => {
         })}
         location={urlLocation}
         onLogoutUser={noop}
-        onNavItemClick={noop}
+        onUserMenuItemClick={noop}
       />
     );
 
@@ -139,7 +139,7 @@ describe("SiteTopNav - component", () => {
         currentUser={createMockUser()}
         location={urlLocation}
         onLogoutUser={noop}
-        onNavItemClick={noop}
+        onUserMenuItemClick={noop}
       />
     );
 
@@ -175,7 +175,7 @@ describe("SiteTopNav - component", () => {
         })}
         location={urlLocation}
         onLogoutUser={noop}
-        onNavItemClick={noop}
+        onUserMenuItemClick={noop}
       />
     );
 
@@ -211,7 +211,7 @@ describe("SiteTopNav - component", () => {
         })}
         location={urlLocation}
         onLogoutUser={noop}
-        onNavItemClick={noop}
+        onUserMenuItemClick={noop}
       />
     );
 
@@ -248,7 +248,7 @@ describe("SiteTopNav - component", () => {
         })}
         location={urlLocation}
         onLogoutUser={noop}
-        onNavItemClick={noop}
+        onUserMenuItemClick={noop}
       />
     );
 
@@ -285,7 +285,7 @@ describe("SiteTopNav - component", () => {
         })}
         location={urlLocation}
         onLogoutUser={noop}
-        onNavItemClick={noop}
+        onUserMenuItemClick={noop}
       />
     );
 
@@ -321,7 +321,7 @@ describe("SiteTopNav - component", () => {
         })}
         location={urlLocation}
         onLogoutUser={noop}
-        onNavItemClick={noop}
+        onUserMenuItemClick={noop}
       />
     );
 

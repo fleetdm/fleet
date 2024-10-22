@@ -58,7 +58,7 @@ const StatusMessage = ({
     : "";
   return (
     <div className={`${baseClass}__status-message`}>
-      <Icon name={INSTALL_DETAILS_STATUS_ICONS[status]} />
+      <Icon name={INSTALL_DETAILS_STATUS_ICONS[status] ?? "pending-outline"} />
       <span>
         Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>{" "}
         ({software_package}) on {formattedHost}

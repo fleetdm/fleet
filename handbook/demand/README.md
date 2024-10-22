@@ -138,7 +138,7 @@ Fleet's Head of Marketing is responsible for booking events that Fleet has chose
 ### Create an article
 Article creation begins with creation of an issue using the "Article request" template.
 
-1. Create a [new GitHub issue for the #g-demand board](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%23g-demand=&template=custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
+1. Create a [new GitHub issue for the #g-demand board](https://github.com/fleetdm/confidential/issues/new?assignees=Drew-P-drawers&labels=%23g-demand=&template=custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
 2. Move the issue into the "📃 Planned articles" column.
 
 ### Review ongoing articles
@@ -155,6 +155,7 @@ Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub
   - Order shirts based on the pre-determined number (~5% of total event attendees).
   - Submit the order. Ensure the address matches the expected receiving address.
 
+
 **To order stickers:**
 
   - Login to [StickerMule](https://www.stickermule.com/) (saved in 1Password).
@@ -170,7 +171,7 @@ Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub
     - [Javalina™ Metallic Stylus Pen](https://www.everythingbranded.com/product/javalina-metallic-stylus-pen-us-pat-8847930-9092077-350220)
     - [Sharpie Fine Point Markers](https://www.everythingbranded.com/product/sharpie-fine-point-332908)
     - [Custom sticky note pads](https://www.everythingbranded.com/product/custom-sticky-notes-585601) (design is in the StickerMule [brand kit](https://www.stickermule.com/studio/brand-kits))
-   
+
 
 ### Upload contacts to Salesforce after an event
 
@@ -271,14 +272,6 @@ Here are some links that filter relevant conversations on each platform:
 2. Reply to threads looking for solutions Fleet can solve with helpful information. If additional information is needed, find help in [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) for accurate information.
 3. Leave a like on threads and posts that are interesting, cool, celebratory, funny, etc. within our communities.
 4. If a post is helpful to our audience, reshare it.
-
-
-### Respond to  a "Talk to an expert" request
-
-When a community member has a question about getting started with Fleet, they can [book a 15-minute call](https://calendly.com/jd-fleet/let-s-talk-fleet) with the Community Advocate.
-
-1. Add questionnaire details to the [Talk to an Expert](https://docs.google.com/spreadsheets/d/1aMLQ9z5TYn90AnE3g1sMPoxsMNMKXn_l3aWb9Kdi7G4/edit) spreadsheet.
-2. After meeting the contributor, follow up with an email including appropriate links.
 
 
 ### Upload to YouTube

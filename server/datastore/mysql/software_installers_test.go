@@ -495,6 +495,7 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 				Title:         "foo" + tc.name,
 				Source:        "bar" + tc.name,
 				InstallScript: "echo " + tc.name,
+				Version:       "1.11",
 				TeamID:        &teamID,
 				Filename:      swFilename,
 				UserID:        user1.ID,
@@ -533,6 +534,37 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 				PostInstallScriptOutput:   tc.postInstallScriptOutput,
 			})
 			require.NoError(t, err)
+
+			// edit installer to ensure host software install is unaffected
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err = q.ExecContext(ctx, `
+					UPDATE software_installers SET filename = 'something different', version = '1.23' WHERE id = ?`,
+					installerID)
+				require.NoError(t, err)
+				return nil
+			})
+
+			res, err = ds.GetSoftwareInstallResults(ctx, installUUID)
+			require.NoError(t, err)
+			require.Equal(t, swFilename, res.SoftwarePackage)
+
+			// delete installer to confirm that we can still access the install record
+			err = ds.DeleteSoftwareInstaller(ctx, installerID)
+			require.NoError(t, err)
+
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				// ensure version is not changed, though we don't expose it yet
+				var version string
+				err := sqlx.GetContext(ctx, q, &version, `SELECT "version" FROM host_software_installs WHERE execution_id = ?`, installUUID)
+				require.NoError(t, err)
+				require.Equal(t, "1.11", version)
+
+				// let's also set the removed flag to ensure that the status we're pulling doesn't change
+				_, err = q.ExecContext(ctx, `UPDATE host_software_installs SET removed = 1 WHERE execution_id = ?`, installUUID)
+				require.NoError(t, err)
+
+				return nil
+			})
 
 			res, err = ds.GetSoftwareInstallResults(ctx, installUUID)
 			require.NoError(t, err)
