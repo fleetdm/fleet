@@ -305,7 +305,7 @@ type setupExperienceInsertTestRows struct {
 func nullableUint(val uint) sql.NullInt64 {
 	return sql.NullInt64{Int64: int64(val), Valid: true} // nolint: gosec
 }
-server/service/integration_mdm_test.go
+
 func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	test.CreateInsertGlobalVPPToken(t, ds)
