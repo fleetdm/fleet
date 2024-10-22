@@ -11,11 +11,20 @@ import (
 	"syscall"
 )
 
+func getUmask() os.FileMode {
+	current := syscall.Umask(0)
+	syscall.Umask(current)
+	return os.FileMode(current)
+}
+
 func isMorePermissive(currentMode, newMode os.FileMode) bool {
-	currentGroup := currentMode & 070
-	newGroup := newMode & 070
-	currentAll := currentMode & 07
-	newAll := newMode & 07
+	// Get process umask to account for it on the newMode bits.
+	umask := getUmask()
+
+	currentGroup := currentMode & 0o70
+	newGroup := newMode & ^umask & 0o70
+	currentAll := currentMode & 0o7
+	newAll := newMode & ^umask & 0o7
 
 	return newGroup > currentGroup || newAll > currentAll
 }

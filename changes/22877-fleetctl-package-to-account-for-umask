@@ -1,0 +1,1 @@
+* Fixed `fleetctl package` to account for `umask` when checking file/folder permissions during package generation.
