@@ -52,7 +52,7 @@ The uninstallation process is also visible in the  **Activities** section on the
 
 ## How does Fleet maintain these apps?
 
-Fleet checks [Homebrew Casks](https://github.com/Homebrew/homebrew-cask) every hour for updates to app definitions. When you add an app, Fleet downloads the latest version available. Currently, Fleet does not automatically update apps. To update the app, remove the app and re-add it from the Fleet-maintained list on the Software page, then reinstall it.
+Fleet checks [Homebrew Casks](https://github.com/Homebrew/homebrew-cask) every hour for updates to app definitions. When you add an app, Fleet downloads the latest version available. Currently, Fleet does not automatically update apps. To update the app, remove the app and re-add it from the Fleet-maintained list on the **Software** page, then reinstall it.
 
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Gabriel Hernandez">
