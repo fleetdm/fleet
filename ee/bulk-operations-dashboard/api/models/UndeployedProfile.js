@@ -46,6 +46,23 @@ module.exports = {
     },
 
 
+    labelTargetBehavior: {
+      type: 'string',
+      isIn: ['exclude', 'include'],
+    },
+
+    target: {
+      type: 'string',
+      description: 'What this script will be deployed to',
+      isIn: ['all', 'custom'],
+      defaultsTo: 'all',
+    },
+
+    labels: {
+      type: 'ref',
+      description: 'A list of IDs of labels this script is associated with.',
+    }
+
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝
