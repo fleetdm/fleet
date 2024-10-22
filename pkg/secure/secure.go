@@ -14,7 +14,7 @@ import (
 func getUmask() os.FileMode {
 	current := syscall.Umask(0)
 	syscall.Umask(current)
-	return os.FileMode(current)
+	return os.FileMode(current) //nolint:gosec // dismiss G115 (max value is 0o777)
 }
 
 func isMorePermissive(currentMode, newMode os.FileMode) bool {
