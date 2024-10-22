@@ -30,8 +30,10 @@ import (
 )
 
 // Functions that can be overwritten in tests
-var validateNDESSCEPAdminURL = eeservice.ValidateNDESSCEPAdminURL
-var validateNDESSCEPURL = eeservice.ValidateNDESSCEPURL
+var (
+	validateNDESSCEPAdminURL = eeservice.ValidateNDESSCEPAdminURL
+	validateNDESSCEPURL      = eeservice.ValidateNDESSCEPURL
+)
 
 ////////////////////////////////////////////////////////////////////////////////
 // Get AppConfig
@@ -812,7 +814,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	mdmSSOSettingsChanged := oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings !=
 		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
-	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged) && license.IsPremium() {
+	appleMDMUrlChanged := oldAppConfig.MDMUrl() != appConfig.MDMUrl()
+	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged || appleMDMUrlChanged) && license.IsPremium() {
 		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "sync DEP profiles")
 		}
