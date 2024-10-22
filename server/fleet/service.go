@@ -262,7 +262,6 @@ type Service interface {
 	// ApplyQuerySpecs applies a list of queries (creating or updating them as necessary)
 	ApplyQuerySpecs(ctx context.Context, specs []*QuerySpec) error
 	// GetQuerySpecs gets the YAML file representing all the stored queries.
-	// TODO - return count and meta from this endpoint?
 	GetQuerySpecs(ctx context.Context, teamID *uint) ([]*QuerySpec, error)
 	// GetQuerySpec gets the spec for the query with the given name on a team.
 	// A nil or 0 teamID means the query is looked for in the global domain.

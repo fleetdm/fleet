@@ -754,7 +754,6 @@ func getQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) GetQuerySpecs(ctx context.Context, teamID *uint) ([]*fleet.QuerySpec, error) {
-	// TODO - return count and meta from this endpoint?
 	queries, _, _, err := svc.ListQueries(ctx, fleet.ListOptions{}, teamID, nil, false)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting queries")
