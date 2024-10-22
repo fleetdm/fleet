@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"log/slog"
-	"runtime"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -138,12 +136,10 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 
 	}
 
-	finished, err := svc.SetupExperienceNextStep(ctx, host.UUID)
+	_, err = svc.SetupExperienceNextStep(ctx, host.UUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
 	}
-
-	slog.With("filename", "ee/server/service/orbit.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: triggered next step ", "finished", finished)
 
 	return payload, nil
 }

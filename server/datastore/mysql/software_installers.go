@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
-	"runtime"
 	"strings"
 	"time"
 
@@ -451,7 +449,6 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 }
 
 func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool, policyID *uint) (string, error) {
-	slog.With("filename", "server/datastore/mysql/software_installers.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: inster  ", "softwareinstallerid", softwareInstallerID)
 	const (
 		insertStmt = `
 		  INSERT INTO host_software_installs
