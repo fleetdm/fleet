@@ -475,3 +475,21 @@ then the [app's context](#react-context) should be used.
 If you are dealing with a page that *updates* any kind of config, you'll want to access that config
 with a fresh API call to be sure you have the updated values. Otherwise, that is, you are dealing
 with a page that is only *reading* config values, get them from context.
+
+### Rendering flash messages
+
+Flash messages by default will be hidden when the user performs any navigation that changes the URL,
+in addition to the timeout set for success messages. The `renderFlash` method from notification
+context accepts an optional third `options` argument which contains an optional
+`persistOnPageChange` boolean field that can be set to `true` to negate this default behavior.
+
+If the `renderFlash` is accompanied by a router push, it's important to push to the router *before*
+calling `renderFlash`. If the push comes after the `renderFlash` call,
+the flash message may register the `push` and immediately hide itself.
+
+```tsx
+// first push
+router.push(newPath);
+// then flash
+renderFlash("error", "Something went wrong");
+```
