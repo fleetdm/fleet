@@ -46,3 +46,35 @@ MySQL. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=80410
 Sometimes we need data from rows that have been deleted from DB. For example, the activity feed may be retained forever, and it needs user info (or host info) that may not exist anymore.
 Going forward, we need to keep this data in a dedicated table(s). A reference unmerged PR is [here](https://github.com/fleetdm/fleet/pull/17472/files#diff-57a635e42320a87dd15a3ae03d66834f2cbc4fcdb5f3ebb7075d966b96f760afR16).
 The `id` may be the same as that of the original table. For example, if the `user` row is deleted, a new entry with the same `user.id` can be added to `user_persistent_info`.
+
+### Re-usable transactionable functions
+
+Sometimes we want to encapsulate a piece of functionality in such a way that it can be use both
+independently and as part of a transaction. To do so, create a private function in the following way: 
+
+```go
+func myTransactionableFunction(ctx context.Context, tx sqlx.ExtContext, yourArgsHere any) error {
+  // some setup, statements, etc
+  _, err := tx.ExecContext(ctx, stmt, args)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "doing some stuff in a transaction")
+	}
+}
+```
+
+You can then use the method as a standalone call, like so
+
+```go
+// *sqlx.DB implements the sqlx.ExtContext interface
+err := myTransactionableFunction(ctx, ds.writer(ctx), myArgs)
+```
+
+or as part of a transaction, like so
+
+```go
+func (ds *Datastore) MyDSMethodWithTransaction(ctx context.Context, yourArgsHere any) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return myTransactionableFunction(ctx, tx, yourArgsHere)
+	})
+}
+```
