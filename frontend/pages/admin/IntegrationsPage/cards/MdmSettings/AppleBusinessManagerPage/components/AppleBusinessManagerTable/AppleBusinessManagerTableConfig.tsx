@@ -6,7 +6,7 @@ import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import DropdownCell from "components/ActionDropdown";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 

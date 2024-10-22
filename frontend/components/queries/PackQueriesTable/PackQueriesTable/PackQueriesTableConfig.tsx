@@ -12,7 +12,7 @@ import { IScheduledQuery } from "interfaces/scheduled_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 import Checkbox from "components/forms/fields/Checkbox";
-import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import DropdownCell from "components/ActionDropdown";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";

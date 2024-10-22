@@ -1,7 +1,7 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
-import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import DropdownCell from "components/ActionDropdown";
 import CustomLink from "components/CustomLink";
 import { IUser, UserRole } from "interfaces/user";
 import { ITeam } from "interfaces/team";

@@ -2,7 +2,7 @@ import React from "react";
 import { screen } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
-import DropdownCell from "./DropdownCell";
+import ActionDropdown from "./ActionDropdown";
 
 const DROPDOWN_OPTIONS = [
   { disabled: false, label: "Edit", value: "edit-query" },
@@ -14,10 +14,10 @@ const ON_CHANGE = (value: string) => {
   console.log(value);
 };
 
-describe("Dropdown cell", () => {
+describe("Action dropdown", () => {
   it("renders dropdown placeholder and options", async () => {
     const { user } = renderWithSetup(
-      <DropdownCell
+      <ActionDropdown
         options={DROPDOWN_OPTIONS} // Test
         placeholder={PLACEHOLDER}
         onChange={ON_CHANGE}
@@ -33,7 +33,7 @@ describe("Dropdown cell", () => {
 
   it("renders dropdown as disabled when disabled prop is true", () => {
     renderWithSetup(
-      <DropdownCell
+      <ActionDropdown
         options={DROPDOWN_OPTIONS}
         placeholder={PLACEHOLDER}
         onChange={ON_CHANGE}
@@ -46,7 +46,7 @@ describe("Dropdown cell", () => {
   it("calls onChange with correct value when an option is selected", async () => {
     const mockOnChange = jest.fn();
     const { user } = renderWithSetup(
-      <DropdownCell
+      <ActionDropdown
         options={DROPDOWN_OPTIONS}
         placeholder={PLACEHOLDER}
         onChange={mockOnChange}
@@ -61,7 +61,7 @@ describe("Dropdown cell", () => {
 
   it("renders disabled option as non-selectable", async () => {
     const { user } = renderWithSetup(
-      <DropdownCell
+      <ActionDropdown
         options={DROPDOWN_OPTIONS}
         placeholder={PLACEHOLDER}
         onChange={ON_CHANGE}
@@ -76,7 +76,7 @@ describe("Dropdown cell", () => {
 
   it("closes the dropdown when clicking outside", async () => {
     const { user } = renderWithSetup(
-      <DropdownCell
+      <ActionDropdown
         options={DROPDOWN_OPTIONS}
         placeholder={PLACEHOLDER}
         onChange={ON_CHANGE}

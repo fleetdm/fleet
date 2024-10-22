@@ -2,14 +2,18 @@ import React from "react";
 import Select, {
   StylesConfig,
   DropdownIndicatorProps,
+  OptionProps,
   components,
 } from "react-select-5";
+
 import { PADDING } from "styles/var/padding";
 import { COLORS } from "styles/var/colors";
+import classnames from "classnames";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 import Icon from "components/Icon";
+import DropdownOptionTooltipWrapper from "components/forms/fields/Dropdown/DropdownOptionTooltipWrapper";
 
 const baseClass = "dropdown-cell";
 
@@ -18,6 +22,9 @@ interface IDropdownCellProps {
   placeholder: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  isSearchable?: boolean;
+  className?: string;
+  menuAlign?: "right" | "default";
 }
 
 const getOptionBackgroundColor = (state: any) => {
@@ -52,12 +59,47 @@ const CustomDropdownIndicator = (
   );
 };
 
+const CustomOption: React.FC<OptionProps<IDropdownOption, false>> = (props) => {
+  const { innerProps, innerRef, data, isDisabled } = props;
+
+  const optionContent = (
+    <div
+      className={`${baseClass}__option`}
+      ref={innerRef}
+      {...innerProps}
+      tabIndex={isDisabled ? -1 : 0} // Tabbing skipped when disabled
+    >
+      {data.label}
+      {data.helpText && (
+        <span className={`${baseClass}__help-text`}>{data.helpText}</span>
+      )}
+    </div>
+  );
+
+  return (
+    <components.Option {...props}>
+      {data.tooltipContent ? (
+        <DropdownOptionTooltipWrapper tipContent={data.tooltipContent}>
+          {optionContent}
+        </DropdownOptionTooltipWrapper>
+      ) : (
+        optionContent
+      )}
+    </components.Option>
+  );
+};
+
 const DropdownCell = ({
   options,
   placeholder,
   onChange,
   disabled,
+  isSearchable = false,
+  className,
+  menuAlign = "default",
 }: IDropdownCellProps): JSX.Element => {
+  const dropdownClassnames = classnames(baseClass, className);
+
   const handleChange = (newValue: IDropdownOption | null) => {
     if (newValue) {
       onChange(newValue.value.toString());
@@ -127,7 +169,8 @@ const DropdownCell = ({
       minWidth: "158px",
       maxHeight: "220px",
       position: "absolute",
-      left: "-12px",
+      left: menuAlign === "default" ? "-12px" : "auto",
+      right: menuAlign === "right" ? 0 : undefined,
       animation: "fade-in 150ms ease-out",
     }),
     menuList: (provided) => ({
@@ -142,6 +185,7 @@ const DropdownCell = ({
       ...provided,
       padding: "10px 8px",
       cursor: "pointer",
+      fontSize: "14px",
       backgroundColor: getOptionBackgroundColor(state),
       "&:hover": {
         cursor: "pointer",
@@ -152,17 +196,16 @@ const DropdownCell = ({
       "&:active": {
         backgroundColor: state.isDisabled
           ? "transparent"
-          : COLORS["ui-vibrant-blue-25"],
+          : COLORS["ui-vibrant-blue-10"],
       },
-      ...(state.isSelected && {
-        backgroundColor: COLORS["ui-vibrant-blue-25"],
-      }),
-      ...(state.isFocused && {
-        backgroundColor: COLORS["ui-vibrant-blue-10"],
-      }),
       ...(state.isDisabled && {
+        color: COLORS["ui-fleet-black-50"],
+        fontStyle: "italic",
         "&:active": {
           backgroundColor: "transparent",
+        },
+        "&:hover": {
+          cursor: "default",
         },
       }),
     }),
@@ -175,15 +218,18 @@ const DropdownCell = ({
         placeholder={placeholder}
         onChange={handleChange}
         isDisabled={disabled}
-        isSearchable={false}
+        isSearchable={isSearchable}
         styles={customStyles}
         components={{
           DropdownIndicator: CustomDropdownIndicator,
           IndicatorSeparator: () => null,
+          Option: CustomOption,
+          SingleValue: () => null, // Doesn't change placeholder text to selected text
         }}
-        className={`${baseClass}-select`}
+        controlShouldRenderValue={false} // Doesn't change placeholder text to selected text
+        isOptionSelected={() => false} // Hides any styling on selected option
+        className={dropdownClassnames}
         classNamePrefix={`${baseClass}-select`}
-        tabIndex={0}
         isOptionDisabled={(option) => !!option.disabled}
       />
     </div>

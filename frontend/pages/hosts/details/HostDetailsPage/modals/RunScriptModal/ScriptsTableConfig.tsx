@@ -5,7 +5,7 @@ import { IHostScript, ILastExecution } from "interfaces/script";
 import { IUser } from "interfaces/user";
 
 import Icon from "components/Icon";
-import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import DropdownCell from "components/ActionDropdown";
 import {
   isGlobalAdmin,
   isTeamMaintainer,

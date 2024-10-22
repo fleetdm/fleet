@@ -1,7 +1,7 @@
 import React from "react";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import DropdownCell from "components/ActionDropdown";
 
 import {
   IJiraIntegration,

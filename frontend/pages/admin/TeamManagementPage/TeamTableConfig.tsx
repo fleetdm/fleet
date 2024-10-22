@@ -2,7 +2,7 @@ import React from "react";
 
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import DropdownCell from "components/ActionDropdown";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";

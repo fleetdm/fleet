@@ -12,7 +12,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import { generateRole, generateTeam, greyCell } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { COLORS } from "styles/var/colors";
-import DropdownCell from "../../../../../components/TableContainer/DataTable/DropdownCell";
+import DropdownCell from "../../../../../components/ActionDropdown";
 
 interface IHeaderProps {
   column: {
