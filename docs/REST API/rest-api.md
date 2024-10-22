@@ -6220,7 +6220,7 @@ List software that can or will be automatically installed during macOS setup. If
       "source": "apps",
       "browser": "",
       "hosts_count": 10,
-      "installed_during_setup": true,
+      "install_during_setup": true,
       "versions": [
         {
           "id": 101,
