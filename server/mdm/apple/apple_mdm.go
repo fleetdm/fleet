@@ -574,8 +574,6 @@ func (d *DEPService) processDeviceResponse(
 		existingDevice, ok := existing[device.SerialNumber]
 		if !ok || device.OpDate.After(existingDevice.OpDate) {
 			existing[device.SerialNumber] = device
-		} else {
-			fmt.Printf("Keeping existing device: %s\n", device.SerialNumber)
 		}
 	}
 
