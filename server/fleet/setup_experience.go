@@ -182,6 +182,7 @@ type SetupExperienceStatusPayload struct {
 	BootstrapPackage      *SetupExperienceBootstrapPackageResult       `json:"bootstrap_package,omitempty"`
 	ConfigurationProfiles []*SetupExperienceConfigurationProfileResult `json:"configuration_profiles,omitempty"`
 	AccountConfiguration  *SetupExperienceAccountConfigurationResult   `json:"account_configuration,omitempty"`
+	OrgLogoURL            string                                       `json:"org_logo_url"`
 }
 
 func IsSetupExperienceSupported(hostPlatform string) bool {
