@@ -68,7 +68,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	payloadsWithPlatform := make([]fleet.VPPBatchPayloadWithPlatform, 0, len(payloads))
 	for _, payload := range payloads {
-		fmt.Println(">>>> ", payload.AppStoreID, *payload.InstallDuringSetup)
 		// Currently only macOS is supported for self-service. Don't
 		// import vpp apps as self-service for ios or ipados
 		payloadsWithPlatform = append(payloadsWithPlatform, []fleet.VPPBatchPayloadWithPlatform{{
