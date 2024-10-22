@@ -395,9 +395,26 @@ type fileContent struct {
 	Content  []byte
 }
 
+// TODO: as confirmed by Noah and Marko on Slack:
+//
+//	> from Noah: "We want to support existing features w/ fleetctl apply for
+//	> backwards compatibility GitOps but we don’t need to add new features."
+//
+// We should deprecate ApplyGroup and use it only for `fleetctl apply` (and
+// its current minimal use in `preview`), and have a distinct implementation
+// that is `gitops`-only, because both uses have subtle differences in
+// behaviour that make it hard to reuse a single implementation (e.g. a missing
+// key in gitops means "remove what is absent" while in apply it means "leave
+// as-is").
+//
+// For now I'm just passing a "gitops" bool for a quick fix, but we should
+// properly plan that separation and refactor so that gitops can be
+// significantly cleaned up and simplified going forward.
+
 // ApplyGroup applies the given spec group to Fleet.
 func (c *Client) ApplyGroup(
 	ctx context.Context,
+	viaGitOps bool,
 	specs *spec.Group,
 	baseDir string,
 	logf func(format string, args ...interface{}),
@@ -560,17 +577,14 @@ func (c *Client) ApplyGroup(
 		tmMacSetup := extractTmSpecsMacOSSetup(specs.Teams)
 		tmBootstrapPackages := make(map[string]*fleet.MDMAppleBootstrapPackage, len(tmMacSetup))
 		tmMacSetupAssistants := make(map[string][]byte, len(tmMacSetup))
+
+		// those are gitops-only features
 		tmMacSetupScript := make(map[string]fileContent, len(tmMacSetup))
 		tmMacSetupSoftware := make(map[string][]*fleet.MacOSSetupSoftware, len(tmMacSetup))
 
 		// this is a set of software packages or VPP apps that are configured as
-		// install_during_setup, by team. If a team has no software to install
-		// during setup, but the macos_setup.software key WAS set (but empty or
-		// null), then an empty map is created under the team's key, meaning that
-		// all existing software must have its install_during_setup flag set to
-		// false. If the macos_setup.software key is not set at all, then the
-		// existing install_during_setup values are maintained (by leaving the
-		// field nil in the call to batch-set the software).
+		// install_during_setup, by team. This is a gitops-only setting, so it will
+		// only be filled when called via this command.
 		tmMacSetupSoftwareByKey := make(map[string]map[fleet.MacOSSetupSoftware]struct{})
 
 		for k, setup := range tmMacSetup {
@@ -595,7 +609,7 @@ func (c *Client) ApplyGroup(
 				}
 				tmMacSetupScript[k] = fileContent{Filename: filepath.Base(setup.Script.Value), Content: b}
 			}
-			if setup.Software.Set {
+			if viaGitOps {
 				tmMacSetupSoftwareByKey[k] = make(map[fleet.MacOSSetupSoftware]struct{}, len(setup.Software.Value))
 				for _, sw := range setup.Software.Value {
 					if sw.AppStoreID != "" && sw.PackagePath != "" {
@@ -761,7 +775,7 @@ func (c *Client) ApplyGroup(
 						return nil, nil, nil, fmt.Errorf("uploading macOS setup assistant for team %q: %w", tmName, err)
 					}
 				}
-				if fc, ok := tmMacSetupScript[tmName]; ok {
+				if fc, ok := tmMacSetupScript[tmName]; ok && viaGitOps {
 					if err := c.uploadMacOSSetupScript(fc.Filename, fc.Content, &tmID); err != nil {
 						return nil, nil, nil, fmt.Errorf("uploading setup experience script for team %q: %w", tmName, err)
 					}
@@ -1577,7 +1591,7 @@ func (c *Client) DoGitOps(
 	}
 
 	// Apply org settings, scripts, enroll secrets, team entities (software, scripts, etc.), and controls.
-	teamIDsByName, teamsSoftwareInstallers, teamsScripts, err := c.ApplyGroup(ctx, &group, baseDir, logf, appConfig, fleet.ApplyClientSpecOptions{
+	teamIDsByName, teamsSoftwareInstallers, teamsScripts, err := c.ApplyGroup(ctx, true, &group, baseDir, logf, appConfig, fleet.ApplyClientSpecOptions{
 		ApplySpecOptions: fleet.ApplySpecOptions{
 			DryRun: dryRun,
 		},
