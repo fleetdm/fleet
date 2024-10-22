@@ -6214,34 +6214,36 @@ List software that can or will be automatically installed during macOS setup. If
 {
   "software_titles": [
     {
-      "id": 1,
-      "name": "Google Chrome.app",
+      "id": 12,
+      "name": "Firefox.app",
+      "software_package": {
+        "name": "FirefoxInsall.pkg",
+        "version": "125.6",
+        "self_service": true,
+        "install_during_setup": true
+      },
+      "app_store_app": null,
       "versions_count": 3,
       "source": "apps",
       "browser": "",
-      "hosts_count": 10,
-      "install_during_setup": true,
+      "hosts_count": 48,
       "versions": [
         {
-          "id": 101,
-          "version": "1.0.0",
-          "vulnerabilities": ["CVE-2021-12345", "CVE-2021-67890"]
+          "id": 123,
+          "version": "1.12",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         },
         {
-          "id": 102,
-          "version": "1.1.0",
-          "vulnerabilities": []
+          "id": 124,
+          "version": "3.4",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+        },
+        {
+          "id": 12
+          "version": "1.13",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         }
-      ],
-      "software_package": {
-        "name": "Software A Package",
-        "version": "1.0.0",
-        "self_service": true
-      },
-      "app_store_app": {
-        "app_store_id": 201,
-        "version": "1.0.0"
-      }
+      ]
     }
   ],
   {
