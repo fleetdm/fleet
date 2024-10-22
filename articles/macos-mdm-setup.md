@@ -50,7 +50,7 @@ Hosts that automatically enroll will be assigned to a default team. You can conf
 
 1. Creating teams, if you have not already, following [this guide](https://fleetdm.com/guides/teams#basic-article). Our [best practice](#best-practice) recommendation is to have a team for each device type.
 2. Navigating to the **Settings > Integrations > Mobile device management (MDM)** page and clicking "Edit" under "Automatic enrollment".
-3. Click on the "Actions" dropdown for the ABM token you want to update, and then click "Edit teams".
+3. Clicking on the "Actions" dropdown for the ABM token you want to update, and then clicking "Edit teams".
 4. Use the dropdowns in the modal to select the default team for each type of host, and click "Save" to save your selections.
 
 If no default team is set for a host platform (macOS, iOS, or iPadOS), then newly enrolled hosts of that platform will be placed in "No team". 
