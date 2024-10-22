@@ -78,3 +78,6 @@ func (ds *Datastore) MyDSMethodWithTransaction(ctx context.Context, yourArgsHere
 	})
 }
 ```
+
+See [this commit](https://github.com/fleetdm/fleet/pull/22843/files#diff-c5babdad542a72acf2ec2ecb7cb43967fc53850b6998ac629e253336b87e008bR415)
+for an example of this pattern.
