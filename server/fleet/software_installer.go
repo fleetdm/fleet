@@ -220,9 +220,6 @@ type HostSoftwareInstallerResult struct {
 	HostID uint `json:"host_id" db:"host_id"`
 	// Status is the status of the software installer package on the host.
 	Status SoftwareInstallerStatus `json:"status" db:"status"`
-	// Detail is the detail of the software installer package on the host. TODO: does this field
-	// have specific values that should be used? If so, how are they calculated?
-	Detail string `json:"detail" db:"detail"`
 	// Output is the output of the software installer package on the host.
 	Output *string `json:"output" db:"install_script_output"`
 	// PreInstallQueryOutput is the output of the pre-install query on the host.

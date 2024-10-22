@@ -552,17 +552,21 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			err = ds.DeleteSoftwareInstaller(ctx, installerID)
 			require.NoError(t, err)
 
-			res, err = ds.GetSoftwareInstallResults(ctx, installUUID)
-			require.NoError(t, err)
-
-			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error { // ensure version is not changed, though we don't expose it yet
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				// ensure version is not changed, though we don't expose it yet
 				var version string
 				err := sqlx.GetContext(ctx, q, &version, `SELECT "version" FROM host_software_installs WHERE execution_id = ?`, installUUID)
 				require.NoError(t, err)
 				require.Equal(t, "1.11", version)
 
+				// let's also set the removed flag to ensure that the status we're pulling doesn't change
+				_, err = q.ExecContext(ctx, `UPDATE host_software_installs SET removed = 1 WHERE execution_id = ?`, installUUID)
+				require.NoError(t, err)
+
 				return nil
 			})
+
+			res, err = ds.GetSoftwareInstallResults(ctx, installUUID)
 			require.NoError(t, err)
 
 			require.Equal(t, installUUID, res.InstallUUID)
