@@ -10189,7 +10189,11 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	assert.Contains(t, assoc, fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IOSPlatform})
 	assert.Contains(t, assoc, fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IPadOSPlatform})
 	// Only macOS version should be self-service
-	assert.Equal(t, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform}, SelfService: true},
+	assert.Equal(t, fleet.VPPAppTeam{
+		VPPAppID:           fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform},
+		SelfService:        true,
+		InstallDuringSetup: ptr.Bool(false),
+	},
 		assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform}])
 
 	// Reverse self-service associations
@@ -10206,10 +10210,23 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
 	require.NoError(t, err)
 	require.Len(t, assoc, 4)
-	assert.Equal(t, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform}, SelfService: true}, assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform}])
-	assert.Equal(t, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IOSPlatform}}, assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IOSPlatform}])
-	assert.Equal(t, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IPadOSPlatform}}, assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IPadOSPlatform}])
-	assert.Equal(t, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform}}, assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform}])
+	assert.Equal(t, fleet.VPPAppTeam{
+		VPPAppID:           fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform},
+		SelfService:        true,
+		InstallDuringSetup: ptr.Bool(false),
+	}, assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform}])
+	assert.Equal(t, fleet.VPPAppTeam{
+		VPPAppID:           fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IOSPlatform},
+		InstallDuringSetup: ptr.Bool(false),
+	}, assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IOSPlatform}])
+	assert.Equal(t, fleet.VPPAppTeam{
+		VPPAppID:           fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IPadOSPlatform},
+		InstallDuringSetup: ptr.Bool(false),
+	}, assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IPadOSPlatform}])
+	assert.Equal(t, fleet.VPPAppTeam{
+		VPPAppID:           fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform},
+		InstallDuringSetup: ptr.Bool(false),
+	}, assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform}])
 
 	// Associate an app with a team with no team members
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}}}, http.StatusNoContent, "team_name", tmEmpty.Name)
