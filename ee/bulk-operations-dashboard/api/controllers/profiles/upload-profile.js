@@ -17,6 +17,19 @@ module.exports = {
     teams: {
       type: ['string'],
       description: 'An array of team IDs that this profile will be added to'
+    },
+    target: {
+      type: 'string',
+      description: 'The target for this configuration profile',
+      defaultsTo: 'all',
+      isIn: ['all', 'custom'],
+    },
+    labelTargetBehavior: {
+      type: 'string',
+      isIn: ['include', 'exclude'],
+    },
+    labels: {
+      type: ['ref']
     }
   },
 
@@ -40,7 +53,8 @@ module.exports = {
   },
 
 
-  fn: async function ({newProfile, teams}) {
+  fn: async function ({newProfile, teams, target, labelTargetBehavior, labels}) {
+    console.log({teams, target, labelTargetBehavior, labels})
     let util = require('util');
     let profile = await sails.reservoir(newProfile)
     .intercept('E_EXCEEDS_UPLOAD_LIMIT', 'tooBig')
@@ -63,6 +77,9 @@ module.exports = {
       platform: profilePlatform,
       profileType: extension,
       createdAt: Date.now(),
+      target,
+      labels,
+      labelTargetBehavior,
     };
     if(!teams) {
       newProfileInfo.profileContents = profileContents;
@@ -70,21 +87,25 @@ module.exports = {
     } else {
       let newTeams = [];
       for(let teamApid of teams){
+        let bodyForThisRequest = {
+          team_id: teamApid,// eslint-disable-line camelcase
+          labels_exclude_any: labelTargetBehavior === 'exclude' ? labels : undefined,
+          labels_include_all: labelTargetBehavior === 'include' ? labels : undefined,
+          profile: {
+            options: {
+              filename: profileFileName,
+              contentType: 'application/octet-stream'
+            },
+            value: profileContents,
+          }
+        };
+        console.log(bodyForThisRequest);
         let newProfileResponse = await sails.helpers.http.sendHttpRequest.with({
           method: 'POST',
           baseUrl: sails.config.custom.fleetBaseUrl,
           url: `/api/v1/fleet/configuration_profiles?team_id=${teamApid}`,
           enctype: 'multipart/form-data',
-          body: {
-            team_id: teamApid,// eslint-disable-line camelcase
-            profile: {
-              options: {
-                filename: profileFileName,
-                contentType: 'application/octet-stream'
-              },
-              value: profileContents,
-            }
-          },
+          body: bodyForThisRequest,
           headers: {
             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
           },

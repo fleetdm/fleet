@@ -74,6 +74,7 @@
     <div v-else>
       <h2 class="px-3 text-center mx-auto pt-5">No profiles matching the selected filters were found.</h2>
     </div>
+    {{profilesToDisplay}}
   </div>
 <%//  ╔═╗╔╦╗╦╔╦╗  ╔═╗╦═╗╔═╗╔═╗╦╦  ╔═╗
   //  ║╣  ║║║ ║   ╠═╝╠╦╝║ ║╠╣ ║║  ║╣
@@ -85,20 +86,49 @@
         <div class="pointer" @click="closeModal()">&times;</div>
       </div>
       <ajax-form :handle-submitting="handleSubmittingEditProfileForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editProfileFormRules" @submitted="submittedForm()">
-        <div purpose="profile-information" v-if="!formData.newProfile">
-          <div class="d-flex flex-row justify-content-start">
-            <img style="height: 40px; width: 34px;" alt="Configuration profile" src="/images/profile-34x40@2x.png">
-            <div class="d-flex flex-column">
-              <p><strong>{{profileToEdit.name}}</strong></p>
-              <p class="muted">{{platformFriendlyNames[profileToEdit.platform]}}</p>
+        <div v-if="labelsSyncing">
+
+        </div>
+        <div v-else>
+          {{formData}}
+          <div purpose="profile-information" v-if="!formData.newProfile">
+            <div class="d-flex flex-row justify-content-start">
+              <img style="height: 40px; width: 34px;" alt="Configuration profile" src="/images/profile-34x40@2x.png">
+              <div class="d-flex flex-column">
+                <p><strong>{{profileToEdit.name}}</strong></p>
+                <p class="muted">{{platformFriendlyNames[profileToEdit.platform]}}</p>
+              </div>
             </div>
           </div>
-        </div>
-        <cloud-error v-if="cloudError === 'payloadIdentifierDoesNotMatch'"></cloud-error>
-        <file-upload id="edit-file-upload" mode="profiles" :disabled="syncing" accept=".xml,.mobileconfig" v-model="formData.newProfile"></file-upload>
-        <div purpose="teams-picker">
-          <p class="mb-2"><strong>Teams</strong></p>
-          <multifield :value="formData.teams" v-model="formData.newTeamIds" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
+          <cloud-error v-if="cloudError === 'payloadIdentifierDoesNotMatch'"></cloud-error>
+          <file-upload id="edit-file-upload" mode="profiles" :disabled="syncing" accept=".xml,.mobileconfig" v-model="formData.newProfile"></file-upload>
+          <div purpose="teams-picker">
+            <p class="mb-2"><strong>Teams</strong></p>
+            <multifield :value="formData.teams" v-model="formData.newTeamIds" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
+          </div>
+          <div>
+            <p><strong>Target</strong></p>
+            <div class="form-group" @input="logThis(formData.target)">
+            <label purpose="form-option" class="form-control border-0 mb-2 p-0 h-auto"  :class="[formData.target === 'all' ? 'selected' : '']">
+              <input type="radio" :class="[formErrors.target ? 'is-invalid' : '']" v-model.trim="formData.target" value="all">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              All hosts on selected teams
+            </label>
+            <label purpose="form-option" class="form-control border-0 mb-0 p-0"  :class="[formData.target === 'custom' ? 'selected' : '']">
+              <input type="radio" :class="[formErrors.target ? 'is-invalid' : '']" v-model.trim="formData.target" value="custom">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Custom
+            </label>
+            </div>
+          </div>
+          <div v-if="formData.target === 'custom'">
+            <select class="custom-select form-control mb-4" v-model="formData.labelsFilter">
+              <option value="include" selected>Hosts with all of these labels</option>
+              <option value="exclude">Hosts with none of these labels</option>
+            </select>
+
+            <multifield :value="formData.labels" v-model="formData.labels" input-type="checkboxes" :select-options="labels"></multifield>
+          </div>
         </div>
         <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
           <cloud-error v-if="cloudError && cloudError !== 'payloadIdentifierDoesNotMatch'"></cloud-error>
@@ -141,6 +171,27 @@
         <div purpose="teams-picker" class="mt-4">
           <p class="mb-2"><strong>Teams</strong></p>
           <multifield :value="formData.teams" v-model="formData.teams" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
+        </div>
+        <div>
+          <p><strong>Target</strong></p>
+          <label purpose="form-option" class="form-control border-0 mb-2 p-0 h-auto">
+            <input type="radio" :class="[formErrors.target ? 'is-invalid' : '']" v-model.trim="formData.target" value="all">
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+            All hosts on selected teams
+          </label>
+          <label purpose="form-option" class="form-control border-0 mb-0 p-0">
+            <input type="radio" :class="[formErrors.target ? 'is-invalid' : '']" v-model.trim="formData.target" value="custom">
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+            Custom
+          </label>
+        </div>
+        <div v-if="formData.target === 'custom'">
+          <select class="custom-select form-control mb-4" v-model="formData.labelTargetBehavior">
+            <option value="include" selected>Hosts with all of these labels</option>
+            <option value="exclude">Hosts with none of these labels</option>
+          </select>
+
+          <multifield :value="formData.labels" v-model="formData.labels" input-type="checkboxes" :select-options="labels"></multifield>
         </div>
         <cloud-error v-if="cloudError"></cloud-error>
         <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
