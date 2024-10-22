@@ -7276,7 +7276,7 @@ Either `query` or `query_id` must be provided.
 
 ### Edit team policy
 
-> **Experimental feature**. Software related features ( like install software policy automation) are undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+> **Experimental feature**. Software related features (like install software policy automation) are undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 `PATCH /api/v1/fleet/teams/:team_id/policies/:policy_id`
 
