@@ -137,7 +137,7 @@ func parseXML(reader io.Reader) (*msrcxml.FeedResult, error) {
 			return nil, fmt.Errorf("decoding token: %v", err)
 		}
 
-		switch t := t.(type) {
+		switch t := t.(type) { //nolint:gocritic // ignore singleCaseSwitch
 		case xml.StartElement:
 			if t.Name.Local == "Branch" {
 				branch := msrcxml.ProductBranch{}

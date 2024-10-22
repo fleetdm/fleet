@@ -924,7 +924,7 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Bob", "bob@example.com", true)
 
 	for i, platform := range []string{"windows", "linux"} {
-		hostID := uint(i + 1)
+		hostID := uint(i + 1) //nolint:gosec // dismiss G115
 
 		t.Run(platform, func(t *testing.T) {
 			status, err := ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
@@ -1203,7 +1203,7 @@ func testInsertScriptContents(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.Len(t, sc, 1)
-	require.Equal(t, uint(id), sc[0].ID)
+	require.EqualValues(t, id, sc[0].ID)
 	require.Equal(t, expectedCS, sc[0].Checksum)
 }
 
@@ -1324,7 +1324,7 @@ func testGetAnyScriptContents(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	id, _ := res.LastInsertId()
 
-	result, err := ds.GetAnyScriptContents(ctx, uint(id))
+	result, err := ds.GetAnyScriptContents(ctx, uint(id)) //nolint:gosec // dismiss G115
 	require.NoError(t, err)
 	require.Equal(t, contents, string(result))
 }

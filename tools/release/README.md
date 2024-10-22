@@ -83,12 +83,12 @@ tools/release/publish_release.sh -d
 This provides an opportunity to go over the tickets and their attached PRs.
 Specifically check cases where more than one ticket have the same PR and vice versa.
 
+# Build release candidate, changelogs and QA ticket
 
-Build release candidate, changelogs and QA ticket
 ```
 ./tools/release/publish_release.sh
 ```
-Do QA until ready to release
+# Do QA until ready to release
 
 After running the script:
 - Check #help-engineering for announcements and QA ticket.
@@ -96,11 +96,12 @@ After running the script:
 - Let QA know about the release here: https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml
 - This is a good time to post a request in #g-sales that we may want to deploy this release to dogfood.
 
-QA is passed on all teams and ready for release
+# QA is passed on all teams and ready for release
 
 Tag patch
 ```
 ./tools/release/publish_release.sh -g
+
 ```
 Wait for goreleaser to finish in terminal (This will take a long time)
 
@@ -110,9 +111,14 @@ Publish patch
 ```
 Go update osquery-slack version
 
-Merge the final changes PR into main:
+# Merge the final changes PR into main:
 
-...
-TODO example output
-...
+# Publish patch
+./tools/release/publish_release.sh -u
 
+# Make sure to wait for the CLI to open NPM to publish fleetctl.
+# If that fails, manually publish by going to the `/tools/fleetctl-npm/` directory
+# and running `npm publish`
+
+# Go update osquery-slack version
+```

@@ -115,7 +115,7 @@ module.exports.custom = {
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // FUTURE: To avoid repeating structure and comments, consolidate all these configs w/ something like:
     //    ````
-    //    'articles': { dri: 'mike-j-thomas', maintainers: ['mike-j-thomas', 'mike-j-thomas', 'spokanemac', 'mikermcneil'], repo: 'fleetdm/fleet' },
+    //    'articles': { dri: 'mike-j-thomas', maintainers: ['mike-j-thomas', 'mike-j-thomas', 'mikermcneil'], repo: 'fleetdm/fleet' },
     //    ````
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -132,7 +132,7 @@ module.exports.custom = {
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // 🫧 Articles and release notes
-    'articles': 'spokanemac',
+    'articles': 'rachaelshaw',
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
@@ -162,8 +162,11 @@ module.exports.custom = {
     // 🫧 Pricing and features
     // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
     'handbook/company/pricing-features-table.yml': 'noahtalerman',
-
     'handbook/company/testimonials.yml': 'mike-j-thomas',
+    'handbook/company/product-groups.md': 'lukeheath',
+    'handbook/engineering': 'lukeheath',
+    'handbook/product-design': 'sampfluger88',
+
 
     // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront
@@ -216,9 +219,9 @@ module.exports.custom = {
 
 
     // Articles and release notes
-    'CHANGELOG.md': ['mikermcneil', 'spokanemac', 'noahtalerman', 'lukeheath'],
-    'articles': ['mike-j-thomas', 'mike-j-thomas', 'eashaw', 'mikermcneil', 'spokanemac'],
-    'website/assets/images/articles': ['spokanemac', 'mike-j-thomas', 'mike-j-thomas', 'eashaw', 'mikermcneil'],
+    'CHANGELOG.md': ['mikermcneil', 'noahtalerman', 'lukeheath'],
+    'articles': ['mike-j-thomas', 'mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw'],
+    'website/assets/images/articles': ['mike-j-thomas', 'mike-j-thomas', 'eashaw', 'mikermcneil'],
 
     // Website (fleetdm.com)
     'website': ['mikermcneil', 'eashaw'],// (default for website)
@@ -268,7 +271,7 @@ module.exports.custom = {
     'handbook/digital-experience': ['sampfluger88','mikermcneil'],
     'handbook/finance': ['sampfluger88','mikermcneil'],
     'handbook/engineering': ['sampfluger88','mikermcneil', 'lukeheath'],
-    'handbook/product-design': ['sampfluger88','mikermcneil'],
+    'handbook/product-design': ['sampfluger88','mikermcneil','noahtalerman'],
     'handbook/sales': ['sampfluger88','mikermcneil'],
     'handbook/demand': ['sampfluger88','mikermcneil'],
     'handbook/customer-success': ['sampfluger88','mikermcneil'],

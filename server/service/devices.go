@@ -555,7 +555,7 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]b
 	}
 
 	enrollSecret := tmSecrets[0].Secret
-	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.ServerSettings.ServerURL, enrollSecret)
+	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating ota mobileconfig file for manual enrollment")
 	}
@@ -642,5 +642,5 @@ func getDeviceSoftwareEndpoint(ctx context.Context, request interface{}, svc fle
 	if res == nil {
 		res = []*fleet.HostSoftwareWithInstaller{}
 	}
-	return getDeviceSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil
+	return getDeviceSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil //nolint:gosec // dismiss G115
 }

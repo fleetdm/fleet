@@ -88,7 +88,7 @@ func setupDS(privateKey, userName, password, address, name string) *mysql.Datast
 		}),
 	)
 	if err != nil {
-		log.Fatal("creating datastore instance:", err)
+		log.Fatal("creating datastore instance:", err) //nolint:gocritic // ignore exitAfterDefer
 	}
 
 	return ds
@@ -126,7 +126,7 @@ func main() {
 		// Check required flags
 		if flagDir != "" {
 			if err := os.MkdirAll(flagDir, os.ModePerm); err != nil {
-				log.Fatal("ensuring directory: ", err)
+				log.Fatal("ensuring directory: ", err) //nolint:gocritic // ignore exitAfterDefer
 			}
 		}
 
@@ -202,9 +202,9 @@ func main() {
 			path := filepath.Join(flagDir, string(asset.Name))
 			switch {
 			case strings.Contains(path, "_key"):
-				path = path + ".key"
+				path += ".key"
 			case strings.Contains(path, "_cert"):
-				path = path + ".crt"
+				path += ".crt"
 			}
 			if err := os.WriteFile(path, asset.Value, 0o600); err != nil {
 				log.Fatal("writing asset:", err)

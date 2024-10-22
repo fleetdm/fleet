@@ -101,7 +101,7 @@ INSERT INTO
 
 	return &fleet.MDMAppleConfigProfile{
 		ProfileUUID:  profUUID,
-		ProfileID:    uint(profileID),
+		ProfileID:    uint(profileID), //nolint:gosec // dismiss G115
 		Identifier:   cp.Identifier,
 		Name:         cp.Name,
 		Mobileconfig: cp.Mobileconfig,
@@ -299,7 +299,18 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Conte
 func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error {
 	// TODO(roberto): this seems confusing to me, we should have a separate datastore method.
 	if strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix) {
-		return ds.deleteMDMAppleDeclaration(ctx, profileUUID)
+		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			if err := deleteMDMAppleDeclaration(ctx, tx, profileUUID); err != nil {
+				return err
+			}
+
+			if err := deleteUnsentAppleHostMDMDeclaration(ctx, tx, profileUUID); err != nil {
+				return err
+			}
+
+			return nil
+		})
+		// return ds.deleteMDMAppleDeclaration(ctx, profileUUID)
 	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := deleteMDMAppleConfigProfileByIDOrUUID(ctx, tx, 0, profileUUID); err != nil {
@@ -349,6 +360,15 @@ func deleteUnsentAppleHostMDMProfile(ctx context.Context, tx sqlx.ExtContext, uu
 	return nil
 }
 
+func deleteUnsentAppleHostMDMDeclaration(ctx context.Context, tx sqlx.ExtContext, uuid string) error {
+	const stmt = `DELETE FROM host_mdm_apple_declarations WHERE declaration_uuid = ? AND status IS NULL AND operation_type = ?`
+	if _, err := tx.ExecContext(ctx, stmt, uuid, fleet.MDMOperationTypeInstall); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host declaration that has not been sent to host")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) DeleteMDMAppleDeclarationByName(ctx context.Context, teamID *uint, name string) error {
 	const stmt = `DELETE FROM mdm_apple_declarations WHERE team_id = ? AND name = ?`
 
@@ -363,10 +383,10 @@ func (ds *Datastore) DeleteMDMAppleDeclarationByName(ctx context.Context, teamID
 	return nil
 }
 
-func (ds *Datastore) deleteMDMAppleDeclaration(ctx context.Context, uuid string) error {
+func deleteMDMAppleDeclaration(ctx context.Context, tx sqlx.ExtContext, uuid string) error {
 	stmt := `DELETE FROM mdm_apple_declarations WHERE declaration_uuid = ?`
 
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, uuid)
+	res, err := tx.ExecContext(ctx, stmt, uuid)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -456,7 +476,8 @@ WHERE
 }
 
 func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID string,
-	profileUUID string) (*fleet.HostMDMCertificateProfile, error) {
+	profileUUID string,
+) (*fleet.HostMDMCertificateProfile, error) {
 	stmt := `
 	SELECT
 		hmap.host_uuid,
@@ -511,7 +532,7 @@ ON DUPLICATE KEY UPDATE
 	}
 	id, _ := res.LastInsertId()
 	return &fleet.MDMAppleEnrollmentProfile{
-		ID:         uint(id),
+		ID:         uint(id), //nolint:gosec // dismiss G115
 		Token:      payload.Token,
 		Type:       payload.Type,
 		DEPProfile: payload.DEPProfile,
@@ -683,7 +704,7 @@ func (ds *Datastore) NewMDMAppleInstaller(ctx context.Context, name string, size
 	}
 	id, _ := res.LastInsertId()
 	return &fleet.MDMAppleInstaller{
-		ID:        uint(id),
+		ID:        uint(id), //nolint:gosec // dismiss G115
 		Size:      size,
 		Name:      name,
 		Manifest:  manifest,
@@ -885,7 +906,7 @@ func updateMDMAppleHostDB(
 		return ctxerr.Wrap(ctx, err, "error clearing mdm apple host_mdm_actions")
 	}
 
-	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg.ServerSettings, false, hostID); err != nil {
+	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg, false, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 	}
 
@@ -946,7 +967,7 @@ func insertMDMAppleHostDB(
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert label membership")
 	}
 
-	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg.ServerSettings, false, mdmHost.ID); err != nil {
+	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg, false, mdmHost.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 	}
 	return nil
@@ -1081,7 +1102,7 @@ func createHostFromMDMDB(
 	if err := upsertMDMAppleHostMDMInfoDB(
 		ctx,
 		tx,
-		appCfg.ServerSettings,
+		appCfg,
 		fromADE,
 		unmanagedHostIDs...,
 	); err != nil {
@@ -1237,12 +1258,12 @@ func upsertMDMAppleHostDisplayNamesDB(ctx context.Context, tx sqlx.ExtContext, h
 	return nil
 }
 
-func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverSettings fleet.ServerSettings, fromSync bool, hostIDs ...uint) error {
+func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg *fleet.AppConfig, fromSync bool, hostIDs ...uint) error {
 	if len(hostIDs) == 0 {
 		return nil
 	}
 
-	serverURL, err := apple_mdm.ResolveAppleMDMURL(serverSettings.ServerURL)
+	serverURL, err := apple_mdm.ResolveAppleMDMURL(appCfg.MDMUrl())
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "resolve Fleet MDM URL")
 	}
@@ -1542,7 +1563,7 @@ INSERT INTO hosts (
 		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, ds.logger, *host); err != nil {
 			return ctxerr.Wrap(ctx, err, "restore pending dep host label membership")
 		}
-		if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, ac.ServerSettings, true, host.ID); err != nil {
+		if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, ac, true, host.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 		}
 
@@ -4335,7 +4356,8 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 	for k := range setProfileUUIDs {
 		profUUIDs = append(profUUIDs, k)
 	}
-	deleteArgs := append(deleteParams, profUUIDs)
+	deleteArgs := deleteParams
+	deleteArgs = append(deleteArgs, profUUIDs)
 
 	deleteStmt, args, err := sqlx.In(deleteStmt, deleteArgs...)
 	if err != nil {
@@ -4780,7 +4802,8 @@ func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.M
 }
 
 func (ds *Datastore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName,
-	queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	queryerContext sqlx.QueryerContext,
+) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 	if len(assetNames) == 0 {
 		return nil, nil
 	}
@@ -5069,14 +5092,14 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 
 	tokenID, _ := res.LastInsertId()
 
-	tok.ID = uint(tokenID)
+	tok.ID = uint(tokenID) //nolint:gosec // dismiss G115
 
 	cfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get app config")
 	}
 
-	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.MDMUrl())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
 	}
@@ -5127,7 +5150,7 @@ LEFT OUTER JOIN
 		return nil, ctxerr.Wrap(ctx, err, "get app config")
 	}
 
-	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.MDMUrl())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
 	}
@@ -5252,7 +5275,7 @@ LEFT OUTER JOIN
 		return nil, ctxerr.Wrap(ctx, err, "get app config")
 	}
 
-	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.MDMUrl())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
 	}

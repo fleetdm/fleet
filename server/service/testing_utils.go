@@ -722,12 +722,12 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		// parsed before the MDM check, we need to refactor this
 		// function to return more information to the caller, or find a
 		// better way to test these endpoints.
-		//{"POST", "/api/latest/fleet/mdm/profiles", false, false},
-		//{"POST", "/api/latest/fleet/configuration_profiles", false, false},
-		//{"POST", "/api/latest/fleet/mdm/setup/eula"},
-		//{"POST", "/api/latest/fleet/setup_experience/eula"},
-		//{"POST", "/api/latest/fleet/mdm/bootstrap", false, true},
-		//{"POST", "/api/latest/fleet/bootstrap", false, true},
+		// {"POST", "/api/latest/fleet/mdm/profiles", false, false},
+		// {"POST", "/api/latest/fleet/configuration_profiles", false, false},
+		// {"POST", "/api/latest/fleet/mdm/setup/eula"},
+		// {"POST", "/api/latest/fleet/setup_experience/eula"},
+		// {"POST", "/api/latest/fleet/mdm/bootstrap", false, true},
+		// {"POST", "/api/latest/fleet/bootstrap", false, true},
 		{"GET", "/api/latest/fleet/mdm/profiles", false, false},
 		{"GET", "/api/latest/fleet/configuration_profiles", false, false},
 		{"GET", "/api/latest/fleet/mdm/manual_enrollment_profile", false, true},

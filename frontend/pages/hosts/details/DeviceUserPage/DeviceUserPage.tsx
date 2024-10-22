@@ -23,6 +23,8 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import Icon from "components/Icon/Icon";
+import FlashMessage from "components/FlashMessage";
+
 import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
 import {
@@ -87,7 +89,9 @@ const DeviceUserPage = ({
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
 
-  const { renderFlash } = useContext(NotificationContext);
+  const { renderFlash, notification, hideFlash } = useContext(
+    NotificationContext
+  );
 
   const [isPremiumTier, setIsPremiumTier] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
@@ -477,6 +481,11 @@ const DeviceUserPage = ({
   return (
     <div className="app-wrap">
       <UnsupportedScreenSize />
+      <FlashMessage
+        fullWidth
+        notification={notification}
+        onRemoveFlash={hideFlash}
+      />
       <nav className="site-nav-container">
         <div className="site-nav-content">
           <ul className="site-nav-list">
