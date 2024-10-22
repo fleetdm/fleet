@@ -281,7 +281,7 @@ LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 WHERE %s
 -- placeholder for filter based on software installed on hosts + software installers
 AND (%s)
-GROUP BY st.id, package_self_service, package_name, package_version, package_url, vpp_app_self_service, vpp_app_adam_id, vpp_app_version, vpp_app_icon_url`
+GROUP BY st.id, package_self_service, package_name, package_version, package_url, vpp_app_self_service, vpp_app_adam_id, vpp_app_version, vpp_app_icon_url, si.install_during_setup`
 
 	cveJoinType := "LEFT"
 	if opt.VulnerableOnly {
@@ -358,10 +358,6 @@ GROUP BY st.id, package_self_service, package_name, package_version, package_url
 		additionalWhere = " (st.name LIKE ? OR scve.cve LIKE ?)"
 		match = likePattern(match)
 		args = append(args, match, match)
-	}
-
-	if opt.SetupExperienceOnly {
-		additionalWhere += ` AND ( si.install_during_setup = 1 OR vat.install_during_setup = 1 )`
 	}
 
 	if opt.Platform != "" {

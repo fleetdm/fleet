@@ -265,7 +265,7 @@ func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, team
 		TeamID:              &teamID,
 		ListOptions:         opts,
 		Platform:            string(fleet.MacOSPlatform),
-		SetupExperienceOnly: true,
+		AvailableForInstall: true,
 	}, fleet.TeamFilter{
 		IncludeObserver: true,
 		TeamID:          &teamID,
