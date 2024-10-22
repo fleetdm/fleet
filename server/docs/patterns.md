@@ -54,7 +54,8 @@ independently and as part of a transaction. To do so, create a private function 
 
 ```go
 func myTransactionableFunction(ctx context.Context, tx sqlx.ExtContext, yourArgsHere any) error {
-  // some setup, statements, etc
+  // some setup, statements, etc...
+
   _, err := tx.ExecContext(ctx, stmt, args)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "doing some stuff in a transaction")
@@ -62,7 +63,7 @@ func myTransactionableFunction(ctx context.Context, tx sqlx.ExtContext, yourArgs
 }
 ```
 
-You can then use the method as a standalone call, like so
+You can then use the function as a standalone call, like so
 
 ```go
 // *sqlx.DB implements the sqlx.ExtContext interface
