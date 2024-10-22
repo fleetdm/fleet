@@ -161,7 +161,7 @@ module.exports.custom = {
 
     // 🫧 Pricing and features
     // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
-    'handbook/company/pricing-features-table.yml': 'noahtalerman',                            
+    'handbook/company/pricing-features-table.yml': 'noahtalerman',
     'handbook/company/testimonials.yml': 'mike-j-thomas',
     'handbook/company/product-groups.md': 'lukeheath',
     'handbook/engineering': 'lukeheath',
