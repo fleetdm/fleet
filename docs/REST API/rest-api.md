@@ -8882,7 +8882,7 @@ Get a list of all software.
       "software_package": {
         "name": "FirefoxInsall.pkg",
         "version": "125.6",
-        "self_service": true
+        "self_service": true,
       },
       "app_store_app": null,
       "versions_count": 3,
@@ -9140,8 +9140,8 @@ Returns information about the specified software. By default, `versions` are sor
 {
   "software_title": {
     "id": 12,
-    "name": "Firefox.app",
-    "bundle_identifier": "org.mozilla.firefox",
+    "name": "Falcon.app",
+    "bundle_identifier": "crowdstrike.falcon.Agent",
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
@@ -9153,6 +9153,12 @@ Returns information about the specified software. By default, `versions` are sor
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
       "uninstall_script": "/Library/CS/falconctl uninstall",
       "self_service": true,
+      "automatic_install_policies": [
+        {
+          "policy_id": 343,
+          "policy_name": "[Install software] Crowdstrike Agent",
+        } 
+      ], 
       "status": {
         "installed": 3,
         "pending_install": 1,
