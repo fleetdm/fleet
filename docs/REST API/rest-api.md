@@ -7166,7 +7166,7 @@ Team policies work the same as policies, but at the team level.
 
 ### Add team policy
 
-> **Experimental feature**. Software related features ( like install software policy automation) are undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+> **Experimental feature**. Software related features (like install software policy automation) are undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 The semantics for creating a team policy are the same as for global policies, see [Add policy](#add-policy).
 
