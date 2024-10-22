@@ -48,7 +48,7 @@ Hosts that automatically enroll will be assigned to a default team. You can conf
 2. Click on the "Actions" dropdown for the ABM token you want to update, and then click "Edit teams".
 3. Use the dropdowns in the modal to select the default team for each type of host, and click "Save" to save your selections.
 
-If no default team is set for a host platform (macOS, iOS, or iPadOS), then newly enrolled hosts of that platform will be placed in "No team". 
+> If no default team is set for a host platform (macOS, iOS, or iPadOS), then newly enrolled hosts of that platform will be placed in "No team". 
 
 > A host can be transferred to a new (not default) team before it enrolls. In the Fleet UI, you can do this under **Settings** > **Teams**.
 
