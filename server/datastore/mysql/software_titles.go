@@ -265,6 +265,7 @@ SELECT
 	si.filename as package_name,
 	si.version as package_version,
 	si.url AS package_url,
+	si.install_during_setup,
 	vat.self_service as vpp_app_self_service,
 	vat.adam_id as vpp_app_adam_id,
 	vap.latest_version as vpp_app_version,

@@ -213,6 +213,10 @@ type SoftwareTitleListResult struct {
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
 	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
+
+	// InstallDuringSetup is a boolean that indicates if the software title
+	// will be installed during the macos setup experience.
+	InstallDuringSetup bool `json:"install_during_setup" db:"install_during_setup"`
 }
 
 type SoftwareTitleListOptions struct {
