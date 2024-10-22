@@ -85,7 +85,7 @@ WHERE global_or_team_id = ?`
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "retrieving number of inserted software installers")
 		}
-		totalInsertions += uint(inserts)
+		totalInsertions += uint(inserts) // nolint: gosec
 
 		// VPP apps
 		res, err = tx.ExecContext(ctx, stmtVPPApps, hostUUID, teamID)
@@ -96,7 +96,7 @@ WHERE global_or_team_id = ?`
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "retrieving number of inserted vpp apps")
 		}
-		totalInsertions += uint(inserts)
+		totalInsertions += uint(inserts) // nolint: gosec
 
 		// Scripts
 		res, err = tx.ExecContext(ctx, stmtSetupScripts, hostUUID, teamID)
@@ -107,7 +107,7 @@ WHERE global_or_team_id = ?`
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "retrieving number of inserted setup experience scripts")
 		}
-		totalInsertions += uint(inserts)
+		totalInsertions += uint(inserts) // nolint: gosec
 
 		if err := setHostAwaitingConfiguration(ctx, tx, hostUUID, true); err != nil {
 			return ctxerr.Wrap(ctx, err, "setting host awaiting configuration to true")
