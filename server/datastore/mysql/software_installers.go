@@ -586,7 +586,7 @@ SELECT
 	hsi.host_id AS host_id,
 	COALESCE(st.name, hsi.software_title_name) AS software_title,
 	hsi.software_title_id,
-	COALESCE(hsi.status, '') AS status,
+	COALESCE(hsi.execution_status, '') AS status,
 	hsi.installer_filename AS software_package,
 	hsi.user_id AS user_id,
 	hsi.post_install_script_exit_code,
