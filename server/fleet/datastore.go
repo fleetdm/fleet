@@ -1290,13 +1290,21 @@ type Datastore interface {
 	// a map that only contains the serials that have a matching row in the `hosts` table.
 	GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*Host, error)
 
+	// DeleteHostDEPAssignmentsFromAnotherABM deletes DEP entries assigned to a different ABM token.
+	DeleteHostDEPAssignmentsFromAnotherABM(ctx context.Context, abmTokenID uint, serials []string) error
+
 	// DeleteHostDEPAssignments marks as deleted entries in
 	// host_dep_assignments for host with matching serials.
 	DeleteHostDEPAssignments(ctx context.Context, abmTokenID uint, serials []string) error
 
 	// UpdateHostDEPAssignProfileResponses receives a profile UUID and threes lists of serials, each representing
 	// one of the three possible responses, and updates the host_dep_assignments table with the corresponding responses.
-	UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse) error
+	UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse, abmTokenID uint) error
+
+	// UpdateHostDEPAssignProfileResponsesSameABM receives a profile UUID and threes lists of serials, each representing
+	// one of the three possible responses, and updates the host_dep_assignments table with the corresponding responses.
+	// The ABM token ID remains unchanged.
+	UpdateHostDEPAssignProfileResponsesSameABM(ctx context.Context, resp *godep.ProfileResponse) error
 
 	// ScreenDEPAssignProfileSerialsForCooldown returns the serials that are still in cooldown and the
 	// ones that are ready to be assigned a profile. If `screenRetryJobs` is true, it will also skip

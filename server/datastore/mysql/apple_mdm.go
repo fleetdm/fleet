@@ -1222,7 +1222,8 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
 		  added_at = CURRENT_TIMESTAMP,
-		  deleted_at = NULL`
+		  deleted_at = NULL,
+		  abm_token_id = VALUES(abm_token_id)`
 
 	args := []interface{}{}
 	values := []string{}
@@ -1485,6 +1486,39 @@ func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fl
 		return nil, ctxerr.Wrapf(ctx, err, "getting host dep assignments")
 	}
 	return &res, nil
+}
+
+func (ds *Datastore) DeleteHostDEPAssignmentsFromAnotherABM(ctx context.Context, abmTokenID uint, serials []string) error {
+	if len(serials) == 0 {
+		return nil
+	}
+
+	type depAssignment struct {
+		HardwareSerial string `db:"hardware_serial"`
+		ABMTokenID     uint   `db:"abm_token_id"`
+	}
+	selectStmt, selectArgs, err := sqlx.In(`
+		SELECT h.hardware_serial, hdep.abm_token_id
+		FROM hosts h
+		JOIN host_dep_assignments hdep ON h.id = hdep.host_id
+		WHERE hdep.abm_token_id != ? AND h.hardware_serial IN (?)`, abmTokenID, serials)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building IN statement for selecting host serials")
+	}
+	var others []depAssignment
+	if err = sqlx.SelectContext(ctx, ds.reader(ctx), &others, selectStmt, selectArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting host serials")
+	}
+	tokenToSerials := map[uint][]string{}
+	for _, other := range others {
+		tokenToSerials[other.ABMTokenID] = append(tokenToSerials[other.ABMTokenID], other.HardwareSerial)
+	}
+	for otherTokenID, otherSerials := range tokenToSerials {
+		if err := ds.DeleteHostDEPAssignments(ctx, otherTokenID, otherSerials); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting DEP assignments for other ABM")
+		}
+	}
+	return nil
 }
 
 func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID uint, serials []string) error {
@@ -3719,7 +3753,15 @@ func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamI
 	return asstProf.ProfileUUID, asstProf.UpdatedAt, nil
 }
 
-func (ds *Datastore) UpdateHostDEPAssignProfileResponses(ctx context.Context, payload *godep.ProfileResponse) error {
+func (ds *Datastore) UpdateHostDEPAssignProfileResponses(ctx context.Context, payload *godep.ProfileResponse, abmTokenID uint) error {
+	return ds.updateHostDEPAssignProfileResponses(ctx, payload, &abmTokenID)
+}
+
+func (ds *Datastore) UpdateHostDEPAssignProfileResponsesSameABM(ctx context.Context, payload *godep.ProfileResponse) error {
+	return ds.updateHostDEPAssignProfileResponses(ctx, payload, nil)
+}
+
+func (ds *Datastore) updateHostDEPAssignProfileResponses(ctx context.Context, payload *godep.ProfileResponse, abmTokenID *uint) error {
 	if payload == nil {
 		// caller should ensure this does not happen
 		level.Debug(ds.logger).Log("msg", "update host dep assign profiles responses received nil payload")
@@ -3749,38 +3791,53 @@ func (ds *Datastore) UpdateHostDEPAssignProfileResponses(ctx context.Context, pa
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, success, string(fleet.DEPAssignProfileResponseSuccess)); err != nil {
+		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, success,
+			string(fleet.DEPAssignProfileResponseSuccess), abmTokenID); err != nil {
 			return err
 		}
-		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, notAccessible, string(fleet.DEPAssignProfileResponseNotAccessible)); err != nil {
+		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, notAccessible,
+			string(fleet.DEPAssignProfileResponseNotAccessible), abmTokenID); err != nil {
 			return err
 		}
-		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, failed, string(fleet.DEPAssignProfileResponseFailed)); err != nil {
+		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, failed,
+			string(fleet.DEPAssignProfileResponseFailed), abmTokenID); err != nil {
 			return err
 		}
 		return nil
 	})
 }
 
-func updateHostDEPAssignProfileResponses(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, profileUUID string, serials []string, status string) error {
+func updateHostDEPAssignProfileResponses(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, profileUUID string, serials []string,
+	status string, abmTokenID *uint) error {
 	if len(serials) == 0 {
 		return nil
 	}
 
-	stmt := `
+	setABMTokenID := ""
+	if abmTokenID != nil {
+		setABMTokenID = "abm_token_id = ?,"
+	}
+	stmt := fmt.Sprintf(`
 UPDATE
 	host_dep_assignments
 JOIN
 	hosts ON id = host_id
 SET
+	%s
 	profile_uuid = ?,
 	assign_profile_response = ?,
 	response_updated_at = CURRENT_TIMESTAMP,
 	retry_job_id = 0
 WHERE
 	hardware_serial IN (?)
-`
-	stmt, args, err := sqlx.In(stmt, profileUUID, status, serials)
+`, setABMTokenID)
+	var args []interface{}
+	var err error
+	if abmTokenID != nil {
+		stmt, args, err = sqlx.In(stmt, abmTokenID, profileUUID, status, serials)
+	} else {
+		stmt, args, err = sqlx.In(stmt, profileUUID, status, serials)
+	}
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "prepare statement arguments")
 	}
@@ -3790,7 +3847,8 @@ WHERE
 	}
 
 	n, _ := res.RowsAffected()
-	level.Info(logger).Log("msg", "update host dep assign profile responses", "profile_uuid", profileUUID, "status", status, "devices", n, "serials", fmt.Sprintf("%s", serials))
+	level.Info(logger).Log("msg", "update host dep assign profile responses", "profile_uuid", profileUUID, "status", status, "devices", n,
+		"serials", fmt.Sprintf("%s", serials), "abm_token_id", abmTokenID)
 
 	return nil
 }

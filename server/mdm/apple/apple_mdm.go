@@ -559,6 +559,7 @@ func (d *DEPService) processDeviceResponse(
 	}
 
 	var addedDevicesSlice []godep.Device
+	var addedSerials []string
 	var deletedSerials []string
 	var modifiedSerials []string
 	addedDevices := map[string]godep.Device{}
@@ -655,6 +656,15 @@ func (d *DEPService) processDeviceResponse(
 		if _, ok := existingSerials[d.SerialNumber]; !ok {
 			addedDevicesSlice = append(addedDevicesSlice, d)
 		}
+	}
+
+	// Check if added devices belong to another ABM server. If so, we must delete them before adding them.
+	for _, device := range addedDevicesSlice {
+		addedSerials = append(addedSerials, device.SerialNumber)
+	}
+	err = d.ds.DeleteHostDEPAssignmentsFromAnotherABM(ctx, abmTokenID, addedSerials)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting dep assignments from another abm")
 	}
 
 	err = d.ds.DeleteHostDEPAssignments(ctx, abmTokenID, deletedSerials)
@@ -793,7 +803,7 @@ func (d *DEPService) processDeviceResponse(
 			logs = append(logs, logCountsForResults(apiResp.Devices)...)
 			level.Info(logger).Log(logs...)
 
-			if err := d.ds.UpdateHostDEPAssignProfileResponses(ctx, apiResp); err != nil {
+			if err := d.ds.UpdateHostDEPAssignProfileResponses(ctx, apiResp, abmTokenID); err != nil {
 				return ctxerr.Wrap(ctx, err, "update host dep assign profile responses")
 			}
 		}

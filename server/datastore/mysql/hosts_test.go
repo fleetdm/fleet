@@ -7745,7 +7745,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	// simulate a failed JSON profile assignment
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
-		"foo", []string{hFleet.HardwareSerial}, string(fleet.DEPAssignProfileResponseFailed),
+		"foo", []string{hFleet.HardwareSerial}, string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
 	)
 	require.NoError(t, err)
 	loadFleet, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
