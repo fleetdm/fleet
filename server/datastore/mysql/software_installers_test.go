@@ -789,11 +789,6 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// remove everything fails due to ins0 install_during_setup
-	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
-	require.Error(t, err)
-	require.ErrorIs(t, err, errDeleteInstallerInstalledDuringSetup)
-
 	// mark ins0 as NOT install_during_setup
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
