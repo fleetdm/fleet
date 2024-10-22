@@ -6,11 +6,13 @@ To use automatic enrollment (aka zero-touch) features on macOS, iOS, and iPadOS,
 
 To turn on Windows MDM features, head to this [Windows MDM setup article](https://fleetdm.com/guides/windows-mdm-setup).
 
-## Apple Push Notification service (APNs)
+## Turn on Apple MDM
 
 Apple uses APNs to authenticate and manage interactions between Fleet and hosts.
 
-To connect Fleet to APNs or renew APNs, head to the **Settings > Integrations > Mobile device management (MDM)** page.
+To connect Fleet to APNs or renew APNs, head to the **Settings > Integrations > Mobile device management (MDM)** page. 
+
+Then click **Turn on** under the Apple (macOS, iOS, iPadOS) MDM section.
 
 > Apple requires that APNs certificates are renewed annually. 
 > - If your certificate expires, you will have to turn MDM off and back on for all macOS hosts.
