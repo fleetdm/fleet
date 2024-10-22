@@ -156,24 +156,28 @@ func (c *Client) validateMacOSSetupScript(fileName string) ([]byte, error) {
 	return b, nil
 }
 
-func (c *Client) uploadMacOSSetupScript(filename string, data []byte, teamID *uint) error {
-	var teamOrNoTeamID uint
+func (c *Client) deleteMacOSSetupScript(teamID *uint) error {
+	var query string
 	if teamID != nil {
-		teamOrNoTeamID = *teamID
+		query = fmt.Sprintf("team_id=%d", *teamID)
 	}
 
+	verb, path := "DELETE", "/api/latest/fleet/setup_experience/script"
+	var delResp deleteSetupExperienceScriptResponse
+	return c.authenticatedRequestWithQuery(nil, verb, path, &delResp, query)
+}
+
+func (c *Client) uploadMacOSSetupScript(filename string, data []byte, teamID *uint) error {
 	// there is no "replace setup experience script" endpoint, and none was
 	// planned, so to avoid delaying the feature I'm doing DELETE then SET, but
 	// that's not ideal (will always re-create the script when apply/gitops is
 	// run with the same yaml). Note though that we also redo software installers
 	// downloads on each run, so the churn of this one is minor in comparison.
-	verb, path := "DELETE", "/api/latest/fleet/setup_experience/script"
-	var delResp deleteSetupExperienceScriptResponse
-	if err := c.authenticatedRequestWithQuery(nil, verb, path, &delResp, fmt.Sprintf("team_id=%d", teamOrNoTeamID)); err != nil {
+	if err := c.deleteMacOSSetupScript(teamID); err != nil {
 		return err
 	}
 
-	verb, path = "POST", "/api/latest/fleet/setup_experience/script"
+	verb, path := "POST", "/api/latest/fleet/setup_experience/script"
 
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
@@ -187,8 +191,10 @@ func (c *Client) uploadMacOSSetupScript(filename string, data []byte, teamID *ui
 	}
 
 	// add the team_id field
-	if err := w.WriteField("team_id", fmt.Sprint(teamOrNoTeamID)); err != nil {
-		return err
+	if teamID != nil {
+		if err := w.WriteField("team_id", fmt.Sprint(*teamID)); err != nil {
+			return err
+		}
 	}
 	w.Close()
 

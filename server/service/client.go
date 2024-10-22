@@ -581,11 +581,10 @@ func (c *Client) ApplyGroup(
 		// those are gitops-only features
 		tmMacSetupScript := make(map[string]fileContent, len(tmMacSetup))
 		tmMacSetupSoftware := make(map[string][]*fleet.MacOSSetupSoftware, len(tmMacSetup))
-
 		// this is a set of software packages or VPP apps that are configured as
 		// install_during_setup, by team. This is a gitops-only setting, so it will
 		// only be filled when called via this command.
-		tmMacSetupSoftwareByKey := make(map[string]map[fleet.MacOSSetupSoftware]struct{})
+		tmSoftwareMacOSSetup := make(map[string]map[fleet.MacOSSetupSoftware]struct{}, len(tmMacSetup))
 
 		for k, setup := range tmMacSetup {
 			if setup.BootstrapPackage.Value != "" {
@@ -610,16 +609,11 @@ func (c *Client) ApplyGroup(
 				tmMacSetupScript[k] = fileContent{Filename: filepath.Base(setup.Script.Value), Content: b}
 			}
 			if viaGitOps {
-				tmMacSetupSoftwareByKey[k] = make(map[fleet.MacOSSetupSoftware]struct{}, len(setup.Software.Value))
-				for _, sw := range setup.Software.Value {
-					if sw.AppStoreID != "" && sw.PackagePath != "" {
-						return nil, nil, nil, errors.New("applying teams: only one of app_store_id or package_path can be set")
-					}
-					if sw.PackagePath != "" {
-						sw.PackagePath = resolveApplyRelativePath(baseDir, sw.PackagePath)
-					}
-					tmMacSetupSoftwareByKey[k][*sw] = struct{}{}
+				m, err := extractTeamOrNoTeamMacOSSetupSoftware(baseDir, setup.Software.Value)
+				if err != nil {
+					return nil, nil, nil, err
 				}
+				tmSoftwareMacOSSetup[k] = m
 				tmMacSetupSoftware[k] = setup.Software.Value
 			}
 		}
@@ -645,7 +639,7 @@ func (c *Client) ApplyGroup(
 		tmSoftwarePackagesPayloads := make(map[string][]fleet.SoftwareInstallerPayload, len(tmSoftwarePackages))
 		tmSoftwarePackageByPath := make(map[string]map[string]fleet.SoftwarePackageSpec, len(tmSoftwarePackages))
 		for tmName, software := range tmSoftwarePackages {
-			installDuringSetupKeys := tmMacSetupSoftwareByKey[tmName]
+			installDuringSetupKeys := tmSoftwareMacOSSetup[tmName]
 			softwarePayloads, err := buildSoftwarePackagesPayload(baseDir, software, installDuringSetupKeys)
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
@@ -666,7 +660,7 @@ func (c *Client) ApplyGroup(
 		tmSoftwareAppsPayloads := make(map[string][]fleet.VPPBatchPayload)
 		tmSoftwareAppsByAppID := make(map[string]map[string]fleet.TeamSpecAppStoreApp, len(tmSoftwareApps))
 		for tmName, apps := range tmSoftwareApps {
-			installDuringSetupKeys := tmMacSetupSoftwareByKey[tmName]
+			installDuringSetupKeys := tmSoftwareMacOSSetup[tmName]
 			appPayloads := make([]fleet.VPPBatchPayload, 0, len(apps))
 			for _, app := range apps {
 				var installDuringSetup *bool
@@ -691,22 +685,8 @@ func (c *Client) ApplyGroup(
 		// if macos_setup.software has some values, they must exist in the software
 		// packages or vpp apps.
 		for tmName, setupSw := range tmMacSetupSoftware {
-			for _, ssw := range setupSw {
-				var valid bool
-				if ssw.AppStoreID != "" {
-					// check that it exists in the team's Apps
-					_, valid = tmSoftwareAppsByAppID[tmName][ssw.AppStoreID]
-				} else if ssw.PackagePath != "" {
-					// check that it exists in the team's Software installers (PackagePath is already resolved to abs dir)
-					_, valid = tmSoftwarePackageByPath[tmName][ssw.PackagePath]
-				}
-				if !valid {
-					label := ssw.AppStoreID
-					if label == "" {
-						label = ssw.PackagePath
-					}
-					return nil, nil, nil, fmt.Errorf("applying macOS setup experience software for team %q: software %q does not exist for that team", tmName, label)
-				}
+			if err := validateTeamOrNoTeamMacOSSetupSoftware(tmName, setupSw, tmSoftwarePackageByPath[tmName], tmSoftwareAppsByAppID[tmName]); err != nil {
+				return nil, nil, nil, err
 			}
 		}
 
@@ -752,7 +732,7 @@ func (c *Client) ApplyGroup(
 				}
 			}
 		}
-		if len(tmBootstrapPackages)+len(tmMacSetupAssistants)+len(tmMacSetupScript) > 0 && !opts.DryRun {
+		if len(tmBootstrapPackages)+len(tmMacSetupAssistants) > 0 && !opts.DryRun {
 			for tmName, tmID := range teamIDsByName {
 				if bp, ok := tmBootstrapPackages[tmName]; ok {
 					if err := c.EnsureBootstrapPackage(bp, tmID); err != nil {
@@ -775,9 +755,17 @@ func (c *Client) ApplyGroup(
 						return nil, nil, nil, fmt.Errorf("uploading macOS setup assistant for team %q: %w", tmName, err)
 					}
 				}
-				if fc, ok := tmMacSetupScript[tmName]; ok && viaGitOps {
+			}
+		}
+		if viaGitOps && !opts.DryRun {
+			for tmName, tmID := range teamIDsByName {
+				if fc, ok := tmMacSetupScript[tmName]; ok {
 					if err := c.uploadMacOSSetupScript(fc.Filename, fc.Content, &tmID); err != nil {
 						return nil, nil, nil, fmt.Errorf("uploading setup experience script for team %q: %w", tmName, err)
+					}
+				} else {
+					if err := c.deleteMacOSSetupScript(&tmID); err != nil {
+						return nil, nil, nil, fmt.Errorf("deleting setup experience script for team %q: %w", tmName, err)
 					}
 				}
 			}
@@ -858,6 +846,44 @@ func (c *Client) ApplyGroup(
 	}
 
 	return teamIDsByName, teamsSoftwareInstallers, teamsScripts, nil
+}
+
+func extractTeamOrNoTeamMacOSSetupSoftware(baseDir string, software []*fleet.MacOSSetupSoftware) (map[fleet.MacOSSetupSoftware]struct{}, error) {
+	m := make(map[fleet.MacOSSetupSoftware]struct{}, len(software))
+	for _, sw := range software {
+		if sw.AppStoreID != "" && sw.PackagePath != "" {
+			return nil, errors.New("applying teams: only one of app_store_id or package_path can be set")
+		}
+		if sw.PackagePath != "" {
+			sw.PackagePath = resolveApplyRelativePath(baseDir, sw.PackagePath)
+		}
+		m[*sw] = struct{}{}
+	}
+	return m, nil
+}
+
+func validateTeamOrNoTeamMacOSSetupSoftware(teamName string, macOSSetupSoftware []*fleet.MacOSSetupSoftware, packagesByPath map[string]fleet.SoftwarePackageSpec, vppAppsByAppID map[string]fleet.TeamSpecAppStoreApp) error {
+	// if macos_setup.software has some values, they must exist in the software
+	// packages or vpp apps.
+	for _, ssw := range macOSSetupSoftware {
+		var valid bool
+		if ssw.AppStoreID != "" {
+			// check that it exists in the team's Apps
+			_, valid = vppAppsByAppID[ssw.AppStoreID]
+		} else if ssw.PackagePath != "" {
+			// check that it exists in the team's Software installers (PackagePath is
+			// already resolved to abs dir)
+			_, valid = packagesByPath[ssw.PackagePath]
+		}
+		if !valid {
+			label := ssw.AppStoreID
+			if label == "" {
+				label = ssw.PackagePath
+			}
+			return fmt.Errorf("applying macOS setup experience software for team %q: software %q does not exist for that team", teamName, label)
+		}
+	}
+	return nil
 }
 
 func buildSoftwarePackagesPayload(baseDir string, specs []fleet.SoftwarePackageSpec, installDuringSetupKeys map[fleet.MacOSSetupSoftware]struct{}) ([]fleet.SoftwareInstallerPayload, error) {
@@ -1648,31 +1674,85 @@ func (c *Client) DoGitOps(
 	return teamAssumptions, nil
 }
 
-func (c *Client) doGitOpsNoTeamSoftware(config *spec.GitOps, baseDir string, appconfig *fleet.EnrichedAppConfig, logFn func(format string, args ...interface{}), dryRun bool) ([]fleet.SoftwarePackageResponse, error) {
+func (c *Client) doGitOpsNoTeamSoftware(
+	config *spec.GitOps,
+	baseDir string,
+	appconfig *fleet.EnrichedAppConfig,
+	logFn func(format string, args ...interface{}),
+	dryRun bool,
+) ([]fleet.SoftwarePackageResponse, error) {
+	if !config.IsNoTeam() || appconfig == nil || !appconfig.License.IsPremium() {
+		return nil, nil
+	}
+
 	var softwareInstallers []fleet.SoftwarePackageResponse
-	if config.IsNoTeam() && appconfig != nil && appconfig.License.IsPremium() {
-		packages := make([]fleet.SoftwarePackageSpec, 0, len(config.Software.Packages))
-		for _, software := range config.Software.Packages {
-			if software != nil {
-				packages = append(packages, *software)
+
+	packages := make([]fleet.SoftwarePackageSpec, 0, len(config.Software.Packages))
+	packagesByPath := make(map[string]fleet.SoftwarePackageSpec, len(config.Software.Packages))
+	for _, software := range config.Software.Packages {
+		if software != nil {
+			packages = append(packages, *software)
+			if software.ReferencedYamlPath != "" {
+				// can be referenced by macos_setup.software
+				packagesByPath[software.ReferencedYamlPath] = *software
 			}
 		}
-		// TODO(mna): probably needs some changes around here to support No team
-		payload, err := buildSoftwarePackagesPayload(baseDir, packages, nil)
-		if err != nil {
-			return nil, fmt.Errorf("applying software installers: %w", err)
-		}
-		logFn("[+] applying %d software packages for 'No team'\n", len(payload))
-		softwareInstallers, err = c.ApplyNoTeamSoftwareInstallers(payload, fleet.ApplySpecOptions{DryRun: dryRun})
-		if err != nil {
-			return nil, fmt.Errorf("applying software installers: %w", err)
-		}
+	}
 
-		if dryRun {
-			logFn("[+] would've applied 'No Team' software packages\n")
-		} else {
-			logFn("[+] applied 'No Team' software packages\n")
+	// marshaling dance to get the macos_setup data
+	b, err := json.Marshal(config.Controls.MacOSSetup)
+	if err != nil {
+		return nil, fmt.Errorf("applying software installers: json-encode controls.macos_setup: %w", err)
+	}
+	var macOSSetup fleet.MacOSSetup
+	if err := json.Unmarshal(b, &macOSSetup); err != nil {
+		return nil, fmt.Errorf("applying software installers: json-decode controls.macos_setup: %w", err)
+	}
+
+	// load the no-team macos_setup.script if any
+	var macosSetupScript *fileContent
+	if macOSSetup.Script.Value != "" {
+		b, err := c.validateMacOSSetupScript(resolveApplyRelativePath(baseDir, macOSSetup.Script.Value))
+		if err != nil {
+			return nil, fmt.Errorf("applying no team macos_setup.script: %w", err)
 		}
+		macosSetupScript = &fileContent{Filename: filepath.Base(macOSSetup.Script.Value), Content: b}
+	}
+
+	noTeamSoftwareMacOSSetup, err := extractTeamOrNoTeamMacOSSetupSoftware(baseDir, macOSSetup.Software.Value)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: note that VPP apps are not validated nor taken into account at the moment,
+	// tracked with issue https://github.com/fleetdm/fleet/issues/22970
+	if err := validateTeamOrNoTeamMacOSSetupSoftware(*config.TeamName, macOSSetup.Software.Value, packagesByPath, nil); err != nil {
+		return nil, err
+	}
+	payload, err := buildSoftwarePackagesPayload(baseDir, packages, noTeamSoftwareMacOSSetup)
+	if err != nil {
+		return nil, fmt.Errorf("applying software installers: %w", err)
+	}
+
+	if macosSetupScript != nil {
+		logFn("[+] applying macos setup experience script for 'No team'\n")
+		if err := c.uploadMacOSSetupScript(macosSetupScript.Filename, macosSetupScript.Content, nil); err != nil {
+			return nil, fmt.Errorf("uploading setup experience script for No team: %w", err)
+		}
+	} else if err := c.deleteMacOSSetupScript(nil); err != nil {
+		return nil, fmt.Errorf("deleting setup experience script for No team: %w", err)
+	}
+
+	logFn("[+] applying %d software packages for 'No team'\n", len(payload))
+	softwareInstallers, err = c.ApplyNoTeamSoftwareInstallers(payload, fleet.ApplySpecOptions{DryRun: dryRun})
+	if err != nil {
+		return nil, fmt.Errorf("applying software installers: %w", err)
+	}
+
+	if dryRun {
+		logFn("[+] would've applied 'No Team' software packages\n")
+	} else {
+		logFn("[+] applied 'No Team' software packages\n")
 	}
 	return softwareInstallers, nil
 }
