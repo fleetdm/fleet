@@ -18,7 +18,7 @@ Then click **Turn on** under the Apple (macOS, iOS, iPadOS) MDM section.
 > - If your certificate expires, you will have to turn MDM off and back on for all macOS hosts.
 > - Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all macOS hosts.
 
-## Automatic Enrollment
+## Automatic enrollment
 
 > Available in Fleet Premium
 
