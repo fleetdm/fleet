@@ -9152,7 +9152,12 @@ Returns information about the specified software. By default, `versions` are sor
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
       "uninstall_script": "/Library/CS/falconctl uninstall",
       "self_service": true,
-      "automatic_install_policy_id": 343, 
+      "automatic_install_policies": [
+        {
+          "policy_id": 343,
+          "policy_name": "[Install software] Crowdstrike Agent",
+        } 
+      ], 
       "status": {
         "installed": 3,
         "pending_install": 1,
