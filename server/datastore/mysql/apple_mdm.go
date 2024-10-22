@@ -3815,7 +3815,7 @@ func updateHostDEPAssignProfileResponses(ctx context.Context, tx sqlx.ExtContext
 
 	setABMTokenID := ""
 	if abmTokenID != nil {
-		setABMTokenID = "abm_token_id = ?,"
+		setABMTokenID = "abm_token_id = ?," //nolint:gosec // G101 false positive
 	}
 	stmt := fmt.Sprintf(`
 UPDATE

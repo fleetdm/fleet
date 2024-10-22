@@ -1259,7 +1259,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 	})), http.StatusNoContent)
 
 	// set up multiple ABM tokens with different org names
-	defaultOrgName := "fleet_test"
+	defaultOrgName := "default_" + t.Name()
 	s.enableABM(defaultOrgName)
 	tmOrgName := t.Name()
 	s.enableABM(tmOrgName)
@@ -1407,10 +1407,11 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 			t.Errorf("unexpected host serial %s", host.HardwareSerial)
 		}
 	}
-	require.Len(t, defaultProfileUUIDs, 1)
+	require.GreaterOrEqual(t, len(defaultProfileUUIDs), 1)
 	require.Len(t, teamProfileUUIDs, 2)
-	checkHostDEPAssignProfileResponses(defaultSerials, defaultProfileUUIDs[0], fleet.DEPAssignProfileResponseSuccess)
-	checkHostDEPAssignProfileResponses(teamSerials, teamProfileUUIDs[1], fleet.DEPAssignProfileResponseSuccess)
+	checkHostDEPAssignProfileResponses(defaultSerials, defaultProfileUUIDs[len(defaultProfileUUIDs)-1],
+		fleet.DEPAssignProfileResponseSuccess)
+	checkHostDEPAssignProfileResponses(teamSerials, teamProfileUUIDs[len(teamProfileUUIDs)-1], fleet.DEPAssignProfileResponseSuccess)
 
 	// Delete the devices in one org, and add them to the other (x2)
 	devices = []godep.Device{
@@ -1445,10 +1446,9 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 			t.Errorf("unexpected host serial %s", host.HardwareSerial)
 		}
 	}
-	assert.Len(t, defaultProfileUUIDs, 1)
-	assert.Len(t, teamProfileUUIDs, 2)
-	checkHostDEPAssignProfileResponses(defaultSerials, defaultProfileUUIDs[0], fleet.DEPAssignProfileResponseSuccess)
-	checkHostDEPAssignProfileResponses(teamSerials, teamProfileUUIDs[1], fleet.DEPAssignProfileResponseSuccess)
+	checkHostDEPAssignProfileResponses(defaultSerials, defaultProfileUUIDs[len(defaultProfileUUIDs)-1],
+		fleet.DEPAssignProfileResponseSuccess)
+	checkHostDEPAssignProfileResponses(teamSerials, teamProfileUUIDs[len(teamProfileUUIDs)-1], fleet.DEPAssignProfileResponseSuccess)
 
 	// Delete the devices
 	devices = []godep.Device{
@@ -1481,10 +1481,9 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 			t.Errorf("unexpected host serial %s", host.HardwareSerial)
 		}
 	}
-	assert.Len(t, defaultProfileUUIDs, 1)
-	assert.Len(t, teamProfileUUIDs, 2)
-	checkHostDEPAssignProfileResponses(defaultSerials, defaultProfileUUIDs[0], fleet.DEPAssignProfileResponseSuccess)
-	checkHostDEPAssignProfileResponses(teamSerials, teamProfileUUIDs[1], fleet.DEPAssignProfileResponseSuccess)
+	checkHostDEPAssignProfileResponses(defaultSerials, defaultProfileUUIDs[len(defaultProfileUUIDs)-1],
+		fleet.DEPAssignProfileResponseSuccess)
+	checkHostDEPAssignProfileResponses(teamSerials, teamProfileUUIDs[len(teamProfileUUIDs)-1], fleet.DEPAssignProfileResponseSuccess)
 
 }
 

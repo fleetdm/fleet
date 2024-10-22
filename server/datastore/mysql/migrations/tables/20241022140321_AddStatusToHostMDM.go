@@ -13,7 +13,7 @@ func Up_20241022140321(tx *sql.Tx) error {
 	if !columnsExists(tx, "host_mdm", "enrollment_status", "created_at", "updated_at") {
 		if _, err := tx.Exec(`
 ALTER TABLE host_mdm
-ADD COLUMN enrollment_status ENUM('On (manual)', 'On (automatic)', 'Pending', 'Off')
+ADD COLUMN enrollment_status ENUM('On (manual)', 'On (automatic)', 'Pending', 'Off') COLLATE utf8mb4_unicode_ci
 GENERATED ALWAYS AS (
 	CASE
 		WHEN is_server = 1 THEN NULL
