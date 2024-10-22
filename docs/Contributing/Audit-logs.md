@@ -1374,6 +1374,48 @@ This activity contains the following fields:
 }
 ```
 
+## canceled_script
+
+Generated when upcoming script is canceled on a host.
+
+This activity contains the following fields:
+- host_id: ID of the host on which the script was canceled.
+- host_display_name: Display name of the host.
+- script_id: ID of the script that's canceled.
+- script_name: Name of the script that's canceled.
+
+#### Example
+
+```json
+{
+  "host_id": 42,
+  "host_display_name": "Anna's MacBook Pro",
+  "script_id": 24,
+  "script_name": "set-timezone.sh"
+}
+```
+
+## canceled_software_install
+
+Generated when upcoming script is canceled on a host.
+
+This activity contains the following fields:
+- host_id: ID of the host on which the script was canceled.
+- host_display_name: Display name of the host.
+- software_title_id: ID of the software title that's canceled.
+- software_title_name: Name of the software title that's canceled.
+
+#### Example
+
+```json
+{
+  "host_id": 42,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title_id": 3667,
+  "software_title_name": "Adobe Acrobat.app"
+}
+```
+
 ## added_ndes_scep_proxy
 
 Generated when NDES SCEP proxy is configured in Fleet.
