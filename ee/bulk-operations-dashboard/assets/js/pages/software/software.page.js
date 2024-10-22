@@ -95,6 +95,7 @@ parasails.registerPage('software', {
       this.modal = '';
       this.formErrors = {};
       this.formData = {};
+      this.cloudError = '';
       this.showAdvancedOptions = false;
       await this.forceRender();
     },
