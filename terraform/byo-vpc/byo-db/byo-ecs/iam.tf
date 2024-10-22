@@ -1,4 +1,5 @@
 data "aws_iam_policy_document" "software_installers" {
+  count = var.fleet_config.software_installers.create_bucket == true ? 1 : 0
   statement {
     actions = [
       "s3:GetObject*",
