@@ -578,7 +578,7 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	assert.Contains(t, assigned, app1.VPPAppID)
 	assert.Contains(t, assigned, app2.VPPAppID)
 	assert.True(t, assigned[app2.VPPAppID].SelfService)
-	assert.True(t, assigned[app1.VPPAppID].InstallDuringSetup)
+	assert.True(t, *assigned[app1.VPPAppID].InstallDuringSetup)
 
 	// Assign an additional app
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
@@ -595,7 +595,7 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	require.Contains(t, assigned, app2.VPPAppID)
 	require.Contains(t, assigned, app3.VPPAppID)
 	assert.False(t, assigned[app2.VPPAppID].SelfService)
-	assert.True(t, assigned[app1.VPPAppID].InstallDuringSetup)
+	assert.True(t, *assigned[app1.VPPAppID].InstallDuringSetup)
 
 	// Swap one app out for another
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
@@ -612,7 +612,7 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	require.Contains(t, assigned, app2.VPPAppID)
 	require.Contains(t, assigned, app4.VPPAppID)
 	assert.True(t, assigned[app2.VPPAppID].SelfService)
-	assert.True(t, assigned[app1.VPPAppID].InstallDuringSetup)
+	assert.True(t, *assigned[app1.VPPAppID].InstallDuringSetup)
 
 	// Remove app1 fails because it is installed during setup
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{

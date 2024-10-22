@@ -601,7 +601,9 @@ func (c *Client) ApplyGroup(
 					if sw.AppStoreID != "" && sw.PackagePath != "" {
 						return nil, nil, nil, errors.New("applying teams: only one of app_store_id or package_path can be set")
 					}
-					sw.PackagePath = resolveApplyRelativePath(baseDir, sw.PackagePath)
+					if sw.PackagePath != "" {
+						sw.PackagePath = resolveApplyRelativePath(baseDir, sw.PackagePath)
+					}
 					tmMacSetupSoftwareByKey[k][*sw] = struct{}{}
 				}
 				tmMacSetupSoftware[k] = setup.Software.Value
@@ -630,7 +632,6 @@ func (c *Client) ApplyGroup(
 		tmSoftwarePackageByPath := make(map[string]map[string]fleet.SoftwarePackageSpec, len(tmSoftwarePackages))
 		for tmName, software := range tmSoftwarePackages {
 			installDuringSetupKeys := tmMacSetupSoftwareByKey[tmName]
-			fmt.Println(">>>>> installDuringSetupKeys:", installDuringSetupKeys)
 			softwarePayloads, err := buildSoftwarePackagesPayload(baseDir, software, installDuringSetupKeys)
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
@@ -651,9 +652,19 @@ func (c *Client) ApplyGroup(
 		tmSoftwareAppsPayloads := make(map[string][]fleet.VPPBatchPayload)
 		tmSoftwareAppsByAppID := make(map[string]map[string]fleet.TeamSpecAppStoreApp, len(tmSoftwareApps))
 		for tmName, apps := range tmSoftwareApps {
+			installDuringSetupKeys := tmMacSetupSoftwareByKey[tmName]
 			appPayloads := make([]fleet.VPPBatchPayload, 0, len(apps))
 			for _, app := range apps {
-				appPayloads = append(appPayloads, fleet.VPPBatchPayload{AppStoreID: app.AppStoreID, SelfService: app.SelfService})
+				var installDuringSetup *bool
+				if installDuringSetupKeys != nil {
+					_, ok := installDuringSetupKeys[fleet.MacOSSetupSoftware{AppStoreID: app.AppStoreID}]
+					installDuringSetup = &ok
+				}
+				appPayloads = append(appPayloads, fleet.VPPBatchPayload{
+					AppStoreID:         app.AppStoreID,
+					SelfService:        app.SelfService,
+					InstallDuringSetup: installDuringSetup,
+				})
 				// can be referenced by macos_setup.software.app_store_id
 				if tmSoftwareAppsByAppID[tmName] == nil {
 					tmSoftwareAppsByAppID[tmName] = make(map[string]fleet.TeamSpecAppStoreApp, len(apps))
@@ -925,7 +936,6 @@ func buildSoftwarePackagesPayload(baseDir string, specs []fleet.SoftwarePackageS
 		if installDuringSetupKeys != nil {
 			_, ok := installDuringSetupKeys[fleet.MacOSSetupSoftware{PackagePath: si.ReferencedYamlPath}]
 			installDuringSetup = &ok
-			fmt.Println(">>>> installDuringSetup? ", ok)
 		}
 		softwarePayloads[i] = fleet.SoftwareInstallerPayload{
 			URL:                si.URL,

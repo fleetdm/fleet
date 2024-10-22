@@ -428,12 +428,14 @@ func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, releas
 }
 
 type VPPBatchPayload struct {
-	AppStoreID  string `json:"app_store_id"`
-	SelfService bool   `json:"self_service"`
+	AppStoreID         string `json:"app_store_id"`
+	SelfService        bool   `json:"self_service"`
+	InstallDuringSetup *bool  `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 }
 
 type VPPBatchPayloadWithPlatform struct {
-	AppStoreID  string              `json:"app_store_id"`
-	SelfService bool                `json:"self_service"`
-	Platform    AppleDevicePlatform `json:"platform"`
+	AppStoreID         string              `json:"app_store_id"`
+	SelfService        bool                `json:"self_service"`
+	Platform           AppleDevicePlatform `json:"platform"`
+	InstallDuringSetup *bool               `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 }
