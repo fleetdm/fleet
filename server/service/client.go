@@ -503,7 +503,7 @@ func (c *Client) ApplyGroup(
 			for i, f := range files {
 				b, err := os.ReadFile(f)
 				if err != nil {
-					return nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
+					return nil, nil, nil, fmt.Errorf("applying no-team scripts: %w", err)
 				}
 				scriptPayloads[i] = fleet.ScriptPayload{
 					ScriptContents: b,
@@ -516,6 +516,27 @@ func (c *Client) ApplyGroup(
 			}
 			teamScripts["No team"] = noTeamScripts
 		}
+
+		rules, err := extractAppCfgYaraRules(specs.AppConfig)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("applying yara rules: %w", err)
+		}
+		if rules != nil {
+			rulePayloads := make([]fleet.YaraRule, len(rules))
+			for i, f := range rules {
+				path := resolveApplyRelativePath(baseDir, f.Path)
+				b, err := os.ReadFile(path)
+				if err != nil {
+					return nil, nil, nil, fmt.Errorf("applying yara rules: %w", err)
+				}
+				rulePayloads[i] = fleet.YaraRule{
+					Contents: string(b),
+					Name:     filepath.Base(f.Path),
+				}
+			}
+			specs.AppConfig.(map[string]interface{})["yara_rules"] = rulePayloads
+		}
+
 		if err := c.ApplyAppConfig(specs.AppConfig, opts.ApplySpecOptions); err != nil {
 			return nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 		}
@@ -999,6 +1020,47 @@ func extractAppCfgScripts(appCfg interface{}) []string {
 		}
 	}
 	return scriptsStrings
+}
+
+func extractAppCfgYaraRules(appCfg interface{}) ([]fleet.YaraRuleSpec, error) {
+	asMap, ok := appCfg.(map[string]interface{})
+	if !ok {
+		return nil, errors.New("extract yara rules: app config is not a map")
+	}
+
+	rules, ok := asMap["yara_rules"]
+	if !ok {
+		// yara_rules is not present
+		return nil, nil
+	}
+
+	rulesAny, ok := rules.([]interface{})
+	if !ok || rulesAny == nil {
+		// return a non-nil, empty slice instead, so the caller knows that the
+		// rules key was actually provided.
+		return []fleet.YaraRuleSpec{}, nil
+	}
+
+	ruleSpecs := make([]fleet.YaraRuleSpec, 0, len(rulesAny))
+	for _, v := range rulesAny {
+		smap, ok := v.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("extract yara rules: rule entry is not a map")
+		}
+
+		pathEntry, ok := smap["path"]
+		if !ok {
+			return nil, errors.New("extract yara rules: rule entry missing path")
+		}
+
+		path, ok := pathEntry.(string)
+		if !ok {
+			return nil, errors.New("extract yara rules: rule entry path is not string")
+		}
+
+		ruleSpecs = append(ruleSpecs, fleet.YaraRuleSpec{Path: path})
+	}
+	return ruleSpecs, nil
 }
 
 type profileSpecsByPlatform struct {

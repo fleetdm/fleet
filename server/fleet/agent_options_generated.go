@@ -115,6 +115,7 @@ type osqueryOptions struct {
 	TlsDisableStatusLog bool `json:"tls_disable_status_log"`
 	Verbose bool `json:"verbose"`
 	YaraDelay uint32 `json:"yara_delay"`
+	YaraSigurlAuthenticate bool `json:"yara_sigurl_authenticate"`
 
 	// embed the os-specific structs
 	OsqueryCommandLineFlagsLinux

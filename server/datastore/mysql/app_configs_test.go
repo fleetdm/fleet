@@ -35,6 +35,7 @@ func TestAppConfig(t *testing.T) {
 		{"Backwards Compatibility", testAppConfigBackwardsCompatibility},
 		{"GetConfigEnableDiskEncryption", testGetConfigEnableDiskEncryption},
 		{"IsEnrollSecretAvailable", testIsEnrollSecretAvailable},
+		{"YaraRulesRoundtrip", testYaraRulesRoundtrip},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -531,5 +532,105 @@ func testIsEnrollSecretAvailable(t *testing.T, ds *Datastore) {
 			},
 		)
 	}
+}
 
+func testYaraRulesRoundtrip(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	defer TruncateTables(t, ds)
+
+	// Empty insert
+	expectedRules := []fleet.YaraRule{}
+	err := ds.ApplyYaraRules(ctx, expectedRules)
+	require.NoError(t, err)
+	rules, err := ds.GetYaraRules(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, expectedRules, rules)
+
+	// Insert values
+	expectedRules = []fleet.YaraRule{
+		{
+			Name: "wildcard.yar",
+			Contents: `rule WildcardExample
+{
+    strings:
+        $hex_string = { E2 34 ?? C8 A? FB }
+
+    condition:
+        $hex_string
+}`,
+		},
+		{
+			Name: "jump.yar",
+			Contents: `rule JumpExample
+{
+    strings:
+        $hex_string = { F4 23 [4-6] 62 B4 }
+
+    condition:
+        $hex_string
+}`,
+		},
+	}
+	err = ds.ApplyYaraRules(ctx, expectedRules)
+	require.NoError(t, err)
+	rules, err = ds.GetYaraRules(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, expectedRules, rules)
+
+	rule, err := ds.YaraRuleByName(ctx, expectedRules[0].Name)
+	require.NoError(t, err)
+	assert.Equal(t, &expectedRules[0], rule)
+	rule, err = ds.YaraRuleByName(ctx, expectedRules[1].Name)
+	require.NoError(t, err)
+	assert.Equal(t, &expectedRules[1], rule)
+
+	// Update rules
+	expectedRules = []fleet.YaraRule{
+		{
+			Name: "wildcard.yar",
+			Contents: `rule WildcardExample
+{
+    strings:
+        $hex_string = { E2 34 ?? C8 A? FB }
+
+    condition:
+        $hex_string
+}`,
+		},
+		{
+			Name: "jump-modified.yar",
+			Contents: `rule JumpExample
+{
+    strings:
+        $hex_string = true
+
+    condition:
+        $hex_string
+}`,
+		},
+	}
+	err = ds.ApplyYaraRules(ctx, expectedRules)
+	require.NoError(t, err)
+	rules, err = ds.GetYaraRules(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, expectedRules, rules)
+
+	rule, err = ds.YaraRuleByName(ctx, expectedRules[0].Name)
+	require.NoError(t, err)
+	assert.Equal(t, &expectedRules[0], rule)
+	rule, err = ds.YaraRuleByName(ctx, expectedRules[1].Name)
+	require.NoError(t, err)
+	assert.Equal(t, &expectedRules[1], rule)
+
+	// Clear rules
+	expectedRules = []fleet.YaraRule{}
+	err = ds.ApplyYaraRules(ctx, expectedRules)
+	require.NoError(t, err)
+	rules, err = ds.GetYaraRules(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, expectedRules, rules)
+
+	// Get rule that doesn't exist
+	rule, err = ds.YaraRuleByName(ctx, "wildcard.yar")
+	require.Error(t, err)
 }

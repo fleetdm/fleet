@@ -65,6 +65,7 @@ type OsqueryService interface {
 	) (err error)
 	SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) (err error)
 	SubmitResultLogs(ctx context.Context, logs []json.RawMessage) (err error)
+	YaraRuleByName(ctx context.Context, name string) (*YaraRule, error)
 }
 
 type Service interface {

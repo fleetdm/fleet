@@ -846,6 +846,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		POST("/api/osquery/carve/begin", carveBeginEndpoint, carveBeginRequest{})
 	he.WithAltPaths("/api/v1/osquery/log").
 		POST("/api/osquery/log", submitLogsEndpoint, submitLogsRequest{})
+	he.WithAltPaths("/api/v1/osquery/yara/{name}").
+		POST("/api/osquery/yara/{name}", getYaraEndpoint, getYaraRequest{})
 
 	// orbit authenticated endpoints
 	oe := newOrbitAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
