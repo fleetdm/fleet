@@ -18,7 +18,7 @@ describe("Dropdown cell", () => {
   it("renders dropdown placeholder and options", async () => {
     const { user } = renderWithSetup(
       <DropdownCell
-        options={DROPDOWN_OPTIONS}
+        options={DROPDOWN_OPTIONS} // Test
         placeholder={PLACEHOLDER}
         onChange={ON_CHANGE}
       />
@@ -26,8 +26,67 @@ describe("Dropdown cell", () => {
 
     await user.click(screen.getByText("Actions"));
 
-    expect(screen.getByText(/edit/i)).toBeInTheDocument();
-    expect(screen.getByText(/show query/i)).toBeInTheDocument();
-    expect(screen.getByText(/delete/i)).toBeInTheDocument();
+    expect(screen.queryAllByText(/edit/i)[1]).toBeInTheDocument(); // Aria shows Edit twice since it's focused
+    expect(screen.queryByText(/show query/i)).toBeInTheDocument();
+    expect(screen.queryByText(/delete/i)).toBeInTheDocument();
+  });
+
+  it("renders dropdown as disabled when disabled prop is true", () => {
+    renderWithSetup(
+      <DropdownCell
+        options={DROPDOWN_OPTIONS}
+        placeholder={PLACEHOLDER}
+        onChange={ON_CHANGE}
+        disabled // Test
+      />
+    );
+    expect(screen.getByRole("combobox")).toBeDisabled();
+  });
+
+  it("calls onChange with correct value when an option is selected", async () => {
+    const mockOnChange = jest.fn();
+    const { user } = renderWithSetup(
+      <DropdownCell
+        options={DROPDOWN_OPTIONS}
+        placeholder={PLACEHOLDER}
+        onChange={mockOnChange}
+      />
+    );
+
+    await user.click(screen.getByText("Actions"));
+    await user.click(screen.getByText("Edit"));
+
+    expect(mockOnChange).toHaveBeenCalledWith("edit-query");
+  });
+
+  it("renders disabled option as non-selectable", async () => {
+    const { user } = renderWithSetup(
+      <DropdownCell
+        options={DROPDOWN_OPTIONS}
+        placeholder={PLACEHOLDER}
+        onChange={ON_CHANGE}
+      />
+    );
+
+    await user.click(screen.getByText("Actions"));
+    const deleteOption = screen.getByText("Delete");
+
+    expect(deleteOption).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("closes the dropdown when clicking outside", async () => {
+    const { user } = renderWithSetup(
+      <DropdownCell
+        options={DROPDOWN_OPTIONS}
+        placeholder={PLACEHOLDER}
+        onChange={ON_CHANGE}
+      />
+    );
+
+    await user.click(screen.getByText("Actions"));
+    expect(screen.getByText("Edit")).toBeVisible();
+
+    await user.click(document.body);
+    expect(screen.queryByText(/edit/i)).not.toBeInTheDocument();
   });
 });
