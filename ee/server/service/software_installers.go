@@ -1301,15 +1301,16 @@ func (svc *Service) softwareBatchUpload(
 			}
 
 			installer := &fleet.UploadSoftwareInstallerPayload{
-				TeamID:            teamID,
-				InstallScript:     p.InstallScript,
-				PreInstallQuery:   p.PreInstallQuery,
-				PostInstallScript: p.PostInstallScript,
-				UninstallScript:   p.UninstallScript,
-				InstallerFile:     bytes.NewReader(bodyBytes),
-				SelfService:       p.SelfService,
-				UserID:            userID,
-				URL:               p.URL,
+				TeamID:             teamID,
+				InstallScript:      p.InstallScript,
+				PreInstallQuery:    p.PreInstallQuery,
+				PostInstallScript:  p.PostInstallScript,
+				UninstallScript:    p.UninstallScript,
+				InstallerFile:      bytes.NewReader(bodyBytes),
+				SelfService:        p.SelfService,
+				UserID:             userID,
+				URL:                p.URL,
+				InstallDuringSetup: p.InstallDuringSetup,
 			}
 
 			// set the filename before adding metadata, as it is used as fallback

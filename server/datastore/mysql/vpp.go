@@ -169,6 +169,15 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 		return ctxerr.Wrap(ctx, err, "SetTeamVPPApps getting list of existing apps")
 	}
 
+	// if we're batch-setting apps and replacing the ones installed during setup
+	// in the same go, no need to validate that we don't delete one marked as
+	// install during setup (since we're overwriting those). This is always
+	// called from fleetctl gitops, so it should always be the case anyway.
+	var replacingInstallDuringSetup bool
+	if len(appFleets) == 0 || appFleets[0].InstallDuringSetup != nil {
+		replacingInstallDuringSetup = true
+	}
+
 	var toAddApps []fleet.VPPAppTeam
 	var toRemoveApps []fleet.VPPAppID
 
@@ -181,9 +190,8 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 			}
 		}
 		if !found {
-			// if app is marked as install during setup, prevent deletion.
-			// TODO: will need to be reconciled with https://github.com/fleetdm/fleet/issues/22385
-			if appTeamInfo.InstallDuringSetup {
+			// if app is marked as install during setup, prevent deletion unless we're replacing those.
+			if !replacingInstallDuringSetup && appTeamInfo.InstallDuringSetup != nil && *appTeamInfo.InstallDuringSetup {
 				return errDeleteInstallerInstalledDuringSetup
 			}
 			toRemoveApps = append(toRemoveApps, existingApp)
@@ -191,7 +199,10 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 	}
 
 	for _, appFleet := range appFleets {
-		if existingFleet, ok := existingApps[appFleet.VPPAppID]; !ok || existingFleet.SelfService != appFleet.SelfService {
+		// upsert it if it does not exist or SelfService or InstallDuringSetup flags are changed
+		if existingFleet, ok := existingApps[appFleet.VPPAppID]; !ok || existingFleet.SelfService != appFleet.SelfService ||
+			appFleet.InstallDuringSetup != nil &&
+				existingFleet.InstallDuringSetup != nil && *appFleet.InstallDuringSetup != *existingFleet.InstallDuringSetup {
 			toAddApps = append(toAddApps, appFleet)
 		}
 	}
@@ -310,11 +321,13 @@ ON DUPLICATE KEY UPDATE
 func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppTeam, teamID *uint, vppTokenID uint) error {
 	stmt := `
 INSERT INTO vpp_apps_teams
-	(adam_id, global_or_team_id, team_id, platform, self_service, vpp_token_id)
+	(adam_id, global_or_team_id, team_id, platform, self_service, vpp_token_id, install_during_setup)
 VALUES
-	(?, ?, ?, ?, ?, ?)
-ON DUPLICATE KEY UPDATE self_service = VALUES(self_service)
-	`
+	(?, ?, ?, ?, ?, ?, COALESCE(?, false))
+ON DUPLICATE KEY UPDATE
+	self_service = VALUES(self_service),
+	install_during_setup = COALESCE(?, install_during_setup)
+`
 
 	var globalOrTmID uint
 	if teamID != nil {
@@ -325,7 +338,7 @@ ON DUPLICATE KEY UPDATE self_service = VALUES(self_service)
 		}
 	}
 
-	_, err := tx.ExecContext(ctx, stmt, appID.AdamID, globalOrTmID, teamID, appID.Platform, appID.SelfService, vppTokenID)
+	_, err := tx.ExecContext(ctx, stmt, appID.AdamID, globalOrTmID, teamID, appID.Platform, appID.SelfService, vppTokenID, appID.InstallDuringSetup, appID.InstallDuringSetup)
 	if IsDuplicate(err) {
 		err = &existsError{
 			Identifier:   fmt.Sprintf("%s %s self_service: %v", appID.AdamID, appID.Platform, appID.SelfService),

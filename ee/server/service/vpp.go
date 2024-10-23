@@ -79,9 +79,10 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			SelfService: false,
 			Platform:    fleet.IPadOSPlatform,
 		}, {
-			AppStoreID:  payload.AppStoreID,
-			SelfService: payload.SelfService,
-			Platform:    fleet.MacOSPlatform,
+			AppStoreID:         payload.AppStoreID,
+			SelfService:        payload.SelfService,
+			Platform:           fleet.MacOSPlatform,
+			InstallDuringSetup: payload.InstallDuringSetup,
 		}}...)
 	}
 
@@ -101,7 +102,14 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				return fleet.NewInvalidArgumentError("app_store_apps.platform",
 					fmt.Sprintf("platform must be one of '%s', '%s', or '%s", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform))
 			}
-			vppAppTeams = append(vppAppTeams, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: payload.AppStoreID, Platform: payload.Platform}, SelfService: payload.SelfService})
+			vppAppTeams = append(vppAppTeams, fleet.VPPAppTeam{
+				VPPAppID: fleet.VPPAppID{
+					AdamID:   payload.AppStoreID,
+					Platform: payload.Platform,
+				},
+				SelfService:        payload.SelfService,
+				InstallDuringSetup: payload.InstallDuringSetup,
+			})
 		}
 
 		var missingAssets []string
@@ -374,14 +382,15 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.VPPApp, error) {
 	var apps []*fleet.VPPApp
 
-	// Map of adamID to platform, then to whether it's available as self-service.
-	adamIDMap := make(map[string]map[fleet.AppleDevicePlatform]bool)
+	// Map of adamID to platform, then to whether it's available as self-service
+	// and installed during setup.
+	adamIDMap := make(map[string]map[fleet.AppleDevicePlatform]fleet.VPPAppTeam)
 	for _, id := range ids {
 		if _, ok := adamIDMap[id.AdamID]; !ok {
-			adamIDMap[id.AdamID] = make(map[fleet.AppleDevicePlatform]bool, 1)
-			adamIDMap[id.AdamID][id.Platform] = id.SelfService
+			adamIDMap[id.AdamID] = make(map[fleet.AppleDevicePlatform]fleet.VPPAppTeam, 1)
+			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{SelfService: id.SelfService, InstallDuringSetup: id.InstallDuringSetup}
 		} else {
-			adamIDMap[id.AdamID][id.Platform] = id.SelfService
+			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{SelfService: id.SelfService, InstallDuringSetup: id.InstallDuringSetup}
 		}
 	}
 
@@ -397,14 +406,15 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 	for adamID, metadata := range assetMetatada {
 		platforms := getPlatformsFromSupportedDevices(metadata.SupportedDevices)
 		for platform := range platforms {
-			if selfService, ok := adamIDMap[adamID][platform]; ok {
+			if props, ok := adamIDMap[adamID][platform]; ok {
 				app := &fleet.VPPApp{
 					VPPAppTeam: fleet.VPPAppTeam{
 						VPPAppID: fleet.VPPAppID{
 							AdamID:   adamID,
 							Platform: platform,
 						},
-						SelfService: selfService,
+						SelfService:        props.SelfService,
+						InstallDuringSetup: props.InstallDuringSetup,
 					},
 					BundleIdentifier: metadata.BundleID,
 					IconURL:          metadata.ArtworkURL,

@@ -847,16 +847,6 @@ WHERE
   team_id = ?
 `
 
-	const countInstallDuringSetupAllInstallersInTeam = `
-SELECT
-  COUNT(*)
-FROM
-  software_installers
-WHERE
-  global_or_team_id = ? AND
-  install_during_setup = 1
-`
-
 	const deleteAllInstallersInTeam = `
 DELETE FROM
   software_installers
@@ -881,8 +871,8 @@ WHERE
 SELECT
   COUNT(*)
 FROM
-  software_installers 
-WHERE 
+  software_installers
+WHERE
   global_or_team_id = ? AND
   title_id NOT IN (?) AND
   install_during_setup = 1
@@ -926,11 +916,12 @@ INSERT INTO software_installers (
 	user_name,
 	user_email,
 	url,
-	package_ids
+	package_ids,
+	install_during_setup
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
   (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''),
-  ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?
+  ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false)
 )
 ON DUPLICATE KEY UPDATE
   install_script_content_id = VALUES(install_script_content_id),
@@ -946,7 +937,8 @@ ON DUPLICATE KEY UPDATE
   user_id = VALUES(user_id),
   user_name = VALUES(user_name),
   user_email = VALUES(user_email),
-  url = VALUES(url)
+  url = VALUES(url),
+	install_during_setup = COALESCE(?, install_during_setup)
 `
 
 	// use a team id of 0 if no-team
@@ -955,20 +947,19 @@ ON DUPLICATE KEY UPDATE
 		globalOrTeamID = *tmID
 	}
 
+	// if we're batch-setting installers and replacing the ones installed during
+	// setup in the same go, no need to validate that we don't delete one marked
+	// as install during setup (since we're overwriting those). This is always
+	// called from fleetctl gitops, so it should always be the case anyway.
+	var replacingInstallDuringSetup bool
+	if len(installers) == 0 || installers[0].InstallDuringSetup != nil {
+		replacingInstallDuringSetup = true
+	}
+
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// if no installers are provided, just delete whatever was in
 		// the table
 		if len(installers) == 0 {
-			// check if any existing installer is install_during_setup, fail if there is one
-			// TODO: will need to be reconciled with https://github.com/fleetdm/fleet/issues/22385
-			var countInstallDuringSetup int
-			if err := sqlx.GetContext(ctx, tx, &countInstallDuringSetup, countInstallDuringSetupAllInstallersInTeam, globalOrTeamID); err != nil {
-				return ctxerr.Wrap(ctx, err, "check installers installed during setup")
-			}
-			if countInstallDuringSetup > 0 {
-				return errDeleteInstallerInstalledDuringSetup
-			}
-
 			if _, err := tx.ExecContext(ctx, unsetAllInstallersFromPolicies, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "unset all obsolete installers in policies")
 			}
@@ -1005,17 +996,18 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		// check if any in the list are install_during_setup, fail if there is one
-		// TODO: will need to be reconciled with https://github.com/fleetdm/fleet/issues/22385
-		stmt, args, err = sqlx.In(countInstallDuringSetupNotInList, globalOrTeamID, titleIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to check installers install_during_setup")
-		}
-		var countInstallDuringSetup int
-		if err := sqlx.GetContext(ctx, tx, &countInstallDuringSetup, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "check installers installed during setup")
-		}
-		if countInstallDuringSetup > 0 {
-			return errDeleteInstallerInstalledDuringSetup
+		if !replacingInstallDuringSetup {
+			stmt, args, err = sqlx.In(countInstallDuringSetupNotInList, globalOrTeamID, titleIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to check installers install_during_setup")
+			}
+			var countInstallDuringSetup int
+			if err := sqlx.GetContext(ctx, tx, &countInstallDuringSetup, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "check installers installed during setup")
+			}
+			if countInstallDuringSetup > 0 {
+				return errDeleteInstallerInstalledDuringSetup
+			}
 		}
 
 		stmt, args, err = sqlx.In(deleteInstallersNotInList, globalOrTeamID, titleIDs)
@@ -1100,6 +1092,8 @@ ON DUPLICATE KEY UPDATE
 				installer.UserID,
 				installer.URL,
 				strings.Join(installer.PackageIDs, ","),
+				installer.InstallDuringSetup,
+				installer.InstallDuringSetup,
 			}
 			upsertQuery := insertNewOrEditedInstaller
 			if len(existing) > 0 && existing[0].IsPackageModified { // update uploaded_at for updated installer package

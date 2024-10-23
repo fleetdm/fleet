@@ -1423,18 +1423,18 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 
 		// Can be useful for debugging
-		//switch cmd.Command.RequestType {
-		//case "InstallProfile":
-		//	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
-		//case "InstallEnterpriseApplication":
-		//	if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
-		//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
-		//	} else {
-		//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-		//	}
-		//default:
-		//	fmt.Println(">>>> device received command: ", cmd.Command.RequestType)
-		//}
+		// switch cmd.Command.RequestType {
+		// case "InstallProfile":
+		// 	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
+		// case "InstallEnterpriseApplication":
+		// 	if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
+		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
+		// 	} else {
+		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+		// 	}
+		// default:
+		// 	fmt.Println(">>>> device received command: ", cmd.Command.RequestType)
+		// }
 
 		cmds = append(cmds, &fullCmd)
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
@@ -1450,14 +1450,15 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 		switch cmd.Command.RequestType {
 		case "InstallProfile":
 			installProfileCount++
-			if strings.Contains(string(cmd.Command.InstallProfile.Payload), "<string>I1</string>") {
+			switch {
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), "<string>I1</string>"):
 				profileCustomSeen = true
-			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)) {
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)):
 				profileFleetdSeen = true
-			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetCARootConfigPayloadIdentifier)) {
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetCARootConfigPayloadIdentifier)):
 				profileFleetCASeen = true
-			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string", mobileconfig.FleetFileVaultPayloadIdentifier)) &&
-				strings.Contains(string(cmd.Command.InstallProfile.Payload), "ForceEnableInSetupAssistant") {
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string", mobileconfig.FleetFileVaultPayloadIdentifier)) &&
+				strings.Contains(string(cmd.Command.InstallProfile.Payload), "ForceEnableInSetupAssistant"):
 				profileFileVaultSeen = true
 			}
 
@@ -1612,18 +1613,18 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptFo
 		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 
 		// Can be useful for debugging
-		//switch cmd.Command.RequestType {
-		//case "InstallProfile":
-		//	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
-		//case "InstallEnterpriseApplication":
-		//	if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
-		//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
-		//	} else {
-		//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-		//	}
-		//default:
-		//	fmt.Println(">>>> device received command: ", cmd.Command.RequestType)
-		//}
+		// switch cmd.Command.RequestType {
+		// case "InstallProfile":
+		// 	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
+		// case "InstallEnterpriseApplication":
+		// 	if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
+		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
+		// 	} else {
+		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+		// 	}
+		// default:
+		// 	fmt.Println(">>>> device received command: ", cmd.Command.RequestType)
+		// }
 
 		cmds = append(cmds, &fullCmd)
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
@@ -1639,14 +1640,15 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptFo
 		switch cmd.Command.RequestType {
 		case "InstallProfile":
 			installProfileCount++
-			if strings.Contains(string(cmd.Command.InstallProfile.Payload), "<string>I1</string>") {
+			switch {
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), "<string>I1</string>"):
 				profileCustomSeen = true
-			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)) {
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)):
 				profileFleetdSeen = true
-			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetCARootConfigPayloadIdentifier)) {
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetCARootConfigPayloadIdentifier)):
 				profileFleetCASeen = true
-			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string", mobileconfig.FleetFileVaultPayloadIdentifier)) &&
-				strings.Contains(string(cmd.Command.InstallProfile.Payload), "ForceEnableInSetupAssistant") {
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string", mobileconfig.FleetFileVaultPayloadIdentifier)) &&
+				strings.Contains(string(cmd.Command.InstallProfile.Payload), "ForceEnableInSetupAssistant"):
 				profileFileVaultSeen = true
 			}
 

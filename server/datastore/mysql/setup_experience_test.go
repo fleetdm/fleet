@@ -186,13 +186,13 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 			HostUUID: hostTeam1,
 			Name:     "script1",
 			Status:   "pending",
-			ScriptID: nullableUint(uint(script1ID)),
+			ScriptID: nullableUint(uint(script1ID)), // nolint: gosec
 		},
 		{
 			HostUUID: hostTeam2,
 			Name:     "script2",
 			Status:   "pending",
-			ScriptID: nullableUint(uint(script2ID)),
+			ScriptID: nullableUint(uint(script2ID)), // nolint: gosec
 		},
 	} {
 		var found bool
@@ -267,7 +267,7 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 			HostUUID: hostTeam1,
 			Name:     "script1",
 			Status:   "pending",
-			ScriptID: nullableUint(uint(script1ID)),
+			ScriptID: nullableUint(uint(script1ID)), // nolint: gosec
 		},
 	} {
 		var found bool
@@ -303,7 +303,7 @@ type setupExperienceInsertTestRows struct {
 }
 
 func nullableUint(val uint) sql.NullInt64 {
-	return sql.NullInt64{Int64: int64(val), Valid: true}
+	return sql.NullInt64{Int64: int64(val), Valid: true} // nolint: gosec
 }
 
 func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
@@ -668,7 +668,7 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		id, err := res.LastInsertId()
 		require.NoError(t, err)
-		scriptID = uint(id)
+		scriptID = uint(id) // nolint: gosec
 		return nil
 	})
 
@@ -680,7 +680,7 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			id, err := res.LastInsertId()
 			require.NoError(t, err)
-			sesr.ID = uint(id)
+			sesr.ID = uint(id) // nolint: gosec
 			return nil
 		})
 	}

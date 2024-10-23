@@ -308,25 +308,26 @@ func (s *HostSoftwareInstallerResultAuthz) AuthzType() string {
 }
 
 type UploadSoftwareInstallerPayload struct {
-	TeamID            *uint
-	InstallScript     string
-	PreInstallQuery   string
-	PostInstallScript string
-	InstallerFile     io.ReadSeeker // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
-	StorageID         string
-	Filename          string
-	Title             string
-	Version           string
-	Source            string
-	Platform          string
-	BundleIdentifier  string
-	SelfService       bool
-	UserID            uint
-	URL               string
-	FleetLibraryAppID *uint
-	PackageIDs        []string
-	UninstallScript   string
-	Extension         string
+	TeamID             *uint
+	InstallScript      string
+	PreInstallQuery    string
+	PostInstallScript  string
+	InstallerFile      io.ReadSeeker // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
+	StorageID          string
+	Filename           string
+	Title              string
+	Version            string
+	Source             string
+	Platform           string
+	BundleIdentifier   string
+	SelfService        bool
+	UserID             uint
+	URL                string
+	FleetLibraryAppID  *uint
+	PackageIDs         []string
+	UninstallScript    string
+	Extension          string
+	InstallDuringSetup *bool // keep saved value if nil, otherwise set as indicated
 }
 
 type UpdateSoftwareInstallerPayload struct {
@@ -438,6 +439,16 @@ type SoftwarePackageSpec struct {
 	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
 	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
 	UninstallScript   TeamSpecSoftwareAsset `json:"uninstall_script"`
+
+	// ReferencedYamlPath is the resolved path of the file used to fill the
+	// software package. Only present after parsing a GitOps file on the fleetctl
+	// side of processing. This is required to match a macos_setup.software to
+	// its corresponding software package, as we do this matching by yaml path.
+	//
+	// It must be JSON-marshaled because it gets set during gitops file processing,
+	// which is then re-marshaled to JSON from this struct and later re-unmarshaled
+	// during ApplyGroup...
+	ReferencedYamlPath string `json:"referenced_yaml_path"`
 }
 
 type SoftwareSpec struct {
