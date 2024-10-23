@@ -32,6 +32,12 @@ We often hear objections to using Fleet that are important to track, understand,
 2. Copy the template at the top of the page and paste it at the top of the "Objections" section completing all TODOs.
 
 
+### Change a contact's organization in Salesforce
+
+Use the following steps to change a contact's organization in Salesforce:
+- If the contact's organization in Salesforce is incorrect but their new organization is unknown, navigate to the contact in Salesforce and change the "Account name" to "?" and save.
+- If the contact's organization in Salesforce is incorrect and we know where they're moving to, navigate to the contact in Salesforce, change the "Account name" to the contact's new organization, and save.
+
 ### Onboard a new sales team member
 
 Once the standard Fleetie onboarding issue is complete, create a new ["Sales team onboarding"](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=sales-team-onboarding.md&title=Sales%20onboarding%3A_____________) issue and complete it.
