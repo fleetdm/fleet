@@ -160,9 +160,15 @@ module.exports = {
                 };
               },
             })
-          .intercept((error)=>{
+          .intercept(async (error)=>{
             // Note: with this current behavior, all errors from this upload are currently swallowed and a softwareUploadFailed response is returned.
             // FUTURE: Test to make sure that uploading duplicate software to a team results in a 409 response.
+            // Before handline errors, decide what to do about the file uploaded to s3, if this is undeployed software, we'll leave it alone, but if this was a temporary file created to transfer it between teams on the Fleet instance, we'll delete the file.
+            if(!software.id) {// If the software does not have an ID, it not stored in the app's database/s3 bucket, so we can safely delete the file in s3.
+              await sails.rm(sails.config.uploads.prefixForFileDeletion+softwareFd);
+            }
+            // Log a warning containing an error
+            sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, ${require('util').inspect(error, {depth: 0})}`);
             return {'softwareUploadFailed': error};
           });
           // console.timeEnd(`transfering ${software.name} to fleet instance for team id ${team}`);
@@ -229,9 +235,15 @@ module.exports = {
                 };
               },
             })
-            .intercept((error)=>{
+            .intercept(async (error)=>{
               // Note: with this current behavior, all errors from this upload are currently swallowed and a softwareUploadFailed response is returned.
               // FUTURE: Test to make sure that uploading duplicate software to a team results in a 409 response.
+              // Before handling errors, decide what to do about the file uploaded to s3, if this is undeployed software, we'll leave it alone, but if this was a temporary file created to transfer it between teams on the Fleet instance, we'll delete the file.
+              if(!software.id) {
+                await sails.rm(sails.config.uploads.prefixForFileDeletion+softwareFd);
+              }
+              // Log a warning containing an error
+              sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, ${require('util').inspect(error, {depth: 0})}`);
               return {'softwareUploadFailed': error};
             });
             // console.timeEnd(`transfering ${software.name} to fleet instance for team id ${teamApid}`);
