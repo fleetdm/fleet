@@ -48,13 +48,13 @@ With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet'
 
 > Available in Fleet Premium
 
-To automatically enroll Windows workstations when they’re first unboxed and set up by your end users, we will connect Fleet to Microsoft  ID.
+To automatically enroll Windows workstations when they’re first unboxed and set up by your end users, we will connect Fleet to Microsoft Entra ID.
 
 After you connect Fleet to Microsoft Entra ID, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
 
 In order to connect Fleet to Microsoft Entra ID, the IT admin (you) needs a Microsoft Enterprise Mobility + Security E3 license. 
 
-Each end user who automatically enrolls needs a Microsoft Intune license.
+Each end user who automatically enrolls needs a [Microsoft license](https://learn.microsoft.com/en-us/mem/intune/fundamentals/licenses.)
 
 ### Step 1: Buy Microsoft licenses
 
@@ -68,7 +68,7 @@ Each end user who automatically enrolls needs a Microsoft Intune license.
 
 5. On the **Enterprise Mobility + Security E3** page, select **Buy** and follow instructions to purchase the license. 
 
-6. Find and buy an Intune license.
+6. Find and buy a license.
 
 7. Sign in to [Microsoft Entra ID portal](https://portal..com).
 
