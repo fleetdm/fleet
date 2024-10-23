@@ -96,10 +96,23 @@ const ActionDropdown = ({
 }: IActionDropdownProps): JSX.Element => {
   const dropdownClassnames = classnames(baseClass, className);
 
+  const [isKeyboardFocused, setIsKeyboardFocused] = React.useState(false);
+
   const handleChange = (newValue: IDropdownOption | null) => {
     if (newValue) {
       onChange(newValue.value.toString());
     }
+  };
+
+  const handleFocus = (event: React.FocusEvent) => {
+    // Check if the focus event was triggered by keyboard
+    if (event.target === event.currentTarget) {
+      setIsKeyboardFocused(true);
+    }
+  };
+
+  const handleBlur = () => {
+    setIsKeyboardFocused(false);
   };
 
   const customStyles: StylesConfig<IDropdownOption, false> = {
@@ -129,6 +142,8 @@ const ActionDropdown = ({
       "&:active .action-dropdown-select__indicator path": {
         stroke: COLORS["core-vibrant-blue-down"],
       },
+      // TODO: Figure out a way to apply separate &:focus-visible styling
+      // Currently only relying on &:focus styling for tabbing through app
       ...(state.menuIsOpen && {
         ".action-dropdown-select__indicator svg": {
           transform: "rotate(180deg)",
