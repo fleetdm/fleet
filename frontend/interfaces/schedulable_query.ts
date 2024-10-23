@@ -67,7 +67,13 @@ export interface IListQueriesResponse {
 
 export interface IQueryKeyQueriesLoadAll {
   scope: "queries";
-  teamId: number | undefined;
+  teamId?: number;
+  page?: number;
+  perPage?: number;
+  query?: string;
+  orderDirection?: "asc" | "desc";
+  orderKey?: string;
+  mergeInherited?: boolean;
 }
 // Create a new query
 /** POST /api/v1/fleet/queries */

@@ -37,7 +37,7 @@ import DeleteQueryModal from "./components/DeleteQueryModal";
 import ManageQueryAutomationsModal from "./components/ManageQueryAutomationsModal/ManageQueryAutomationsModal";
 import PreviewDataModal from "./components/PreviewDataModal/PreviewDataModal";
 
-// const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
 
 const baseClass = "manage-queries-page";
 interface IManageQueriesPageProps {
@@ -121,27 +121,44 @@ const ManageQueriesPage = ({
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
 
+  const curPageFromURL = location.query.page
+    ? parseInt(location.query.page, 10)
+    : 0;
+
   const {
-    data: enhancedQueries,
+    data: queriesResponse,
     error: queriesError,
     isFetching: isFetchingQueries,
     refetch: refetchQueries,
   } = useQuery<
     IQueriesResponse,
     Error,
-    IEnhancedQuery[],
+    IQueriesResponse,
     IQueryKeyQueriesLoadAll[]
   >(
-    [{ scope: "queries", teamId: teamIdForApi }],
-    ({ queryKey: [{ teamId }] }) =>
-      queriesAPI.loadAll(teamId, teamId !== API_ALL_TEAMS_ID),
+    [
+      {
+        scope: "queries",
+        teamId: teamIdForApi,
+        page: curPageFromURL,
+        perPage: DEFAULT_PAGE_SIZE,
+        query: location.query.query,
+        orderDirection: location.query.order_direction,
+        orderKey: location.query.order_key,
+        mergeInherited: teamIdForApi !== API_ALL_TEAMS_ID,
+      },
+    ],
+    ({ queryKey }) => queriesAPI.loadAll(queryKey[0]),
     {
       refetchOnWindowFocus: false,
       enabled: isRouteOk,
       staleTime: 5000,
-      select: ({ queries }) => queries.map(enhanceQuery),
     }
   );
+
+  // select: ({ queries }) => queries.map(enhanceQuery),
+  const enhancedQueries = queriesResponse?.queries.map(enhanceQuery);
+
   const queriesAvailableToAutomate =
     (teamIdForApi
       ? enhancedQueries?.filter(
@@ -258,9 +275,17 @@ const ManageQueriesPage = ({
     if (queriesError) {
       return <TableDataError />;
     }
+
+    // TODO - coordinate these properties with useQuery and the below table
+    // page: tableQueryData?.pageIndex,
+    // perPage: DEFAULT_PAGE_SIZE,
+    // query: searchQuery,
+    // orderDirection: orderBy,
+    // orderKey: orderKey,
     return (
       <QueriesTable
-        queriesList={enhancedQueries || []}
+        queries={enhancedQueries || []}
+        totalQueriesCount={queriesResponse?.count}
         onlyInheritedQueries={onlyInheritedQueries}
         isLoading={isFetchingQueries}
         onCreateQueryClick={onCreateQueryClick}

@@ -560,7 +560,6 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		}
 	}
 
-
 	return queries, count, meta, nil
 }
 

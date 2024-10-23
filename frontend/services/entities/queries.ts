@@ -8,7 +8,23 @@ import {
   IModifyQueryRequestBody,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
-import { buildQueryStringFromParams } from "utilities/url";
+import {
+  buildQueryStringFromParams,
+  convertParamsToSnakeCase,
+} from "utilities/url";
+
+export interface ILoadQueriesParams {
+  teamId?: number;
+  page?: number;
+  perPage?: number;
+  query?: string;
+  orderDirection?: "asc" | "desc";
+  orderKey?: string;
+  mergeInherited?: boolean;
+}
+export interface IQueryKeyLoadQueries extends ILoadQueriesParams {
+  scope: "queries";
+}
 
 export interface IQueriesResponse {
   queries: ISchedulableQuery[];
@@ -45,22 +61,31 @@ export default {
 
     return sendRequest("GET", path);
   },
-  // loadAll: (teamId?: number, perPage?: number, mergeInherited = false) => {
-  loadAll: (
-    teamId?: number,
-    mergeInherited = false
-  ): Promise<IQueriesResponse> => {
+  loadAll: ({
+    teamId,
+    page,
+    perPage,
+    query,
+    orderDirection,
+    orderKey,
+    mergeInherited,
+  }: IQueryKeyLoadQueries): Promise<IQueriesResponse> => {
     const { QUERIES } = endpoints;
-    const queryString = buildQueryStringFromParams({
-      team_id: teamId,
-      merge_inherited: mergeInherited || null,
-      // per_page: perPage || null,
+
+    const snakeCaseParams = convertParamsToSnakeCase({
+      teamId,
+      page,
+      perPage,
+      query,
+      orderDirection,
+      orderKey,
+      mergeInherited,
     });
-    const path = `${QUERIES}`;
+    const queryString = buildQueryStringFromParams(snakeCaseParams);
 
     return sendRequest(
       "GET",
-      queryString ? path.concat(`?${queryString}`) : path
+      queryString ? QUERIES.concat(`?${queryString}`) : QUERIES
     );
   },
   run: async ({

@@ -63,10 +63,10 @@ type listQueriesRequest struct {
 }
 
 type listQueriesResponse struct {
-	Queries []fleet.Query `json:"queries"`
-	Count int `json:"count"`
-	Meta *fleet.PaginationMetadata `json:"meta"`
-	Err     error         `json:"error,omitempty"`
+	Queries []fleet.Query             `json:"queries"`
+	Count   int                       `json:"count"`
+	Meta    *fleet.PaginationMetadata `json:"meta"`
+	Err     error                     `json:"error,omitempty"`
 }
 
 func (r listQueriesResponse) error() error { return r.Err }
@@ -88,12 +88,11 @@ func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	for _, query := range queries {
 		respQueries = append(respQueries, *query)
 	}
-	
 
 	return listQueriesResponse{
 		Queries: respQueries,
-		Count: count,
-		Meta: meta,
+		Count:   count,
+		Meta:    meta,
 	}, nil
 }
 

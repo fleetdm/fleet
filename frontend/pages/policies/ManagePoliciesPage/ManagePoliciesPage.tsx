@@ -115,7 +115,6 @@ const ManagePolicyPage = ({
     currentTeamId,
     currentTeamName,
     currentTeamSummary,
-    isAnyTeamSelected,
     isAllTeamsSelected,
     isTeamAdmin,
     isTeamMaintainer,
@@ -169,7 +168,10 @@ const ManagePolicyPage = ({
 
   // Needs update on location change or table state might not match URL
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
-  const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
+  const [
+    tableQueryDataForApi,
+    setTableQueryDataForApi,
+  ] = useState<ITableQueryData>();
   const [sortHeader, setSortHeader] = useState(initialSortHeader);
   const [sortDirection, setSortDirection] = useState<
     "asc" | "desc" | undefined
@@ -225,7 +227,7 @@ const ManagePolicyPage = ({
     [
       {
         scope: "globalPolicies",
-        page: tableQueryData?.pageIndex,
+        page: tableQueryDataForApi?.pageIndex,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDirection: sortDirection,
@@ -281,7 +283,7 @@ const ManagePolicyPage = ({
     [
       {
         scope: "teamPolicies",
-        page: tableQueryData?.pageIndex,
+        page: tableQueryDataForApi?.pageIndex,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDirection: sortDirection,
@@ -389,7 +391,7 @@ const ManagePolicyPage = ({
 
   // NOTE: used to reset page number to 0 when modifying filters
   const handleResetPageIndex = () => {
-    setTableQueryData(
+    setTableQueryDataForApi(
       (prevState) =>
         ({
           ...prevState,
@@ -411,11 +413,13 @@ const ManagePolicyPage = ({
   // TODO: Look into useDebounceCallback with dependencies
   const onQueryChange = useCallback(
     async (newTableQuery: ITableQueryData) => {
-      if (!isRouteOk || isEqual(newTableQuery, tableQueryData)) {
+      if (!isRouteOk || isEqual(newTableQuery, tableQueryDataForApi)) {
         return;
       }
 
-      setTableQueryData({ ...newTableQuery });
+      // sets state before any of the below logic factored in. This would seem to have potential
+      // discrepancies for page, which is potentially modified to be "0" - maybe improve this logic
+      setTableQueryDataForApi({ ...newTableQuery });
 
       const {
         pageIndex: newPageIndex,
@@ -454,7 +458,7 @@ const ManagePolicyPage = ({
     },
     [
       isRouteOk,
-      tableQueryData,
+      tableQueryDataForApi,
       sortDirection,
       sortHeader,
       searchQuery,
