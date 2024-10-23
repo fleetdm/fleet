@@ -267,7 +267,7 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 			HostUUID: hostTeam1,
 			Name:     "script1",
 			Status:   "pending",
-			ScriptID: nullableUint(uint(script1ID)),
+			ScriptID: nullableUint(uint(script1ID)), // nolint: gosec
 		},
 	} {
 		var found bool
@@ -672,7 +672,7 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		id, err := res.LastInsertId()
 		require.NoError(t, err)
-		scriptID = uint(id)
+		scriptID = uint(id) // nolint: gosec
 		return nil
 	})
 
@@ -684,7 +684,7 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			id, err := res.LastInsertId()
 			require.NoError(t, err)
-			sesr.ID = uint(id)
+			sesr.ID = uint(id) // nolint: gosec
 			return nil
 		})
 	}
