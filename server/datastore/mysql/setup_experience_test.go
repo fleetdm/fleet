@@ -186,13 +186,13 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 			HostUUID: hostTeam1,
 			Name:     "script1",
 			Status:   "pending",
-			ScriptID: nullableUint(uint(script1ID)),
+			ScriptID: nullableUint(uint(script1ID)), // nolint: gosec
 		},
 		{
 			HostUUID: hostTeam2,
 			Name:     "script2",
 			Status:   "pending",
-			ScriptID: nullableUint(uint(script2ID)),
+			ScriptID: nullableUint(uint(script2ID)), // nolint: gosec
 		},
 	} {
 		var found bool

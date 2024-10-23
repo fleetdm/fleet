@@ -403,7 +403,7 @@ func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet
 		id, _ := scRes.LastInsertId()
 
 		// then create the script entity
-		_, err = insertSetupExperienceScript(ctx, tx, script, uint(id))
+		_, err = insertSetupExperienceScript(ctx, tx, script, uint(id)) // nolint: gosec
 		return err
 	})
 
