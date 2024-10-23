@@ -166,10 +166,11 @@ func (ds *Datastore) ListSoftwareTitles(
 				version = *title.VPPAppVersion
 			}
 			title.AppStoreApp = &fleet.SoftwarePackageOrApp{
-				AppStoreID:  *title.VPPAppAdamID,
-				Version:     version,
-				SelfService: title.VPPAppSelfService,
-				IconURL:     title.VPPAppIconURL,
+				AppStoreID:         *title.VPPAppAdamID,
+				Version:            version,
+				SelfService:        title.VPPAppSelfService,
+				IconURL:            title.VPPAppIconURL,
+				InstallDuringSetup: title.PackageInstallDuringSetup,
 			}
 		}
 

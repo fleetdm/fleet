@@ -370,8 +370,8 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 
 	titles, count, meta, err := ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	assert.Len(t, titles, 0)
-	assert.Equal(t, 0, count)
+	assert.Len(t, titles, 1)
+	assert.Equal(t, 1, count)
 	assert.NotNil(t, meta)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -518,8 +518,8 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 
 	titles, count, meta, err := ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	assert.Len(t, titles, 0)
-	assert.Equal(t, 0, count)
+	assert.Len(t, titles, 2)
+	assert.Equal(t, 2, count)
 	assert.NotNil(t, meta)
 
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
@@ -576,9 +576,11 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 
 	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	assert.Len(t, titles, 1)
-	assert.Equal(t, 1, count)
+	assert.Len(t, titles, 3)
+	assert.Equal(t, 3, count)
 	assert.Equal(t, "file1", titles[0].SoftwarePackage.Name)
+	assert.Equal(t, "file2", titles[1].SoftwarePackage.Name)
+	assert.Equal(t, "1", titles[2].AppStoreApp.AppStoreID)
 	assert.NotNil(t, meta)
 
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["1"]})
@@ -586,26 +588,20 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 
 	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, titles, 1)
-	require.Equal(t, 1, count)
-	assert.Equal(t, "1", titles[0].AppStoreApp.AppStoreID)
+	require.Len(t, titles, 3)
+	require.Equal(t, 3, count)
+	assert.Equal(t, "file1", titles[0].SoftwarePackage.Name)
+	assert.Equal(t, "file2", titles[1].SoftwarePackage.Name)
+	assert.Equal(t, "1", titles[2].AppStoreApp.AppStoreID)
 	assert.NotNil(t, meta)
 
 	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team2.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, titles, 0)
-	require.Equal(t, 0, count)
+	require.Len(t, titles, 2)
+	require.Equal(t, 2, count)
+	assert.Equal(t, "file3", titles[0].SoftwarePackage.Name)
+	assert.Equal(t, "3", titles[1].AppStoreApp.AppStoreID)
 	require.NotNil(t, meta)
-
-	// Assign one vpp and one installer app
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["1"], titleSoftware["file1"]})
-	require.NoError(t, err)
-
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
-	require.NoError(t, err)
-	assert.Len(t, titles, 2)
-	assert.Equal(t, 2, count)
-	assert.NotNil(t, meta)
 
 	// iOS software
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, team2.ID, []uint{titleSoftware["file4"]})
@@ -630,8 +626,8 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	// Failures and other team assignments didn't affected the number of apps on team 1
 	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	assert.Len(t, titles, 2)
-	assert.Equal(t, 2, count)
+	assert.Len(t, titles, 3)
+	assert.Equal(t, 3, count)
 	assert.NotNil(t, meta)
 }
 
