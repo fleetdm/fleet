@@ -21510,7 +21510,7 @@
       },
       {
         "name": "family",
-        "description": "Network protocol (IPv4, IPv6)",
+        "description": "Network protocol (IPv4, IPv6). [Learn more](https://students.mimuw.edu.pl/SO/Linux/Kod/include/linux/socket.h.html)",
         "type": "integer",
         "notes": "",
         "hidden": false,

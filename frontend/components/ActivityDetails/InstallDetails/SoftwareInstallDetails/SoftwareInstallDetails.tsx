@@ -1,6 +1,7 @@
 import React from "react";
 import { useQuery } from "react-query";
 import { formatDistanceToNow } from "date-fns";
+import { AxiosError } from "axios";
 
 import { IActivityDetails } from "interfaces/activity";
 import {
@@ -58,7 +59,7 @@ const StatusMessage = ({
     : "";
   return (
     <div className={`${baseClass}__status-message`}>
-      <Icon name={INSTALL_DETAILS_STATUS_ICONS[status]} />
+      <Icon name={INSTALL_DETAILS_STATUS_ICONS[status] ?? "pending-outline"} />
       <span>
         Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>{" "}
         ({software_package}) on {formattedHost}
@@ -90,9 +91,9 @@ export const SoftwareInstallDetails = ({
   host_display_name = "",
   install_uuid = "",
 }: IPackageInstallDetails) => {
-  const { data: result, isLoading, isError } = useQuery<
+  const { data: result, isLoading, isError, error } = useQuery<
     ISoftwareInstallResults,
-    Error,
+    AxiosError,
     ISoftwareInstallResult
   >(
     ["softwareInstallResults", install_uuid],
@@ -103,11 +104,19 @@ export const SoftwareInstallDetails = ({
       refetchOnWindowFocus: false,
       staleTime: 3000,
       select: (data) => data.results,
+      retry: (failureCount, err) => err?.status !== 404 && failureCount < 3,
     }
   );
 
   if (isLoading) {
     return <Spinner />;
+  } else if (isError && error?.status === 404) {
+    return (
+      <DataError
+        description="Install details are no longer available for this activity."
+        excludeIssueLink
+      />
+    );
   } else if (isError) {
     return <DataError description="Close this modal and try again." />;
   } else if (!result) {
