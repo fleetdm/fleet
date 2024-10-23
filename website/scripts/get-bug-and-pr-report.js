@@ -369,12 +369,12 @@ module.exports = {
     // FUTURE: Refactor this to be less messy.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     let ceoDependentOpenPrs = [];
-    ceoDependentOpenPrs = ceoDependentOpenPrs.concat(allPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('~ceo')));
-    ceoDependentOpenPrs = ceoDependentOpenPrs.concat(allNonPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('~ceo')));
+    ceoDependentOpenPrs = ceoDependentOpenPrs.concat(allPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#handbook')));
+    ceoDependentOpenPrs = ceoDependentOpenPrs.concat(allNonPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#handbook')));
 
     let ceoDependentPrsMergedRecently = [];
-    ceoDependentPrsMergedRecently = ceoDependentPrsMergedRecently.concat(publicPrsMergedInThePastThreeWeeks.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('~ceo')));
-    ceoDependentPrsMergedRecently = ceoDependentPrsMergedRecently.concat(nonPublicPrsClosedInThePastThreeWeeks.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('~ceo')));
+    ceoDependentPrsMergedRecently = ceoDependentPrsMergedRecently.concat(publicPrsMergedInThePastThreeWeeks.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#handbook')));
+    ceoDependentPrsMergedRecently = ceoDependentPrsMergedRecently.concat(nonPublicPrsClosedInThePastThreeWeeks.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#handbook')));
 
     let ceoDependentPrOpenTime = ceoDependentPrsMergedRecently.reduce((avgDaysOpen, pr)=>{
       let openedAt = new Date(pr.created_at).getTime();
@@ -457,9 +457,9 @@ module.exports = {
 
     Pull requests requiring CEO review
     ---------------------------------------
-    Number of open ~ceo pull requests in the fleetdm Github org: ${ceoDependentOpenPrs.length}
+    Number of open #handbook pull requests in the fleetdm Github org: ${ceoDependentOpenPrs.length}
 
-    Average open time (~ceo PRs): ${Math.round(ceoDependentPrOpenTime*100)/100} days.
+    Average open time (#handbook PRs): ${Math.round(ceoDependentPrOpenTime*100)/100} days.
     `);
 
   }
