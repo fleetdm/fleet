@@ -40,25 +40,24 @@ func (svc *Service) getVPPToken(ctx context.Context, teamID *uint) (string, erro
 }
 
 func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) error {
-	if teamName == "" {
-		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "must not be empty"))
-	}
-
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return err
 	}
 
-	team, err := svc.ds.TeamByName(ctx, teamName)
-	if err != nil {
-		// If this is a dry run, the team may not have been created yet
-		if dryRun && fleet.IsNotFound(err) {
-			return nil
+	var teamID *uint
+	if teamName != "" {
+		tm, err := svc.ds.TeamByName(ctx, teamName)
+		if err != nil {
+			// If this is a dry run, the team may not have been created yet
+			if dryRun && fleet.IsNotFound(err) {
+				return nil
+			}
+			return err
 		}
-		return err
+		teamID = &tm.ID
 	}
 
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: &team.ID}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
@@ -89,7 +88,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	var vppAppTeams []fleet.VPPAppTeam
 	// Don't check for token if we're only disassociating assets
 	if len(payloads) > 0 {
-		token, err := svc.getVPPToken(ctx, &team.ID)
+		token, err := svc.getVPPToken(ctx, teamID)
 		if err != nil {
 			return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
 		}
@@ -159,7 +158,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			}
 
 		}
-		if err := svc.ds.SetTeamVPPApps(ctx, &team.ID, vppAppTeams); err != nil {
+		if err := svc.ds.SetTeamVPPApps(ctx, teamID, vppAppTeams); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "no vpp token to set team vpp assets"), http.StatusUnprocessableEntity)
 			}

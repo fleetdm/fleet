@@ -10057,9 +10057,6 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	t := s.T()
 	batchURL := "/api/latest/fleet/software/app_store_apps/batch"
 
-	// a team name is required (we don't allow installers for "no team")
-	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusBadRequest)
-
 	// non-existent team
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNotFound, "team_name", "foo")
 
