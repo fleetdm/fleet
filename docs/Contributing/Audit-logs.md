@@ -1397,7 +1397,7 @@ This activity contains the following fields:
 
 ## canceled_software_install
 
-Generated when upcoming script is canceled on a host.
+Generated when upcoming software install is canceled on a host.
 
 This activity contains the following fields:
 - host_id: ID of the host on which the script was canceled.
