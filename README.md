@@ -76,7 +76,7 @@ Contributions are welcome, whether you answer questions on [Slack](https://fleet
 - Small, iterative, simple (boring) changes are the easiest to merge. -->
 
 ## What's next?
-To see what Fleet can do, head over to [fleetdm.com](https://fleetdm.com) and try it out for yourself, grab time with one of the maintainers to discuss, or visit the docs and roll it out to your organization.
+To see what Fleet can do, head over to [fleetdm.com](https://fleetdm.com) and try it out for yourself, grab time with one of the maintainers to discuss, or visit the docs and roll it out to your organization. You can also [Ask Fleet Guru](https://gurubase.io/g/fleet), it is a Fleet-focused AI to answer your questions.
 
 #### Production deployment
 Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/get-started/tutorials-and-guides).  Or you can have us [host it for you](https://fleetdm.com/pricing).  Premium features are [available](https://fleetdm.com/pricing) either way.
