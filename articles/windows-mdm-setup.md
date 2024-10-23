@@ -4,7 +4,7 @@
 
 To control OS settings, updates, and more on Windows hosts follow the manual enrollment instructions.
 
-To use automatic enrollment (aka zero-touch) features on Windows, follow instructions to connect Fleet to Microsoft Azure Active Directory (aka Microsoft Entra). You can further customize zero-touch with Windows Autopilot.
+To use automatic enrollment (aka zero-touch) features on Windows, follow instructions to connect Fleet to Microsoft Entra ID. You can further customize zero-touch with Windows Autopilot.
 
 ## Manual enrollment
 
@@ -48,11 +48,11 @@ With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet'
 
 > Available in Fleet Premium
 
-To automatically enroll Windows workstations when they’re first unboxed and set up by your end users, we will connect Fleet to Microsoft Azure Active Directory (Azure AD).
+To automatically enroll Windows workstations when they’re first unboxed and set up by your end users, we will connect Fleet to Microsoft Entra ID.
 
-After you connect Fleet to Azure AD, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
+After you connect Fleet to Microsoft Entra ID, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
 
-In order to connect Fleet to Azure AD, the IT admin (you) needs a Microsoft Enterprise Mobility + Security E3 license. 
+In order to connect Fleet to Microsoft Entra ID, the IT admin (you) needs a Microsoft Enterprise Mobility + Security E3 license. 
 
 Each end user who automatically enrolls needs a Microsoft Intune license.
 
@@ -70,7 +70,7 @@ Each end user who automatically enrolls needs a Microsoft Intune license.
 
 6. Find and buy an Intune license.
 
-7. Sign in to [Azure portal](https://portal.azure.com).
+7. Sign in to [Microsoft Entra ID portal](https://portal.azure.com).
 
 8. At the top of the page search "Users" and select **Users**.
 
@@ -78,15 +78,15 @@ Each end user who automatically enrolls needs a Microsoft Intune license.
 
 10. Select **+ Assignments** and assign yourself the **Enterprise Mobility + Security E3**. Assign the test user the Intune licnese.
 
-### Step 2: Connect Fleet to Azure AD
+### Step 2: Connect Fleet to Microsoft Entra ID
 
-For instructions on how to connect Fleet to Azure AD, in the Fleet UI, select the avatar on the right side of the top navigation and select **Settings > Integrations > Automatic enrollment**. Then, next to **Windows automatic enrollment** select **Details**.
+For instructions on how to connect Fleet to Microsoft Entra ID, in the Fleet UI, select the avatar on the right side of the top navigation and select **Settings > Integrations > Automatic enrollment**. Then, next to **Windows automatic enrollment** select **Details**.
 
 ### Step 3: Test automatic enrollment
 
-Testing automatic enrollment requires creating a test user in Azure AD and a freshly wiped or new Windows workstation.
+Testing automatic enrollment requires creating a test user in Microsoft Entra ID and a freshly wiped or new Windows workstation.
 
-1. Sign in to [Azure portal](https://portal.azure.com).
+1. Sign in to [Microsoft Entra ID portal](https://portal.azure.com).
 
 2. At the top of the page search "Users" and select **Users**.
 
@@ -124,7 +124,7 @@ Testing automatic enrollment requires creating a test user in Azure AD and a fre
 
 ### Step 3: Upload your organization's logo
 
-1. Navigate to [Azure portal](https://portal.azure.com).
+1. Navigate to [Microsoft Entra ID portal](https://portal.azure.com).
 
 2. At the top of the page, search for "Microsoft Entra ID", select **Microsoft Entra ID**, and then select **Company branding**.
 
