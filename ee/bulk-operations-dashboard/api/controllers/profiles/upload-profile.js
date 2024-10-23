@@ -54,7 +54,6 @@ module.exports = {
 
 
   fn: async function ({newProfile, teams, target, labelTargetBehavior, labels}) {
-    console.log({teams, target, labelTargetBehavior, labels})
     let util = require('util');
     let profile = await sails.reservoir(newProfile)
     .intercept('E_EXCEEDS_UPLOAD_LIMIT', 'tooBig')
@@ -89,8 +88,8 @@ module.exports = {
       for(let teamApid of teams){
         let bodyForThisRequest = {
           team_id: teamApid,// eslint-disable-line camelcase
-          labels_exclude_any: labelTargetBehavior === 'exclude' ? labels : undefined,
-          labels_include_all: labelTargetBehavior === 'include' ? labels : undefined,
+          labels_exclude_any: labelTargetBehavior === 'exclude' ? labels : undefined,// eslint-disable-line camelcase
+          labels_include_all: labelTargetBehavior === 'include' ? labels : undefined,// eslint-disable-line camelcase
           profile: {
             options: {
               filename: profileFileName,
@@ -99,7 +98,6 @@ module.exports = {
             value: profileContents,
           }
         };
-        console.log(bodyForThisRequest);
         let newProfileResponse = await sails.helpers.http.sendHttpRequest.with({
           method: 'POST',
           baseUrl: sails.config.custom.fleetBaseUrl,

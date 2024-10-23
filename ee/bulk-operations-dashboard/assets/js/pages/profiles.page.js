@@ -83,7 +83,7 @@ parasails.registerPage('profiles', {
         target: profile.target === 'custom' ? 'custom' : 'all',
         labelTargetBehavior: profile.labelTargetBehavior ? profile.labelTargetBehavior : 'include',
         labels: profile.labels ? profile.labels : [],
-      }
+      };
       this.modal = 'edit-profile';
       await this._getLabels();
     },

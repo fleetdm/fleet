@@ -7,17 +7,14 @@ module.exports = {
   description: '',
 
 
-  inputs: {
-
-  },
-
-
   exits: {
-
+    success: {
+      outputType: [{}],
+    }
   },
 
 
-  fn: async function (inputs) {
+  fn: async function () {
 
 
     let labelsOnThisInstance = [];

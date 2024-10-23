@@ -133,8 +133,8 @@ module.exports = {
         // console.log(`Adding ${profile.name} to team id ${teamApid}`);
         let bodyForThisRequest = {
           team_id: teamApid,// eslint-disable-line camelcase
-          labels_exclude_any: labelTargetBehavior === 'exclude' ? labels : undefined,
-          labels_include_all: labelTargetBehavior === 'include' ? labels : undefined,
+          labels_exclude_any: labelTargetBehavior === 'exclude' ? labels : undefined,// eslint-disable-line camelcase
+          labels_include_all: labelTargetBehavior === 'include' ? labels : undefined,// eslint-disable-line camelcase
           profile: {
             options: {
               filename: filename + extension,
@@ -172,8 +172,8 @@ module.exports = {
       for(let teamApid of newTeamIds){
         let bodyForThisRequest = {
           team_id: teamApid,// eslint-disable-line camelcase
-          labels_exclude_any: labelTargetBehavior === 'exclude' ? labels : undefined,
-          labels_include_all: labelTargetBehavior === 'include' ? labels : undefined,
+          labels_exclude_any: labelTargetBehavior === 'exclude' ? labels : undefined,// eslint-disable-line camelcase
+          labels_include_all: labelTargetBehavior === 'include' ? labels : undefined,// eslint-disable-line camelcase
           profile: {
             options: {
               filename: filename + extension,
