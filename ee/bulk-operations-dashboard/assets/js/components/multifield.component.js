@@ -171,7 +171,6 @@ parasails.registerComponent('multifield', {
         }
         this.optionsForSelect = _.clone(this.selectOptions);
         if(this.currentFieldValues === [null]){
-          console.log('resetting this? idk?')
           this.currentFieldValues = [];
 
         }
@@ -193,7 +192,7 @@ parasails.registerComponent('multifield', {
   watch: {
 
     value: function(those) {
-      console.log('ran the `value` watcher', those);
+      // console.log('ran the `value` watcher', those);
       if (those !== undefined && !_.isArray(those)) {
         throw new Error('Cannot programmatically set value for <multifield>: the given value must be an array or `undefined`, but instead got: '+those);
       }

@@ -77,11 +77,13 @@ parasails.registerPage('profiles', {
     },
     clickOpenEditModal: async function(profile) {
       this.profileToEdit = _.cloneDeep(profile);
-      this.formData.newTeamIds = _.pluck(this.profileToEdit.teams, 'fleetApid');
-      this.formData.profile = _.clone(this.profileToEdit);
-      this.$set(this.formData, 'target', profile.target === 'custom' ? 'custom' : 'all');
-      this.$set(this.formData, 'labelTargetBehavior', profile.labelTargetBehavior);
-      this.$set(this.formData, 'labels', profile.labels);
+      this.formData = {
+        profile: _.clone(profile),
+        newTeamIds: _.pluck(this.profileToEdit.teams, 'fleetApid'),
+        target: profile.target === 'custom' ? 'custom' : 'all',
+        labelTargetBehavior: profile.labelTargetBehavior ? profile.labelTargetBehavior : 'include',
+        labels: profile.labels ? profile.labels : [],
+      }
       this.modal = 'edit-profile';
       await this._getLabels();
     },
@@ -100,6 +102,7 @@ parasails.registerPage('profiles', {
       this.modal = '';
       this.formErrors = {};
       this.formData = {};
+      this.cloudError = '';
       await this.forceRender();
     },
     submittedForm: async function() {
@@ -145,9 +148,6 @@ parasails.registerPage('profiles', {
       }
       await this._getProfiles();
     },
-    logThis: function(something) {
-      console.log(something);
-    },
     _getProfiles: async function() {
       this.syncing = true;
       let newProfilesInformation = await Cloud.getProfiles();
@@ -158,9 +158,15 @@ parasails.registerPage('profiles', {
     _getLabels: async function() {
       this.syncing = true;
       this.labelsSyncing = true;
-      this.labels = await Cloud.getLabels();
-      this.labelsSyncing = false;
-      this.syncing = false;
+      this.labels = await Cloud.getLabels().tolerate((err)=>{
+        this.cloudError = err;
+        this.syncing = false;
+      });
+      if(!this.cloudError){
+        this.labelsSyncing = false;
+        this.syncing = false;
+
+      }
     }
   }
 });
