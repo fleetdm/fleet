@@ -5,7 +5,7 @@ import { IHostScript, ILastExecution } from "interfaces/script";
 import { IUser } from "interfaces/user";
 
 import Icon from "components/Icon";
-import DropdownCell from "components/ActionDropdown";
+import ActionsDropdown from "components/ActionsDropdown";
 import {
   isGlobalAdmin,
   isTeamMaintainer,
@@ -24,7 +24,7 @@ interface IStatusCellProps {
   };
 }
 
-interface IDropdownCellProps {
+interface IActionsDropdownProps {
   cell: {
     value: IDropdownOption[];
   };
@@ -94,7 +94,7 @@ export const generateTableColumnConfigs = (
       Header: "",
       disableSortBy: true,
       accessor: "actions",
-      Cell: (cellProps: IDropdownCellProps) => {
+      Cell: (cellProps: IActionsDropdownProps) => {
         if (scriptsDisabled) {
           // create a basic span that doesn't use the dropdown component (which relies on react-select
           // and makes it difficult for us to style the disabled tooltip underline on the placeholder text.
@@ -120,7 +120,7 @@ export const generateTableColumnConfigs = (
           cellProps.row.original
         );
         return (
-          <DropdownCell
+          <ActionsDropdown
             options={opts}
             onChange={(value: string) =>
               onSelectAction(value, cellProps.row.original)

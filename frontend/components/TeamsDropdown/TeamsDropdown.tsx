@@ -72,6 +72,7 @@ const TeamsDropdown = ({
     disabled: isDisabled || undefined,
   });
 
+  console.log("coolBeans");
   const renderDropdown = () => {
     if (teamOptions.length) {
       return (
@@ -85,6 +86,7 @@ const TeamsDropdown = ({
           onChange={onChange}
           onOpen={onOpen}
           onClose={onClose}
+          tabIndex={0}
         />
       );
     }

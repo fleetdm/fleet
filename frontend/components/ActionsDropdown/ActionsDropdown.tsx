@@ -15,16 +15,16 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import Icon from "components/Icon";
 import DropdownOptionTooltipWrapper from "components/forms/fields/Dropdown/DropdownOptionTooltipWrapper";
 
-const baseClass = "action-dropdown";
+const baseClass = "actions-dropdown";
 
-interface IActionDropdownProps {
+interface IActionsDropdownProps {
   options: IDropdownOption[];
   placeholder: string;
   onChange: (value: string) => void;
   disabled?: boolean;
   isSearchable?: boolean;
   className?: string;
-  menuAlign?: "right" | "default";
+  menuAlign?: "right" | "left" | "default";
 }
 
 const getOptionBackgroundColor = (state: any) => {
@@ -33,12 +33,32 @@ const getOptionBackgroundColor = (state: any) => {
     : "transparent";
 };
 
+const getLeftMenuAlign = (menuAlign: "right" | "left" | "default") => {
+  switch (menuAlign) {
+    case "right":
+      return "auto";
+    case "left":
+      return "0";
+    default:
+      return "-12px";
+  }
+};
+
+const getRightMenuAlign = (menuAlign: "right" | "left" | "default") => {
+  switch (menuAlign) {
+    case "right":
+      return "0";
+    default:
+      return "undefined";
+  }
+};
+
 const CustomDropdownIndicator = (
   props: DropdownIndicatorProps<any, false, any>
 ) => {
   const { isFocused, selectProps } = props;
   // no access to hover state here from react-select so that is done in the scss
-  // file of ActionDropdown.
+  // file of ActionsDropdown.
   const color =
     isFocused || selectProps.menuIsOpen
       ? "core-fleet-blue"
@@ -85,7 +105,7 @@ const CustomOption: React.FC<OptionProps<IDropdownOption, false>> = (props) => {
   );
 };
 
-const ActionDropdown = ({
+const ActionsDropdown = ({
   options,
   placeholder,
   onChange,
@@ -93,7 +113,7 @@ const ActionDropdown = ({
   isSearchable = false,
   className,
   menuAlign = "default",
-}: IActionDropdownProps): JSX.Element => {
+}: IActionsDropdownProps): JSX.Element => {
   const dropdownClassnames = classnames(baseClass, className);
 
   const handleChange = (newValue: IDropdownOption | null) => {
@@ -119,20 +139,20 @@ const ActionDropdown = ({
       cursor: "pointer",
       "&:hover": {
         boxShadow: "none",
-        ".action-dropdown-select__placeholder": {
+        ".actions-dropdown-select__placeholder": {
           color: COLORS["core-vibrant-blue-over"],
         },
-        ".action-dropdown-select__indicator path": {
+        ".actions-dropdown-select__indicator path": {
           stroke: COLORS["core-vibrant-blue-over"],
         },
       },
-      "&:active .action-dropdown-select__indicator path": {
+      "&:active .actions-dropdown-select__indicator path": {
         stroke: COLORS["core-vibrant-blue-down"],
       },
       // TODO: Figure out a way to apply separate &:focus-visible styling
       // Currently only relying on &:focus styling for tabbing through app
       ...(state.menuIsOpen && {
-        ".action-dropdown-select__indicator svg": {
+        ".actions-dropdown-select__indicator svg": {
           transform: "rotate(180deg)",
           transition: "transform 0.25s ease",
         },
@@ -167,8 +187,8 @@ const ActionDropdown = ({
       minWidth: "158px",
       maxHeight: "220px",
       position: "absolute",
-      left: menuAlign === "default" ? "-12px" : "auto",
-      right: menuAlign === "right" ? 0 : undefined,
+      left: getLeftMenuAlign(menuAlign),
+      right: getRightMenuAlign(menuAlign),
       animation: "fade-in 150ms ease-out",
     }),
     menuList: (provided) => ({
@@ -228,4 +248,4 @@ const ActionDropdown = ({
   );
 };
 
-export default ActionDropdown;
+export default ActionsDropdown;
