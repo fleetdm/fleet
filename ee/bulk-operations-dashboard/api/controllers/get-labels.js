@@ -38,6 +38,7 @@ module.exports = {
         value: label.id
       });
     }
+    labelsOnThisInstance = _.sortBy(labelsOnThisInstance, 'name');
     // All done.
     return labelsOnThisInstance;
 
