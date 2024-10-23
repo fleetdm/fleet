@@ -267,6 +267,29 @@
       border: 1px solid @core-vibrant-blue;
     }
   }
+  .loading-dot {
+    opacity: 0;
+    display: inline;
+    color: #6A67FE;
+    font-size: 16px;
+    gap: 8px;
+    .fade-in();
+    .animation-duration(1s);
+    .animation-iteration-count(infinite);
+    .animation-direction(linear);
+    &.dot1 {
+      .animation-delay(0.25s);
+    }
+    &.dot2 {
+      .animation-delay(0.5s);
+    }
+    &.dot3 {
+      .animation-delay(0.75s);
+    }
+    &.dot4 {
+      .animation-delay(1s);
+    }
+  }
   [purpose='delete-button'] {
     border-radius: 6px;
     background: #D66C7B;
