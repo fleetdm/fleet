@@ -32,7 +32,6 @@ import Fleet404 from "pages/errors/Fleet404";
 import Fleet500 from "pages/errors/Fleet500";
 
 import Spinner from "components/Spinner";
-import { IMdmVppToken } from "interfaces/mdm";
 
 interface IAppProps {
   children: JSX.Element;

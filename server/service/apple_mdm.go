@@ -1052,6 +1052,7 @@ func (uploadAppleInstallerRequest) DecodeRequest(ctx context.Context, r *http.Re
 
 func (r uploadAppleInstallerResponse) error() error { return r.Err }
 
+// Deprecated: Not in Use
 func uploadAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*uploadAppleInstallerRequest)
 	ff, err := req.Installer.Open()
@@ -1421,7 +1422,7 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.ServerSettings.ServerURL, ref)
+	enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.MDMUrl(), ref)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
 	}
@@ -3162,7 +3163,7 @@ func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.
 		var contents bytes.Buffer
 		params := mobileconfig.FleetdProfileOptions{
 			EnrollSecret: es.Secret,
-			ServerURL:    appCfg.ServerSettings.ServerURL,
+			ServerURL:    appCfg.ServerSettings.ServerURL, // ServerURL must be set to the Fleet URL.  Do not use appCfg.MDMUrl() here.
 			PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
 			PayloadName:  mdm_types.FleetdConfigProfileName,
 		}
@@ -3727,7 +3728,7 @@ func preprocessProfileContents(
 					hostContents = replaceFleetVariable(fleetVarNDESSCEPChallengeRegexp, hostContents, challenge)
 				case FleetVarNDESSCEPProxyURL:
 					// Insert the SCEP URL into the profile contents
-					proxyURL := fmt.Sprintf("%s%s%s", appConfig.ServerSettings.ServerURL, apple_mdm.SCEPProxyPath,
+					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
 						url.PathEscape(fmt.Sprintf("%s,%s", hostUUID, profUUID)))
 					hostContents = replaceFleetVariable(fleetVarNDESSCEPProxyURLRegexp, hostContents, proxyURL)
 				case FleetVarHostEndUserEmailIDP:
@@ -3912,7 +3913,7 @@ func RenewSCEPCertificates(
 	if len(assocsWithoutRefs) > 0 {
 		profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 			appConfig.OrgInfo.OrgName,
-			appConfig.ServerSettings.ServerURL,
+			appConfig.MDMUrl(),
 			scepChallenge,
 			mdmPushCertTopic,
 		)
@@ -3927,7 +3928,7 @@ func RenewSCEPCertificates(
 
 	// send individual commands for each host with a reference
 	for _, assoc := range assocsWithRefs {
-		enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.ServerSettings.ServerURL, assoc.EnrollReference)
+		enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.MDMUrl(), assoc.EnrollReference)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
 		}
@@ -4566,7 +4567,7 @@ func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret string) ([]b
 		return nil, ctxerr.Wrap(ctx, err, "getting app config to get org name")
 	}
 
-	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.ServerSettings.ServerURL, enrollSecret)
+	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating ota mobileconfig file")
 	}
@@ -4698,12 +4699,13 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "reading app config")
 	}
-	fleetURL := appCfg.ServerSettings.ServerURL
+
+	mdmURL := appCfg.MDMUrl()
 
 	// if the root signer was issued by Apple's CA, it means we're in the
 	// first phase and we should return a SCEP payload.
 	if err := apple_mdm.VerifyFromAppleIphoneDeviceCA(rootSigner); err == nil {
-		scepURL, err := apple_mdm.ResolveAppleSCEPURL(fleetURL)
+		scepURL, err := apple_mdm.ResolveAppleSCEPURL(mdmURL)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "resolve Apple SCEP url")
 		}
@@ -4735,7 +4737,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 
 	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appCfg.OrgInfo.OrgName,
-		appCfg.ServerSettings.ServerURL,
+		mdmURL,
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
 	)
