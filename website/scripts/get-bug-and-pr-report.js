@@ -365,22 +365,22 @@ module.exports = {
     let averageDaysContributorPullRequestsAreOpenFor = Math.round(_.sum(daysSinceContributorPullRequestsWereOpened)/daysSinceContributorPullRequestsWereOpened.length);
 
 
-    // Compute CEO-dependent PR KPIs, which are slightly simpler.
+    // Compute Handbook PR KPIs, which are slightly simpler.
     // FUTURE: Refactor this to be less messy.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    let ceoDependentOpenPrs = [];
-    ceoDependentOpenPrs = ceoDependentOpenPrs.concat(allPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#handbook')));
-    ceoDependentOpenPrs = ceoDependentOpenPrs.concat(allNonPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#handbook')));
+    let handbookOpenPrs = [];
+    handbookOpenPrs = handbookOpenPrs.concat(allPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#handbook')));
+    handbookOpenPrs = handbookOpenPrs.concat(allNonPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#handbook')));
 
-    let ceoDependentPrsMergedRecently = [];
-    ceoDependentPrsMergedRecently = ceoDependentPrsMergedRecently.concat(publicPrsMergedInThePastThreeWeeks.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#handbook')));
-    ceoDependentPrsMergedRecently = ceoDependentPrsMergedRecently.concat(nonPublicPrsClosedInThePastThreeWeeks.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#handbook')));
+    let handbookPrsMergedRecently = [];
+    handbookPrsMergedRecently = handbookPrsMergedRecently.concat(publicPrsMergedInThePastThreeWeeks.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#handbook')));
+    handbookPrsMergedRecently = handbookPrsMergedRecently.concat(nonPublicPrsClosedInThePastThreeWeeks.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#handbook')));
 
-    let ceoDependentPrOpenTime = ceoDependentPrsMergedRecently.reduce((avgDaysOpen, pr)=>{
+    let handbookPrOpenTime = handbookPrsMergedRecently.reduce((avgDaysOpen, pr)=>{
       let openedAt = new Date(pr.created_at).getTime();
       let closedAt = new Date(pr.closed_at).getTime();
       let daysOpen = Math.abs(closedAt - openedAt) / ONE_DAY_IN_MILLISECONDS;
-      avgDaysOpen = avgDaysOpen + (daysOpen / ceoDependentPrsMergedRecently.length);
+      avgDaysOpen = avgDaysOpen + (daysOpen / handbookPrsMergedRecently.length);
       sails.log.verbose('Processing',pr.head.repo.name,':: #'+pr.number,'open '+daysOpen+' days', 'rolling avg now '+avgDaysOpen);
       return avgDaysOpen;
     }, 0);
@@ -455,11 +455,11 @@ module.exports = {
 
     Number of issues with the "#g-mdm", "bug", and "~unreleased bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementUnreleased.length}
 
-    Pull requests requiring CEO review
+    Handbook Pull requests
     ---------------------------------------
-    Number of open #handbook pull requests in the fleetdm Github org: ${ceoDependentOpenPrs.length}
+    Number of open #handbook pull requests in the fleetdm Github org: ${handbookOpenPrs.length}
 
-    Average open time (#handbook PRs): ${Math.round(ceoDependentPrOpenTime*100)/100} days.
+    Average open time (#handbook PRs): ${Math.round(handbookPrOpenTime*100)/100} days.
     `);
 
   }
