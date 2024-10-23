@@ -70,7 +70,7 @@ Each end user who automatically enrolls needs a [Microsoft license](https://lear
 
 6. Find and buy a license.
 
-7. Sign in to [Microsoft Entra ID portal](https://portal..com).
+7. Sign in to [Microsoft Entra ID portal](https://portal.azure.com).
 
 8. At the top of the page search "Users" and select **Users**.
 
@@ -86,7 +86,7 @@ For instructions on how to connect Fleet to Microsoft Entra ID, in the Fleet UI,
 
 Testing automatic enrollment requires creating a test user in Microsoft Entra ID and a freshly wiped or new Windows workstation.
 
-1. Sign in to [Microsoft Entra ID portal](https://portal..com).
+1. Sign in to [Microsoft Entra ID portal](https://portal.azure.com).
 
 2. At the top of the page search "Users" and select **Users**.
 
