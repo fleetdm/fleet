@@ -21,7 +21,7 @@ func TestCopy(t *testing.T) {
 	originalPath := filepath.Join(tmp, "original")
 	dstPath := filepath.Join(tmp, "copy")
 	expectedContents := []byte("foo")
-	expectedMode := fs.FileMode(0644)
+	expectedMode := fs.FileMode(0o644)
 	require.NoError(t, os.WriteFile(originalPath, expectedContents, os.ModePerm)) //nolint:gosec // allow write file with 0o777
 	require.NoError(t, os.WriteFile(dstPath, []byte("this should be overwritten"), expectedMode))
 
@@ -41,10 +41,23 @@ func TestCopy(t *testing.T) {
 	assert.Equal(t, expectedMode, info.Mode())
 
 	// Copy of nonexistent path fails
-	require.Error(t, file.Copy(filepath.Join(tmp, "notexist"), dstPath, os.ModePerm))
+	require.Error(t, file.Copy(filepath.Join(tmp, "notexist"), dstPath, expectedMode))
 
-	// Copy to nonexistent directory
-	require.Error(t, file.Copy(originalPath, filepath.Join("tmp", "notexist", "foo"), os.ModePerm))
+	// Copy to nonexistent directory (file.Copy creates the directories).
+	notExistent := filepath.Join(tmp, "notexist", "foo")
+	// Because the "notexist" directory doesn't exist we need to set write permissions so
+	// that the created directory can be written to create the non-existing file "foo".
+	expectedMode = 0o755
+	err = file.Copy(originalPath, notExistent, expectedMode)
+	require.NoError(t, err)
+
+	contents, err = os.ReadFile(notExistent)
+	require.NoError(t, err)
+	assert.Equal(t, expectedContents, contents)
+
+	info, err = os.Stat(notExistent)
+	require.NoError(t, err)
+	assert.Equal(t, expectedMode, info.Mode())
 }
 
 func TestCopyWithPerms(t *testing.T) {
@@ -55,7 +68,7 @@ func TestCopyWithPerms(t *testing.T) {
 	originalPath := filepath.Join(tmp, "original")
 	dstPath := filepath.Join(tmp, "copy")
 	expectedContents := []byte("foo")
-	expectedMode := fs.FileMode(0755)
+	expectedMode := fs.FileMode(0o755)
 	require.NoError(t, os.WriteFile(originalPath, expectedContents, expectedMode))
 
 	// Test
