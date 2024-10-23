@@ -314,7 +314,7 @@ will be disabled and/or hidden in the UI.
                     let websiteVisitReason;
                     if(req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
                       let thirtyMinutesAgoAt = Date.now() - (1000 * 60 * 30);
-                      // If this user visited the website from an ad, set the psychologicalStageChangeReason to be the adCampaignId stored in their session.
+                      // If this user visited the website from an ad, set the websiteVisitReason to be the adAttributionString stored in their session.
                       if(req.session.visitedSiteFromAdAt > thirtyMinutesAgoAt) {
                         websiteVisitReason = this.req.session.adAttributionString;
                       }
