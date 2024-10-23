@@ -42,8 +42,8 @@ parasails.registerComponent('cloud-error', {
   //  ╠═╣ ║ ║║║║
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
-  <div>
-    <p :class="{ 'm-0': beWithoutMargins }" class="text-danger"><slot name="default">An error occured while processing your request. Please check your information and try again, or <a href="/contact">contact support</a> if the error persists.</slot></p>
+  <div class="d-flex flex-row align-items-center">
+    <img src="/images/Icon-error-16x16@2x.png" class="d-block mr-2" style="height: 16px;"><p :class="{ 'm-0': beWithoutMargins }" class="text-danger"><slot name="default"> An unexpected error occurred communicating with the Fleet API</slot></p>
   </div>
   `,
 
