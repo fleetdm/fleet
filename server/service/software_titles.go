@@ -44,7 +44,11 @@ func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fl
 		}
 		// we dont want to include the InstallDuringSetup field in the response
 		// for software titles list.
-		sw.SoftwarePackage.InstallDuringSetup = nil
+		if sw.SoftwarePackage != nil {
+			sw.SoftwarePackage.InstallDuringSetup = nil
+		} else if sw.AppStoreApp != nil {
+			sw.AppStoreApp.InstallDuringSetup = nil
+		}
 	}
 	if len(titles) == 0 {
 		titles = []fleet.SoftwareTitleListResult{}
