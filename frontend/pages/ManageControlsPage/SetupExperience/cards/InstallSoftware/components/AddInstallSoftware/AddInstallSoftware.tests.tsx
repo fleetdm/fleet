@@ -2,7 +2,10 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
 
-import { createMockSoftwareTitle } from "__mocks__/softwareMock";
+import {
+  createMockSoftwarePackage,
+  createMockSoftwareTitle,
+} from "__mocks__/softwareMock";
 
 import AddInstallSoftware from "./AddInstallSoftware";
 
@@ -38,8 +41,18 @@ describe("AddInstallSoftware", () => {
       <AddInstallSoftware
         currentTeamId={1}
         softwareTitles={[
-          createMockSoftwareTitle({ install_during_setup: true }),
-          createMockSoftwareTitle({ install_during_setup: true }),
+          createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              install_during_setup: true,
+            }),
+          }),
+          createMockSoftwareTitle(
+            createMockSoftwareTitle({
+              software_package: createMockSoftwarePackage({
+                install_during_setup: true,
+              }),
+            })
+          ),
           createMockSoftwareTitle(),
         ]}
         onAddSoftware={noop}
