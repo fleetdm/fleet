@@ -62,8 +62,11 @@ const generateTableConfig = (
       disableSortBy: true,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
-        const { name, source } = cellProps.row.original;
-        return <SoftwareNameCell name={name} source={source} />;
+        const { name, source, app_store_app } = cellProps.row.original;
+        const iconUrl = app_store_app ? app_store_app.icon_url : undefined;
+        return (
+          <SoftwareNameCell name={name} source={source} iconUrl={iconUrl} />
+        );
       },
       sortType: "caseInsensitive",
     },
@@ -71,10 +74,10 @@ const generateTableConfig = (
       Header: "Platform",
       disableSortBy: true,
       accessor: "source",
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell
-          value={APPLE_PLATFORM_DISPLAY_NAMES[cellProps.value as ApplePlatform]}
-        />
+      Cell: () => (
+        // TODO: this will need to be dynamic based on the platform
+        // when we start supporting other platforms
+        <TextCell value={APPLE_PLATFORM_DISPLAY_NAMES.darwin} />
       ),
       sortType: "caseInsensitive",
     },
