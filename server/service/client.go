@@ -1699,7 +1699,11 @@ func (c *Client) doGitOpsNoTeamSoftware(
 		}
 	}
 
-	// marshaling dance to get the macos_setup data
+	// marshaling dance to get the macos_setup data - config.Controls.MacOSSetup
+	// is of type any and contains a generic map[string]any. By
+	// marshal-unmarshaling it into a properly typed struct, we avoid having to
+	// do a bunch of error-prone and unmaintainable type-assertions to walk down
+	// the untyped map.
 	b, err := json.Marshal(config.Controls.MacOSSetup)
 	if err != nil {
 		return nil, fmt.Errorf("applying software installers: json-encode controls.macos_setup: %w", err)
