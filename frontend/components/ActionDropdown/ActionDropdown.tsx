@@ -96,23 +96,10 @@ const ActionDropdown = ({
 }: IActionDropdownProps): JSX.Element => {
   const dropdownClassnames = classnames(baseClass, className);
 
-  const [isKeyboardFocused, setIsKeyboardFocused] = React.useState(false);
-
   const handleChange = (newValue: IDropdownOption | null) => {
     if (newValue) {
       onChange(newValue.value.toString());
     }
-  };
-
-  const handleFocus = (event: React.FocusEvent) => {
-    // Check if the focus event was triggered by keyboard
-    if (event.target === event.currentTarget) {
-      setIsKeyboardFocused(true);
-    }
-  };
-
-  const handleBlur = () => {
-    setIsKeyboardFocused(false);
   };
 
   const customStyles: StylesConfig<IDropdownOption, false> = {
@@ -229,7 +216,7 @@ const ActionDropdown = ({
           IndicatorSeparator: () => null,
           Option: CustomOption,
           SingleValue: () => null, // Doesn't replace placeholder text with selected text
-          // TODO: Figure out how to skip disabled options when keyboarding through options
+          // Note: react-select doesn't support skipping disabled options when keyboarding through
         }}
         controlShouldRenderValue={false} // Doesn't change placeholder text to selected text
         isOptionSelected={() => false} // Hides any styling on selected option
