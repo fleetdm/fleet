@@ -451,7 +451,7 @@ module.exports = {
 
     Number of issues with the "#g-mdm", "bug", and "customer-" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementCustomerImpacting.length}
 
-    Number of issues with the "#g-emdm", "bug", and "~released bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementReleased.length}
+    Number of issues with the "#g-mdm", "bug", and "~released bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementReleased.length}
 
     Number of issues with the "#g-mdm", "bug", and "~unreleased bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementUnreleased.length}
 
