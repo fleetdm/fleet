@@ -49,7 +49,7 @@ func NewSetupExperiencer(client Client, rootDirPath string) *SetupExperiencer {
 
 func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	if !oc.Notifications.RunSetupExperience {
-		log.Debug().Msg("skipping setup experience")
+		log.Debug().Msg("skipping setup experience: notification flag is not set")
 		return nil
 	}
 
@@ -60,6 +60,7 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	)
 
 	if _, err := os.Stat(binaryPath); err != nil {
+		log.Debug().Msg("skipping setup experience: swiftDialog is not installed")
 		return nil
 	}
 
@@ -70,7 +71,12 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	}
 
 	// If swiftDialog isn't up yet, then launch it
-	if err := s.startSwiftDialog(binaryPath, payload.OrgLogoURL); err != nil {
+	orgLogo := payload.OrgLogoURL
+	if orgLogo == "" {
+		orgLogo = "https://fleetdm.com/images/permanent/fleet-mark-color-40x40@4x.png"
+	}
+
+	if err := s.startSwiftDialog(binaryPath, orgLogo); err != nil {
 		return err
 	}
 
@@ -231,7 +237,7 @@ func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 			Title:            "none",
 			Message:          "### Setting up your Mac...\n\nYour Mac is being configured by your organization using Fleet. This process may take some time to complete. Please don't attempt to restart or shut down the computer unless prompted to do so.",
 			Icon:             orgLogo,
-			IconSize:         40,
+			IconSize:         30,
 			MessageAlignment: swiftdialog.AlignmentCenter,
 			CentreIcon:       true,
 			Height:           "625",

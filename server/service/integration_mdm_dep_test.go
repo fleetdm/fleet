@@ -1707,11 +1707,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptFo
 	// call the /status endpoint again but this time force the release
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "force_release": true}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 
-	// the software and script are still pending
+	// the software and script have not completed yet
 	require.NotNil(t, statusResp.Results.Script)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
 	require.Len(t, statusResp.Results.Software, 1)
-	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[0].Status)
+	require.Equal(t, fleet.SetupExperienceStatusRunning, statusResp.Results.Software[0].Status)
 
 	// check that the host received the device configured command even if
 	// software and script are still pending
