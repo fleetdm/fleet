@@ -14,7 +14,7 @@ Throughout the guide, you’ll find practical advice and best practices to ensur
 
 > Deployments that do not meet these seamless migration requirements can still migrate with the [standard MDM migration process](https://fleetdm.com/docs/using-fleet/mdm-migration-guide).
 
-* Customer owns the domain (DNS) used in the MDM enrollment profile (eg. devices are enrolled to `*.customerowneddomain.com`, not `*.mdmvendor.com`).
+* Customer owns the domain (DNS) used in the MDM enrollment profile (e.g. devices are enrolled to `*.customerowneddomain.com`, not `*.mdmvendor.com`).
 * Customer has access to the Apple Push Notification Service (APNS) certificate/key and SCEP certificate/key, or access to the MDM server database to extract these values.
 
 These requirements are easily met in self-hosted open-source MDM solutions and may be met with commercial solutions when the customer is self-hosting or otherwise controls the DNS.
