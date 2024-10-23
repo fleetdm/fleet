@@ -3686,6 +3686,8 @@ _Available in Fleet Premium_
 
 ### Turn off MDM for a host
 
+This functionality is only available on macOS
+
 `DELETE /api/v1/fleet/hosts/:id/mdm`
 
 #### Parameters
