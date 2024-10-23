@@ -71,6 +71,7 @@ export interface ISoftwarePackage {
     pending_uninstall: number;
     failed_uninstall: number;
   };
+  install_during_setup: boolean;
 }
 
 export const isSoftwarePackage = (
@@ -101,7 +102,6 @@ export interface ISoftwareTitle {
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
   browser?: BrowserType;
-  install_during_setup: boolean;
 }
 
 export interface ISoftwareTitleDetails {

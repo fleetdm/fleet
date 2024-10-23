@@ -22,7 +22,7 @@ const AddInstallSoftware = ({
 }: IAddInstallSoftwareProps) => {
   const hasNoSoftware = softwareTitles.length === 0;
   const installDuringSetupCount = softwareTitles.filter(
-    (software) => software.install_during_setup
+    (software) => software.software_package?.install_during_setup
   ).length;
 
   let addedText = <></>;

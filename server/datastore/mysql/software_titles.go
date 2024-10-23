@@ -108,14 +108,15 @@ func (ds *Datastore) ListSoftwareTitles(
 	// grab titles that match the list options
 	type softwareTitle struct {
 		fleet.SoftwareTitleListResult
-		PackageSelfService *bool   `db:"package_self_service"`
-		PackageName        *string `db:"package_name"`
-		PackageVersion     *string `db:"package_version"`
-		PackageURL         *string `db:"package_url"`
-		VPPAppSelfService  *bool   `db:"vpp_app_self_service"`
-		VPPAppAdamID       *string `db:"vpp_app_adam_id"`
-		VPPAppVersion      *string `db:"vpp_app_version"`
-		VPPAppIconURL      *string `db:"vpp_app_icon_url"`
+		PackageSelfService        *bool   `db:"package_self_service"`
+		PackageName               *string `db:"package_name"`
+		PackageVersion            *string `db:"package_version"`
+		PackageURL                *string `db:"package_url"`
+		PackageInstallDuringSetup *bool   `db:"install_during_setup"`
+		VPPAppSelfService         *bool   `db:"vpp_app_self_service"`
+		VPPAppAdamID              *string `db:"vpp_app_adam_id"`
+		VPPAppVersion             *string `db:"vpp_app_version"`
+		VPPAppIconURL             *string `db:"vpp_app_icon_url"`
 	}
 	var softwareList []*softwareTitle
 	getTitlesStmt, args = appendListOptionsWithCursorToSQL(getTitlesStmt, args, &opt.ListOptions)
@@ -150,10 +151,11 @@ func (ds *Datastore) ListSoftwareTitles(
 				version = *title.PackageVersion
 			}
 			title.SoftwarePackage = &fleet.SoftwarePackageOrApp{
-				Name:        *title.PackageName,
-				Version:     version,
-				SelfService: title.PackageSelfService,
-				PackageURL:  title.PackageURL,
+				Name:               *title.PackageName,
+				Version:            version,
+				SelfService:        title.PackageSelfService,
+				PackageURL:         title.PackageURL,
+				InstallDuringSetup: title.PackageInstallDuringSetup,
 			}
 		}
 

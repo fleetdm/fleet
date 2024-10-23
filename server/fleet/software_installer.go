@@ -426,6 +426,9 @@ type SoftwarePackageOrApp struct {
 	LastInstall   *HostSoftwareInstall   `json:"last_install"`
 	LastUninstall *HostSoftwareUninstall `json:"last_uninstall"`
 	PackageURL    *string                `json:"package_url"`
+	// InstallDuringSetup is a boolean that indicates if the package
+	// will be installed during the macos setup experience.
+	InstallDuringSetup *bool `json:"install_during_setup,omitempty" db:"install_during_setup"`
 }
 
 type SoftwarePackageSpec struct {
