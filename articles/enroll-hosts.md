@@ -27,8 +27,6 @@ The `--type` flag is used to specify the fleetd installer type.
 
 A `--fleet-url` (Fleet instance URL) and `--enroll-secret` (Fleet enrollment secret) must be specified in order to communicate with Fleet instance.
 
-> `fleetctl` on macOS/Linux requires `umask` to be `022`/`002` and `/tmp` (used during package generation) has to be mounted without `noexec`.
-
 #### Example
 
 Generate fleetd on macOS (.pkg)
