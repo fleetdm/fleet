@@ -234,7 +234,7 @@ func gitopsCommand() *cli.Command {
 					return err
 				}
 			}
-			if flDeleteOtherTeams {
+			if flDeleteOtherTeams && appConfig.License.IsPremium() { // skip team deletion for non-premium users
 				teams, err := fleetClient.ListTeams("")
 				if err != nil {
 					return err

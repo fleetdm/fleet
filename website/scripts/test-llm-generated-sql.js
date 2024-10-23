@@ -13,7 +13,7 @@ module.exports = {
 
   fn: async function ({naturalLanguageQuestion}) {
 
-    let assert = require('assert');
+    // let assert = require('assert');
 
     let completeTables = await sails.helpers.getExtendedOsquerySchema();
     let prunedTables = completeTables.map((table)=>{
@@ -33,13 +33,13 @@ module.exports = {
     Provided context:
     \`\`\`
     ${JSON.stringify(prunedTables.map((table)=>{
-      let lighterTable = _.pick(table, ['name','description','platforms']);
-      lighterTable.columns = table.columns.map((column)=>{
-        let lighterColumn = _.pick(column, ['name', 'description', 'platforms']);
-        return lighterColumn;
-      });
-      return lighterTable;
-    }))}
+    let lighterTable = _.pick(table, ['name','description','platforms']);
+    lighterTable.columns = table.columns.map((column)=>{
+      let lighterColumn = _.pick(column, ['name', 'description', 'platforms']);
+      return lighterColumn;
+    });
+    return lighterTable;
+  }))}
     \`\`\`
 
     Please respond in JSON, with the same data shape as the provided context, but with the array filtered to include only relevant tables.`;

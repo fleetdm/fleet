@@ -11280,6 +11280,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	hostResp = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &hostResp)
 	require.Nil(t, hostResp.Software[0].Status)
+
+	// install details record should still show as installed
+	installDetailsResp := getSoftwareInstallResultsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/install/%s/results", installUUID), nil, http.StatusOK, &installDetailsResp)
+	require.Equal(t, fleet.SoftwareInstalled, installDetailsResp.Results.Status)
 }
 
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPoliciesAssociated() {

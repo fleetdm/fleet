@@ -285,7 +285,7 @@ func (a *AppleMDM) installBootstrapPackage(ctx context.Context, hostUUID string,
 		return "", err
 	}
 
-	url, err := meta.URL(appCfg.ServerSettings.ServerURL)
+	url, err := meta.URL(appCfg.MDMUrl())
 	if err != nil {
 		return "", err
 	}
