@@ -1402,8 +1402,8 @@ Generated when upcoming software install is canceled on a host.
 This activity contains the following fields:
 - host_id: ID of the host on which the script was canceled.
 - host_display_name: Display name of the host.
-- software_title_id: ID of the software title that's canceled.
-- software_title_name: Name of the software title that's canceled.
+- software_title_id: ID of the software title with canceled installation.
+- software_title_name: Name of the software title with canceled installation.
 
 #### Example
 
