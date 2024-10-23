@@ -11695,7 +11695,6 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	pkiMessage, err = scep.ParsePKIMessage(body, scep.WithCACerts(certs))
 	require.NoError(t, err)
 	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
-
 }
 
 type noopCertDepot struct{ depot.Depot }
@@ -11748,7 +11747,7 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 
 	var respGetSetupExperience getSetupExperienceSoftwareResponse
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience, "team_id", fmt.Sprint(team1.ID))
-	require.Len(t, respGetSetupExperience.SoftwareTitles, 0)
+	require.Len(t, respGetSetupExperience.SoftwareTitles, 2)
 
 	var respPutSetupExperience putSetupExperienceSoftwareResponse
 	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: team1.ID, TitleIDs: []uint{respListTitles.SoftwareTitles[0].ID, respListTitles.SoftwareTitles[1].ID}}, http.StatusOK, &respPutSetupExperience)
