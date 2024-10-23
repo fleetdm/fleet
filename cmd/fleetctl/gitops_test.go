@@ -1789,8 +1789,11 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_no_url.yml", "software URL is required"},
 		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "\"packages.self_service\" must be a bool, found string"},
-		// TODO(mna): team tests for setup experience software/script
+		// team tests for setup experience software/script
 		{"testdata/gitops/team_setup_software_valid.yml", ""},
+		{"testdata/gitops/team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
+		{"testdata/gitops/team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that team"},
+		{"testdata/gitops/team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that team"},
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
@@ -1848,6 +1851,7 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 
 func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 	startSoftwareInstallerServer(t)
+	startAndServeVPPServer(t)
 
 	cases := []struct {
 		noTeamFile string
@@ -1865,19 +1869,48 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_no_url.yml", "software URL is required"},
 		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "\"packages.self_service\" must be a bool, found string"},
-		// TODO(mna): No team tests for setup experience software/script
+		// No team tests for setup experience software/script
+		{"testdata/gitops/no_team_setup_software_valid.yml", ""},
+		{"testdata/gitops/no_team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
+		{"testdata/gitops/no_team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that team"},
+		// VPP apps for No Team is unsupported at the moment : https://github.com/fleetdm/fleet/issues/22970
+		// {"testdata/gitops/no_team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that team"},
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.noTeamFile), func(t *testing.T) {
-			setupFullGitOpsPremiumServer(t)
+			ds, _, _ := setupFullGitOpsPremiumServer(t)
+			tokExpire := time.Now().Add(time.Hour)
+			token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")
+			require.NoError(t, err)
+
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+				return nil
+			}
+			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+				return nil
+			}
+			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+				return &fleet.VPPTokenDB{
+					ID:        1,
+					OrgName:   "Fleet",
+					Location:  "Earth",
+					RenewDate: tokExpire,
+					Token:     string(token),
+					Teams:     nil,
+				}, nil
+			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
 			globalFile := "./testdata/gitops/global_config_no_paths.yml"
+			if strings.HasPrefix(filepath.Base(c.noTeamFile), "no_team_setup_software") {
+				// the controls section is in the no-team test file, so use a global file without that section
+				globalFile = "./testdata/gitops/global_config_no_paths_no_controls.yml"
+			}
 			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "no-team.yml")
 			t.Cleanup(func() {
 				os.Remove(dstPath)
 			})
-			err := file.Copy(c.noTeamFile, dstPath, 0o755)
+			err = file.Copy(c.noTeamFile, dstPath, 0o755)
 			require.NoError(t, err)
 			_, err = runAppNoChecks([]string{"gitops", "-f", globalFile, "-f", dstPath})
 			if c.wantErr == "" {
