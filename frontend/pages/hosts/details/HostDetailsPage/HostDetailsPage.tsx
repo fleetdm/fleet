@@ -104,6 +104,7 @@ import {
 import WipeModal from "./modals/WipeModal";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "host-details";
 
@@ -579,8 +580,7 @@ const HostDetailsPage = ({
           }, 1000);
         });
       } catch (error) {
-        console.log(error);
-        renderFlash("error", `Host "${host.display_name}" refetch error`);
+        renderFlash("error", getErrorMessage(error, host.display_name));
         setShowRefetchSpinner(false);
       }
     }
