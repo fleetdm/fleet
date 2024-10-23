@@ -15,9 +15,9 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import Icon from "components/Icon";
 import DropdownOptionTooltipWrapper from "components/forms/fields/Dropdown/DropdownOptionTooltipWrapper";
 
-const baseClass = "dropdown-cell";
+const baseClass = "action-dropdown";
 
-interface IDropdownCellProps {
+interface IActionDropdownProps {
   options: IDropdownOption[];
   placeholder: string;
   onChange: (value: string) => void;
@@ -28,13 +28,9 @@ interface IDropdownCellProps {
 }
 
 const getOptionBackgroundColor = (state: any) => {
-  if (state.isSelected || state.isFocused) {
-    return COLORS["ui-vibrant-blue-25"];
-  }
-  if (state.isFocused) {
-    return COLORS["ui-vibrant-blue-10"];
-  }
-  return "transparent";
+  return state.isSelected || state.isFocused
+    ? COLORS["ui-vibrant-blue-10"]
+    : "transparent";
 };
 
 const CustomDropdownIndicator = (
@@ -42,7 +38,7 @@ const CustomDropdownIndicator = (
 ) => {
   const { isFocused, selectProps } = props;
   // no access to hover state here from react-select so that is done in the scss
-  // file of DropdownCell.
+  // file of ActionDropdown.
   const color =
     isFocused || selectProps.menuIsOpen
       ? "core-fleet-blue"
@@ -89,7 +85,7 @@ const CustomOption: React.FC<OptionProps<IDropdownOption, false>> = (props) => {
   );
 };
 
-const DropdownCell = ({
+const ActionDropdown = ({
   options,
   placeholder,
   onChange,
@@ -97,7 +93,7 @@ const DropdownCell = ({
   isSearchable = false,
   className,
   menuAlign = "default",
-}: IDropdownCellProps): JSX.Element => {
+}: IActionDropdownProps): JSX.Element => {
   const dropdownClassnames = classnames(baseClass, className);
 
   const handleChange = (newValue: IDropdownOption | null) => {
@@ -123,18 +119,18 @@ const DropdownCell = ({
       cursor: "pointer",
       "&:hover": {
         boxShadow: "none",
-        ".dropdown-cell-select__placeholder": {
+        ".action-dropdown-select__placeholder": {
           color: COLORS["core-vibrant-blue-over"],
         },
-        ".dropdown-cell-select__indicator path": {
+        ".action-dropdown-select__indicator path": {
           stroke: COLORS["core-vibrant-blue-over"],
         },
       },
-      "&:active .dropdown-cell-select__indicator path": {
+      "&:active .action-dropdown-select__indicator path": {
         stroke: COLORS["core-vibrant-blue-down"],
       },
       ...(state.menuIsOpen && {
-        ".dropdown-cell-select__indicator svg": {
+        ".action-dropdown-select__indicator svg": {
           transform: "rotate(180deg)",
           transition: "transform 0.25s ease",
         },
@@ -184,11 +180,9 @@ const DropdownCell = ({
     option: (provided, state) => ({
       ...provided,
       padding: "10px 8px",
-      cursor: "pointer",
       fontSize: "14px",
       backgroundColor: getOptionBackgroundColor(state),
       "&:hover": {
-        cursor: "pointer",
         backgroundColor: state.isDisabled
           ? "transparent"
           : COLORS["ui-vibrant-blue-10"],
@@ -201,12 +195,7 @@ const DropdownCell = ({
       ...(state.isDisabled && {
         color: COLORS["ui-fleet-black-50"],
         fontStyle: "italic",
-        "&:active": {
-          backgroundColor: "transparent",
-        },
-        "&:hover": {
-          cursor: "default",
-        },
+        // pointerEvents: "none", // Prevents any mouse interaction
       }),
     }),
   };
@@ -224,7 +213,8 @@ const DropdownCell = ({
           DropdownIndicator: CustomDropdownIndicator,
           IndicatorSeparator: () => null,
           Option: CustomOption,
-          SingleValue: () => null, // Doesn't change placeholder text to selected text
+          SingleValue: () => null, // Doesn't replace placeholder text with selected text
+          // TODO: Figure out how to skip disabled options when keyboarding through options
         }}
         controlShouldRenderValue={false} // Doesn't change placeholder text to selected text
         isOptionSelected={() => false} // Hides any styling on selected option
@@ -236,4 +226,4 @@ const DropdownCell = ({
   );
 };
 
-export default DropdownCell;
+export default ActionDropdown;

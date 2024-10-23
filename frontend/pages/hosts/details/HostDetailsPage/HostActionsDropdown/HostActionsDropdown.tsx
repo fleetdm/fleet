@@ -4,7 +4,7 @@ import { MdmEnrollmentStatus } from "interfaces/mdm";
 import permissions from "utilities/permissions";
 import { AppContext } from "context/app";
 
-import DropdownCell from "components/ActionDropdown";
+import ActionDropdown from "components/ActionDropdown";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import { generateHostActionOptions } from "./helpers";
@@ -82,14 +82,7 @@ const HostActionsDropdown = ({
 
   return (
     <div className={baseClass}>
-      <Dropdown
-        className={`${baseClass}__host-actions-dropdown`}
-        onChange={onSelect}
-        placeholder="Actions"
-        searchable={false}
-        options={options}
-      />
-      <DropdownCell
+      <ActionDropdown
         className={`${baseClass}__host-actions-dropdown`}
         onChange={onSelect}
         placeholder="Actions"
