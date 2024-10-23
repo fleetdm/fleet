@@ -13,7 +13,10 @@ const baseClass = "select-software-modal";
 
 const initializeSelectedSoftwareIds = (softwareTitles: ISoftwareTitle[]) => {
   return softwareTitles.reduce<number[]>((acc, software) => {
-    if (software.install_during_setup) {
+    if (
+      software.software_package?.install_during_setup ||
+      software.app_store_app?.install_during_setup
+    ) {
       acc.push(software.id);
     }
     return acc;
