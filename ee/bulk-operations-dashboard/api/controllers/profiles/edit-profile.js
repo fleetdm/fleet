@@ -105,11 +105,6 @@ module.exports = {
       filename = profile.name;
       extension = profile.profileType;
     }
-    // determine if labels have changed:
-    let labelsHaveChanged = _.xor(profile.labels, labels).length !== 0
-
-    console.log('labelsHaveChanged: ',labelsHaveChanged)
-
 
 
     //  ╔═╗╔═╗╔═╗╦╔═╗╔╗╔  ╔═╗╦═╗╔═╗╔═╗╦╦  ╔═╗
@@ -175,22 +170,25 @@ module.exports = {
         }
       }
       for(let teamApid of newTeamIds){
+        let bodyForThisRequest = {
+          team_id: teamApid,// eslint-disable-line camelcase
+          labels_exclude_any: labelTargetBehavior === 'exclude' ? labels : undefined,
+          labels_include_all: labelTargetBehavior === 'include' ? labels : undefined,
+          profile: {
+            options: {
+              filename: filename + extension,
+              contentType: 'application/octet-stream'
+            },
+            value: profileContents,
+          }
+        };
         // console.log(`Adding ${profile.name} to team id ${teamApid}`);
         await sails.helpers.http.sendHttpRequest.with({
           method: 'POST',
           baseUrl: sails.config.custom.fleetBaseUrl,
           url: `/api/v1/fleet/configuration_profiles?team_id=${teamApid}`,
           enctype: 'multipart/form-data',
-          body: {
-            team_id: teamApid,// eslint-disable-line camelcase
-            profile: {
-              options: {
-                filename: filename + extension,
-                contentType: 'application/octet-stream'
-              },
-              value: profileContents,
-            }
-          },
+          body: bodyForThisRequest,
           headers: {
             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
           },
@@ -210,12 +208,18 @@ module.exports = {
         platform: extension === '.xml' ? 'windows' : 'darwin',
         profileContents,
         profileType: extension,
+        labels,
+        labelTargetBehavior,
+        target,
       });
     } else if(profile.id && newProfile){
       // If there is a new profile that is replacing a database record, update the profileContents in the database.
       // console.log('Updating existing undeployed profile!');
       await UndeployedProfile.updateOne({id: profile.id}).set({
         profileContents,
+        labels,
+        labelTargetBehavior,
+        target,
       });
     }
     // All done.
