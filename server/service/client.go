@@ -1740,7 +1740,11 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 		}
 		if !found {
 			queriesToDelete = append(queriesToDelete, oldQuery.ID)
-			fmt.Printf("[-] deleting query %s\n", oldQuery.Name)
+			if !dryRun {
+				fmt.Printf("[-] deleting query %s\n", oldQuery.Name)
+			} else {
+				fmt.Printf("[-] would've deleted query %s\n", oldQuery.Name)
+			}
 		}
 	}
 	if len(queriesToDelete) > 0 {
