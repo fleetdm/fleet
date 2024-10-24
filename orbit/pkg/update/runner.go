@@ -28,6 +28,16 @@ type RunnerOptions struct {
 	CheckInterval time.Duration
 	// Targets is the names of the artifacts to watch for updates.
 	Targets []string
+	// SignaturesExpiredAtStartup should be set to true when any of the
+	// "root", "targets", and "snapshot" roles has an expired signature.
+	// When that's the case, the go-tuf library won't allow loading the targets
+	// thus, in this scenario, the Runner will only check signature expiration
+	// on every check interval and return (exit) when signatures are valid
+	// (so that on the next orbit start everything can be initialized properly).
+	//
+	// An expired signature for the "timestamp" role does not cause issues
+	// at start up (the go-tuf libary allows loading the targets).
+	SignaturesExpiredAtStartup bool
 }
 
 // Runner is a specialized runner for an Updater. It is designed with Execute and
@@ -102,6 +112,12 @@ func NewRunner(updater *Updater, opt RunnerOptions) (*Runner, error) {
 		// called after Execute has already returned.
 		cancel:      make(chan struct{}, 1),
 		localHashes: make(map[string][]byte),
+	}
+
+	if runner.opt.SignaturesExpiredAtStartup {
+		// Return early as we will only check for signature
+		// expiration on every check interval.
+		return runner, nil
 	}
 
 	// Initialize the hashes of the local files for all tracked targets.
@@ -186,6 +202,16 @@ func (r *Runner) Execute() error {
 			return nil
 		case <-ticker.C:
 			ticker.Reset(r.opt.CheckInterval)
+
+			if r.opt.SignaturesExpiredAtStartup {
+				if r.updater.SignaturesExpired() {
+					log.Debug().Msg("signatures still expired")
+				} else {
+					log.Info().Msg("expired signatures have been updated successfully, exiting")
+					return nil
+				}
+			}
+
 			didUpdate, err := r.UpdateAction()
 			if err != nil {
 				log.Info().Err(err).Msg("update failed")
