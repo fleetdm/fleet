@@ -19,7 +19,6 @@ on:
   workflow_dispatch: # Manual
   schedule:
     - cron: '0 2 * * *' # Nightly 2AM UTC
-  pull_request:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
