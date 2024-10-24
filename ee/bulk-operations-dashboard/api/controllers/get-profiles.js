@@ -80,7 +80,7 @@ module.exports = {
       // Iterate through the arrays of profiles with the same unique identifier.
       let teamsForThisProfile = [];
       // Add the profile's UUID and information about the team this profile is assigned to the teams array for profiles.
-      for(let profile of allProfilesByIdentifier[profileIdentifier]){
+      for(let profile of allProfilesByIdentifier[profileIdentifier]) {
         let informationAboutThisProfile = {
           uuid: profile.profile_uuid,
           fleetApid: profile.team_id,
@@ -94,8 +94,18 @@ module.exports = {
         identifier: profileIdentifier,
         platform: profile.platform,
         createdAt: new Date(profile.created_at).getTime(),
-        teams: teamsForThisProfile
+        teams: teamsForThisProfile,
+        target: 'all',
       };
+      if(profile.labels_include_all) {
+        profileInformation.labels = _.pluck(profile.labels_include_all, 'name');
+        profileInformation.target = 'custom';
+        profileInformation.labelTargetBehavior = 'include';
+      } else if(profile.labels_exclude_any){
+        profileInformation.labels = _.pluck(profile.labels_exclude_any, 'name');
+        profileInformation.target = 'custom';
+        profileInformation.labelTargetBehavior = 'exclude';
+      }
       profilesOnThisFleetInstance.push(profileInformation);
     }
     // Get the undeployed profiles from the app's database.

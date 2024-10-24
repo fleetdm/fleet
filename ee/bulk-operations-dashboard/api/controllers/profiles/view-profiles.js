@@ -94,8 +94,18 @@ module.exports = {
         identifier: profileIdentifier,
         platform: profile.platform,
         createdAt: new Date(profile.created_at).getTime(),
-        teams: teamsForThisProfile
+        teams: teamsForThisProfile,
+        target: 'all',
       };
+      if(profile.labels_include_all) {
+        profileInformation.labels = _.pluck(profile.labels_include_all, 'name');
+        profileInformation.target = 'custom';
+        profileInformation.labelTargetBehavior = 'include';
+      } else if(profile.labels_exclude_any){
+        profileInformation.labels = _.pluck(profile.labels_exclude_any, 'name');
+        profileInformation.target = 'custom';
+        profileInformation.labelTargetBehavior = 'exclude';
+      }
       profilesInformation.push(profileInformation);
     }
     // Get the undeployed profiles from the app's database.

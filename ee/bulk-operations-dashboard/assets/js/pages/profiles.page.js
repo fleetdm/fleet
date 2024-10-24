@@ -53,7 +53,6 @@ parasails.registerPage('profiles', {
       if(this.teamFilter !== undefined){
         this.selectedTeam = _.find(this.teams, {fleetApid: this.teamFilter});
         let profilesOnThisTeam = _.filter(this.profiles, (profile)=>{
-          // console.log(profile.profiles);
           return profile.teams && _.where(profile.teams, {'fleetApid': this.selectedTeam.fleetApid}).length > 0;
         });
         this.profilesToDisplay = profilesOnThisTeam;
@@ -77,22 +76,33 @@ parasails.registerPage('profiles', {
       }
     },
     clickOpenEditModal: async function(profile) {
-      this.profileToEdit = _.clone(profile);
-      this.formData.newTeamIds = _.pluck(this.profileToEdit.teams, 'fleetApid');
-      this.formData.profile = profile;
+      this.profileToEdit = _.cloneDeep(profile);
+      this.formData = {
+        profile: _.clone(profile),
+        newTeamIds: _.pluck(this.profileToEdit.teams, 'fleetApid'),
+        target: profile.target === 'custom' ? 'custom' : 'all',
+        labelTargetBehavior: profile.labelTargetBehavior ? profile.labelTargetBehavior : 'include',
+        labels: profile.labels ? profile.labels : [],
+      };
       this.modal = 'edit-profile';
+      await this._getLabels();
     },
     clickOpenDeleteModal: async function(profile) {
       this.formData.profile = _.clone(profile);
       this.modal = 'delete-profile';
     },
     clickOpenAddProfileModal: async function() {
+      this.$set(this.formData, 'target', 'all');
+      this.$set(this.formData, 'labels', []);
+      this.$set(this.formData, 'labelTargetBehavior', 'include');
       this.modal = 'add-profile';
+      await this._getLabels();
     },
     closeModal: async function() {
       this.modal = '';
       this.formErrors = {};
       this.formData = {};
+      this.cloudError = '';
       await this.forceRender();
     },
     submittedForm: async function() {
@@ -106,7 +116,13 @@ parasails.registerPage('profiles', {
     },
     handleSubmittingAddProfileForm: async function() {
       let argins = _.clone(this.formData);
-      await Cloud.uploadProfile.with({newProfile: argins.newProfile, teams: argins.teams});
+      await Cloud.uploadProfile.with({
+        newProfile: argins.newProfile,
+        teams: argins.teams,
+        target: argins.target,
+        labels: argins.labels,
+        labelTargetBehavior: argins.labelTargetBehavior,
+      });
       await this._getProfiles();
     },
     handleSubmittingEditProfileForm: async function() {
@@ -114,7 +130,22 @@ parasails.registerPage('profiles', {
       if(argins.newTeamIds === [undefined]){
         argins.newTeamIds = [];
       }
-      await Cloud.editProfile.with({profile: argins.profile, newProfile: argins.newProfile, newTeamIds: argins.newTeamIds});
+      if(argins.target === 'custom'){
+        await Cloud.editProfile.with({
+          profile: argins.profile,
+          newTeamIds: argins.newTeamIds,
+          newProfile: argins.newProfile,
+          labels: argins.labels,
+          target: argins.target,
+          labelTargetBehavior: argins.labelTargetBehavior,
+        });
+      } else {
+        await Cloud.editProfile.with({
+          profile: argins.profile,
+          newTeamIds: argins.newTeamIds,
+          newProfile: argins.newProfile
+        });
+      }
       await this._getProfiles();
     },
     _getProfiles: async function() {
@@ -123,6 +154,19 @@ parasails.registerPage('profiles', {
       this.profiles = newProfilesInformation;
       this.syncing = false;
       await this.changeTeamFilter();
+    },
+    _getLabels: async function() {
+      this.syncing = true;
+      this.labelsSyncing = true;
+      this.labels = await Cloud.getLabels().tolerate((err)=>{
+        this.cloudError = err;
+        this.syncing = false;
+      });
+      if(!this.cloudError){
+        this.labelsSyncing = false;
+        this.syncing = false;
+
+      }
     }
   }
 });
