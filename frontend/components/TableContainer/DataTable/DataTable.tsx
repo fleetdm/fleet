@@ -258,7 +258,9 @@ const DataTable = ({
   }, [isClientSideFilter, onResultsCountChange, rows.length]);
 
   useEffect(() => {
+    console.log(searchQuery);
     if (isClientSideFilter && searchQueryColumn) {
+      console.log("resetting selected rows");
       toggleAllRowsSelected(false); // Resets row selection on query change (client-side)
       setDebouncedClientFilter(searchQueryColumn, searchQuery || "");
     }
@@ -294,7 +296,7 @@ const DataTable = ({
 
   useEffect(() => {
     if (isAllPagesSelected) {
-      toggleAllRowsSelected(true);
+      // toggleAllRowsSelected(true);
     }
   }, [isAllPagesSelected, toggleAllRowsSelected]);
 

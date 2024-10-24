@@ -72,6 +72,7 @@ interface ITableContainerProps<T = any> {
   isClientSidePagination?: boolean;
   /** Used to set URL to correct path and include page query param */
   onClientSidePaginationChange?: (pageIndex: number) => void;
+  /** Sets the table to filter the data on the client */
   isClientSideFilter?: boolean;
   /** isMultiColumnFilter is used to preserve the table headers
   in lieu of displaying the empty component when client-side filtering yields zero results */

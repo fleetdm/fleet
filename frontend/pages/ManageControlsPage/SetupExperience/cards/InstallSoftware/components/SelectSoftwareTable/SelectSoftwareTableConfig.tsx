@@ -19,9 +19,12 @@ type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
 type ISelectionCellProps = CellProps<ISoftwareTitle>;
 
 const generateTableConfig = (
+  initialSelectedSoftware: number[],
   onSelectAll: (selectAll: boolean) => void,
   onSelectSoftware: (select: boolean, id: number) => void
 ): ISelectSoftwareTableConfig[] => {
+  let initialRender = true;
+
   const headerConfigs: ISelectSoftwareTableConfig[] = [
     {
       id: "selection",
@@ -43,7 +46,19 @@ const generateTableConfig = (
         return <Checkbox {...checkboxProps} />;
       },
       Cell: (cellProps: ISelectionCellProps) => {
+        if (initialRender) {
+          const isSelected = initialSelectedSoftware.includes(
+            cellProps.row.original.id
+          );
+          console.log("row:", cellProps.row.original.id, isSelected);
+          cellProps.row.toggleRowSelected();
+        }
         const { checked } = cellProps.row.getToggleRowSelectedProps();
+        console.log(
+          "row:",
+          cellProps.row.original.id,
+          cellProps.row.getToggleRowSelectedProps()
+        );
         const checkboxProps = {
           value: checked,
           onChange: () => {
@@ -51,6 +66,7 @@ const generateTableConfig = (
             cellProps.row.toggleRowSelected();
           },
         };
+        initialRender = false;
         return <Checkbox {...checkboxProps} />;
       },
     },
