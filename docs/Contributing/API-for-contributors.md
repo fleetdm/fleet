@@ -6,6 +6,7 @@
 - [Live query](#live-query)
 - [Trigger cron schedule](#trigger-cron-schedule)
 - [Device-authenticated routes](#device-authenticated-routes)
+- [Orbit-authenticated routes](#orbit-authenticated-routes)
 - [Downloadable installers](#downloadable-installers)
 - [Setup](#setup)
 - [Scripts](#scripts)
@@ -3184,19 +3185,35 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 `Status: 500`
 
+---
+
+## Orbit-authenticated routes
+
+- [Get the status of a device in the setup experience](#get-the-status-of-a-device-in-the-setup-experience)
+
+
 ### Get the status of a device in the setup experience
 
-`GET /api/v1/fleet/device/:token/setup_experience/status`
+`POST /api/fleet/orbit/setup_experience/status`
 
 ##### Parameters
 
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's authentication token. |
+| orbit_node_key | string | body | The Orbit's node key for authentication. |
+| force_release | boolean | body | Force a host release from ADE flow, in case the setup is taking too long. |
+
 
 ##### Example
 
 `POST /api/v1/fleet/device/8b49859b-1ffa-483d-ad27-85b30aa3c55f/setup_experience/status`
+
+##### Request body
+
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "force_release":false
+}
 
 ##### Default response
 
@@ -3248,8 +3265,6 @@ Notifies the server about an agent error, resulting in two outcomes:
   ]
 }
 ```
-
----
 
 
 ## Downloadable installers
