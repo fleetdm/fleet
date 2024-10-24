@@ -2627,6 +2627,11 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 		host = h
 	}
 
+	mdmEnrolled, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "checking mdm enrollment status")
+	}
+
 	// cursor-based pagination is not supported
 	opts.ListOptions.After = ""
 	// custom ordering is not supported, always by name (but asc/desc is configurable)
@@ -2634,6 +2639,7 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	// always include metadata
 	opts.ListOptions.IncludeMetadata = true
 	opts.IncludeAvailableForInstall = includeAvailableForInstall || opts.SelfServiceOnly
+	opts.ExcludeVPPApps = !mdmEnrolled
 
 	software, meta, err := svc.ds.ListHostSoftware(ctx, host, opts)
 	return software, meta, ctxerr.Wrap(ctx, err, "list host software")
