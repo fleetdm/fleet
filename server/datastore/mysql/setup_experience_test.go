@@ -571,6 +571,7 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 		}
 	}
 
+	// Single installer
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleSoftware["file1"]})
 	require.NoError(t, err)
 
@@ -583,6 +584,11 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "1", titles[2].AppStoreApp.AppStoreID)
 	assert.NotNil(t, meta)
 
+	assert.True(t, *titles[0].SoftwarePackage.InstallDuringSetup)
+	assert.False(t, *titles[1].SoftwarePackage.InstallDuringSetup)
+	assert.False(t, *titles[2].AppStoreApp.InstallDuringSetup)
+
+	// Single vpp app replaces installer
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["1"]})
 	require.NoError(t, err)
 
@@ -595,6 +601,11 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "1", titles[2].AppStoreApp.AppStoreID)
 	assert.NotNil(t, meta)
 
+	assert.False(t, *titles[0].SoftwarePackage.InstallDuringSetup)
+	assert.False(t, *titles[1].SoftwarePackage.InstallDuringSetup)
+	assert.True(t, *titles[2].AppStoreApp.InstallDuringSetup)
+
+	// Team 2 unaffected
 	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team2.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, titles, 2)
@@ -602,6 +613,9 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "file3", titles[0].SoftwarePackage.Name)
 	assert.Equal(t, "3", titles[1].AppStoreApp.AppStoreID)
 	require.NotNil(t, meta)
+
+	assert.False(t, *titles[0].SoftwarePackage.InstallDuringSetup)
+	assert.False(t, *titles[1].AppStoreApp.InstallDuringSetup)
 
 	// iOS software
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, team2.ID, []uint{titleSoftware["file4"]})
@@ -629,6 +643,21 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.Len(t, titles, 3)
 	assert.Equal(t, 3, count)
 	assert.NotNil(t, meta)
+
+	// Empty slice removes all tiles
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{})
+	require.NoError(t, err)
+
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, titles, 3)
+	assert.Equal(t, 3, count)
+	assert.NotNil(t, meta)
+
+	assert.False(t, *titles[0].SoftwarePackage.InstallDuringSetup)
+	assert.False(t, *titles[1].SoftwarePackage.InstallDuringSetup)
+	assert.False(t, *titles[2].AppStoreApp.InstallDuringSetup)
+
 }
 
 func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
