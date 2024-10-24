@@ -712,7 +712,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
 			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.ExecutionID)
-			_, err := svc.SetupExperienceNextStep(ctx, host.UUID)
+			_, err := svc.EnterpriseOverrides.SetupExperienceNextStep(ctx, host.UUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
 			}
