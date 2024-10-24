@@ -5867,7 +5867,7 @@ Learn more about OTA profiles [here](https://developer.apple.com/library/archive
 
 ```http
   Content-Length: 542
-  Content-Type: application/x-apple-aspen-config; charset=urf-8
+  Content-Type: application/x-apple-aspen-config; charset=utf-8
   Content-Disposition: attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"
   X-Content-Type-Options: nosniff
 ```
