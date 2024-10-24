@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/text/unicode/norm"
+
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log/level"
@@ -16,6 +18,8 @@ const (
 	statsScheduledQueryType = iota
 	statsLiveQueryType
 )
+
+var querySearchColumns = []string{"q.name"}
 
 func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 	if err := ds.applyQueriesInTx(ctx, authorID, queries); err != nil {
@@ -523,10 +527,9 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		}
 	}
 
-	if opt.MatchQuery != "" {
-		whereClauses += " AND q.name = ?"
-		args = append(args, opt.MatchQuery)
-	}
+	// normalize the name for full Unicode support (Unicode equivalence).
+	normMatch := norm.NFC.String(opt.MatchQuery)
+	whereClauses, args = searchLike(whereClauses, args, normMatch, querySearchColumns...)
 
 	getQueriesStmt += whereClauses
 
