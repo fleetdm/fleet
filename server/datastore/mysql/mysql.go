@@ -399,7 +399,28 @@ var otelTracedDriverName string
 
 func init() {
 	var err error
-	otelTracedDriverName, err = otelsql.Register("mysql", semconv.DBSystemMySQL.Value.AsString())
+	otelTracedDriverName, err = otelsql.Register("mysql",
+		otelsql.WithAttributes(semconv.DBSystemMySQL),
+		otelsql.WithSpanOptions(otelsql.SpanOptions{
+			// DisableErrSkip ignores driver.ErrSkip errors which are frequently returned by the MySQL driver
+			// when certain optional methods or paths are not implemented/taken.
+			// For example: interpolateParams=false (the secure default) will not do a parametrized sql.conn.query directly without preparing it first, causing driver.ErrSkip
+			DisableErrSkip: true,
+			// Omitting span for sql.conn.reset_session since it takes ~1us and doesn't provide useful information
+			OmitConnResetSession: true,
+			// Omitting span for sql.rows since it is very quick and typically doesn't provide useful information beyond what's already reported by prepare/exec/query
+			OmitRows: true,
+		}),
+		// WithSpanNameFormatter allows us to customize the span name, which is especially useful for SQL queries run outside an HTTPS transaction,
+		// which do not belong to a parent span, show up as their own trace, and would otherwise be named "sql.conn.query" or "sql.conn.exec".
+		otelsql.WithSpanNameFormatter(func(ctx context.Context, method otelsql.Method, query string) string {
+			if query == "" {
+				return string(method)
+			}
+			// Append query with extra whitespaces removed
+			return string(method) + ": " + strings.Join(strings.Fields(query), " ")
+		}),
+	)
 	if err != nil {
 		panic(err)
 	}
