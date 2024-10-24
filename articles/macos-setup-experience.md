@@ -10,6 +10,10 @@ In Fleet, you can customize the out-of-the-box macOS Setup Assistant with Remote
 
 * Install a bootstrap package to gain full control over the setup experience by installing tools like Puppet, Munki, DEP notify, custom scripts, and more.
 
+* Install software (App Store apps and custom packages).
+
+* Run a script.
+
 In addition to the customization above, Fleet automatically installs the fleetd agent during out-of-the-box macOS setup. This agent is responsible for reporting host vitals to Fleet and presenting Fleet Desktop to the end user.
 
 macOS setup features require connecting Fleet to Apple Business Manager (ABM). Learn how [here](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm).
@@ -160,6 +164,10 @@ Testing requires a test Mac that is present in your Apple Business Manager (ABM)
 3. Transfer this host to the "Workstations (canary)" team by selecting the checkbox to the left of the host and selecting **Transfer** at the top of the table. In the modal, choose the Workstations (canary) team and select **Transfer**.
 
 4. Boot up your test Mac and complete the custom out-of-the-box setup experience.
+
+## Install software
+
+## Run script
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
