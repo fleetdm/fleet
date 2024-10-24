@@ -24,12 +24,12 @@ declare module "react-select-5/dist/declarations/src/Select" {
     IsMulti extends boolean,
     Group extends GroupBase<Option>
   > {
-    labelQuery: string;
-    canAddNewLabels: boolean;
-    onAddLabel: () => void;
-    onChangeLabelQuery: (event: React.ChangeEvent<HTMLInputElement>) => void;
-    onClickLabelSearchInput: React.MouseEventHandler<HTMLInputElement>;
-    onBlurLabelSearchInput: React.FocusEventHandler<HTMLInputElement>;
+    labelQuery?: string;
+    canAddNewLabels?: boolean;
+    onAddLabel?: () => void;
+    onChangeLabelQuery?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    onClickLabelSearchInput?: React.MouseEventHandler<HTMLInputElement>;
+    onBlurLabelSearchInput?: React.FocusEventHandler<HTMLInputElement>;
   }
 }
 
