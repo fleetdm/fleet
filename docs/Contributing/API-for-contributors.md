@@ -6,6 +6,7 @@
 - [Live query](#live-query)
 - [Trigger cron schedule](#trigger-cron-schedule)
 - [Device-authenticated routes](#device-authenticated-routes)
+- [Orbit-authenticated routes](#orbit-authenticated-routes)
 - [Downloadable installers](#downloadable-installers)
 - [Setup](#setup)
 - [Scripts](#scripts)
@@ -1838,7 +1839,7 @@ If the `name` is not already associated with an existing team, this API route cr
         }
       },
       "scripts": ["path/to/script.sh"],
-      "software": { 
+      "software": {
         "packages": [
           {
             "url": "https://cdn.zoom.us/prod/5.16.10.26186/x64/ZoomInstallerFull.msi",
@@ -1853,7 +1854,7 @@ If the `name` is not already associated with an existing team, this API route cr
             "self_service": true
           }
         ]
-      }  
+      }
     }
   ]
 }
@@ -3189,6 +3190,87 @@ Notifies the server about an agent error, resulting in two outcomes:
 `Status: 500`
 
 ---
+
+## Orbit-authenticated routes
+
+- [Get the status of a device in the setup experience](#get-the-status-of-a-device-in-the-setup-experience)
+
+
+### Get the status of a device in the setup experience
+
+`POST /api/fleet/orbit/setup_experience/status`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| orbit_node_key | string | body | The Orbit's node key for authentication. |
+| force_release | boolean | body | Force a host release from ADE flow, in case the setup is taking too long. |
+
+
+##### Example
+
+`POST /api/v1/fleet/device/8b49859b-1ffa-483d-ad27-85b30aa3c55f/setup_experience/status`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "force_release":false
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "configuration_profiles": [
+    {
+      "profile_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
+      "name": "macOS restrictions",
+      "status": "acknowledged"
+    },
+    {
+      "profile_uuid": "42bcf55b-f374-46b0-b484-5ffffafaf3f6",
+      "name": "Certificates profile",
+      "status": "pending"
+    },
+  ],
+  "bootstrap_package": {
+      "name": "mac-bootstrap-package.pkg",
+      "status": "acknowledged"
+  },
+  "account_configuration": {
+      "command_uuid": "ee42f575-c0e9-4901-91ee-041f5daedced",
+      "status": "acknowledged"
+  },
+  "script": {
+      "execution_id": "02e4abba-7d96-4f5b-8c18-ffc5de71bd45",
+      "name": "setup-macos.sh",
+      "status": "pending"
+  },
+  "software": [
+    {
+      "software_title_id": 1,
+      "name": "Google Chrome.app",
+      "status": "installed"
+    },
+    {
+      "software_title_id": 2,
+      "name": "Zoom.us.app",
+      "status": "pending"
+    },
+    {
+      "software_title_id": 3,
+      "name": "Slack.app",
+      "status": "failed"
+    }
+  ]
+}
+```
 
 
 ## Downloadable installers
