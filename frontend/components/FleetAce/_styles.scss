@@ -32,7 +32,7 @@
   .ace_placeholder {
     font-family: "SourceCodePro", $monospace;
     margin: initial;
-    font-size: 15px;
+    font-size: $x-small-plus;
   }
 
   &__help-text {

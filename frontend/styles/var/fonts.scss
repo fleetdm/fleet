@@ -1,11 +1,22 @@
 // Font sizes
+$xxxx-small: px-to-rem(6);
 $xxx-small: px-to-rem(10);
 $xx-small: px-to-rem(12);
+$xx-small-plus: px-to-rem(13);
 $x-small: px-to-rem(14);
+$x-small-plus: px-to-rem(15);
 $small: px-to-rem(16);
+$small-plus: px-to-rem(18);
 $medium: px-to-rem(20);
 $large: px-to-rem(24);
 $x-large: px-to-rem(28);
+$xx-large: px-to-rem(32);
+$xxx-large: px-to-rem(36);
+$jumbo: px-to-rem(120);
+$x-jumbo: px-to-rem(150);
+$xx-jumbo: px-to-rem(180);
+
+
 
 // Font weights
 $regular: 400;

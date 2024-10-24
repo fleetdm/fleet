@@ -57,7 +57,7 @@
     text-align: center;
 
     > h1 {
-      font-size: 32px;
+      font-size: $xx-large;
       min-width: 479px;
       color: $core-fleet-black;
 
@@ -67,7 +67,7 @@
     }
 
     > h2 {
-      font-size: 36px;
+      font-size: $xxx-large;
       margin: 13px 0 30px;
     }
   }

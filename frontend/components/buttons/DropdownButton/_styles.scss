@@ -6,7 +6,7 @@
   }
 
   &__caret {
-    font-size: 6px;
+    font-size: $xxxx-small;
     vertical-align: middle;
     margin-left: 10px;
   }
@@ -42,7 +42,7 @@
       padding: 0 10px;
       white-space: nowrap;
       width: 100%;
-      font-size: 15px;
+      font-size: $x-small-plus;
       height: 38px;
       letter-spacing: -0.5px;
 
