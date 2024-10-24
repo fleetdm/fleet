@@ -183,8 +183,6 @@ To configure software to be installed during setup experience:
 
 2. Click the "Add software" button. In the modal, select the software that you want to have installed during the setup experience. You can search the list of software by using the search bar in the upper right of the modal. Click "Save" to save your selection and close the modal. **Note**: only custom installers and App Store (VPP) apps are able to be installed during setup experience.
 
-3. Boot up your test Mac and verify that the software is installed. You should see a window pop up after MDM enrollment that will show the status of each of the software installs.
-
 ### Run script
 
 To configure a script to run during setup experience:
@@ -193,12 +191,12 @@ To configure a script to run during setup experience:
 
 2. Click "Upload" and select a script (.sh file) from the file picker modal. Once the script is uploaded, you can use the buttons on the script in the web UI to download or delete the script.
 
-3. Boot up your test Mac and verify that the script runs. You should see a window pop up after MDM enrollment that will show the status of the script execution. **Note**: the setup experience script will run last, after all other steps have completed.
-
 ### Configuring via REST API
+
 Fleet also provides a REST API for managing setup experience software and scripts programmatically. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api).
 
 ### Configuring via GitOps
+
 To manage setup experience software and script using Fleet's best practice GitOps, check out the `macos_setup` key in the GitOps reference documentation [here](https://fleetdm.com/docs/configuration/yaml-files#macos-setup)
 
 <meta name="category" value="guides">
