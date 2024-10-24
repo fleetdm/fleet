@@ -45,5 +45,5 @@ jobs:
 
       - name: Trigger deploy
         run: |
-          curl "{{ secrets.RENDER_GITOPS_FREE_DEPLOY_HOOK }}"
-          curl "{{ secrets.RENDER_GITOPS_PREMIUM_DEPLOY_HOOK }}"
+          curl "${{ secrets.RENDER_GITOPS_FREE_DEPLOY_HOOK }}"
+          curl "${{ secrets.RENDER_GITOPS_PREMIUM_DEPLOY_HOOK }}"
