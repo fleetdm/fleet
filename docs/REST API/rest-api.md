@@ -5740,7 +5740,7 @@ Get aggregate status counts of profiles for to macOS and Windows hosts that are 
 - [List software (setup experience)](#list-software-setup-experience)
 - [Update software (setup experience)](#update-software-setup-experience)
 - [Add script (setup experience)](#add-script-setup-experience)
-- [Get script (setup experience)](#get-script-setup-experience)
+- [Get or download script (setup experience)](#get-or-download-script-setup-experience)
 - [Delete script (setup experience)](#delete-script-setup-experience)
 
 
