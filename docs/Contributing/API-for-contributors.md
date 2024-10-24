@@ -3210,10 +3210,12 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 ##### Request body
 
+```json
 {
   "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
   "force_release":false
 }
+```
 
 ##### Default response
 
