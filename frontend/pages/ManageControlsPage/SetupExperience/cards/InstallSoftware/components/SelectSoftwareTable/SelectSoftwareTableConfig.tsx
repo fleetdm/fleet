@@ -3,10 +3,7 @@ import { CellProps, Column } from "react-table";
 
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { ISoftwareTitle } from "interfaces/software";
-import {
-  APPLE_PLATFORM_DISPLAY_NAMES,
-  ApplePlatform,
-} from "interfaces/platform";
+import { APPLE_PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
@@ -72,9 +69,8 @@ const generateTableConfig = (
       disableSortBy: true,
       accessor: "source",
       Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell
-          value={APPLE_PLATFORM_DISPLAY_NAMES[cellProps.value as ApplePlatform]}
-        />
+        // TODO: this will need to be updated when we add support for other platforms
+        <TextCell value={APPLE_PLATFORM_DISPLAY_NAMES.darwin} />
       ),
       sortType: "caseInsensitive",
     },
