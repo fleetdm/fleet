@@ -1215,6 +1215,11 @@ func (svc *Service) validateVPPAssignments(
 	invalid *fleet.InvalidArgumentError,
 	license *fleet.LicenseInfo,
 ) (map[uint][]uint, error) {
+	// Allow clearing VPP assignments in free and premium.
+	if len(volumePurchasingProgramInfo) == 0 {
+		return nil, nil
+	}
+
 	if !license.IsPremium() {
 		invalid.Append("mdm.volume_purchasing_program", ErrMissingLicense.Error())
 		return nil, nil
