@@ -195,6 +195,12 @@ To configure a script to run during setup experience:
 
 3. Boot up your test Mac and verify that the script runs. You should see a window pop up after MDM enrollment that will show the status of the script execution. **Note**: the setup experience script will run last, after all other steps have completed.
 
+### Configuring via REST API
+Fleet also provides a REST API for managing setup experience software and scripts programmatically. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api).
+
+### Configuring via GitOps
+To manage setup experience software and script using Fleet's best practice GitOps, check out the `macos_setup` key in the GitOps reference documentation [here](https://fleetdm.com/docs/configuration/yaml-files#macos-setup)
+
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
