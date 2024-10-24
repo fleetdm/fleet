@@ -11,9 +11,7 @@ import SelectSoftwareTable from "../SelectSoftwareTable";
 
 const baseClass = "select-software-modal";
 
-export const initializeSelectedSoftwareIds = (
-  softwareTitles: ISoftwareTitle[]
-) => {
+const initializeSelectedSoftwareIds = (softwareTitles: ISoftwareTitle[]) => {
   return softwareTitles.reduce<number[]>((acc, software) => {
     if (
       software.software_package?.install_during_setup ||
@@ -84,7 +82,6 @@ const SelectSoftwareModal = ({
     <Modal className={baseClass} title="Select software" onExit={onExit}>
       <>
         <SelectSoftwareTable
-          initialSelectedSoftware={initalSelectedSoftware}
           softwareTitles={softwareTitles}
           onChangeSoftwareSelect={onChangeSoftwareSelect}
           onChangeSelectAll={onChangeSelectAll}

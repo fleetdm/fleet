@@ -1,7 +1,13 @@
 /* eslint-disable react/prop-types */
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
-import React, { useMemo, useEffect, useCallback, useContext } from "react";
+import React, {
+  useMemo,
+  useEffect,
+  useCallback,
+  useContext,
+  useRef,
+} from "react";
 import classnames from "classnames";
 import {
   Column,
@@ -46,6 +52,7 @@ interface IDataTableProps {
   resultsTitle?: string;
   defaultPageSize: number;
   defaultPageIndex?: number;
+  defaultSelectedRows?: Record<string, boolean>;
   primarySelectAction?: IActionButtonProps;
   secondarySelectActions?: IActionButtonProps[];
   isClientSidePagination?: boolean;
@@ -55,6 +62,8 @@ interface IDataTableProps {
   searchQuery?: string;
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
+  /** Set to true to persist the row selections across table data filters */
+  persistSelectedRows?: boolean;
   onSelectSingleRow?: (value: Row) => void;
   onClickRow?: (value: any) => void;
   onResultsCountChange?: (value: number) => void;
@@ -91,6 +100,7 @@ const DataTable = ({
   resultsTitle = "results",
   defaultPageSize,
   defaultPageIndex,
+  defaultSelectedRows = {},
   primarySelectAction,
   secondarySelectActions,
   isClientSidePagination,
@@ -100,6 +110,7 @@ const DataTable = ({
   searchQuery,
   searchQueryColumn,
   selectedDropdownFilter,
+  persistSelectedRows = false,
   onSelectSingleRow,
   onClickRow,
   onResultsCountChange,
@@ -108,6 +119,9 @@ const DataTable = ({
   setExportRows,
   onClearSelection = noop,
 }: IDataTableProps): JSX.Element => {
+  // used to track the initial mount of the component.
+  const isInitialRender = useRef(true);
+
   const { isOnlyObserver } = useContext(AppContext);
 
   const columns = useMemo(() => {
@@ -153,6 +167,7 @@ const DataTable = ({
       initialState: {
         sortBy: initialSortBy,
         pageIndex: defaultPageIndex,
+        selectedRowIds: defaultSelectedRows,
       },
       disableMultiSort: true,
       disableSortRemove: true,
@@ -258,12 +273,16 @@ const DataTable = ({
   }, [isClientSideFilter, onResultsCountChange, rows.length]);
 
   useEffect(() => {
-    console.log(searchQuery);
-    if (isClientSideFilter && searchQueryColumn) {
-      console.log("resetting selected rows");
-      toggleAllRowsSelected(false); // Resets row selection on query change (client-side)
+    if (!isInitialRender.current && isClientSideFilter && searchQueryColumn) {
       setDebouncedClientFilter(searchQueryColumn, searchQuery || "");
     }
+
+    // we only want to reset the selected rows if we are not persisting them
+    // across table data filters
+    if (!isInitialRender.current && !persistSelectedRows) {
+      toggleAllRowsSelected(false); // Resets row selection on query change (client-side)
+    }
+    isInitialRender.current = false;
   }, [searchQuery, searchQueryColumn]);
 
   useEffect(() => {
@@ -296,7 +315,7 @@ const DataTable = ({
 
   useEffect(() => {
     if (isAllPagesSelected) {
-      // toggleAllRowsSelected(true);
+      toggleAllRowsSelected(true);
     }
   }, [isAllPagesSelected, toggleAllRowsSelected]);
 

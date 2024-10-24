@@ -39,6 +39,7 @@ interface ITableContainerProps<T = any> {
   defaultSortDirection?: string;
   defaultSearchQuery?: string;
   defaultPageIndex?: number;
+  defaultSelectedRows?: Record<string, boolean>;
   /** Button visible above the table container next to search bar */
   actionButton?: IActionButtonProps;
   inputPlaceHolder?: string;
@@ -104,6 +105,8 @@ interface ITableContainerProps<T = any> {
    * bar and API call so TableContainer will reset its page state to 0  */
   resetPageIndex?: boolean;
   disableTableHeader?: boolean;
+  /** Set to true to persist the row selections across table data filters */
+  persistSelectedRows?: boolean;
   /** handler called when the  `clear selection` button is called */
   onClearSelection?: () => void;
 }
@@ -123,6 +126,7 @@ const TableContainer = <T,>({
   defaultPageIndex = DEFAULT_PAGE_INDEX,
   defaultSortHeader = "name",
   defaultSortDirection = "asc",
+  defaultSelectedRows,
   inputPlaceHolder = "Search",
   additionalQueries,
   resultsTitle,
@@ -161,6 +165,7 @@ const TableContainer = <T,>({
   setExportRows,
   resetPageIndex,
   disableTableHeader,
+  persistSelectedRows,
   onClearSelection = noop,
 }: ITableContainerProps<T>) => {
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
@@ -501,6 +506,7 @@ const TableContainer = <T,>({
                 resultsTitle={resultsTitle}
                 defaultPageSize={pageSize}
                 defaultPageIndex={defaultPageIndex}
+                defaultSelectedRows={defaultSelectedRows}
                 primarySelectAction={primarySelectAction}
                 secondarySelectActions={secondarySelectActions}
                 onSelectSingleRow={onSelectSingleRow}
@@ -519,6 +525,7 @@ const TableContainer = <T,>({
                 }
                 setExportRows={setExportRows}
                 onClearSelection={onClearSelection}
+                persistSelectedRows={persistSelectedRows}
               />
             </div>
           </>
