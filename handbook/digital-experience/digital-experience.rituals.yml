@@ -221,3 +221,13 @@
   description: "Log into the \"Integrations admin\" account in Salesforce and change the password to prevent a password change being required by Salesforce."
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#change-the-integrations-admin-salesforce-account-password"
   dri: "eashaw"
+-
+  task: "Check GitHub/GitLab terms"
+  startedOn: "2023-10-24"
+  frequency: "Annually"
+  description: "Check GitHub's terms to make sure the “inbound=outbound” clause is unchanged."
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-github-terms"
+  dri: "hollidayn"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"

@@ -1010,7 +1010,7 @@ module.exports = {
         });
 
         let githubLabelsToCheck = {};
-        let KNOWN_AUTOMATABLE_FREQUENCIES = ['Daily', 'Weekly', 'Triweekly', 'Monthly'];
+        let KNOWN_AUTOMATABLE_FREQUENCIES = ['Daily', 'Weekly', 'Triweekly', 'Monthly', 'Annually'];
         // Process each rituals YAML file. These will be added to the builtStaticContent as JSON
         for(let ritualsYamlFilePath of ritualTablesYamlFiles){
           // Get this rituals.yml file's parent folder name, we'll use this as the key for this section's rituals in the ritualsTables dictionary

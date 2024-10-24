@@ -46,6 +46,8 @@ module.exports = {
           ritualsFrequencyInMs = 1000 * 60 * 60 * 24 * 7 * 2;
         } else if(ritual.frequency === 'Triweekly'){
           ritualsFrequencyInMs = 1000 * 60 * 60 * 24 * 7 * 3;
+        } else if (ritual.frequency === 'Annually') {
+          ritualsFrequencyInMs = 1000 * 60 * 60 * 24 * 365;
         } else if (ritual.frequency === 'Monthly') {
           // For monthly rituals, we will create issues on the day of the month that the ritual was started on, or the last day of the month if the ritual was started on a day that doesn't exist in the current month
           // (e.g, the next issue for a monthly ritual started on 2024-01-31 would be created for on 2024-02-29)
@@ -66,7 +68,18 @@ module.exports = {
         }//ﬁ
 
         // Determine if we should create an issue for non-monthly rituals.
-        if(ritual.frequency !== 'Monthly') {
+        if(ritual.frequency === 'Annually') {
+          // Create a date of when the ritual started
+          let ritualStartedOn = new Date(ritual.startedOn);
+          let dayToCreateIssueOn = ritualStartedOn.getUTCDate();
+          let monthToCreateIssueOn = ritualStartedOn.getUTCMonth();
+
+          // Check if today's month and day match the ritual's start date
+          if (now.getUTCDate() === dayToCreateIssueOn && now.getUTCMonth() === monthToCreateIssueOn) {
+            isItTimeToCreateANewIssue = true;
+          }
+          nextIssueShouldBeCreatedAt = new Date(now.getUTCFullYear() + 1, monthToCreateIssueOn, dayToCreateIssueOn);
+        } else if(ritual.frequency !== 'Monthly') {
           // Get a JS timestamp representing 12 PM UTC of the day this script is running.
           let twelveHoursInMs = 1000 * 60 * 60 * 12;
           let lastUTCNoonAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12, 0, 0, 0)).getTime();
