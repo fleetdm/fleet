@@ -60,13 +60,13 @@ parasails.registerPage('software', {
       }
     },
     clickOpenEditModal: async function(software) {
-      this.softwareToEdit = _.clone(software);
+      this.softwareToEdit = _.cloneDeep(software);
       this.formData.newTeamIds = _.pluck(this.softwareToEdit.teams, 'fleetApid');
       this.formData.software = software;
-      this.formData.preInstallQuery = software.preInstallQuery;
-      this.formData.installScript = software.installScript;
-      this.formData.postInstallScript = software.postInstallScript;
-      this.formData.uninstallScript = software.uninstallScript;
+      this.formData.preInstallQuery = this.softwareToEdit.preInstallQuery;
+      this.formData.installScript = this.softwareToEdit.installScript;
+      this.formData.postInstallScript = this.softwareToEdit.postInstallScript;
+      this.formData.uninstallScript = this.softwareToEdit.uninstallScript;
       this.modal = 'edit-software';
     },
     clickOpenDeleteModal: async function(software) {
@@ -108,9 +108,11 @@ parasails.registerPage('software', {
       this.softwareToDisplay = softwareOnThisTeam;
     },
     handleSubmittingEditSoftwareForm: async function() {
-      let argins = _.clone(this.formData);
-      if(argins.newTeamIds === [undefined]){
-        argins.newTeamIds = [];
+      let argins = _.cloneDeep(this.formData);
+      if(argins.newTeamIds[0] === undefined){
+        argins.newTeamIds = undefined;
+      } else {
+        argins.newTeamIds = _.uniq(argins.newTeamIds);
       }
       await Cloud.editSoftware.with(argins);
       if(!this.cloudError) {
