@@ -8538,6 +8538,8 @@ Uploads a script, making it available to run on hosts assigned to the specified 
 | ----            | ------- | ---- | --------------------------------------------     |
 | script          | file    | form | **Required**. The file containing the script.    |
 | team_id         | integer | form | _Available in Fleet Premium_. The team ID. If specified, the script will only be available to hosts assigned to this team. If not specified, the script will only be available to hosts on **no team**.  |
+| platforms       | array   | form | A list of platforms that the script will be available to run. For `.sh` you can specify `macos`, `linux`, or both. For `.ps1` file, the default platform is `windows`. |
+
 
 #### Example
 
@@ -8557,6 +8559,10 @@ Content-Type: multipart/form-data; boundary=------------------------f02md47480un
 Content-Disposition: form-data; name="team_id"
 
 1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="platforms"
+
+macos
 --------------------------f02md47480und42y
 Content-Disposition: form-data; name="script"; filename="myscript.sh"
 Content-Type: application/octet-stream
@@ -8623,6 +8629,7 @@ Deletes an existing script.
       "id": 1,
       "team_id": null,
       "name": "script_1.sh",
+      "platforms" ["macos"],
       "created_at": "2023-07-30T13:41:07Z",
       "updated_at": "2023-07-30T13:41:07Z"
     },
@@ -8630,6 +8637,15 @@ Deletes an existing script.
       "id": 2,
       "team_id": null,
       "name": "script_2.sh",
+      "platforms" ["macos", "linux"],
+      "created_at": "2023-08-30T13:41:07Z",
+      "updated_at": "2023-08-30T13:41:07Z"
+    }
+{
+      "id": 3,
+      "team_id": null,
+      "name": "script_2.ps1",
+      "platforms" ["windows"],
       "created_at": "2023-08-30T13:41:07Z",
       "updated_at": "2023-08-30T13:41:07Z"
     }
