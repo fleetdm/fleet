@@ -165,9 +165,35 @@ Testing requires a test Mac that is present in your Apple Business Manager (ABM)
 
 4. Boot up your test Mac and complete the custom out-of-the-box setup experience.
 
-## Install software
+## Software and script
 
-## Run script
+You can configure software installations and a script to be executed during Setup Assistant. This capability allows you to configure your end users' machines during the unboxing experience, speeding up their onboarding and reducing setup time.
+
+If you configure software and/or a script for setup experience, users will see a window like this pop open after their device enrolls in MDM via ADE:
+
+![screen shot of Fleet setup experience window](../website/assets/images/install-software-preview.png)
+
+This window shows the status of the software installations as well as the script exectution. Once all steps have completed, the window can be closed and Setup Assistant will proceed as usual.
+
+### Install software
+
+To configure software to be installed during setup experience:
+
+1. Click on the "Controls" tab in the main navigation bar. Click on "Setup experience", and then on "4. Install software".
+
+2. Click the "Add software" button. In the modal, select the software that you want to have installed during the setup experience. You can search the list of software by using the search bar in the upper right of the modal. Click "Save" to save your selection and close the modal. **Note**: only custom installers and App Store (VPP) apps are able to be installed during setup experience.
+
+3. Boot up your test Mac and verify that the software is installed. You should see a window pop up after MDM enrollment that will show the status of each of the software installs.
+
+### Run script
+
+To configure a script to run during setup experience:
+
+1. Click on the "Controls" tab in the main navigation bar. Click on "Setup experience", and then on "5. Run script".
+
+2. Click "Upload" and select a script (.sh file) from the file picker modal. Once the script is uploaded, you can use the buttons on the script in the web UI to download or delete the script.
+
+3. Boot up your test Mac and verify that the script runs. You should see a window pop up after MDM enrollment that will show the status of the script execution. **Note**: the setup experience script will run last, after all other steps have completed.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
