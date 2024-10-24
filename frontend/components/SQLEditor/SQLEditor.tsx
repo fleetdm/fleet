@@ -1,7 +1,8 @@
 import React, { ReactNode, useCallback, useRef } from "react";
-import AceEditor from "react-ace";
-import ReactAce from "react-ace/lib/ace";
-import { IAceEditor } from "react-ace/lib/types";
+// import AceEditor from "react-ace";
+import AceEditor from "react-ace-12";
+import ReactAce from "react-ace-12/lib/ace";
+import { IAceEditor } from "react-ace-12/lib/types";
 import classnames from "classnames";
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/ext-linking";
@@ -40,7 +41,7 @@ export interface ISQLEditorProps {
   helpText?: ReactNode;
   labelActionComponent?: React.ReactNode;
   style?: React.CSSProperties;
-  onBlur?: (editor?: IAceEditor) => void;
+  onBlur?: (event: any, editor?: IAceEditor) => void;
   onLoad?: (editor: IAceEditor) => void;
   onChange?: (value: string) => void;
   handleSubmit?: () => void;
@@ -218,7 +219,7 @@ const SQLEditor = ({
   };
 
   const onBlurHandler = (event: any, editor?: IAceEditor): void => {
-    onBlur && onBlur(editor);
+    onBlur && onBlur(event, editor);
   };
 
   const handleDelete = (deleteCommand: string) => {
