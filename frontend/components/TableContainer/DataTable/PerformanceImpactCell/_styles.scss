@@ -7,7 +7,7 @@
 .data-table__pill {
   color: $core-fleet-black;
   font-weight: $bold;
-  padding: 4px 12px;
+  padding: $pad-xsmall $pad-icon-minus;
   border-radius: 29px;
 
   span {

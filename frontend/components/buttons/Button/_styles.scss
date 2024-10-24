@@ -147,7 +147,7 @@ $base-class: "button";
     border: 1px solid $core-vibrant-blue;
     box-sizing: border-box;
     font-size: $xx-small;
-    padding: $pad-xsmall 10px;
+    padding: $pad-xsmall $pad-small-plus;
     height: 24px;
     white-space: nowrap;
 
@@ -282,7 +282,7 @@ $base-class: "button";
   &--small-text-icon {
     @include button-variant(transparent);
     margin-left: $pad-medium;
-    padding: 4px;
+    padding: $pad-xsmall;
     border: 1px solid $ui-fleet-black-25;
     box-shadow: none;
     color: $core-fleet-black;
@@ -379,7 +379,7 @@ $base-class: "button";
     color: $core-fleet-black;
     cursor: pointer;
     margin: 0;
-    padding: 15px 12px;
+    padding: $pad-icon-plus $pad-icon-minus;
     height: auto;
     line-height: normal;
     display: block;

@@ -4,7 +4,7 @@
   border: solid 1px $ui-fleet-black-10;
   border-radius: 4px;
   font-size: $small;
-  padding: 7px 12px;
+  padding: $pad-small-minus $pad-icon-minus;
   color: $core-fleet-blue;
   font-family: "Inter", sans-serif;
   box-sizing: border-box;
@@ -116,7 +116,7 @@
     background-color: $ui-light-grey;
     border: solid 1px $ui-fleet-black-10;
     border-radius: $border-radius-xlarge;
-    padding: $pad-xxsmall 6px;
+    padding: $pad-xxsmall $pad-xsmall-plus;
     top: 50%;
     transform: translateY(-50%);
   }

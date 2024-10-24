@@ -148,12 +148,12 @@ $shadow-transition-width: 10px;
       border-radius: 6px;
 
       &__checkbox {
-        padding: 16px;
+        padding: $pad-medium;
         width: 20px;
       }
 
       &__container {
-        padding: 0 24px;
+        padding: 0 $pad-large;
       }
 
       &__inner {
@@ -318,7 +318,7 @@ $shadow-transition-width: 10px;
 
     button {
       color: $core-vibrant-blue;
-      padding: 6px;
+      padding: $pad-xsmall-plus;
       font-weight: $bold;
 
       .fleeticon-chevronleft {

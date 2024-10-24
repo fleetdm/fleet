@@ -1,5 +1,5 @@
 .dashboard-info-card {
-  padding: 32px;
+  padding: $pad-xlarge;
   width: 100%;
   background-color: $core-white;
   border: 1px solid $ui-fleet-black-10;
@@ -25,7 +25,7 @@
       color: $core-white;
       font-size: $xx-small;
       font-weight: $bold;
-      padding: 2px 4px;
+      padding: $pad-xxsmall $pad-xsmall;
       border-radius: 4px;
       position: relative;
     }

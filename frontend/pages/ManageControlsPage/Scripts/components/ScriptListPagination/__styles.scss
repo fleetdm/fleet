@@ -10,7 +10,7 @@
   &__button {
     color: $core-vibrant-blue;
     vertical-align: bottom;
-    padding: 6px;
+    padding: $pad-xsmall-plus;
 
     .fleeticon-chevronleft,
     .fleeticon-chevronright {

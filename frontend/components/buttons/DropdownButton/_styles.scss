@@ -1,5 +1,5 @@
 .dropdown-button {
-  padding: 8px 24px 8px 0;
+  padding: $pad-small $pad-large $pad-small 0;
   &__wrapper {
     display: flex;
     position: relative;
@@ -39,7 +39,7 @@
       font-weight: $regular;
       margin: 0;
       border-radius: 0;
-      padding: 0 10px;
+      padding: 0 $pad-small-plus;
       white-space: nowrap;
       width: 100%;
       font-size: $x-small-plus;
@@ -55,7 +55,7 @@
   }
 
   &.story {
-    padding-left: 100px;
+    padding-left: $pad-jumbo;
   }
 }
 
@@ -66,7 +66,7 @@
     width: 16px;
     border-radius: 0px;
     padding: 0px;
-    padding-left: 2px;
+    padding-left: $pad-xxsmall;
     margin-top: 1px;
   }
 }

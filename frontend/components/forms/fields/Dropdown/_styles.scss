@@ -234,7 +234,7 @@
     color: $core-fleet-black;
     font-size: $x-small;
     margin: 0;
-    padding: 10px;
+    padding: $pad-small-plus;
     display: block;
 
     &.is-focused {
@@ -328,7 +328,7 @@
     }
 
     .Select-value-label {
-      padding: 0 0 0 10px;
+      padding: 0 0 0 $pad-small-plus;
     }
   }
 

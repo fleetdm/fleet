@@ -114,7 +114,7 @@
     // tab styling and not change the tabs inside the cards.
     > .react-tabs > .react-tabs__tab-list {
       .react-tabs__tab {
-        padding: 6px 0px 16px 0px;
+        padding: $pad-xsmall-plus 0px $pad-medium 0px;
         margin-right: $pad-xxlarge;
       }
       .react-tabs__tab--selected {

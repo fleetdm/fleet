@@ -2,7 +2,7 @@
   &__label {
     display: inline-flex;
     align-items: center;
-    padding: 6px 12px;
+    padding: $pad-xsmall-plus $pad-icon-minus;
     border: 1px solid $ui-fleet-black-25;
     border-radius: $border-radius;
     box-shadow: none;

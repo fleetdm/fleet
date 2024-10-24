@@ -39,7 +39,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding-left: 10px;
+    padding-left: $pad-small-plus;
   }
 
   &__copy-message {

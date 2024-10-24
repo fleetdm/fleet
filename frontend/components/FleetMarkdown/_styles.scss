@@ -4,11 +4,11 @@
   ul {
     // We need 20px here to keep the list items in line with the left side of
     // the container.
-    padding-left: 20px;
+    padding-left: $pad-medium-plus;
   }
 
   pre {
-    padding: 12px;
+    padding: $pad-icon-minus;
     border: 1px solid $ui-blue-gray;
     background-color: $ui-light-grey; // copy fleet ace background color
 

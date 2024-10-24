@@ -19,7 +19,7 @@
     .data-table__pill {
       font-size: $xxx-small;
       font-weight: $bold;
-      padding: 6px 12px;
+      padding: $pad-xsmall-plus $pad-icon-minus;
 
       .__react_component_tooltip {
         @include tooltip-text;

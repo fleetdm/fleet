@@ -10,8 +10,8 @@
     background-color: transparent;
     border: 1px solid $ui-fleet-black-10;
     border-radius: 4px;
-    padding: 4px;
-    padding-left: 32px;
+    padding: $pad-xsmall;
+    padding-left: $pad-xlarge;
   }
 
   .search-field__input-wrapper {

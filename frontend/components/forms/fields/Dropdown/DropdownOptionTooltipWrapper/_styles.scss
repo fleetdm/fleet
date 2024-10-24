@@ -7,7 +7,7 @@
   }
   .dropdown-option-tooltip-wrapper__element {
     // for broader tooltip activation area, equally increase padding and decrease margin
-    padding: 8px;
+    padding: $pad-small;
     margin: -8px;
     width: 100%;
   }

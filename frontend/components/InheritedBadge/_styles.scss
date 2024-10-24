@@ -6,7 +6,7 @@
     line-height: 15px;
     border-radius: 4px;
     background: $ui-vibrant-blue-10;
-    padding: 4px;
+    padding: $pad-xsmall;
   }
 
   @include tooltip5-arrow-styles;
