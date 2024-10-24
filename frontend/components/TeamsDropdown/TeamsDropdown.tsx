@@ -72,7 +72,6 @@ const TeamsDropdown = ({
     disabled: isDisabled || undefined,
   });
 
-  console.log("coolBeans");
   const renderDropdown = () => {
     if (teamOptions.length) {
       return (
