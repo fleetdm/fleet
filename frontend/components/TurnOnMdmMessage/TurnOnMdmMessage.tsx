@@ -14,9 +14,15 @@ interface ITurnOnMdmMessageProps {
   header?: string;
   /** Default: MDM must be turned on to change settings on your hosts. */
   info?: string;
+  buttonText?: string;
 }
 
-const TurnOnMdmMessage = ({ router, header, info }: ITurnOnMdmMessageProps) => {
+const TurnOnMdmMessage = ({
+  router,
+  header,
+  info,
+  buttonText = "Turn on",
+}: ITurnOnMdmMessageProps) => {
   const { isGlobalAdmin } = useContext(AppContext);
 
   const onConnectClick = () => {
@@ -30,7 +36,7 @@ const TurnOnMdmMessage = ({ router, header, info }: ITurnOnMdmMessageProps) => {
         onClick={onConnectClick}
         className={`${baseClass}__connectAPC-button`}
       >
-        Turn on
+        {buttonText}
       </Button>
     ) : (
       <></>
@@ -39,6 +45,7 @@ const TurnOnMdmMessage = ({ router, header, info }: ITurnOnMdmMessageProps) => {
 
   return (
     <EmptyTable
+      className={baseClass}
       header={header || "Manage your hosts"}
       info={info || "MDM must be turned on to change settings on your hosts."}
       primaryButton={renderConnectButton()}

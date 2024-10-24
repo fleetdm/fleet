@@ -3686,6 +3686,8 @@ _Available in Fleet Premium_
 
 ### Turn off MDM for a host
 
+Turns off MDM for the specified macOS host.
+
 `DELETE /api/v1/fleet/hosts/:id/mdm`
 
 #### Parameters
@@ -5865,7 +5867,7 @@ Learn more about OTA profiles [here](https://developer.apple.com/library/archive
 
 ```http
   Content-Length: 542
-  Content-Type: application/x-apple-aspen-config; charset=urf-8
+  Content-Type: application/x-apple-aspen-config; charset=utf-8
   Content-Disposition: attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"
   X-Content-Type-Options: nosniff
 ```
@@ -7166,6 +7168,8 @@ Team policies work the same as policies, but at the team level.
 
 ### Add team policy
 
+> **Experimental feature**. Software related features (like install software policy automation) are undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 The semantics for creating a team policy are the same as for global policies, see [Add policy](#add-policy).
 
 `POST /api/v1/fleet/teams/:id/policies`
@@ -7273,6 +7277,8 @@ Either `query` or `query_id` must be provided.
 ```
 
 ### Edit team policy
+
+> **Experimental feature**. Software related features (like install software policy automation) are undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 `PATCH /api/v1/fleet/teams/:team_id/policies/:policy_id`
 

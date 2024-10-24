@@ -26,7 +26,7 @@ Current supported software deployment formats:
 Coming soon:
 - VPP for iOS and iPadOS
 
-2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go to Policies tab --> Press the top right "Add policy" button. --> Click "create your own policy" --> Enter your policy SQL --> Save --> Fill in details in the Save modal and Save.
+2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go to Policies tab --> Press the "Add policy" button --> Click "create your own policy" --> Enter your policy SQL --> Save --> Fill in details in the Save modal and Save.
 
 ```sql
 SELECT 1 FROM apps WHERE name = 'Adobe Acrobat Reader.app' AND version_compare(bundle_short_version, '23.001.20687') >= 0;
