@@ -49,7 +49,7 @@
 
     > h1 {
       display: inline;
-      font-size: 32px;
+      font-size: $xx-large;
       max-width: 479px;
       color: $core-fleet-black;
 
@@ -59,7 +59,7 @@
     }
 
     > h2 {
-      font-size: 36px;
+      font-size: $xxx-large;
       margin: 13px 0 $pad-xlarge;
     }
   }

@@ -114,7 +114,7 @@
       &::after {
         @extend %fleeticon;
         content: "\f03c";
-        font-size: 150px;
+        font-size: $x-jumbo;
         position: absolute;
         left: 50%;
         top: 50%;
@@ -195,7 +195,7 @@
       .Select-menu {
         &::after {
           content: "\f049";
-          font-size: 180px;
+          font-size: $xx-jumbo;
           margin-top: -90px;
           color: $ui-gray;
         }
