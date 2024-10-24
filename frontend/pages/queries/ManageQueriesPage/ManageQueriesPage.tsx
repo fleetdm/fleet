@@ -22,7 +22,7 @@ import {
 } from "interfaces/schedulable_query";
 import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
-import queriesAPI from "services/entities/queries";
+import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 import PATHS from "router/paths";
 import { DEFAULT_QUERY } from "utilities/constants";
 import { checkPlatformCompatibility } from "utilities/sql_tools";
@@ -36,6 +36,8 @@ import QueriesTable from "./components/QueriesTable";
 import DeleteQueryModal from "./components/DeleteQueryModal";
 import ManageQueryAutomationsModal from "./components/ManageQueryAutomationsModal/ManageQueryAutomationsModal";
 import PreviewDataModal from "./components/PreviewDataModal/PreviewDataModal";
+
+const DEFAULT_PAGE_SIZE = 20;
 
 const baseClass = "manage-queries-page";
 interface IManageQueriesPageProps {
@@ -118,45 +120,51 @@ const ManageQueriesPage = ({
   const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
-  const [queriesAvailableToAutomate, setQueriesAvailableToAutomate] = useState<
-    IEnhancedQuery[] | []
-  >([]);
+
+  const curPageFromURL = location.query.page
+    ? parseInt(location.query.page, 10)
+    : 0;
 
   const {
-    data: enhancedQueries,
+    data: queriesResponse,
     error: queriesError,
     isFetching: isFetchingQueries,
     refetch: refetchQueries,
   } = useQuery<
-    IEnhancedQuery[],
+    IQueriesResponse,
     Error,
-    IEnhancedQuery[],
+    IQueriesResponse,
     IQueryKeyQueriesLoadAll[]
   >(
-    [{ scope: "queries", teamId: teamIdForApi }],
-    ({ queryKey: [{ teamId }] }) =>
-      queriesAPI
-        .loadAll(teamId, teamId !== API_ALL_TEAMS_ID)
-        .then(({ queries }) => queries.map(enhanceQuery)),
+    [
+      {
+        scope: "queries",
+        teamId: teamIdForApi,
+        page: curPageFromURL,
+        perPage: DEFAULT_PAGE_SIZE,
+        query: location.query.query,
+        orderDirection: location.query.order_direction,
+        orderKey: location.query.order_key,
+        mergeInherited: teamIdForApi !== API_ALL_TEAMS_ID,
+      },
+    ],
+    ({ queryKey }) => queriesAPI.loadAll(queryKey[0]),
     {
       refetchOnWindowFocus: false,
       enabled: isRouteOk,
       staleTime: 5000,
-      onSuccess: (data) => {
-        if (data) {
-          const enhancedAllQueries = data.map(enhanceQuery);
-
-          const allQueriesAvailableToAutomate = teamIdForApi
-            ? enhancedAllQueries.filter(
-                (query: IEnhancedQuery) => query.team_id === currentTeamId
-              )
-            : enhancedAllQueries;
-
-          setQueriesAvailableToAutomate(allQueriesAvailableToAutomate);
-        }
-      },
     }
   );
+
+  // select: ({ queries }) => queries.map(enhanceQuery),
+  const enhancedQueries = queriesResponse?.queries.map(enhanceQuery);
+
+  const queriesAvailableToAutomate =
+    (teamIdForApi
+      ? enhancedQueries?.filter(
+          (query: IEnhancedQuery) => query.team_id === currentTeamId
+        )
+      : enhancedQueries) ?? [];
 
   const onlyInheritedQueries = useMemo(() => {
     if (teamIdForApi === API_ALL_TEAMS_ID) {
@@ -166,11 +174,9 @@ const ManageQueriesPage = ({
     return !enhancedQueries?.some((query) => query.team_id === teamIdForApi);
   }, [teamIdForApi, enhancedQueries]);
 
-  const automatedQueryIds = useMemo(() => {
-    return queriesAvailableToAutomate
-      .filter((query) => query.automations_enabled)
-      .map((query) => query.id);
-  }, [queriesAvailableToAutomate]);
+  const automatedQueryIds = queriesAvailableToAutomate
+    .filter((query) => query.automations_enabled)
+    .map((query) => query.id);
 
   useEffect(() => {
     const path = location.pathname + location.search;
@@ -269,9 +275,17 @@ const ManageQueriesPage = ({
     if (queriesError) {
       return <TableDataError />;
     }
+
+    // TODO - coordinate these properties with useQuery and the below table
+    // page: tableQueryData?.pageIndex,
+    // perPage: DEFAULT_PAGE_SIZE,
+    // query: searchQuery,
+    // orderDirection: orderBy,
+    // orderKey: orderKey,
     return (
       <QueriesTable
-        queriesList={enhancedQueries || []}
+        queries={enhancedQueries || []}
+        totalQueriesCount={queriesResponse?.count}
         onlyInheritedQueries={onlyInheritedQueries}
         isLoading={isFetchingQueries}
         onCreateQueryClick={onCreateQueryClick}
@@ -282,6 +296,8 @@ const ManageQueriesPage = ({
         router={router}
         queryParams={queryParams}
         currentTeamId={teamIdForApi}
+        // on PoliciesTable, this is passed down and set as TableContainer.defaultPageIndex - TBD if necessary?
+        // page={page}
       />
     );
   };
@@ -327,7 +343,12 @@ const ManageQueriesPage = ({
         setIsUpdatingAutomations(false);
       }
     },
-    [refetchQueries, automatedQueryIds, toggleManageAutomationsModal]
+    [
+      automatedQueryIds,
+      renderFlash,
+      refetchQueries,
+      toggleManageAutomationsModal,
+    ]
   );
 
   const renderModals = () => {

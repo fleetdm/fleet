@@ -1,3 +1,4 @@
+// TODO - update these tests
 import React from "react";
 
 import { screen, waitFor } from "@testing-library/react";
@@ -146,7 +147,8 @@ describe("QueriesTable", () => {
   it("Renders the page-wide empty state when no queries are present", () => {
     const testData: IQueriesTableProps[] = [
       {
-        queriesList: [],
+        queries: [],
+        totalQueriesCount: 0,
         onlyInheritedQueries: false,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
@@ -169,7 +171,8 @@ describe("QueriesTable", () => {
   it("Renders inherited global queries and team queries when viewing a team, then renders the 'no-matching' empty state when a search string is entered that matches no queries", async () => {
     const testData: IQueriesTableProps[] = [
       {
-        queriesList: [...testGlobalQueries, ...testTeamQueries],
+        queries: [...testGlobalQueries, ...testTeamQueries],
+        totalQueriesCount: 4,
         onlyInheritedQueries: false,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
@@ -228,7 +231,8 @@ describe("QueriesTable", () => {
 
     const { user } = render(
       <QueriesTable
-        queriesList={testQueries}
+        queries={testQueries}
+        totalQueriesCount={1}
         onlyInheritedQueries={false}
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
@@ -267,7 +271,8 @@ describe("QueriesTable", () => {
 
     const { user } = render(
       <QueriesTable
-        queriesList={testQueries}
+        queries={testQueries}
+        totalQueriesCount={1}
         onlyInheritedQueries={false}
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
@@ -305,7 +310,8 @@ describe("QueriesTable", () => {
 
     render(
       <QueriesTable
-        queriesList={testQueries}
+        queries={testQueries}
+        totalQueriesCount={1}
         onlyInheritedQueries={false}
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
@@ -332,7 +338,8 @@ describe("QueriesTable", () => {
 
     const { container, user } = render(
       <QueriesTable
-        queriesList={[...testTeamQueries, ...testGlobalQueries]}
+        queries={[...testTeamQueries, ...testGlobalQueries]}
+        totalQueriesCount={4}
         onlyInheritedQueries={false}
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
