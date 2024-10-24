@@ -476,9 +476,6 @@ const DataTable = ({
     "is-observer": isOnlyObserver,
   });
 
-  console.log("rows", rows);
-  console.log("selectedFlatRows", selectedFlatRows);
-  console.log("selectedRowIds", selectedRowIds);
   return (
     <div className={baseClass}>
       {isLoading && (
