@@ -26,4 +26,9 @@ export const COLORS = {
   "status-success": "#3DB67B",
   "status-warning": "#F8CD6B",
   "status-error": "#ED6E85",
+
+  "core-vibrant-blue-over": "#5d5ae7",
+  "core-vibrant-blue-down": "#4b4ab4",
+  "ui-vibrant-blue-25": "#d9d9fe",
+  "ui-vibrant-blue-10": "#f1f0ff",
 };

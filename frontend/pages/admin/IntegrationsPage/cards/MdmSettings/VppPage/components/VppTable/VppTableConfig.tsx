@@ -6,7 +6,7 @@ import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import ActionsDropdown from "components/ActionsDropdown";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 
 import RenewDateCell from "../../../components/RenewDateCell";
@@ -104,7 +104,7 @@ export const generateTableConfig = (
       // but we don't use it.
       accessor: "id",
       Cell: (cellProps) => (
-        <DropdownCell
+        <ActionsDropdown
           options={generateActions()}
           onChange={(value: string) =>
             actionSelectHandler(value, cellProps.row.original)

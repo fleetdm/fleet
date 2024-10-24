@@ -23,7 +23,7 @@ import PATHS from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
-import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import ActionsDropdown from "components/ActionsDropdown";
 
 import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCell";
 import VersionCell from "pages/SoftwarePage/components/VersionCell";
@@ -237,7 +237,7 @@ export const generateSoftwareTableHeaders = ({
         } = original;
 
         return (
-          <DropdownCell
+          <ActionsDropdown
             placeholder="Actions"
             options={generateActions({
               userHasSWWritePermission,

@@ -85,6 +85,7 @@ const TeamsDropdown = ({
           onChange={onChange}
           onOpen={onOpen}
           onClose={onClose}
+          tabIndex={0}
         />
       );
     }
