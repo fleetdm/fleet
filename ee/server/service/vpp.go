@@ -85,6 +85,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}}...)
 	}
 
+	if dryRun {
+		// On dry runs return early because the VPP token might not exist yet
+		// and we don't want to apply the VPP apps.
+		return nil
+	}
+
 	var vppAppTeams []fleet.VPPAppTeam
 	// Don't check for token if we're only disassociating assets
 	if len(payloads) > 0 {
@@ -128,35 +134,33 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 	}
 
-	if !dryRun {
-		if len(vppAppTeams) > 0 {
-			apps, err := getVPPAppsMetadata(ctx, vppAppTeams)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "refreshing VPP app metadata")
-			}
-			if len(apps) == 0 {
-				return fleet.NewInvalidArgumentError("app_store_apps",
-					"no valid apps found matching the provided app store IDs and platforms")
-			}
-
-			if err := svc.ds.BatchInsertVPPApps(ctx, apps); err != nil {
-				return ctxerr.Wrap(ctx, err, "inserting vpp app metadata")
-			}
-			// Filter out the apps with invalid platforms
-			if len(apps) != len(vppAppTeams) {
-				vppAppTeams = make([]fleet.VPPAppTeam, 0, len(apps))
-				for _, app := range apps {
-					vppAppTeams = append(vppAppTeams, app.VPPAppTeam)
-				}
-			}
-
+	if len(vppAppTeams) > 0 {
+		apps, err := getVPPAppsMetadata(ctx, vppAppTeams)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "refreshing VPP app metadata")
 		}
-		if err := svc.ds.SetTeamVPPApps(ctx, &team.ID, vppAppTeams); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "no vpp token to set team vpp assets"), http.StatusUnprocessableEntity)
-			}
-			return ctxerr.Wrap(ctx, err, "set team vpp assets")
+		if len(apps) == 0 {
+			return fleet.NewInvalidArgumentError("app_store_apps",
+				"no valid apps found matching the provided app store IDs and platforms")
 		}
+
+		if err := svc.ds.BatchInsertVPPApps(ctx, apps); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting vpp app metadata")
+		}
+		// Filter out the apps with invalid platforms
+		if len(apps) != len(vppAppTeams) {
+			vppAppTeams = make([]fleet.VPPAppTeam, 0, len(apps))
+			for _, app := range apps {
+				vppAppTeams = append(vppAppTeams, app.VPPAppTeam)
+			}
+		}
+
+	}
+	if err := svc.ds.SetTeamVPPApps(ctx, &team.ID, vppAppTeams); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "no vpp token to set team vpp assets"), http.StatusUnprocessableEntity)
+		}
+		return ctxerr.Wrap(ctx, err, "set team vpp assets")
 	}
 
 	return nil
