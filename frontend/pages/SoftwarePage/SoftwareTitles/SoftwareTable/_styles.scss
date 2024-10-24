@@ -78,20 +78,6 @@
     &__data-table-block {
       .data-table-block {
         .data-table__table {
-          // for showing and hiding "view all hosts" link on hover
-          tr {
-            .software-link {
-              opacity: 0;
-              transition: opacity 250ms;
-            }
-
-            &:hover {
-              .software-link {
-                opacity: 1;
-              }
-            }
-          }
-
           thead {
             .name__header {
               width: $col-md;
