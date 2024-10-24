@@ -7612,7 +7612,7 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	require.True(t, info.DEPAssignedToFleet)
 	require.True(t, info.OsqueryEnrolled)
 
-	err = ds.DeleteHostDEPAssignments(ctx, []string{host.HardwareSerial})
+	err = ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{host.HardwareSerial})
 	require.NoError(t, err)
 	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
 	require.NoError(t, err)
@@ -7745,7 +7745,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	// simulate a failed JSON profile assignment
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
-		"foo", []string{hFleet.HardwareSerial}, string(fleet.DEPAssignProfileResponseFailed),
+		"foo", []string{hFleet.HardwareSerial}, string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
 	)
 	require.NoError(t, err)
 	loadFleet, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)

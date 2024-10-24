@@ -5620,7 +5620,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		"mdm": { "macos_migration": { "enable": true, "mode": "voluntary", "webhook_url": "https://example.com" } }
 	}`), http.StatusOK, &acResp)
 
-	s.enableABM(t.Name())
+	abmToken := s.enableABM(t.Name())
 
 	checkMigrationResponses := func(host *fleet.Host, token string) {
 		getDesktopResp := fleetDesktopResponse{}
@@ -5740,7 +5740,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
 		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
-		require.NoError(t, s.ds.DeleteHostDEPAssignments(ctx, []string{host.HardwareSerial}))
+		require.NoError(t, s.ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{host.HardwareSerial}))
 		cleanAssignmentStatus()
 
 		// simulate a "NOT_ACCESSIBLE" JSON profile assignment
@@ -5755,7 +5755,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
 		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
-		require.NoError(t, s.ds.DeleteHostDEPAssignments(ctx, []string{host.HardwareSerial}))
+		require.NoError(t, s.ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{host.HardwareSerial}))
 		cleanAssignmentStatus()
 
 		// simulate a "SUCCESS" JSON profile assignment
@@ -5925,7 +5925,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 	host := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
 	createDeviceTokenForHost(t, s.ds, host.ID, token)
 	checkMigrationResponses(host, token)
-	require.NoError(t, s.ds.DeleteHostDEPAssignments(ctx, []string{host.HardwareSerial}))
+	require.NoError(t, s.ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{host.HardwareSerial}))
 
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team-1"})
 	require.NoError(t, err)
@@ -9573,7 +9573,7 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	s.enableABM(t.Name())
 }
 
-func (s *integrationMDMTestSuite) enableABM(orgName string) {
+func (s *integrationMDMTestSuite) enableABM(orgName string) *fleet.ABMToken {
 	t := s.T()
 	var abmResp generateABMKeyPairResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &abmResp)
@@ -9659,6 +9659,7 @@ func (s *integrationMDMTestSuite) enableABM(orgName string) {
 	depClient := apple_mdm.NewDEPClient(s.depStorage, s.ds, s.logger)
 	_, err = depClient.AccountDetail(ctx, orgName)
 	require.NoError(t, err)
+	return tok
 }
 
 func (s *integrationMDMTestSuite) appleCoreCertsSetup() {

@@ -851,9 +851,13 @@ type GetMDMAppleDefaultSetupAssistantFunc func(ctx context.Context, teamID *uint
 
 type GetMatchingHostSerialsFunc func(ctx context.Context, serials []string) (map[string]*fleet.Host, error)
 
-type DeleteHostDEPAssignmentsFunc func(ctx context.Context, serials []string) error
+type DeleteHostDEPAssignmentsFromAnotherABMFunc func(ctx context.Context, abmTokenID uint, serials []string) error
 
-type UpdateHostDEPAssignProfileResponsesFunc func(ctx context.Context, resp *godep.ProfileResponse) error
+type DeleteHostDEPAssignmentsFunc func(ctx context.Context, abmTokenID uint, serials []string) error
+
+type UpdateHostDEPAssignProfileResponsesFunc func(ctx context.Context, resp *godep.ProfileResponse, abmTokenID uint) error
+
+type UpdateHostDEPAssignProfileResponsesSameABMFunc func(ctx context.Context, resp *godep.ProfileResponse) error
 
 type ScreenDEPAssignProfileSerialsForCooldownFunc func(ctx context.Context, serials []string) (skipSerialsByOrgName map[string][]string, serialsByOrgName map[string][]string, err error)
 
@@ -2355,11 +2359,17 @@ type DataStore struct {
 	GetMatchingHostSerialsFunc        GetMatchingHostSerialsFunc
 	GetMatchingHostSerialsFuncInvoked bool
 
+	DeleteHostDEPAssignmentsFromAnotherABMFunc        DeleteHostDEPAssignmentsFromAnotherABMFunc
+	DeleteHostDEPAssignmentsFromAnotherABMFuncInvoked bool
+
 	DeleteHostDEPAssignmentsFunc        DeleteHostDEPAssignmentsFunc
 	DeleteHostDEPAssignmentsFuncInvoked bool
 
 	UpdateHostDEPAssignProfileResponsesFunc        UpdateHostDEPAssignProfileResponsesFunc
 	UpdateHostDEPAssignProfileResponsesFuncInvoked bool
+
+	UpdateHostDEPAssignProfileResponsesSameABMFunc        UpdateHostDEPAssignProfileResponsesSameABMFunc
+	UpdateHostDEPAssignProfileResponsesSameABMFuncInvoked bool
 
 	ScreenDEPAssignProfileSerialsForCooldownFunc        ScreenDEPAssignProfileSerialsForCooldownFunc
 	ScreenDEPAssignProfileSerialsForCooldownFuncInvoked bool
@@ -5650,18 +5660,32 @@ func (s *DataStore) GetMatchingHostSerials(ctx context.Context, serials []string
 	return s.GetMatchingHostSerialsFunc(ctx, serials)
 }
 
-func (s *DataStore) DeleteHostDEPAssignments(ctx context.Context, serials []string) error {
+func (s *DataStore) DeleteHostDEPAssignmentsFromAnotherABM(ctx context.Context, abmTokenID uint, serials []string) error {
+	s.mu.Lock()
+	s.DeleteHostDEPAssignmentsFromAnotherABMFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostDEPAssignmentsFromAnotherABMFunc(ctx, abmTokenID, serials)
+}
+
+func (s *DataStore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID uint, serials []string) error {
 	s.mu.Lock()
 	s.DeleteHostDEPAssignmentsFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteHostDEPAssignmentsFunc(ctx, serials)
+	return s.DeleteHostDEPAssignmentsFunc(ctx, abmTokenID, serials)
 }
 
-func (s *DataStore) UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse) error {
+func (s *DataStore) UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse, abmTokenID uint) error {
 	s.mu.Lock()
 	s.UpdateHostDEPAssignProfileResponsesFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateHostDEPAssignProfileResponsesFunc(ctx, resp)
+	return s.UpdateHostDEPAssignProfileResponsesFunc(ctx, resp, abmTokenID)
+}
+
+func (s *DataStore) UpdateHostDEPAssignProfileResponsesSameABM(ctx context.Context, resp *godep.ProfileResponse) error {
+	s.mu.Lock()
+	s.UpdateHostDEPAssignProfileResponsesSameABMFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostDEPAssignProfileResponsesSameABMFunc(ctx, resp)
 }
 
 func (s *DataStore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerialsByOrgName map[string][]string, serialsByOrgName map[string][]string, err error) {
