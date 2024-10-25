@@ -10,7 +10,7 @@ In Fleet, you can customize the out-of-the-box macOS Setup Assistant with Remote
 
 * Install a bootstrap package to gain full control over the setup experience by installing tools like Puppet, Munki, DEP notify, custom scripts, and more.
 
-* Install software (App Store apps and custom packages).
+* Install software (App Store apps, custom packages, and Fleet-maintained apps).
 
 * Run a script.
 
@@ -181,7 +181,7 @@ To configure software to be installed during setup experience:
 
 1. Click on the "Controls" tab in the main navigation bar. Click on "Setup experience", and then on "4. Install software".
 
-2. Click the "Add software" button. In the modal, select the software that you want to have installed during the setup experience. You can search the list of software by using the search bar in the modal. Click "Save" to save your selection and close the modal. **Note**: only custom installers and App Store (VPP) apps are able to be installed during setup experience.
+2. Click the "Add software" button. In the modal, select the software that you want to have installed during the setup experience. You can search the list of software by using the search bar in the modal. Click "Save" to save your selection and close the modal. 
 
 ### Run script
 
