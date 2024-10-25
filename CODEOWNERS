@@ -84,25 +84,25 @@ go.mod @fleetdm/go
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
 /handbook/company/README.md                                     @mikermcneil
-/handbook/company/communications.md                             @mikermcneil
-/handbook/company/leadership.md                                 @mikermcneil
+/handbook/company/communications.md                             @sampfluger88
+/handbook/company/leadership.md                                 @sampfluger88
 /handbook/company/why-this-way.md                               @mikermcneil
 /handbook/README.md                                             @mikermcneil
 /handbook/company/open-positions.yml                            @sampfluger88
-#/handbook/company/product-groups.md                             @lukeheath Covered in custom.js
-/handbook/finance/README.md                   				    @sampfluger88
-/handbook/finance/finance.rituals.yml  							@sampfluger88
+#/handbook/company/product-groups.md                            🤡 Covered in custom.js
+/handbook/finance/README.md                   				          @sampfluger88
+/handbook/finance/finance.rituals.yml  						            	@sampfluger88
 /handbook/digital-experience/application-security.md            @lukeheath
 /handbook/digital-experience/security-audits.md                 @lukeheath
 /handbook/digital-experience/security-policies.md               @lukeheath
 /handbook/digital-experience/security.md                        @lukeheath
 /handbook/digital-experience/vendor-questionnaires.md           @lukeheath
-/handbook/digital-experience                             		@sampfluger88
-/handbook/customer-success                                		@sampfluger88
-/handbook/demand                                          		@sampfluger88
-#/handbook/engineering                                     		@sampfluger88 @lukeheath Covered in custom.js
-/handbook/sales                                           		@sampfluger88
-#/handbook/product-design                                  		@sampfluger88 Covered in custom.js
+/handbook/digital-experience                             		    @sampfluger88
+/handbook/customer-success                                		  @sampfluger88
+/handbook/demand                                          	  	@sampfluger88
+#/handbook/engineering                                     	  	🤡 Covered in custom.js
+/handbook/sales                                           	  	@sampfluger88
+#/handbook/product-design                                    		🤡 Covered in custom.js
 
 ##############################################################################################
 # 🌐 GitHub issue templates
