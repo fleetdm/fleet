@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Get labels',
 
 
-  description: '',
+  description: 'Builds and returns an array of labels on the Fleet instance.',
 
 
   exits: {
