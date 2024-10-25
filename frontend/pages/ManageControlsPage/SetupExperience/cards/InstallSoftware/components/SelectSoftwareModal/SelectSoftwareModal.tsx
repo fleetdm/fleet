@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useCallback, useContext, useMemo, useState } from "react";
 
 import { ISoftwareTitle } from "interfaces/software";
 import { NotificationContext } from "context/notification";
@@ -38,9 +38,13 @@ const SelectSoftwareModal = ({
 }: ISelectSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
+  const initalSelectedSoftware = useMemo(
+    () => initializeSelectedSoftwareIds(softwareTitles),
+    [softwareTitles]
+  );
   const [isSaving, setIsSaving] = useState(false);
-  const [selectedSoftwareIds, setSelectedSoftwareIds] = useState<number[]>(() =>
-    initializeSelectedSoftwareIds(softwareTitles)
+  const [selectedSoftwareIds, setSelectedSoftwareIds] = useState<number[]>(
+    initalSelectedSoftware
   );
 
   const onSaveSelectedSoftware = async () => {
@@ -58,18 +62,21 @@ const SelectSoftwareModal = ({
     onSave();
   };
 
-  const onChangeSoftwareSelect = (select: boolean, id: number) => {
+  const onChangeSoftwareSelect = useCallback((select: boolean, id: number) => {
     setSelectedSoftwareIds((prevSelectedSoftwareIds) => {
       if (select) {
         return [...prevSelectedSoftwareIds, id];
       }
       return prevSelectedSoftwareIds.filter((selectedId) => selectedId !== id);
     });
-  };
+  }, []);
 
-  const onChangeSelectAll = (selectAll: boolean) => {
-    setSelectedSoftwareIds(selectAll ? softwareTitles.map((s) => s.id) : []);
-  };
+  const onChangeSelectAll = useCallback(
+    (selectAll: boolean) => {
+      setSelectedSoftwareIds(selectAll ? softwareTitles.map((s) => s.id) : []);
+    },
+    [softwareTitles]
+  );
 
   return (
     <Modal className={baseClass} title="Select software" onExit={onExit}>
