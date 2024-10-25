@@ -1,3 +1,47 @@
+## Fleet 4.59.0 (Oct 25, 2024)
+
+### Bug fixes
+
+### Endpoint Operations
+- Fixed issue where macOS and Linux scripts failed to timeout on long running commands
+- Ignore `--delete-other-teams` flag in `fleetctl gitops` command for non-Premium license users.
+- Fixed bug in ABM renewal process that caused upload of new token to fail.
+- Fix frontend error when trying to view install details for an install with a blank status
+
+### Device Management (MDM)
+- Add ability to connect a SCEP NDES proxy
+- Remove a pending MDM device if it was deleted from current ABM
+- Added a more descriptive error message when install or uninstall details do not exist for an activity
+- Add error message on the My Device page when mdm is off for the host
+- Fixed bug where `PATCH /api/latest/fleet/config` was incorrectly clearing VPP token<->team associations.
+- Allow clicking in the horizontal dimension of a flash message, outside of the message itself, and always hide flash messages when changing routes.
+- Add a config field to the UI for custom MDM URLs
+
+### Vulnerability Management
+- Added SCEP proxy for Windows NDES (Network Device Enrollment Service) AD CS server, which allows devices to request certificates.
+- Added database query for backfilling installer data into installation details
+- Documented that Microsoft enrollments have less fields filled in the `mdm_enrolled` activity due to how this MDM enrollment flow is implemented.
+- Fixed incorrect character set header on manual Mac enrollment config download
+- Make entire rows of the Disk encryption table clickable
+- Show software install activities from policy automations as authored by "Fleet", store policy ID and name on each activity
+- Set created_at/updated_at timestamps on user create endpoint
+- Fixes a bug where DDM declarations would remain "pending" forever if they were deleted from Fleet before being sent to hosts.
+- Updated OpenTelemetry libraries to latest versions. This includes the following changes when OpenTelemetry is enabled:
+ - MySQL spans outside of HTTPS transactions are now logged.
+ - Renamed MySQL spans to include the query, for easier tracking/debugging.
+- Fixed a bug where policy failures of a host were not being cleared in the host details page after configuring the host to not run any policies.
+
+### Bug fixes and improvements
+- fix an issue with the byod enrollment page sometimes showing a 404 page
+- Fixed blank install status when retrieving install details from the activity feed when the installer package has been updated or the software has since been removed from the host.
+- fixed issue where the vulnerabilities cron failed to complete due to a large temporary table creation when calculating host issue counts
+- Allow filtering Software OS view to show only OSes from a particular platform (Windows, macOS, Linux, etc.)
+- Ensure details for a software installation run are available and accurate even after the corresponding installer has been edited or deleted
+- Fix the svg icon for Edge
+- fix loading state for the profile status aggregate UI
+- Explicitly set line heights on "add profile" messages so they are consistent cross-browser
+- Fix issue when trying to download the manual enrollment profile when device token is expired. We now show an error for this case.
+
 ## Fleet 4.58.0 (Oct 17, 2024)
 
 **Endpoint Operations:**
