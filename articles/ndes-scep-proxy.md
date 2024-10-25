@@ -6,9 +6,9 @@ This guide will walk you through configuring and using NDES with Fleet acting as
 
 ## Prerequisites
 
-* Fleet Premium with Admin permissions.
+* Fleet Premium with admin permissions.
 * Fleet [v4.59.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.59.0) or greater.
-* Apple MDM enabled
+* Apple MDM enabled.
 * A Windows Server with AD CS (Active Directory Certificate Services) and NDES installed and configured, including the certificate templates for the certificates you want to enroll for.
   * The default password cache size for NDES is five passwords. Increase this value to account for the number of devices you expect to enroll simultaneously, including devices that may be offline and need to enroll when they come online.
 
@@ -22,7 +22,7 @@ Go to the Fleet web interface, navigate to `Settings`, go to the `Integrations` 
 
 ### 2. Configure NDES SCEP settings
 
-You will need to provide the SCEP URL that accepts the SCEP protocol. You'll also need to give the Admin URL with the associated username and password to get the one-time challenge passwords for SCEP enrollment.
+You will need to provide the SCEP URL that accepts the SCEP protocol. You'll also need to give the admin URL with the associated username and password to get the one-time challenge passwords for SCEP enrollment.
 
 ![Configure NDES SCEP settings](../website/assets/images/articles/ndes-scep-config.png)
 
@@ -34,7 +34,7 @@ Note:
 
 Create a configuration profile in Fleet that includes the SCEP payload. In the profile, you will need to set `$FLEET_VAR_NDES_SCEP_CHALLENGE` as the `Challenge` and `$FLEET_VAR_NDES_SCEP_PROXY_URL` as the `URL`.
 
-Adjust the `Subject `values according to your organization's needs. You may set `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if the hosts were enrolled into Fleet MDM using an IdP (Identity Provider). You can also use any of the [Apple profile variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0) to uniquely identify your device.
+Adjust the `Subject` values according to your organization's needs. You may set `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if the hosts were enrolled into Fleet MDM using an IdP (Identity Provider). You can also use any of the [Apple profile variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0) to uniquely identify your device.
 
 Example profile:
 
@@ -132,7 +132,7 @@ A common use case for SCEP is connecting devices to a corporate WiFi network. Th
 
 
 ## Assumptions and limitations
-* NDES SCEP proxy is currently only supported for macOS devices via Apple config profiles. Support for DDM (Declarative Device Management) is coming soon, as is support for iOS, iPadOS, Windows, and Linux.
+* NDES SCEP proxy is currently supported for macOS devices via Apple config profiles. Support for DDM (Declarative Device Management) is coming soon, as is support for iOS, iPadOS, Windows, and Linux.
 * Certificate renewal is coming soon.
 * Fleet server assumes a one-time challenge password expiration time of 60 minutes.
 
