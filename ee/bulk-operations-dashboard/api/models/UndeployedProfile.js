@@ -56,6 +56,7 @@ module.exports = {
       type: 'string',
       description: 'Whether to exclude or include hosts with the labels in the labels attribute when assigning this profile.',
       isIn: ['exclude', 'include'],
+      defaultsTo: 'include',
     },
 
     profileTarget: {
