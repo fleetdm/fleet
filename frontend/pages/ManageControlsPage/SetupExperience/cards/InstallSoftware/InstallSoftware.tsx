@@ -5,7 +5,7 @@ import { AxiosError } from "axios";
 import mdmAPI, {
   IGetSetupExperienceSoftwareResponse,
 } from "services/entities/mdm";
-import { ISoftwareTitle } from "interfaces/software";
+import software, { ISoftwareTitle } from "interfaces/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import SectionHeader from "components/SectionHeader";

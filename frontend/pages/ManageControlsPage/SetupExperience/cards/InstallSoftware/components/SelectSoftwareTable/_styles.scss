@@ -4,21 +4,4 @@
     max-height: 343px;
     overflow-y: auto;
   }
-
-  // these styles create a table where the table header is fixed and the table
-  // body is scrollable. This was found here:
-  // https:stackoverflow.com/questions/23989463/how-to-set-tbody-height-with-overflow-scroll
-  // .data-table-block .data-table {
-  //   thead, tbody tr {
-  //     display: table;
-  //     width: 100%;
-  //   }
-
-  //   tbody {
-  //     width: 100%;
-  //     display: block;
-  //     max-height: 343px;
-  //     overflow-y: auto;
-  //   }
-  // }
 }
