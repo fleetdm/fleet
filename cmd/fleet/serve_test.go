@@ -352,10 +352,15 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	}
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ctx, cancel := context.WithCancel(ctx)
 	lg := kitlog.NewJSONLogger(os.Stdout)
 	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, lg, &config)
 	require.NoError(t, err)
 	s.Start()
+	t.Cleanup(func() {
+		cancel()
+		<-s.Done()
+	})
 
 	assert.Eventually(t, func() bool {
 		info, err := os.Lstat(vulnPath)
@@ -660,9 +665,14 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ctx, cancel := context.WithCancel(ctx)
 	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config)
 	require.NoError(t, err)
 	s.Start()
+	t.Cleanup(func() {
+		cancel()
+		<-s.Done()
+	})
 
 	// Every cron tick is 10 seconds ... here we just wait for a loop interation and assert the vuln
 	// dir. was not created.
@@ -1117,7 +1127,8 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 		fleet.MDMAssetCAKey:  {Value: testKeyPEM},
 	}
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return assets, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {

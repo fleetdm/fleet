@@ -5620,7 +5620,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		"mdm": { "macos_migration": { "enable": true, "mode": "voluntary", "webhook_url": "https://example.com" } }
 	}`), http.StatusOK, &acResp)
 
-	s.enableABM(t.Name())
+	abmToken := s.enableABM(t.Name())
 
 	checkMigrationResponses := func(host *fleet.Host, token string) {
 		getDesktopResp := fleetDesktopResponse{}
@@ -5740,7 +5740,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
 		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
-		require.NoError(t, s.ds.DeleteHostDEPAssignments(ctx, []string{host.HardwareSerial}))
+		require.NoError(t, s.ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{host.HardwareSerial}))
 		cleanAssignmentStatus()
 
 		// simulate a "NOT_ACCESSIBLE" JSON profile assignment
@@ -5755,7 +5755,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
 		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
-		require.NoError(t, s.ds.DeleteHostDEPAssignments(ctx, []string{host.HardwareSerial}))
+		require.NoError(t, s.ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{host.HardwareSerial}))
 		cleanAssignmentStatus()
 
 		// simulate a "SUCCESS" JSON profile assignment
@@ -5925,7 +5925,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 	host := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
 	createDeviceTokenForHost(t, s.ds, host.ID, token)
 	checkMigrationResponses(host, token)
-	require.NoError(t, s.ds.DeleteHostDEPAssignments(ctx, []string{host.HardwareSerial}))
+	require.NoError(t, s.ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{host.HardwareSerial}))
 
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team-1"})
 	require.NoError(t, err)
@@ -9573,7 +9573,7 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	s.enableABM(t.Name())
 }
 
-func (s *integrationMDMTestSuite) enableABM(orgName string) {
+func (s *integrationMDMTestSuite) enableABM(orgName string) *fleet.ABMToken {
 	t := s.T()
 	var abmResp generateABMKeyPairResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &abmResp)
@@ -9659,6 +9659,7 @@ func (s *integrationMDMTestSuite) enableABM(orgName string) {
 	depClient := apple_mdm.NewDEPClient(s.depStorage, s.ds, s.logger)
 	_, err = depClient.AccountDetail(ctx, orgName)
 	require.NoError(t, err)
+	return tok
 }
 
 func (s *integrationMDMTestSuite) appleCoreCertsSetup() {
@@ -10562,13 +10563,44 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
+	// Associate team to the VPP token.
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
-	// Reset the token's teams by omitting the token from app config
+	// A PATCH endpoint omitting mdm.volume_purchasing_program should not remove the VPP token association.
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "volume_purchasing_program": null }
+		"agent_options": {
+			"config": {
+				"options": {
+					"pack_delimiter": "/",
+					"logger_tls_period": 10,
+					"distributed_plugin": "tls",
+					"disable_distributed": false,
+					"logger_tls_endpoint": "/api/osquery/log",
+					"distributed_interval": 10,
+					"distributed_tls_max_attempts": 3
+				}
+			}
+		}
+  }`), http.StatusOK, &acResp)
+
+	// Check that the VPP token is still associated to the team.
+	resp = getVPPTokensResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
+	require.NoError(t, resp.Err)
+	require.Len(t, resp.Tokens, 1)
+	require.Equal(t, orgName, resp.Tokens[0].OrgName)
+	require.Equal(t, location, resp.Tokens[0].Location)
+	require.Equal(t, expTime, resp.Tokens[0].RenewDate)
+	require.Len(t, resp.Tokens[0].Teams, 1)
+	require.Equal(t, team.ID, resp.Tokens[0].Teams[0].ID)
+	require.Equal(t, team.Name, resp.Tokens[0].Teams[0].Name)
+
+	// Reset the token's teams by omitting the token from app config
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "volume_purchasing_program": [] }
   }`), http.StatusOK, &acResp)
 
 	resp = getVPPTokensResponse{}
@@ -10580,9 +10612,23 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, expTime, resp.Tokens[0].RenewDate)
 	require.Empty(t, resp.Tokens[0].Teams)
 
-	// Add the team back
-	resPatchVPP = patchVPPTokensTeamsResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
+	// Add the team back using the PATCH /api/latest/fleet/config endpoint now (what GitOps uses).
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": { "volume_purchasing_program": [ {"location": "%s", "teams": [ "%s" ]} ] }
+  }`, location, team.Name)), http.StatusOK, &acResp)
+
+	// Check again that the VPP token is associated to the team.
+	resp = getVPPTokensResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
+	require.NoError(t, resp.Err)
+	require.Len(t, resp.Tokens, 1)
+	require.Equal(t, orgName, resp.Tokens[0].OrgName)
+	require.Equal(t, location, resp.Tokens[0].Location)
+	require.Equal(t, expTime, resp.Tokens[0].RenewDate)
+	require.Len(t, resp.Tokens[0].Teams, 1)
+	require.Equal(t, team.ID, resp.Tokens[0].Teams[0].ID)
+	require.Equal(t, team.Name, resp.Tokens[0].Teams[0].Name)
 
 	// Get list of VPP apps from "Apple"
 	// We're passing team 1 here, but we haven't added any app store apps to that team, so we get
@@ -11678,7 +11724,6 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	pkiMessage, err = scep.ParsePKIMessage(body, scep.WithCACerts(certs))
 	require.NoError(t, err)
 	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
-
 }
 
 type noopCertDepot struct{ depot.Depot }
