@@ -1,8 +1,8 @@
-# Configuring and using NDES SCEP proxy
+# Connect end users to Wi-Fi with Simple Certificate Enrollment Protocol (SCEP)
 
-Fleet [v4.59.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.59.0) introduces support for NDES SCEP proxy. This guide will walk you through configuring and using NDES with Fleet acting as a SCEP proxy.
+Fleet [v4.59.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.59.0) introduces support for helping your end users connect to Wi-Fi by adding your SCEP server. Fleet currently supports Microsoft's Network Device Enrollment Service (NDES) as a SCEP server.
 
-NDES (Network Device Enrollment Service) is a Microsoft service that allows devices to receive certificates. SCEP (Simple Certificate Enrollment Protocol) is a protocol devices use to request certificates from a Certificate Authority (CA).
+This guide will walk you through configuring and using NDES with Fleet acting as a SCEP proxy.
 
 ## Prerequisites
 
