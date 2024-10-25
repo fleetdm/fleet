@@ -186,19 +186,25 @@ WHERE id IN (%s)`
 		var softwareIDs []any
 		var vppIDPlatforms []idPlatformTuple
 		var vppAppTeamIDs []any
+		// List of title IDs that were sent but aren't in the
+		// database. We add everything and then remove them
+		// from the list when we validate them below
 		missingTitleIDs := make(map[uint]struct{})
-		titleIDArgs := make([]any, 0, len(titleIDs))
+		// Arguments used for queries that select vpp apps/installers
 		titleIDAndTeam := []any{teamID}
 		for _, id := range titleIDs {
 			missingTitleIDs[id] = struct{}{}
-			titleIDArgs = append(titleIDArgs, id)
 			titleIDAndTeam = append(titleIDAndTeam, id)
 		}
 
-		if err := sqlx.SelectContext(ctx, tx, &softwareIDPlatforms, stmtSelectInstallersIDs, titleIDAndTeam...); err != nil {
-			return ctxerr.Wrap(ctx, err, "selecting software IDs using title IDs")
+		// Select requested software installers
+		if len(titleIDs) > 0 {
+			if err := sqlx.SelectContext(ctx, tx, &softwareIDPlatforms, stmtSelectInstallersIDs, titleIDAndTeam...); err != nil {
+				return ctxerr.Wrap(ctx, err, "selecting software IDs using title IDs")
+			}
 		}
 
+		// Validate only macOS software
 		for _, tuple := range softwareIDPlatforms {
 			delete(missingTitleIDs, tuple.TitleID)
 			if tuple.Platform != string(fleet.MacOSPlatform) {
@@ -207,10 +213,14 @@ WHERE id IN (%s)`
 			softwareIDs = append(softwareIDs, tuple.ID)
 		}
 
-		if err := sqlx.SelectContext(ctx, tx, &vppIDPlatforms, stmtSelectVPPAppsTeamsID, titleIDAndTeam...); err != nil {
-			return ctxerr.Wrap(ctx, err, "selecting vpp app team IDs using title IDs")
+		// Select requested VPP apps
+		if len(titleIDs) > 0 {
+			if err := sqlx.SelectContext(ctx, tx, &vppIDPlatforms, stmtSelectVPPAppsTeamsID, titleIDAndTeam...); err != nil {
+				return ctxerr.Wrap(ctx, err, "selecting vpp app team IDs using title IDs")
+			}
 		}
 
+		// Validate only macOS VPPP apps
 		for _, tuple := range vppIDPlatforms {
 			delete(missingTitleIDs, tuple.TitleID)
 			if tuple.Platform != string(fleet.MacOSPlatform) {
@@ -219,6 +229,7 @@ WHERE id IN (%s)`
 			vppAppTeamIDs = append(vppAppTeamIDs, tuple.ID)
 		}
 
+		// If we have any missing titles, return error
 		if len(missingTitleIDs) > 0 {
 			var keys []string
 			for k := range missingTitleIDs {
@@ -227,10 +238,12 @@ WHERE id IN (%s)`
 			return ctxerr.Errorf(ctx, "title IDs not available: %s", strings.Join(keys, ","))
 		}
 
+		// Unset all installers
 		if _, err := tx.ExecContext(ctx, stmtUnsetInstallers, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "unsetting software installers")
 		}
 
+		// Unset all vpp apps
 		if _, err := tx.ExecContext(ctx, stmtUnsetVPPAppsTeams, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "unsetting vpp app teams")
 		}
