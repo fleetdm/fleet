@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240925111236, Down_20240925111236)
+	MigrationClient.AddMigration(Up_20241025111236, Down_20241025111236)
 }
 
-func Up_20240925111236(tx *sql.Tx) error {
+func Up_20241025111236(tx *sql.Tx) error {
 	_, err := tx.Exec(`ALTER TABLE software_installers ADD COLUMN install_during_setup BOOL NOT NULL DEFAULT false`)
 	if err != nil {
 		return fmt.Errorf("failed to add install_during_setup to software_installers: %w", err)
@@ -23,6 +23,6 @@ func Up_20240925111236(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240925111236(tx *sql.Tx) error {
+func Down_20241025111236(tx *sql.Tx) error {
 	return nil
 }

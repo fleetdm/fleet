@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240925112748, Down_20240925112748)
+	MigrationClient.AddMigration(Up_20241025112748, Down_20241025112748)
 }
 
-func Up_20240925112748(tx *sql.Tx) error {
+func Up_20241025112748(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE setup_experience_scripts (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -96,6 +96,6 @@ CREATE TABLE setup_experience_status_results (
 	return nil
 }
 
-func Down_20240925112748(tx *sql.Tx) error {
+func Down_20241025112748(tx *sql.Tx) error {
 	return nil
 }
