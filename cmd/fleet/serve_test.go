@@ -566,6 +566,9 @@ func TestScanVulnerabilities(t *testing.T) {
 			},
 		}, nil
 	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
 
 	vulnPath := filepath.Join("..", "..", "server", "vulnerabilities", "testdata")
 
