@@ -12,7 +12,6 @@ import Card from "components/Card";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 import { NotificationContext } from "context/notification";
-import { getErrorReason } from "interfaces/errors";
 import { API_NO_TEAM_ID } from "interfaces/team";
 
 const baseClass = "setup-experience-script-card";
