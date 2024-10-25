@@ -7447,6 +7447,7 @@ Returns a list of global queries or team queries.
 | merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global queries in addition to team queries when filtering by `team_id`. (If no `team_id` is provided, this parameter is ignored.) |
 | page                    | integer | query | Page number of the results to fetch. |
 | per_page                | integer | query | Results per page. |
+| compatible_platform     | string | query | Return queries that are compatible with this platform (not a strict compatibility check) |
 
 #### Example
 
