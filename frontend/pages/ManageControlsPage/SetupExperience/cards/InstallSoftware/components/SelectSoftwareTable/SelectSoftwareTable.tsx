@@ -1,9 +1,10 @@
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 
 import { ISoftwareTitle } from "interfaces/software";
 
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
+import TableCount from "components/TableContainer/TableCount";
 
 import generateTableConfig from "./SelectSoftwareTableConfig";
 
@@ -40,6 +41,14 @@ const SelectSoftwareTable = ({
     return generateSelectedRows(softwareTitles);
   }, [softwareTitles]);
 
+  const renderCount = useCallback(() => {
+    if (softwareTitles.length === 0) {
+      return <></>;
+    }
+
+    return <TableCount name="items" count={softwareTitles?.length} />;
+  }, [softwareTitles]);
+
   return (
     <TableContainer
       className={baseClass}
@@ -53,6 +62,7 @@ const SelectSoftwareTable = ({
           className={baseClass}
         />
       )}
+      renderCount={renderCount}
       defaultSelectedRows={initialSelectedSoftwareRows}
       showMarkAllPages
       isAllPagesSelected={false}
