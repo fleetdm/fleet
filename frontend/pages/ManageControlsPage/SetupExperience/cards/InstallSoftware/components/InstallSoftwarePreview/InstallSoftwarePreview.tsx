@@ -11,13 +11,13 @@ const InstallSoftwarePreview = () => {
     <Card color="gray" paddingSize="xxlarge" className={baseClass}>
       <h3>End user experience</h3>
       <p>
-        When the end user completes the macOS Setup Assistant, they will see
-        software being installed. User will not be able to continue until
-        software completes installation.
+        After the <b>Remote Management</b> screen, the end user will see
+        software being installed. They will not be able to continue until
+        software is installed.
       </p>
       <p>
-        If there are any installation errors, the end user will be able to
-        continue and will be instructed to contact their IT department.
+        If there are any errors, they will be able to continue and will be
+        instructed to contact their IT admin.
       </p>
       <img
         className={`${baseClass}__preview-img`}
