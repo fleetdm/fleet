@@ -9295,7 +9295,7 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Li
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | form | **Required**. Installer package file. Supported packages are PKG, MSI, EXE, DEB, and RPM.   |
+| software        | file    | form | **Required**. Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
 | team_id         | integer | form | **Required**. The team ID. Adds a software package to the specified team. |
 | install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs [default install script](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
@@ -9356,7 +9356,7 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | form | Installer package file. Supported packages are PKG, MSI, EXE, DEB, and RPM.   |
+| software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
