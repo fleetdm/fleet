@@ -46,22 +46,23 @@ module.exports = {
     },
 
 
+    labels: {
+      type: 'ref',
+      description: 'A list of the Fleet API IDs of labels this profile is associated with (if any).',
+    },
+
     labelTargetBehavior: {
       type: 'string',
+      description: 'Whether to exclude or include hosts with the labels in the labels attribute when assigning this profile.',
       isIn: ['exclude', 'include'],
     },
 
-    target: {
+    profileTarget: {
       type: 'string',
-      description: 'What this script will be deployed to',
+      description: 'What hosts will be targetted when this profile is deployed. "all" for all hosts, or "custom" if a profile targets hosts by labels',
       isIn: ['all', 'custom'],
       defaultsTo: 'all',
     },
-
-    labels: {
-      type: 'ref',
-      description: 'A list of IDs of labels this script is associated with.',
-    }
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗

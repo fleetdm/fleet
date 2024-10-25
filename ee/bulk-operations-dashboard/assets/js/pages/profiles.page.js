@@ -80,7 +80,7 @@ parasails.registerPage('profiles', {
       this.formData = {
         profile: _.clone(profile),
         newTeamIds: _.pluck(this.profileToEdit.teams, 'fleetApid'),
-        target: profile.target === 'custom' ? 'custom' : 'all',
+        profileTarget: profile.profileTarget === 'custom' ? 'custom' : 'all',
         labelTargetBehavior: profile.labelTargetBehavior ? profile.labelTargetBehavior : 'include',
         labels: profile.labels ? profile.labels : [],
       };
@@ -92,7 +92,7 @@ parasails.registerPage('profiles', {
       this.modal = 'delete-profile';
     },
     clickOpenAddProfileModal: async function() {
-      this.$set(this.formData, 'target', 'all');
+      this.$set(this.formData, 'profileTarget', 'all');
       this.$set(this.formData, 'labels', []);
       this.$set(this.formData, 'labelTargetBehavior', 'include');
       this.modal = 'add-profile';
@@ -119,7 +119,7 @@ parasails.registerPage('profiles', {
       await Cloud.uploadProfile.with({
         newProfile: argins.newProfile,
         teams: argins.teams,
-        target: argins.target,
+        profileTarget: argins.profileTarget,
         labels: argins.labels,
         labelTargetBehavior: argins.labelTargetBehavior,
       });
@@ -130,13 +130,13 @@ parasails.registerPage('profiles', {
       if(argins.newTeamIds === [undefined]){
         argins.newTeamIds = [];
       }
-      if(argins.target === 'custom'){
+      if(argins.profileTarget === 'custom'){
         await Cloud.editProfile.with({
           profile: argins.profile,
           newTeamIds: argins.newTeamIds,
           newProfile: argins.newProfile,
           labels: argins.labels,
-          target: argins.target,
+          profileTarget: argins.profileTarget,
           labelTargetBehavior: argins.labelTargetBehavior,
         });
       } else {

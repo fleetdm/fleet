@@ -18,7 +18,7 @@ module.exports = {
       type: ['string'],
       description: 'An array of team IDs that this profile will be added to'
     },
-    target: {
+    profileTarget: {
       type: 'string',
       description: 'The target for this configuration profile',
       defaultsTo: 'all',
@@ -53,7 +53,7 @@ module.exports = {
   },
 
 
-  fn: async function ({newProfile, teams, target, labelTargetBehavior, labels}) {
+  fn: async function ({newProfile, teams, profileTarget, labelTargetBehavior, labels}) {
     let util = require('util');
     let profile = await sails.reservoir(newProfile)
     .intercept('E_EXCEEDS_UPLOAD_LIMIT', 'tooBig')
@@ -76,7 +76,7 @@ module.exports = {
       platform: profilePlatform,
       profileType: extension,
       createdAt: Date.now(),
-      target,
+      profileTarget,
       labels,
       labelTargetBehavior,
     };

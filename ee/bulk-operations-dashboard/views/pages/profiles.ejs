@@ -115,19 +115,19 @@
           <div>
             <p><strong>Target</strong></p>
             <div class="form-group">
-            <label purpose="form-option" class="form-control border-0 mb-2 p-0 h-auto"  :class="[formData.target === 'all' ? 'selected' : '']">
-              <input type="radio" :class="[formErrors.target ? 'is-invalid' : '']" v-model.trim="formData.target" value="all">
+            <label purpose="form-option" class="form-control border-0 mb-2 p-0 h-auto"  :class="[formData.profileTarget === 'all' ? 'selected' : '']">
+              <input type="radio" :class="[formErrors.profileTarget ? 'is-invalid' : '']" v-model.trim="formData.profileTarget" value="all">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               All hosts on selected teams
             </label>
-            <label purpose="form-option" class="form-control border-0 mb-0 p-0"  :class="[formData.target === 'custom' ? 'selected' : '']">
-              <input type="radio" :class="[formErrors.target ? 'is-invalid' : '']" v-model.trim="formData.target" value="custom">
+            <label purpose="form-option" class="form-control border-0 mb-0 p-0"  :class="[formData.profileTarget === 'custom' ? 'selected' : '']">
+              <input type="radio" :class="[formErrors.profileTarget ? 'is-invalid' : '']" v-model.trim="formData.profileTarget" value="custom">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Custom
             </label>
             </div>
           </div>
-          <div v-if="formData.target === 'custom'">
+          <div v-if="formData.profileTarget === 'custom'">
             <select class="custom-select form-control mb-4" v-model="formData.labelTargetBehavior">
               <option value="include" selected>Hosts with all of these labels</option>
               <option value="exclude">Hosts with none of these labels</option>
@@ -194,17 +194,17 @@
           <div>
             <p><strong>Target</strong></p>
             <label purpose="form-option" class="form-control border-0 mb-2 p-0 h-auto">
-              <input type="radio" :class="[formErrors.target ? 'is-invalid' : '']" v-model.trim="formData.target" value="all">
+              <input type="radio" :class="[formErrors.profileTarget ? 'is-invalid' : '']" v-model.trim="formData.profileTarget" value="all">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               All hosts on selected teams
             </label>
             <label purpose="form-option" class="form-control border-0 mb-0 p-0">
-              <input type="radio" :class="[formErrors.target ? 'is-invalid' : '']" v-model.trim="formData.target" value="custom">
+              <input type="radio" :class="[formErrors.profileTarget ? 'is-invalid' : '']" v-model.trim="formData.profileTarget" value="custom">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Custom
             </label>
           </div>
-          <div v-if="formData.target === 'custom'">
+          <div v-if="formData.profileTarget === 'custom'">
             <select class="custom-select form-control mb-4" v-model="formData.labelTargetBehavior">
               <option value="include" selected>Hosts with all of these labels</option>
               <option value="exclude">Hosts with none of these labels</option>

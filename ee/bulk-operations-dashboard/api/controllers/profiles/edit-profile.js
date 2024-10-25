@@ -22,7 +22,7 @@ module.exports = {
       type: 'ref',
       description: 'A file that will be replacing the profile.'
     },
-    target: {
+    profileTarget: {
       type: 'string',
       description: 'The target for this configuration profile',
       defaultsTo: 'all',
@@ -47,7 +47,7 @@ module.exports = {
 
 
 
-  fn: async function ({profile, newTeamIds, newProfile, target, labelTargetBehavior, labels}) {
+  fn: async function ({profile, newTeamIds, newProfile, profileTarget, labelTargetBehavior, labels}) {
     if(newProfile.isNoop){
       newProfile.noMoreFiles();
       newProfile = undefined;
@@ -210,7 +210,7 @@ module.exports = {
         profileType: extension,
         labels,
         labelTargetBehavior,
-        target,
+        profileTarget,
       });
     } else if(profile.id && newProfile){
       // If there is a new profile that is replacing a database record, update the profileContents in the database.
@@ -219,7 +219,7 @@ module.exports = {
         profileContents,
         labels,
         labelTargetBehavior,
-        target,
+        profileTarget,
       });
     }
     // All done.
