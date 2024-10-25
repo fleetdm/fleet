@@ -32,7 +32,9 @@ Note:
 
 ### 3. Create a SCEP configuration profile
 
-Create a configuration profile in Fleet that includes the SCEP payload. In the profile, you will need to set `$FLEET_VAR_NDES_SCEP_CHALLENGE` as the `Challenge` and `$FLEET_VAR_NDES_SCEP_PROXY_URL` as the `URL`. You may also set `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` in the `Subject` if the hosts were enrolled into Fleet MDM using an IdP (Identity Provider).
+Create a configuration profile in Fleet that includes the SCEP payload. In the profile, you will need to set `$FLEET_VAR_NDES_SCEP_CHALLENGE` as the `Challenge` and `$FLEET_VAR_NDES_SCEP_PROXY_URL` as the `URL`.
+
+Adjust the `Subject `values according to your organization's needs. You may set `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if the hosts were enrolled into Fleet MDM using an IdP (Identity Provider). You can also use any of the [Apple profile variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0) to uniquely identify your device.
 
 Example profile:
 
@@ -59,7 +61,7 @@ Example profile:
                         <array>
                           <array>
                             <string>CN</string>
-                            <string>WIFI $FLEET_VAR_HOST_END_USER_EMAIL_IDP</string>
+                            <string>%SerialNumber% WIFI $FLEET_VAR_HOST_END_USER_EMAIL_IDP</string>
                           </array>
                         </array>
                         <array>
