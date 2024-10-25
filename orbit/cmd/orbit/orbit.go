@@ -1084,9 +1084,7 @@ func main() {
 		// on their flagfiles.
 		hostIdentifier := c.String("host-identifier")
 		options = append(options, osquery.WithFlags([]string{"--host-identifier", hostIdentifier}))
-		for _, option := range optionsAfterFlagfile {
-			options = append(options, option)
-		}
+		options = append(options, optionsAfterFlagfile...)
 
 		// Handle additional args after '--' in the command line. These are added last and should
 		// override all other flags and flagfile entries.
@@ -1570,9 +1568,9 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 		if unmarshalErr != nil {
 			// Since the original command failed, we log the original error and the output for debugging purposes.
 			log.Error().Str(
-				"output", string(osquerydStdout.Bytes()),
+				"output", osquerydStdout.String(),
 			).Str(
-				"stderr", string(osquerydStderr.Bytes()),
+				"stderr", osquerydStderr.String(),
 			).Msg("getHostInfo via osquery")
 			return nil, err
 		}

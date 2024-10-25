@@ -577,7 +577,7 @@ func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executi
 }
 
 func (ds *Datastore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
-	query := fmt.Sprintf(`
+	query := `
 SELECT
 	hsi.execution_id AS execution_id,
 	hsi.pre_install_query_output,
@@ -601,7 +601,7 @@ FROM
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
 WHERE
 	hsi.execution_id = :execution_id
-	`)
+	`
 
 	stmt, args, err := sqlx.Named(query, map[string]any{
 		"execution_id": resultsUUID,
@@ -625,7 +625,7 @@ WHERE
 func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
 	var dest fleet.SoftwareInstallerStatusSummary
 
-	stmt := fmt.Sprintf(`
+	stmt := `
 SELECT
 	COALESCE(SUM( IF(status = :software_status_pending_install, 1, 0)), 0) AS pending_install,
 	COALESCE(SUM( IF(status = :software_status_failed_install, 1, 0)), 0) AS failed_install,
@@ -649,7 +649,7 @@ WHERE
 			AND host_deleted_at IS NULL
 			AND removed = 0
 		GROUP BY
-			host_id)) s`)
+			host_id)) s`
 
 	query, args, err := sqlx.Named(stmt, map[string]interface{}{
 		"installer_id":                      installerID,
@@ -757,7 +757,7 @@ WHERE
 }
 
 func (ds *Datastore) GetHostLastInstallData(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
-	stmt := fmt.Sprintf(`
+	stmt := `
 		SELECT execution_id, hsi.status
 		FROM host_software_installs hsi
 		WHERE hsi.id = (
@@ -768,7 +768,7 @@ func (ds *Datastore) GetHostLastInstallData(ctx context.Context, hostID, install
 				software_installer_id = :installer_id AND host_id = :host_id
 			GROUP BY
 				host_id, software_installer_id)
-`)
+`
 
 	stmt, args, err := sqlx.Named(stmt, map[string]interface{}{
 		"host_id":      hostID,

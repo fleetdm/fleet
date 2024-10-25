@@ -978,7 +978,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			}
 			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
 		}
-		queryStats, _ := stats[query]
+		queryStats := stats[query]
 
 		ingestedDetailUpdated, ingestedAdditionalUpdated, err := svc.ingestQueryResults(
 			ctx, query, host, rows, failed, messages, policyResults, labelResults, additionalResults, queryStats,
@@ -1358,7 +1358,7 @@ func preProcessSoftwareExtraResults(
 	}
 
 	// Extract the results of the extra query.
-	softwareExtraRows, _ := (*results)[softwareExtraQuery]
+	softwareExtraRows := (*results)[softwareExtraQuery]
 	if len(softwareExtraRows) == 0 {
 		return
 	}

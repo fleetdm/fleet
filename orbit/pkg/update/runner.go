@@ -361,7 +361,7 @@ func GetVersion(path string) (string, error) {
 		return "", err
 	}
 	matches := versionRegexp.FindStringSubmatch(strings.TrimSpace(string(out)))
-	if matches != nil && len(matches) > 2 {
+	if len(matches) > 2 {
 		version = matches[2]
 	}
 	return version, nil

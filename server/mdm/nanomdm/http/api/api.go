@@ -288,7 +288,6 @@ func readPEMCertAndKey(input []byte) (cert []byte, key []byte, err error) {
 			key = pem.EncodeToMemory(block)
 		default:
 			err = fmt.Errorf("unrecognized PEM type: %q", block.Type)
-			break
 		}
 	}
 	return

@@ -283,7 +283,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	// persist changes starting here, now that we've done all the validation/diffing we can
 	if len(dirty) > 0 {
-		if len(dirty) == 1 && dirty["SelfService"] == true { // only self-service changed; use lighter update function
+		if len(dirty) == 1 && dirty["SelfService"] { // only self-service changed; use lighter update function
 			if err := svc.ds.UpdateInstallerSelfServiceFlag(ctx, *payload.SelfService, existingInstaller.InstallerID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "updating installer self service flag")
 			}
@@ -301,7 +301,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			if payload.UninstallScript == nil {
 				payload.UninstallScript = &existingInstaller.UninstallScript
 			}
-			if payload.PostInstallScript == nil && dirty["PostInstallScript"] == false {
+			if payload.PostInstallScript == nil && !dirty["PostInstallScript"] {
 				payload.PostInstallScript = &existingInstaller.PostInstallScript
 			}
 			if payload.PreInstallQuery == nil {
@@ -319,7 +319,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			// and if we're updating the package we reset counts. This is run in its own transaction internally
 			// for consistency, but independent of the installer update query as the main update should stick
 			// even if side effects fail.
-			if err := svc.ds.ProcessInstallerUpdateSideEffects(ctx, existingInstaller.InstallerID, true, dirty["Package"] == true); err != nil {
+			if err := svc.ds.ProcessInstallerUpdateSideEffects(ctx, existingInstaller.InstallerID, true, dirty["Package"]); err != nil {
 				return nil, err
 			}
 		}

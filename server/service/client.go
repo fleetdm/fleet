@@ -602,7 +602,7 @@ func (c *Client) ApplyGroup(
 		for tmName, apps := range tmSoftwareApps {
 			appPayloads := make([]fleet.VPPBatchPayload, 0, len(apps))
 			for _, app := range apps {
-				appPayloads = append(appPayloads, fleet.VPPBatchPayload{AppStoreID: app.AppStoreID, SelfService: app.SelfService})
+				appPayloads = append(appPayloads, fleet.VPPBatchPayload(app))
 			}
 			tmSoftwareAppsPayloads[tmName] = appPayloads
 		}

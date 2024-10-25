@@ -549,8 +549,7 @@ func (c *AppConfig) Copy() *AppConfig {
 		return nil
 	}
 
-	var clone AppConfig
-	clone = *c
+	clone := *c
 
 	// OrgInfo: nothing needs cloning
 	// FleetDesktopSettings: nothing needs cloning
@@ -561,8 +560,7 @@ func (c *AppConfig) Copy() *AppConfig {
 	}
 
 	if c.SMTPSettings != nil {
-		var smtpSettings SMTPSettings
-		smtpSettings = *c.SMTPSettings
+		smtpSettings := *c.SMTPSettings
 		clone.SMTPSettings = &smtpSettings
 	}
 
@@ -590,8 +588,7 @@ func (c *AppConfig) Copy() *AppConfig {
 	}
 
 	if c.SSOSettings != nil {
-		var ssoSettings SSOSettings
-		ssoSettings = *c.SSOSettings
+		ssoSettings := *c.SSOSettings
 		clone.SSOSettings = &ssoSettings
 	}
 
@@ -653,9 +650,7 @@ func (c *AppConfig) Copy() *AppConfig {
 
 	if c.MDM.AppleBusinessManager.Set {
 		abm := make([]MDMAppleABMAssignmentInfo, len(c.MDM.AppleBusinessManager.Value))
-		for i, s := range c.MDM.AppleBusinessManager.Value {
-			abm[i] = s
-		}
+		copy(abm, c.MDM.AppleBusinessManager.Value)
 		clone.MDM.AppleBusinessManager = optjson.SetSlice(abm)
 
 	}
@@ -1013,8 +1008,7 @@ func (f *Features) Copy() *Features {
 	// EnableHostUsers and EnableSoftwareInventory don't have fields that require
 	// cloning (all fields are basic value types, no pointers/slices/maps).
 
-	var clone Features
-	clone = *f
+	clone := *f
 
 	if f.AdditionalQueries != nil {
 		aq := make(json.RawMessage, len(*f.AdditionalQueries))

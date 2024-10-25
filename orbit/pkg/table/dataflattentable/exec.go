@@ -104,7 +104,7 @@ func (t *Table) exec(ctx context.Context) ([]byte, error) {
 
 	possibleBinaries := []string{}
 
-	if t.binDirs == nil || len(t.binDirs) == 0 {
+	if len(t.binDirs) == 0 {
 		possibleBinaries = []string{t.execArgs[0]}
 	} else {
 		for _, possiblePath := range t.binDirs {
@@ -126,7 +126,7 @@ func (t *Table) exec(ctx context.Context) ([]byte, error) {
 			// try the next binary
 			continue
 		} else if err != nil {
-			return nil, fmt.Errorf("calling %s. Got: %s: %w", t.execArgs[0], string(stderr.Bytes()), err)
+			return nil, fmt.Errorf("calling %s. Got: %s: %w", t.execArgs[0], stderr.String(), err)
 		}
 
 		// success!
