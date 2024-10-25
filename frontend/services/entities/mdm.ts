@@ -352,7 +352,12 @@ const mdmService = {
 
   downloadManualEnrollmentProfile: (token: string) => {
     const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
-    return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
+    return sendRequest(
+      "GET",
+      DEVICE_USER_MDM_ENROLLMENT_PROFILE(token),
+      undefined,
+      "blob"
+    );
   },
 
   getSetupExperienceSoftware: (
