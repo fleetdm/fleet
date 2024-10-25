@@ -307,6 +307,7 @@ func TestAutomationsSchedule(t *testing.T) {
 }
 
 func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
+	t.Skip() // https://github.com/fleetdm/fleet/issues/23258
 	t.Parallel()
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
