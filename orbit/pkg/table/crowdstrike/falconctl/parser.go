@@ -61,7 +61,7 @@ func parseOptions(reader io.Reader) (any, error) {
 				kv[1] = strings.Trim(kv[1], `" `)
 
 				// Remove parenthetical note about an unset default
-				strings.TrimSuffix(kv[1], " (unset default)")
+				kv[1] = strings.TrimSuffix(kv[1], " (unset default)")
 
 				if lastKey == "rfm-reason" && kv[0] == "code" {
 					kv[0] = "rfm-reason-code"
