@@ -3223,49 +3223,45 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 ```json
 {
-  "configuration_profiles": [
-    {
-      "profile_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
-      "name": "macOS restrictions",
-      "status": "acknowledged"
-    },
-    {
-      "profile_uuid": "42bcf55b-f374-46b0-b484-5ffffafaf3f6",
-      "name": "Certificates profile",
-      "status": "pending"
-    },
-  ],
-  "bootstrap_package": {
-      "name": "mac-bootstrap-package.pkg",
-      "status": "acknowledged"
-  },
-  "account_configuration": {
-      "command_uuid": "ee42f575-c0e9-4901-91ee-041f5daedced",
-      "status": "acknowledged"
-  },
-  "script": {
-      "execution_id": "02e4abba-7d96-4f5b-8c18-ffc5de71bd45",
-      "name": "setup-macos.sh",
-      "status": "pending"
-  },
-  "software": [
-    {
-      "software_title_id": 1,
-      "name": "Google Chrome.app",
-      "status": "installed"
-    },
-    {
-      "software_title_id": 2,
-      "name": "Zoom.us.app",
-      "status": "pending"
-    },
-    {
-      "software_title_id": 3,
-      "name": "Slack.app",
-      "status": "failed"
+    "setup_experience_results": {
+        "script": {
+            "name": "setup_script.sh",
+            "status": "success",
+            "execution_id": "b16fdd31-71cc-4258-ab27-744490809ebd"
+        },
+        "software": [
+            {
+                "name": "Zoom Workplace",
+                "status": "success",
+                "software_title_id": 957
+            },
+            {
+                "name": "Bear: Markdown Notes",
+                "status": "success",
+                "software_title_id": 287
+            },
+            {
+                "name": "Evernote",
+                "status": "success",
+                "software_title_id": 1313
+            }
+        ],
+        "configuration_profiles": [
+            {
+                "profile_uuid": "ae6a9efd5-9166-11ef-83af-0242ac12000b",
+                "name": "Fleetd configuration",
+                "status": "verified"
+            },
+            {
+                "profile_uuid": "ae6aa8108-9166-11ef-83af-0242ac12000b",
+                "name": "Fleet root certificate authority (CA)",
+                "status": "verified"
+            }
+        ],
+        "org_logo_url": ""
     }
-  ]
 }
+
 ```
 
 
