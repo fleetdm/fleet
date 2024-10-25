@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"maps"
 	"math/rand"
 	"sort"
 	"strings"
@@ -3873,6 +3874,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	vpp1TmCmdUUID := createVPPAppInstallRequest(t, ds, tmHost, vpp1, user.ID)
 	require.NotEmpty(t, vpp1TmCmdUUID)
 
+	expectedWithoutVPP := maps.Clone(expected)
+
 	expected["vpp1apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp1",
 		Source:      "apps",
@@ -3893,6 +3896,14 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 2}, meta)
 	compareResults(expected, sw, true, i3.Name+i3.Source, i2.Name+i2.Source) // i3 is for team, i2 is available (excluded)
 
+	// Exclude VPP apps from query
+	opts.ExcludeVPPApps = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 4}, meta)
+	compareResults(expectedWithoutVPP, sw, true, i3.Name+i3.Source, i2.Name+i2.Source) // i3 is for team, i2 is available (excluded)
+	opts.ExcludeVPPApps = false
+
 	expected["vpp3apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp3",
 		Source:      "apps",
@@ -3907,7 +3918,16 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 1}, meta)
-	compareResults(expected, sw, true, i3.Name+i3.Source) // i3 is for team
+	compareResults(expected, sw, true, i3.Name+i3.Source) // i3 is
+	// for team
+
+	// Exclude vpp apps from query
+	opts.ExcludeVPPApps = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 4}, meta)
+	compareResults(expectedWithoutVPP, sw, true, i3.Name+i3.Source) // i3 is for team
+	opts.ExcludeVPPApps = false
 
 	// Available for install only
 	opts.OnlyAvailableForInstall = true
