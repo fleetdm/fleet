@@ -3910,6 +3910,12 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Status:      nil,
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, SelfService: ptr.Bool(true)},
 	}
+
+	expectedAvailableOnlyExcludeVPP := maps.Clone(expectedAvailableOnly)
+	for _, app := range expectedAvailableOnlyExcludeVPP {
+		fmt.Printf("  app: %+v\n", app)
+	}
+
 	expectedAvailableOnly["vpp1apps"] = expected["vpp1apps"]
 	expectedAvailableOnly["vpp2apps"] = expected["vpp2apps"]
 	expectedAvailableOnly["vpp3apps"] = expected["vpp3apps"]
@@ -3918,8 +3924,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 1}, meta)
-	compareResults(expected, sw, true, i3.Name+i3.Source) // i3 is
-	// for team
+	compareResults(expected, sw, true, i3.Name+i3.Source) // i3 is for team
 
 	// Exclude vpp apps from query
 	opts.ExcludeVPPApps = true
@@ -3935,6 +3940,16 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expectedAvailableOnly))}, meta)
 	compareResults(expectedAvailableOnly, sw, true)
+	opts.OnlyAvailableForInstall = false
+
+	// Available for install only without vpp
+	opts.OnlyAvailableForInstall = true
+	opts.ExcludeVPPApps = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expectedAvailableOnlyExcludeVPP))}, meta)
+	compareResults(expectedAvailableOnlyExcludeVPP, sw, true)
+	opts.ExcludeVPPApps = false
 	opts.OnlyAvailableForInstall = false
 
 	// team host sees available i3 and pending vpp1
