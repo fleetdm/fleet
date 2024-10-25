@@ -47,7 +47,8 @@ module.exports = {
 
 
     labels: {
-      type: 'ref',
+      type: 'json',
+      example: [4, 6],
       description: 'A list of the Fleet API IDs of labels this profile is associated with (if any).',
     },
 
