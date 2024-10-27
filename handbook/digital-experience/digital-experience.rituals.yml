@@ -222,6 +222,16 @@
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#change-the-integrations-admin-salesforce-account-password"
   dri: "eashaw"
 -
+  task: "Check GitHub/GitLab terms"
+  startedOn: "2023-10-24"
+  frequency: "Annually"
+  description: "Check GitHub's terms to make sure the “inbound=outbound” clause is unchanged."
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-github-terms"
+  dri: "hollidayn"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"
+-
   task: "Check that there is sufficient availability for scheduling demos via fleetdm.com/contact"
   startedOn: "2024-10-25"
   frequency: "Weekly"
