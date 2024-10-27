@@ -1369,11 +1369,13 @@ Related content...
 Wherever possible, avoid creating nested headings. For example:
 
 ```
-## Things
 
-### Thing 1
+### Things
+
+#### Thing 1
 
 Hi my name is Thing 1
+
 ```
 
 

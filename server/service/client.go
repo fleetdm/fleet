@@ -400,7 +400,6 @@ func (c *Client) ApplyGroup(
 	teamsSoftwareInstallers map[string][]fleet.SoftwarePackageResponse,
 	teamsScripts map[string][]fleet.ScriptResponse,
 ) (map[string]uint, map[string][]fleet.SoftwarePackageResponse, map[string][]fleet.ScriptResponse, error) {
-
 	logfn := func(format string, args ...interface{}) {
 		if logf != nil {
 			logf(format, args...)
@@ -1289,6 +1288,11 @@ func (c *Client) DoGitOps(
 			return nil, errors.New("org_settings.mdm config is not a map")
 		}
 
+		// Put in default value for volume_purchasing_program to clear the configuration if it's not set.
+		if v, ok := mdmAppConfig["volume_purchasing_program"]; !ok || v == nil {
+			mdmAppConfig["volume_purchasing_program"] = []interface{}{}
+		}
+
 		// Put in default values for macos_migration
 		if config.Controls.MacOSMigration != nil {
 			mdmAppConfig["macos_migration"] = config.Controls.MacOSMigration
@@ -1740,7 +1744,11 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 		}
 		if !found {
 			queriesToDelete = append(queriesToDelete, oldQuery.ID)
-			fmt.Printf("[-] deleting query %s\n", oldQuery.Name)
+			if !dryRun {
+				fmt.Printf("[-] deleting query %s\n", oldQuery.Name)
+			} else {
+				fmt.Printf("[-] would've deleted query %s\n", oldQuery.Name)
+			}
 		}
 	}
 	if len(queriesToDelete) > 0 {
