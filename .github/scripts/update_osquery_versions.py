@@ -1,7 +1,12 @@
 import requests
 import re
+import os
 
-FILE_PATH = 'utilities/constants.ts'
+# Get the absolute path to the repository root
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+# Construct the full path to constants.ts
+FILE_PATH = os.path.join(repo_root, 'frontend', 'utilities', 'constants.ts')
 
 def fetch_osquery_versions():
     response = requests.get('https://api.github.com/repos/osquery/osquery/releases')

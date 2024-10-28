@@ -25,7 +25,7 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           commit-message: Update MIN_OSQUERY_VERSION_OPTIONS
-          title: Update osquery version options in UI
-          body: Automatically updated MIN_OSQUERY_VERSION_OPTIONS with new osquery releases.
+          title: "Fleet UI: Update osquery version options"
+          body: "Automated update of MIN_OSQUERY_VERSION_OPTIONS with any new osquery release. (Note: This automatic update is the solution to issue #21431)"
           branch: update-osquery-versions
           delete-branch: true
