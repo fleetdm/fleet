@@ -352,7 +352,12 @@ const mdmService = {
 
   downloadManualEnrollmentProfile: (token: string) => {
     const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
-    return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
+    return sendRequest(
+      "GET",
+      DEVICE_USER_MDM_ENROLLMENT_PROFILE(token),
+      undefined,
+      "blob"
+    );
   },
 
   getSetupExperienceSoftware: (
@@ -404,9 +409,7 @@ const mdmService = {
     const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
 
     let path = MDM_SETUP_EXPERIENCE_SCRIPT;
-    if (teamId) {
-      path += `?${buildQueryStringFromParams({ team_id: teamId })}`;
-    }
+    path += `?${buildQueryStringFromParams({ team_id: teamId, alt: "media" })}`;
 
     return sendRequest("GET", path);
   },

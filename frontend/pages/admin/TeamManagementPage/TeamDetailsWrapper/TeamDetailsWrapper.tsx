@@ -295,12 +295,11 @@ const TeamDetailsWrapper = ({
 
     try {
       await teamsAPI.destroy(teamIdForApi);
-      return router.push(PATHS.ADMIN_TEAMS);
+      router.push(PATHS.ADMIN_TEAMS);
       renderFlash("success", "Team removed");
     } catch (response) {
       renderFlash("error", "Something went wrong removing the team");
       console.error(response);
-      return false;
     } finally {
       toggleDeleteTeamModal();
       setIsUpdatingTeams(false);

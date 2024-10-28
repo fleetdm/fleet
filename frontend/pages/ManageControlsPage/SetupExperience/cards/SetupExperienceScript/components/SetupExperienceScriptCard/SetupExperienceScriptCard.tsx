@@ -12,7 +12,6 @@ import Card from "components/Card";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 import { NotificationContext } from "context/notification";
-import { getErrorReason } from "interfaces/errors";
 import { API_NO_TEAM_ID } from "interfaces/team";
 
 const baseClass = "setup-experience-script-card";
@@ -31,22 +30,17 @@ const SetupExperienceScriptCard = ({
   const onDownload = async () => {
     try {
       const teamId = script.team_id ?? API_NO_TEAM_ID;
-      await mdmAPI.downloadSetupExperienceScript(teamId);
+      const data = await mdmAPI.downloadSetupExperienceScript(teamId);
+      const date = new Date();
+      const filename = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}_${
+        script.name
+      }`;
+      const file = new global.window.File([data], filename);
+
+      FileSaver.saveAs(file);
     } catch (e) {
-      renderFlash("error", getErrorReason(e));
+      renderFlash("error", "Couldn't download script. Please try again.");
     }
-    // TODO: download script integration
-
-    // const date = new Date();
-    // const filename = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}_${
-    //   script.name
-    // }`;
-    // const file = new global.window.File(
-    //   [JSON.stringify(script.enrollment_profile)],
-    //   filename
-    // );
-
-    // FileSaver.saveAs(file);
   };
 
   return (

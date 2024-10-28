@@ -47,7 +47,7 @@ parasails.registerComponent('aceEditor', {
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
   <div class="ace-editor-container">
-    <div @input="inputDefaultItemField($event)" style="height: 300px;" :id="'editor' + uniqueId" :do-set="_getCurriedDoSetFn()">{{value}}</div>
+    <div @input="inputDefaultItemField($event)" @paste="inputDefaultItemField($event)" style="height: 300px;" :id="'editor' + uniqueId" :do-set="_getCurriedDoSetFn()">{{value}}</div>
   </div>
   `,
 

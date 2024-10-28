@@ -1020,6 +1020,50 @@ software:
 	assert.Equal(t, filepath.Base(tmpFile.Name()), *savedTeam.Filename)
 }
 
+func createFakeITunesAndVPPServices(t *testing.T) {
+	config := &appleVPPConfigSrvConf{
+		Assets: []vpp.Asset{
+			{
+				AdamID:         "1",
+				PricingParam:   "STDQ",
+				AvailableCount: 12,
+			},
+			{
+				AdamID:         "2",
+				PricingParam:   "STDQ",
+				AvailableCount: 3,
+			},
+		},
+		SerialNumbers: []string{"123", "456"},
+	}
+	startVPPApplyServer(t, config)
+
+	appleITunesSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// a map of apps we can respond with
+		db := map[string]string{
+			// macos app
+			"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1}`,
+			// macos, ios, ipados app
+			"2": `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2,
+				"supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`,
+			// ipados app
+			"3": `{"bundleId": "c-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3,
+				"supportedDevices": ["iPadAir-iPadAir"] }`,
+		}
+
+		adamIDString := r.URL.Query().Get("id")
+		adamIDs := strings.Split(adamIDString, ",")
+
+		var objs []string
+		for _, a := range adamIDs {
+			objs = append(objs, db[a])
+		}
+
+		_, _ = w.Write([]byte(fmt.Sprintf(`{"results": [%s]}`, strings.Join(objs, ","))))
+	}))
+	t.Setenv("FLEET_DEV_ITUNES_URL", appleITunesSrv.URL)
+}
+
 func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
@@ -1033,7 +1077,8 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	// Mock appConfig
 	savedAppConfig := &fleet.AppConfig{}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
+		appConfig := savedAppConfig.Copy()
+		return appConfig, nil
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
@@ -1104,6 +1149,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		return nil, nil, nil
 	}
 	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		if savedTeam != nil {
+			return []*fleet.Team{savedTeam}, nil
+		}
 		return nil, nil
 	}
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) { return nil, nil }
@@ -1158,8 +1206,12 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		return nil
 	}
 
+	vppToken := &fleet.VPPTokenDB{
+		Location:  "Foobar",
+		RenewDate: time.Now().Add(24 * 365 * time.Hour),
+	}
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-		return []*fleet.VPPTokenDB{}, nil
+		return []*fleet.VPPTokenDB{vppToken}, nil
 	}
 
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
@@ -1169,11 +1221,38 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		return nil
 	}
 
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		var teamsSummary []*fleet.TeamSummary
+		if savedTeam != nil {
+			teamsSummary = append(teamsSummary, &fleet.TeamSummary{
+				ID:          savedTeam.ID,
+				Name:        savedTeam.Name,
+				Description: savedTeam.Description,
+			})
+		}
+		return teamsSummary, nil
+	}
+
+	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+		if teamID != nil && *teamID == savedTeam.ID {
+			return vppToken, nil
+		}
+		return nil, &notFoundError{}
+	}
+
+	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
+		return vppToken, nil
+	}
+
+	createFakeITunesAndVPPServices(t)
+
 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
 	t.Setenv("ORG_NAME", orgName)
+	t.Setenv("TEST_TEAM_NAME", teamName)
+	t.Setenv("TEST_SECRET", secret)
 
 	_, err = globalFile.WriteString(
 		`
@@ -1189,6 +1268,11 @@ org_settings:
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: ${ORG_NAME}
+  mdm:
+    volume_purchasing_program:
+    - location: Foobar
+      teams:
+      - "${TEST_TEAM_NAME}"
   secrets: [{"secret":"globalSecret"}]
 software:
 `,
@@ -1197,9 +1281,6 @@ software:
 
 	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-
-	t.Setenv("TEST_TEAM_NAME", teamName)
-	t.Setenv("TEST_SECRET", secret)
 
 	_, err = teamFile.WriteString(
 		`
@@ -1211,6 +1292,8 @@ name: ${TEST_TEAM_NAME}
 team_settings:
   secrets: [{"secret":"${TEST_SECRET}"}]
 software:
+  app_store_apps:
+    - app_store_id: '1'
 `,
 	)
 	require.NoError(t, err)
@@ -1246,12 +1329,18 @@ software:
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "duplicate enroll secret found")
 
+	ds.GetVPPTokenByTeamIDFuncInvoked = false
+
 	// Dry run
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
 	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 
+	// Dry run should not attempt to get the VPP token when applying VPP apps (it may not exist).
+	require.False(t, ds.GetVPPTokenByTeamIDFuncInvoked)
+	ds.ListTeamsFuncInvoked = false
+
 	// Dry run, deleting other teams
-	assert.False(t, ds.ListTeamsFuncInvoked)
+	savedAppConfig = &fleet.AppConfig{}
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run", "--delete-other-teams"})
 	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 	assert.True(t, ds.ListTeamsFuncInvoked)
@@ -1265,6 +1354,12 @@ software:
 	assert.Equal(t, teamName, savedTeam.Name)
 	require.Len(t, enrolledTeamSecrets, 1)
 	assert.Equal(t, secret, enrolledTeamSecrets[0].Secret)
+
+	// Dry run again (after team was created by real run)
+	ds.GetVPPTokenByTeamIDFuncInvoked = false
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
+	// Dry run should not attempt to get the VPP token when applying VPP apps (it may not exist).
+	require.False(t, ds.GetVPPTokenByTeamIDFuncInvoked)
 
 	// Now, set  up a team to delete
 	teamToDeleteID := uint(999)

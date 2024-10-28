@@ -1,5 +1,6 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -21,11 +22,13 @@ const baseClass = "disk-encryption";
 interface IDiskEncryptionProps {
   currentTeamId: number;
   onMutation: () => void;
+  router: InjectedRouter;
 }
 
 const DiskEncryption = ({
   currentTeamId,
   onMutation,
+  router,
 }: IDiskEncryptionProps) => {
   const { isPremiumTier, config, setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -123,7 +126,10 @@ const DiskEncryption = ({
           ) : (
             <div className="disk-encryption-content">
               {showAggregate && (
-                <DiskEncryptionTable currentTeamId={currentTeamId} />
+                <DiskEncryptionTable
+                  currentTeamId={currentTeamId}
+                  router={router}
+                />
               )}
               <Checkbox
                 onChange={onToggleCheckbox}

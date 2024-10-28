@@ -237,7 +237,6 @@ func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 			Title:            "none",
 			Message:          "### Setting up your Mac...\n\nYour Mac is being configured by your organization using Fleet. This process may take some time to complete. Please don't attempt to restart or shut down the computer unless prompted to do so.",
 			Icon:             orgLogo,
-			IconSize:         30,
 			MessageAlignment: swiftdialog.AlignmentCenter,
 			CentreIcon:       true,
 			Height:           "625",
@@ -253,6 +252,10 @@ func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 
 		if err = s.sd.ShowProgress(); err != nil {
 			log.Error().Err(err).Msg("setting initial setup experience progress")
+		}
+
+		if err := s.sd.SetIconSize(80); err != nil {
+			log.Error().Err(err).Msg("setting initial setup experience icon size")
 		}
 
 		log.Debug().Msg("swiftDialog process started")
