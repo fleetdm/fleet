@@ -1,0 +1,15 @@
+name: No team
+controls:
+  macos_setup:
+    software:
+      - package_path: lib/software_ruby.yml
+      - app_store_id: "1"
+    script: lib/setup_script.sh
+policies:
+software:
+  app_store_apps:
+      - app_store_id: "1"
+      - app_store_id: "2"
+  packages:
+    - path: lib/software_ruby.yml
+    - path: lib/software_other.yml

@@ -1290,13 +1290,21 @@ type Datastore interface {
 	// a map that only contains the serials that have a matching row in the `hosts` table.
 	GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*Host, error)
 
+	// DeleteHostDEPAssignmentsFromAnotherABM makes as deleted any DEP entry that matches one of the provided serials only if the entry is NOT associated to the provided ABM token.
+	DeleteHostDEPAssignmentsFromAnotherABM(ctx context.Context, abmTokenID uint, serials []string) error
+
 	// DeleteHostDEPAssignments marks as deleted entries in
-	// host_dep_assignments for host with matching serials.
-	DeleteHostDEPAssignments(ctx context.Context, serials []string) error
+	// host_dep_assignments for host with matching serials only if the entry is associated to the provided ABM token.
+	DeleteHostDEPAssignments(ctx context.Context, abmTokenID uint, serials []string) error
 
 	// UpdateHostDEPAssignProfileResponses receives a profile UUID and threes lists of serials, each representing
+	// one of the three possible responses, and updates the host_dep_assignments table with the corresponding responses. For each response, it also sets the ABM token id in the table to the provided value.
+	UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse, abmTokenID uint) error
+
+	// UpdateHostDEPAssignProfileResponsesSameABM receives a profile UUID and threes lists of serials, each representing
 	// one of the three possible responses, and updates the host_dep_assignments table with the corresponding responses.
-	UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse) error
+	// The ABM token ID remains unchanged.
+	UpdateHostDEPAssignProfileResponsesSameABM(ctx context.Context, resp *godep.ProfileResponse) error
 
 	// ScreenDEPAssignProfileSerialsForCooldown returns the serials that are still in cooldown and the
 	// ones that are ready to be assigned a profile. If `screenRetryJobs` is true, it will also skip
@@ -1738,7 +1746,32 @@ type Datastore interface {
 
 	GetVPPTokenByLocation(ctx context.Context, loc string) (*VPPTokenDB, error)
 
+	////////////////////////////////////////////////////////////////////////////////////
+	// Setup Experience
+	SetSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, titleIDs []uint) error
+	ListSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, opts ListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
+
+	// SetHostAwaitingConfiguration sets a boolean indicating whether or not the given host is
+	// in the setup experience flow (which runs during macOS Setup Assistant).
+	SetHostAwaitingConfiguration(ctx context.Context, hostUUID string, inSetupExperience bool) error
+	// GetHostAwaitingConfiguration returns a boolean indicating whether or not the given host is
+	// in the setup experience flow (which runs during macOS Setup Assistant).
+	GetHostAwaitingConfiguration(ctx context.Context, hostUUID string) (bool, error)
+
 	///////////////////////////////////////////////////////////////////////////////
+	// Setup Experience
+	//
+
+	ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*SetupExperienceStatusResult, error)
+	UpdateSetupExperienceStatusResult(ctx context.Context, status *SetupExperienceStatusResult) error
+	EnqueueSetupExperienceItems(ctx context.Context, hostUUID string, teamID uint) (bool, error)
+	GetSetupExperienceScript(ctx context.Context, teamID *uint) (*Script, error)
+	SetSetupExperienceScript(ctx context.Context, script *Script) error
+	DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error
+	MaybeUpdateSetupExperienceScriptStatus(ctx context.Context, hostUUID string, executionID string, status SetupExperienceStatusResultStatus) (bool, error)
+	MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx context.Context, hostUUID string, executionID string, status SetupExperienceStatusResultStatus) (bool, error)
+	MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hostUUID string, commandUUID string, status SetupExperienceStatusResultStatus) (bool, error)
+
 	// Fleet-maintained apps
 	//
 

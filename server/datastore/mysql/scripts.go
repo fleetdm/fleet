@@ -1217,7 +1217,10 @@ WHERE
     SELECT 1 FROM fleet_library_apps fla
 			WHERE script_contents.id IN (fla.install_script_content_id, fla.uninstall_script_content_id)
   )
-		`
+  AND NOT EXISTS (
+    SELECT 1 FROM setup_experience_scripts WHERE script_content_id = script_contents.id
+	)
+`
 	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up unused script contents")

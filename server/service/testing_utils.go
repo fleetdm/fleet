@@ -743,6 +743,7 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"GET", "/api/latest/fleet/bootstrap/summary", false, true},
 		{"PATCH", "/api/latest/fleet/mdm/apple/setup", false, true},
 		{"PATCH", "/api/latest/fleet/setup_experience", false, true},
+		{"POST", "/api/fleet/orbit/setup_experience/status", false, true},
 	}
 }
 

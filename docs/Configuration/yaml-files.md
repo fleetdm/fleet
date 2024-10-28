@@ -4,20 +4,6 @@ Use Fleet's best practice GitOps workflow to manage your computers as code.
 
 To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
 
-## File structure
-
-- `default.yml` - File where you define the queries, policies and agent options for all hosts. If you're using Fleet Premium, this file updates queries and policies that run on all hosts ("All teams"). 
-- `teams/no-team.yml` - File where you define the policies, controls, and software for hosts on "No team". Available in Fleet Premium. 
-- `teams/` - Folder where you define your teams in Fleet. These `teams/team-name.yml` files define the controls, queries, policies, software, and agent options for hosts assigned to the specified team. Available in Fleet Premium.
-- `lib/` - Folder where you define policies, queries, configuration profiles, scripts, and agent options. These files can be referenced in top level keys in the `default.yml` file and the files in the `teams/` folder.
-- `.github/workflows/workflow.yml` - The GitHub workflow file where you can add [environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow).
-
-The following files are responsible for running the GitHub action or GitLab CI/CD. Most users don't need to edit these files.
-- `gitops.sh` - The bash script that applies the latest configuration to Fleet. This script is used in the GitHub action file.
-- `.github/gitops-action/action.yml` - The GitHub action that runs `gitops.sh`. This action is used in the GitHub workflow file. It can also be used in other workflows.
-- `.gitlab-ci.yml` - The GitLab CI/CD file that applies the latest configuration to Fleet.
-
-## Configuration options
 
 The following are the required keys in the `default.yml` and any `teams/team-name.yml` files:
 
@@ -31,14 +17,7 @@ org_settings: # Only default.yml
 team_settings: # Only teams/team-name.yml
 ```
 
-- [policies](#policies)
-- [queries](#queries)
-- [agent_options](#agent-options)
-- [controls](#controls)
-- [software](#software)
-- [org_settings and team_settings](#org-settings-and-team-settings)
-
-### policies
+## policies
 
 Policies can be specified inline in your `default.yml`, `teams/team-name.yml`, or `teams/no-team.yml` files. They can also be specified in separate files in your `lib/` folder.  
 
@@ -48,13 +27,13 @@ Policies defined in `teams/no-team.yml` run on hosts that belong to "No team".
 
 > Policies that run automations to install software or run scripts must be defined in `teams/no-team.yml` to run on hosts that belong to "No team".
 
-#### Options
+### Options
 
 For possible options, see the parameters for the [Add policy API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-policy).
 
-#### Example
+### Example
 
-##### Inline
+#### Inline
   
 `default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
 
@@ -69,7 +48,7 @@ policies:
     calendar_event_enabled: false
 ```
 
-##### Separate file
+#### Separate file
  
 `lib/policies-name.policies.yml`
 
@@ -107,19 +86,19 @@ policies:
 # path is relative to default.yml or teams/team-name.yml 
 ```
 
-### queries
+## queries
 
 Queries can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
 
 Note that the `team_id` option isn't supported in GitOps.
 
-#### Options
+### Options
 
 For possible options, see the parameters for the [Create query API endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-query).
 
-#### Example
+### Example
 
-##### Inline
+#### Inline
   
 `default.yml` or `teams/team-name.yml`
 
@@ -134,7 +113,7 @@ queries:
     automations_enabled: false
 ```
 
-##### Separate file
+#### Separate file
  
 `lib/queries-name.queries.yml`
 
@@ -163,15 +142,15 @@ queries:
 # path is relative to default.yml or teams/team-name.yml
 ```
 
-### agent_options
+## agent_options
 
 Agent options can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
 
 See "[Agent configuration](https://fleetdm.com/docs/configuration/agent-configuration)" to find all possible options.
 
-#### Example
+### Example
 
-##### Inline
+#### Inline
   
 `default.yml` or `teams/team-name.yml`
 
@@ -192,7 +171,7 @@ agent_options:
       pack_delimiter: /
 ```
 
-##### Separate file
+#### Separate file
  
 `lib/agent-options.yml`
 
@@ -222,7 +201,7 @@ queries:
 # path is relative to default.yml or teams/team-name.yml
 ```
 
-### controls
+## controls
 
 The `controls` section allows you to configure scripts and device management (MDM) features in Fleet.
 
@@ -232,7 +211,7 @@ Controls for hosts that are in "No team" can be defined in `default.yml` or in `
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for all teams (`default.yml`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS and Windows hosts (default: `false`).
 
-##### Example
+#### Example
 
 ```yaml
 controls:
@@ -270,27 +249,27 @@ controls:
 # paths are relative to default.yml or teams/team-name.yml 
 ```
 
-#### macos_updates
+### macos_updates
 
 - `deadline` specifies the deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8) (default: `""`).
 - `minimum_version` specifies the minimum required macOS version (default: `""`).
 
-#### windows_updates
+### windows_updates
 
 - `deadline_days` (default: null)
 - `grace_period_days` (default: null)
 
-#### ios_updates
+### ios_updates
 
 - `deadline` specifies the deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8) (default: `""`).
 - `minimum_version` specifies the minimum required iOS version (default: `""`).
 
-#### ipados_updates
+### ipados_updates
 
 - `deadline` specifies the deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8) (default: `""`).
 - `minimum_version` specifies the minimum required iPadOS version (default: `""`).
 
-#### macos_settings and windows_settings
+### macos_settings and windows_settings
 
 - `macos_settings.custom_settings` is a list of paths to macOS configuration profiles (.mobileconfig) or declaration profiles (.json).
 - `windows_settings.custom_settings` is a list of paths to Windows configuration profiles (.xml).
@@ -299,7 +278,7 @@ Fleet supports adding [GitHub environment variables](https://docs.github.com/en/
 
 Use `labels_include_all` to only apply (scope) profiles to hosts that have all those labels or `labels_exclude_any` to apply profiles to hosts that don't have any of those labels.
 
-#### macos_setup
+### macos_setup
 
 The `macos_setup` section lets you control the out-of-the-box macOS [setup experience](https://fleetdm.com/guides/macos-setup-experience) for hosts that use Automated Device Enrollment (ADE).
 
@@ -307,7 +286,7 @@ The `macos_setup` section lets you control the out-of-the-box macOS [setup exper
 - `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host. 
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
 
-#### macos_migration
+### macos_migration
 
 The `macos_migration` section lets you control the [end user migration workflow](https://fleetdm.com/docs/using-fleet/mdm-migration-guide#end-user-workflow) for macOS hosts that enrolled to your old MDM solution.
 
@@ -317,7 +296,7 @@ The `macos_migration` section lets you control the [end user migration workflow]
 
 Can only be configure for all teams (`default.yml`).
 
-### software
+## software
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -328,9 +307,9 @@ Software can also be specified in separate files in your `lib/` folder.
 - `packages` is a list of software packages (.pkg, .msi, .exe, .rpm, or .deb) and software specific options.
 - `app_store_apps` is a list of Apple App Store apps.
 
-#### Example
+### Example
 
-##### Inline
+#### Inline
 
 ```yaml
 software:
@@ -348,7 +327,7 @@ software:
    - app_store_id: '1091189122'
 ```
 
-##### packages
+#### packages
 
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3 (default: `""`).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
@@ -356,7 +335,7 @@ software:
 - `post_install_script.path` is the script Fleet will run on hosts after intalling software (default: `""`).
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
 
-##### app_store_apps
+#### app_store_apps
 
 - `app_store_id` is the ID of the Apple App Store app. You can find this at the end of the app's App Store URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" and the `app_store_id` is `1016366447`.
 
@@ -364,7 +343,7 @@ software:
 
 `self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
 
-##### Separate file
+#### Separate file
 
 `lib/software-name.package.yml`:
 
@@ -393,16 +372,16 @@ software:
 # path is relative to default.yml or teams/team-name.yml
 ```
 
-### org_settings and team_settings
+## org_settings and team_settings
 
-#### features
+### features
 
 The `features` section of the configuration YAML lets you define what predefined queries are sent to the hosts and later on processed by Fleet for different functionalities.
 - `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned (default: empty).
 - `enable_host_users` specifies whether or not Fleet collects user data from hosts (default: `true`).
 - `enable_software_inventory` specifies whether or not Fleet collects softwre inventory from hosts (default: `true`).
 
-##### Example
+#### Example
 
 ```yaml
 org_settings:
@@ -414,13 +393,13 @@ org_settings:
     enable_software_inventory: true
 ```
 
-#### fleet_desktop
+### fleet_desktop
 
 Direct end users to a custom URL when they select **Transparency** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
 
 Can only be configured for all teams (`org_settings`).
 
-##### Example
+#### Example
 
 ```yaml
 org_settings:
@@ -428,13 +407,13 @@ org_settings:
     transparency_url: "https://example.org/transparency"
 ```
 
-#### host_expiry_settings
+### host_expiry_settings
 
 The `host_expiry_settings` section lets you define if and when hosts should be automatically deleted from Fleet if they have not checked in.
 - `host_expiry_enabled` (default: `false`)
 - `host_expiry_window` if a host has not communicated with Fleet in the specified number of days, it will be removed. Must be > `0` when host expiry is enabled (default: `0`).
 
-##### Example
+#### Example
 
 ```yaml
 org_settings:
@@ -443,7 +422,7 @@ org_settings:
     host_expiry_window: 10
 ```
 
-#### org_info
+### org_info
 
 - `name` is the name of your organization (default: `""`)
 - `logo_url` is a public URL of the logo for your organization (default: Fleet logo).
@@ -452,7 +431,7 @@ org_settings:
 
 Can only be configured for all teams (`org_settings`).
 
-##### Example
+#### Example
 
 ```yaml
 org_settings:
@@ -463,11 +442,11 @@ org_settings:
     contact_url: https://fleetdm.com/company/contact
 ```
 
-#### secrets
+### secrets
 
 The `secrets` section defines the valid secrets that hosts can use to enroll to Fleet. Supply one of these secrets when generating the fleetd agent you'll use to enroll hosts. Learn more [here](https://fleetdm.com/docs/using-fleet/enroll-hosts).
 
-##### Example
+#### Example
 
 ```yaml
 org_settings:
@@ -475,18 +454,18 @@ org_settings:
   - $ENROLL_SECRET
 ```
 
-#### server_settings
+### server_settings
 
 - `enable_analytics` specifies whether or not to enable Fleet's [usage statistics](https://fleetdm.com/docs/using-fleet/usage-statistics) (default: `true`).
 - `live_query_disabled` disables the ability to run live queries (ad hoc queries executed via the UI or fleetctl) (default: `false`).
 - `query_reports_disabled` disables query reports and deletes existing repors (default: `false`).
 - `query_report_cap` sets the maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at time and monitoring your infrastructure. (Default: `1000`)
-- `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI (defaul: `false`).
+- `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI (default: `false`).
 - `server_url` is the base URL of the Fleet instance (default: provided during Fleet setup)
 
 Can only be configured for all teams (`org_settings`).
 
-##### Example
+#### Example
 
   ```yaml
 org_settings:
@@ -499,7 +478,7 @@ org_settings:
   ```
 
 
-#### sso_settings
+### sso_settings
 
 The `sso_settings` section lets you define single sign-on (SSO) settings. Learn more about SSO in Fleet [here](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso).
 
@@ -513,7 +492,7 @@ The `sso_settings` section lets you define single sign-on (SSO) settings. Learn 
 
 Can only be configured for all teams (`org_settings`).
 
-##### Example
+#### Example
 
 ```yaml
 org_settings:
@@ -526,11 +505,11 @@ org_settings:
     enable_sso_idp_login: true
 ```
 
-#### integrations
+### integrations
 
 The `integrations` section lets you define calendar events and ticket settings for failing policy and vulnerablity automations. Learn more about automations in Fleet [here](https://fleetdm.com/docs/using-fleet/automations).
 
-##### Example
+#### Example
 
 ```yaml
 org_settings:
@@ -552,37 +531,37 @@ org_settings:
 
 For secrets, you can add [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow)
 
-##### google_calendar
+#### google_calendar
 
 - `api_key_json` is the contents of the JSON file downloaded when you create your Google Workspace service account API key (default: `""`).
 - `domain` is the primary domain used to identify your end user's work calendar (default: `""`).
 
-##### jira
+#### jira
 
 - `url` is the URL of your Jira (default: `""`)
 - `username` is the username of your Jira account (default: `""`).
 - `api_token` is the Jira API token (default: `""`).
 - `project_key` is the project key location in your Jira project's URL. For example, in "jira.example.com/projects/EXMPL," "EXMPL" is the project key (default: `""`).
 
-##### zendesk
+#### zendesk
 
   - `url` is the URL of your Zendesk (default: `""`)
 - `username` is the username of your Zendesk account (default: `""`).
 - `api_token` is the Zendesk API token (default: `""`).
 - `group_id`is found by selecting **Admin > People > Groups** in Zendesk. Find your group and select it. The group ID will appear in the search field.
 
-#### webhook_settings
+### webhook_settings
 
 The `webhook_settings` section lets you define webhook settings for failing policy, vulnerability, and host status automations. Learn more about automations in Fleet [here](https://fleetdm.com/docs/using-fleet/automations).
 
-##### failing_policies_webhook
+#### failing_policies_webhook
 
 - `enable_failing_policies_webhook` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `policy_ids` is the list of policies that will trigger a webhook.
 - `host_batch_size` is the maximum number of hosts to batch in each webhook. A value of `0` means no batching (default: `0`).
 
-##### Example
+#### Example
 
 ```yaml
 org_settings:
@@ -597,14 +576,14 @@ org_settings:
         - 3
 ```
 
-##### host_status_webhook
+#### host_status_webhook
 
 - `enable_host_status_webhook` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `days_count` is the number of days that hosts need to be offline to count as part of the percentage (default: `0`).
 - `host_percentage` is the percentage of hosts that need to be offline to trigger the webhook. (default: `0`).
 
-##### Example
+#### Example
 
 ```yaml
 org_settings:
@@ -616,14 +595,14 @@ org_settings:
       host_percentage: 25
 ```
 
-##### vulnerabilities_webhook
+#### vulnerabilities_webhook
 
 - `enable_vulnerabilities_webhook` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `days_count` is the number of days that hosts need to be offline to count as part of the percentage (default: `0`).
 - `host_batch_size` is the maximum number of hosts to batch in each webhook. A value of `0` means no batching (default: `0`).
 
-##### Example
+#### Example
 
 ```yaml
 org_settings:
@@ -636,16 +615,16 @@ org_settings:
 
 Can only be configured for all teams (`org_settings`).
 
-#### mdm
+### mdm
 
-##### apple_business_manager
+#### apple_business_manager
 
 - `organization_name` is the organization name associated with the Apple Business Manager account.
 - `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager.
 - `ios_team` is the the team where iOS hosts are automatically added when they appear in Apple Business Manager.
 - `ipados_team` is the team where iPadOS hosts are automatically added when they appear in Apple Business Manager.
 
-##### Example
+#### Example
 
 ```yaml
 org_settings:
@@ -659,12 +638,12 @@ org_settings:
 
 > Apple Business Manager settings can only be configured for all teams (`org_settings`).
 
-##### volume_purchasing_program
+#### volume_purchasing_program
 
 - `location` is the name of the location in the Apple Business Manager account.
 - `teams` is a list of team names. If you choose specific teams, App Store apps in this VPP account will only be available to install on hosts in these teams. If not specified, App Store apps are available to install on hosts in all teams.
 
-##### Example
+#### Example
 
 ```yaml
 org_settings:
@@ -680,7 +659,7 @@ org_settings:
 
 Can only be configured for all teams (`org_settings`).
 
-##### end_user_authentication
+#### end_user_authentication
 
 The `end_user_authentication` section lets you define the identity provider (IdP) settings used for end user authentication during Automated Device Enrollment (ADE). Learn more about end user authentication in Fleet [here](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-eula).
 
@@ -693,7 +672,7 @@ Once the IdP settings are configured, you can use the [`controls.macos_setup.ena
 
 Can only be configured for all teams (`org_settings`).
 
-##### end_user_authentication
+#### end_user_authentication
 
 The `end_user_authentication` section lets you define the identity provider (IdP) settings used for end user authentication during Automated Device Enrollment (ADE). Learn more about end user authentication in Fleet [here](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-eula).
 

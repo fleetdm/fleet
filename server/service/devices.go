@@ -498,7 +498,7 @@ func (r getDeviceMDMManualEnrollProfileResponse) hijackRender(ctx context.Contex
 	// detect short writes (if it fails to send the full content properly)
 	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.Profile)), 10))
 	// this content type will make macos open the profile with the proper application
-	w.Header().Set("Content-Type", "application/x-apple-aspen-config; charset=urf-8")
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config; charset=utf-8")
 	// prevent detection of content, obey the provided content-type
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 

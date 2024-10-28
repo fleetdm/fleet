@@ -889,7 +889,7 @@ We're happy you've ventured a trip around the sun with Fleet- let's celebrate! T
 
 ### Compensation changes
 
-Fleet evaluates and (if relevant) updates compensation decisions yearly, shortly after the anniversary of a team member's start date. The Head of Digital Experience is responsible for the process to [update compensation](https://fleetdm.com/handbook/digital-experience#updating-compensation)
+Fleet evaluates and (if relevant) updates compensation decisions yearly, shortly after the anniversary of a team member's start date. The Head of Digital Experience is responsible for the process to [update compensation](https://fleetdm.com/handbook/digital-experience#update-a-team-members-compensation)
 
 
 ### Relocating
@@ -1369,11 +1369,13 @@ Related content...
 Wherever possible, avoid creating nested headings. For example:
 
 ```
-## Things
 
-### Thing 1
+### Things
+
+#### Thing 1
 
 Hi my name is Thing 1
+
 ```
 
 

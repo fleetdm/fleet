@@ -213,6 +213,17 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			notifs.NeedsMDMMigration = true
 		}
 
+		if isConnectedToFleetMDM {
+			inSetupAssistant, err := svc.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
+			if err != nil {
+				return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking if host is in setup experience")
+			}
+
+			if inSetupAssistant {
+				notifs.RunSetupExperience = true
+			}
+		}
+
 	}
 
 	// set the host's orbit notifications for Windows MDM
@@ -690,6 +701,25 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 		return ctxerr.Wrap(ctx, err, "save host script result")
 	}
 
+	// FIXME: datastore implementation of action seems rather brittle, can it be refactored?
+	if action == "" && fleet.IsSetupExperienceSupported(host.Platform) {
+		// this might be a setup experience script result
+		if updated, err := maybeUpdateSetupExperienceStatus(ctx, svc.ds, fleet.SetupExperienceScriptResult{
+			HostUUID:    host.UUID,
+			ExecutionID: result.ExecutionID,
+			ExitCode:    result.ExitCode,
+		}, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "update setup experience status")
+		} else if updated {
+			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.ExecutionID)
+			_, err := svc.EnterpriseOverrides.SetupExperienceNextStep(ctx, host.UUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
+			}
+
+		}
+	}
+
 	if hsr != nil {
 		var user *fleet.User
 		if hsr.UserID != nil {
@@ -1028,6 +1058,20 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return ctxerr.Wrap(ctx, err, "save host software installation result")
 	}
 
+	if fleet.IsSetupExperienceSupported(host.Platform) {
+		// this might be a setup experience software install result
+		if updated, err := maybeUpdateSetupExperienceStatus(ctx, svc.ds, fleet.SetupExperienceSoftwareInstallResult{
+			HostUUID:        host.UUID,
+			ExecutionID:     result.InstallUUID,
+			InstallerStatus: result.Status(),
+		}, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "update setup experience status")
+		} else if updated {
+			// TODO: call next step of setup experience?
+			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.InstallUUID)
+		}
+	}
+
 	if status := result.Status(); status != fleet.SoftwareInstallPending {
 		hsi, err := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID)
 		if err != nil {
@@ -1069,4 +1113,45 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}
 	}
 	return nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Get Orbit setup experience status
+/////////////////////////////////////////////////////////////////////////////////
+
+type getOrbitSetupExperienceStatusRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	ForceRelease bool   `json:"force_release"`
+}
+
+func (r *getOrbitSetupExperienceStatusRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *getOrbitSetupExperienceStatusRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type getOrbitSetupExperienceStatusResponse struct {
+	Results *fleet.SetupExperienceStatusPayload `json:"setup_experience_results,omitempty"`
+	Err     error                               `json:"error,omitempty"`
+}
+
+func (r getOrbitSetupExperienceStatusResponse) error() error { return r.Err }
+
+func getOrbitSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getOrbitSetupExperienceStatusRequest)
+	results, err := svc.GetOrbitSetupExperienceStatus(ctx, req.OrbitNodeKey, req.ForceRelease)
+	if err != nil {
+		return &getOrbitSetupExperienceStatusResponse{Err: err}, nil
+	}
+	return &getOrbitSetupExperienceStatusResponse{Results: results}, nil
+}
+
+func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*fleet.SetupExperienceStatusPayload, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }

@@ -548,10 +548,12 @@ var hostRefs = []string{
 // the host.uuid is not always named the same, so the map key is the table name
 // and the map value is the column name to match to the host.uuid.
 var additionalHostRefsByUUID = map[string]string{
-	"host_mdm_apple_profiles":           "host_uuid",
-	"host_mdm_apple_bootstrap_packages": "host_uuid",
-	"host_mdm_windows_profiles":         "host_uuid",
-	"host_mdm_apple_declarations":       "host_uuid",
+	"host_mdm_apple_profiles":               "host_uuid",
+	"host_mdm_apple_bootstrap_packages":     "host_uuid",
+	"host_mdm_windows_profiles":             "host_uuid",
+	"host_mdm_apple_declarations":           "host_uuid",
+	"host_mdm_apple_awaiting_configuration": "host_uuid",
+	"setup_experience_status_results":       "host_uuid",
 }
 
 // additionalHostRefsSoftDelete are tables that reference a host but for which
@@ -790,15 +792,7 @@ func queryStatsToScheduledQueryStats(queriesStats []fleet.QueryStats, packName s
 // of MDM host data. It assumes that hostMDMJoin is included in the query.
 const hostMDMSelect = `,
 	JSON_OBJECT(
-		'enrollment_status',
-		CASE
-			WHEN hmdm.is_server = 1 THEN NULL
-			WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 THEN 'On (manual)'
-			WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 1 THEN 'On (automatic)'
-			WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 1 THEN 'Pending'
-			WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 0 THEN 'Off'
-			ELSE NULL
-		END,
+		'enrollment_status', hmdm.enrollment_status,
 		'dep_profile_error',
 		CASE
 			WHEN hdep.assign_profile_response = '` + string(fleet.DEPAssignProfileResponseFailed) + `' THEN CAST(TRUE AS JSON)
@@ -870,6 +864,7 @@ const hostMDMJoin = `
 	  hm.is_server,
 	  hm.enrolled,
 	  hm.installed_from_dep,
+	  hm.enrollment_status,
 	  hm.server_url,
 	  hm.mdm_id,
 	  hm.host_id,
