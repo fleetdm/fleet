@@ -464,7 +464,7 @@ func TestIntegrationsUpdatesExpiredSignatures(t *testing.T) {
 	// Not t.Parallel() due to modifications to environment and global variables.
 
 	setPassphrases(t)
-	const timeToExpire = "5s"
+	const timeToExpire = 5 * time.Second
 
 	for _, tc := range []struct {
 		name                      string
@@ -475,11 +475,11 @@ func TestIntegrationsUpdatesExpiredSignatures(t *testing.T) {
 		{
 			name: "root expired",
 			overrideKeyExpirationFunc: func(t *testing.T) {
-				oldKeyExpirationDuration := keyExpirationDuration
+				oldKeyExpirationDuration := keyExpirationDuration_
 				t.Cleanup(func() {
-					keyExpirationDuration = oldKeyExpirationDuration
+					keyExpirationDuration_ = oldKeyExpirationDuration
 				})
-				keyExpirationDuration = timeToExpire
+				keyExpirationDuration_ = timeToExpire
 			},
 			// When the root signature is expired both client.Update fails and client.Target fail.
 			updateMetadataFails: true,
@@ -488,11 +488,11 @@ func TestIntegrationsUpdatesExpiredSignatures(t *testing.T) {
 		{
 			name: "snapshot expired",
 			overrideKeyExpirationFunc: func(t *testing.T) {
-				oldKeyExpirationDuration := snapshotExpirationDuration
+				oldKeyExpirationDuration := snapshotExpirationDuration_
 				t.Cleanup(func() {
-					snapshotExpirationDuration = oldKeyExpirationDuration
+					snapshotExpirationDuration_ = oldKeyExpirationDuration
 				})
-				snapshotExpirationDuration = timeToExpire
+				snapshotExpirationDuration_ = timeToExpire
 			},
 			// When the snapshot signature is expired client.Update does not fail and client.Target does fail.
 			updateMetadataFails: false,
@@ -501,11 +501,11 @@ func TestIntegrationsUpdatesExpiredSignatures(t *testing.T) {
 		{
 			name: "targets expired",
 			overrideKeyExpirationFunc: func(t *testing.T) {
-				oldKeyExpirationDuration := targetsExpirationDuration
+				oldKeyExpirationDuration := targetsExpirationDuration_
 				t.Cleanup(func() {
-					targetsExpirationDuration = oldKeyExpirationDuration
+					targetsExpirationDuration_ = oldKeyExpirationDuration
 				})
-				targetsExpirationDuration = timeToExpire
+				targetsExpirationDuration_ = timeToExpire
 			},
 			// When the targets signature is expired client.Update does not fail and client.Target does fail.
 			updateMetadataFails: false,
@@ -514,11 +514,11 @@ func TestIntegrationsUpdatesExpiredSignatures(t *testing.T) {
 		{
 			name: "timestamp expired",
 			overrideKeyExpirationFunc: func(t *testing.T) {
-				oldKeyExpirationDuration := timestampExpirationDuration
+				oldKeyExpirationDuration := timestampExpirationDuration_
 				t.Cleanup(func() {
-					timestampExpirationDuration = oldKeyExpirationDuration
+					timestampExpirationDuration_ = oldKeyExpirationDuration
 				})
-				timestampExpirationDuration = timeToExpire
+				timestampExpirationDuration_ = timeToExpire
 			},
 			// When the timestamp signature is expired client.Update fails and client.Target does not fail.
 			updateMetadataFails: true,
@@ -567,7 +567,7 @@ func TestIntegrationsUpdatesExpiredSignatures(t *testing.T) {
 			err = updater.UpdateMetadata()
 			require.NoError(t, err)
 
-			time.Sleep(mustParseDuration(timeToExpire) + 1*time.Second)
+			time.Sleep(timeToExpire + 1*time.Second)
 
 			// Expect UpdateMetadata (client.Update) to fail when the signature has expired.
 			err = updater.UpdateMetadata()
