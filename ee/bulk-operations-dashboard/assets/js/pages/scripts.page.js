@@ -23,6 +23,7 @@ parasails.registerPage('scripts', {
     profileToEdit: {},
     cloudError: '',
     newScript: undefined,
+    syncingMessage: '',
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -111,6 +112,7 @@ parasails.registerPage('scripts', {
     },
     _getScripts: async function() {
       this.syncing = true;
+      this.syncingMessage = 'Gathering scritps...';
       let newScriptsInformation = await Cloud.getScripts();
       this.scripts = newScriptsInformation;
       this.syncing = false;

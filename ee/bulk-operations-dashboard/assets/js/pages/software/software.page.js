@@ -25,7 +25,7 @@ parasails.registerPage('software', {
     newSoftware: undefined,
     showAdvancedOptions: false,
     newSoftwareFilename: undefined,
-
+    syncingMessage: '',
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -137,6 +137,7 @@ parasails.registerPage('software', {
     },
     _getSoftware: async function() {
       this.syncing = true;
+      this.syncingMessage = 'Gathering software';
       let newSoftwareInformation = await Cloud.getSoftware();
       this.software = newSoftwareInformation;
       this.syncing = false;
