@@ -10,12 +10,12 @@ import { ITeamConfig } from "interfaces/team";
 
 import SectionHeader from "components/SectionHeader/SectionHeader";
 import Spinner from "components/Spinner";
-import EndUserExperiencePreview from "pages/ManageControlsPage/components/EndUserExperiencePreview";
 
 import RequireEndUserAuth from "./components/RequireEndUserAuth/RequireEndUserAuth";
 import EndUserAuthForm from "./components/EndUserAuthForm/EndUserAuthForm";
 
 import OsSetupPreview from "../../../../../../assets/images/os-setup-preview.gif";
+import EndUserExperiencePreview from "./components/EndUserExperiencePreview";
 
 const baseClass = "end-user-authentication";
 
