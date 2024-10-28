@@ -10,7 +10,7 @@ interface IEndUserExperiencePreviewProps {
   className?: string;
 }
 
-const EndUserExperiencePerview = ({
+const EndUserExperiencePreview = ({
   previewImage,
   altText = "end user experience preview",
   children,
@@ -31,4 +31,4 @@ const EndUserExperiencePerview = ({
   );
 };
 
-export default EndUserExperiencePerview;
+export default EndUserExperiencePreview;

@@ -311,6 +311,14 @@ will be disabled and/or hidden in the UI.
                     await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
                     let today = new Date();
                     let nowOn = today.toISOString().replace('Z', '+0000');
+                    let websiteVisitReason;
+                    if(req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
+                      let thirtyMinutesAgoAt = Date.now() - (1000 * 60 * 30);
+                      // If this user visited the website from an ad, set the websiteVisitReason to be the adAttributionString stored in their session.
+                      if(req.session.visitedSiteFromAdAt > thirtyMinutesAgoAt) {
+                        websiteVisitReason = this.req.session.adAttributionString;
+                      }
+                    }
                     // Create the new Fleet website page view record.
                     return await sails.helpers.flow.build(async ()=>{
                       return await salesforceConnection.sobject('fleet_website_page_views__c')
@@ -318,6 +326,7 @@ will be disabled and/or hidden in the UI.
                         Contact__c: recordIds.salesforceContactId,// eslint-disable-line camelcase
                         Page_URL__c: `https://fleetdm.com${req.url}`,// eslint-disable-line camelcase
                         Visited_on__c: nowOn,// eslint-disable-line camelcase
+                        Website_visit_reason__c: websiteVisitReason// eslint-disable-line camelcase
                       });
                     }).intercept((err)=>{
                       return new Error(`Could not create new Fleet website page view record. Error: ${err}`);

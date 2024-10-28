@@ -412,8 +412,7 @@ func (oc *OrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDirec
 	return resp.GetFilePath(), nil
 }
 
-type NullFileResponse struct {
-}
+type NullFileResponse struct{}
 
 func (f *NullFileResponse) Handle(resp *http.Response) error {
 	_, _, err := mime.ParseMediaType(resp.Header.Get("Content-Disposition"))
@@ -654,4 +653,16 @@ var testStdoutHTTPTracer = &httptrace.ClientTrace{
 			time.Now().UTC().Format(httpTraceTimeFormat), network, addr, err,
 		)
 	},
+}
+
+// GetSetupExperienceStatus checks the status of the setup experience for this host.
+func (oc *OrbitClient) GetSetupExperienceStatus() (*fleet.SetupExperienceStatusPayload, error) {
+	verb, path := "POST", "/api/fleet/orbit/setup_experience/status"
+	var resp getOrbitSetupExperienceStatusResponse
+	err := oc.authenticatedRequest(verb, path, &getOrbitSetupExperienceStatusRequest{}, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Results, nil
 }

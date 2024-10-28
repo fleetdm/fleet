@@ -498,7 +498,7 @@ func (r getDeviceMDMManualEnrollProfileResponse) hijackRender(ctx context.Contex
 	// detect short writes (if it fails to send the full content properly)
 	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.Profile)), 10))
 	// this content type will make macos open the profile with the proper application
-	w.Header().Set("Content-Type", "application/x-apple-aspen-config; charset=urf-8")
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config; charset=utf-8")
 	// prevent detection of content, obey the provided content-type
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 
@@ -555,7 +555,7 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]b
 	}
 
 	enrollSecret := tmSecrets[0].Secret
-	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.ServerSettings.ServerURL, enrollSecret)
+	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating ota mobileconfig file for manual enrollment")
 	}

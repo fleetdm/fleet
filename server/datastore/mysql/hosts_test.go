@@ -6769,6 +6769,18 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, softwareInstaller, false, nil)
 	require.NoError(t, err)
 
+	// Add an awaiting configuration entry
+	err = ds.SetHostAwaitingConfiguration(ctx, host.UUID, false)
+	require.NoError(t, err)
+
+	// Add a setup experience status result
+	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "test.sh", ScriptContents: "echo foo"})
+	require.NoError(t, err)
+
+	added, err := ds.EnqueueSetupExperienceItems(ctx, host.UUID, 0)
+	require.NoError(t, err)
+	require.True(t, added)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool
@@ -7612,7 +7624,7 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	require.True(t, info.DEPAssignedToFleet)
 	require.True(t, info.OsqueryEnrolled)
 
-	err = ds.DeleteHostDEPAssignments(ctx, []string{host.HardwareSerial})
+	err = ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{host.HardwareSerial})
 	require.NoError(t, err)
 	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
 	require.NoError(t, err)
@@ -7745,7 +7757,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	// simulate a failed JSON profile assignment
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
-		"foo", []string{hFleet.HardwareSerial}, string(fleet.DEPAssignProfileResponseFailed),
+		"foo", []string{hFleet.HardwareSerial}, string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
 	)
 	require.NoError(t, err)
 	loadFleet, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
@@ -9703,5 +9715,4 @@ func testGetHostEmails(t *testing.T, ds *Datastore) {
 	emails, err = ds.GetHostEmails(ctx, host.UUID, fleet.DeviceMappingMDMIdpAccounts)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"foo@example.com", "bar@example.com"}, emails)
-
 }
