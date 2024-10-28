@@ -76,7 +76,7 @@ policies:
 ```yaml
 policies:
   - path: ../lib/policies-name.policies.yml
-# path is relative to default.yml or teams/team-name.yml 
+# path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
 ```
 
 > Currently, the `run_script` and `install_software` policy automations can only be configured for policies on a team (`teams/team-name.yml`) or "No team" (`teams/no-team.yml`). `calendar_event_enabled` can only be configured for policies on a team.
@@ -134,7 +134,7 @@ queries:
 ```yaml
 queries:
   - path: ../lib/queries-name.queries.yml
-# path is relative to default.yml or teams/team-name.yml
+# path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
 ```
 
 ## agent_options
@@ -193,7 +193,7 @@ config:
 ```yaml
 queries:
   path: ../lib/agent-options.yml
-# path is relative to default.yml or teams/team-name.yml
+# path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
 ```
 
 ## controls
@@ -294,33 +294,24 @@ Can only be configure for all teams (`default.yml`).
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 The `software` section allows you to configure packages and Apple App Store apps that you want to install on your hosts.
-Software for hosts that belong to "No team" have to be defined in `teams/no-team.yml`.
-Software can also be specified in separate files in your `lib/` folder.
 
-- `packages` is a list of software packages (.pkg, .msi, .exe, .rpm, or .deb) and software specific options.
+- `packages` is a list of paths to custom packages (.pkg, .msi, .exe, .rpm, or .deb).
 - `app_store_apps` is a list of Apple App Store apps.
 
-### Example
+#### Example
 
-#### Inline
+`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
 
 ```yaml
 software:
   packages:
-   - url: https://github.com/organinzation/repository/package-1.pkg
-     install_script:
-       path: /lib/crowdstrike-install.sh 
-      pre_install_query: 
-        path: /lib/check-crowdstrike-configuration-profile.queries.yml
-      post_install_script:
-        path: /lib/crowdstrike-post-install.sh 
-      self_service: true
-    - url: https://github.com/organinzation/repository/package-2.msi
+    - path: ../lib/software-name.package.yml
+  # path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
   app_store_apps:
-   - app_store_id: '1091189122'
+    - app_store_id: '1091189122'
 ```
 
-#### packages
+### packages
 
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3 (default: `""`).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
@@ -328,15 +319,7 @@ software:
 - `post_install_script.path` is the script Fleet will run on hosts after intalling software (default: `""`).
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
 
-#### app_store_apps
-
-- `app_store_id` is the ID of the Apple App Store app. You can find this at the end of the app's App Store URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" and the `app_store_id` is `1016366447`.
-
-> Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
-
-`self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
-
-#### Separate file
+#### Example
 
 `lib/software-name.package.yml`:
 
@@ -347,23 +330,13 @@ install_script:
 self_service: true
 ```
 
-`lib/software/tailscale-install-script.ps1`
+### app_store_apps
 
-```yaml
-$exeFilePath = "${env:INSTALLER_PATH}"
-$installProcess = Start-Process $exeFilePath `
-  -ArgumentList "/quiet /norestart" `
-    -PassThru -Verb RunAs -Wait
-```
+- `app_store_id` is the ID of the Apple App Store app. You can find this at the end of the app's App Store URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" and the `app_store_id` is `1016366447`.
 
-`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
+> Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 
-```yaml
-software:
-  packages:
-    - path: ../lib/software-name.package.yml
-# path is relative to default.yml or teams/team-name.yml
-```
+`self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
 
 ## org_settings and team_settings
 
