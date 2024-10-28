@@ -2,7 +2,6 @@ import React, { useMemo } from "react";
 import Select, {
   StylesConfig,
   DropdownIndicatorProps,
-  OptionProps,
   components,
 } from "react-select-5";
 
@@ -10,8 +9,6 @@ import { COLORS } from "styles/var/colors";
 import { PADDING } from "styles/var/padding";
 import classnames from "classnames";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   APP_CONTEXT_ALL_TEAMS_SUMMARY,
@@ -141,7 +138,27 @@ const TeamsDropdown = ({
           stroke: COLORS["core-vibrant-blue-over"],
         },
       },
-      "&--is-focused": {
+      // When tabbing
+      "&.team-dropdown__control--is-focused": {
+        ".team-dropdown__single-value": {
+          color: COLORS["core-vibrant-blue-over"],
+        },
+        ".team-dropdown__indicator path": {
+          stroke: COLORS["core-vibrant-blue-over"],
+        },
+      },
+      // TODO: Figure out a way to apply separate &:focus-visible styling
+      // Currently only relying on --is-focused styling for tabbing through app
+      ...(state.isDisabled && {
+        ".team-dropdown__single-value": {
+          color: COLORS["ui-fleet-black-50"],
+        },
+        ".team-dropdown__indicator path": {
+          stroke: COLORS["ui-fleet-black-50"],
+        },
+      }),
+      // When clicking
+      "&:active": {
         ".team-dropdown__single-value": {
           color: COLORS["core-vibrant-blue-down"],
         },
@@ -149,8 +166,6 @@ const TeamsDropdown = ({
           stroke: COLORS["core-vibrant-blue-down"],
         },
       },
-      // TODO: Figure out a way to apply separate &:focus-visible styling
-      // Currently only relying on &:focus styling for tabbing through app
       ...(state.menuIsOpen && {
         ".team-dropdown__indicator svg": {
           transform: "rotate(180deg)",
@@ -189,6 +204,7 @@ const TeamsDropdown = ({
       left: "0",
       animation: "fade-in 150ms ease-out",
     }),
+    // Placeholder is never shown on teams dropdown
     menuList: (provided) => ({
       ...provided,
       padding: PADDING["pad-small"],
@@ -223,44 +239,29 @@ const TeamsDropdown = ({
   const renderDropdown = () => {
     if (teamOptions.length) {
       return (
-        <>
-          <Dropdown
-            value={selectedValue}
-            placeholder="All teams"
-            className={baseClass}
-            options={teamOptions}
-            searchable={false}
-            disabled={isDisabled}
-            onChange={onChange}
-            onOpen={onOpen}
-            onClose={onClose}
-            tabIndex={0}
-          />
-          <Select<INumberDropdownOption, false>
-            options={teamOptions}
-            placeholder="All teams"
-            onChange={(newValue) => {
-              if (newValue) {
-                onChange(newValue.value);
-              }
-              // If newValue is null or undefined, we don't call onChange
-            }}
-            isDisabled={isDisabled}
-            isSearchable={false}
-            styles={customStyles}
-            components={{
-              DropdownIndicator: CustomDropdownIndicator,
-              IndicatorSeparator: () => null,
-            }}
-            value={teamOptions.find((option) => option.value === selectedValue)}
-            isOptionSelected={() => false} // Hides any styling on selected option
-            className={baseClass}
-            classNamePrefix={baseClass}
-            onMenuOpen={onOpen}
-            onMenuClose={onClose}
-            tabIndex={0}
-          />
-        </>
+        <Select<INumberDropdownOption, false>
+          options={teamOptions}
+          placeholder="All teams"
+          onChange={(newValue) => {
+            if (newValue) {
+              onChange(newValue.value);
+            }
+            // If newValue is null or undefined, we don't call onChange
+          }}
+          isDisabled={isDisabled}
+          isSearchable={false}
+          styles={customStyles}
+          components={{
+            DropdownIndicator: CustomDropdownIndicator,
+            IndicatorSeparator: () => null,
+          }}
+          value={teamOptions.find((option) => option.value === selectedValue)}
+          isOptionSelected={() => false} // Hides any styling on selected option
+          className={baseClass}
+          classNamePrefix={baseClass}
+          onMenuOpen={onOpen}
+          onMenuClose={onClose}
+        />
       );
     }
   };
