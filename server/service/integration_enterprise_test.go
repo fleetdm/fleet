@@ -13628,9 +13628,19 @@ func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 	}, &team.ID)
 	require.NoError(t, err)
 
+	pkgPayload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "some pkg install script",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(pkgPayload, http.StatusOK, "")
+
+	// We don't see VPP, but we do still see the installers
 	resp := getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", orbitHost.ID), getHostSoftwareRequest{}, http.StatusOK, &resp)
-	assert.Len(t, resp.Software, 0)
+	assert.Len(t, resp.Software, 1)
+	assert.NotNil(t, resp.Software[0].SoftwarePackage)
+	assert.Nil(t, resp.Software[0].AppStoreApp)
 
 	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", orbitHost.ID, app.TitleID), &installSoftwareRequest{},
 		http.StatusUnprocessableEntity)
