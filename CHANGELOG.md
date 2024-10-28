@@ -1,3 +1,53 @@
+## Fleet 4.59.0 (Oct 28, 2024)
+
+### Bug fixes
+
+### Endpoint Operations
+- Add database migrations to support Setup Experience
+- fixed issue where macOS and Linux scripts failed to timeout on long running commands
+- Fix an issue with the BYOD enrollment page where it sometimes would show a 404 page.
+- Add ability to connect a SCEP NDES proxy
+- Adds an Orbit endpoint (`POST /orbit/setup_experience/status`) for checking the status of a macOS host's setup experience steps.
+- Fixed bug in ABM renewal process that caused upload of new token to fail.
+- Allow filtering Software OS view to show only OSes from a particular platform (Windows, macOS, Linux, etc.)
+- Remove a pending MDM device if it was deleted from current ABM
+- Added a more descriptive error message when install or uninstall details do not exist for an activity
+- Add error message on the My Device page when MDM is off for the host
+- Add service to track install status
+- Set created_at/updated_at timestamps on user create endpoint
+- Fixed bug where `PATCH /api/latest/fleet/config` was incorrectly clearing VPP token<->team associations.
+- Updated OpenTelemetry libraries to latest versions.
+ - Includes logging MySQL spans outside of HTTPS transactions and renaming MySQL spans to include the query.
+- Automatically release macOS devices after the setup experience using the Fleet-specific "/status" endpoint.
+
+### Device Management (MDM)
+- Fixed blank install status when retrieving install details from the activity feed.
+- Added SCEP proxy for Windows NDES (Network Device Enrollment Service) AD CS server.
+- Ensure details for a software installation run are available and accurate even after the corresponding installer has been edited or deleted.
+ - Database migration included to backfill data from activities table for comprehensive data.
+- Make entire rows of the Disk encryption table clickable.
+- Added software experience software title selection API.
+- Add integration to queue setup experience software installation on automatic enrollment.
+
+### Vulnerability Management
+- Fixed issue where the vulnerabilities cron failed to complete due to a large temporary table creation.
+- Fixed incorrect character set header on manual Mac enrollment config download.
+- Deprecated worker-based job to release macOS devices automatically after the setup experience.
+
+### Bug fixes and improvements
+- Ignore `--delete-other-teams` flag in `fleetctl gitops` command for non-Premium license users.
+- Fix loading state for the profile status aggregate UI.
+- Ensure flash messages are hidden when changing routes.
+- Refactor `renderFlash` and associated logic to dismiss messages on page change by default.
+- Updated UI to include software title selection and custom MDM URLs.
+- Deprecated setting VPP token<->team associations on `PATCH /api/latest/fleet/config`.
+- Prevent removing a software package or VPP app from a team if selected for installation during setup experience.
+- Fixed issue when trying to download manual enrollment profile when device token is expired.
+- Deprecated worker-based job for automatic release of macOS devices, replaced with Fleet-specific endpoint.
+- Fixed bug where policy failures of a host were not being cleared in the host details page.
+- Added validation to prevent removing software packages or VPP apps from a team if selected for installation during setup experience.
+- Explicitly set line heights on "add profile" messages for consistency.
+
 ## Fleet 4.58.0 (Oct 17, 2024)
 
 **Endpoint Operations:**
