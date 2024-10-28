@@ -79,7 +79,7 @@ policies:
 # path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
 ```
 
-> Currently, the `run_script` and `install_software` policy automations can only be added for policies in which the script (or software) is defined in the same team (`teams/team-name.yml`) or "No team" (`teams/no-team.yml`). `calendar_event_enabled` can only be configured for policies on a team.
+> Currently, the `run_script` and `install_software` policy automations can only be configured for a team (`teams/team-name.yml`) or "No team" (`teams/no-team.yml`). The automations can only be added to policies in which the script (or software) is defined in the same team (or "No team"). `calendar_event_enabled` can only be configured for policies on a team.
 
 ## queries
 
