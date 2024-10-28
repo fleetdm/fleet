@@ -11753,13 +11753,12 @@ func (s *integrationMDMTestSuite) TestVPPAppsMDMFiltering() {
 
 	// Create hosts
 	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
-
 	mdmHost, mdmClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	_, _ = mdmHost, mdmClient
 
 	test.CreateInsertGlobalVPPToken(t, s.ds)
 
-	// Create team and add host to team
+	// Create team and add hosts to team
 	var newTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
