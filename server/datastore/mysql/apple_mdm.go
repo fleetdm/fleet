@@ -906,7 +906,7 @@ func updateMDMAppleHostDB(
 		return ctxerr.Wrap(ctx, err, "error clearing mdm apple host_mdm_actions")
 	}
 
-	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg.ServerSettings, false, hostID); err != nil {
+	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg, false, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 	}
 
@@ -967,7 +967,7 @@ func insertMDMAppleHostDB(
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert label membership")
 	}
 
-	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg.ServerSettings, false, mdmHost.ID); err != nil {
+	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg, false, mdmHost.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 	}
 	return nil
@@ -1102,7 +1102,7 @@ func createHostFromMDMDB(
 	if err := upsertMDMAppleHostMDMInfoDB(
 		ctx,
 		tx,
-		appCfg.ServerSettings,
+		appCfg,
 		fromADE,
 		unmanagedHostIDs...,
 	); err != nil {
@@ -1222,7 +1222,8 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
 		  added_at = CURRENT_TIMESTAMP,
-		  deleted_at = NULL`
+		  deleted_at = NULL,
+		  abm_token_id = VALUES(abm_token_id)`
 
 	args := []interface{}{}
 	values := []string{}
@@ -1258,12 +1259,12 @@ func upsertMDMAppleHostDisplayNamesDB(ctx context.Context, tx sqlx.ExtContext, h
 	return nil
 }
 
-func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverSettings fleet.ServerSettings, fromSync bool, hostIDs ...uint) error {
+func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg *fleet.AppConfig, fromSync bool, hostIDs ...uint) error {
 	if len(hostIDs) == 0 {
 		return nil
 	}
 
-	serverURL, err := apple_mdm.ResolveAppleMDMURL(serverSettings.ServerURL)
+	serverURL, err := apple_mdm.ResolveAppleMDMURL(appCfg.MDMUrl())
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "resolve Fleet MDM URL")
 	}
@@ -1487,28 +1488,88 @@ func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fl
 	return &res, nil
 }
 
-func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, serials []string) error {
+func (ds *Datastore) DeleteHostDEPAssignmentsFromAnotherABM(ctx context.Context, abmTokenID uint, serials []string) error {
 	if len(serials) == 0 {
 		return nil
 	}
 
-	var args []interface{}
-	for _, serial := range serials {
-		args = append(args, serial)
+	type depAssignment struct {
+		HardwareSerial string `db:"hardware_serial"`
+		ABMTokenID     uint   `db:"abm_token_id"`
 	}
-	stmt, args, err := sqlx.In(`
-          UPDATE host_dep_assignments
-          SET deleted_at = NOW()
-          WHERE host_id IN (
-            SELECT id FROM hosts WHERE hardware_serial IN (?)
-          )`, args)
+	selectStmt, selectArgs, err := sqlx.In(`
+		SELECT h.hardware_serial, hdep.abm_token_id
+		FROM hosts h
+		JOIN host_dep_assignments hdep ON h.id = hdep.host_id
+		WHERE hdep.abm_token_id != ? AND h.hardware_serial IN (?)`, abmTokenID, serials)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building IN statement")
+		return ctxerr.Wrap(ctx, err, "building IN statement for selecting host serials")
 	}
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting DEP assignment by serial")
+	var others []depAssignment
+	if err = sqlx.SelectContext(ctx, ds.reader(ctx), &others, selectStmt, selectArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting host serials")
+	}
+	tokenToSerials := map[uint][]string{}
+	for _, other := range others {
+		tokenToSerials[other.ABMTokenID] = append(tokenToSerials[other.ABMTokenID], other.HardwareSerial)
+	}
+	for otherTokenID, otherSerials := range tokenToSerials {
+		if err := ds.DeleteHostDEPAssignments(ctx, otherTokenID, otherSerials); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting DEP assignments for other ABM")
+		}
 	}
 	return nil
+}
+
+func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID uint, serials []string) error {
+	if len(serials) == 0 {
+		return nil
+	}
+
+	selectStmt, selectArgs, err := sqlx.In(`
+		SELECT h.id
+		FROM hosts h
+		JOIN host_dep_assignments hdep ON h.id = hdep.host_id
+		WHERE hdep.abm_token_id = ? AND h.hardware_serial IN (?)`, abmTokenID, serials)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building IN statement for selecting host IDs")
+	}
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var hostIDs []uint
+		if err = sqlx.SelectContext(ctx, tx, &hostIDs, selectStmt, selectArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "selecting host IDs")
+		}
+		if len(hostIDs) == 0 {
+			// Nothing to delete. Hosts may have already been transferred to another ABM.
+			return nil
+		}
+
+		stmt, args, err := sqlx.In(`
+          UPDATE host_dep_assignments
+          SET deleted_at = NOW()
+          WHERE host_id IN (?)`, hostIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building IN statement")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting DEP assignment by host_id")
+		}
+
+		// If pending host is no longer in ABM, we should delete it because it will never enroll in Fleet.
+		// If the host is later re-added to ABM, it will be re-created.
+		deletePendingStmt, args, err := sqlx.In(`
+		DELETE h, hmdm FROM hosts h
+		JOIN host_mdm hmdm ON h.id = hmdm.host_id
+		WHERE h.id IN (?) AND hmdm.enrollment_status = 'Pending'`, hostIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building delete IN statement")
+		}
+		if _, err := tx.ExecContext(ctx, deletePendingStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting pending hosts by host_id")
+		}
+		return nil
+	})
 }
 
 func (ds *Datastore) RestoreMDMApplePendingDEPHost(ctx context.Context, host *fleet.Host) error {
@@ -1563,7 +1624,7 @@ INSERT INTO hosts (
 		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, ds.logger, *host); err != nil {
 			return ctxerr.Wrap(ctx, err, "restore pending dep host label membership")
 		}
-		if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, ac.ServerSettings, true, host.ID); err != nil {
+		if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, ac, true, host.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 		}
 
@@ -3692,7 +3753,15 @@ func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamI
 	return asstProf.ProfileUUID, asstProf.UpdatedAt, nil
 }
 
-func (ds *Datastore) UpdateHostDEPAssignProfileResponses(ctx context.Context, payload *godep.ProfileResponse) error {
+func (ds *Datastore) UpdateHostDEPAssignProfileResponses(ctx context.Context, payload *godep.ProfileResponse, abmTokenID uint) error {
+	return ds.updateHostDEPAssignProfileResponses(ctx, payload, &abmTokenID)
+}
+
+func (ds *Datastore) UpdateHostDEPAssignProfileResponsesSameABM(ctx context.Context, payload *godep.ProfileResponse) error {
+	return ds.updateHostDEPAssignProfileResponses(ctx, payload, nil)
+}
+
+func (ds *Datastore) updateHostDEPAssignProfileResponses(ctx context.Context, payload *godep.ProfileResponse, abmTokenID *uint) error {
 	if payload == nil {
 		// caller should ensure this does not happen
 		level.Debug(ds.logger).Log("msg", "update host dep assign profiles responses received nil payload")
@@ -3722,38 +3791,53 @@ func (ds *Datastore) UpdateHostDEPAssignProfileResponses(ctx context.Context, pa
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, success, string(fleet.DEPAssignProfileResponseSuccess)); err != nil {
+		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, success,
+			string(fleet.DEPAssignProfileResponseSuccess), abmTokenID); err != nil {
 			return err
 		}
-		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, notAccessible, string(fleet.DEPAssignProfileResponseNotAccessible)); err != nil {
+		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, notAccessible,
+			string(fleet.DEPAssignProfileResponseNotAccessible), abmTokenID); err != nil {
 			return err
 		}
-		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, failed, string(fleet.DEPAssignProfileResponseFailed)); err != nil {
+		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, failed,
+			string(fleet.DEPAssignProfileResponseFailed), abmTokenID); err != nil {
 			return err
 		}
 		return nil
 	})
 }
 
-func updateHostDEPAssignProfileResponses(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, profileUUID string, serials []string, status string) error {
+func updateHostDEPAssignProfileResponses(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, profileUUID string, serials []string,
+	status string, abmTokenID *uint) error {
 	if len(serials) == 0 {
 		return nil
 	}
 
-	stmt := `
+	setABMTokenID := ""
+	if abmTokenID != nil {
+		setABMTokenID = "abm_token_id = ?," //nolint:gosec // G101 false positive
+	}
+	stmt := fmt.Sprintf(`
 UPDATE
 	host_dep_assignments
 JOIN
 	hosts ON id = host_id
 SET
+	%s
 	profile_uuid = ?,
 	assign_profile_response = ?,
 	response_updated_at = CURRENT_TIMESTAMP,
 	retry_job_id = 0
 WHERE
 	hardware_serial IN (?)
-`
-	stmt, args, err := sqlx.In(stmt, profileUUID, status, serials)
+`, setABMTokenID)
+	var args []interface{}
+	var err error
+	if abmTokenID != nil {
+		stmt, args, err = sqlx.In(stmt, abmTokenID, profileUUID, status, serials)
+	} else {
+		stmt, args, err = sqlx.In(stmt, profileUUID, status, serials)
+	}
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "prepare statement arguments")
 	}
@@ -3763,7 +3847,8 @@ WHERE
 	}
 
 	n, _ := res.RowsAffected()
-	level.Info(logger).Log("msg", "update host dep assign profile responses", "profile_uuid", profileUUID, "status", status, "devices", n, "serials", fmt.Sprintf("%s", serials))
+	level.Info(logger).Log("msg", "update host dep assign profile responses", "profile_uuid", profileUUID, "status", status, "devices", n,
+		"serials", fmt.Sprintf("%s", serials), "abm_token_id", abmTokenID)
 
 	return nil
 }
@@ -5099,7 +5184,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		return nil, ctxerr.Wrap(ctx, err, "get app config")
 	}
 
-	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.MDMUrl())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
 	}
@@ -5150,7 +5235,7 @@ LEFT OUTER JOIN
 		return nil, ctxerr.Wrap(ctx, err, "get app config")
 	}
 
-	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.MDMUrl())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
 	}
@@ -5275,7 +5360,7 @@ LEFT OUTER JOIN
 		return nil, ctxerr.Wrap(ctx, err, "get app config")
 	}
 
-	url, err := apple_mdm.ResolveAppleMDMURL(cfg.ServerSettings.ServerURL)
+	url, err := apple_mdm.ResolveAppleMDMURL(cfg.MDMUrl())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting ABM token MDM server url")
 	}

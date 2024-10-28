@@ -30,8 +30,10 @@ import (
 )
 
 // Functions that can be overwritten in tests
-var validateNDESSCEPAdminURL = eeservice.ValidateNDESSCEPAdminURL
-var validateNDESSCEPURL = eeservice.ValidateNDESSCEPURL
+var (
+	validateNDESSCEPAdminURL = eeservice.ValidateNDESSCEPAdminURL
+	validateNDESSCEPURL      = eeservice.ValidateNDESSCEPURL
+)
 
 ////////////////////////////////////////////////////////////////////////////////
 // Get AppConfig
@@ -491,9 +493,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err, "validating ABM token assignments")
 	}
 
-	vppAssignments, err := svc.validateVPPAssignments(ctx, &newAppConfig.MDM, invalid, license)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating VPP token assignments")
+	var vppAssignments map[uint][]uint
+	vppAssignmentsDefined := newAppConfig.MDM.VolumePurchasingProgram.Set && newAppConfig.MDM.VolumePurchasingProgram.Valid
+	if vppAssignmentsDefined {
+		vppAssignments, err = svc.validateVPPAssignments(ctx, newAppConfig.MDM.VolumePurchasingProgram.Value, invalid, license)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validating VPP token assignments")
+		}
 	}
 
 	if invalid.HasErrors() {
@@ -667,27 +673,25 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	// Reset teams for VPP tokens that exist in Fleet but aren't present in the config being passed
-	clear(tokensInCfg)
-
-	for _, t := range newAppConfig.MDM.VolumePurchasingProgram.Value {
-		tokensInCfg[t.Location] = struct{}{}
-	}
-
-	vppToks, err := svc.ds.ListVPPTokens(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing VPP tokens")
-	}
-	for _, tok := range vppToks {
-		if _, ok := tokensInCfg[tok.Location]; !ok {
-			tok.Teams = nil
-			if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tok.ID, nil); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "saving VPP token teams")
+	if vppAssignmentsDefined {
+		// 1. Reset teams for VPP tokens that exist in Fleet but aren't present in the config being passed
+		clear(tokensInCfg)
+		for _, t := range newAppConfig.MDM.VolumePurchasingProgram.Value {
+			tokensInCfg[t.Location] = struct{}{}
+		}
+		vppToks, err := svc.ds.ListVPPTokens(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "listing VPP tokens")
+		}
+		for _, tok := range vppToks {
+			if _, ok := tokensInCfg[tok.Location]; !ok {
+				tok.Teams = nil
+				if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tok.ID, nil); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "saving VPP token teams")
+				}
 			}
 		}
-	}
-
-	if appConfig.MDM.VolumePurchasingProgram.Set && appConfig.MDM.VolumePurchasingProgram.Valid {
+		// 2. Set VPP assignments that are defined in the config.
 		for tokenID, tokenTeams := range vppAssignments {
 			if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
 				var errTokConstraint fleet.ErrVPPTokenTeamConstraint
@@ -812,7 +816,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	mdmSSOSettingsChanged := oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings !=
 		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
-	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged) && license.IsPremium() {
+	appleMDMUrlChanged := oldAppConfig.MDMUrl() != appConfig.MDMUrl()
+	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged || appleMDMUrlChanged) && license.IsPremium() {
 		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "sync DEP profiles")
 		}
@@ -1206,76 +1211,77 @@ func (svc *Service) validateABMAssignments(
 
 func (svc *Service) validateVPPAssignments(
 	ctx context.Context,
-	mdm *fleet.MDM,
+	volumePurchasingProgramInfo []fleet.MDMAppleVolumePurchasingProgramInfo,
 	invalid *fleet.InvalidArgumentError,
 	license *fleet.LicenseInfo,
 ) (map[uint][]uint, error) {
-	if mdm.VolumePurchasingProgram.Set && mdm.VolumePurchasingProgram.Valid {
-		if !license.IsPremium() {
-			invalid.Append("mdm.volume_purchasing_program", ErrMissingLicense.Error())
+	// Allow clearing VPP assignments in free and premium.
+	if len(volumePurchasingProgramInfo) == 0 {
+		return nil, nil
+	}
+
+	if !license.IsPremium() {
+		invalid.Append("mdm.volume_purchasing_program", ErrMissingLicense.Error())
+		return nil, nil
+	}
+
+	teams, err := svc.ds.TeamsSummary(ctx)
+	if err != nil {
+		return nil, err
+	}
+	teamsByName := map[string]uint{fleet.TeamNameNoTeam: 0}
+	for _, tm := range teams {
+		teamsByName[tm.Name] = tm.ID
+	}
+	tokens, err := svc.ds.ListVPPTokens(ctx)
+	if err != nil {
+		return nil, err
+	}
+	tokensByLocation := map[string]*fleet.VPPTokenDB{}
+	for _, token := range tokens {
+		// The default assignments for all tokens is "no team"
+		// (ie: team_id IS NULL), here we reset the assignments
+		// for all tokens, those will be re-added below.
+		//
+		// This ensures any unassignments are properly handled.
+		tokensByLocation[token.Location] = token
+		token.Teams = nil
+	}
+
+	tokensToSave := make(map[uint][]uint, len(volumePurchasingProgramInfo))
+	for _, vpp := range volumePurchasingProgramInfo {
+		for _, tmName := range vpp.Teams {
+			if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok && tmName != fleet.TeamNameAllTeams {
+				invalid.Appendf("mdm.volume_purchasing_program", "team %s doesn't exist", tmName)
+				return nil, nil
+			}
+		}
+
+		loc := norm.NFC.String(vpp.Location)
+		if _, ok := tokensByLocation[loc]; !ok {
+			invalid.Appendf("mdm.volume_purchasing_program", "token with location %s doesn't exist", vpp.Location)
 			return nil, nil
 		}
 
-		teams, err := svc.ds.TeamsSummary(ctx)
-		if err != nil {
-			return nil, err
-		}
-		teamsByName := map[string]uint{fleet.TeamNameNoTeam: 0}
-		for _, tm := range teams {
-			teamsByName[tm.Name] = tm.ID
-		}
-		tokens, err := svc.ds.ListVPPTokens(ctx)
-		if err != nil {
-			return nil, err
-		}
-		tokensByLocation := map[string]*fleet.VPPTokenDB{}
-		for _, token := range tokens {
-			// The default assignments for all tokens is "no team"
-			// (ie: team_id IS NULL), here we reset the assignments
-			// for all tokens, those will be re-added below.
-			//
-			// This ensures any unassignments are properly handled.
-			tokensByLocation[token.Location] = token
-			token.Teams = nil
-		}
-
-		tokensToSave := make(map[uint][]uint, len(mdm.VolumePurchasingProgram.Value))
-		for _, vpp := range mdm.VolumePurchasingProgram.Value {
-			for _, tmName := range vpp.Teams {
-				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok && tmName != fleet.TeamNameAllTeams {
-					invalid.Appendf("mdm.volume_purchasing_program", "team %s doesn't exist", tmName)
+		var tokenTeams []uint
+		for _, teamName := range vpp.Teams {
+			if teamName == fleet.TeamNameAllTeams {
+				if len(vpp.Teams) > 1 {
+					invalid.Appendf("mdm.volume_purchasing_program", "token cannot belong to %s and other teams", fleet.TeamNameAllTeams)
 					return nil, nil
 				}
+				tokenTeams = []uint{}
+				break
 			}
-
-			loc := norm.NFC.String(vpp.Location)
-			if _, ok := tokensByLocation[loc]; !ok {
-				invalid.Appendf("mdm.volume_purchasing_program", "token with location %s doesn't exist", vpp.Location)
-				return nil, nil
-			}
-
-			var tokenTeams []uint
-			for _, teamName := range vpp.Teams {
-				if teamName == fleet.TeamNameAllTeams {
-					if len(vpp.Teams) > 1 {
-						invalid.Appendf("mdm.volume_purchasing_program", "token cannot belong to %s and other teams", fleet.TeamNameAllTeams)
-						return nil, nil
-					}
-					tokenTeams = []uint{}
-					break
-				}
-				teamID := teamsByName[teamName]
-				tokenTeams = append(tokenTeams, teamID)
-			}
-
-			tok := tokensByLocation[loc]
-			tokensToSave[tok.ID] = tokenTeams
+			teamID := teamsByName[teamName]
+			tokenTeams = append(tokenTeams, teamID)
 		}
 
-		return tokensToSave, nil
+		tok := tokensByLocation[loc]
+		tokensToSave[tok.ID] = tokenTeams
 	}
 
-	return nil, nil
+	return tokensToSave, nil
 }
 
 func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError) {

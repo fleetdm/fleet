@@ -721,3 +721,17 @@ func (u *Updater) initializeDirectories() error {
 
 	return nil
 }
+
+func CanRun(rootDirPath, targetName string, targetInfo TargetInfo) bool {
+	_, binaryPath, _ := LocalTargetPaths(
+		rootDirPath,
+		targetName,
+		targetInfo,
+	)
+
+	if _, err := os.Stat(binaryPath); err != nil {
+		return false
+	}
+
+	return true
+}

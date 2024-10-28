@@ -114,6 +114,7 @@ const IdpSection = () => {
           disabled={!completedForm}
           onClick={onSubmit}
           className="button-wrap"
+          variant="brand"
         >
           <span data-tip data-for="save-button">
             Save

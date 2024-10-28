@@ -139,6 +139,12 @@ type MDMAppleVolumePurchasingProgramInfo struct {
 
 // MDM is part of AppConfig and defines the mdm settings.
 type MDM struct {
+	// AppleServerURL is an alternate URL to be used in MDM configuration profiles to differentiate MDM
+	// requests from fleetd requests on customer networks.  AppleServerURL DNS should resolve to the
+	// same IP as the Fleet Server URL.
+	// If not set, the server will use Fleet server URL (recommended).
+	AppleServerURL string `json:"apple_server_url"`
+
 	// Deprecated: use AppleBussinessManager instead
 	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"`
 
@@ -204,6 +210,13 @@ type MDM struct {
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+func (c *AppConfig) MDMUrl() string {
+	if c.MDM.AppleServerURL == "" {
+		return c.ServerSettings.ServerURL
+	}
+	return c.MDM.AppleServerURL
 }
 
 // AtLeastOnePlatformEnabledAndConfigured returns true if at least one supported platform
@@ -407,10 +420,19 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 // MacOSSetup contains settings related to the setup of DEP enrolled devices.
 type MacOSSetup struct {
-	BootstrapPackage            optjson.String `json:"bootstrap_package"`
-	EnableEndUserAuthentication bool           `json:"enable_end_user_authentication"`
-	MacOSSetupAssistant         optjson.String `json:"macos_setup_assistant"`
-	EnableReleaseDeviceManually optjson.Bool   `json:"enable_release_device_manually"`
+	BootstrapPackage            optjson.String                     `json:"bootstrap_package"`
+	EnableEndUserAuthentication bool                               `json:"enable_end_user_authentication"`
+	MacOSSetupAssistant         optjson.String                     `json:"macos_setup_assistant"`
+	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually"`
+	Script                      optjson.String                     `json:"script"`
+	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
+}
+
+// MacOSSetupSoftware represents a VPP app or a software package to install
+// during the setup experience of a macOS device.
+type MacOSSetupSoftware struct {
+	AppStoreID  string `json:"app_store_id"`
+	PackagePath string `json:"package_path"`
 }
 
 // MacOSMigration contains settings related to the MDM migration work flow.
@@ -655,6 +677,15 @@ func (c *AppConfig) Copy() *AppConfig {
 			copy(vpp[i].Teams, s.Teams)
 		}
 		clone.MDM.VolumePurchasingProgram = optjson.SetSlice(vpp)
+	}
+
+	if c.MDM.MacOSSetup.Software.Set {
+		sw := make([]*MacOSSetupSoftware, len(c.MDM.MacOSSetup.Software.Value))
+		for i, s := range c.MDM.MacOSSetup.Software.Value {
+			s := *s
+			sw[i] = &s
+		}
+		clone.MDM.MacOSSetup.Software = optjson.SetSlice(sw)
 	}
 
 	return &clone

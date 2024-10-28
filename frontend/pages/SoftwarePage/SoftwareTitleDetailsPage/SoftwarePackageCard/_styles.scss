@@ -62,7 +62,7 @@
     }
   }
 
-  &__status-title{
+  &__status-title {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -71,6 +71,13 @@
 
   &__status-count {
     font-weight: normal;
+
+    // When tabbing
+    &:focus-visible {
+      overflow: initial;
+      outline: 2px solid $ui-vibrant-blue-25;
+      box-shadow: inset 0 0 0 1px $ui-vibrant-blue-10;
+    }
   }
 
   &__actions-wrapper {

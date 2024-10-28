@@ -9,7 +9,7 @@ const baseClass = "setup-assistant-preview";
 const SetupAssistantPreview = () => {
   return (
     <Card color="gray" paddingSize="xxlarge" className={baseClass}>
-      <h2>End user experience</h2>
+      <h3>End user experience</h3>
       <p>
         After the end user continues past the <b>Remote Management</b> screen,
         macOS Setup Assistant displays several screens by default.

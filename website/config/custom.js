@@ -162,8 +162,11 @@ module.exports.custom = {
     // 🫧 Pricing and features
     // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
     'handbook/company/pricing-features-table.yml': 'noahtalerman',
-
     'handbook/company/testimonials.yml': 'mike-j-thomas',
+    'handbook/company/product-groups.md': 'lukeheath',
+    'handbook/engineering': 'lukeheath',
+    'handbook/product-design': 'sampfluger88',
+
 
     // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront
@@ -264,11 +267,11 @@ module.exports.custom = {
     'handbook/README.md': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
     'handbook/company': 'mikermcneil',
     'handbook/company/product-groups.md': ['lukeheath', 'sampfluger88','mikermcneil'],
-    'handbook/company/open-positions.yml': ['@sampfluger88','mikermcneil'],
+    'handbook/company/open-positions.yml': ['sampfluger88','mikermcneil'],
     'handbook/digital-experience': ['sampfluger88','mikermcneil'],
     'handbook/finance': ['sampfluger88','mikermcneil'],
     'handbook/engineering': ['sampfluger88','mikermcneil', 'lukeheath'],
-    'handbook/product-design': ['sampfluger88','mikermcneil'],
+    'handbook/product-design': ['sampfluger88','mikermcneil','noahtalerman'],
     'handbook/sales': ['sampfluger88','mikermcneil'],
     'handbook/demand': ['sampfluger88','mikermcneil'],
     'handbook/customer-success': ['sampfluger88','mikermcneil'],

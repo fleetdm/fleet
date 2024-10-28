@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
+	setupexperience "github.com/fleetdm/fleet/v4/orbit/pkg/setup_experience"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/orbit_info"
@@ -506,6 +507,7 @@ func main() {
 			}
 
 			targets := []string{"orbit", "osqueryd"}
+
 			if c.Bool("fleet-desktop") {
 				targets = append(targets, "desktop")
 			}
@@ -864,7 +866,7 @@ func main() {
 		)
 
 		scriptConfigReceiver, scriptsEnabledFn := update.ApplyRunScriptsConfigFetcherMiddleware(
-			c.Bool("enable-scripts"), orbitClient,
+			c.Bool("enable-scripts"), orbitClient, c.String("root-dir"),
 		)
 		orbitClient.RegisterConfigReceiver(scriptConfigReceiver)
 
@@ -876,7 +878,10 @@ func main() {
 			orbitClient.RegisterConfigReceiver(update.ApplyNudgeConfigReceiverMiddleware(update.NudgeConfigFetcherOptions{
 				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
 			}))
+			setupExperiencer := setupexperience.NewSetupExperiencer(orbitClient, c.String("root-dir"))
+			orbitClient.RegisterConfigReceiver(setupExperiencer)
 			orbitClient.RegisterConfigReceiver(update.ApplySwiftDialogDownloaderMiddleware(updateRunner))
+
 		case "windows":
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(windowsMDMBitlockerCommandFrequency, orbitClient))
@@ -1220,7 +1225,7 @@ func main() {
 			}
 		}
 
-		softwareRunner := installer.NewRunner(orbitClient, r.ExtensionSocketPath(), scriptsEnabledFn)
+		softwareRunner := installer.NewRunner(orbitClient, r.ExtensionSocketPath(), scriptsEnabledFn, c.String("root-dir"))
 		orbitClient.RegisterConfigReceiver(softwareRunner)
 
 		if runtime.GOOS == "darwin" {

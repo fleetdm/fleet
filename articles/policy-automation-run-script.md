@@ -1,16 +1,14 @@
-# Automatic policy-based execution of scripts on hosts
+# Automatically run scripts
 
 ![Fleet MDM Cover](../website/assets/images/articles/introducing-cross-platform-script-execution-800x450@2x.png)
 
-Fleet [v4.58.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.58.0) introduces the ability to execute scripts on hosts automatically based on predefined policy failures. This guide will walk you through configuring Fleet to automatically execute scripts on hosts using uploaded scripts based on programmed policies.  You'll learn how to configure and use this feature and understand how the underlying mechanism works.
+Fleet [v4.58.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.58.0) introduces the ability to execute scripts on hosts automatically based on predefined policy failures. This guide will walk you through configuring Fleet to automatically execute scripts on hosts using uploaded scripts based on programmed policies.
 
-Fleet allows users to upload scripts executed on macOS, Windows, and Linux hosts to remediate issues with those hosts. These scripts can now be automated to run when a policy fails. See [the scripts guide](https://fleetdm.com/guides/scripts) for more information.
+Fleet allows users to upload scripts executed on macOS, Windows, and Linux hosts to remediate issues with those hosts. These scripts can now be automated to run when a policy fails. Learn more about scripts [here](https://fleetdm.com/guides/scripts).
 
 ## Prerequisites
 
-* Fleet Premium with admin permissions
-* Fleet [v4.58.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.58.0) or greater
-* [Scripts enabled](https://fleetdm.com/guides/scripts#enable-scripts) on all target hosts
+* `fleetd` deployed with the `--enable-scripts` flag. If you're using MDM features, scripts are enabled by default.
 
 ## Step-by-step instructions
 
