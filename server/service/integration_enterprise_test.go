@@ -13633,7 +13633,7 @@ func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 		Filename:      "dummy_installer.pkg",
 		TeamID:        &team.ID,
 	}
-	s.uploadSoftwareInstaller(pkgPayload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, pkgPayload, http.StatusOK, "")
 
 	// We don't see VPP, but we do still see the installers
 	resp := getHostSoftwareResponse{}
