@@ -46,6 +46,8 @@ var (
 	// Expirations from
 	// https://github.com/theupdateframework/notary/blob/e87b31f46cdc5041403c64b7536df236d5e35860/docs/best_practices.md#expiration-prevention
 	//
+	// They are defined as string so we can modify them at build time for testing purposes.
+	//
 
 	// rootExpirationDuration is used to set the expiration of root.json when revoking the current root key.
 	// ~10 years (10 * 365 * 24 hours)
@@ -59,6 +61,12 @@ var (
 	// timestampExpirationDuration is used to set the expiration of the timestamp.json signature.
 	// 14 days (14 * 24 hours)
 	timestampExpirationDuration = "336h"
+
+	keyExpirationDuration_       = mustParseDuration(keyExpirationDuration)
+	rootExpirationDuration_      = mustParseDuration(rootExpirationDuration)
+	targetsExpirationDuration_   = mustParseDuration(targetsExpirationDuration)
+	snapshotExpirationDuration_  = mustParseDuration(snapshotExpirationDuration)
+	timestampExpirationDuration_ = mustParseDuration(timestampExpirationDuration)
 )
 
 var passHandler = newPassphraseHandler()
@@ -154,14 +162,14 @@ func updatesInitFunc(c *cli.Context) error {
 	if err := repo.AddTargetsWithExpires(
 		nil,
 		nil,
-		time.Now().Add(mustParseDuration(targetsExpirationDuration)),
+		time.Now().Add(targetsExpirationDuration_),
 	); err != nil {
 		return fmt.Errorf("initialize targets: %w", err)
 	}
-	if err := repo.SnapshotWithExpires(time.Now().Add(mustParseDuration(snapshotExpirationDuration))); err != nil {
+	if err := repo.SnapshotWithExpires(time.Now().Add(snapshotExpirationDuration_)); err != nil {
 		return fmt.Errorf("make snapshot: %w", err)
 	}
-	if err := repo.TimestampWithExpires(time.Now().Add(mustParseDuration(timestampExpirationDuration))); err != nil {
+	if err := repo.TimestampWithExpires(time.Now().Add(timestampExpirationDuration_)); err != nil {
 		return fmt.Errorf("make timestamp: %w", err)
 	}
 
@@ -314,16 +322,16 @@ func updatesAddFunc(c *cli.Context) error {
 	if err := repo.AddTargetsWithExpires(
 		paths,
 		meta,
-		time.Now().Add(mustParseDuration(targetsExpirationDuration)),
+		time.Now().Add(targetsExpirationDuration_),
 	); err != nil {
 		return fmt.Errorf("add targets: %w", err)
 	}
 
-	if err := repo.SnapshotWithExpires(time.Now().Add(mustParseDuration(snapshotExpirationDuration))); err != nil {
+	if err := repo.SnapshotWithExpires(time.Now().Add(snapshotExpirationDuration_)); err != nil {
 		return fmt.Errorf("make snapshot: %w", err)
 	}
 
-	if err := repo.TimestampWithExpires(time.Now().Add(mustParseDuration(timestampExpirationDuration))); err != nil {
+	if err := repo.TimestampWithExpires(time.Now().Add(timestampExpirationDuration_)); err != nil {
 		return fmt.Errorf("make timestamp: %w", err)
 	}
 
@@ -356,7 +364,7 @@ func updatesTimestampFunc(c *cli.Context) error {
 	}
 
 	if err := repo.TimestampWithExpires(
-		time.Now().Add(mustParseDuration(timestampExpirationDuration)),
+		time.Now().Add(timestampExpirationDuration_),
 	); err != nil {
 		return fmt.Errorf("make timestamp: %w", err)
 	}
@@ -435,7 +443,7 @@ func updatesRotateFunc(c *cli.Context) error {
 	// Delete old keys for role
 	for _, key := range keys {
 		id := key.PublicData().IDs()[0]
-		err := repo.RevokeKeyWithExpires(role, id, time.Now().Add(mustParseDuration(rootExpirationDuration)))
+		err := repo.RevokeKeyWithExpires(role, id, time.Now().Add(rootExpirationDuration_))
 		if err != nil {
 			// go-tuf keeps keys around even after they are revoked from the manifest. We can skip
 			// tuf.ErrKeyNotFound as these represent keys that are not present in the manifest and
@@ -461,15 +469,15 @@ func updatesRotateFunc(c *cli.Context) error {
 
 	// Generate new metadata for each role (technically some of these may not need regeneration
 	// depending on which key was rotated, but there should be no harm in generating new ones for each).
-	if err := repo.AddTargetsWithExpires(nil, nil, time.Now().Add(mustParseDuration(targetsExpirationDuration))); err != nil {
+	if err := repo.AddTargetsWithExpires(nil, nil, time.Now().Add(targetsExpirationDuration_)); err != nil {
 		return fmt.Errorf("generate targets: %w", err)
 	}
 
-	if err := repo.SnapshotWithExpires(time.Now().Add(mustParseDuration(snapshotExpirationDuration))); err != nil {
+	if err := repo.SnapshotWithExpires(time.Now().Add(snapshotExpirationDuration_)); err != nil {
 		return fmt.Errorf("generate snapshot: %w", err)
 	}
 
-	if err := repo.TimestampWithExpires(time.Now().Add(mustParseDuration(timestampExpirationDuration))); err != nil {
+	if err := repo.TimestampWithExpires(time.Now().Add(timestampExpirationDuration_)); err != nil {
 		return fmt.Errorf("generate timestamp: %w", err)
 	}
 
@@ -639,7 +647,7 @@ func copyTarget(srcPath, dstPath string) error {
 }
 
 func updatesGenKey(repo *tuf.Repo, role string) error {
-	keyids, err := repo.GenKeyWithExpires(role, time.Now().Add(mustParseDuration(keyExpirationDuration)))
+	keyids, err := repo.GenKeyWithExpires(role, time.Now().Add(keyExpirationDuration_))
 	if err != nil {
 		return fmt.Errorf("generate %s key: %w", role, err)
 	}
