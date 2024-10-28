@@ -40,7 +40,7 @@ parasails.registerComponent('ajaxOverlay', {
   //  ╠═╣ ║ ║║║║
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
-  <div style="top: 0; left: 0; background-color: rgba(255,255,255,0.75); z-index: 4000;" class="position-fixed w-100 h-100" :class="syncing? '' : 'd-none'">
+  <div style="top: 0; left: 0; background-color: rgba(255,255,255,0.75); z-index: 1000;" class="position-fixed w-100 h-100" :class="syncing? '' : 'd-none'">
     <div class="row h-100">
       <div class="col h-100"></div>
       <div class="col-6 col-md-4 h-100">
