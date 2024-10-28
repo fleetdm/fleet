@@ -19,13 +19,7 @@ team_settings: # Only teams/team-name.yml
 
 ## policies
 
-Policies can be specified inline in your `default.yml`, `teams/team-name.yml`, or `teams/no-team.yml` files. They can also be specified in separate files in your `lib/` folder.  
-
-Policies defined in `default.yml` run on **all** hosts.  
-
-Policies defined in `teams/no-team.yml` run on hosts that belong to "No team".
-
-> Policies that run automations to install software or run scripts must be defined in `teams/no-team.yml` to run on hosts that belong to "No team".
+Policies can be specified inline in your `default.yml`, `teams/team-name.yml`, or `teams/no-team.yml` files. They can also be specified in separate files in your `lib/` folder.
 
 ### Options
 
@@ -45,7 +39,6 @@ policies:
     query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
     platform: darwin
     critical: false
-    calendar_event_enabled: false
 ```
 
 #### Separate file
@@ -85,6 +78,8 @@ policies:
   - path: ../lib/policies-name.policies.yml
 # path is relative to default.yml or teams/team-name.yml 
 ```
+
+> Currently, the `run_script` and `install_software` policy automations can only be configured for policies on a team (`teams/team-name.yml`) or "No team" (`teams/no-team.yml`). `calendar_event_enabled` can only be configured for policies on a team.
 
 ## queries
 
@@ -204,8 +199,6 @@ queries:
 ## controls
 
 The `controls` section allows you to configure scripts and device management (MDM) features in Fleet.
-
-Controls for hosts that are in "No team" can be defined in `default.yml` or in `teams/no-team.yml` (but not in both files).
 
 - `scripts` is a list of paths to macOS, Windows, or Linux scripts. Scripts used in policy automations for "No team" must be defined in `teams/no-team.yml`.
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for all teams (`default.yml`).
