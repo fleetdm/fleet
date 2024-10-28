@@ -1968,8 +1968,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_setup_software_valid.yml", ""},
 		{"testdata/gitops/no_team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
 		{"testdata/gitops/no_team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that team"},
-		// VPP apps for No Team is unsupported at the moment : https://github.com/fleetdm/fleet/issues/22970
-		// {"testdata/gitops/no_team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that team"},
+		{"testdata/gitops/no_team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that team"},
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.noTeamFile), func(t *testing.T) {

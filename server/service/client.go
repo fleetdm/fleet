@@ -1689,20 +1689,6 @@ func (c *Client) doGitOpsNoTeamSoftware(
 		return nil, nil
 	}
 
-	var softwareInstallers []fleet.SoftwarePackageResponse
-
-	packages := make([]fleet.SoftwarePackageSpec, 0, len(config.Software.Packages))
-	packagesByPath := make(map[string]fleet.SoftwarePackageSpec, len(config.Software.Packages))
-	for _, software := range config.Software.Packages {
-		if software != nil {
-			packages = append(packages, *software)
-			if software.ReferencedYamlPath != "" {
-				// can be referenced by macos_setup.software
-				packagesByPath[software.ReferencedYamlPath] = *software
-			}
-		}
-	}
-
 	// marshaling dance to get the macos_setup data - config.Controls.MacOSSetup
 	// is of type any and contains a generic map[string]any. By
 	// marshal-unmarshaling it into a properly typed struct, we avoid having to
@@ -1732,12 +1718,42 @@ func (c *Client) doGitOpsNoTeamSoftware(
 		return nil, err
 	}
 
-	// TODO: note that VPP apps are not validated nor taken into account at the moment,
-	// tracked with issue https://github.com/fleetdm/fleet/issues/22970
-	if err := validateTeamOrNoTeamMacOSSetupSoftware(*config.TeamName, macOSSetup.Software.Value, packagesByPath, nil); err != nil {
+	var softwareInstallers []fleet.SoftwarePackageResponse
+
+	packages := make([]fleet.SoftwarePackageSpec, 0, len(config.Software.Packages))
+	packagesByPath := make(map[string]fleet.SoftwarePackageSpec, len(config.Software.Packages))
+	for _, software := range config.Software.Packages {
+		if software != nil {
+			packages = append(packages, *software)
+			if software.ReferencedYamlPath != "" {
+				// can be referenced by macos_setup.software
+				packagesByPath[software.ReferencedYamlPath] = *software
+			}
+		}
+	}
+
+	var appsPayload []fleet.VPPBatchPayload
+	vppApps := make([]fleet.TeamSpecAppStoreApp, 0, len(config.Software.AppStoreApps))
+	appsByAppID := make(map[string]fleet.TeamSpecAppStoreApp, len(config.Software.AppStoreApps))
+	for _, vppApp := range config.Software.AppStoreApps {
+		if vppApp != nil {
+			vppApps = append(vppApps, *vppApp)
+			// can be referenced by macos_setup.software
+			appsByAppID[vppApp.AppStoreID] = *vppApp
+
+			_, installDuringSetup := noTeamSoftwareMacOSSetup[fleet.MacOSSetupSoftware{AppStoreID: vppApp.AppStoreID}]
+			appsPayload = append(appsPayload, fleet.VPPBatchPayload{
+				AppStoreID:         vppApp.AppStoreID,
+				SelfService:        vppApp.SelfService,
+				InstallDuringSetup: &installDuringSetup,
+			})
+		}
+	}
+
+	if err := validateTeamOrNoTeamMacOSSetupSoftware(*config.TeamName, macOSSetup.Software.Value, packagesByPath, appsByAppID); err != nil {
 		return nil, err
 	}
-	payload, err := buildSoftwarePackagesPayload(baseDir, packages, noTeamSoftwareMacOSSetup)
+	swPkgPayload, err := buildSoftwarePackagesPayload(baseDir, packages, noTeamSoftwareMacOSSetup)
 	if err != nil {
 		return nil, fmt.Errorf("applying software installers: %w", err)
 	}
@@ -1751,10 +1767,14 @@ func (c *Client) doGitOpsNoTeamSoftware(
 		return nil, fmt.Errorf("deleting setup experience script for No team: %w", err)
 	}
 
-	logFn("[+] applying %d software packages for 'No team'\n", len(payload))
-	softwareInstallers, err = c.ApplyNoTeamSoftwareInstallers(payload, fleet.ApplySpecOptions{DryRun: dryRun})
+	logFn("[+] applying %d software packages for 'No team'\n", len(swPkgPayload))
+	softwareInstallers, err = c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return nil, fmt.Errorf("applying software installers: %w", err)
+	}
+	logFn("[+] applying %d app store apps for 'No team'\n", len(appsPayload))
+	if err := c.ApplyNoTeamAppStoreAppsAssociation(appsPayload, fleet.ApplySpecOptions{DryRun: dryRun}); err != nil {
+		return nil, fmt.Errorf("applying app store apps: %w", err)
 	}
 
 	if dryRun {
