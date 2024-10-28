@@ -6191,7 +6191,7 @@ Body: <blob>
 
 _Available in Fleet Premium_
 
-List software that can or will be automatically installed during macOS setup. If `included_during_setup` is `true` it will be installed during setup.
+List software that can or will be automatically installed during macOS setup. If `install_during_setup` is `true` it will be installed during setup.
 
 `GET /api/v1/fleet/setup_experience/software`
 
