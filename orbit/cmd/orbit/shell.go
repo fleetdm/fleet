@@ -56,7 +56,7 @@ var shellCommand = &cli.Command{
 		opt := update.DefaultOptions
 
 		// Override default channel with the provided value.
-		opt.Targets.SetTargetChannel("osqueryd", c.String("osqueryd-channel"))
+		opt.Targets.SetTargetChannel(constant.OsqueryTUFTargetName, c.String("osqueryd-channel"))
 
 		opt.RootDirectory = c.String("root-dir")
 		opt.ServerURL = c.String("update-url")
@@ -70,7 +70,7 @@ var shellCommand = &cli.Command{
 		if err := updater.UpdateMetadata(); err != nil {
 			log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
 		}
-		osquerydLocalTarget, err := updater.Get("osqueryd")
+		osquerydLocalTarget, err := updater.Get(constant.OsqueryTUFTargetName)
 		if err != nil {
 			return err
 		}

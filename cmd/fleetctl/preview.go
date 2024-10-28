@@ -827,8 +827,8 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 	updateOpt := update.DefaultOptions
 
 	// Override default channels with the provided values.
-	updateOpt.Targets.SetTargetChannel("orbit", orbitChannel)
-	updateOpt.Targets.SetTargetChannel("osqueryd", osquerydChannel)
+	updateOpt.Targets.SetTargetChannel(constant.OrbitTUFTargetName, orbitChannel)
+	updateOpt.Targets.SetTargetChannel(constant.OsqueryTUFTargetName, osquerydChannel)
 
 	updateOpt.RootDirectory = destDir
 
@@ -843,9 +843,9 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 		return fmt.Errorf("initialize updates: %w", err)
 	}
 
-	orbitPath, err := update.NewDisabled(updateOpt).ExecutableLocalPath("orbit")
+	orbitPath, err := update.NewDisabled(updateOpt).ExecutableLocalPath(constant.OrbitTUFTargetName)
 	if err != nil {
-		return fmt.Errorf("failed to locate executable for orbit: %w", err)
+		return fmt.Errorf("failed to locate executable for %s: %w", constant.OrbitTUFTargetName, err)
 	}
 
 	cmd := exec.Command(orbitPath,

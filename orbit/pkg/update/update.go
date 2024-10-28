@@ -217,10 +217,11 @@ func IsExpiredErr(err error) bool {
 	return errors.As(err, &errExpired)
 }
 
+// SignaturesExpired returns true if the "root", "targets", or "snapshot" signature is expired.
 func (u *Updater) SignaturesExpired() bool {
 	// When the "root", "targets", or "snapshot" signature is expired
 	// client.Target fails with an expiration error.
-	_, err := u.Lookup("orbit")
+	_, err := u.Lookup(constant.OrbitTUFTargetName)
 	return IsExpiredErr(err)
 }
 

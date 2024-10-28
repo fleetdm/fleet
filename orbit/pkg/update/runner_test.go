@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
@@ -34,7 +35,7 @@ func TestNewRunner(t *testing.T) {
 
 	runnerOpts := RunnerOptions{
 		CheckInterval: 1 * time.Second,
-		Targets:       []string{"osqueryd"},
+		Targets:       []string{constant.OsqueryTUFTargetName},
 	}
 
 	// NewRunner should not fail if targets do not exist locally.
@@ -42,7 +43,7 @@ func TestNewRunner(t *testing.T) {
 	require.NoError(t, err)
 
 	// ExecutableLocalPath fails if the target does not exist in the expected path.
-	execPath, err := u.ExecutableLocalPath("osqueryd")
+	execPath, err := u.ExecutableLocalPath(constant.OsqueryTUFTargetName)
 	require.Error(t, err)
 	require.NoFileExists(t, execPath)
 
@@ -52,7 +53,7 @@ func TestNewRunner(t *testing.T) {
 	require.True(t, didUpdate)
 
 	// ExecutableLocalPath should now succeed.
-	execPath, err = u.ExecutableLocalPath("osqueryd")
+	execPath, err = u.ExecutableLocalPath(constant.OsqueryTUFTargetName)
 	require.NoError(t, err)
 	require.FileExists(t, execPath)
 

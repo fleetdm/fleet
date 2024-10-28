@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/rs/zerolog/log"
 	"github.com/theupdateframework/go-tuf/client"
@@ -252,7 +253,7 @@ func (r *Runner) UpdateAction() (bool, error) {
 
 		// Check if we need to update the orbit symlink (e.g. if channel changed)
 		needsSymlinkUpdate := false
-		if target == "orbit" {
+		if target == constant.OrbitTUFTargetName {
 			var err error
 			needsSymlinkUpdate, err = r.needsOrbitSymlinkUpdate()
 			if err != nil {
@@ -286,9 +287,9 @@ func (r *Runner) UpdateAction() (bool, error) {
 }
 
 func (r *Runner) needsOrbitSymlinkUpdate() (bool, error) {
-	localTarget, err := r.updater.Get("orbit")
+	localTarget, err := r.updater.Get(constant.OrbitTUFTargetName)
 	if err != nil {
-		return false, fmt.Errorf("get binary: %w", err)
+		return false, fmt.Errorf("get %s binary: %w", constant.OrbitTUFTargetName, err)
 	}
 	path := localTarget.ExecPath
 
@@ -320,12 +321,12 @@ func (r *Runner) updateTarget(target string) error {
 	}
 	path := localTarget.ExecPath
 
-	if target == "osqueryd" {
+	if target == constant.OsqueryTUFTargetName {
 		// Compare old/new osquery versions
-		_, _ = compareVersion(path, r.OsqueryVersion, "osquery")
+		_, _ = compareVersion(path, r.OsqueryVersion, constant.OsqueryTUFTargetName)
 	}
 
-	if target != "orbit" {
+	if target != constant.OrbitTUFTargetName {
 		return nil
 	}
 	// Compare old/new orbit versions
