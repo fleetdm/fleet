@@ -96,8 +96,6 @@ const TeamsDropdown = ({
     props: DropdownIndicatorProps<any, false, any>
   ) => {
     const { isFocused, selectProps } = props;
-    // no access to hover state here from react-select so that is done in the scss
-    // file of ActionsDropdown.
     const color =
       isFocused || selectProps.menuIsOpen
         ? "core-fleet-blue"
