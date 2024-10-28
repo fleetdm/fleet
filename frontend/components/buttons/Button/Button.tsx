@@ -1,4 +1,4 @@
-import React, { Children } from "react";
+import React from "react";
 import classnames from "classnames";
 import Spinner from "components/Spinner";
 
