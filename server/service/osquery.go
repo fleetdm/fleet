@@ -242,7 +242,7 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 
 	case "instance":
 		r, ok := details["osquery_info"]
-		if !ok {
+		if !ok { //nolint:gocritic // ignore ifElseChain
 			level.Info(logger).Log(
 				"msg", "could not get host identifier",
 				"reason", "missing osquery_info",
@@ -260,7 +260,7 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 
 	case "uuid":
 		r, ok := details["osquery_info"]
-		if !ok {
+		if !ok { //nolint:gocritic // ignore ifElseChain
 			level.Info(logger).Log(
 				"msg", "could not get host identifier",
 				"reason", "missing osquery_info",
@@ -278,7 +278,7 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 
 	case "hostname":
 		r, ok := details["system_info"]
-		if !ok {
+		if !ok { //nolint:gocritic // ignore ifElseChain
 			level.Info(logger).Log(
 				"msg", "could not get host identifier",
 				"reason", "missing system_info",
@@ -1013,6 +1013,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
+		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults); err != nil {
+			logging.WithErr(ctx, err)
+		}
+
 		// filter policy results for webhooks
 		var policyIDs []uint
 		if globalPolicyAutomationsEnabled(ac.WebhookSettings, ac.Integrations) {
@@ -1023,10 +1027,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 			team, err := svc.ds.Team(ctx, *host.TeamID)
 			if err != nil {
 				logging.WithErr(ctx, err)
-			} else {
-				if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
-					policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
-				}
+			} else if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
+				policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
 			}
 		}
 
@@ -1054,12 +1056,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
 			logging.WithErr(ctx, err)
 		}
-	} else {
-		if hostWithoutPolicies {
-			// RecordPolicyQueryExecutions called with results=nil will still update the host's policy_updated_at column.
-			if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
-				logging.WithErr(ctx, err)
-			}
+	} else if hostWithoutPolicies {
+		// RecordPolicyQueryExecutions called with results=nil will still update the host's policy_updated_at column.
+		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+			logging.WithErr(ctx, err)
 		}
 	}
 
@@ -1534,7 +1534,7 @@ func (svc *Service) ingestDistributedQuery(
 
 	// Write the results to the pubsub store
 	res := fleet.DistributedQueryResult{
-		DistributedQueryCampaignID: uint(campaignID),
+		DistributedQueryCampaignID: uint(campaignID), //nolint:gosec // dismiss G115
 		Host: fleet.ResultHostData{
 			ID:          host.ID,
 			Hostname:    host.Hostname,
@@ -1558,7 +1558,7 @@ func (svc *Service) ingestDistributedQuery(
 		// If there are no subscribers, the campaign is "orphaned"
 		// and should be closed so that we don't continue trying to
 		// execute that query when we can't write to any subscriber
-		campaign, err := svc.ds.DistributedQueryCampaign(ctx, uint(campaignID))
+		campaign, err := svc.ds.DistributedQueryCampaign(ctx, uint(campaignID)) //nolint:gosec // dismiss G115
 		if err != nil {
 			if err := svc.liveQueryStore.StopQuery(strconv.Itoa(campaignID)); err != nil {
 				return newOsqueryError("stop orphaned campaign after load failure: " + err.Error())
@@ -1620,9 +1620,9 @@ func ingestMembershipQuery(
 	// A label/policy query matches if there is at least one result for that
 	// query. We must also store negative results.
 	if failed {
-		results[uint(trimmedQueryNum)] = nil
+		results[uint(trimmedQueryNum)] = nil //nolint:gosec // dismiss G115
 	} else {
-		results[uint(trimmedQueryNum)] = ptr.Bool(len(rows) > 0)
+		results[uint(trimmedQueryNum)] = ptr.Bool(len(rows) > 0) //nolint:gosec // dismiss G115
 	}
 
 	return nil
@@ -1775,6 +1775,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	}
 
 	for _, failingPolicyWithInstaller := range failingPoliciesWithInstaller {
+		policyID := failingPolicyWithInstaller.ID
 		installerMetadata, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, failingPolicyWithInstaller.InstallerID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
@@ -1808,13 +1809,12 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		}
 		// NOTE(lucas): The user_id set in this software install will be NULL
 		// so this means that when generating the activity for this action
-		// (in SaveHostSoftwareInstallResult)
-		// the author will be set to the user that uploaded the software (we want this
-		// by design).
+		// (in SaveHostSoftwareInstallResult) the author will be set to Fleet.
 		installUUID, err := svc.ds.InsertSoftwareInstallRequest(
 			ctx, hostID,
 			installerMetadata.InstallerID,
 			false, // Set Self-service as false because this is triggered by Fleet.
+			&policyID,
 		)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err,
@@ -1827,6 +1827,184 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			"install_uuid", installUUID,
 		)
 	}
+	return nil
+}
+
+func (svc *Service) processScriptsForNewlyFailingPolicies(
+	ctx context.Context,
+	hostID uint,
+	hostTeamID *uint,
+	hostPlatform string,
+	hostOrbitNodeKey *string,
+	hostScriptsEnabled *bool,
+	incomingPolicyResults map[uint]*bool,
+) error {
+	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
+		return nil // vanilla osquery hosts can't run scripts
+	}
+	// not logging here to avoid spamming logs on every policy failure for every no-scripts host even if the policy
+	// doesn't have a script attached
+	if hostScriptsEnabled != nil && !*hostScriptsEnabled {
+		return nil
+	}
+
+	// Bail if scripts are disabled globally
+	cfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	if cfg.ServerSettings.ScriptsDisabled {
+		return nil
+	}
+
+	var policyTeamID uint
+	if hostTeamID == nil {
+		policyTeamID = fleet.PolicyNoTeamID
+	} else {
+		policyTeamID = *hostTeamID
+	}
+
+	// Filter out results that are not failures (we are only interested on failing policies,
+	// we don't care about passing policies or policies that failed to execute).
+	incomingFailingPolicies := make(map[uint]*bool)
+	var incomingFailingPoliciesIDs []uint
+	for policyID, policyResult := range incomingPolicyResults {
+		if policyResult != nil && !*policyResult {
+			incomingFailingPolicies[policyID] = policyResult
+			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
+		}
+	}
+	if len(incomingFailingPolicies) == 0 {
+		return nil
+	}
+
+	// Get policies with associated scripts for the team.
+	policiesWithScript, err := svc.ds.GetPoliciesWithAssociatedScript(ctx, policyTeamID, incomingFailingPoliciesIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get policies with script")
+	}
+	if len(policiesWithScript) == 0 {
+		return nil
+	}
+
+	// Filter out results of policies that are not associated to scripts.
+	policiesWithScriptsMap := make(map[uint]fleet.PolicyScriptData)
+	for _, policyWithScript := range policiesWithScript {
+		policiesWithScriptsMap[policyWithScript.ID] = policyWithScript
+	}
+	policyResultsOfPoliciesWithScripts := make(map[uint]*bool)
+	for policyID, passes := range incomingFailingPolicies {
+		if _, ok := policiesWithScriptsMap[policyID]; !ok {
+			continue
+		}
+		policyResultsOfPoliciesWithScripts[policyID] = passes
+	}
+	if len(policyResultsOfPoliciesWithScripts) == 0 {
+		return nil
+	}
+
+	// Get the policies associated with scripts that are flipping from passing to failing on this host.
+	policyIDsOfNewlyFailingPoliciesWithScripts, _, err := svc.ds.FlippingPoliciesForHost(
+		ctx, hostID, policyResultsOfPoliciesWithScripts,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
+	}
+	if len(policyIDsOfNewlyFailingPoliciesWithScripts) == 0 {
+		return nil
+	}
+	policyIDsOfNewlyFailingPoliciesWithScriptsSet := make(map[uint]struct{})
+	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithScripts {
+		policyIDsOfNewlyFailingPoliciesWithScriptsSet[policyID] = struct{}{}
+	}
+
+	// Finally filter out policies with scripts that are not newly failing.
+	var failingPoliciesWithScript []fleet.PolicyScriptData
+	for _, policyWithScript := range policiesWithScript {
+		if _, ok := policyIDsOfNewlyFailingPoliciesWithScriptsSet[policyWithScript.ID]; ok {
+			failingPoliciesWithScript = append(failingPoliciesWithScript, policyWithScript)
+		}
+	}
+
+	for _, failingPolicyWithScript := range failingPoliciesWithScript {
+		policyID := failingPolicyWithScript.ID
+
+		scriptMetadata, err := svc.ds.Script(ctx, failingPolicyWithScript.ScriptID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get script metadata by id")
+		}
+		logger := log.With(svc.logger,
+			"host_id", hostID,
+			"host_platform", hostPlatform,
+			"policy_id", policyID,
+			"script_id", failingPolicyWithScript.ScriptID,
+			"script_name", scriptMetadata.Name,
+		)
+
+		allScriptsExecutionPending, err := svc.ds.ListPendingHostScriptExecutions(ctx, hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list host pending script executions")
+		}
+		if len(allScriptsExecutionPending) > maxPendingScripts {
+			level.Warn(logger).Log("msg", "too many scripts pending for host")
+			return nil
+		}
+
+		// skip incompatible scripts
+		hostPlatform := fleet.PlatformFromHost(hostPlatform)
+		if (hostPlatform == "windows" && strings.HasSuffix(scriptMetadata.Name, ".sh")) ||
+			(hostPlatform != "windows" && strings.HasSuffix(scriptMetadata.Name, ".ps1")) {
+			level.Info(logger).Log("msg", "script type does not match host platform")
+			continue
+		}
+
+		// skip different-team scripts
+		var scriptTeamID uint
+		if scriptMetadata.TeamID != nil {
+			scriptTeamID = *scriptMetadata.TeamID
+		}
+		if policyTeamID != scriptTeamID { // this should not happen
+			level.Error(logger).Log("msg", "script team does not match host team")
+			continue
+		}
+
+		scriptIsAlreadyPending, err := svc.ds.IsExecutionPendingForHost(ctx, hostID, scriptMetadata.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check whether script is pending execution")
+		}
+		if scriptIsAlreadyPending {
+			level.Debug(logger).Log("msg", "script is already pending on host")
+			continue
+		}
+
+		contents, err := svc.ds.GetScriptContents(ctx, scriptMetadata.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get script contents")
+		}
+		runScriptRequest := fleet.HostScriptRequestPayload{
+			HostID:          hostID,
+			ScriptContents:  string(contents),
+			ScriptContentID: scriptMetadata.ScriptContentID,
+			ScriptID:        &scriptMetadata.ID,
+			TeamID:          policyTeamID,
+			PolicyID:        &policyID,
+			// no user ID as scripts are executed by Fleet
+		}
+
+		scriptResult, err := svc.ds.NewHostScriptExecutionRequest(ctx, &runScriptRequest)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err,
+				"insert script run request; host_id=%d, script_id=%d",
+				hostID, scriptMetadata.ID,
+			)
+		}
+
+		level.Debug(logger).Log(
+			"msg", "script run request sent",
+			"execution_id", scriptResult.ExecutionID,
+		)
+	}
+
 	return nil
 }
 
@@ -1945,12 +2123,10 @@ func (svc *Service) preProcessOsqueryResults(
 			// 	field could not be unmarshalled.
 			//
 			// In both scenarios we want to add `result` to `unmarshaledResults`.
-		} else {
+		} else if result != nil && result.QueryName == "" {
 			// If the unmarshaled result doesn't have a "name" field then we ignore the result.
-			if result != nil && result.QueryName == "" {
-				level.Debug(svc.logger).Log("msg", "missing name field", "result", lograw(raw))
-				result = nil
-			}
+			level.Debug(svc.logger).Log("msg", "missing name field", "result", lograw(raw))
+			result = nil
 		}
 		unmarshaledResults = append(unmarshaledResults, result)
 	}

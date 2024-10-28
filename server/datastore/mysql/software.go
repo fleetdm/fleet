@@ -683,7 +683,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
 				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier) VALUES %s", titlesValues)
 				titlesArgs := make([]interface{}, 0, totalTitlesToProcess*numberOfArgsPerSoftwareTitles)
-				titleChecksums := make([]string, totalTitlesToProcess)
+				titleChecksums := make([]string, 0, totalTitlesToProcess)
 				for checksum, title := range newTitlesNeeded {
 					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier)
 					titleChecksums = append(titleChecksums, checksum)
@@ -1014,7 +1014,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 				"shc.team_id",
 			)
 
-		if opts.TeamID == nil {
+		if opts.TeamID == nil { //nolint:gocritic // ignore ifElseChain
 			ds = ds.Where(
 				goqu.And(
 					goqu.I("shc.team_id").Eq(0),
@@ -1413,7 +1413,7 @@ func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpt
 			perPage = defaultSelectLimit
 		}
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
-		if len(software) > int(perPage) {
+		if len(software) > int(perPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			software = software[:len(software)-1]
 		}
@@ -2162,6 +2162,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		onlySelfServiceClause = ` AND ( si.self_service = 1 OR vat.self_service = 1 ) `
 	}
 
+	var excludeVPPAppsClause string
+	if opts.ExcludeVPPApps {
+		excludeVPPAppsClause = ` AND vat.id IS NULL `
+	}
+
 	var onlyVulnerableJoin string
 	if opts.VulnerableOnly {
 		onlyVulnerableJoin = `
@@ -2281,8 +2286,8 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			-- on host (via installer or VPP app). If only available for install is
 			-- requested, then the software installed on host clause is empty.
 			( %s hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
-			%s
-`, status, softwareIsInstalledOnHostClause, onlySelfServiceClause)
+			%s %s
+`, status, softwareIsInstalledOnHostClause, onlySelfServiceClause, excludeVPPAppsClause)
 
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be
@@ -2347,8 +2352,8 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			) AND
 			-- either the software installer or the vpp app exists for the host's team
 			( si.id IS NOT NULL OR vat.platform = :host_platform )
-			%s
-`, onlySelfServiceClause)
+			%s %s
+`, onlySelfServiceClause, excludeVPPAppsClause)
 
 	// this is the top-level SELECT of fields from the UNION of the sub-selects
 	// (stmtAvailable and stmtInstalled).
@@ -2623,7 +2628,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			HasPreviousResults: opts.ListOptions.Page > 0,
 			TotalResults:       titleCount,
 		}
-		if len(hostSoftwareList) > int(perPage) {
+		if len(hostSoftwareList) > int(perPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			hostSoftwareList = hostSoftwareList[:len(hostSoftwareList)-1]
 		}

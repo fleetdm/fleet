@@ -31,6 +31,7 @@ const useSetWindowsMdm = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const turnOnWindowsMdm = async () => {
+    let flashErrMsg = "";
     try {
       const updatedConfig = await configAPI.updateMDMConfig(
         {
@@ -39,18 +40,22 @@ const useSetWindowsMdm = ({
         true
       );
       setConfig(updatedConfig);
-      renderFlash("success", successMessage);
     } catch (e) {
-      let msg = errorMessage;
       if (enable && isAxiosError(e) && e.response?.status === 422) {
-        msg =
+        flashErrMsg =
           getErrorReason(e, {
             nameEquals: "mdm.windows_enabled_and_configured",
-          }) || msg;
+          }) || errorMessage;
+      } else {
+        flashErrMsg = errorMessage;
       }
-      renderFlash("error", msg);
     } finally {
       router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+      if (flashErrMsg) {
+        renderFlash("error", flashErrMsg);
+      } else {
+        renderFlash("success", successMessage);
+      }
     }
   };
 
@@ -98,7 +103,7 @@ const WindowsMdmOffContent = ({ router }: IWindowsMdmOffContentProps) => {
       <p>
         MDM will no longer be turned on for Windows hosts that enroll to Fleet.
       </p>
-      <p>Hosts with MDM already turned on MDM will not have MDM removed.</p>
+      <p>Hosts with MDM already turned on will not have MDM removed.</p>
       <Button onClick={turnOffWindowsMdm}>Turn off MDM</Button>
     </>
   );

@@ -2427,8 +2427,6 @@ None.
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
 - [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
-- [List host OS versions](#list-host-os-versions)
-- [Get host OS version](#get-host-os-version)
 - [Get host's scripts](#get-hosts-scripts)
 - [Get host's software](#get-hosts-software)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
@@ -2506,7 +2504,7 @@ the `software` table.
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
-| populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. |
+| populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. (Note that software lists can be large, so this may cause significant CPU and RAM usage depending on page size and request concurrency.) |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host. |
 
 > `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
@@ -3688,6 +3686,8 @@ _Available in Fleet Premium_
 
 ### Turn off MDM for a host
 
+Turns off MDM for the specified macOS host.
+
 `DELETE /api/v1/fleet/hosts/:id/mdm`
 
 #### Parameters
@@ -4301,8 +4301,10 @@ Resends a configuration profile for the specified host.
       "name": "Logic Pro",
       "software_package": null
       "app_store_app": {
-        "app_store_id": "1091189122"
+        "app_store_id": "1091189122",
+        "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f4/25/1f/f4251f60-e27a-6f05-daa7-9f3a63aac929/AppIcon-0-0-85-220-0-0-4-0-0-2x-0-0-0-0-0.png/512x512bb.png"
         "version": "2.04",
+        "self_service": false,
         "last_install": {
           "command_uuid": "0aa14ae5-58fe-491a-ac9a-e4ee2b3aac40",
           "installed_at": "2024-05-15T15:23:57Z"
@@ -5579,6 +5581,7 @@ solely on the response status code returned by this endpoint.
 ```
 
 ###### Example response body
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -5726,6 +5729,7 @@ Get aggregate status counts of profiles for to macOS and Windows hosts that are 
 - [Set custom MDM setup enrollment profile](#set-custom-mdm-setup-enrollment-profile)
 - [Get custom MDM setup enrollment profile](#get-custom-mdm-setup-enrollment-profile)
 - [Delete custom MDM setup enrollment profile](#delete-custom-mdm-setup-enrollment-profile)
+- [Get Over-the-Air (OTA) enrollment profile](#get-over-the-air-ota-enrollment-profile) 
 - [Get manual enrollment profile](#get-manual-enrollment-profile)
 - [Upload a bootstrap package](#upload-a-bootstrap-package)
 - [Get metadata about a bootstrap package](#get-metadata-about-a-bootstrap-package)
@@ -5838,9 +5842,82 @@ Deletes the custom MDM setup enrollment profile assigned to a team or no team.
 `Status: 204`
 
 
+### Get Over-the-Air (OTA) enrollment profile
+
+`GET /api/v1/fleet/enrollment_profiles/ota`
+
+The returned value is a signed `.mobileconfig` OTA enrollment profile. Install this profile on macOS, iOS, or iPadOS hosts to enroll them to a specific team in Fleet and turn on MDM features.
+
+To enroll macOS hosts, turn on MDM features, and add [human-device mapping](#get-human-device-mapping), install the [manual enrollment profile](#get-manual-enrollment-profile) instead.
+
+Learn more about OTA profiles [here](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/OTASecurity/OTASecurity.html).
+
+#### Parameters
+
+| Name              | Type    | In    | Description                                                                      |
+|-------------------|---------|-------|----------------------------------------------------------------------------------|
+| enroll_secret     | string  | query | **Required**. The enroll secret of the team this host will be assigned to.       |
+
+#### Example
+
+`GET /api/v1/fleet/enrollment_profiles/ota?enroll_secret=foobar`
+
+##### Default response
+
+`Status: 200`
+
+> **Note:** To confirm success, it is important for clients to match content length with the response header (this is done automatically by most clients, including the browser) rather than relying solely on the response status code returned by this endpoint.
+
+##### Example response headers
+
+```http
+  Content-Length: 542
+  Content-Type: application/x-apple-aspen-config; charset=utf-8
+  Content-Disposition: attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"
+  X-Content-Type-Options: nosniff
+```
+
+###### Example response body
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Inc//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>PayloadContent</key>
+    <dict>
+      <key>URL</key>
+      <string>https://foo.example.com/api/fleet/ota_enrollment?enroll_secret=foobar</string>
+      <key>DeviceAttributes</key>
+      <array>
+        <string>UDID</string>
+        <string>VERSION</string>
+        <string>PRODUCT</string>
+	      <string>SERIAL</string>
+      </array>
+    </dict>
+    <key>PayloadOrganization</key>
+    <string>Acme Inc.</string>
+    <key>PayloadDisplayName</key>
+    <string>Acme Inc. enrollment</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>PayloadUUID</key>
+    <string>fdb376e5-b5bb-4d8c-829e-e90865f990c9</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.fleet.mdm.apple.ota</string>
+    <key>PayloadType</key>
+    <string>Profile Service</string>
+  </dict>
+</plist>
+```
+
+
 ### Get manual enrollment profile
 
 Retrieves an unsigned manual enrollment profile for macOS hosts. Install this profile on macOS hosts to turn on MDM features manually.
+
+To add [human-device mapping](#get-human-device-mapping), add the end user's email to the enrollment profle. Learn how [here](https://fleetdm.com/guides/config-less-fleetd-agent-deployment#basic-article).
 
 `GET /api/v1/fleet/enrollment_profiles/manual`
 
@@ -6666,7 +6743,8 @@ None.
 ]
 ```
 
-Get Volume Purchasing Program (VPP)
+### Get Volume Purchasing Program (VPP)
+
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -7308,6 +7386,8 @@ Team policies work the same as policies, but at the team level.
 
 ### Add team policy
 
+> **Experimental feature**. Software related features (like install software policy automation) are undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 The semantics for creating a team policy are the same as for global policies, see [Add policy](#add-policy).
 
 `POST /api/v1/fleet/teams/:id/policies`
@@ -7415,6 +7495,8 @@ Either `query` or `query_id` must be provided.
 ```
 
 ### Edit team policy
+
+> **Experimental feature**. Software related features (like install software policy automation) are undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 `PATCH /api/v1/fleet/teams/:team_id/policies/:policy_id`
 
@@ -8596,6 +8678,8 @@ The script will be added to the host's list of upcoming activities.
 
 The new script will run after other activities finish. Failure of one activity won't cancel other activities.
 
+By default, script runs time out after 5 minutes. You can modify this default in your [agent configuration](https://fleetdm.com/docs/configuration/agent-configuration#script-execution-timeout).
+
 `POST /api/v1/fleet/scripts/run`
 
 #### Parameters
@@ -8894,15 +8978,13 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Modify package](#modify-package)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
-- [Add Fleet library app](#add-fleet-library-app)
+- [List Fleet-maintained apps](#list-fleet-maintained-apps)
+- [Get Fleet-maintained app](#get-fleet-maintained-app)
+- [Add Fleet-maintained app](#add-fleet-maintained-app)
 - [Install package or App Store app](#install-package-or-app-store-app)
 - [Get package install result](#get-package-install-result)
 - [Download package](#download-package)
 - [Delete package or App Store app](#delete-package-or-app-store-app)
-- [Batch-apply software](#batch-apply-software)
-- [Batch-apply app store apps](#batch-apply-app-store-apps)
-- [Get token to download package](#get-token-to-download-package)
-- [Download package using a token](#download-package-using-a-token)
 
 ### List software
 
@@ -9275,9 +9357,10 @@ Returns information about the specified software. By default, `versions` are sor
     "software_package": null,
     "app_store_app": {
       "name": "Logic Pro",
-      "app_store_id": "1091189122",
+      "app_store_id": 1091189122,
       "latest_version": "2.04",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+      "self_service": true,
       "status": {
         "installed": 3,
         "pending": 1,
@@ -9356,6 +9439,7 @@ Returns information about the specified software version.
 }
 ```
 
+
 ### Get operating system version
 
 Retrieves information about the specified operating system (OS) version.
@@ -9431,7 +9515,7 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Li
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | form | **Required**. Installer package file. Supported packages are PKG, MSI, EXE, DEB, and RPM.   |
+| software        | file    | form | **Required**. Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
 | team_id         | integer | form | **Required**. The team ID. Adds a software package to the specified team. |
 | install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs [default install script](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
@@ -9492,7 +9576,7 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | form | Installer package file. Supported packages are PKG, MSI, EXE, and DEB.   |
+| software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
@@ -9628,10 +9712,11 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | app_store_id   | string | body | **Required.** The ID of App Store app. |
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
+| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
 
 #### Example
 
-`POST /api/v1/fleet/software/app_store_apps?team_id=3`
+`POST /api/v1/fleet/software/app_store_apps`
 
 ##### Request body
 
@@ -9640,12 +9725,139 @@ Add App Store (VPP) app purchased in Apple Business Manager.
   "app_store_id": "497799835",
   "team_id": 2,
   "platform": "ipados"
+  "self_service": true
 }
 ```
 
 ##### Default response
 
 `Status: 200`
+
+### List Fleet-maintained apps
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+List available Fleet-maintained apps.
+
+`GET /api/v1/fleet/software/fleet_maintained_apps`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| team_id       | integer | query | **Required**. The team ID. Filters Fleet-maintained apps to only include apps available for the specified team.  |
+| page            | integer | query | Page number of the results to fetch.  |
+| per_page        | integer | query | Results per page.  |
+
+#### Example
+
+`GET /api/v1/fleet/software/fleet_maintained_apps?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "fleet_maintained_apps": [
+    {
+      "id": 1,
+      "name": "1Password",
+      "version": "8.10.40",
+      "platform": "darwin"
+    },
+    {
+      "id": 2,
+      "name": "Adobe Acrobat Reader",
+      "version": "24.002.21005",
+      "platform": "darwin"
+    },
+    {
+      "id": 3,
+      "name": "Box Drive",
+      "version": "2.39.179",
+      "platform": "darwin"
+    },
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+### Get Fleet-maintained app
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+Returns information about the specified Fleet-maintained app.
+
+`GET /api/v1/fleet/software/fleet_maintained_apps/:id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The Fleet-maintained app's ID. |
+
+
+#### Example
+
+`GET /api/v1/fleet/software/fleet_maintained_apps/1`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "fleet_maintained_app": {
+    "id": 1,
+    "name": "1Password",
+    "filename": "1Password-8.10.44-aarch64.zip",
+    "version": "8.10.40",
+    "platform": "darwin",
+    "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
+    "uninstall_script": "#!/bin/sh\npkg_ids=$PACKAGE_ID\nfor pkg_id in '${pkg_ids[@]}'...",
+  }
+}
+```
+
+### Add Fleet-maintained app
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+_Available in Fleet Premium._
+
+Add Fleet-maintained app so it's available for install.
+
+`POST /api/v1/fleet/software/fleet_maintained_apps`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| fleet_maintained_app_id   | integer | body | **Required.** The ID of Fleet-maintained app. |
+| team_id       | integer | body | **Required**. The team ID. Adds Fleet-maintained app to the specified team.  |
+| install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs default install command for each Fleet-maintained app. |
+| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
+| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
+| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+
+#### Example
+
+`POST /api/v1/fleet/software/fleet_maintained_apps`
+
+##### Request body
+
+```json
+{
+  "fleet_maintained_app_id": 3,
+  "team_id": 2
+}
+```
+
+##### Default response
+
+`Status: 204`
 
 ### Download package
 
@@ -9685,7 +9897,9 @@ Body: <blob>
 
 _Available in Fleet Premium._
 
-Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` added to be installed.
+Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` to be installed.
+
+Package installs time out after 1 hour.
 
 `POST /api/v1/fleet/hosts/:id/software/:software_title_id/install`
 
@@ -9736,7 +9950,7 @@ _Available in Fleet Premium._
 
 `GET /api/v1/fleet/software/install/:install_uuid/results`
 
-Get the results of a software package install. 
+Get the results of a software package install.
 
 To get the results of an App Store app install, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API enpoints. Fleet uses an MDM command to install App Store apps.
 
@@ -9767,6 +9981,38 @@ To get the results of an App Store app install, use the [List MDM commands](#lis
  }
 ```
 
+### Download package
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+`GET /api/v1/fleet/software/titles/:software_title_id/package?alt=media`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| software_title_id   | integer | path | **Required**. The ID of the software title to download software package.|
+| team_id | integer | query | **Required**. The team ID. Downloads a software package added to the specified team. |
+| alt             | integer | query | **Required**. If specified and set to "media", downloads the specified software package. |
+
+#### Example
+
+`GET /api/v1/fleet/software/titles/123/package?alt=media?team_id=2`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
+
 ### Delete package or App Store app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -9791,117 +10037,6 @@ Deletes software that's available for install (package or App Store app).
 ##### Default response
 
 `Status: 204`
-
-### Batch-apply software
-
-_Available in Fleet Premium._
-
-`POST /api/v1/fleet/software/batch`
-
-#### Parameters
-
-| Name      | Type   | In    | Description                                                                                                                                                           |
-| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_id   | number | query | The ID of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request; omit this parameter if using `team_name`. Omitting these parameters will add software to "No Team". |
-| team_name | string | query | The name of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request; omit this parameter if using `team_id`. Omitting these parameters will add software to "No Team". |
-| dry_run   | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
-| software  | object   | body  | The team's software that will be available for install.  |
-| software.packages   | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, `post_install_script` - script that runs after software install, and `uninstall_script` - command that Fleet runs to uninstall software. |
-| software.app_store_apps | list   | body  | An array objects. Each object consists of `app_store_id` - ID of the App Store app. |
-
-If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error. If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
-
-#### Example
-
-`POST /api/v1/fleet/software/batch`
-
-##### Default response
-
-`Status: 204`
-
-### Batch-apply app store apps
-
-_Available in Fleet Premium._
-
-`POST /api/v1/fleet/software/app_store_apps/batch`
-
-#### Parameters
-
-| Name            | Type    | In    | Description                                                                                                                                                                            |
-|-----------------|---------|-------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_name       | integer | query | **Required**. The name of the team to add the app to.                                                                                                                                  |
-| dry_run         | bool    | query | If `true`, will validate the provided apps and return any validation errors, but will not apply the changes.                                                                           |
-| apps_store_apps | list    | body  | The list of objects containing `app_store_id`: a string representation of the app's App ID, `self_service`: a bool indicating if the app's installation can be initiated by end users. |
-
-> Note that this endpoint replaces all apps associated with a team.
-
-#### Example
-
-`POST /api/v1/fleet/software/app_store_apps/batch`
-
-#### Default response
-
-`Status: 204`
-
-### Get token to download package
-
-_Available in Fleet Premium._
-
-`POST /api/v1/fleet/software/titles/:software_title_id/package/token?alt=media`
-
-The returned token is a one-time use token that expires after 10 minutes.
-
-#### Parameters
-
-| Name              | Type    | In    | Description                                                      |
-|-------------------|---------|-------|------------------------------------------------------------------|
-| software_title_id | integer | path  | **Required**. The ID of the software title for software package. |
-| team_id           | integer | query | **Required**. The team ID containing the software package.       |
-| alt               | integer | query | **Required**. Must be specified and set to "media".              |
-
-#### Example
-
-`POST /api/v1/fleet/software/titles/123/package/token?alt=media&team_id=2`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "token": "e905e33e-07fe-4f82-889c-4848ed7eecb7"
-}
-```
-
-### Download package using a token
-
-_Available in Fleet Premium._
-
-`GET /api/v1/fleet/software/titles/:software_title_id/package/token/:token?alt=media`
-
-#### Parameters
-
-| Name              | Type    | In   | Description                                                              |
-|-------------------|---------|------|--------------------------------------------------------------------------|
-| software_title_id | integer | path | **Required**. The ID of the software title to download software package. |
-| token             | string  | path | **Required**. The token to download the software package.                |
-
-#### Example
-
-`GET /api/v1/fleet/software/titles/123/package/token/e905e33e-07fe-4f82-889c-4848ed7eecb7`
-
-##### Default response
-
-`Status: 200`
-
-```http
-Status: 200
-Content-Type: application/octet-stream
-Content-Disposition: attachment
-Content-Length: <length>
-Body: <blob>
-```
-
 
 ## Vulnerabilities
 

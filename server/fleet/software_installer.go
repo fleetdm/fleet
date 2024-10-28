@@ -9,9 +9,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
+
+// MaxSoftwareInstallerSize is the maximum size allowed for software
+// installers. This is enforced by the endpoints that upload installers.
+const MaxSoftwareInstallerSize = 3000 * units.MiB
 
 // SoftwareInstallerStore is the interface to store and retrieve software
 // installer files. Fleet supports storing to the local filesystem and to an
@@ -116,6 +121,8 @@ type SoftwareInstaller struct {
 	SelfService bool `json:"self_service" db:"self_service"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
+	// FleetLibraryAppID is the related Fleet-maintained app for this installer (if not nil).
+	FleetLibraryAppID *uint `json:"-" db:"fleet_library_app_id"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -203,19 +210,16 @@ type HostSoftwareInstallerResult struct {
 	InstallUUID string `json:"install_uuid" db:"execution_id"`
 	// SoftwareTitle is the title of the software.
 	SoftwareTitle string `json:"software_title" db:"software_title"`
-	// SoftwareVersion is the version of the software.
-	SoftwareTitleID uint `json:"software_title_id" db:"software_title_id"`
+	// SoftwareTitleID is the unique numerical ID of the software title assigned by the datastore.
+	SoftwareTitleID *uint `json:"software_title_id" db:"software_title_id"`
 	// SoftwareInstallerID is the unique numerical ID of the software installer assigned by the datastore.
-	SoftwareInstallerID uint `json:"-" db:"software_installer_id"`
+	SoftwareInstallerID *uint `json:"-" db:"software_installer_id"`
 	// SoftwarePackage is the name of the software installer package.
 	SoftwarePackage string `json:"software_package" db:"software_package"`
 	// HostID is the ID of the host.
 	HostID uint `json:"host_id" db:"host_id"`
 	// Status is the status of the software installer package on the host.
 	Status SoftwareInstallerStatus `json:"status" db:"status"`
-	// Detail is the detail of the software installer package on the host. TODO: does this field
-	// have specific values that should be used? If so, how are they calculated?
-	Detail string `json:"detail" db:"detail"`
 	// Output is the output of the software installer package on the host.
 	Output *string `json:"output" db:"install_script_output"`
 	// PreInstallQueryOutput is the output of the pre-install query on the host.
@@ -238,12 +242,9 @@ type HostSoftwareInstallerResult struct {
 	// HostDeletedAt indicates if the data is associated with a
 	// deleted host
 	HostDeletedAt *time.Time `json:"-" db:"host_deleted_at"`
-	// SoftwareInstallerUserID is the ID of the user that uploaded the software installer.
-	SoftwareInstallerUserID *uint `json:"-" db:"software_installer_user_id"`
-	// SoftwareInstallerUserID is the name of the user that uploaded the software installer.
-	SoftwareInstallerUserName string `json:"-" db:"software_installer_user_name"`
-	// SoftwareInstallerUserEmail is the email of the user that uploaded the software installer.
-	SoftwareInstallerUserEmail string `json:"-" db:"software_installer_user_email"`
+	// PolicyID is the id of the policy that triggered the install, or
+	// nil if the install was not triggered by a policy failure
+	PolicyID *uint `json:"policy_id" db:"policy_id"`
 }
 
 const (
@@ -307,24 +308,26 @@ func (s *HostSoftwareInstallerResultAuthz) AuthzType() string {
 }
 
 type UploadSoftwareInstallerPayload struct {
-	TeamID            *uint
-	InstallScript     string
-	PreInstallQuery   string
-	PostInstallScript string
-	InstallerFile     io.ReadSeeker // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
-	StorageID         string
-	Filename          string
-	Title             string
-	Version           string
-	Source            string
-	Platform          string
-	BundleIdentifier  string
-	SelfService       bool
-	UserID            uint
-	URL               string
-	PackageIDs        []string
-	UninstallScript   string
-	Extension         string
+	TeamID             *uint
+	InstallScript      string
+	PreInstallQuery    string
+	PostInstallScript  string
+	InstallerFile      io.ReadSeeker // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
+	StorageID          string
+	Filename           string
+	Title              string
+	Version            string
+	Source             string
+	Platform           string
+	BundleIdentifier   string
+	SelfService        bool
+	UserID             uint
+	URL                string
+	FleetLibraryAppID  *uint
+	PackageIDs         []string
+	UninstallScript    string
+	Extension          string
+	InstallDuringSetup *bool // keep saved value if nil, otherwise set as indicated
 }
 
 type UpdateSoftwareInstallerPayload struct {
@@ -363,6 +366,8 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 	switch ext {
 	case "deb":
 		return "deb_packages", nil
+	case "rpm":
+		return "rpm_packages", nil
 	case "exe", "msi":
 		return "programs", nil
 	case "pkg":
@@ -378,7 +383,7 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 func SofwareInstallerPlatformFromExtension(ext string) (string, error) {
 	ext = strings.TrimPrefix(ext, ".")
 	switch ext {
-	case "deb":
+	case "deb", "rpm":
 		return "linux", nil
 	case "exe", "msi":
 		return "windows", nil
@@ -422,6 +427,9 @@ type SoftwarePackageOrApp struct {
 	LastInstall   *HostSoftwareInstall   `json:"last_install"`
 	LastUninstall *HostSoftwareUninstall `json:"last_uninstall"`
 	PackageURL    *string                `json:"package_url"`
+	// InstallDuringSetup is a boolean that indicates if the package
+	// will be installed during the macos setup experience.
+	InstallDuringSetup *bool `json:"install_during_setup,omitempty" db:"install_during_setup"`
 }
 
 type SoftwarePackageSpec struct {
@@ -431,6 +439,16 @@ type SoftwarePackageSpec struct {
 	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
 	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
 	UninstallScript   TeamSpecSoftwareAsset `json:"uninstall_script"`
+
+	// ReferencedYamlPath is the resolved path of the file used to fill the
+	// software package. Only present after parsing a GitOps file on the fleetctl
+	// side of processing. This is required to match a macos_setup.software to
+	// its corresponding software package, as we do this matching by yaml path.
+	//
+	// It must be JSON-marshaled because it gets set during gitops file processing,
+	// which is then re-marshaled to JSON from this struct and later re-unmarshaled
+	// during ApplyGroup...
+	ReferencedYamlPath string `json:"referenced_yaml_path"`
 }
 
 type SoftwareSpec struct {

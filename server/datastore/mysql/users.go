@@ -46,12 +46,17 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
 			user.SSOEnabled,
 			user.APIOnly,
 			user.GlobalRole)
+
+		// set timestamp as close as possible to insert query to be as accurate as possible without needing to SELECT
+		user.CreatedAt = time.Now().UTC().Truncate(time.Second) // truncating because DB is at second resolution
+		user.UpdatedAt = user.CreatedAt
+
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "create new user")
 		}
 
 		id, _ := result.LastInsertId()
-		user.ID = uint(id)
+		user.ID = uint(id) //nolint:gosec // dismiss G115
 
 		if err := saveTeamsForUserDB(ctx, tx, user); err != nil {
 			return err

@@ -670,7 +670,7 @@ func (c *GoogleCalendar) createEvent(
 		secondsToEventEnd := (eventEnd.Sub(now).Milliseconds() / 1000) + (7 * 24 * 60 * 60)
 		eventUUID = strings.ToUpper(uuid.New().String()) // Standardize on uppercase UUIDs since that's how they come from DB
 		channelID = uuid.New().String()
-		resourceID, err = c.config.API.Watch(eventUUID, channelID, uint64(secondsToEventEnd))
+		resourceID, err = c.config.API.Watch(eventUUID, channelID, uint64(secondsToEventEnd)) //nolint:gosec // dismiss G115
 		if err != nil {
 			return nil, ctxerr.Wrap(c.config.Context, err, "watching Google calendar event")
 		}

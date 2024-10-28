@@ -24,6 +24,7 @@ type MDMAppleCommandIssuer interface {
 	EraseDevice(ctx context.Context, host *Host, uuid string) error
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
 	InstallApplication(ctx context.Context, hostUUIDs []string, uuid string, adamID string) error
+	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
 }
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
@@ -277,6 +278,15 @@ func (p HostMDMAppleProfile) ToHostMDMProfile(platform string) HostMDMProfile {
 		Detail:        p.Detail,
 		Platform:      platform,
 	}
+}
+
+// HostMDMCertificateProfile represents the status of an MDM certificate profile (SCEP payload) along with the
+// associated certificate metadata.
+type HostMDMCertificateProfile struct {
+	HostUUID             string             `db:"host_uuid"`
+	ProfileUUID          string             `db:"profile_uuid"`
+	Status               *MDMDeliveryStatus `db:"status"`
+	ChallengeRetrievedAt *time.Time         `db:"challenge_retrieved_at"`
 }
 
 type HostMDMProfileDetail string
@@ -940,4 +950,10 @@ func NewMDMAppleSoftwareUpdateRequired(asset MDMAppleSoftwareUpdateAsset) *MDMAp
 type MDMAppleSoftwareUpdateAsset struct {
 	ProductVersion string `json:"ProductVersion"`
 	Build          string `json:"Build"`
+}
+
+type MDMBulkUpsertManagedCertificatePayload struct {
+	ProfileUUID          string
+	HostUUID             string
+	ChallengeRetrievedAt *time.Time
 }

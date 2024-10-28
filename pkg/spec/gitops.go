@@ -56,10 +56,18 @@ type Policy struct {
 
 type GitOpsPolicySpec struct {
 	fleet.PolicySpec
+	RunScript       *PolicyRunScript       `json:"run_script"`
 	InstallSoftware *PolicyInstallSoftware `json:"install_software"`
 	// InstallSoftwareURL is populated after parsing the software installer yaml
 	// referenced by InstallSoftware.PackagePath.
 	InstallSoftwareURL string `json:"-"`
+	// RunScriptName is populated after confirming the script exists on both the file system
+	// and in the controls scripts list for the same team
+	RunScriptName *string `json:"-"`
+}
+
+type PolicyRunScript struct {
+	Path string `json:"path"`
 }
 
 type PolicyInstallSoftware struct {
@@ -133,13 +141,14 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	teamRaw, teamOk := top["name"]
 	teamSettingsRaw, teamSettingsOk := top["team_settings"]
 	orgSettingsRaw, orgOk := top["org_settings"]
-	if orgOk {
+	switch {
+	case orgOk:
 		if teamOk || teamSettingsOk {
 			multiError = multierror.Append(multiError, errors.New("'org_settings' cannot be used with 'name', 'team_settings'"))
 		} else {
 			multiError = parseOrgSettings(orgSettingsRaw, result, baseDir, multiError)
 		}
-	} else if teamOk {
+	case teamOk:
 		multiError = parseName(teamRaw, result, multiError)
 		if result.IsNoTeam() {
 			if teamSettingsOk {
@@ -155,7 +164,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 				multiError = parseTeamSettings(teamSettingsRaw, result, baseDir, multiError)
 			}
 		}
-	} else {
+	default:
 		multiError = multierror.Append(multiError, errors.New("either 'org_settings' or 'name' and 'team_settings' is required"))
 	}
 
@@ -168,7 +177,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		multiError = parseSoftware(top, result, baseDir, multiError)
 	}
 
-	// Policies can reference software installers, thus we parse them after parseSoftware.
+	// Policies can reference software installers and scripts, thus we parse them after parseSoftware and parseControls.
 	multiError = parsePolicies(top, result, baseDir, multiError)
 
 	return result, multiError.ErrorOrNil()
@@ -420,9 +429,11 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	}
 	controlsTop.Defined = true
 	if controlsTop.Path == nil {
+		controlsTop.Scripts = resolvePaths(controlsTop.Scripts, baseDir)
 		result.Controls = controlsTop
 	} else {
-		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *controlsTop.Path))
+		controlsFilePath := resolveApplyRelativePath(baseDir, *controlsTop.Path)
+		fileBytes, err := os.ReadFile(controlsFilePath)
 		if err != nil {
 			return multierror.Append(multiError, fmt.Errorf("failed to read controls file %s: %v", *controlsTop.Path, err))
 		}
@@ -443,10 +454,25 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					fmt.Errorf("nested paths are not supported: %s in %s", *pathControls.Path, *controlsTop.Path),
 				)
 			}
+
+			pathControls.Scripts = resolvePaths(pathControls.Scripts, filepath.Dir(controlsFilePath))
 			result.Controls = pathControls
 		}
 	}
 	return multiError
+}
+
+func resolvePaths(input []BaseItem, baseDir string) []BaseItem {
+	var resolved []BaseItem
+	for _, item := range input {
+		if item.Path != nil {
+			resolvedPath := resolveApplyRelativePath(baseDir, *item.Path)
+			item.Path = &resolvedPath
+		}
+		resolved = append(resolved, item)
+	}
+
+	return resolved
 }
 
 func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
@@ -465,9 +491,14 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy install_software %q: %v", item.Name, err))
 				continue
 			}
+			if err := parsePolicyRunScript(baseDir, result.TeamName, &item, result.Controls.Scripts); err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy run_script %q: %v", item.Name, err))
+				continue
+			}
 			result.Policies = append(result.Policies, &item.GitOpsPolicySpec)
 		} else {
-			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
+			filePath := resolveApplyRelativePath(baseDir, *item.Path)
+			fileBytes, err := os.ReadFile(filePath)
 			if err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to read policies file %s: %v", *item.Path, err))
 				continue
@@ -492,8 +523,12 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 								multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pp.Path, *item.Path),
 							)
 						} else {
-							if err := parsePolicyInstallSoftware(baseDir, result.TeamName, pp, result.Software.Packages); err != nil {
+							if err := parsePolicyInstallSoftware(filepath.Dir(filePath), result.TeamName, pp, result.Software.Packages); err != nil {
 								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy install_software %q: %v", pp.Name, err))
+								continue
+							}
+							if err := parsePolicyRunScript(filepath.Dir(filePath), result.TeamName, pp, result.Controls.Scripts); err != nil {
+								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy run_script %q: %v", pp.Name, err))
 								continue
 							}
 							result.Policies = append(result.Policies, &pp.GitOpsPolicySpec)
@@ -531,6 +566,47 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		multiError = multierror.Append(multiError, fmt.Errorf("duplicate policy names: %v", duplicates))
 	}
 	return multiError
+}
+
+func parsePolicyRunScript(baseDir string, teamName *string, policy *Policy, scripts []BaseItem) error {
+	if policy.RunScript == nil {
+		policy.ScriptID = ptr.Uint(0) // unset the script
+		return nil
+	}
+	if policy.RunScript != nil && policy.RunScript.Path != "" && teamName == nil {
+		return errors.New("run_script can only be set on team policies")
+	}
+
+	if policy.RunScript.Path == "" {
+		return errors.New("empty run_script path")
+	}
+
+	scriptPath := resolveApplyRelativePath(baseDir, policy.RunScript.Path)
+	_, err := os.Stat(scriptPath)
+	if err != nil {
+		return fmt.Errorf("script file does not exist %q: %v", policy.RunScript.Path, err)
+	}
+
+	scriptOnTeamFound := false
+	var foundScriptPaths []string
+	for _, script := range scripts {
+		foundScriptPaths = append(foundScriptPaths, *script.Path)
+		if scriptPath == *script.Path {
+			scriptOnTeamFound = true
+			break
+		}
+	}
+	if !scriptOnTeamFound {
+		if *teamName == noTeam {
+			return fmt.Errorf("policy script %s was not defined in controls in no-team.yml", scriptPath)
+		}
+		return fmt.Errorf("policy script %s was not defined in controls for %s", scriptPath, *teamName)
+	}
+
+	scriptName := filepath.Base(policy.RunScript.Path)
+	policy.RunScriptName = &scriptName
+
+	return nil
 }
 
 func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec) error {
@@ -681,9 +757,16 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	for _, item := range software.Packages {
 		var softwarePackageSpec fleet.SoftwarePackageSpec
 		if item.Path != nil {
-			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
+			softwarePackageSpec.ReferencedYamlPath = resolveApplyRelativePath(baseDir, *item.Path)
+			fileBytes, err := os.ReadFile(softwarePackageSpec.ReferencedYamlPath)
 			if err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("failed to read policies file %s: %v", *item.Path, err))
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to read software package file %s: %v", *item.Path, err))
+				continue
+			}
+			// Replace $var and ${var} with env values.
+			fileBytes, err = ExpandEnvBytes(fileBytes)
+			if err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environmet in file %s: %v", *item.Path, err))
 				continue
 			}
 			if err := yaml.Unmarshal(fileBytes, &softwarePackageSpec); err != nil {

@@ -173,8 +173,8 @@ func (m *mdmProxy) handleUpdatePercentage(w http.ResponseWriter, r *http.Request
 	m.migratePercentage = percentage
 
 	msg := fmt.Sprintf("Migrate percentage updated: %v\n", percentage)
-	log.Printf(msg)
-	fmt.Fprintf(w, msg)
+	log.Print(msg)
+	fmt.Fprint(w, msg)
 }
 
 func (m *mdmProxy) handleUpdateMigrateUDIDs(w http.ResponseWriter, r *http.Request) {
@@ -209,8 +209,8 @@ func (m *mdmProxy) handleUpdateMigrateUDIDs(w http.ResponseWriter, r *http.Reque
 	m.migrateUDIDs = udids
 
 	msg := fmt.Sprintf("Migrate UDIDs updated: %v\n", udids)
-	log.Printf(msg)
-	fmt.Fprintf(w, msg)
+	log.Print(msg)
+	fmt.Fprint(w, msg)
 }
 
 func processUDIDs(in io.Reader) (map[string]struct{}, error) {
@@ -267,7 +267,7 @@ func hashUDID(udid string) uint {
 
 func udidIncludedByPercentage(udid string, percentage int) bool {
 	index := hashUDID(udid) % 100
-	return int(index) < percentage
+	return int(index) < percentage //nolint:gosec // G115 false positive
 }
 
 func makeExistingProxy(existingURL, existingDNSName string) *httputil.ReverseProxy {

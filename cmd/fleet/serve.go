@@ -76,8 +76,7 @@ import (
 var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
 
 const (
-	softwareInstallerUploadTimeout = 4 * time.Minute
-	liveQueryMemCacheDuration      = 1 * time.Second
+	liveQueryMemCacheDuration = 1 * time.Second
 )
 
 type initializer interface {
@@ -313,8 +312,12 @@ the way that the Fleet server works.
 				}
 			}
 
+			// Strip the Redis URI scheme if it's present. Scheme docs are at: https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml
+			// This allows us to use Render's Redis service in render.yaml, including the free tier.
+			// In the future, we could support the full Redis URI if needed (including username, password, database, etc.)
+			redisAddress := strings.TrimPrefix(config.Redis.Address, "redis://")
 			redisPool, err := redis.NewPool(redis.PoolConfig{
-				Server:                    config.Redis.Address,
+				Server:                    redisAddress,
 				Username:                  config.Redis.Username,
 				Password:                  config.Redis.Password,
 				Database:                  config.Redis.Database,
@@ -501,7 +504,7 @@ the way that the Fleet server works.
 			}
 
 			checkMDMAssets := func(names []fleet.MDMAssetName) (bool, error) {
-				_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), names)
+				_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), names, nil)
 				if err != nil {
 					if fleet.IsNotFound(err) || errors.Is(err, mysql.ErrPartialResult) {
 						return false, nil
@@ -576,7 +579,7 @@ the way that the Fleet server works.
 						}
 					}
 
-					if err := ds.InsertMDMConfigAssets(context.Background(), args); err != nil {
+					if err := ds.InsertMDMConfigAssets(context.Background(), args, nil); err != nil {
 						if mysql.IsDuplicate(err) {
 							// we already checked for existing assets so we should never have a duplicate key error here; we'll add a debug log just in case
 							level.Debug(logger).Log("msg", "unexpected duplicate key error inserting MDM APNs and SCEP assets")
@@ -611,7 +614,7 @@ the way that the Fleet server works.
 				}
 
 				if len(toInsert) > 0 {
-					err := ds.InsertMDMConfigAssets(context.Background(), toInsert)
+					err := ds.InsertMDMConfigAssets(context.Background(), toInsert, nil)
 					switch {
 					case err != nil && mysql.IsDuplicate(err):
 						// we already checked for existing assets so we should never have a duplicate key error here; we'll add a debug log just in case
@@ -944,6 +947,12 @@ the way that the Fleet server works.
 				}); err != nil {
 					initFatal(err, "failed to register apple_mdm_iphone_ipad_refetcher schedule")
 				}
+
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return newMaintainedAppSchedule(ctx, instanceID, ds, logger)
+				}); err != nil {
+					initFatal(err, "failed to register maintained apps schedule")
+				}
 			}
 
 			if license.IsPremium() && config.Activity.EnableAuditLog {
@@ -1030,12 +1039,11 @@ the way that the Fleet server works.
 				if setupRequired {
 					apiHandler = service.WithSetup(svc, logger, apiHandler)
 					frontendHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler, config.Server.URLPrefix)
-					endUserEnrollOTAHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler, config.Server.URLPrefix)
 				} else {
 					frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler, config.Server.URLPrefix)
-					endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(config.Server.URLPrefix, logger)
 				}
 
+				endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(svc, config.Server.URLPrefix, logger)
 			}
 
 			healthCheckers := make(map[string]health.Checker)
@@ -1082,7 +1090,7 @@ the way that the Fleet server works.
 
 					err = ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
 						{Name: fleet.MDMAssetSCEPChallenge, Value: []byte(scepChallenge)},
-					})
+					}, nil)
 					if err != nil {
 						// duplicate key errors mean that we already
 						// have a value for those keys in the
@@ -1105,6 +1113,13 @@ the way that the Fleet server works.
 					ddmService,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
+				}
+			}
+
+			// SCEP proxy (for NDES, etc.)
+			if license.IsPremium() {
+				if err = service.RegisterSCEPProxy(rootMux, ds, logger); err != nil {
+					initFatal(err, "setup SCEP proxy")
 				}
 			}
 
@@ -1147,28 +1162,30 @@ the way that the Fleet server works.
 
 				if (req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package")) ||
 					(req.Method == http.MethodPatch && strings.HasSuffix(req.URL.Path, "/package") && strings.Contains(req.URL.Path, "/fleet/software/titles/")) {
-					// when uploading a software installer, the file might be large so
-					// the read timeout (to read the full request body) must be extended.
+					var zeroTime time.Time
 					rc := http.NewResponseController(rw)
-					// the frontend times out waiting for the upload after 4 minutes,
-					// use that same timeout:
-					// https://www.figma.com/design/oQl2oQUG0iRkUy0YOxc307/%2314921-Deploy-security-agents-to-macOS%2C-Windows%2C-and-Linux-hosts?node-id=773-18032&t=QjEU6tc73tddNSqn-0
-					if err := rc.SetReadDeadline(time.Now().Add(softwareInstallerUploadTimeout)); err != nil {
+					// For large software installers, the server time needs time to read the full
+					// request body so we use the zero value to remove the deadline and override the
+					// default read timeout.
+					// TODO: Is this really how we want to handle this? Or would an arbitrarily long
+					// timeout be better?
+					if err := rc.SetReadDeadline(zeroTime); err != nil {
 						level.Error(logger).Log("msg", "http middleware failed to override endpoint read timeout", "err", err)
 					}
-					// the write timeout should be extended to give the server time to
-					// store the installer to S3 (or the configured storage location) and
-					// write a response body, otherwise the connection is terminated
-					// abruptly. Give it twice the read timeout, so that if it takes
-					// 3m59s to upload an installer, we don't fail because of a lack of
-					// time to store to S3.
-					if err := rc.SetWriteDeadline(time.Now().Add(2 * softwareInstallerUploadTimeout)); err != nil {
+					// For large software installers, the server time needs time to store the
+					// installer to S3 (or the configured storage location) and write the response
+					// body so we use the zero value to remove the deadline and override the
+					// default write timeout.
+					// TODO: Is this really how we want to handle this? Or would an arbitrarily long
+					// timeout be better?
+					if err := rc.SetWriteDeadline(zeroTime); err != nil {
 						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
 					}
-					req.Body = http.MaxBytesReader(rw, req.Body, service.MaxSoftwareInstallerSize)
+					req.Body = http.MaxBytesReader(rw, req.Body, fleet.MaxSoftwareInstallerSize)
 				}
 				apiHandler.ServeHTTP(rw, req)
 			})
+
 			rootMux.Handle("/enroll", endUserEnrollOTAHandler)
 			rootMux.Handle("/", frontendHandler)
 

@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
+	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -960,6 +961,9 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_host_mdm_commands", func(ctx context.Context) error {
 			return ds.CleanupHostMDMCommands(ctx)
 		}),
+		schedule.WithJob("cleanup_host_mdm_managed_certificates", func(ctx context.Context) error {
+			return ds.CleanUpMDMManagedCertificates(ctx)
+		}),
 	)
 
 	return s, nil
@@ -1161,7 +1165,7 @@ func appleMDMDEPSyncerJob(
 		}
 		if incompleteToken != nil {
 			logger.Log("msg", "migrated ABM token found, updating its metadata")
-			if err := apple_mdm.SetABMTokenMetadata(ctx, incompleteToken, depStorage, ds, logger); err != nil {
+			if err := apple_mdm.SetABMTokenMetadata(ctx, incompleteToken, depStorage, ds, logger, false); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating migrated ABM token metadata")
 			}
 			if err := ds.SaveABMToken(ctx, incompleteToken); err != nil {
@@ -1346,7 +1350,7 @@ func cronActivitiesStreaming(
 			return multiErr
 		}
 
-		if len(activitiesToStream) < int(ActivitiesToStreamBatchCount) {
+		if len(activitiesToStream) < int(ActivitiesToStreamBatchCount) { //nolint:gosec // dismiss G115
 			return nil
 		}
 		page += 1
@@ -1416,5 +1420,31 @@ func cronUninstallSoftwareMigration(
 			return eeservice.UninstallSoftwareMigration(ctx, ds, softwareInstallStore, logger)
 		}),
 	)
+	return s, nil
+}
+
+func newMaintainedAppSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronMaintainedApps)
+		defaultInterval = 24 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
+	)
+
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
+			return maintainedapps.Refresh(ctx, ds, logger)
+		}),
+	)
+
 	return s, nil
 }

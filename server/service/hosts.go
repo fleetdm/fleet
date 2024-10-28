@@ -1152,18 +1152,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		nextMw.StartsAt = nextMw.StartsAt.In(gCalLoc)
 	}
 
-	// Due to a known osquery issue with M1 Macs, we are ignoring the stored value in the db
-	// and replacing it at the service layer with custom values determined by the cycle count.
-	// See https://github.com/fleetdm/fleet/issues/6763.
-	// TODO: Update once the underlying osquery issue has been resolved.
-	for _, b := range bats {
-		if b.CycleCount < 1000 {
-			b.Health = "Normal"
-		} else {
-			b.Health = "Replacement recommended"
-		}
-	}
-
 	var policies *[]*fleet.HostPolicy
 	if opts.IncludePolicies {
 		hp, err := svc.ds.ListPoliciesForHost(ctx, host)
@@ -2603,7 +2591,7 @@ func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet
 	if res == nil {
 		res = []*fleet.HostSoftwareWithInstaller{}
 	}
-	return getHostSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil
+	return getHostSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil //nolint:gosec // dismiss G115
 }
 
 func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
@@ -2639,6 +2627,11 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 		host = h
 	}
 
+	mdmEnrolled, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "checking mdm enrollment status")
+	}
+
 	// cursor-based pagination is not supported
 	opts.ListOptions.After = ""
 	// custom ordering is not supported, always by name (but asc/desc is configurable)
@@ -2646,6 +2639,7 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	// always include metadata
 	opts.ListOptions.IncludeMetadata = true
 	opts.IncludeAvailableForInstall = includeAvailableForInstall || opts.SelfServiceOnly
+	opts.ExcludeVPPApps = !mdmEnrolled
 
 	software, meta, err := svc.ds.ListHostSoftware(ctx, host, opts)
 	return software, meta, ctxerr.Wrap(ctx, err, "list host software")

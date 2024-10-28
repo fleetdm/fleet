@@ -1,6 +1,4 @@
-# Automatic policy-based installation of software on hosts
-
-![Top Image](../website/assets/images/articles/automatic-software-install-top-image.png)
+# Automatically install software
 
 Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) introduces the ability to automatically and remotely install software on hosts based on predefined policy failures. This guide will walk you through the process of configuring fleet for automatic installation of software on hosts using uploaded installation images and based on programmed policies.  You'll learn how to configure and use this feature, as well as understand how the underlying mechanism works.
 
@@ -26,9 +24,9 @@ Current supported software deployment formats:
 Coming soon:
 - VPP for iOS and iPadOS
 
-2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go to Policies tab --> Press the top right "Add policy" button. --> Click "create your own policy" --> Enter your policy SQL --> Save --> Fill in details in the Save modal and Save.
+2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go to Policies tab --> Press the "Add policy" button --> Click "create your own policy" --> Enter your policy SQL --> Save --> Fill in details in the Save modal and Save.
 
-```
+```sql
 SELECT 1 FROM apps WHERE name = 'Adobe Acrobat Reader.app' AND version_compare(bundle_short_version, '23.001.20687') >= 0;
 ```
 
@@ -46,6 +44,8 @@ Note: In order to know the exact application name to put in the query (e.g. "Ado
 
 Upon failure of the selected policy, the selected software installation will be triggered.
 
+> Adding software to a policy will reset the policy's host counts.
+
 ## How does it work?
 
 * After configuring Fleet to auto-install a specific software the rest will be done automatically.
@@ -54,6 +54,56 @@ Upon failure of the selected policy, the selected software installation will be 
 
 ![Flowchart](../website/assets/images/articles/automatic-software-install-workflow.png)
 *Detailed flowchart*
+
+## Templates for policy queries
+
+Following are some templates for the policy SQL queries for each package type.
+
+### macOS (pkg)
+
+```sql
+SELECT 1 FROM apps WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(bundle_short_version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
+```
+
+### Windows (msi and exe)
+
+```sql
+SELECT 1 FROM programs WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<VERSION>') >= 0;
+```
+
+### Ubuntu (deb)
+
+```sql
+SELECT 1 FROM deb_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
+```
+
+If your team has both Ubuntu and RHEL-based hosts then you should use the following template for the policy queries:
+```sql
+SELECT 1 WHERE EXISTS (
+   -- This will mark the policies as successful on RHEL hosts.
+   -- This is only required if RHEL-based and Debian based system share a team.
+   SELECT 1 FROM os_version WHERE platform = 'rhel'
+) OR EXISTS (
+   SELECT 1 FROM deb_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0
+);
+```
+
+### RHEL-based (rpm)
+
+```sql
+SELECT 1 FROM rpm_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
+```
+
+If your team has both Ubuntu and RHEL-based hosts then you should use the following template for the policy queries:
+```sql
+SELECT 1 WHERE EXISTS (
+   -- This will mark the policies as successfull on non-RHEL hosts.
+   -- This is only required if RHEL-based and Debian based system share a team.
+   SELECT 1 FROM os_version WHERE platform != 'rhel'
+) OR EXISTS (
+   SELECT 1 FROM rpm_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, 'SOFTWARE_PACKAGE_VERSION') >= 0
+);
+```
 
 ## Using the REST API for self-service software packages
 
@@ -71,7 +121,7 @@ Leveraging Fleet’s ability to install and upgrade software on your hosts, you 
 
 By automating software deployment, you can gain greater control over what's installed on your machines and have better oversight of version upgrades, ensuring old software with known issues is replaced.
 
-<meta name="articleTitle" value="Automatic installation of software on hosts">
+<meta name="articleTitle" value="Automatically install software">
 <meta name="authorFullName" value="Sharon Katz">
 <meta name="authorGitHubUsername" value="sharon-fdm">
 <meta name="category" value="guides">

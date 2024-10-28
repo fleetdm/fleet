@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
+	setupexperience "github.com/fleetdm/fleet/v4/orbit/pkg/setup_experience"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/orbit_info"
@@ -314,7 +315,7 @@ func main() {
 				if keystore.Supported() && !c.Bool("disable-keystore") {
 					// Check if secret is already in the keystore.
 					secretFromKeystore, err := keystore.GetSecret()
-					if err != nil {
+					if err != nil { //nolint:gocritic // ignore ifElseChain
 						log.Warn().Err(err).Msgf("failed to retrieve enroll secret from %v", keystore.Name())
 					} else if secretFromKeystore == "" {
 						// Keystore secret not found, so we will add it to the keystore.
@@ -323,7 +324,7 @@ func main() {
 						} else {
 							// Sanity check that the secret was added to the keystore.
 							checkSecret, err := keystore.GetSecret()
-							if err != nil {
+							if err != nil { //nolint:gocritic // ignore ifElseChain
 								log.Warn().Err(err).Msgf("failed to check that enroll secret was saved in %v", keystore.Name())
 							} else if checkSecret != secret {
 								log.Warn().Msgf("enroll secret was not saved correctly in %v", keystore.Name())
@@ -339,7 +340,7 @@ func main() {
 						} else {
 							// Sanity check that the secret was updated in the keystore.
 							checkSecret, err := keystore.GetSecret()
-							if err != nil {
+							if err != nil { //nolint:gocritic // ignore ifElseChain
 								log.Warn().Err(err).Msgf("failed to check that enroll secret was updated in %v", keystore.Name())
 							} else if checkSecret != secret {
 								log.Warn().Msgf("enroll secret was not updated correctly in %v", keystore.Name())
@@ -500,6 +501,7 @@ func main() {
 			}
 
 			targets := []string{"orbit", "osqueryd"}
+
 			if c.Bool("fleet-desktop") {
 				targets = append(targets, "desktop")
 			}
@@ -743,7 +745,7 @@ func main() {
 			certPath = filepath.Join(proxyDirectory, "fleet.crt")
 
 			// Write cert that proxy uses
-			err = os.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
+			err = os.WriteFile(certPath, []byte(insecure.ServerCert), os.FileMode(0o644))
 			if err != nil {
 				return fmt.Errorf("write server cert: %w", err)
 			}
@@ -857,7 +859,7 @@ func main() {
 		)
 
 		scriptConfigReceiver, scriptsEnabledFn := update.ApplyRunScriptsConfigFetcherMiddleware(
-			c.Bool("enable-scripts"), orbitClient,
+			c.Bool("enable-scripts"), orbitClient, c.String("root-dir"),
 		)
 		orbitClient.RegisterConfigReceiver(scriptConfigReceiver)
 
@@ -869,7 +871,10 @@ func main() {
 			orbitClient.RegisterConfigReceiver(update.ApplyNudgeConfigReceiverMiddleware(update.NudgeConfigFetcherOptions{
 				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
 			}))
+			setupExperiencer := setupexperience.NewSetupExperiencer(orbitClient, c.String("root-dir"))
+			orbitClient.RegisterConfigReceiver(setupExperiencer)
 			orbitClient.RegisterConfigReceiver(update.ApplySwiftDialogDownloaderMiddleware(updateRunner))
+
 		case "windows":
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(windowsMDMBitlockerCommandFrequency, orbitClient))
@@ -940,11 +945,9 @@ func main() {
 		//	- `command_line_flags` (osquery startup flags)
 		if err := orbitClient.RunConfigReceivers(); err != nil {
 			log.Error().Msgf("failed initial config fetch: %s", err)
-		} else {
-			if orbitClient.RestartTriggered() {
-				log.Info().Msg("exiting after early config fetch")
-				return nil
-			}
+		} else if orbitClient.RestartTriggered() {
+			log.Info().Msg("exiting after early config fetch")
+			return nil
 		}
 
 		addSubsystem(&g, "config receivers", &wrapSubsystem{
@@ -1215,7 +1218,7 @@ func main() {
 			}
 		}
 
-		softwareRunner := installer.NewRunner(orbitClient, r.ExtensionSocketPath(), scriptsEnabledFn)
+		softwareRunner := installer.NewRunner(orbitClient, r.ExtensionSocketPath(), scriptsEnabledFn, c.String("root-dir"))
 		orbitClient.RegisterConfigReceiver(softwareRunner)
 
 		if runtime.GOOS == "darwin" {

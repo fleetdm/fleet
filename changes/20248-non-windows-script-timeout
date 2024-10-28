@@ -1,0 +1,1 @@
+- fixed issue where macOS and Linux scripts failed to timeout on long running commands

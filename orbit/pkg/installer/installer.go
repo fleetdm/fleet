@@ -14,7 +14,9 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	pkgscripts "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/osquery/osquery-go"
@@ -22,8 +24,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type QueryResponse = osquery_gen.ExtensionResponse
-type QueryResponseStatus = osquery_gen.ExtensionStatus
+type (
+	QueryResponse       = osquery_gen.ExtensionResponse
+	QueryResponseStatus = osquery_gen.ExtensionStatus
+)
 
 // Client defines the methods required for the API requests to the server. The
 // fleet.OrbitClient type satisfies this interface.
@@ -40,6 +44,9 @@ type QueryClient interface {
 type Runner struct {
 	OsqueryClient QueryClient
 	OrbitClient   Client
+
+	// limit execution time of the various scripts run during software installation
+	installerExecutionTimeout time.Duration
 
 	// osquerySocketPath is used to establish the osquery connection
 	// if it's ever lost or disconnected
@@ -64,19 +71,30 @@ type Runner struct {
 	scriptsEnabled func() bool
 
 	osqueryConnectionMutex sync.Mutex
+
+	rootDirPath string
 }
 
-func NewRunner(client Client, socketPath string, scriptsEnabled func() bool) *Runner {
+func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, rootDirPath string) *Runner {
 	r := &Runner{
-		OrbitClient:       client,
-		osquerySocketPath: socketPath,
-		scriptsEnabled:    scriptsEnabled,
+		OrbitClient:               client,
+		osquerySocketPath:         socketPath,
+		scriptsEnabled:            scriptsEnabled,
+		installerExecutionTimeout: pkgscripts.MaxHostSoftwareInstallExecutionTime,
+		rootDirPath:               rootDirPath,
 	}
 
 	return r
 }
 
 func (r *Runner) Run(config *fleet.OrbitConfig) error {
+	if runtime.GOOS == "darwin" {
+		if config.Notifications.RunSetupExperience && !update.CanRun(r.rootDirPath, "swiftDialog", update.SwiftDialogMacOSTarget) {
+			log.Debug().Msg("exiting software installer config runner early during setup experience: swiftDialog is not installed")
+			return nil
+		}
+	}
+
 	connectOsqueryFn := r.connectOsquery
 	if connectOsqueryFn == nil {
 		connectOsqueryFn = connectOsquery
@@ -202,7 +220,7 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 		return payload, fmt.Errorf("creating temporary directory: %w", err)
 	}
 
-	log.Debug().Msgf("about to download software installer")
+	log.Debug().Str("install_id", installID).Msgf("about to download software installer")
 	installerPath, err := r.OrbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir)
 	if err != nil {
 		return payload, err
@@ -233,7 +251,7 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 	}
 
 	if installer.PostInstallScript != "" {
-		log.Debug().Msgf("about to run post-install script")
+		log.Debug().Msgf("about to run post-install script for %s", installerPath)
 		postOutput, postExitCode, postErr := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script"+scriptExtension)
 		payload.PostInstallScriptOutput = &postOutput
 		payload.PostInstallScriptExitCode = &postExitCode
@@ -274,6 +292,9 @@ func (r *Runner) runInstallerScript(ctx context.Context, scriptContents string, 
 	if err := os.WriteFile(scriptPath, []byte(scriptContents), constant.DefaultFileMode); err != nil {
 		return "", -1, fmt.Errorf("writing script: %w", err)
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), r.installerExecutionTimeout)
+	defer cancel()
 
 	execFn := r.execCmdFn
 	if execFn == nil {

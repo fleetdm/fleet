@@ -21,7 +21,7 @@ module.exports = {
         'what-does-your-team-manage-eo-it',
         'what-does-your-team-manage-vm',
         'what-do-you-manage-mdm',
-        'cross-platform-mdm',
+        'message-about-cross-platform-mdm',
         'is-it-any-good',
         'what-did-you-think',
         'deploy-fleet-in-your-environment',
@@ -57,7 +57,6 @@ module.exports = {
     } else {// other wise clone it from the user record.
       questionnaireProgress = _.clone(userRecord.getStartedQuestionnaireAnswers);
     }
-
     // Tease out what liur buying situation will now be (or is and was, if it's not changing)
     let primaryBuyingSituation = formData.primaryBuyingSituation === undefined ? this.req.me.primaryBuyingSituation : formData.primaryBuyingSituation;
 
@@ -212,11 +211,26 @@ module.exports = {
       questionnaireProgressAsAFormattedString = JSON.stringify(getStartedProgress)
       .replace(/[\{|\}|"]/g, '')// Remove the curly braces and quotation marks wrapping JSON objects
       .replace(/,/g, '\n')// Replace commas with newlines.
-      .replace(/:\w+:/g, ':\t');// Replace the key from the formData with a color and tab, (e.g., what-are-you-using-fleet-for:primaryBuyingSituation:eo-security, » what-are-you-using-fleet-for:   eo-security)
+      .replace(/:\w+:/g, ':\t')// Replace the key from the formData with a colon and tab, (e.g., what-are-you-using-fleet-for:primaryBuyingSituation:eo-security, » what-are-you-using-fleet-for:   eo-security)
+      .replace(/(true)/g, 'step completed');// Replace any "true" answers with "step completed".
     } catch(err){
       sails.log.warn(`When converting a user's (email: ${this.req.me.emailAddress}) getStartedQuestionnaireAnswers to a formatted string to send to the CRM, and error occurred`, err);
     }
-    // Only update CRM records if the user's psychological stage changes.
+    // Prepend the user's reported organization to the questionnaireProgressAsAFormattedString
+    questionnaireProgressAsAFormattedString = `organization-acording-to-fleetdm.com: ${this.req.me.organization}\n` + questionnaireProgressAsAFormattedString;
+
+    // Create a dictionary of values to send to the CRM for this user.
+    let contactInformation = {
+      emailAddress: this.req.me.emailAddress,
+      firstName: this.req.me.firstName,
+      lastName: this.req.me.lastName,
+      primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
+      organization: this.req.me.organization,
+      psychologicalStage,
+      getStartedResponses: questionnaireProgressAsAFormattedString,
+      contactSource: 'Website - Sign up',
+    };
+    // If the user's psychologicalStage changes, add a psychologicalStageChangeReason to the contactInformation dictionary that we'll update the CRM record with.
     if(psychologicalStage !== userRecord.psychologicalStage) {
       let psychologicalStageChangeReason = 'Website - Organic start flow'; // Default psystageChangeReason to "Website - Organic start flow"
       if(this.req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
@@ -226,25 +240,17 @@ module.exports = {
           psychologicalStageChangeReason = this.req.session.adAttributionString;
         }
       }
-      // Update the psychologicalStageLastChangedAt timestamp if the user's psychological stage
+      contactInformation.psychologicalStageChangeReason = psychologicalStageChangeReason;
+      // Update the psychologicalStageLastChangedAt timestamp if the user's psychological stage has changed (otherwise this is set to the current value)
       psychologicalStageLastChangedAt = Date.now();
-      sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
-        emailAddress: this.req.me.emailAddress,
-        firstName: this.req.me.firstName,
-        lastName: this.req.me.lastName,
-        primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-        organization: this.req.me.organization,
-        psychologicalStage,
-        psychologicalStageChangeReason,
-        getStartedResponses: questionnaireProgressAsAFormattedString,
-        contactSource: 'Website - Sign up',
-      }).exec((err)=>{
-        if(err){
-          sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire, a Contact and Account record could not be created/updated in the CRM.`, err);
-        }
-        return;
-      });
     }//ﬁ
+    // Update the CRM record for this user.
+    sails.helpers.salesforce.updateOrCreateContactAndAccount.with(contactInformation).exec((err)=>{
+      if(err){
+        sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire, a Contact and Account record could not be created/updated in the CRM.`, err);
+      }
+      return;
+    });
     // Update the user's database model.
     await User.updateOne({id: userRecord.id})
     .set({

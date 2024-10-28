@@ -3,11 +3,11 @@ package installer
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -154,7 +154,7 @@ func TestInstallerRun(t *testing.T) {
 	var downloadInstallerFnCalled bool
 	downloadInstallerDefaultFn := func(installerID uint, downloadDir string) (string, error) {
 		downloadInstallerFnCalled = true
-		return filepath.Join(downloadDir, strconv.Itoa(int(installerID))+".pkg"), nil
+		return filepath.Join(downloadDir, fmt.Sprint(installerID)+".pkg"), nil
 	}
 	oc.downloadInstallerFn = downloadInstallerDefaultFn
 
@@ -294,7 +294,7 @@ func TestInstallerRun(t *testing.T) {
 		}
 		require.Contains(t, executedScripts, filepath.Join(tmpDir, "install-script"+scriptExtension))
 		require.Contains(t, executedScripts, filepath.Join(tmpDir, "post-install-script"+scriptExtension))
-		require.Contains(t, execEnv, "INSTALLER_PATH="+filepath.Join(tmpDir, strconv.Itoa(int(installDetails.InstallerID))+".pkg"))
+		require.Contains(t, execEnv, "INSTALLER_PATH="+filepath.Join(tmpDir, fmt.Sprint(installDetails.InstallerID)+".pkg"))
 
 		require.True(t, queryFnCalled)
 		require.Equal(t, installDetails.PreInstallCondition, queryFnQuery)

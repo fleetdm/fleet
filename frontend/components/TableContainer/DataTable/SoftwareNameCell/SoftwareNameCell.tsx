@@ -46,7 +46,10 @@ const InstallIconWithTooltip = ({
               .
             </>
           ) : (
-            "Software can be installed on Host details page."
+            <>
+              Install manually on <b>Host details</b> page or automatically with
+              policy automations.
+            </>
           )}
         </span>
       </ReactTooltip>
@@ -55,8 +58,9 @@ const InstallIconWithTooltip = ({
 };
 
 interface ISoftwareNameCellProps {
-  name: string;
-  source: string;
+  name?: string;
+  source?: string;
+  /** pass in a `path` that this cell will link to */
   path?: string;
   router?: InjectedRouter;
   hasPackage?: boolean;
@@ -78,7 +82,7 @@ const SoftwareNameCell = ({
   if (!router || !path) {
     return (
       <div className={baseClass}>
-        <SoftwareIcon name={name} source={source} />
+        <SoftwareIcon name={name} source={source} url={iconUrl} />
         <span className="software-name">{name}</span>
       </div>
     );

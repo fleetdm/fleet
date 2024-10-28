@@ -115,7 +115,7 @@ const AgentOptionsPage = ({
           reason.includes("unsupported key provided") ||
           reason.includes("invalid value type");
 
-        return renderFlash(
+        renderFlash(
           "error",
           <>
             Couldn&apos;t update {teamName} team agent options:

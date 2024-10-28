@@ -56,8 +56,8 @@ func TestRunScriptCommand(t *testing.T) {
 	ds.GetScriptIDByNameFunc = func(ctx context.Context, name string, teamID *uint) (uint, error) {
 		return 1, nil
 	}
-	ds.IsExecutionPendingForHostFunc = func(ctx context.Context, hid uint, scriptID uint) ([]*uint, error) {
-		return []*uint{}, nil
+	ds.IsExecutionPendingForHostFunc = func(ctx context.Context, hid uint, scriptID uint) (bool, error) {
+		return false, nil
 	}
 
 	generateValidPath := func() string {
@@ -313,11 +313,11 @@ Fleet records the last 10,000 characters to prevent downtime.
 		},
 		// TODO: this would take 5 minutes to run, we don't want that kind of slowdown in our test suite
 		// but can be useful to have around for manual testing.
-		//{
+		// {
 		//	name:         "host timeout",
 		//	scriptPath:   generateValidPath,
 		//	expectErrMsg: fleet.RunScriptHostTimeoutErrMsg,
-		//},
+		// },
 		{name: "disabled scripts globally", scriptPath: generateValidPath, expectErrMsg: fleet.RunScriptScriptsDisabledGloballyErrMsg},
 	}
 

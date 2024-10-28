@@ -2,7 +2,7 @@ package pubsub
 
 import (
 	"context"
-	"strconv"
+	"fmt"
 	"sync"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -40,7 +40,7 @@ func (im *inmemQueryResults) WriteResult(result fleet.DistributedQueryResult) er
 	case channel <- result:
 		// intentionally do nothing
 	default:
-		return noSubscriberError{strconv.Itoa(int(result.DistributedQueryCampaignID))}
+		return noSubscriberError{fmt.Sprint(result.DistributedQueryCampaignID)}
 	}
 
 	return nil

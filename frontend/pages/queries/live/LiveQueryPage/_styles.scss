@@ -25,42 +25,6 @@
       display: flex;
       align-items: center;
       flex-wrap: wrap;
-
-      .target-pill-selector {
-        padding: $pad-small;
-        background-color: $core-white;
-        border: none;
-        box-shadow: inset 0 0 0 1px $ui-fleet-black-25;
-        border-radius: 6px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        margin-bottom: $pad-small;
-
-        &:not(:last-of-type) {
-          margin-right: $pad-small;
-        }
-        img {
-          max-width: 12px;
-        }
-        .plus-icon {
-          padding-right: 3px;
-        }
-        .selector-name {
-          margin-left: 8px;
-          font-size: $x-small;
-          flex: 1;
-        }
-        .selector-count {
-          margin-left: 8px;
-          font-size: $xxx-small;
-          font-weight: $bold;
-        }
-        &[data-selected="true"] {
-          background-color: $ui-vibrant-blue-10;
-          box-shadow: inset 0 0 0 1px $core-vibrant-blue;
-        }
-      }
     }
   }
   &__targets-button-wrap {

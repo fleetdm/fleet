@@ -141,7 +141,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 
 	i := 1
 	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
-		team.ID = uint(i)
+		team.ID = uint(i) //nolint:gosec // dismiss G115
 		i++
 		teamsByName[team.Name] = team
 		return team, nil
@@ -657,6 +657,18 @@ func TestApplyAppConfig(t *testing.T) {
 		return []*fleet.TeamSummary{{Name: "team1", ID: 1}}, nil
 	}
 
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{{OrganizationName: t.Name()}}, nil
+	}
+
 	name := writeTmpYml(t, `---
 apiVersion: v1
 kind: config
@@ -780,6 +792,18 @@ func TestApplyAppConfigDryRunIssue(t *testing.T) {
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		currentAppConfig = config
 		return nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	// first, set the default app config's agent options as set after fleetctl setup
@@ -912,6 +936,18 @@ func TestApplyAppConfigDeprecatedFields(t *testing.T) {
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
 		return nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	name := writeTmpYml(t, `---
@@ -1314,6 +1350,14 @@ func TestApplyAsGitOps(t *testing.T) {
 	}
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{{ID: 1}}, nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
 	}
 
 	// Apply global config.
@@ -1873,6 +1917,18 @@ func TestCanApplyIntervalsInNanoseconds(t *testing.T) {
 		return nil
 	}
 
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
 	name := writeTmpYml(t, `---
 apiVersion: v1
 kind: config
@@ -1906,6 +1962,18 @@ func TestCanApplyIntervalsUsingDurations(t *testing.T) {
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
 		return nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	name := writeTmpYml(t, `---
@@ -1963,7 +2031,7 @@ func TestApplyMacosSetup(t *testing.T) {
 		tmID := 1 // new teams will start at 2
 		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			tmID++
-			team.ID = uint(tmID)
+			team.ID = uint(tmID) //nolint:gosec // dismiss G115
 			clone := *team
 			teamsByName[team.Name] = &clone
 			teamsByID[team.ID] = &clone
@@ -2036,7 +2104,7 @@ func TestApplyMacosSetup(t *testing.T) {
 		asstID := 0
 		ds.SetOrUpdateMDMAppleSetupAssistantFunc = func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
 			asstID++
-			asst.ID = uint(asstID)
+			asst.ID = uint(asstID) //nolint:gosec // dismiss G115
 			asst.UploadedAt = time.Now()
 
 			var tmID uint
@@ -2089,6 +2157,18 @@ func TestApplyMacosSetup(t *testing.T) {
 		}
 		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 			return []*fleet.ABMToken{{ID: 1}}, nil
+		}
+
+		ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+			return nil
+		}
+
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+			return []*fleet.VPPTokenDB{}, nil
+		}
+
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{}, nil
 		}
 
 		return ds
@@ -2710,7 +2790,7 @@ func TestApplySpecs(t *testing.T) {
 		i := 1 // new teams will start at 2
 		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			i++
-			team.ID = uint(i)
+			team.ID = uint(i) //nolint:gosec // dismiss G115
 			teamsByName[team.Name] = team
 			return team, nil
 		}
@@ -2763,6 +2843,17 @@ func TestApplySpecs(t *testing.T) {
 		}
 		ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
 			return nil
+		}
+
+		// VPP/AMB
+		ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+			return nil
+		}
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+			return []*fleet.VPPTokenDB{}, nil
+		}
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{}, nil
 		}
 	}
 

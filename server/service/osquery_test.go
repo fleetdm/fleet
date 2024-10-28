@@ -12,7 +12,6 @@ import (
 	"os"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -1062,6 +1061,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "orbit_info":                 {},
 		hostDetailQueryPrefix + "software_vscode_extensions": {},
 		hostDetailQueryPrefix + "software_macos_firefox":     {},
+		hostDetailQueryPrefix + "battery":                    {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -2232,11 +2232,11 @@ func TestDistributedQueryResults(t *testing.T) {
 
 	lq.On("QueriesForHost", uint(1)).Return(
 		map[string]string{
-			strconv.Itoa(int(campaign.ID)): "select * from time",
+			fmt.Sprint(campaign.ID): "select * from time",
 		},
 		nil,
 	)
-	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(nil)
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(nil)
 
 	// Now we should get the active distributed query
 	queries, discovery, acc, err := svc.GetDistributedQueries(hostCtx)
@@ -2462,7 +2462,7 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 	ds.SaveDistributedQueryCampaignFunc = func(ctx context.Context, campaign *fleet.DistributedQueryCampaign) error {
 		return nil
 	}
-	lq.On("StopQuery", strconv.Itoa(int(campaign.ID))).Return(errors.New("failed"))
+	lq.On("StopQuery", fmt.Sprint(campaign.ID)).Return(errors.New("failed"))
 
 	host := fleet.Host{ID: 1}
 
@@ -2499,7 +2499,7 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 	ds.SaveDistributedQueryCampaignFunc = func(ctx context.Context, campaign *fleet.DistributedQueryCampaign) error {
 		return nil
 	}
-	lq.On("StopQuery", strconv.Itoa(int(campaign.ID))).Return(nil)
+	lq.On("StopQuery", fmt.Sprint(campaign.ID)).Return(nil)
 
 	host := fleet.Host{ID: 1}
 
@@ -2525,7 +2525,7 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 	host := fleet.Host{ID: 1}
 
-	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(errors.New("fail"))
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(errors.New("fail"))
 
 	go func() {
 		ch, err := rs.ReadChannel(context.Background(), *campaign)
@@ -2556,7 +2556,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 	host := fleet.Host{ID: 1}
 
-	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(nil)
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(nil)
 
 	go func() {
 		ch, err := rs.ReadChannel(context.Background(), *campaign)

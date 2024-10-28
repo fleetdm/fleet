@@ -251,19 +251,17 @@ const SoftwareTable = ({
   };
 
   const handleRowSelect = (row: IRowProps) => {
-    const hostsBySoftwareParams = showVersions
-      ? {
+    const queryParams = showVersions
+      ? buildQueryStringFromParams({
           software_version_id: row.original.id,
           team_id: teamId,
-        }
-      : {
+        })
+      : buildQueryStringFromParams({
           software_title_id: row.original.id,
           team_id: teamId,
-        };
+        });
 
-    const path = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
-      hostsBySoftwareParams
-    )}`;
+    const path = `${PATHS.MANAGE_HOSTS}?${queryParams}`;
 
     router.push(path);
   };
@@ -372,7 +370,7 @@ const SoftwareTable = ({
         inputPlaceHolder="Search by name or vulnerability (CVE)"
         onQueryChange={onQueryChange}
         // additionalQueries serves as a trigger for the useDeepEffect hook
-        // to fire onQueryChange for events happeing outside of
+        // to fire onQueryChange for events happening outside of
         // the TableContainer.
         // additionalQueries={softwareFilter}
         customControl={showFilterHeaders ? renderCustomControls : undefined}

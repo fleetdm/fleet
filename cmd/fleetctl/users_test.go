@@ -219,7 +219,7 @@ func TestDeleteBulkUsers(t *testing.T) {
 
 		randId, err := rand.Int(rand.Reader, big.NewInt(1000))
 		require.NoError(t, err)
-		id := uint(randId.Int64())
+		id := uint(randId.Int64()) //nolint:gosec // dismiss G115
 
 		users = append(users, fleet.User{
 			Name:  name,

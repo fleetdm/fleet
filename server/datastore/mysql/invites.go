@@ -34,7 +34,7 @@ func (ds *Datastore) NewInvite(ctx context.Context, i *fleet.Invite) (*fleet.Inv
 		}
 
 		id, _ := result.LastInsertId()
-		i.ID = uint(id)
+		i.ID = uint(id) //nolint:gosec // dismiss G115
 
 		if len(i.Teams) == 0 {
 			i.Teams = []fleet.UserTeam{}

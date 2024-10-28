@@ -6286,7 +6286,7 @@ func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts/123/scripts", nil, http.StatusNotFound, &getHostScriptDetailsResp)
 
 	// batch set scripts
-	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil}, http.StatusNoContent)
+	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil}, http.StatusOK)
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
@@ -7822,10 +7822,10 @@ func (s *integrationTestSuite) TestPasswordReset() {
 
 	// TODO: tested manually (adds too much time to the test), works but hitting the rate
 	// limit returns 500 instead of 429, see #4406. We get the authz check missing error instead.
-	//// trigger the rate limit with a batch of requests in a short burst
-	//for i := 0; i < 20; i++ {
+	// // trigger the rate limit with a batch of requests in a short burst
+	// for i := 0; i < 20; i++ {
 	//	s.DoJSON("POST", "/api/latest/fleet/forgot_password", forgotPasswordRequest{Email: "invalid@asd.com"}, http.StatusAccepted, &forgotResp)
-	//}
+	// }
 
 	// request forgot password, valid email
 	res = s.DoRawNoAuth("POST", "/api/latest/fleet/forgot_password", jsonMustMarshal(t, forgotPasswordRequest{Email: u.Email}), http.StatusAccepted)
@@ -8327,8 +8327,8 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	require.NoError(t, err)
 
 	bats := []*fleet.HostBattery{
-		{HostID: host.ID, SerialNumber: "a", CycleCount: 1, Health: "Good"},
-		{HostID: host.ID, SerialNumber: "b", CycleCount: 1002, Health: "Poor"},
+		{HostID: host.ID, SerialNumber: "a", CycleCount: 1, Health: "Normal"},
+		{HostID: host.ID, SerialNumber: "b", CycleCount: 1002, Health: "Service recommended"},
 	}
 	require.NoError(t, s.ds.ReplaceHostBatteries(context.Background(), host.ID, bats))
 
@@ -8338,7 +8338,7 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	// only cycle count and health are returned
 	require.ElementsMatch(t, []*fleet.HostBattery{
 		{CycleCount: 1, Health: "Normal"},
-		{CycleCount: 1002, Health: "Replacement recommended"},
+		{CycleCount: 1002, Health: "Service recommended"},
 	}, *getHostResp.Host.Batteries)
 
 	// same for get host by identifier
@@ -8347,7 +8347,7 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	// only cycle count and health are returned
 	require.ElementsMatch(t, []*fleet.HostBattery{
 		{CycleCount: 1, Health: "Normal"},
-		{CycleCount: 1002, Health: "Replacement recommended"},
+		{CycleCount: 1002, Health: "Service recommended"},
 	}, *getHostResp.Host.Batteries)
 }
 
@@ -9934,8 +9934,8 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	}
 	for _, sqs := range scheduledQueriesStats {
 		row := rowsMap[sqs.ScheduledQueryName]
-		require.Equal(t, strconv.FormatInt(int64(sqs.AverageMemory), 10), row["average_memory"])
-		require.Equal(t, strconv.FormatInt(int64(sqs.Executions), 10), row["executions"])
+		require.Equal(t, fmt.Sprint(sqs.AverageMemory), row["average_memory"])
+		require.Equal(t, fmt.Sprint(sqs.Executions), row["executions"])
 		interval := row["interval"]
 		if sqs.ScheduledQueryName == "non-scheduled-global-query" {
 			interval = "0" // this query has metrics because it runs on a pack.
@@ -9944,10 +9944,10 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		lastExecuted, err := strconv.ParseInt(row["last_executed"], 10, 64)
 		require.NoError(t, err)
 		require.WithinDuration(t, sqs.LastExecuted, time.Unix(lastExecuted, 0), 1*time.Second)
-		require.Equal(t, strconv.FormatInt(int64(sqs.OutputSize), 10), row["output_size"])
-		require.Equal(t, strconv.FormatInt(int64(sqs.SystemTime), 10), row["system_time"])
-		require.Equal(t, strconv.FormatInt(int64(sqs.UserTime), 10), row["user_time"])
-		assert.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time_ms"])
+		require.Equal(t, fmt.Sprint(sqs.OutputSize), row["output_size"])
+		require.Equal(t, fmt.Sprint(sqs.SystemTime), row["system_time"])
+		require.Equal(t, fmt.Sprint(sqs.UserTime), row["user_time"])
+		assert.Equal(t, fmt.Sprint(sqs.WallTime), row["wall_time_ms"])
 	}
 
 	// Now let's simulate a osquery instance running in the global host returning the
@@ -10003,16 +10003,16 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	queryName := parts[len(parts)-1]
 	sqs := scheduledQueriesStats[0]
 	require.Equal(t, scheduledQueriesStats[0].ScheduledQueryName, queryName)
-	require.Equal(t, strconv.FormatInt(int64(sqs.AverageMemory), 10), row["average_memory"])
-	require.Equal(t, strconv.FormatInt(int64(sqs.Executions), 10), row["executions"])
-	require.Equal(t, strconv.FormatInt(int64(sqs.Interval), 10), row["interval"])
+	require.Equal(t, fmt.Sprint(sqs.AverageMemory), row["average_memory"])
+	require.Equal(t, fmt.Sprint(sqs.Executions), row["executions"])
+	require.Equal(t, fmt.Sprint(sqs.Interval), row["interval"])
 	lastExecuted, err := strconv.ParseInt(row["last_executed"], 10, 64)
 	require.NoError(t, err)
 	require.WithinDuration(t, sqs.LastExecuted, time.Unix(lastExecuted, 0), 1*time.Second)
-	require.Equal(t, strconv.FormatInt(int64(sqs.OutputSize), 10), row["output_size"])
-	require.Equal(t, strconv.FormatInt(int64(sqs.SystemTime), 10), row["system_time"])
-	require.Equal(t, strconv.FormatInt(int64(sqs.UserTime), 10), row["user_time"])
-	require.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time_ms"])
+	require.Equal(t, fmt.Sprint(sqs.OutputSize), row["output_size"])
+	require.Equal(t, fmt.Sprint(sqs.SystemTime), row["system_time"])
+	require.Equal(t, fmt.Sprint(sqs.UserTime), row["user_time"])
+	require.Equal(t, fmt.Sprint(sqs.WallTime), row["wall_time_ms"])
 }
 
 // TestDirectIngestSoftwareWithLongFields tests that software with reported long fields
@@ -11629,7 +11629,7 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	require.NoError(t, err)
 	s1Meta, err := s.ds.GetSoftwareInstallerMetadataByID(ctx, sw1)
 	require.NoError(t, err)
-	h1Foo, err := s.ds.InsertSoftwareInstallRequest(ctx, host1.ID, s1Meta.InstallerID, false)
+	h1Foo, err := s.ds.InsertSoftwareInstallRequest(ctx, host1.ID, s1Meta.InstallerID, false, nil)
 	require.NoError(t, err)
 
 	// force an order to the activities
@@ -12148,4 +12148,64 @@ func (s *integrationTestSuite) TestAutofillPolicies() {
 	s.Do("PATCH", "/api/latest/fleet/config", appConfigSpec, http.StatusOK)
 	resp = s.Do("POST", "/api/latest/fleet/autofill/policy", req, http.StatusBadRequest)
 	assertBodyContains(t, resp, "AI features are disabled")
+}
+
+func (s *integrationTestSuite) TestHostWithNoPoliciesClearsPolicyCounts() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Zoobar"})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("foobar"),
+		UUID:            "foobar",
+		Hostname:        "com.foobar.local",
+		Platform:        "linux",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:  "Barfoo",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	distributedWriteResp := submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host,
+		map[uint]*bool{
+			policy.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedWriteResp)
+
+	listHostsResp := listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 1)
+	require.Equal(t, uint64(1), listHostsResp.Hosts[0].FailingPoliciesCount)
+
+	_, err = s.ds.DeleteTeamPolicies(ctx, team.ID, []uint{policy.ID})
+	require.NoError(t, err)
+
+	distributedWriteResp = submitDistributedQueryResultsResponse{}
+	results := make(map[string]json.RawMessage)
+	results[hostNoPoliciesWildcard] = json.RawMessage("{\"1\": \"1\"}")
+	statuses := make(map[string]interface{})
+	statuses[hostNoPoliciesWildcard] = 0
+	s.DoJSON("POST", "/api/osquery/distributed/write", submitDistributedQueryResultsRequestShim{
+		NodeKey:  *host.NodeKey,
+		Results:  results,
+		Statuses: statuses,
+		Stats:    map[string]*fleet.Stats{},
+	}, http.StatusOK, &distributedWriteResp)
+
+	listHostsResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 1)
+	require.Equal(t, uint64(0), listHostsResp.Hosts[0].FailingPoliciesCount)
 }

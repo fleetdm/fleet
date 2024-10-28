@@ -45,7 +45,7 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 		}
 
 		id, _ := result.LastInsertId()
-		team.ID = uint(id)
+		team.ID = uint(id) //nolint:gosec // dismiss G115
 
 		return saveTeamSecretsDB(ctx, tx, team)
 	})
@@ -106,8 +106,8 @@ func saveTeamSecretsDB(ctx context.Context, q sqlx.ExtContext, team *fleet.Team)
 
 func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Delete team policies first, because policies can have associated installers which may be deleted on cascade
-		// before deleting the policies (which are also deleted on cascade).
+		// Delete team policies first, because policies can have associated installers and scripts
+		// which may be deleted on cascade before deleting the policies (which are also deleted on cascade).
 		_, err := tx.ExecContext(ctx, `DELETE FROM policies WHERE team_id = ?`, tid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "deleting policies for team %d", tid)

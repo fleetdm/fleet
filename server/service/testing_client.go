@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sync"
 	"testing"
@@ -136,7 +138,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	if len(queryIDs) > 0 {
 		count, err := ts.ds.DeleteQueries(ctx, queryIDs)
 		require.NoError(t, err)
-		require.Equal(t, len(queries), int(count))
+		require.EqualValues(t, len(queries), count)
 	}
 
 	users, err := ts.ds.ListUsers(ctx, fleet.UserListOptions{})
@@ -158,6 +160,12 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	// Clean software installers in "No team" (the others are deleted in ts.ds.DeleteTeam above).
 	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
+		return err
+	})
+
+	// Clean scripts in "No team" (the others are deleted in ts.ds.DeleteTeam above).
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM scripts WHERE global_or_team_id = 0;`)
 		return err
 	})
 
@@ -519,5 +527,63 @@ func (ts *withServer) lastActivityOfTypeDoesNotMatch(name, details string, id ui
 				assert.NotEqual(t, id, act.ID)
 			}
 		}
+	}
+}
+
+func (ts *withServer) uploadSoftwareInstaller(
+	t *testing.T,
+	payload *fleet.UploadSoftwareInstallerPayload,
+	expectedStatus int,
+	expectedError string,
+) {
+	t.Helper()
+	openFile := func(name string) *os.File {
+		f, err := os.Open(filepath.Join("testdata", "software-installers", name))
+		require.NoError(t, err)
+		return f
+	}
+
+	f := openFile(payload.Filename)
+	defer f.Close()
+
+	payload.InstallerFile = f
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+
+	// add the software field
+	fw, err := w.CreateFormFile("software", payload.Filename)
+	require.NoError(t, err)
+	n, err := io.Copy(fw, payload.InstallerFile)
+	require.NoError(t, err)
+	require.NotZero(t, n)
+
+	// add the team_id field
+	if payload.TeamID != nil {
+		require.NoError(t, w.WriteField("team_id", fmt.Sprintf("%d", *payload.TeamID)))
+	}
+	// add the remaining fields
+	require.NoError(t, w.WriteField("install_script", payload.InstallScript))
+	require.NoError(t, w.WriteField("pre_install_query", payload.PreInstallQuery))
+	require.NoError(t, w.WriteField("post_install_script", payload.PostInstallScript))
+	require.NoError(t, w.WriteField("uninstall_script", payload.UninstallScript))
+	if payload.SelfService {
+		require.NoError(t, w.WriteField("self_service", "true"))
+	}
+
+	w.Close()
+
+	headers := map[string]string{
+		"Content-Type":  w.FormDataContentType(),
+		"Accept":        "application/json",
+		"Authorization": fmt.Sprintf("Bearer %s", ts.token),
+	}
+
+	r := ts.DoRawWithHeaders("POST", "/api/latest/fleet/software/package", b.Bytes(), expectedStatus, headers)
+	defer r.Body.Close()
+
+	if expectedError != "" {
+		errMsg := extractServerErrorText(r.Body)
+		require.Contains(t, errMsg, expectedError)
 	}
 }

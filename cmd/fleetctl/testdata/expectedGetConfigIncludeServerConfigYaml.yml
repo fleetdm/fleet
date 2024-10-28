@@ -16,9 +16,11 @@ spec:
   integrations:
     google_calendar: null
     jira: null
+    ndes_scep_proxy: null
     zendesk: null
   mdm:
     apple_business_manager: null
+    apple_server_url: ""
     volume_purchasing_program: null
     apple_bm_enabled_and_configured: false
     apple_bm_terms_expired: false
@@ -48,6 +50,8 @@ spec:
       enable_end_user_authentication: false
       enable_release_device_manually: false
       macos_setup_assistant:
+      script:
+      software:
     windows_settings:
       custom_settings:
     end_user_authentication:
