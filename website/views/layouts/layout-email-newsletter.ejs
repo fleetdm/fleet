@@ -15,7 +15,7 @@
       <p>© <%= (new Date()).getFullYear() %> Fleet Device Management Inc. All trademarks, service marks, and company names are the property of their respective owners.</p>
     </div>
     <div>
-      <p style="font-size: 12px; color: #3E4771;">You received this email because you’re subscribed to the Fleet newsletter. <a href="<%= url.resolve(sails.config.custom.baseUrl, '/unsubscribe?emailAddress='+encodeURIComponent(emailAddress)) %>">Unsubscribe</a></p>
+      <p style="font-size: 12px; color: #3E4771;">You received this email because you’re subscribed to the Fleet newsletter. <a href="<%= url.resolve(sails.config.custom.baseUrl, '/unsubscribe-from-newsletter?emailAddress='+encodeURIComponent(emailAddress)) %>">Unsubscribe</a></p>
     </div>
   </div>
 </div>
