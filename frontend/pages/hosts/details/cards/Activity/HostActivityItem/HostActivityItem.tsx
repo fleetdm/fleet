@@ -33,10 +33,18 @@ const HostActivityItem = ({
   children,
   className,
 }: IHostActivityItemProps) => {
-  const { actor_email } = activity;
-  const { gravatar_url } = actor_email
-    ? addGravatarUrlToResource({ email: actor_email })
-    : { gravatar_url: DEFAULT_GRAVATAR_LINK };
+  const { actor_email, actor_full_name, actor_id } = activity;
+
+  // TODO: revert this once we have a proper way of handling "Fleet-initiated" activities in
+  // the backend.
+  let gravatar_url = DEFAULT_GRAVATAR_LINK;
+  if (actor_email) {
+    gravatar_url = addGravatarUrlToResource({ email: actor_email });
+  }
+  if (!actor_email && actor_full_name === "Fleet" && !actor_id) {
+    gravatar_url =
+      "https://fleetdm.com/images/permanent/fleet-mark-color-40x40@2x.png";
+  }
 
   // wrapped just in case the date string does not parse correctly
   let activityCreatedAt: Date | null = null;
