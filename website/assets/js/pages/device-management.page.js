@@ -40,7 +40,7 @@ parasails.registerPage('device-management-page', {
       if(typeof analytics !== 'undefined'){
         analytics.track('fleet_website__swag_request');
       }
-      this.goto('https://kqphpqst851.typeform.com/to/ZfA3sOu0?from_page=device-managment');
+      this.goto('https://kqphpqst851.typeform.com/to/ZfA3sOu0#from_page=device-managment');
     },
   }
 });
