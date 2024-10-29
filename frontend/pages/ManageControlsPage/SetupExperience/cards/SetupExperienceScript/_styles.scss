@@ -19,4 +19,10 @@
     margin: 0 0 $pad-small;
     font-weight: $bold;
   }
+
+  @media (max-width: $break-md) {
+    &__content {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
 }
