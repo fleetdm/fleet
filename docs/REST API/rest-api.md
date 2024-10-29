@@ -4479,7 +4479,14 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 
 ##### Default response
 
-`Status: 204`
+`Status: 200`
+
+```json
+{
+  "device_status": "unlocked",
+  "pending_action": "lock"
+}
+```
 
 #### Example
 
@@ -4491,9 +4498,13 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 
 ```json
 {
-  "unlock_pin": "123456"
+  "unlock_pin": "123456",
+  "device_status": "locked",
+  "pending_action": "",
 }
 ```
+
+
 
 ### Unlock host
 
@@ -4517,7 +4528,14 @@ To unlock a Windows or Linux host, the host must have [scripts enabled](https://
 
 ##### Default response (Windows or Linux hosts)
 
-`Status: 204`
+`Status: 200`
+
+```json
+{
+  "device_status": "locked",
+  "pending_action": "unlock"
+}
+```
 
 ##### Default response (macOS hosts)
 
@@ -4550,7 +4568,14 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 
 ##### Default response
 
-`Status: 204`
+`Status: 200`
+
+```json
+{
+  "device_status": "unlocked",
+  "pending_action": "wipe"
+}
+```
 
 
 ### Get host's past activity
