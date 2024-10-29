@@ -6,7 +6,6 @@ spec:
   query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
   description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
   resolution: "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
-  tags: compliance, hardening, built-in, CIS, CIS2.5.2.1, critical
   platform: darwin
   contributors: groob
 ---
@@ -22,7 +21,6 @@ spec:
     considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to
     help narrow down the specific reason why Windows considers the volume unprotected."
   platform: windows
-  tags: compliance, hardening, built-in, critical
   contributors: defensivedepth
 ---
 apiVersion: v1
@@ -32,7 +30,6 @@ spec:
   query: SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;
   description: Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.
   resolution: To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.
-  tags: compliance, hardening, built-in, CIS, CIS2.5.1.1, critical
   platform: darwin
   contributors: groob
 ---
@@ -44,7 +41,6 @@ spec:
   description: Checks if the root drive is encrypted. There are many ways to encrypt Linux systems. This is the default on distributions such as Ubuntu.
   resolution: "Ensure the image deployed to your Linux workstation includes full disk encryption."
   platform: linux
-  tags: compliance, hardening, built-in, critical
   contributors: jbilling,GuillaumeRoss
 ---
 apiVersion: v1
@@ -54,7 +50,6 @@ spec:
   query: SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;
   description: Checks to make sure that the System Integrity Protection feature is enabled.
   resolution: "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
-  tags: compliance, malware, hardening, built-in, CIS, CIS5.1.2
   platform: darwin
   contributors: groob
 ---
@@ -65,7 +60,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent login in without a password."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables automatic login."
-  tags: MDM required, compliance, hardening, built-in, critical
+  tags: MDM required
   platform: darwin
   contributors: groob
 ---
@@ -76,7 +71,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to enabled secure keyboard entry for the Terminal application."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables secure keyboard entry for the Terminal application."
-  tags: MDM required, compliance, hardening, built-in
+  tags: MDM required
   platform: darwin
   contributors: groob
 ---
@@ -90,7 +85,6 @@ spec:
     To enable automatic security definition updates, on the failing device, select System
     Preferences > Software Update > Advanced > Turn on Install system data files and security
     updates.
-  tags: compliance, malware, hardening, built-in, template
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -101,7 +95,6 @@ spec:
   query: SELECT 1 from windows_security_center wsc CROSS JOIN windows_security_products wsp WHERE antivirus = 'Good' AND type = 'Antivirus' AND signatures_up_to_date=1;
   description: Checks the status of antivirus and signature updates from the Windows Security Center.
   resolution: "Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center."
-  tags: compliance, malware, hardening, built-in
   platform: windows
   contributors: GuillaumeRoss
 ---
@@ -112,7 +105,6 @@ spec:
   query: SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM processes WHERE (name = 'clamd') OR (name = 'freshclam')) WHERE score == 1;
   description: Checks that both ClamAV's daemon and its updater service (freshclam) are running.
   resolution: "Ensure ClamAV and Freshclam are installed and running."
-  tags: compliance, malware, hardening, built-in
   platform: linux
   contributors: GuillaumeRoss
 ---
@@ -123,7 +115,6 @@ spec:
   query: SELECT 1 from mdm WHERE enrolled='true';
   description: "Required: osquery deployed with Orbit, or manual installation of macadmins/osquery-extension. Checks that a mac is enrolled to MDM. Add a AND on identity_certificate_uuid to check for a specific MDM."
   resolution: "Enroll device to MDM"
-  tags: compliance, hardening, built-in, critical
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -134,7 +125,6 @@ spec:
   query: SELECT 1 WHERE EXISTS (SELECT 1 FROM apps a1 WHERE a1.bundle_identifier = 'com.electron.dockerdesktop' AND a1.bundle_short_version>='4.6.1') OR NOT EXISTS (SELECT 1 FROM apps a2 WHERE a2.bundle_identifier = 'com.electron.dockerdesktop');
   description: "Checks if the application (Docker Desktop example) is installed and up to date, or not installed. Fails if the application is installed and on a lower version. You can copy this query and replace the bundle_identifier and bundle_version values to apply the same type of policy to other applications."
   resolution: "Update Docker or remove it if not used."
-  tags: inventory, vulnerability, built-in
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -145,7 +135,6 @@ spec:
   query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM users CROSS JOIN user_ssh_keys USING (uid) WHERE encrypted='0');
   description: "Required: osquery must have Full Disk Access. Policy passes if all keys are encrypted, including if no keys are present."
   resolution: "Use this command to encrypt existing SSH keys by providing the path to the file: ssh-keygen -o -p -f /path/to/file"
-  tags: compliance, ssh, built-in
   contributors: GuillaumeRoss
   platform: darwin,linux,windows
 ---
@@ -156,7 +145,6 @@ spec:
   query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM startup_items WHERE path = "regsvr32" AND args LIKE "%http%");
   description: "Checks for an autostart that is attempting to load a dynamic link library (DLL) from the internet."
   resolution: "Remove the suspicious startup entry."
-  tags: malware, hunting
   platform: windows
   contributors: kswagler-rh
 ---
@@ -167,7 +155,6 @@ spec:
   query: SELECT 1 FROM alf WHERE global_state >= 1;
   description: "Checks if the firewall is enabled."
   resolution: "In System Preferences, open Security & Privacy, navigate to the Firewall tab and click Turn On Firewall."
-  tags: hardening, compliance, built-in, CIS, CIS2.5.2.2
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -178,7 +165,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE name='askForPassword' AND value='1';
   description: "Checks that a mobile device management (MDM) solution configures the Mac to enable screen lock."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables screen lock."
-  tags: MDM required, compliance, hardening, built-in
+  tags: MDM required
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -189,7 +176,6 @@ spec:
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\System\InactivityTimeoutSecs' AND CAST(data as INTEGER) <= 1800;
   description: "Checks if the screen lock is enabled and configured to lock the system within 30 minutes or less."
   resolution: "Contact your IT administrator to enable the Interactive Logon: Machine inactivity limit setting with a value of 1800 seconds or lower."
-  tags: compliance, hardening, built-in
   platform: windows
   contributors: GuillaumeRoss
 ---
@@ -201,7 +187,6 @@ spec:
   description: "Checks that the password policy requires at least 10 characters. Requires osquery 5.4.0 or newer."
   resolution: "Contact your IT administrator to make sure your Mac is receiving configuration profiles for password length."
   platform: darwin
-  tags: compliance, hardening, built-in, CIS, CIS5.2.2
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -211,7 +196,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticCheckEnabled' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically check for updates."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic updates."
-  tags: MDM required, compliance, CIS, CIS1.2
+  tags: MDM required
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -222,7 +207,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticDownload' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically download updates."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic update downloads."
-  tags: MDM required, compliance, CIS, CIS1.3
+  tags: MDM required
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -233,7 +218,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallAppUpdates' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically install updates to App Store applications."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of application updates."
-  tags: MDM required, compliance, CIS, CIS1.4
+  tags: MDM required
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -244,7 +229,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='CriticalUpdateInstall' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically download updates to built-in macOS security tools such as malware removal tools."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic security and data update installation."
-  tags: MDM required, compliance, CIS, CIS1.5
+  tags: MDM required
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -255,7 +240,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallMacOSUpdates' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically install operating system updates."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of operating system updates."
-  tags: MDM required, compliance, CIS, CIS1.6
+  tags: MDM required
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -266,7 +251,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='forceAutomaticDateAndTime' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically update the time and date."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic time and date configuration."
-  tags: MDM required, compliance, CIS, CIS2.2.1
+  tags: MDM required
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -277,7 +262,7 @@ spec:
   query: SELECT 1 WHERE EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'askForPasswordDelay' AND valueint <= 60 LIMIT 1) AND EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'idleTime' AND valueint <= 1140 LIMIT 1) AND EXISTS (SELECT 1 from managed_policies WHERE domain='com.apple.screensaver' AND name='askForPassword' AND value=1 LIMIT 1);
   description: "Checks that a mobile device management (MDM) solution configures the Mac to lock the screen after 20 minutes or less."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables the screen saver after inactivity of 20 minutes or less."
-  tags: MDM required, compliance, CIS, CIS2.3.1, CIS5.8
+  tags: MDM required
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -288,7 +273,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.MCX' AND name='forceInternetSharingOff' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent Internet sharing."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that prevents Internet sharing."
-  tags: MDM required, compliance, CIS, CIS2.4.2
+  tags: MDM required
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -299,7 +284,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowContentCaching' AND value='0' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to disable content caching."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables content caching."
-  tags: MDM required, compliance, CIS, CIS2.4.10
+  tags: MDM required
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -310,7 +295,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.AdLib' AND name='forceLimitAdTracking' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to limit advertisement tracking."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables advertisement tracking."
-  tags: MDM required, compliance, CIS, CIS2.5.6
+  tags: MDM required
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -321,7 +306,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.icloud.managed' AND name='DisableCloudSync' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent iCloud Desktop and Documents sync."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile to prevent iCloud Desktop and Documents sync."
-  tags: MDM required, compliance, CIS, CIS2.6.1.4
+  tags: MDM required
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -332,7 +317,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.security.firewall' AND name='EnableLogging' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to log firewall activity."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables firewall logging."
-  tags: MDM required, compliance, CIS, CIS3.6
+  tags: MDM required
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -343,7 +328,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND name='DisableGuestAccount' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent the use of a guest account."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables the guest account."
-  tags: MDM required, compliance, CIS, CIS6.1.3
+  tags: MDM required
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -354,7 +339,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.AppleFileServer' AND name='guestAccess' AND value='0' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent guest access to shared folders."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that prevents guest access to shared folders."
-  tags: MDM required, compliance, CIS, CIS6.1.4
+  tags: MDM required
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -366,7 +351,6 @@ spec:
   description: "Looks for PDF files with file names typically used by 1Password for emergency recovery kits. To protect the performance of your devices, the search is one level deep and limited to the Desktop, Documents, Downloads, and Shared folders."
   resolution: "Delete 1Password emergency kits from your computer, and empty the trash. 1Password emergency kits should only be printed and stored in a physically secure location."
   platform: darwin
-  tags: compliance, built-in
   contributors: nonpunctual
 ---
 apiVersion: v1
@@ -377,7 +361,6 @@ spec:
   description: "Checks if a Group Policy configures the computer to enable the domain profile for Windows Firewall. The domain profile applies to networks where the host system can authenticate to a domain controller. Some auditors requires that this setting is configured by a Group Policy."
   resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the domain profile for Windows Firewall."
   platforms: Windows
-  tags: compliance, CIS, CIS9.1.1
   platform: windows
   contributors: defensivedepth
 ---
@@ -389,7 +372,6 @@ spec:
   description: "Checks if a Group Policy configures the computer to enable the private profile for Windows Firewall. The private profile applies to networks where the host system is connected to a private or home network. Some auditors requires that this setting is configured by a Group Policy."
   resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the private profile for Windows Firewall."
   platforms: Windows
-  tags: compliance, CIS, CIS9.2.1
   platform: windows
   contributors: defensivedepth
 ---
@@ -401,7 +383,6 @@ spec:
   description: "Checks if a Group Policy configures the computer to enable the public profile for Windows Firewall. The public profile applies to networks where the host system is connected to public networks such as Wi-Fi hotspots at coffee shops and airports. Some auditors requires that this setting is configured by a Group Policy."
   resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the public profile for Windows Firewall."
   platforms: Windows
-  tags: compliance, CIS, CIS9.3.1
   platform: windows
   contributors: defensivedepth
 ---
@@ -413,7 +394,6 @@ spec:
   description: "Checks that the SMBv1 client is disabled."
   resolution: "Contact your IT administrator to discuss disabling SMBv1 on your system."
   platforms: Windows
-  tags: compliance, CIS, CIS18.3.2, built-in
   platform: windows
   contributors: defensivedepth
 ---
@@ -425,7 +405,6 @@ spec:
   description: "Checks that the SMBv1 server is disabled."
   resolution: "Contact your IT administrator to discuss disabling SMBv1 on your system."
   platforms: Windows
-  tags: compliance, CIS, CIS18.3.3, built-in
   platform: windows
   contributors: defensivedepth
 ---
@@ -437,7 +416,6 @@ spec:
   description: "Checks if a Group Policy configures the computer to disable LLMNR. Disabling LLMNR can prevent malicious actors from gaining access to the computer's credentials. Some auditors require that this setting is configured by a Group Policy."
   resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that disables LLMNR on your system."
   platforms: Windows
-  tags: compliance, CIS, CIS18.5.4.2
   platform: windows
   contributors: defensivedepth
 ---
@@ -449,7 +427,6 @@ spec:
   description: "Checks if a Group Policy configures the computer to enable Automatic Updates. When enabled, the computer downloads and installs security and other important updates automatically. Some auditors require that this setting is configured by a Group Policy."
   resolution: "Contact your IT administrator to ensure your computer is receiving a Group policy that enables Automatic Updates."
   platforms: Windows
-  tags: compliance, CIS, CIS18.9.108.2.1
   platform: windows
   contributors: defensivedepth
 ---
@@ -460,7 +437,6 @@ spec:
   query: SELECT * FROM keychain_items WHERE label LIKE '%ABCDEFG%';
   description: "Identifies certificates associated with Apple development signing and notarization. Replace ABCDEFG with your company's identifier."
   resolution: "Ensure your official Apple builds, signing and notarization happen on a centralized system, and remove these certificates from workstations."
-  tags: compliance, inventory, built-in
   platform: darwin
   contributors: GuillaumeRoss
 ---
