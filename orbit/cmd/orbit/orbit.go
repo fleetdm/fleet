@@ -964,6 +964,7 @@ func main() {
 		})
 
 		var trw *token.ReadWriter
+		var deviceClient *service.DeviceClient
 		if c.Bool("fleet-desktop") {
 			trw = token.NewReadWriter(filepath.Join(c.String("root-dir"), "identifier"))
 			if err := trw.LoadOrGenerate(); err != nil {
@@ -983,7 +984,7 @@ func main() {
 			// Note that the deviceClient used by orbit must not define a retry on
 			// invalid token, because its goal is to detect invalid tokens when
 			// making requests with this client.
-			deviceClient, err := service.NewDeviceClient(
+			deviceClient, err = service.NewDeviceClient(
 				fleetURL,
 				c.Bool("insecure"),
 				c.String("fleet-certificate"),
@@ -1193,16 +1194,21 @@ func main() {
 				wg.Done()
 				for {
 					msg := <-desktopRunner.errorNotifyCh
-					errorReport := fleet.OrbitErrorReport{
-						Message:        msg,
-						OsqueryVersion: osqueryHostInfo.OsqueryVersion,
-						OrbitVersion:   build.Version,
-						DesktopVersion: desktopVersion,
-						OSPlatform:     osqueryHostInfo.Platform,
-						OSVersion:      osqueryHostInfo.OSVersion,
+					// Vital errors are always sent to Fleet, regardless of the error reporting setting FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS.
+					fleetdErr := fleet.FleetdError{
+						Vital:              true,
+						ErrorSource:        "fleet-desktop",
+						ErrorSourceVersion: desktopVersion,
+						ErrorTimestamp:     time.Now(),
+						ErrorMessage:       msg,
+						ErrorAdditionalInfo: map[string]interface{}{
+							"orbit_version":   build.Version,
+							"osquery_version": osqueryHostInfo.OsqueryVersion,
+							"os_platform":     osqueryHostInfo.Platform,
+							"os_version":      osqueryHostInfo.OSVersion,
+						},
 					}
-					err := orbitClient.SendErrorReport(errorReport)
-					if err != nil {
+					if err = deviceClient.ReportError(trw.GetCached(), fleetdErr); err != nil {
 						log.Error().Err(err).Msg(fmt.Sprintf("failed to send error report to Fleet: %s", msg))
 					}
 				}

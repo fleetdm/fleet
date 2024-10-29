@@ -462,12 +462,15 @@ func (svc *Service) LogFleetdError(ctx context.Context, fleetdError fleet.Fleetd
 		return ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
 	}
 
+	err := ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap())
 	svc.logger.Log(
 		"msg",
 		"fleetd error",
 		"error",
-		ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap()),
+		err,
 	)
+	// Send to Redis/telemetry (if enabled)
+	ctxerr.Handle(ctx, err)
 
 	return nil
 }

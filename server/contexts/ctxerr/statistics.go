@@ -3,17 +3,21 @@ package ctxerr
 import (
 	"context"
 	"encoding/json"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 type errorAgg struct {
-	Count int      `json:"count"`
-	Loc   []string `json:"loc"`
+	Count    int             `json:"count"`
+	Loc      []string        `json:"loc"`
+	Metadata json.RawMessage `json:"metadata,omitempty"`
 }
 
 // Aggregate retrieves all errors in the store and returns an aggregated,
 // json-formatted summary containing:
 // - The number of occurrences of each error
 // - A reduced stack trace used for debugging the error
+// - Additional metadata present for vital errors
 func Aggregate(ctx context.Context) (json.RawMessage, error) {
 	const maxTraceLen = 3
 	empty := json.RawMessage("[]")
@@ -31,7 +35,8 @@ func Aggregate(ctx context.Context) (json.RawMessage, error) {
 		}
 
 		stack := aggregateStack(ferr, maxTraceLen)
-		aggs[i] = errorAgg{stored.Count, stack}
+		meta := getVitalMetadata(ferr)
+		aggs[i] = errorAgg{stored.Count, stack, meta}
 	}
 
 	return json.Marshal(aggs)
@@ -56,4 +61,24 @@ out:
 	}
 
 	return stack[:stackIdx]
+}
+
+func getVitalMetadata(chain []fleetErrorJSON) json.RawMessage {
+	for _, e := range chain {
+		if len(e.Data) > 0 {
+			// Currently, only vital fleetd errors contain metadata.
+			// Note: vital errors should not contain any sensitive info
+			var fleetdErr fleet.FleetdError
+			var err error
+			if err = json.Unmarshal(e.Data, &fleetdErr); err != nil || !fleetdErr.Vital {
+				continue
+			}
+			var meta json.RawMessage
+			if meta, err = json.Marshal(fleetdErr); err != nil {
+				return nil
+			}
+			return meta
+		}
+	}
+	return nil
 }
