@@ -99,11 +99,11 @@ Set the `ensure` parameter to `absent` to create teams that exclude specific pro
 
 For more examples check out the `examples/` folder in Fleet's GitHub repository [here](https://github.com/fleetdm/fleet/tree/main/ee/tools/puppet/fleetdm/examples).
 
-> Note that all teams created by Puppet inherit the bootstrap package, macOS Setup Assistant settings, and end user authentication settings from "No team." Learn more about these [here](./mdm-setup.md). In addition all teams automatically enable disk encryption. Learn more about disk encryption [here](./MDM-disk-encryption.md).
+> Note that all teams created by Puppet inherit the bootstrap package, macOS Setup Assistant settings, and end user authentication settings from "No team." Learn more about these [here](https://fleetdm.com/guides/macos-setup-experience). In addition all teams automatically enable disk encryption. Learn more about disk encryption [here](https://fleetdm.com/guides/enforce-disk-encryption).
 
 ## Release host
 
-If you set `await_device_configured` to `true` in your [macOS Setup Assistant settings](./mdm-setup.md#macos-setup-assistant), you can use the `fleetdm::release_device` function to release the host from the Setup Assistant. 
+If you set `enable_release_device_manually` to `true` in your [macOS setup experience](https://fleetdm.com/docs/rest-api/rest-api#configure-setup-experience), you can use the `fleetdm::release_device` function to release the host from the Setup Assistant. 
 
 Here's what your Puppet code, with error handling, will look like:
 
@@ -149,7 +149,7 @@ if $err != '' {
 }
 ```
 
-The above example includes the XML payload for the `EnableRemoteDesktop` MDM command. Learn more about creating the payload for other custom commands [here](./MDM-commands.md).
+The above example includes the XML payload for the `EnableRemoteDesktop` MDM command. Learn more about creating the payload for other custom commands [here](https://fleetdm.com/guides/mdm-commands).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

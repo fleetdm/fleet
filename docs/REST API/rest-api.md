@@ -6105,7 +6105,7 @@ The summary can optionally be filtered by team ID.
 }
 ```
 
-### Turn on end user authentication for macOS setup
+### Configure setup experience
 
 _Available in Fleet Premium_
 
@@ -6128,7 +6128,8 @@ _Available in Fleet Premium_
 ```json
 {
   "team_id": 1,
-  "enabled_end_user_authentication": true
+  "enable_end_user_authentication": true,
+  "enable_release_device_manually": true
 }
 ```
 
