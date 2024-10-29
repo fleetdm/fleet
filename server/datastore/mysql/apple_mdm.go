@@ -1469,7 +1469,6 @@ func unionSelectDevices(devices []hostToCreateFromMDM) (stmt string, args []inte
 		case strings.Contains(normalizedHint, "ipad"):
 			platform = string(fleet.IPadOSPlatform)
 		}
-		fmt.Println(">>>> determining device platform: ", d.PlatformHint, platform)
 		args = append(args, d.HardwareSerial, d.HardwareModel, platform)
 	}
 
@@ -2084,7 +2083,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	executeUpsertBatch := func(valuePart string, args []any) error {
 		// Check if the update needs to be done at all.
 		selectStmt := fmt.Sprintf(`
-			SELECT
+			SELECT 
 				host_uuid,
 				profile_uuid,
 				profile_identifier,
@@ -4621,7 +4620,7 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 	executeUpsertBatch := func(valuePart string, args []any) error {
 		// Check if the update needs to be done at all.
 		selectStmt := fmt.Sprintf(`
-			SELECT
+			SELECT 
 				host_uuid,
 				declaration_uuid,
 				status,
@@ -5534,14 +5533,14 @@ func (ds *Datastore) CleanupHostMDMCommands(ctx context.Context) error {
 
 func (ds *Datastore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, serial string) (*fleet.AppleOSUpdateSettings, error) {
 	stmt := `
-SELECT
-	team_id, platform
-FROM
-	hosts h
-JOIN
-	host_dep_assignments hdep ON h.id = host_id
-WHERE
-	hardware_serial = ? AND deleted_at IS NULL
+SELECT 
+	team_id, platform 
+FROM 
+	hosts h 
+JOIN 
+	host_dep_assignments hdep ON h.id = host_id 
+WHERE 
+	hardware_serial = ? AND deleted_at IS NULL 
 LIMIT 1`
 
 	var dest struct {

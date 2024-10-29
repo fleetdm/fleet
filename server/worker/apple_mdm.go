@@ -110,7 +110,6 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) error {
 	var awaitCmdUUIDs []string
 
-	fmt.Println(">>>> RUN POST DEP ENROLL: ", args.Platform)
 	if isMacOS(args.Platform) {
 		fleetdCmdUUID, err := a.installFleetd(ctx, args.HostUUID)
 		if err != nil {

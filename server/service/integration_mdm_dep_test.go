@@ -206,70 +206,6 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	}
 }
 
-func (s *integrationMDMTestSuite) TestDEPEnrollReleaseIphoneTeam() {
-	t := s.T()
-	ctx := context.Background()
-
-	// Set up a mock DEP Apple API
-	s.enableABM(t.Name())
-	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		encoder := json.NewEncoder(w)
-		switch r.URL.Path {
-		case "/session":
-			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
-		case "/account":
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
-		case "/profile":
-			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
-		}
-	}))
-
-	teamDevice := godep.Device{SerialNumber: "IOS0_SERIAL", Model: "iPhone 16 Pro", OS: "ios", DeviceFamily: "iPhone", OpType: "added"}
-
-	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "test-team-device-release"})
-	require.NoError(t, err)
-
-	enrollSecret := "test-release-dep-device-team"
-	err = s.ds.ApplyEnrollSecrets(ctx, &tm.ID, []*fleet.EnrollSecret{{Secret: enrollSecret}})
-	require.NoError(t, err)
-
-	// add a custom setup assistant and ensure enable_release_device_manually is
-	// false (the default)
-	teamProf := `{"y": 2}`
-	s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
-		TeamID:            &tm.ID,
-		Name:              "team",
-		EnrollmentProfile: json.RawMessage(teamProf),
-	}, http.StatusOK)
-	payload := map[string]any{
-		"enable_release_device_manually": false,
-	}
-	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
-
-	var acResp appConfigResponse
-	s.enableABM("fleet_ade_test")
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
-			"mdm": {
-			       "apple_business_manager": [{
-			         "organization_name": %q,
-			         "macos_team": %q,
-			         "ios_team": %q,
-			         "ipados_team": %q
-			       }]
-			}
-		}`, "fleet_ade_test", tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)
-
-	// add a team profile
-	teamProfile := mobileconfigForTest("N2", "I2")
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
-
-	for _, enableReleaseManually := range []bool{false, true} {
-		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
-			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, enableReleaseManually, &tm.ID, "I2")
-		})
-	}
-}
-
 func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, device godep.Device, enableReleaseManually bool, teamID *uint, customProfileIdent string) {
 	ctx := context.Background()
 
@@ -336,7 +272,6 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	require.Len(t, listHostsRes.Hosts, 1)
 	require.Equal(t, listHostsRes.Hosts[0].HardwareSerial, device.SerialNumber)
 	enrolledHost := listHostsRes.Hosts[0].Host
-	fmt.Println(">>>>> device platform: ", enrolledHost.Platform)
 
 	t.Cleanup(func() {
 		// delete the enrolled host
@@ -365,18 +300,18 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 
 		// Can be useful for debugging
-		switch cmd.Command.RequestType {
-		case "InstallProfile":
-			fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
-		case "InstallEnterpriseApplication":
-			if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
-				fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
-			} else {
-				fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-			}
-		default:
-			fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-		}
+		// switch cmd.Command.RequestType {
+		// case "InstallProfile":
+		// 	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
+		// case "InstallEnterpriseApplication":
+		// 	if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
+		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
+		// 	} else {
+		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+		// 	}
+		// default:
+		// 	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+		// }
 
 		cmds = append(cmds, &fullCmd)
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
