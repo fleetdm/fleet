@@ -19,11 +19,11 @@ In Fleet, you can install Apple App Store apps using the [Volume Purchasing Prog
 
 3. **Edit the team assignment for the new token**: Find the token in the table of VPP tokens. Click the "Actions" dropdown, and then click "Edit teams". Use the picker to select which team(s) this VPP token should be assigned to.
 
-## Purchase apps
+## Purchase an app
 
 To add apps to Fleet, you must first purchase them through Apple Business Manager, even if they are free. This ensures that all apps are appropriately licensed and available for distribution via the Volume Purchasing Program (VPP). For detailed instructions on selecting and buying content, please refer to Apple’s documentation on [purchasing apps through Apple Business Manager](https://support.apple.com/guide/apple-business-manager/select-and-buy-content-axmc21817890/web).
 
-## Add an app to Fleet
+## Add the app to Fleet
 
 1. **Navigate to the Software page**: Click on the "Software" tab in the main navigation menu.
 
@@ -35,7 +35,7 @@ To add apps to Fleet, you must first purchase them through Apple Business Manage
 
 5. **Add an app**: Select an app from the list. You may optionally check the "Self-Service" box at the bottom left of the modal if you wish for the software to be available for user-initiated installs. Finally, click the "Add software" button in the bottom right of the modal. The app should appear in the software list for the selected team.
 
-## Remove an app from Fleet
+## Remove the app from Fleet
 
 1. **Navigate to the Software page**: Click "Software" in the main navigation menu.
 
@@ -45,7 +45,7 @@ To add apps to Fleet, you must first purchase them through Apple Business Manage
 
 4. **Remove the app**: Click on the "Actions" dropdown on the right side of the page. Click "Delete," then click "Delete" on the confirmation modal. Deleting an app will not uninstall the app from the hosts on which it was previously installed.
 
-## Install an app on your hosts
+## Install the app
 
 1. **Add the host to the relevant team.**
 
@@ -67,7 +67,7 @@ To add apps to Fleet, you must first purchase them through Apple Business Manage
 
 3. **Locate the app and click install**: Scroll through the list of software to find the app you would like to install, then click the **Install** button underneath it.
 
-## Renew VPP token
+## Renew your VPP token
 
 When one of your uploaded VPP tokens has expired or is within 30 days of expiring, you will see a warning
 banner at the top of page reminding you to renew your token. You can do this with the following steps:
@@ -76,7 +76,7 @@ banner at the top of page reminding you to renew your token. You can do this wit
 
 2. **Renew the token**: Find the VPP token that you want to renew in the table. Token status is indicated in the "Renew date" column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator. Click the "Actions" dropdown for the token and then click "Renew". Follow the instructions in the modal to download a new token from Apple Business Manager and then upload the new token to Fleet.
 
-## Delete a VPP token
+## Delete your VPP token
 
 To remove VPP tokens from Fleet:
 
@@ -84,13 +84,13 @@ To remove VPP tokens from Fleet:
 
 2. **Delete the token**: Find the VPP token that you want to delete in the table. Click the "Actions" dropdown for that token, and then click "Delete". Click "Delete" in the confirmation modal to finish deleting the token.
 
-## Manage apps with GitOps
-
-To manage App Store apps using Fleet's best practice GitOps, check out the `software` key in the GitOps reference documentation [here](https://fleetdm.com/docs/using-fleet/gitops#software).
-
 ## Manage apps with Fleet's REST API
 
 Fleet also provides a REST API for managing apps programmatically. You can add, install, and delete apps via this API and manage your organization’s VPP tokens. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api).
+
+## Manage apps with GitOps
+
+To manage App Store apps using Fleet's best practice GitOps, check out the `software` key in the GitOps reference documentation [here](https://fleetdm.com/docs/using-fleet/gitops#software).
 
 <meta name="articleTitle" value="Install App Store (VPP) apps">
 <meta name="authorFullName" value="Jahziel Villasana-Espinoza">
