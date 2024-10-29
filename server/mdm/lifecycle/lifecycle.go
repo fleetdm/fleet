@@ -2,6 +2,7 @@ package mdmlifecycle
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -164,6 +165,7 @@ func (t *HostLifecycle) turnOnDarwin(ctx context.Context, opts HostOptions) erro
 	// TODO: improve this to not enqueue the job if a host that is
 	// assigned in ABM is manually enrolling for some reason.
 	if info.DEPAssignedToFleet || info.InstalledFromDEP {
+		fmt.Println(">>>>> Lifecycle enqueue post dep: ", opts.Platform)
 		t.logger.Log("info", "queueing post-enroll task for newly enrolled DEP device", "host_uuid", opts.UUID)
 		err := worker.QueueAppleMDMJob(
 			ctx,
