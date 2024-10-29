@@ -361,7 +361,7 @@ org_settings:
 
 ### fleet_desktop
 
-Direct end users to a custom URL when they select **Transparency** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
+Direct end users to a custom URL when they select **About Fleet** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
 
 Can only be configured for all teams (`org_settings`).
 
