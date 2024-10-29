@@ -3091,7 +3091,7 @@ This supports the dynamic discovery of API features supported by the server for 
 
 #### Get device's transparency URL
 
-Returns the URL to open when clicking the "Transparency" menu item in Fleet Desktop. Note that _Fleet Premium_ is required to configure a custom transparency URL.
+Returns the URL to open when clicking the "About Fleet" menu item in Fleet Desktop. Note that _Fleet Premium_ is required to configure a custom transparency URL.
 
 `GET /api/v1/fleet/device/{token}/transparency`
 
