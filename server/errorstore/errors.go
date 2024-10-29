@@ -158,6 +158,15 @@ func hashError(err error) string {
 		fmt.Fprint(&sb, strings.Join(ferr.Stack(), "\n"))
 	}
 
+	// hash the vital FleetError fields
+	if fleetdErr, ok := cause.(fleet.FleetdError); ok {
+		_, _ = fmt.Fprint(&sb,
+			fleetdErr.ErrorSource,
+			fleetdErr.ErrorSourceVersion,
+			fleetdErr.ErrorAdditionalInfo,
+		)
+	}
+
 	return sha256b64(sb.String())
 }
 

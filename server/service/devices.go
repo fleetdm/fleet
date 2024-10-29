@@ -20,6 +20,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/log/level"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -463,7 +464,7 @@ func (svc *Service) LogFleetdError(ctx context.Context, fleetdError fleet.Fleetd
 	}
 
 	err := ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap())
-	svc.logger.Log(
+	level.Info(svc.logger).Log(
 		"msg",
 		"fleetd error",
 		"error",
