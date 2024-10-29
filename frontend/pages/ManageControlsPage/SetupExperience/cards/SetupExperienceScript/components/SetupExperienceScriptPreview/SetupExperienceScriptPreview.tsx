@@ -21,7 +21,8 @@ const SetupExperienceScriptPreview = () => {
       <img
         className={`${baseClass}__preview-img`}
         src={InstallSoftwarePreviewImg}
-        alt="install software preview"
+        alt="End user experience during the macOS setup assistant with the uploaded
+        script being run"
       />
     </Card>
   );
