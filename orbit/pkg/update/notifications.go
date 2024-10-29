@@ -356,7 +356,7 @@ func (h *runScriptsConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 	}
 
 	if runtime.GOOS == "darwin" {
-		if cfg.Notifications.RunSetupExperience == true && !CanRun(h.rootDirPath, "swiftDialog", SwiftDialogMacOSTarget) {
+		if cfg.Notifications.RunSetupExperience && !CanRun(h.rootDirPath, "swiftDialog", SwiftDialogMacOSTarget) {
 			log.Debug().Msg("exiting scripts config runner early during setup experience: swiftDialog is not installed")
 			return nil
 		}

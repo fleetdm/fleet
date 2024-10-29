@@ -216,8 +216,7 @@ func (t *TeamMDM) Copy() *TeamMDM {
 		return nil
 	}
 
-	var clone TeamMDM
-	clone = *t
+	clone := *t
 
 	// EnableDiskEncryption, MacOSUpdates and MacOSSetup don't have fields that
 	// require cloning (all fields are basic value types, no

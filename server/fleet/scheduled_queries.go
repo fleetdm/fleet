@@ -70,8 +70,7 @@ func (q *ScheduledQuery) Copy() *ScheduledQuery {
 		return nil
 	}
 
-	var clone ScheduledQuery
-	clone = *q
+	clone := *q
 
 	if q.Snapshot != nil {
 		clone.Snapshot = ptr.Bool(*q.Snapshot)
