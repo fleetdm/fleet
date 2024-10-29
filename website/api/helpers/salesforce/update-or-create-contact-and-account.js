@@ -238,8 +238,8 @@ module.exports = {
       .create({
         AccountId: salesforceAccountId,
         OwnerId: salesforceAccountOwnerId,
-        FirstName: firstName,
-        LastName: lastName,
+        FirstName: firstName ? firstName : '?',
+        LastName: lastName ? lastName : '?',
         ...valuesToSet,
       });
       // console.log(`Created ${newContactRecord.id}`);
