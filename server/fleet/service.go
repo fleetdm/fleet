@@ -84,8 +84,6 @@ type Service interface {
 	// agent options. It also returns any notifications that fleet wants to surface
 	// to fleetd (formerly orbit).
 	GetOrbitConfig(ctx context.Context) (OrbitConfig, error)
-	// ReportOrbitError logs an error report from the fleetd/orbit agent
-	ReportOrbitError(ctx context.Context, report OrbitErrorReport)
 
 	// LogFleetdError logs an error report from a `fleetd` component
 	LogFleetdError(ctx context.Context, errData FleetdError) error

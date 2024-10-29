@@ -31,12 +31,11 @@ import (
 // Handler.Retrieve to retrieve all stored errors and optionally clear them
 // from the store. It is safe to call those methods concurrently.
 type Handler struct {
-	pool       fleet.RedisPool
-	logger     kitlog.Logger
-	ttl        time.Duration
-	running    int32 // accessed atomically
-	errCh      chan error
-	orbitErrCh chan fleet.OrbitErrorReport
+	pool    fleet.RedisPool
+	logger  kitlog.Logger
+	ttl     time.Duration
+	running int32 // accessed atomically
+	errCh   chan error
 
 	// for tests
 	syncStore   bool        // if true, store error synchronously
@@ -80,8 +79,6 @@ func newTestHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Log
 func runHandler(ctx context.Context, eh *Handler) {
 	ch := make(chan error, 1)
 	eh.errCh = ch
-	orbitErrCh := make(chan fleet.OrbitErrorReport, 1)
-	eh.orbitErrCh = orbitErrCh
 	go eh.handleErrors(ctx)
 }
 
@@ -93,37 +90,7 @@ func runHandler(ctx context.Context, eh *Handler) {
 func (h *Handler) Retrieve(flush bool) ([]*ctxerr.StoredError, error) {
 	// scanning only the error:*:json keys as json and count are both tagged keys
 	// and should hash to the same Redis slot
-	pattern := "error:*:json"
-	rawErrs, err := h.retrieve(flush, pattern)
-	if err != nil {
-		return nil, err
-	}
-
-	errorList := make([]*ctxerr.StoredError, 0, len(rawErrs))
-	if err := redigo.ScanSlice(rawErrs, &errorList); err != nil {
-		return nil, err
-	}
-	return errorList, nil
-}
-
-func (h *Handler) RetrieveOrbitErrors(flush bool) ([]*ctxerr.StoredOrbitError, error) {
-	// scanning only the orbitError:*:json keys as json and count are both tagged keys
-	// and should hash to the same Redis slot
-	pattern := "orbitError:*:json"
-	rawErrs, err := h.retrieve(flush, pattern)
-	if err != nil {
-		return nil, err
-	}
-
-	errorList := make([]*ctxerr.StoredOrbitError, 0, len(rawErrs))
-	if err := redigo.ScanSlice(rawErrs, &errorList); err != nil {
-		return nil, err
-	}
-	return errorList, nil
-}
-
-func (h *Handler) retrieve(flush bool, pattern string) ([]interface{}, error) {
-	errorKeys, err := redis.ScanKeys(h.pool, pattern, 100)
+	errorKeys, err := redis.ScanKeys(h.pool, "error:*:json", 100)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +106,12 @@ func (h *Handler) retrieve(flush bool, pattern string) ([]interface{}, error) {
 			rawErrs = append(rawErrs, gotErrors...)
 		}
 	}
-	return rawErrs, nil
+
+	errorList := make([]*ctxerr.StoredError, 0, len(rawErrs))
+	if err := redigo.ScanSlice(rawErrs, &errorList); err != nil {
+		return nil, err
+	}
+	return errorList, nil
 }
 
 func (h *Handler) collectBatchErrors(errorKeys []string, flush bool) ([]interface{}, error) {
@@ -197,16 +169,6 @@ func hashAndMarshalError(externalErr error) (errHash string, errAsJson string, e
 	return hashError(externalErr), string(bytes), nil
 }
 
-func hashAndMarshalOrbitError(report fleet.OrbitErrorReport) (errHash string, errAsJson string, err error) {
-	bytes, err := json.MarshalIndent(report, "", "  ")
-	if err != nil {
-		return "", "", err
-	}
-	src := sha256.Sum256(bytes)
-	errHash = base64.URLEncoding.EncodeToString(src[:])
-	return errHash, string(bytes), nil
-}
-
 func (h *Handler) handleErrors(ctx context.Context) {
 	atomic.StoreInt32(&h.running, 1)
 	defer func() {
@@ -223,8 +185,6 @@ func (h *Handler) handleErrors(ctx context.Context) {
 			return
 		case err := <-h.errCh:
 			h.storeError(ctx, err)
-		case orbitErr := <-h.orbitErrCh:
-			h.storeOrbitError(orbitErr)
 		}
 	}
 }
@@ -239,17 +199,13 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 		return
 	}
 
-	jsonKey := fmt.Sprintf("error:{%s}:json", errorHash)
-	countKey := fmt.Sprintf("error:{%s}:count", errorHash)
-
-	h.storeErrorInRedis(jsonKey, errorJson, countKey)
-}
-
-func (h *Handler) storeErrorInRedis(jsonKey string, errorJson string, countKey string) {
 	// not using a connection that follows redirections here
 	// in order to do pipeline commands
 	conn := h.pool.Get()
 	defer conn.Close()
+
+	jsonKey := fmt.Sprintf("error:{%s}:json", errorHash)
+	countKey := fmt.Sprintf("error:{%s}:count", errorHash)
 
 	conn.Send("SET", jsonKey, errorJson) //nolint:errcheck
 	conn.Send("INCR", countKey)          //nolint:errcheck
@@ -276,17 +232,12 @@ func (h *Handler) storeErrorInRedis(jsonKey string, errorJson string, countKey s
 	}
 }
 
-// Store handles the provided error by storing it into Redis.
-func (h *Handler) Store(err error) {
-	h.store(err, nil)
-}
-
-// store handles the provided error or orbit error report by storing it into Redis if the handler is
+// Store handles the provided error by storing it into Redis if the handler is
 // still running.
 //
 // It waits for a predefined period of time to try to store the error but does
 // so in a goroutine so the call returns immediately.
-func (h *Handler) store(err error, report *fleet.OrbitErrorReport) {
+func (h *Handler) Store(err error) {
 	exec := func() {
 		if atomic.LoadInt32(&h.running) == 0 {
 			return
@@ -294,16 +245,9 @@ func (h *Handler) store(err error, report *fleet.OrbitErrorReport) {
 
 		timer := time.NewTimer(2 * time.Second)
 		defer timer.Stop()
-		if err != nil {
-			select {
-			case h.errCh <- err:
-			case <-timer.C:
-			}
-		} else if report != nil {
-			select {
-			case h.orbitErrCh <- *report:
-			case <-timer.C:
-			}
+		select {
+		case h.errCh <- err:
+		case <-timer.C:
 		}
 	}
 
@@ -312,27 +256,6 @@ func (h *Handler) store(err error, report *fleet.OrbitErrorReport) {
 	} else {
 		go exec()
 	}
-}
-
-func (h *Handler) storeOrbitError(report fleet.OrbitErrorReport) {
-	errorHash, errorJson, err := hashAndMarshalOrbitError(report)
-	if err != nil {
-		level.Error(h.logger).Log("err", err, "msg", "hashAndMarshalOrbitError failed")
-		if h.testOnStore != nil {
-			h.testOnStore(err)
-		}
-		return
-	}
-
-	jsonKey := fmt.Sprintf("orbitError:{%s}:json", errorHash)
-	countKey := fmt.Sprintf("orbitError:{%s}:count", errorHash)
-
-	h.storeErrorInRedis(jsonKey, errorJson, countKey)
-}
-
-// StoreOrbitError handles the provided orbit error by storing it into Redis.
-func (h *Handler) StoreOrbitError(report fleet.OrbitErrorReport) {
-	h.store(nil, &report)
 }
 
 // ServeHTTP implements an http.Handler that retrieves the errors stored

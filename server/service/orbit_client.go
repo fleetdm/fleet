@@ -666,14 +666,3 @@ func (oc *OrbitClient) GetSetupExperienceStatus() (*fleet.SetupExperienceStatusP
 
 	return resp.Results, nil
 }
-
-func (oc *OrbitClient) SendErrorReport(errorReport fleet.OrbitErrorReport) error {
-	verb, path := "POST", "/api/fleet/orbit/error_report"
-	err := oc.authenticatedRequest(verb, path, &orbitErrorReportRequest{
-		OrbitErrorReport: errorReport,
-	}, nil)
-	if err != nil {
-		return err
-	}
-	return nil
-}
