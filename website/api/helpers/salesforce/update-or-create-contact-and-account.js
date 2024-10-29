@@ -14,8 +14,8 @@ module.exports = {
     linkedinUrl: { type: 'string' },
 
     // Set…
-    firstName: { type: 'string', required: true },
-    lastName: { type: 'string', required: true },
+    firstName: { type: 'string'},
+    lastName: { type: 'string'},
     organization: { type: 'string' },
     description: { type: 'string' },
     primaryBuyingSituation: { type: 'string' },
@@ -39,6 +39,7 @@ module.exports = {
       isIn: [
         'Website - Contact forms',
         'Website - Sign up',
+        'Website - Newsletter',
       ],
     },
     getStartedResponses: {
