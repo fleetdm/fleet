@@ -49,6 +49,7 @@ parasails.registerPage('homepage', {
     submittedNewsletterForm: async function() {
       // Show the success message.
       this.cloudSuccess = true;
+      this.formData = {};
       await setTimeout(()=>{
         this.cloudSuccess = false;
       }, 10000);
