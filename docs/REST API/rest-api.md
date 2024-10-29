@@ -5736,7 +5736,7 @@ Get aggregate status counts of profiles for to macOS and Windows hosts that are 
 - [Delete a bootstrap package](#delete-a-bootstrap-package)
 - [Download a bootstrap package](#download-a-bootstrap-package)
 - [Get a summary of bootstrap package status](#get-a-summary-of-bootstrap-package-status)
-- [Turn on end user authentication for macOS setup](#turn-on-end-user-authentication-for-macos-setup)
+- [Configure setup experience](#configure-setup-experience)
 - [Upload an EULA file](#upload-an-eula-file)
 - [Get metadata about an EULA file](#get-metadata-about-an-eula-file)
 - [Delete an EULA file](#delete-an-eula-file)
