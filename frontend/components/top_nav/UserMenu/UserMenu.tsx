@@ -71,7 +71,7 @@ const UserMenu = ({
 
   return (
     <div className={baseClass} data-testid="user-menu">
-      <DropdownButton options={dropdownItems}>
+      <DropdownButton options={dropdownItems} variant="unstyled">
         <AvatarTopNav
           className={`${baseClass}__avatar-image`}
           user={{ gravatar_url_dark: currentUser.gravatar_url_dark }}

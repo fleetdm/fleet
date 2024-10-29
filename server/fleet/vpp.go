@@ -17,6 +17,12 @@ type VPPAppTeam struct {
 	VPPAppID
 
 	SelfService bool `db:"self_service" json:"self_service"`
+
+	// InstallDuringSetup is either the stored value of that flag for the VPP app
+	// or the value to set to that VPP app when batch-setting it. When used to
+	// set the value, if nil it will keep the currently saved value (or default
+	// to false), while if not nil, it will update the flag's value in the DB.
+	InstallDuringSetup *bool `db:"install_during_setup" json:"-"`
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,

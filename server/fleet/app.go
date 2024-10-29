@@ -420,10 +420,19 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 // MacOSSetup contains settings related to the setup of DEP enrolled devices.
 type MacOSSetup struct {
-	BootstrapPackage            optjson.String `json:"bootstrap_package"`
-	EnableEndUserAuthentication bool           `json:"enable_end_user_authentication"`
-	MacOSSetupAssistant         optjson.String `json:"macos_setup_assistant"`
-	EnableReleaseDeviceManually optjson.Bool   `json:"enable_release_device_manually"`
+	BootstrapPackage            optjson.String                     `json:"bootstrap_package"`
+	EnableEndUserAuthentication bool                               `json:"enable_end_user_authentication"`
+	MacOSSetupAssistant         optjson.String                     `json:"macos_setup_assistant"`
+	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually"`
+	Script                      optjson.String                     `json:"script"`
+	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
+}
+
+// MacOSSetupSoftware represents a VPP app or a software package to install
+// during the setup experience of a macOS device.
+type MacOSSetupSoftware struct {
+	AppStoreID  string `json:"app_store_id"`
+	PackagePath string `json:"package_path"`
 }
 
 // MacOSMigration contains settings related to the MDM migration work flow.
@@ -668,6 +677,15 @@ func (c *AppConfig) Copy() *AppConfig {
 			copy(vpp[i].Teams, s.Teams)
 		}
 		clone.MDM.VolumePurchasingProgram = optjson.SetSlice(vpp)
+	}
+
+	if c.MDM.MacOSSetup.Software.Set {
+		sw := make([]*MacOSSetupSoftware, len(c.MDM.MacOSSetup.Software.Value))
+		for i, s := range c.MDM.MacOSSetup.Software.Value {
+			s := *s
+			sw[i] = &s
+		}
+		clone.MDM.MacOSSetup.Software = optjson.SetSlice(sw)
 	}
 
 	return &clone

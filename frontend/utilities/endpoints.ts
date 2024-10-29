@@ -127,7 +127,6 @@ export default {
   MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/mdm/bootstrap`,
   MDM_BOOTSTRAP_PACKAGE_SUMMARY: `/${API_VERSION}/fleet/mdm/bootstrap/summary`,
   MDM_SETUP: `/${API_VERSION}/fleet/mdm/apple/setup`,
-  MDM_SETUP_EXPERIENCE: `/${API_VERSION}/fleet/setup_experience`,
   MDM_EULA: (token: string) => `/${API_VERSION}/fleet/mdm/setup/eula/${token}`,
   MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/mdm/setup/eula`,
   MDM_EULA_METADATA: `/${API_VERSION}/fleet/mdm/setup/eula/metadata`,
@@ -138,6 +137,11 @@ export default {
     `/${API_VERSION}/fleet/mdm/hosts/${id}/encryption_key`,
 
   ME: `/${API_VERSION}/fleet/me`,
+
+  // Setup experiece endpoints
+  MDM_SETUP_EXPERIENCE: `/${API_VERSION}/fleet/setup_experience`,
+  MDM_SETUP_EXPERIENCE_SOFTWARE: `/${API_VERSION}/fleet/setup_experience/software`,
+  MDM_SETUP_EXPERIENCE_SCRIPT: `/${API_VERSION}/fleet/setup_experience/script`,
 
   // OS Version endpoints
   OS_VERSIONS: `/${API_VERSION}/fleet/os_versions`,

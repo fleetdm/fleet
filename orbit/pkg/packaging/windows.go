@@ -64,14 +64,14 @@ func BuildMSI(opt Options) (string, error) {
 	}
 
 	if opt.Desktop {
-		updateOpt.Targets["desktop"] = update.DesktopWindowsTarget
+		updateOpt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsTarget
 		// Override default channel with the provided value.
-		updateOpt.Targets.SetTargetChannel("desktop", opt.DesktopChannel)
+		updateOpt.Targets.SetTargetChannel(constant.DesktopTUFTargetName, opt.DesktopChannel)
 	}
 
 	// Override default channels with the provided values.
-	updateOpt.Targets.SetTargetChannel("orbit", opt.OrbitChannel)
-	updateOpt.Targets.SetTargetChannel("osqueryd", opt.OsquerydChannel)
+	updateOpt.Targets.SetTargetChannel(constant.OrbitTUFTargetName, opt.OrbitChannel)
+	updateOpt.Targets.SetTargetChannel(constant.OsqueryTUFTargetName, opt.OsquerydChannel)
 
 	updateOpt.ServerURL = opt.UpdateURL
 	if opt.UpdateRoots != "" {

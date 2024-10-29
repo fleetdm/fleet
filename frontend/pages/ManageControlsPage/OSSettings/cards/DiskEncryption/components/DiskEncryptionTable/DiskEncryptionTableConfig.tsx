@@ -5,7 +5,6 @@ import {
   IDiskEncryptionStatusAggregate,
   IDiskEncryptionSummaryResponse,
 } from "services/entities/mdm";
-import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -13,7 +12,7 @@ import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 
-interface IStatusCellValue {
+export interface IStatusCellValue {
   displayName: string;
   statusName: IndicatorStatus;
   value: DiskEncryptionStatus;
@@ -118,15 +117,7 @@ const defaultTableHeaders: IDataColumn[] = [
       return (
         <>
           {cellProps.row.original && (
-            <ViewAllHostsLink
-              className="view-hosts-link"
-              queryParams={{
-                [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]:
-                  cellProps.row.original.status.value,
-                team_id: cellProps.row.original.teamId,
-              }}
-              rowHover
-            />
+            <ViewAllHostsLink className="view-hosts-link" rowHover noLink />
           )}
         </>
       );

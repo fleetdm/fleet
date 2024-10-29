@@ -49,6 +49,10 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 			}, nil
 		}
 
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+
 		ctx = test.HostContext(ctx, &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
 			ID:            1,
@@ -118,6 +122,10 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
 			}, nil
+		}
+
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
 		}
 
 		ctx = test.HostContext(ctx, &fleet.Host{
@@ -195,6 +203,11 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
 			return isHostConnectedToFleet, nil
 		}
+
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+
 		checkEmptyNudgeConfig := func(h *fleet.Host) {
 			ctx := test.HostContext(ctx, h)
 			cfg, err := svc.GetOrbitConfig(ctx)
@@ -227,7 +240,6 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 			TeamID:        ptr.Uint(team.ID),
 			Platform:      "darwin",
 		})
-
 	})
 
 	t.Run("no-nudge on macos versions greater than 14", func(t *testing.T) {
@@ -284,6 +296,11 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
 			return os, nil
 		}
+
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+
 		ctx = test.HostContext(ctx, host)
 
 		// Version < 14 gets nudge

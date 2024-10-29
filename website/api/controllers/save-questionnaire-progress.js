@@ -216,6 +216,9 @@ module.exports = {
     } catch(err){
       sails.log.warn(`When converting a user's (email: ${this.req.me.emailAddress}) getStartedQuestionnaireAnswers to a formatted string to send to the CRM, and error occurred`, err);
     }
+    // Prepend the user's reported organization to the questionnaireProgressAsAFormattedString
+    questionnaireProgressAsAFormattedString = `organization-acording-to-fleetdm.com: ${this.req.me.organization}\n` + questionnaireProgressAsAFormattedString;
+
     // Create a dictionary of values to send to the CRM for this user.
     let contactInformation = {
       emailAddress: this.req.me.emailAddress,

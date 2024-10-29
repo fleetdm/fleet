@@ -182,6 +182,16 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
 
+	// mark it as install_during_setup for team 2
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE vpp_apps_teams SET install_during_setup = 1 WHERE global_or_team_id = ? AND adam_id = ?`, team2.ID, vpp2.AdamID)
+		return err
+	})
+	// this prevents its deletion
+	err = ds.DeleteVPPAppFromTeam(ctx, &team2.ID, vpp2)
+	require.Error(t, err)
+	require.ErrorIs(t, err, errDeleteInstallerInstalledDuringSetup)
+
 	// delete vpp1 again fails, not found
 	err = ds.DeleteVPPAppFromTeam(ctx, nil, vpp1)
 	require.Error(t, err)
@@ -501,11 +511,17 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	// Check that getting the assigned apps works
 	appSet, err := ds.GetAssignedVPPApps(ctx, &team.ID)
 	require.NoError(t, err)
-	assert.Equal(t, map[fleet.VPPAppID]fleet.VPPAppTeam{app1.VPPAppID: {VPPAppID: app1.VPPAppID}, app2.VPPAppID: {VPPAppID: app2.VPPAppID}}, appSet)
+	assert.Equal(t, map[fleet.VPPAppID]fleet.VPPAppTeam{
+		app1.VPPAppID: {VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(false)},
+		app2.VPPAppID: {VPPAppID: app2.VPPAppID, InstallDuringSetup: ptr.Bool(false)},
+	}, appSet)
 
 	appSet, err = ds.GetAssignedVPPApps(ctx, nil)
 	require.NoError(t, err)
-	assert.Equal(t, map[fleet.VPPAppID]fleet.VPPAppTeam{appNoTeam1.VPPAppID: {VPPAppID: appNoTeam1.VPPAppID}, appNoTeam2.VPPAppID: {VPPAppID: appNoTeam2.VPPAppID}}, appSet)
+	assert.Equal(t, map[fleet.VPPAppID]fleet.VPPAppTeam{
+		appNoTeam1.VPPAppID: {VPPAppID: appNoTeam1.VPPAppID, InstallDuringSetup: ptr.Bool(false)},
+		appNoTeam2.VPPAppID: {VPPAppID: appNoTeam2.VPPAppID, InstallDuringSetup: ptr.Bool(false)},
+	}, appSet)
 
 	var appTitles []fleet.SoftwareTitle
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &appTitles, `SELECT name, bundle_identifier FROM software_titles WHERE bundle_identifier IN (?,?) ORDER BY bundle_identifier`, app1.BundleIdentifier, app2.BundleIdentifier)
@@ -531,7 +547,7 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
 	assert.NoError(t, err)
 
-	// Insert some VPP apps for the team
+	// Insert some VPP apps for no team
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
 	_, err = ds.InsertVPPAppWithTeam(ctx, app1, nil)
 	require.NoError(t, err)
@@ -550,8 +566,9 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	require.Len(t, assigned, 0)
 
 	// Assign 2 apps
+	// make app1 install_during_setup for that team
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
-		{VPPAppID: app1.VPPAppID},
+		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(true)},
 		{VPPAppID: app2.VPPAppID, SelfService: true},
 	})
 	require.NoError(t, err)
@@ -562,10 +579,11 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	assert.Contains(t, assigned, app1.VPPAppID)
 	assert.Contains(t, assigned, app2.VPPAppID)
 	assert.True(t, assigned[app2.VPPAppID].SelfService)
+	assert.True(t, *assigned[app1.VPPAppID].InstallDuringSetup)
 
 	// Assign an additional app
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
-		{VPPAppID: app1.VPPAppID},
+		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(true)},
 		{VPPAppID: app2.VPPAppID},
 		{VPPAppID: app3.VPPAppID},
 	})
@@ -578,10 +596,11 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	require.Contains(t, assigned, app2.VPPAppID)
 	require.Contains(t, assigned, app3.VPPAppID)
 	assert.False(t, assigned[app2.VPPAppID].SelfService)
+	assert.True(t, *assigned[app1.VPPAppID].InstallDuringSetup)
 
 	// Swap one app out for another
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
-		{VPPAppID: app1.VPPAppID},
+		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(true)},
 		{VPPAppID: app2.VPPAppID, SelfService: true},
 		{VPPAppID: app4.VPPAppID},
 	})
@@ -594,6 +613,30 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	require.Contains(t, assigned, app2.VPPAppID)
 	require.Contains(t, assigned, app4.VPPAppID)
 	assert.True(t, assigned[app2.VPPAppID].SelfService)
+	assert.True(t, *assigned[app1.VPPAppID].InstallDuringSetup)
+
+	// Remove app1 fails because it is installed during setup
+	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
+		{VPPAppID: app2.VPPAppID, SelfService: true},
+		{VPPAppID: app4.VPPAppID},
+	})
+	require.Error(t, err)
+	require.ErrorIs(t, err, errDeleteInstallerInstalledDuringSetup)
+
+	// make app1 NOT install_during_setup for that team
+	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
+		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(false)},
+		{VPPAppID: app2.VPPAppID, SelfService: true},
+		{VPPAppID: app4.VPPAppID},
+	})
+	require.NoError(t, err)
+
+	// Remove app1 now works
+	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
+		{VPPAppID: app2.VPPAppID, SelfService: true},
+		{VPPAppID: app4.VPPAppID},
+	})
+	require.NoError(t, err)
 
 	// Remove all apps
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{})

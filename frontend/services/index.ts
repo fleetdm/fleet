@@ -68,7 +68,7 @@ export const sendRequestWithProgress = async ({
 };
 
 export const sendRequest = async (
-  method: "GET" | "POST" | "PATCH" | "DELETE" | "HEAD",
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD",
   path: string,
   data?: unknown,
   responseType: AxiosResponseType = "json",
