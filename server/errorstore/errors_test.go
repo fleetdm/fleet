@@ -193,12 +193,16 @@ func TestErrorHandler(t *testing.T) {
 		pool := redistest.SetupRedis(t, "error:", false, false, false)
 		t.Run("collects errors", func(t *testing.T) { testErrorHandlerCollectsErrors(t, pool, wd, false) })
 		t.Run("collects different errors", func(t *testing.T) { testErrorHandlerCollectsDifferentErrors(t, pool, wd, false) })
+		t.Run("collects orbit errors", func(t *testing.T) { testErrorHandlerCollectsOrbitErrors(t, pool, false) })
+		t.Run("collects different orbit errors", func(t *testing.T) { testErrorHandlerCollectsDifferentOrbitErrors(t, pool, false) })
 	})
 
 	t.Run("cluster", func(t *testing.T) {
 		pool := redistest.SetupRedis(t, "error:", true, true, false)
 		t.Run("collects errors", func(t *testing.T) { testErrorHandlerCollectsErrors(t, pool, wd, false) })
 		t.Run("collects different errors", func(t *testing.T) { testErrorHandlerCollectsDifferentErrors(t, pool, wd, false) })
+		t.Run("collects orbit errors", func(t *testing.T) { testErrorHandlerCollectsOrbitErrors(t, pool, false) })
+		t.Run("collects different orbit errors", func(t *testing.T) { testErrorHandlerCollectsDifferentOrbitErrors(t, pool, false) })
 	})
 }
 
@@ -341,6 +345,144 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
 
 	// ensure we clear errors before returning
 	_, err = eh.Retrieve(true)
+	require.NoError(t, err)
+}
+
+func testErrorHandlerCollectsOrbitErrors(t *testing.T, pool fleet.RedisPool, flush bool) {
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	chGo, chDone := make(chan struct{}), make(chan struct{})
+
+	var storeCalls int32 = 3
+	testOnStart := func() {
+		close(chGo)
+	}
+	testOnStore := func(err error) {
+		require.NoError(t, err)
+		if atomic.AddInt32(&storeCalls, -1) == 0 {
+			close(chDone)
+		}
+	}
+	eh := newTestHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute, testOnStart, testOnStore)
+
+	<-chGo
+
+	getOrbitError := func() fleet.OrbitErrorReport {
+		return fleet.OrbitErrorReport{
+			Message:        "test",
+			OsqueryVersion: "5.13",
+			OrbitVersion:   "1.31",
+			DesktopVersion: "1.31",
+			OSPlatform:     "darwin",
+			OSVersion:      "15.0.1",
+		}
+	}
+
+	for i := 0; i < 3; i++ {
+		eh.StoreOrbitError(getOrbitError())
+	}
+
+	<-chDone
+
+	errors, err := eh.RetrieveOrbitErrors(flush)
+	require.NoError(t, err)
+	require.Len(t, errors, 1)
+	assert.Equal(t, 3, errors[0].Count)
+	var r fleet.OrbitErrorReport
+	require.NoError(t, json.Unmarshal(errors[0].Report, &r))
+	assert.Equal(t, getOrbitError(), r)
+
+	errors, err = eh.RetrieveOrbitErrors(flush)
+	require.NoError(t, err)
+	if flush {
+		assert.Len(t, errors, 0)
+	} else {
+		assert.Len(t, errors, 1)
+	}
+
+	// ensure we clear errors before returning
+	_, err = eh.RetrieveOrbitErrors(true)
+	require.NoError(t, err)
+}
+
+func testErrorHandlerCollectsDifferentOrbitErrors(t *testing.T, pool fleet.RedisPool, flush bool) {
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	chGo, chDone := make(chan struct{}), make(chan struct{})
+
+	var storeCalls int32 = 3
+	testOnStart := func() {
+		close(chGo)
+	}
+	testOnStore := func(err error) {
+		require.NoError(t, err)
+		if atomic.AddInt32(&storeCalls, -1) == 0 {
+			close(chDone)
+		}
+	}
+	eh := newTestHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute, testOnStart, testOnStore)
+
+	<-chGo
+
+	getOrbitError := func() fleet.OrbitErrorReport {
+		return fleet.OrbitErrorReport{
+			Message:        "test",
+			OsqueryVersion: "5.13",
+			OrbitVersion:   "1.31",
+			DesktopVersion: "1.31",
+			OSPlatform:     "darwin",
+			OSVersion:      "15.0.1",
+		}
+	}
+	getAnotherOrbitError := func() fleet.OrbitErrorReport {
+		return fleet.OrbitErrorReport{
+			Message:        "test2",
+			OsqueryVersion: "5.14",
+			OrbitVersion:   "1.32",
+			DesktopVersion: "1.32",
+			OSPlatform:     "darwin",
+			OSVersion:      "14.7",
+		}
+	}
+
+	eh.StoreOrbitError(getAnotherOrbitError())
+	for i := 0; i < 3; i++ {
+		eh.StoreOrbitError(getOrbitError())
+	}
+
+	<-chDone
+
+	errors, err := eh.RetrieveOrbitErrors(flush)
+	require.NoError(t, err)
+	require.Len(t, errors, 2)
+	assert.NotEqual(t, errors[0].Report, errors[1].Report)
+	for _, e := range errors {
+		var r fleet.OrbitErrorReport
+		require.NoError(t, json.Unmarshal(e.Report, &r))
+		switch r.Message {
+		case "test":
+			assert.Equal(t, getOrbitError(), r)
+			assert.Equal(t, 3, e.Count)
+		case "test2":
+			assert.Equal(t, getAnotherOrbitError(), r)
+			assert.Equal(t, 1, e.Count)
+		default:
+			t.Fatal(r.Message)
+		}
+	}
+
+	errors, err = eh.RetrieveOrbitErrors(flush)
+	require.NoError(t, err)
+	if flush {
+		assert.Len(t, errors, 0)
+	} else {
+		assert.Len(t, errors, 2)
+	}
+
+	// ensure we clear errors before returning
+	_, err = eh.RetrieveOrbitErrors(true)
 	require.NoError(t, err)
 }
 

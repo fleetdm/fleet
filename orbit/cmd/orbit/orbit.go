@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
@@ -1186,6 +1187,28 @@ func main() {
 				c.String("fleet-desktop-alternative-browser-host"),
 				opt.RootDirectory,
 			)
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go func() {
+				wg.Done()
+				for {
+					msg := <-desktopRunner.errorNotifyCh
+					errorReport := fleet.OrbitErrorReport{
+						Message:        msg,
+						OsqueryVersion: osqueryHostInfo.OsqueryVersion,
+						OrbitVersion:   build.Version,
+						DesktopVersion: desktopVersion,
+						OSPlatform:     osqueryHostInfo.Platform,
+						OSVersion:      osqueryHostInfo.OSVersion,
+					}
+					err := orbitClient.SendErrorReport(errorReport)
+					if err != nil {
+						log.Error().Err(err).Msg(fmt.Sprintf("failed to send error report to Fleet: %s", msg))
+					}
+				}
+			}()
+			// Wait for above goroutine to start
+			wg.Wait()
 			addSubsystem(&g, "desktop runner", desktopRunner)
 		}
 
@@ -1425,6 +1448,10 @@ type desktopRunner struct {
 	interruptCh chan struct{} //
 	// executeDoneCh is closed when execute returns.
 	executeDoneCh chan struct{}
+	// errorNotifyCh is used to notify errors to the main orbit process.
+	errorNotifyCh chan string
+	// errorsReported is used to keep track of errors already reported to the main orbit process.
+	errorsReported map[string]struct{}
 }
 
 func newDesktopRunner(
@@ -1447,6 +1474,7 @@ func newDesktopRunner(
 		fleetAlternativeBrowserHost: fleetAlternativeBrowserHost,
 		interruptCh:                 make(chan struct{}),
 		executeDoneCh:               make(chan struct{}),
+		errorNotifyCh:               make(chan string),
 	}
 }
 
@@ -1521,8 +1549,9 @@ func (d *desktopRunner) Execute() error {
 			// To be able to run the desktop application (mostly to register the icon in the system tray)
 			// we need to run the application as the login user.
 			// Package execuser provides multi-platform support for this.
-			if err := execuser.Run(d.desktopPath, opts...); err != nil {
+			if lastLogs, err := execuser.Run(d.desktopPath, opts...); err != nil {
 				log.Debug().Err(err).Msg("execuser.Run")
+				d.processLog(lastLogs)
 				return true
 			}
 			return false
@@ -1578,6 +1607,34 @@ func (d *desktopRunner) Interrupt(err error) {
 	}
 }
 
+func (d *desktopRunner) processLog(log string) {
+	if len(log) == 0 {
+		return
+	}
+	// Important: make sure msg does not contain sensitive information since it is used for analytics.
+	var msg string
+	switch {
+	case strings.Contains(log, "error=Error Domain=NSOSStatusErrorDomain Code=-10822"):
+		// https://github.com/fleetdm/fleet/issues/19172
+		msg = "-10822"
+	case strings.Contains(log, "The application cannot be opened because its executable is missing."):
+		// For manual testing.
+		// To get this message, delete Fleet Desktop.app directory, make an empty Fleet Desktop.app directory,
+		// and kill the fleet-desktop process. Orbit will try to re-start Fleet Desktop and log this message.
+		msg = "bad desktop executable"
+	}
+	if msg == "" {
+		return
+	}
+	if d.errorsReported == nil {
+		d.errorsReported = make(map[string]struct{})
+	}
+	if _, ok := d.errorsReported[msg]; !ok {
+		d.errorsReported[msg] = struct{}{}
+		d.errorNotifyCh <- msg
+	}
+}
+
 // osqueryHostInfo is used to parse osquery JSON output from system tables.
 type osqueryHostInfo struct {
 	// HardwareUUID is the unique identifier for this device (extracted from `system_info` osquery table).
@@ -1591,6 +1648,10 @@ type osqueryHostInfo struct {
 	// InstanceID is the osquery's randomly generated instance ID
 	// (extracted from `osquery_info` osquery table).
 	InstanceID string `json:"instance_id"`
+	// OSVersion is the device's OS version as defined by osquery (extracted from `os_version` osquery table).
+	OSVersion string `json:"os_version"`
+	// OsqueryVersion is the version of osquery running on the device (extracted from `osquery_info` osquery table).
+	OsqueryVersion string `json:"osquery_version"`
 }
 
 // getHostInfo retrieves system information about the host by shelling out to `osqueryd -S` and performing a `SELECT` query.
@@ -1599,7 +1660,7 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 	if err := os.MkdirAll(filepath.Dir(osqueryDBPath), constant.DefaultDirMode); err != nil {
 		return nil, err
 	}
-	const systemQuery = "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform, oi.instance_id FROM system_info si, os_version os, osquery_info oi"
+	const systemQuery = "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform, os.version as os_version, oi.instance_id, oi.version as osquery_version FROM system_info si, os_version os, osquery_info oi"
 	args := []string{
 		"-S",
 		"--database_path", osqueryDBPath,

@@ -54,6 +54,15 @@ type OrbitConfig struct {
 	UpdateChannels *OrbitUpdateChannels `json:"update_channels,omitempty"`
 }
 
+type OrbitErrorReport struct {
+	Message        string `json:"message"`
+	OsqueryVersion string `json:"osquery_version"`
+	OrbitVersion   string `json:"orbit_version"`
+	DesktopVersion string `json:"desktop_version"`
+	OSPlatform     string `json:"os_platform"`
+	OSVersion      string `json:"os_version"`
+}
+
 type OrbitConfigReceiver interface {
 	Run(*OrbitConfig) error
 }

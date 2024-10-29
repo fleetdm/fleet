@@ -273,9 +273,18 @@ type StoredError struct {
 	Chain json.RawMessage `json:"chain"`
 }
 
+// StoredOrbitError represents the structure we use to de-serialize orbit errors and
+// counts stored in Redis
+type StoredOrbitError struct {
+	Count  int             `json:"count"`
+	Report json.RawMessage `json:"report"`
+}
+
 type handler interface {
 	Store(error)
 	Retrieve(flush bool) ([]*StoredError, error)
+	StoreOrbitError(report fleet.OrbitErrorReport)
+	RetrieveOrbitErrors(flush bool) ([]*StoredOrbitError, error)
 }
 
 // NewContext returns a context derived from ctx that contains the provided
@@ -351,14 +360,22 @@ func Retrieve(ctx context.Context) ([]*StoredError, error) {
 	return eh.Retrieve(false)
 }
 
+func HandleOrbitError(ctx context.Context, report fleet.OrbitErrorReport) {
+	if eh := fromContext(ctx); eh != nil {
+		eh.StoreOrbitError(report)
+	}
+}
+
 // MockHandler is a mock implementation of an error handler that allows to test
 // ctxerr features that retrieve and store information in Redis without a
 // server running.
 // Ideally this should live in errorstore/errors, but that creates a circular
 // dependency.
 type MockHandler struct {
-	StoreImpl    func(err error)
-	RetrieveImpl func(flush bool) ([]*StoredError, error)
+	StoreImpl               func(err error)
+	RetrieveImpl            func(flush bool) ([]*StoredError, error)
+	StoreOrbitErrorImpl     func(report fleet.OrbitErrorReport)
+	RetrieveOrbitErrorsImpl func(flush bool) ([]*StoredOrbitError, error)
 }
 
 func (h MockHandler) Store(err error) {
@@ -367,4 +384,12 @@ func (h MockHandler) Store(err error) {
 
 func (h MockHandler) Retrieve(flush bool) ([]*StoredError, error) {
 	return h.RetrieveImpl(flush)
+}
+
+func (h MockHandler) StoreOrbitError(report fleet.OrbitErrorReport) {
+	h.StoreOrbitErrorImpl(report)
+}
+
+func (h MockHandler) RetrieveOrbitErrors(flush bool) ([]*StoredOrbitError, error) {
+	return h.RetrieveOrbitErrorsImpl(flush)
 }
