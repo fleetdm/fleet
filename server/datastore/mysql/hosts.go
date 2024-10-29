@@ -548,10 +548,12 @@ var hostRefs = []string{
 // the host.uuid is not always named the same, so the map key is the table name
 // and the map value is the column name to match to the host.uuid.
 var additionalHostRefsByUUID = map[string]string{
-	"host_mdm_apple_profiles":           "host_uuid",
-	"host_mdm_apple_bootstrap_packages": "host_uuid",
-	"host_mdm_windows_profiles":         "host_uuid",
-	"host_mdm_apple_declarations":       "host_uuid",
+	"host_mdm_apple_profiles":               "host_uuid",
+	"host_mdm_apple_bootstrap_packages":     "host_uuid",
+	"host_mdm_windows_profiles":             "host_uuid",
+	"host_mdm_apple_declarations":           "host_uuid",
+	"host_mdm_apple_awaiting_configuration": "host_uuid",
+	"setup_experience_status_results":       "host_uuid",
 }
 
 // additionalHostRefsSoftDelete are tables that reference a host but for which

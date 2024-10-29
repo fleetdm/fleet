@@ -6767,6 +6767,18 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, softwareInstaller, false, nil)
 	require.NoError(t, err)
 
+	// Add an awaiting configuration entry
+	err = ds.SetHostAwaitingConfiguration(ctx, host.UUID, false)
+	require.NoError(t, err)
+
+	// Add a setup experience status result
+	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "test.sh", ScriptContents: "echo foo"})
+	require.NoError(t, err)
+
+	added, err := ds.EnqueueSetupExperienceItems(ctx, host.UUID, 0)
+	require.NoError(t, err)
+	require.True(t, added)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool
@@ -9701,5 +9713,4 @@ func testGetHostEmails(t *testing.T, ds *Datastore) {
 	emails, err = ds.GetHostEmails(ctx, host.UUID, fleet.DeviceMappingMDMIdpAccounts)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"foo@example.com", "bar@example.com"}, emails)
-
 }

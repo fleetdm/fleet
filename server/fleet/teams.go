@@ -238,6 +238,14 @@ func (t *TeamMDM) Copy() *TeamMDM {
 		}
 		clone.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
 	}
+	if t.MacOSSetup.Software.Set {
+		sw := make([]*MacOSSetupSoftware, len(t.MacOSSetup.Software.Value))
+		for i, s := range t.MacOSSetup.Software.Value {
+			s := *s
+			sw[i] = &s
+		}
+		clone.MacOSSetup.Software = optjson.SetSlice(sw)
+	}
 	return &clone
 }
 
@@ -517,5 +525,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		HostExpirySettings: &t.Config.HostExpirySettings,
 		WebhookSettings:    webhookSettings,
 		Integrations:       integrations,
+		Scripts:            t.Config.Scripts,
+		Software:           t.Config.Software,
 	}, nil
 }

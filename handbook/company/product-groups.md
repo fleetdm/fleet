@@ -355,44 +355,55 @@ When a critical bug is identified, we will then follow the patch release process
 
 ## Feature fest
 
-To stay in-sync with our customers' needs, Fleet accepts feature requests from customers and community members on a sprint-by-sprint basis in the regular 🎁🗣 Feature Fest meeting. Anyone in the company is invited to submit requests or simply listen in on the 🎁🗣 Feature Fest meeting. Folks from the wider community can also [request an invite](https://fleetdm.com/contact).
+To stay in-sync with our customers' needs, Fleet accepts feature requests from customers and community members on a sprint-by-sprint basis. 
+
+Features that meet a [criteria for prioritization](#criteria-for-prioritization) are prioritized at the 🎁🗣 Feature Fest meeting. 
+
+Anyone in the company is invited to submit requests or simply listen in on the 🎁🗣 Feature Fest meeting. Folks from the wider community can also [request an invite](https://fleetdm.com/contact).
 
 ### Making a request
-To make a feature request or advocate for a feature request from a customer or community member, [create an issue](https://github.com/fleetdm/fleet/issues/new/choose) using the feature request template and attend the next scheduled 🎁🗣 Feature Fest meeting.
 
-Requests are weighed from top to bottom while prioritizing attendee requests. This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
+To make a feature request or advocate for a feature request from a customer or community member, [create an issue](https://github.com/fleetdm/fleet/issues/new/choose) using the feature request template.
 
+New requests are reviewed daily by the Head of Product Design and a former IT admin during the ["Unpacking the why"](https://fleetdm.com/handbook/product-design#unpacking-the-why) call. If the request meets the [criteria for prioritization](#criteria-for-prioritization), the request will be added to the upcoming feature fest (`~feature fest` label). If it doesn't, the request will be put to the side and the requester will be notified.
 
-### How feature requests are evaluated
+### Criteria for prioritization
 
-Digestion of these new product ideas (requests) happens at the **🎁🗣 Feature Fest** meeting.
+To prioritize a new feature, it must meet one of these criteria:
 
-Before the **🎁🗣 Feature Fest** meeting, the [Customer renewals DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) goes through the "Inbox" column and removes customer requests that are not a high priority for the business. Stakeholders will be notified by the Customer renewals DRI.
+1. Bug
+2. Small UX improvement that isn't quite a bug but it's so small that it's worthwhile
+3. Contributes to Fleet's [quarterly objectives (OKRs)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1846478041#gid=1846478041&range=A1)
+4. High priority customer request (customer request, workflow blocking, etc.)
+5. Prospect request in an order form 
 
-All community and contributor requests (non-customer) are left in the inbox. A high priority customer request may be a request that's blocking a customer from getting their job done or a request that's critical for customer renewal.
+If an issue has the `~feature fest` label, then it's a new feature request that will be weighed at the next 🎁🗣 Feature Fest meeting.
 
-Before the meeting, the Feature prioritization DRI adds requests from Fleet's roadmap that are planned for the next design sprint. The quarterly roadmap is in the [OKRs spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1846478041#gid=1846478041&range=393:419).
+If an issue is on the [roadmap board](https://github.com/fleetdm/fleet#workspaces/drafting-6192dd66ea2562000faea25c/roadmap), then it's a feature request that's already been prioritized. It will have one or more user stories that will be worked on in the current quarter.
+
+If an issue has the `:product` and `story` label, then it's a user story that is currently in progress ([drafting](https://fleetdm.com/handbook/company/development-groups#drafting)). The user story will include a link to the original feature request issue.
+
+### How feature requests are prioritized
+
+Prioritization of new feature requests happens at the 🎁🗣 Feature Fest meeting.
+
+Before the 🎁🗣 Feature Fest meeting, the [Customer renewals DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) adds customer requests to the 🎁🗣 Feature Fest board (`~feature fest` label) that are a high priority.
+
+Before the meeting, the Feature prioritization DRI adds requests from Fleet's roadmap that contribute to Fleet's [quarterly key results (KRs)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1846478041#gid=1846478041&range=A1).
 
 At the **🎁🗣 Feature Fest** meeting, the Feature prioritization DRI weighs all requests in the inbox. When the team weighs a request, it is immediately prioritized or put to the side (not prioritized).
 
-- A _request is prioritized_ when the Feature prioritization DRI decides it is a priority.
-- A _request is put to the side_ when the business perceives competing priorities as more pressing in the immediate moment.
+- A request is _prioritized_ when the Feature prioritization DRI decides it is a priority.
+- A request is _put to the side_ when the business perceives competing priorities as more pressing in the immediate moment.
 
-If a feature is not prioritized during a 🎁🗣 Feature Fest meeting, it only means the feature has been rejected _at that time_. Requestors will be notified by the Feature prioritization DRI, and they can resubmit their request at a future meeting.
-
-Requests are weighed by:
-- The completeness of the request (see [making a request](#making-a-request))
-- How urgent the need is for the customer
-- How much impact the request will have. This may be a wide impact across many customers and/or high impact on one
-- How well the request fits within Fleet's product vision and roadmap
-- Whether the request, or a valuable piece of the request (user story), can be designed and estimated in ≤1 design sprint and and later developed in ≤1 engineering sprint, given its individual complexity and when combined with other work already accepted
+If a feature is not prioritized during a 🎁🗣 Feature Fest meeting, it only means the feature has been rejected _at that time_. Requestors will be notified by the Feature prioritization DRI, and they can add their request back to the feature fest board (`~feature fest` label) to bring it back to a future meeting.
 
 
 ### After the feature is accepted
 
-After the "🎁🗣 Feature fest" meeting, the feature prioritization DRI will clear the ["🎁 Feature fest" board](https://github.com/fleetdm/fleet/issues#workspaces/feature-fest-651b2962605ba29209324c57/board) as follows:
-**Prioritized features:** Remove the `~feature fest` label, create a new user story with the `:product` label, add a link from the original request to the user story, notify the requester, and move the user story to the "Ready" column in the drafting board. The user story will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
-**Put to the side features:** Remove `feature fest` label and notify the requestor.
+After the 🎁🗣 Feature fest meeting, the feature prioritization DRI will clear the 🎁 Feature fest board as follows:
+- Prioritized features: Remove the `~feature fest` label, add the issue to the [roadmap board](https://github.com/fleetdm/fleet#workspaces/drafting-6192dd66ea2562000faea25c/roadmap), create a new user story with the `:product` label, add a link from the original request to the user story, notify the requester, and move the user story to the "Ready" column in the drafting board. The user story will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
+- Put to the side features: Remove `~feature fest` label and notify the requestor.
 
 > The product team's commitment to the requester is that the prioritized user story will be delivered or the requester will be notified within 1 business day of the decision to de-prioritize the story.
 

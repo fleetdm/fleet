@@ -129,7 +129,6 @@ export const FileUploader = ({
           disabled={disabled}
           customOnKeyDown={handleKeyDown}
           tabIndex={0}
-          onClick={triggerFileInput}
         >
           <label htmlFor="upload-file">
             {buttonType === "link" && <Icon name="upload" />}

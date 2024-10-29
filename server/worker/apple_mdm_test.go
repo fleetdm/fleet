@@ -218,11 +218,8 @@ func TestAppleMDM(t *testing.T) {
 		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
 		require.NoError(t, err)
 
-		// the post-DEP release device job is pending
-		require.Len(t, jobs, 1)
-		require.Equal(t, appleMDMJobName, jobs[0].Name)
-		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
-		require.Equal(t, 0, jobs[0].Retries) // hasn't run yet
+		// there is no post-DEP release device job anymore
+		require.Len(t, jobs, 0)
 
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
 	})
@@ -298,11 +295,8 @@ func TestAppleMDM(t *testing.T) {
 		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
 		require.NoError(t, err)
 
-		// the post-DEP release device job is pending
-		require.Len(t, jobs, 1)
-		require.Equal(t, appleMDMJobName, jobs[0].Name)
-		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
-		require.Equal(t, 0, jobs[0].Retries) // hasn't run yet
+		// the post-DEP release device job is not queued anymore
+		require.Len(t, jobs, 0)
 
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
 
@@ -350,11 +344,8 @@ func TestAppleMDM(t *testing.T) {
 		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
 		require.NoError(t, err)
 
-		// the post-DEP release device job is pending
-		require.Len(t, jobs, 1)
-		require.Equal(t, appleMDMJobName, jobs[0].Name)
-		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
-		require.Equal(t, 0, jobs[0].Retries) // hasn't run yet
+		// the post-DEP release device job is not queued anymore
+		require.Len(t, jobs, 0)
 
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
 
@@ -484,11 +475,8 @@ func TestAppleMDM(t *testing.T) {
 		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
 		require.NoError(t, err)
 
-		// the post-DEP release device job is pending, having failed its first attempt
-		require.Len(t, jobs, 1)
-		require.Equal(t, appleMDMJobName, jobs[0].Name)
-		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
-		require.Equal(t, 0, jobs[0].Retries) // hasn't run yet
+		// the post-DEP release device job is not queued anymore
+		require.Len(t, jobs, 0)
 
 		// confirm that AccountConfiguration command was not enqueued
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
@@ -540,11 +528,8 @@ func TestAppleMDM(t *testing.T) {
 		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
 		require.NoError(t, err)
 
-		// the post-DEP release device job is pending
-		require.Len(t, jobs, 1)
-		require.Equal(t, appleMDMJobName, jobs[0].Name)
-		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
-		require.Equal(t, 0, jobs[0].Retries) // hasn't run yet
+		// the post-DEP release device job is not queued anymore
+		require.Len(t, jobs, 0)
 
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "AccountConfiguration"}, getEnqueuedCommandTypes(t))
 	})
