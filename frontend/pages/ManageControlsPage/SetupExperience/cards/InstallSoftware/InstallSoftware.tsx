@@ -37,7 +37,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
   } = useQuery<
     IGetSetupExperienceSoftwareResponse,
     AxiosError,
-    ISoftwareTitle[]
+    ISoftwareTitle[] | null
   >(
     ["install-software", currentTeamId],
     () =>
@@ -65,7 +65,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
       return <DataError />;
     }
 
-    if (softwareTitles) {
+    if (softwareTitles === null) {
       return (
         <div className={`${baseClass}__content`}>
           <AddInstallSoftware

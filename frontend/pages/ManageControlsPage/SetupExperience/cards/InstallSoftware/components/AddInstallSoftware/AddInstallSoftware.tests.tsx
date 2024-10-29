@@ -14,7 +14,7 @@ describe("AddInstallSoftware", () => {
     render(
       <AddInstallSoftware
         currentTeamId={1}
-        softwareTitles={[]}
+        softwareTitles={null}
         onAddSoftware={noop}
       />
     );
