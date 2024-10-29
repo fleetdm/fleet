@@ -1,7 +1,11 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import { IHostSoftware, SOURCE_TYPE_CONVERSION } from "interfaces/software";
+import {
+  IHostSoftware,
+  SoftwareSource,
+  SOURCE_TYPE_CONVERSION,
+} from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -21,7 +25,7 @@ type IInstalledVersionsCellProps = CellProps<
 >;
 type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
 
-const formatSoftwareType = (source: string) => {
+const formatSoftwareType = (source: SoftwareSource) => {
   const DICT = SOURCE_TYPE_CONVERSION;
   return DICT[source] || "Unknown";
 };

@@ -40,25 +40,24 @@ func (svc *Service) getVPPToken(ctx context.Context, teamID *uint) (string, erro
 }
 
 func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) error {
-	if teamName == "" {
-		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "must not be empty"))
-	}
-
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return err
 	}
 
-	team, err := svc.ds.TeamByName(ctx, teamName)
-	if err != nil {
-		// If this is a dry run, the team may not have been created yet
-		if dryRun && fleet.IsNotFound(err) {
-			return nil
+	var teamID *uint
+	if teamName != "" {
+		tm, err := svc.ds.TeamByName(ctx, teamName)
+		if err != nil {
+			// If this is a dry run, the team may not have been created yet
+			if dryRun && fleet.IsNotFound(err) {
+				return nil
+			}
+			return err
 		}
-		return err
+		teamID = &tm.ID
 	}
 
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: &team.ID}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
@@ -79,16 +78,23 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			SelfService: false,
 			Platform:    fleet.IPadOSPlatform,
 		}, {
-			AppStoreID:  payload.AppStoreID,
-			SelfService: payload.SelfService,
-			Platform:    fleet.MacOSPlatform,
+			AppStoreID:         payload.AppStoreID,
+			SelfService:        payload.SelfService,
+			Platform:           fleet.MacOSPlatform,
+			InstallDuringSetup: payload.InstallDuringSetup,
 		}}...)
+	}
+
+	if dryRun {
+		// On dry runs return early because the VPP token might not exist yet
+		// and we don't want to apply the VPP apps.
+		return nil
 	}
 
 	var vppAppTeams []fleet.VPPAppTeam
 	// Don't check for token if we're only disassociating assets
 	if len(payloads) > 0 {
-		token, err := svc.getVPPToken(ctx, &team.ID)
+		token, err := svc.getVPPToken(ctx, teamID)
 		if err != nil {
 			return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
 		}
@@ -101,7 +107,14 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				return fleet.NewInvalidArgumentError("app_store_apps.platform",
 					fmt.Sprintf("platform must be one of '%s', '%s', or '%s", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform))
 			}
-			vppAppTeams = append(vppAppTeams, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: payload.AppStoreID, Platform: payload.Platform}, SelfService: payload.SelfService})
+			vppAppTeams = append(vppAppTeams, fleet.VPPAppTeam{
+				VPPAppID: fleet.VPPAppID{
+					AdamID:   payload.AppStoreID,
+					Platform: payload.Platform,
+				},
+				SelfService:        payload.SelfService,
+				InstallDuringSetup: payload.InstallDuringSetup,
+			})
 		}
 
 		var missingAssets []string
@@ -128,35 +141,33 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 	}
 
-	if !dryRun {
-		if len(vppAppTeams) > 0 {
-			apps, err := getVPPAppsMetadata(ctx, vppAppTeams)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "refreshing VPP app metadata")
-			}
-			if len(apps) == 0 {
-				return fleet.NewInvalidArgumentError("app_store_apps",
-					"no valid apps found matching the provided app store IDs and platforms")
-			}
-
-			if err := svc.ds.BatchInsertVPPApps(ctx, apps); err != nil {
-				return ctxerr.Wrap(ctx, err, "inserting vpp app metadata")
-			}
-			// Filter out the apps with invalid platforms
-			if len(apps) != len(vppAppTeams) {
-				vppAppTeams = make([]fleet.VPPAppTeam, 0, len(apps))
-				for _, app := range apps {
-					vppAppTeams = append(vppAppTeams, app.VPPAppTeam)
-				}
-			}
-
+	if len(vppAppTeams) > 0 {
+		apps, err := getVPPAppsMetadata(ctx, vppAppTeams)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "refreshing VPP app metadata")
 		}
-		if err := svc.ds.SetTeamVPPApps(ctx, &team.ID, vppAppTeams); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "no vpp token to set team vpp assets"), http.StatusUnprocessableEntity)
-			}
-			return ctxerr.Wrap(ctx, err, "set team vpp assets")
+		if len(apps) == 0 {
+			return fleet.NewInvalidArgumentError("app_store_apps",
+				"no valid apps found matching the provided app store IDs and platforms")
 		}
+
+		if err := svc.ds.BatchInsertVPPApps(ctx, apps); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting vpp app metadata")
+		}
+		// Filter out the apps with invalid platforms
+		if len(apps) != len(vppAppTeams) {
+			vppAppTeams = make([]fleet.VPPAppTeam, 0, len(apps))
+			for _, app := range apps {
+				vppAppTeams = append(vppAppTeams, app.VPPAppTeam)
+			}
+		}
+
+	}
+	if err := svc.ds.SetTeamVPPApps(ctx, teamID, vppAppTeams); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "no vpp token to set team vpp assets"), http.StatusUnprocessableEntity)
+		}
+		return ctxerr.Wrap(ctx, err, "set team vpp assets")
 	}
 
 	return nil
@@ -374,14 +385,15 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.VPPApp, error) {
 	var apps []*fleet.VPPApp
 
-	// Map of adamID to platform, then to whether it's available as self-service.
-	adamIDMap := make(map[string]map[fleet.AppleDevicePlatform]bool)
+	// Map of adamID to platform, then to whether it's available as self-service
+	// and installed during setup.
+	adamIDMap := make(map[string]map[fleet.AppleDevicePlatform]fleet.VPPAppTeam)
 	for _, id := range ids {
 		if _, ok := adamIDMap[id.AdamID]; !ok {
-			adamIDMap[id.AdamID] = make(map[fleet.AppleDevicePlatform]bool, 1)
-			adamIDMap[id.AdamID][id.Platform] = id.SelfService
+			adamIDMap[id.AdamID] = make(map[fleet.AppleDevicePlatform]fleet.VPPAppTeam, 1)
+			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{SelfService: id.SelfService, InstallDuringSetup: id.InstallDuringSetup}
 		} else {
-			adamIDMap[id.AdamID][id.Platform] = id.SelfService
+			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{SelfService: id.SelfService, InstallDuringSetup: id.InstallDuringSetup}
 		}
 	}
 
@@ -397,14 +409,15 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 	for adamID, metadata := range assetMetatada {
 		platforms := getPlatformsFromSupportedDevices(metadata.SupportedDevices)
 		for platform := range platforms {
-			if selfService, ok := adamIDMap[adamID][platform]; ok {
+			if props, ok := adamIDMap[adamID][platform]; ok {
 				app := &fleet.VPPApp{
 					VPPAppTeam: fleet.VPPAppTeam{
 						VPPAppID: fleet.VPPAppID{
 							AdamID:   adamID,
 							Platform: platform,
 						},
-						SelfService: selfService,
+						SelfService:        props.SelfService,
+						InstallDuringSetup: props.InstallDuringSetup,
 					},
 					BundleIdentifier: metadata.BundleID,
 					IconURL:          metadata.ArtworkURL,

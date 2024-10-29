@@ -130,7 +130,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 		oneLiveQueryResp := runOneLiveQueryResponse{}
 		liveQueryResp := runLiveQueryResponse{}
 		liveQueryOnHostResp := runLiveQueryOnHostResponse{}
-		if endpoint == oneQueryEndpoint {
+		if endpoint == oneQueryEndpoint { //nolint:gocritic // ignore ifElseChain
 			liveQueryRequest := runOneLiveQueryRequest{
 				HostIDs: []uint{host.ID},
 			}
@@ -237,7 +237,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 		wg.Wait()
 
 		var result fleet.QueryResult
-		if endpoint == oneQueryEndpoint {
+		if endpoint == oneQueryEndpoint { //nolint:gocritic // ignore ifElseChain
 			assert.Equal(t, q1.ID, oneLiveQueryResp.QueryID)
 			assert.Equal(t, 1, oneLiveQueryResp.TargetedHostCount)
 			assert.Equal(t, 1, oneLiveQueryResp.RespondedHostCount)

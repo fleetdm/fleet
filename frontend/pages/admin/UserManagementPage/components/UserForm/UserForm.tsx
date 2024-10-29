@@ -489,7 +489,7 @@ const UserForm = ({
                   id="create-user"
                   checked={formData.newUserType !== NewUserType.AdminInvited}
                   value={NewUserType.AdminCreated}
-                  name="newUserType"
+                  name="new-user-type"
                   onChange={onRadioChange("newUserType")}
                 />
                 <Radio
@@ -499,7 +499,7 @@ const UserForm = ({
                   disabled={!(smtpConfigured || sesConfigured)}
                   checked={formData.newUserType === NewUserType.AdminInvited}
                   value={NewUserType.AdminInvited}
-                  name="newUserType"
+                  name="new-user-type"
                   onChange={onRadioChange("newUserType")}
                   tooltip={
                     smtpConfigured || sesConfigured ? (
@@ -522,7 +522,7 @@ const UserForm = ({
                 type="hidden"
                 id="create-user"
                 value={NewUserType.AdminCreated}
-                name="newUserType"
+                name="new-user-type"
               />
             )}
           </div>
@@ -568,7 +568,7 @@ const UserForm = ({
                   id="global-user"
                   checked={isGlobalUser}
                   value={UserTeamType.GlobalUser}
-                  name="userTeamType"
+                  name="user-team-type"
                   onChange={onIsGlobalUserChange}
                 />
                 <Radio
@@ -577,7 +577,7 @@ const UserForm = ({
                   id="assign-teams"
                   checked={!isGlobalUser}
                   value={UserTeamType.AssignTeams}
-                  name="userTeamType"
+                  name="user-team-type"
                   onChange={onIsGlobalUserChange}
                   disabled={!availableTeams.length}
                 />

@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"strconv"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
@@ -128,7 +127,7 @@ func migrateOptions(tx *sql.Tx) error {
 		case decoratorAlways:
 			decConfig.Always = append(decConfig.Always, dec.Query)
 		case decoratorInterval:
-			key := strconv.Itoa(int(dec.Interval))
+			key := fmt.Sprint(dec.Interval)
 			decConfig.Interval[key] = append(decConfig.Interval[key], dec.Query)
 		default:
 			fmt.Printf("Unable to migrate decorator. Please migrate manually: '%s'\n", dec.Query)

@@ -30,6 +30,7 @@ import (
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -240,6 +241,14 @@ func TestAutomationsSchedule(t *testing.T) {
 	}))
 	defer ts.Close()
 
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{}, nil
+	}
+
+	ds.OutdatedAutomationBatchFunc = func(ctx context.Context) ([]fleet.PolicyFailure, error) {
+		return []fleet.PolicyFailure{}, nil
+	}
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			WebhookSettings: fleet.WebhookSettings{
@@ -298,6 +307,7 @@ func TestAutomationsSchedule(t *testing.T) {
 }
 
 func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
+	t.Skip() // https://github.com/fleetdm/fleet/issues/23258
 	t.Parallel()
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
@@ -343,10 +353,15 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	}
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ctx, cancel := context.WithCancel(ctx)
 	lg := kitlog.NewJSONLogger(os.Stdout)
 	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, lg, &config)
 	require.NoError(t, err)
 	s.Start()
+	t.Cleanup(func() {
+		cancel()
+		<-s.Done()
+	})
 
 	assert.Eventually(t, func() bool {
 		info, err := os.Lstat(vulnPath)
@@ -557,6 +572,9 @@ func TestScanVulnerabilities(t *testing.T) {
 			},
 		}, nil
 	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
 
 	vulnPath := filepath.Join("..", "..", "server", "vulnerabilities", "testdata")
 
@@ -619,6 +637,18 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 		return nil
 	}
 
+	ds.ReconcileSoftwareTitlesFunc = func(ctx context.Context) error {
+		return nil
+	}
+
+	ds.SyncHostsSoftwareTitlesFunc = func(ctx context.Context, updatedAt time.Time) error {
+		return nil
+	}
+
+	ds.UpdateHostIssuesVulnerabilitiesFunc = func(ctx context.Context) error {
+		return nil
+	}
+
 	mockLocker := schedule.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
 	ds.LockFunc = mockLocker.Lock
 	ds.UnlockFunc = mockLocker.Unlock
@@ -639,9 +669,14 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ctx, cancel := context.WithCancel(ctx)
 	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config)
 	require.NoError(t, err)
 	s.Start()
+	t.Cleanup(func() {
+		cancel()
+		<-s.Done()
+	})
 
 	// Every cron tick is 10 seconds ... here we just wait for a loop interation and assert the vuln
 	// dir. was not created.
@@ -674,6 +709,15 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 		}
 		return &ac, nil
 	}
+
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{}, nil
+	}
+
+	ds.OutdatedAutomationBatchFunc = func(ctx context.Context) ([]fleet.PolicyFailure, error) {
+		return []fleet.PolicyFailure{}, nil
+	}
+
 	hostStatus := make(chan struct{})
 	hostStatusClosed := false
 	failingPolicies := make(chan struct{})
@@ -737,6 +781,14 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 		value: 5 * time.Hour,
 	}
 	configLoaded := make(chan struct{}, 1)
+
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{}, nil
+	}
+
+	ds.OutdatedAutomationBatchFunc = func(ctx context.Context) ([]fleet.PolicyFailure, error) {
+		return []fleet.PolicyFailure{}, nil
+	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		select {
@@ -990,7 +1042,8 @@ func TestCronActivitiesStreaming(t *testing.T) {
 		// two pages of ActivitiesToStreamBatchCount and one extra page of one item.
 		as := make([]*fleet.Activity, ActivitiesToStreamBatchCount*2+1)
 		for i := range as {
-			as[i] = newActivity(uint(i), "foo", uint(i), "foog", "fooe", "bar", `{"bar": "foo"}`)
+			as[i] = newActivity(uint(i), "foo", uint(i), //nolint:gosec // dismiss G115
+				"foog", "fooe", "bar", `{"bar": "foo"}`)
 		}
 
 		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
@@ -1015,7 +1068,7 @@ func TestCronActivitiesStreaming(t *testing.T) {
 			firstBatch[i] = as[i].ID
 		}
 		for i := range as[ActivitiesToStreamBatchCount : ActivitiesToStreamBatchCount*2] {
-			secondBatch[i] = as[int(ActivitiesToStreamBatchCount)+i].ID
+			secondBatch[i] = as[int(ActivitiesToStreamBatchCount)+i].ID //nolint:gosec // dismiss G115
 		}
 		thirdBatch := []uint{as[len(as)-1].ID}
 		ds.MarkActivitiesAsStreamedFunc = func(ctx context.Context, activityIDs []uint) error {
@@ -1036,7 +1089,7 @@ func TestCronActivitiesStreaming(t *testing.T) {
 		var auditLogger jsonLogger
 		err := cronActivitiesStreaming(context.Background(), ds, log.NewNopLogger(), &auditLogger)
 		require.NoError(t, err)
-		require.Len(t, auditLogger.logs, int(ActivitiesToStreamBatchCount)*2+1)
+		require.Len(t, auditLogger.logs, int(ActivitiesToStreamBatchCount)*2+1) //nolint:gosec // dismiss G115
 		require.Equal(t, 3, call)
 	})
 }
@@ -1077,7 +1130,9 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 		fleet.MDMAssetCACert: {Value: testCertPEM},
 		fleet.MDMAssetCAKey:  {Value: testKeyPEM},
 	}
-	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return assets, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {

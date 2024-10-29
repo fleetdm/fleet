@@ -1,5 +1,6 @@
 import React, { useContext, useEffect } from "react";
 import { InjectedRouter } from "react-router";
+import { isAxiosError } from "axios";
 
 import PATHS from "router/paths";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
@@ -8,14 +9,16 @@ import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 import softwareAPI, {
   MAX_FILE_SIZE_BYTES,
   MAX_FILE_SIZE_MB,
-  UPLOAD_TIMEOUT,
 } from "services/entities/software";
 
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
 import { getErrorReason } from "interfaces/errors";
 
 import CustomLink from "components/CustomLink";
 import FileProgressModal from "components/FileProgressModal";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+
 import PackageForm from "pages/SoftwarePage/components/PackageForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
 
@@ -37,14 +40,13 @@ const SoftwareCustomPackage = ({
   setSidePanelOpen,
 }: ISoftwarePackageProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const { isPremiumTier } = useContext(AppContext);
   const [uploadProgress, setUploadProgress] = React.useState(0);
   const [uploadDetails, setUploadDetails] = React.useState<IFileDetails | null>(
     null
   );
 
   useEffect(() => {
-    let timeout: NodeJS.Timeout;
-
     const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       // Next line with e.returnValue is included for legacy support
@@ -55,9 +57,6 @@ const SoftwareCustomPackage = ({
     // set up event listener to prevent user from leaving page while uploading
     if (uploadDetails) {
       addEventListener("beforeunload", beforeUnloadHandler);
-      timeout = setTimeout(() => {
-        removeEventListener("beforeunload", beforeUnloadHandler);
-      }, UPLOAD_TIMEOUT);
     } else {
       removeEventListener("beforeunload", beforeUnloadHandler);
     }
@@ -65,7 +64,6 @@ const SoftwareCustomPackage = ({
     // clean up event listener and timeout on component unmount
     return () => {
       removeEventListener("beforeunload", beforeUnloadHandler);
-      clearTimeout(timeout);
     };
   }, [uploadDetails]);
 
@@ -103,20 +101,13 @@ const SoftwareCustomPackage = ({
       await softwareAPI.addSoftwarePackage({
         data: formData,
         teamId: currentTeamId,
-        timeout: UPLOAD_TIMEOUT,
         onUploadProgress: (progressEvent) => {
-          setUploadProgress(progressEvent.progress || 0);
+          const progress = progressEvent.progress || 0;
+          // for large uploads it seems to take a bit for the server to finalize its response so we'll keep the
+          // progress bar at 97% until the server response is received
+          setUploadProgress(Math.max(progress - 0.03, 0.01));
         },
       });
-      renderFlash(
-        "success",
-        <>
-          <b>{formData.software?.name}</b> successfully added.
-          {formData.selfService
-            ? " The end user can install from Fleet Desktop."
-            : ""}
-        </>
-      );
 
       const newQueryParams: QueryParams = { team_id: currentTeamId };
       if (formData.selfService) {
@@ -127,11 +118,28 @@ const SoftwareCustomPackage = ({
       router.push(
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(newQueryParams)}`
       );
+
+      renderFlash(
+        "success",
+        <>
+          <b>{formData.software?.name}</b> successfully added.
+          {formData.selfService
+            ? " The end user can install from Fleet Desktop."
+            : ""}
+        </>
+      );
     } catch (e) {
+      const isTimeout =
+        isAxiosError(e) &&
+        (e.response?.status === 504 || e.response?.status === 408);
       const reason = getErrorReason(e);
-      if (
-        reason.includes("Couldn't add. Fleet couldn't read the version from")
-      ) {
+
+      if (isTimeout) {
+        renderFlash(
+          "error",
+          `Couldn’t upload. Request timeout. Please make sure your server and load balancer timeout is long enough.`
+        );
+      } else if (reason.includes("Fleet couldn't read the version from")) {
         renderFlash(
           "error",
           <>
@@ -150,6 +158,12 @@ const SoftwareCustomPackage = ({
     }
     setUploadDetails(null);
   };
+
+  if (!isPremiumTier) {
+    return (
+      <PremiumFeatureMessage className={`${baseClass}__premium-message`} />
+    );
+  }
 
   return (
     <div className={baseClass}>

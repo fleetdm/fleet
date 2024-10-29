@@ -81,8 +81,8 @@ func (ds *Datastore) NewSession(ctx context.Context, userID uint, sessionKey str
 		return nil, ctxerr.Wrap(ctx, err, "inserting session")
 	}
 
-	id, _ := result.LastInsertId() // cannot fail with the mysql driver
-	return ds.sessionByID(ctx, ds.writer(ctx), uint(id))
+	id, _ := result.LastInsertId()                       // cannot fail with the mysql driver
+	return ds.sessionByID(ctx, ds.writer(ctx), uint(id)) //nolint:gosec // dismiss G115
 }
 
 func (ds *Datastore) DestroySession(ctx context.Context, session *fleet.Session) error {

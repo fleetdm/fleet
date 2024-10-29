@@ -32,7 +32,7 @@ const addSoftwareSubNav: IAddSoftwareSubNavItem[] = [
     pathname: PATHS.SOFTWARE_ADD_APP_STORE,
   },
   {
-    name: "Custom Package",
+    name: "Custom package",
     pathname: PATHS.SOFTWARE_ADD_PACKAGE,
   },
 ];
@@ -111,7 +111,7 @@ const SoftwareAddPage = ({
             path={backUrl}
             className={`${baseClass}__back-to-software`}
           />
-          <h1>Add Software</h1>
+          <h1>Add software</h1>
           <TabsWrapper>
             <Tabs
               selectedIndex={getTabIndex(location?.pathname || "")}

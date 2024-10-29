@@ -47,6 +47,7 @@
 		},
 		"mdm": {
 			"apple_business_manager": null,
+			"apple_server_url": "",
 			"volume_purchasing_program": null,
 			"apple_bm_terms_expired": false,
 			"apple_bm_enabled_and_configured": false,
@@ -81,7 +82,9 @@
 				"bootstrap_package": null,
 				"enable_end_user_authentication": false,
 				"macos_setup_assistant": null,
-				"enable_release_device_manually": false
+				"enable_release_device_manually": false,
+				"script": null,
+				"software": null
 			},
 			"windows_settings": {
 				"custom_settings": null
@@ -140,7 +143,8 @@
 		"integrations": {
 			"jira": null,
 			"zendesk": null,
-			"google_calendar": null
+			"google_calendar": null,
+			"ndes_scep_proxy": null
 		},
 		"update_interval": {
 			"osquery_detail": "1h0m0s",

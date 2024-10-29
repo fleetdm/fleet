@@ -494,7 +494,7 @@ func NewSoapResponse(payload interface{}, relatesTo string) (fleet.SoapResponse,
 
 		// Setting the target action
 	case *mdm_types.SoapFault:
-		if msg.OriginalMessageType == mdm_types.MDEDiscovery {
+		if msg.OriginalMessageType == mdm_types.MDEDiscovery { //nolint:gocritic // ignore ifElseChain
 			action = urlDiscovery
 		} else if msg.OriginalMessageType == mdm_types.MDEPolicy {
 			action = urlPolicy
@@ -1610,7 +1610,8 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	}
 
 	// Combined cmd responses
-	resCmds := append(resIncomingCmds, resPendingCmds...)
+	resCmds := resIncomingCmds
+	resCmds = append(resCmds, resPendingCmds...)
 
 	// Create the response SyncML message
 	msg, err := svc.createResponseSyncML(ctx, reqMsg, resCmds)

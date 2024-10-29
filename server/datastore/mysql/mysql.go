@@ -34,7 +34,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
 	"github.com/ngrok/sqlmw"
-	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
 const (
@@ -399,7 +399,33 @@ var otelTracedDriverName string
 
 func init() {
 	var err error
-	otelTracedDriverName, err = otelsql.Register("mysql", semconv.DBSystemMySQL.Value.AsString())
+	otelTracedDriverName, err = otelsql.Register("mysql",
+		otelsql.WithAttributes(semconv.DBSystemMySQL),
+		otelsql.WithSpanOptions(otelsql.SpanOptions{
+			// DisableErrSkip ignores driver.ErrSkip errors which are frequently returned by the MySQL driver
+			// when certain optional methods or paths are not implemented/taken.
+			// For example: interpolateParams=false (the secure default) will not do a parametrized sql.conn.query directly without preparing it first, causing driver.ErrSkip
+			DisableErrSkip: true,
+			// Omitting span for sql.conn.reset_session since it takes ~1us and doesn't provide useful information
+			OmitConnResetSession: true,
+			// Omitting span for sql.rows since it is very quick and typically doesn't provide useful information beyond what's already reported by prepare/exec/query
+			OmitRows: true,
+		}),
+		// WithSpanNameFormatter allows us to customize the span name, which is especially useful for SQL queries run outside an HTTPS transaction,
+		// which do not belong to a parent span, show up as their own trace, and would otherwise be named "sql.conn.query" or "sql.conn.exec".
+		otelsql.WithSpanNameFormatter(func(ctx context.Context, method otelsql.Method, query string) string {
+			if query == "" {
+				return string(method)
+			}
+			// Append query with extra whitespaces removed
+			query = strings.Join(strings.Fields(query), " ")
+			const maxQueryLen = 100
+			if len(query) > maxQueryLen {
+				query = query[:maxQueryLen] + "..."
+			}
+			return string(method) + ": " + query
+		}),
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -886,7 +912,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 			team.Role == fleet.RoleMaintainer ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
-			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+			idStrs = append(idStrs, fmt.Sprint(team.ID))
 			if filter.TeamID != nil && *filter.TeamID == team.ID {
 				teamIDSeen = true
 			}
@@ -962,7 +988,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
 			team.Role == fleet.RoleMaintainer ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
-			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+			idStrs = append(idStrs, fmt.Sprint(team.ID))
 			if filter.TeamID != nil && *filter.TeamID == team.ID {
 				teamIDSeen = true
 			}
@@ -1021,7 +1047,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 			team.Role == fleet.RoleGitOps ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
-			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+			idStrs = append(idStrs, fmt.Sprint(team.ID))
 		}
 	}
 
@@ -1042,7 +1068,7 @@ func (ds *Datastore) whereOmitIDs(colName string, omit []uint) string {
 
 	var idStrs []string
 	for _, id := range omit {
-		idStrs = append(idStrs, strconv.Itoa(int(id)))
+		idStrs = append(idStrs, fmt.Sprint(id))
 	}
 
 	return fmt.Sprintf("%s NOT IN (%s)", colName, strings.Join(idStrs, ","))
@@ -1132,8 +1158,8 @@ type patternReplacer func(string) string
 
 // likePattern returns a pattern to match m with LIKE.
 func likePattern(m string) string {
-	m = strings.Replace(m, "_", "\\_", -1)
-	m = strings.Replace(m, "%", "\\%", -1)
+	m = strings.ReplaceAll(m, "_", "\\_")
+	m = strings.ReplaceAll(m, "%", "\\%")
 	return "%" + m + "%"
 }
 
@@ -1322,7 +1348,7 @@ func (ds *Datastore) optimisticGetOrInsertWithWriter(ctx context.Context, writer
 				return 0, ctxerr.Wrap(ctx, err, "insert")
 			}
 			id, _ := res.LastInsertId()
-			return uint(id), nil
+			return uint(id), nil //nolint:gosec // dismiss G115
 		}
 		return 0, ctxerr.Wrap(ctx, err, "get id from reader")
 	}

@@ -19,7 +19,8 @@ The Finance department is directly responsible for accounts receivable including
 
 
 ### Run payroll
-Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy.
+Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy. 
+
  - Salaried fleeties are automated in Gusto and Plane.
  - Hourly fleeties and consultants are a manual process each month in Gusto and Plane.
 
@@ -29,7 +30,51 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 | Sign-on bonus                | "Bonus" payroll              | Head of Finance
 | Performance bonus            | "Bonus" payroll              | Head of Finance     
 | Accelerations (quarterly)    | "Off-cycle - Commission" payroll          | Head of Finance
-| [US contractor payroll](https://fleetdm.com/handbook/finance#run-us-contractor-payroll) | "Off-cycle" payroll | Head of Finance
+| [US contractor payroll](https://fleetdm.com/handbook/finance#run-payroll) | "Off-cycle" payroll | Head of Finance
+
+To complete payroll for a salaried US employee, use the following steps:
+1. Log in to your admin [Gusto](https://app.gusto.com/login) account.
+2. Navigate to Pay > Run payroll > Run payroll.
+3. Navigate to the Digital Experience board, and search for "welcoming" issues or "offboarding" issues.
+4. Ensure that new hires during the payroll period have accurate hours and salary rates reflected (compare with the equity plan), and that offboarded employees' final hours are correctly recorded and their final payroll processed.
+5. Check for any workiversary compensation changes for the month and ensure they're correctly reflected in both Gusto and the equity plan. 
+6. Once the above is verified correct, ensure payment is via direct deposit and select "Review summary".
+7. Ensure the payroll date is the last business day of the month, and hit submit.
+
+To complete payroll for a salaried international employee, use the following steps:
+1. Log in to your admin [Plane](https://id.plane.com/login) account. 
+   - While Fleet considers all Fleeties employees, Plane differentiates between employees (that Fleet employs directly) and International contractors (that Fleet employs via a contracted company).
+2. Verify the number of employees in each country by checking the "Stats" tab in the [Fleeties doc](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?gid=1874060596#gid=1874060596). If the numbers seem incorrect, cross-reference with the main Fleeties tab to ensure all employees are accounted for in Plane.
+3. Verify that all teammates have a planned (or already processed) payroll.
+   - To check payroll for those Plane considers "employees", go to Payroll > History.
+      - Verify that any employees getting paid more frequently than monthly have had their payments processed throughout the month (Canada only currently).
+      - Navigate to the Digital Experience board, and search for "welcoming" issues or "offboarding" issues.
+      - Ensure that new hires during the payroll period have accurate hours and salary rates reflected (compare with the equity plan), and that offboarded employees' final hours are correctly recorded and their final payroll processed.
+      - Check for any workiversary compensation changes for the month and ensure they're correctly reflected in both Plane and the equity plan.
+      - If anything is incorrect, open a "help" ticket using the purple help button and schedule a change/correction for the following pay cycle (note Plane takes more time to process so it is not possible to make instantaneous changes to rectify issues)
+   - To check payroll for those Plane considers "contractors", go to "Payments" > "Pay contractors".
+      - Navigate to the "scheduled" tab in the top right of screen to look at what is currently scheduled to be paid.
+      - Ensure all teammates have a pending payment (except those that invoice for payment).
+      - Navigate to the Digital Experience board, and search for "welcoming" issues or "offboarding" issues
+      - Ensure that new hires during the payroll period have accurate hours and salary rates reflected (compare with the equity plan), and that offboarded employees' final hours are correctly recorded and their final payroll processed.
+      - Check for any workiversary compensation changes for the month and ensure they're correctly reflected in both Plane and the equity plan.
+      - If anything is incorrect, open a "help" ticket using the purple help button and schedule a change/correction for the following pay cycle (note Plane takes more time to process so it is not possible to make instantaneous changes to rectify issues)
+      - If all payments are scheduled or processing and are correct, no action needed. This payroll will process successfully without intervention.
+    
+To complete payroll for a US contractor, use the following steps:
+1. Log in to your admin [Gusto](https://app.gusto.com/login) account.
+2. Navigate to Time & Attendance > Time tracking > Review & Sync. 
+3. Click "Sync hours to payments" and confirm that the dates reflect the period from the 27th of the previous month to the 26th of the current month.
+4. Cross-check total hours for contractors in Gusto to the total hours in the [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0) to ensure they're correct. Since the KPI spreadsheet tracks hours weekly, ensure any discrepancies are validated.
+5. Once all entries have been validated, click Sync and lock timesheets > Continue.
+6. Validate payment amounts are correct, then submit payments.
+
+To complete payroll for an international contractor, use the following steps:
+1. Contractors in Plane will submit invoices for payment at the end of the month.
+2. When the contractor submits the invoice for payment, log in to [Plane](https://id.plane.com/login) and validate that the amount of hours is in line with time worked, by having their manager review.
+3. If their manager verifies that the hours are as expected, process the invoice.
+   - Note: Approving the invoice for payment does not automatically schedule the payment. You will then need to navigate to "Pay contractors" and schedule the payment.
+
 
 ### Reconcile monthly recurring expenses
 Recurring monthly or annual expenses, such as the tools we use throughout Fleet, are tracked as recurring, non-personnel expenses in ["🧮 The Numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) _(¶confidential Google Sheet)_, along with their payment source. Reconciliation of recurring expenses happens monthly. <!-- TODO: Merge "🧮 The Numbers" and  ["Tools we use" (private Google doc)](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing) -->
@@ -104,16 +149,53 @@ States checked:
 5. Check off states that are correct, and use comments to explain any quirks or remediation that's needed.
 
 
-### Run US contractor payroll
-For Fleet's US contractors, running payroll is a manual process:
-1. Add the amount to be paid to the "Gross" line.
-2. Review hours _("Time tools > Time tracking")_
-3. Adjust time frame to match current payroll period (the 27th through 26th of the month)
-4. Sync hours and run contractor payroll.
+### Update Finance department KPIs
+
+Use the following steps to update the [💸Finance department KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0&range=BS:BS) by 5pm US central time every Friday.
+
+**Runway**: 
+- Add sum of Brex cash account + SVB accounts. All Finance teammates should have personalized logins for each bank to view amounts.
+- Send the CEO a Slack DM with the balance of each of Fleet's two bank accounts.
+
+**Days to invoice customer**: 
+- Check the [invoice sent and payment received report]((https://fleetdm.lightning.force.com/lightning/r/Report/00O4x000007chpzEAA/view?queryScope=userFolders)) in Salesforce.
+- Sort by close date, then check invoice dates for any recently closed deals and enter them in the finance spreadsheet and create new rows at the top of the 'time-to-invoice' tab in the spreadsheet for each new entry.  If a company has not been invoiced yet (invoice date is blank) do not enter yet, but verify if an invoice is scheduled to be sent using the [Invoice status and upcoming bill dates](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000010r8b2AA/view) report. If it doesn't appear here, create an issue on the finance board to investigate. 
+- Open the ["Time-to-invoice" tab](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=1835263594) in the [💸 Finance  metrics spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0). Enter the year and month + customer name in column A, then the # of days between the close date and the invoice date in column B. After entering new entries you will probably have to adjust the formula in column D to include the new cells in the average and make sure the formula includes no further back than the last three months of invoices.
+
+**Overdue delinquent invoices**: 
+- Using the [Invoice status and upcoming bill dates](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000010r8b2AA/view) report, check the invoice date of any entries without a payment received date against the payment terms.
+  - If the elapsed time exceeds the payment terms the invoice is overdue. If so, click on the link in the "Billing cycle name," and in the billing cycle object, update the billing status to "Overdue."
+  - Enter the number of invoices overdue in the KPI spreadsheet, and leave a comment on that cell with the names of the companies of overdue customers, if any.  
+  - If any new customers are overdue, notify the CRO by posting a Slack message in the #g-sales channel and @ mention him.
+
+**Commission payroll**: 
+- Make sure commission payroll was run on time by logging into [Gusto](https://www.gusto.com) and [Plane](https://plane.com/) to check for off-cycle payrolls in line with expected commission calculated in the [Commission calculator spreadsheet](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing).
+- Log the date the commission was paid out in the "Commission payroll" column of the KPI spreadsheet.
+
+**Monthly accounting**: 
+- This will be the date that the monthly accounting issue for the prior month closes. If it has not yet closed, enter N/A.
+
+**Days to pay**:
+- Login to [Bill](https://www.bill.com).
+  - Under the "bills" tab on the menu bar on the left side, select "all bills".
+  - Sort by "created date."
+  - Compare the week's entries to the ["Time to pay"](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=1704186727) tab in the finance metrics spreadsheet.  Insert new rows at the top for any bills that are not accounted for and enter the vendor name and the # of days between the invoice date and the created date in bill.com.  
+  - Adjust the formula in column E as necessary to calculate the last 30 day average time to pay and enter the result in the KPI spreadsheet. 
+  - If we have any invoices that have not yet been paid that are overdue, make an entry in the overdue vendor payments section and leave a comment in the cell identifying the vendor's name. 
+
+**Non-personnel monthly burn**: 
+- Copy the amount from the [numbers spreadsheet](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=1308221870&range=B3) and input in the cell for this week.
+
+**SaaS metrics**: 
+- For "CAC", "CAC payback", "LTV" and "LTV:CAC" columns, drag the existing formula to this week's row.
+> Note: the formula relies on inputs in other fields, so if those fields haven't received input yet, it will look odd. If formulas are still broken after inputs in the other columns are added, [create an issue on the Finance board](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-finance&projects=&template=custom-request.md) noting which columns are affected. Once created, @ mention Head of Finance in the issue to bring awareness.
+  
+- For "Average customer age", pull the age in days from the [Salesforce "Account age" report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000012jwX2AQ/view), then convert to months by dividing the age in days by 30.417. Put the calculated number into the cell. This metric changes gradually up each week when no new deals close and no customer churns. Because we calculate the age of the customer based on the average lifetime deal length, expected behavior is that it will decrease when a new deal closes, but not drastically (as even a 1-year deal will still add 12 months to the average age).
+
 
 ### Create an invoice
 To create a new invoice for a Fleet customer, follow these steps:
-1. Go to the [invoice folder in google drive](https://drive.google.com/drive/folders/11limC_KQYNYQPApPoXN0CplHo_5Qgi2b?usp=drive_link).
+1. Go to the [invoice folder in Google Drive](https://drive.google.com/drive/folders/11limC_KQYNYQPApPoXN0CplHo_5Qgi2b?usp=drive_link).
 2. Create a copy of the invoice template, and title the copy `[invoice number] Fleet invoice - [customer name]`.
     - The invoice number follows the format of `YYMMDD[daily issued invoice number]`, where the daily issued invoice number should equal `01` if it's the first invoice issued that day, `02` if it's the second, etc.
 3.  Edit the new invoice to reflect details from the signed subscription agreement (and PO if required).
@@ -281,10 +363,6 @@ Fleet pays its vendors in less than 15 business days in most cases. All invoices
 ### Process a request to cancel a vendor
 - Make the cancellation notification in accordance with the contract terms between Fleet and the vendor, typically these notifications are made via email and may have a specific address that notice must be sent to. If the vendor has an autorenew contract with Fleet there will often be a window of time in which Fleet can cancel, if notification is made after this time period Fleet may be obligated to pay for the subsequent year even if we don't use the vendor during the next contract term.  
 - Once cancelled, update the recurring expenses section of [The Numbers](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) to reflect the cancellation by changing the projected monthly burn in column G to $0 and adding "CANCELLED" in front of the vendor's name in column C.
-
-
-### Update weekly KPIs
-- Create the weekly update issue from the template in ZenHub every Friday and update the [KPIs for finance](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) by 5pm US central time.
 
 
 ## Rituals

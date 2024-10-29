@@ -195,8 +195,8 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 	query := r.URL.Query().Get("query")
 
 	return fleet.ListOptions{
-		Page:           uint(page),
-		PerPage:        uint(perPage),
+		Page:           uint(page),    //nolint:gosec // dismiss G115
+		PerPage:        uint(perPage), //nolint:gosec // dismiss G115
 		OrderKey:       orderKey,
 		OrderDirection: orderDirection,
 		MatchQuery:     strings.TrimSpace(query),

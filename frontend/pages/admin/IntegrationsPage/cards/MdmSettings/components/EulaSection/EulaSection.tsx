@@ -1,12 +1,8 @@
 import React, { useContext, useState } from "react";
-import { useQuery } from "react-query";
-import { AxiosResponse } from "axios";
 
-import { IApiError } from "interfaces/errors";
 import mdmAPI, { IEulaMetadataResponse } from "services/entities/mdm";
 import { NotificationContext } from "context/notification";
 
-import Spinner from "components/Spinner";
 import SettingsSection from "pages/admin/components/SettingsSection";
 
 import EulaUploader from "./components/EulaUploader/EulaUploader";

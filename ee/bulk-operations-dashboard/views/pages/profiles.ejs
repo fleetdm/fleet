@@ -150,5 +150,6 @@
       </ajax-form>
     </div>
   </modal>
+  <ajax-overlay :syncing-message="syncingMessage" :syncing="overlaySyncing"></ajax-overlay>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

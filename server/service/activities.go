@@ -67,6 +67,8 @@ func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity 
 	return newActivity(ctx, user, activity, svc.ds, svc.logger)
 }
 
+var automationActivityAuthor = "Fleet"
+
 func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, ds fleet.Datastore, logger kitlog.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -84,6 +86,8 @@ func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityD
 		var userID *uint
 		var userName *string
 		var userEmail *string
+		activityType := activity.ActivityName()
+
 		if user != nil {
 			// To support creating activities with users that were deleted. This can happen
 			// for automatically installed software which uses the author of the upload as the author of
@@ -93,8 +97,16 @@ func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityD
 			}
 			userName = &user.Name
 			userEmail = &user.Email
+		} else if ranScriptActivity, ok := activity.(fleet.ActivityTypeRanScript); ok {
+			if ranScriptActivity.PolicyID != nil {
+				userName = &automationActivityAuthor
+			}
+		} else if softwareInstallActivity, ok := activity.(fleet.ActivityTypeInstalledSoftware); ok {
+			if softwareInstallActivity.PolicyID != nil {
+				userName = &automationActivityAuthor
+			}
 		}
-		activityType := activity.ActivityName()
+
 		go func() {
 			retryStrategy := backoff.NewExponentialBackOff()
 			retryStrategy.MaxElapsedTime = 30 * time.Minute

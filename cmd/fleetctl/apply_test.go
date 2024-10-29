@@ -141,7 +141,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 
 	i := 1
 	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
-		team.ID = uint(i)
+		team.ID = uint(i) //nolint:gosec // dismiss G115
 		i++
 		teamsByName[team.Name] = team
 		return team, nil
@@ -2031,7 +2031,7 @@ func TestApplyMacosSetup(t *testing.T) {
 		tmID := 1 // new teams will start at 2
 		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			tmID++
-			team.ID = uint(tmID)
+			team.ID = uint(tmID) //nolint:gosec // dismiss G115
 			clone := *team
 			teamsByName[team.Name] = &clone
 			teamsByID[team.ID] = &clone
@@ -2104,7 +2104,7 @@ func TestApplyMacosSetup(t *testing.T) {
 		asstID := 0
 		ds.SetOrUpdateMDMAppleSetupAssistantFunc = func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
 			asstID++
-			asst.ID = uint(asstID)
+			asst.ID = uint(asstID) //nolint:gosec // dismiss G115
 			asst.UploadedAt = time.Now()
 
 			var tmID uint
@@ -2790,7 +2790,7 @@ func TestApplySpecs(t *testing.T) {
 		i := 1 // new teams will start at 2
 		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			i++
-			team.ID = uint(i)
+			team.ID = uint(i) //nolint:gosec // dismiss G115
 			teamsByName[team.Name] = team
 			return team, nil
 		}

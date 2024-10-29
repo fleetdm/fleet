@@ -202,6 +202,18 @@ const FleetAce = ({
 
   const onLoadHandler = (editor: IAceEditor) => {
     fixHotkeys(editor);
+
+    // Lose focus using the Escape key so you can Tab forward (or Shift+Tab backwards) through app
+    editor.commands.addCommand({
+      name: "escapeToBlur",
+      bindKey: { win: "Esc", mac: "Esc" },
+      exec: (aceEditor) => {
+        aceEditor.blur(); // Lose focus from the editor
+        return true;
+      },
+      readOnly: true,
+    });
+
     onLoad && onLoad(editor);
   };
 

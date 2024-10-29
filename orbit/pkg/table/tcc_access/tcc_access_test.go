@@ -29,11 +29,12 @@ func TestGenerate(t *testing.T) {
 
 	// Check "uid" of the returned rows match the entries in the TCC files.
 	for _, row := range rows {
-		if strings.HasPrefix(row["service"], "test-sys-service-") {
+		switch {
+		case strings.HasPrefix(row["service"], "test-sys-service-"):
 			require.Equal(t, "0", row["uid"])
-		} else if strings.HasPrefix(row["service"], "test-u1-service-") {
+		case strings.HasPrefix(row["service"], "test-u1-service-"):
 			require.Equal(t, "1", row["uid"])
-		} else if strings.HasPrefix(row["service"], "test-u2-service-") {
+		case strings.HasPrefix(row["service"], "test-u2-service-"):
 			require.Equal(t, "2", row["uid"])
 		}
 	}

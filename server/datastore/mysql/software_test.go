@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"maps"
 	"math/rand"
 	"sort"
 	"strings"
@@ -1751,7 +1752,7 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 			case lts != nil && rts == nil:
 				return false
 			default:
-				return (*lts).Before(*rts) || ((*lts).Equal(*rts) && lsw.Name < rsw.Name)
+				return lts.Before(*rts) || (lts.Equal(*rts) && lsw.Name < rsw.Name)
 			}
 		}
 	}
@@ -1972,7 +1973,7 @@ func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 
 		occurrence := make(map[string]int)
 		for _, v := range storedVulns[host.ID] {
-			occurrence[v.CVE] = occurrence[v.CVE] + 1
+			occurrence[v.CVE]++
 		}
 		require.Equal(t, 1, occurrence["cve-1"])
 	})
@@ -2016,7 +2017,7 @@ func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 
 		occurrence := make(map[string]int)
 		for _, v := range storedVulns[host.ID] {
-			occurrence[v.CVE] = occurrence[v.CVE] + 1
+			occurrence[v.CVE]++
 		}
 		require.Equal(t, 1, occurrence["cve-1"])
 		require.Equal(t, 1, occurrence["cve-2"])
@@ -3873,6 +3874,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	vpp1TmCmdUUID := createVPPAppInstallRequest(t, ds, tmHost, vpp1, user.ID)
 	require.NotEmpty(t, vpp1TmCmdUUID)
 
+	expectedWithoutVPP := maps.Clone(expected)
+
 	expected["vpp1apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp1",
 		Source:      "apps",
@@ -3893,12 +3896,26 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 2}, meta)
 	compareResults(expected, sw, true, i3.Name+i3.Source, i2.Name+i2.Source) // i3 is for team, i2 is available (excluded)
 
+	// Exclude VPP apps from query
+	opts.ExcludeVPPApps = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 4}, meta)
+	compareResults(expectedWithoutVPP, sw, true, i3.Name+i3.Source, i2.Name+i2.Source) // i3 is for team, i2 is available (excluded)
+	opts.ExcludeVPPApps = false
+
 	expected["vpp3apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp3",
 		Source:      "apps",
 		Status:      nil,
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, SelfService: ptr.Bool(true)},
 	}
+
+	expectedAvailableOnlyExcludeVPP := maps.Clone(expectedAvailableOnly)
+	for _, app := range expectedAvailableOnlyExcludeVPP {
+		fmt.Printf("  app: %+v\n", app)
+	}
+
 	expectedAvailableOnly["vpp1apps"] = expected["vpp1apps"]
 	expectedAvailableOnly["vpp2apps"] = expected["vpp2apps"]
 	expectedAvailableOnly["vpp3apps"] = expected["vpp3apps"]
@@ -3909,12 +3926,30 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 1}, meta)
 	compareResults(expected, sw, true, i3.Name+i3.Source) // i3 is for team
 
+	// Exclude vpp apps from query
+	opts.ExcludeVPPApps = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 4}, meta)
+	compareResults(expectedWithoutVPP, sw, true, i3.Name+i3.Source) // i3 is for team
+	opts.ExcludeVPPApps = false
+
 	// Available for install only
 	opts.OnlyAvailableForInstall = true
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	assert.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expectedAvailableOnly))}, meta)
 	compareResults(expectedAvailableOnly, sw, true)
+	opts.OnlyAvailableForInstall = false
+
+	// Available for install only without vpp
+	opts.OnlyAvailableForInstall = true
+	opts.ExcludeVPPApps = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expectedAvailableOnlyExcludeVPP))}, meta)
+	compareResults(expectedAvailableOnlyExcludeVPP, sw, true)
+	opts.ExcludeVPPApps = false
 	opts.OnlyAvailableForInstall = false
 
 	// team host sees available i3 and pending vpp1
@@ -4572,7 +4607,7 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// install it on the host
-	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerTm1, false)
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerTm1, false, nil)
 	require.NoError(t, err)
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
@@ -4682,7 +4717,7 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 	require.NoError(t, err)
 
 	// fail to install it on the host
-	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerTm1, false)
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerTm1, false, nil)
 	require.NoError(t, err)
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,

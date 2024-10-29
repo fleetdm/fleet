@@ -6,35 +6,11 @@ Fleet [v4.50.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.50.0) int
 
 ## Prerequisites
 
-* Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0).
+* `fleetd` deployed with the `--enable-scripts` flag. If you're using MDM features, scripts are enabled by default.
 
-* `fleetd` 1.25.0 deployed via MDM or built with the `--scripts-enabled` flag.
-
-> `fleetd` prior to 1.33.0 will use a hard-coded uninstall script to clean up from a failed install. As of 1.33.0, the (default or customized) uninstall script will be used to clean up failed installs.
-
-* An S3 bucket [configured](https://fleetdm.com/docs/configuration/fleet-server-configuration#s-3-software-installers-bucket) to store the installers.
-
-* Increase any load balancer timeouts to at least 5 minutes for the [Add package](https://fleetdm.com/docs/rest-api/rest-api#add-package) and [Modify package](https://fleetdm.com/docs/rest-api/rest-api#modify-package) endpoints.
+* If you're self-hosting Fleet, you need an S3 bucket [configured](https://fleetdm.com/docs/configuration/fleet-server-configuration#s-3-software-installers-bucket) to store the packages. Increase any load balancer timeouts to at least 5 minutes for the [Add package](https://fleetdm.com/docs/rest-api/rest-api#add-package) and [Modify package](https://fleetdm.com/docs/rest-api/rest-api#modify-package) API endpoints.
 
 ## Step-by-step instructions
-
-### Access software packages
-
-To access and manage software in Fleet:
-
-* **Navigate to the Software page**: Click on the "Software" tab in the main navigation menu.
-
-* **Select a team**: Click on the dropdown at the top left of the page.
-
-> Software packages are tied to a specific team. This allows you to, for example, test a newer release of an application within your IT team before rolling it out to the rest of your organization, or deploy the appropriate architecture-specific installer to both Intel and Apple Silicon Macs.
-
-* **Find your software**: using the filters on the top of the table, you can choose between:
-
-    * “Available for install” filters software that can be installed on your hosts.
-
-    * “Self-service” filters software that end users can install from Fleet Desktop.
-
-* **Select software package**: Click on a software package to view details and access additional actions for the software.
 
 ### Add a software package to a team
 
@@ -46,9 +22,9 @@ To access and manage software in Fleet:
 
 * Click the “Add Software” button in the top right corner, and a dialog will appear.
 
-* Choose a file to upload. `.pkg`, `.msi`, `.exe`, and `.deb` files are supported.
+* Choose a file to upload. `.pkg`, `.msi`, `.exe`, `.rpm`, and `.deb` files are supported.
 
-> Software installer uploads will fail if Fleet is unable to extract information from the installer package such bundle ID and version number.
+> Software installer uploads will fail if Fleet is unable to extract information from the installer package such as bundle ID and version number.
 
 * To allow users to install the software from Fleet Desktop, check the “Self-service” checkbox.
 
@@ -110,7 +86,7 @@ After a software package is added to a team, it can be installed on hosts via th
 
 * **Edit software package**: From the Actions menu, select "Edit."
 
-> Editing the pre-install query, install script, post-install script, or uninstall script cancels all pending installations and uninstallations for that package, except for installs and uninstalls that are currently running on a host. If a new software package is uploaded, in addition to canceling pending installs and uninstalls, host counts (for installs and pending and failed installs and uninstalls) will be reset to zero, so counts reflect the currently uploaded version of the package.
+> Editing the advanced options cancels all pending installations and uninstallations for that package. Installs and uninstalls currently running on a host will complete, but results won't appear in Fleet. The software's host counts will be reset.
 
 ### Uninstall a software package on a host
 
@@ -124,7 +100,7 @@ After a software package is installed on a host, it can be uninstalled on the ho
 
 * **Find your software package**: Use the dropdown to select software “Available for install” or use the search bar to search for your software package by name.
 
-* **Uninstall the software package from the host**: In the rightmost column of the table, click on “Actions” > “Uninstall.”  Uninstallation will happen automatically or when the host comes online.
+* **Uninstall the software package from the host**: In the rightmost column of the table, click on “Actions” > “Uninstall.”
 
 * **Track uninstallation status**: by either
 
@@ -149,6 +125,24 @@ After a software package is installed on a host, it can be uninstalled on the ho
 * **Remove software package**: From the Actions menu, select "Delete." Click the "Delete" button on the dialog.
 
 > Removing a software package from a team will cancel pending installs for hosts that are not in the middle of installing the software but will not uninstall the software from hosts where it is already installed.
+
+### Access software packages
+
+To access and manage software in Fleet:
+
+* **Navigate to the Software page**: Click on the "Software" tab in the main navigation menu.
+
+* **Select a team**: Click on the dropdown at the top left of the page.
+
+> Software packages are tied to a specific team. This allows you to, for example, test a newer release of an application within your IT team before rolling it out to the rest of your organization, or deploy the appropriate architecture-specific installer to both Intel and Apple Silicon Macs.
+
+* **Find your software**: using the filters on the top of the table, you can choose between:
+
+    * “Available for install” filters software that can be installed on your hosts.
+
+    * “Self-service” filters software that end users can install from Fleet Desktop.
+
+* **Select software package**: Click on a software package to view details and access additional actions for the software.
 
 ### Manage software with the REST API
 

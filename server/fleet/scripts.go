@@ -138,6 +138,7 @@ func (hs *HostScriptDetail) setLastExecution(executionID *string, executedAt *ti
 type HostScriptRequestPayload struct {
 	HostID          uint   `json:"host_id"`
 	ScriptID        *uint  `json:"script_id"`
+	PolicyID        *uint  `json:"policy_id"`
 	ScriptContents  string `json:"script_contents"`
 	ScriptContentID uint   `json:"-"`
 	ScriptName      string `json:"script_name"`
@@ -217,6 +218,9 @@ type HostScriptResult struct {
 	// ScriptID is the id of the saved script to execute, or nil if this was an
 	// anonymous script execution.
 	ScriptID *uint `json:"script_id" db:"script_id"`
+	// PolicyID is the id of the policy that triggered the script execution, or
+	// nil if the execution was not triggered by a policy failure
+	PolicyID *uint `json:"policy_id" db:"policy_id"`
 	// UserID is the id of the user that requested execution. It is not part of
 	// the rendered JSON as it is only returned by the
 	// /hosts/:id/activities/upcoming endpoint which doesn't use this struct as
@@ -369,14 +373,15 @@ type ScriptPayload struct {
 }
 
 type SoftwareInstallerPayload struct {
-	URL               string `json:"url"`
-	PreInstallQuery   string `json:"pre_install_query"`
-	InstallScript     string `json:"install_script"`
-	UninstallScript   string `json:"uninstall_script"`
-	PostInstallScript string `json:"post_install_script"`
-	SelfService       bool   `json:"self_service"`
-	FleetMaintained   bool   `json:"-"`
-	Filename          string `json:"-"`
+	URL                string `json:"url"`
+	PreInstallQuery    string `json:"pre_install_query"`
+	InstallScript      string `json:"install_script"`
+	UninstallScript    string `json:"uninstall_script"`
+	PostInstallScript  string `json:"post_install_script"`
+	SelfService        bool   `json:"self_service"`
+	FleetMaintained    bool   `json:"-"`
+	Filename           string `json:"-"`
+	InstallDuringSetup *bool  `json:"install_during_setup"` // if nil, do not change saved value, otherwise set it
 }
 
 type HostLockWipeStatus struct {

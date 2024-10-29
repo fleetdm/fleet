@@ -74,8 +74,10 @@ define HELP_TEXT
 	make generate-go  - Generate and bundle required go code
 	make generate-js  - Generate and bundle required js code
 	make generate-dev - Generate and bundle required code in a watch loop
-	make generate-doc - Generate updated API documentation for activities, osquery flags
 
+	make migration - create a database migration file (supply name=TheNameOfYourMigration)
+
+	make generate-doc     - Generate updated API documentation for activities, osquery flags
 	make dump-test-schema - update schema.sql from current migrations
 	make generate-mock    - update mock data store
 
@@ -125,7 +127,8 @@ fleet-dev: fleet
 fleetctl: .prefix .pre-build .pre-fleetctl
 	# Race requires cgo
 	$(eval CGO_ENABLED := $(shell [[ "${GO_BUILD_RACE_ENABLED_VAR}" = "true" ]] && echo 1 || echo 0))
-	CGO_ENABLED=${CGO_ENABLED} go build -race=${GO_BUILD_RACE_ENABLED_VAR} -o build/fleetctl -ldflags ${LDFLAGS_VERSION} ./cmd/fleetctl
+	$(eval FLEETCTL_LDFLAGS := $(shell echo "${LDFLAGS_VERSION} ${EXTRA_FLEETCTL_LDFLAGS}"))
+	CGO_ENABLED=${CGO_ENABLED} go build -race=${GO_BUILD_RACE_ENABLED_VAR} -o build/fleetctl -ldflags="${FLEETCTL_LDFLAGS}" ./cmd/fleetctl
 
 fleetctl-dev: GO_BUILD_RACE_ENABLED_VAR=true
 fleetctl-dev: fleetctl
@@ -134,7 +137,7 @@ lint-js:
 	yarn lint
 
 lint-go:
-	golangci-lint run --skip-dirs ./node_modules --timeout 15m
+	golangci-lint run --exclude-dirs ./node_modules --timeout 15m
 
 lint: lint-go lint-js
 

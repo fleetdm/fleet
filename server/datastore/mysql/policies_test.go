@@ -889,7 +889,7 @@ type expectedPolicyResults struct {
 func expectedPolicyQueries(policies ...*fleet.Policy) expectedPolicyResults {
 	queries := make(map[string]string)
 	for _, policy := range policies {
-		queries[strconv.Itoa(int(policy.ID))] = policy.Query
+		queries[fmt.Sprint(policy.ID)] = policy.Query
 	}
 	hostPolicies := make([]*fleet.HostPolicy, len(policies))
 	for i := range policies {
@@ -1208,7 +1208,9 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	id, err := res.LastInsertId()
 	require.NoError(t, err)
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{uint(id): nil}, time.Now(), false))
+	require.NoError(t,
+		ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{uint(id): nil}, //nolint:gosec // dismiss G115
+			time.Now(), false))
 
 	policies, err = ds.ListPoliciesForHost(context.Background(), host2)
 	require.NoError(t, err)
@@ -2633,7 +2635,7 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 	res, err := ds.writer(ctx).ExecContext(ctx, createPolStmt, "test_pol", "select 1", user.ID, "", then, then)
 	require.NoError(t, err)
 	id, _ := res.LastInsertId()
-	pol, err := ds.Policy(ctx, uint(id))
+	pol, err := ds.Policy(ctx, uint(id)) //nolint:gosec // dismiss G115
 	require.NoError(t, err)
 
 	require.NoError(t, ds.InitializePolicyViolationDays(ctx)) // sets starting violation count to zero
@@ -2739,7 +2741,7 @@ func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
 		res, err := ds.writer(ctx).ExecContext(ctx, createPolStmt, "p"+strconv.Itoa(i+1), "select 1", user.ID, "", dt, dt)
 		require.NoError(t, err)
 		id, _ := res.LastInsertId()
-		pol, err := ds.Policy(ctx, uint(id))
+		pol, err := ds.Policy(ctx, uint(id)) //nolint:gosec // dismiss G115
 		require.NoError(t, err)
 		pols[i] = pol
 	}

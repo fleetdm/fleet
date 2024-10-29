@@ -17,8 +17,8 @@ queries:
     automations_enabled: true
     logging: snapshot
 policies:
-  - path: ./top.policies.yml
-  - path: ./top.policies2.yml
+  - path: ./policies/policies.yml
+  - path: ./policies/policies2.yml
   - path: ./empty.yml
   - name: 😊😊 Failing $POLICY
     platform: linux
@@ -32,7 +32,7 @@ policies:
     query: SELECT * from osquery_info;
     run_script:
       path: ./lib/collect-fleetd-logs.sh
-  - path: ./script-policy.yml
+  - path: ./policies/script-policy.yml
 software:
   packages:
     - path: ./microsoft-teams.pkg.software.yml
