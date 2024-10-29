@@ -10408,7 +10408,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 
 	// Check that we have the correct software titles
 	var resp listSoftwareTitlesResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles"), nil, http.StatusOK, &resp, "query", "Evernote")
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &resp, "query", "Evernote")
 	expectedTitles := []fleet.SoftwareTitleListResult{
 		{
 			BundleIdentifier: ptr.String("com.evernote.iPhone.Evernote"),
@@ -10442,7 +10442,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	hostsCountTs = time.Now().UTC()
 	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles"), nil, http.StatusOK, &resp, "query", "Evernote")
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &resp, "query", "Evernote")
 	require.Len(t, resp.SoftwareTitles, 2)
 	// Cleaning up the response to make it easier to compare using ElementsMatch
 	for index := range resp.SoftwareTitles {

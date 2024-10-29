@@ -1251,8 +1251,7 @@ the way that the Fleet server works.
 			liveQueryRestPeriod += 10 * time.Second
 
 			// Create the handler based on whether tracing should be there
-			var handler http.Handler
-			handler = launcher.Handler(rootMux)
+			handler := launcher.Handler(rootMux)
 
 			srv := config.Server.DefaultHTTPServer(ctx, handler)
 			if liveQueryRestPeriod > srv.WriteTimeout {

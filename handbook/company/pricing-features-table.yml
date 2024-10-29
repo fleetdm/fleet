@@ -517,7 +517,8 @@
 #  ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║   ║║║╣ ╠═╝║  ║ ║╚╦╝║║║║╣ ║║║ ║ 
 #  ╩ ╩╩  ╩  ╩═╝╩╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝  ═╩╝╚═╝╩  ╩═╝╚═╝ ╩ ╩ ╩╚═╝╝╚╝ ╩ 
 - industryName: Application deployment
-  description: Deploy applications and security agents on macOS, iOS/iPadOS, Linux, Windows, and Android (coming soon) devices. Additionally, install macOS and iOS/iPadOS apps from the App Store (coming soon).
+  description: Deploy applications on macOS, iOS/iPadOS, Linux, Windows, and Android (coming soon). Additionally, install macOS and iOS/iPadOS apps from the App Store.
+  documentationUrl: https://fleetdm.com/guides/deploy-software-packages
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no

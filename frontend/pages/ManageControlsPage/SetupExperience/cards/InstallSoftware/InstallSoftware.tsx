@@ -65,7 +65,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
       return <DataError />;
     }
 
-    if (softwareTitles === null) {
+    if (softwareTitles || softwareTitles === null) {
       return (
         <div className={`${baseClass}__content`}>
           <AddInstallSoftware
