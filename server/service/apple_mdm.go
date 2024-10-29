@@ -2744,6 +2744,7 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	if err != nil {
 		return ctxerr.Wrap(r.Context, err, "getting checkin info")
 	}
+	fmt.Println(">>>> TOKEN UPDATE PLATFORM: ", info.Platform)
 
 	if info.SCEPRenewalInProgress {
 		svc.logger.Log("info", "host lifecycle action received for a SCEP renewal in process", "host_uuid", r.ID)
