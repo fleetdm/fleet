@@ -11,7 +11,7 @@ const baseClass = "add-install-software";
 
 interface IAddInstallSoftwareProps {
   currentTeamId: number;
-  softwareTitles: ISoftwareTitle[];
+  softwareTitles: ISoftwareTitle[] | null;
   onAddSoftware: () => void;
 }
 
@@ -20,40 +20,54 @@ const AddInstallSoftware = ({
   softwareTitles,
   onAddSoftware,
 }: IAddInstallSoftwareProps) => {
-  const hasNoSoftware = softwareTitles.length === 0;
-  const installDuringSetupCount = softwareTitles.filter(
-    (software) =>
-      software.software_package?.install_during_setup ||
-      software.app_store_app?.install_during_setup
-  ).length;
+  const hasNoSoftware = !softwareTitles || softwareTitles.length === 0;
 
-  let addedText = <></>;
-  let buttonText = "";
+  const getAddedText = () => {
+    if (hasNoSoftware) {
+      return (
+        <>
+          No software available to add. Please{" "}
+          <LinkWithContext
+            to={PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}
+            currentQueryParams={{ team_id: currentTeamId }}
+            withParams={{ type: "query", names: ["team_id"] }}
+          >
+            upload software
+          </LinkWithContext>{" "}
+          to be able to add during setup experience.
+        </>
+      );
+    }
 
-  if (hasNoSoftware) {
-    addedText = (
-      <>
-        No software available to add. Please{" "}
-        <LinkWithContext
-          to={PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}
-          currentQueryParams={{ team_id: currentTeamId }}
-          withParams={{ type: "query", names: ["team_id"] }}
-        >
-          upload software
-        </LinkWithContext>{" "}
-        to be able to add during setup experience.{" "}
-      </>
-    );
-    buttonText = "Add software";
-  } else if (installDuringSetupCount === 0) {
-    addedText = <>No software added.</>;
-    buttonText = "Add software";
-  } else {
-    addedText = (
-      <>{installDuringSetupCount} software will be installed during setup.</>
-    );
-    buttonText = "Show selected software";
-  }
+    const installDuringSetupCount = softwareTitles.filter(
+      (software) =>
+        software.software_package?.install_during_setup ||
+        software.app_store_app?.install_during_setup
+    ).length;
+
+    return installDuringSetupCount === 0
+      ? "No software added."
+      : `${installDuringSetupCount} software will be installed during setup.`;
+  };
+
+  const getButtonText = () => {
+    if (hasNoSoftware) {
+      return "Add software";
+    }
+
+    const installDuringSetupCount = softwareTitles.filter(
+      (software) =>
+        software.software_package?.install_during_setup ||
+        software.app_store_app?.install_during_setup
+    ).length;
+
+    return installDuringSetupCount === 0
+      ? "Add software"
+      : "Show selected software";
+  };
+
+  const addedText = getAddedText();
+  const buttonText = getButtonText();
 
   return (
     <div className={baseClass}>

@@ -569,9 +569,7 @@ func (m *memFailingPolicySet) ListHosts(policyID uint) ([]fleet.PolicySetHost, e
 	defer m.mMu.RUnlock()
 
 	hosts := make([]fleet.PolicySetHost, len(m.m[policyID]))
-	for i := range m.m[policyID] {
-		hosts[i] = m.m[policyID][i]
-	}
+	copy(hosts, m.m[policyID])
 	return hosts, nil
 }
 

@@ -144,9 +144,7 @@ func getLoginUID() (*user, error) {
 // Returns the list of usernames.
 func parseUsersOutput(s string) []string {
 	var users []string
-	for _, userCol := range strings.Split(strings.TrimSpace(s), " ") {
-		users = append(users, userCol)
-	}
+	users = append(users, strings.Split(strings.TrimSpace(s), " ")...)
 	return users
 }
 

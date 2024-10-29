@@ -20,7 +20,7 @@ Scripts in this directory aim to ease the testing of Orbit and the [TUF](https:/
 
 The `main.sh` creates and runs the TUF repository and optionally generate the installers (GENERATE_PKGS):
 ```sh
-SYSTEMS="macos windows linux" \
+SYSTEMS="macos windows linux linux-arm64" \
 PKG_FLEET_URL=https://localhost:8080 \
 PKG_TUF_URL=http://localhost:8081 \
 DEB_FLEET_URL=https://host.docker.internal:8080 \
@@ -65,6 +65,23 @@ GOARCH=arm64 # defaults to amd64
 [...]
 ./tools/tuf/test/main.sh
 ```
+
+# Test fleetd with expired signatures on a TUF repository
+
+To generate a TUF repository with shorter expiration time for roles you can set the following environment variables:
+```shell
+[...]
+KEY_EXPIRATION_DURATION=5m \
+TARGETS_EXPIRATION_DURATION=5m \
+SNAPSHOT_EXPIRATION_DURATION=5m \
+TIMESTAMP_EXPIRATION_DURATION=5m \
+[...]
+./tools/tuf/test/main.sh
+```
+
+> NOTE: The duration has to be enough time to generate the packages (otherwise the `fleetctl package` command will fail).
+
+> `KEY_EXPIRATION_DURATION` is used to set the expiration of the `root.json` signature.
 
 # Add new updates
 

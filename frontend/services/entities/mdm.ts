@@ -6,9 +6,11 @@ import {
   MdmProfileStatus,
 } from "interfaces/mdm";
 import { API_NO_TEAM_ID } from "interfaces/team";
+import { ISoftwareTitle } from "interfaces/software";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
+
 import { ISoftwareTitlesResponse } from "./software";
 
 export interface IEulaMetadataResponse {
@@ -94,7 +96,9 @@ interface IGetSetupExperienceSoftwareParams {
   per_page: number;
 }
 
-export type IGetSetupExperienceSoftwareResponse = ISoftwareTitlesResponse;
+export type IGetSetupExperienceSoftwareResponse = ISoftwareTitlesResponse & {
+  software_titles: ISoftwareTitle[] | null;
+};
 
 const mdmService = {
   unenrollHostFromMdm: (hostId: number, timeout?: number) => {

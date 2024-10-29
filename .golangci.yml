@@ -14,6 +14,7 @@ linters:
     - unconvert
     - unused
     - errcheck
+    - gosimple
 
 linters-settings:
   depguard:
@@ -71,6 +72,8 @@ linters-settings:
 
 # Before excluding files from gosec linter - an issue must be created and referenced in a comment.
 issues:
+  max-issues-per-linter: 0 # show all issues
+  max-same-issues: 0 # show all issues
   exclude-rules:
     - path: server/datastore/mysql/migrations/[^/]+/[^/]+\.go
       linters:

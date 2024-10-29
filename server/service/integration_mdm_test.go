@@ -10408,7 +10408,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 
 	// Check that we have the correct software titles
 	var resp listSoftwareTitlesResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles"), nil, http.StatusOK, &resp, "query", "Evernote")
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &resp, "query", "Evernote")
 	expectedTitles := []fleet.SoftwareTitleListResult{
 		{
 			BundleIdentifier: ptr.String("com.evernote.iPhone.Evernote"),
@@ -10442,7 +10442,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	hostsCountTs = time.Now().UTC()
 	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles"), nil, http.StatusOK, &resp, "query", "Evernote")
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &resp, "query", "Evernote")
 	require.Len(t, resp.SoftwareTitles, 2)
 	// Cleaning up the response to make it easier to compare using ElementsMatch
 	for index := range resp.SoftwareTitles {
@@ -11744,6 +11744,46 @@ type noopCertDepot struct{ depot.Depot }
 
 func (d *noopCertDepot) Put(_ string, _ *x509.Certificate) error {
 	return nil
+}
+
+func (s *integrationMDMTestSuite) TestVPPAppsMDMFiltering() {
+	t := s.T()
+
+	ctx := context.Background()
+
+	// Create hosts
+	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
+	mdmHost, mdmClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	_, _ = mdmHost, mdmClient
+
+	test.CreateInsertGlobalVPPToken(t, s.ds)
+
+	// Create team and add hosts to team
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{orbitHost.ID, mdmHost.ID}, TeamID: &team.ID}, http.StatusOK)
+
+	// Add an app so that we don't get a not found error
+	_, err := s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name:             "App " + t.Name(),
+		BundleIdentifier: "bid_" + t.Name(),
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "adam_" + t.Name(),
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+	}, &team.ID)
+	require.NoError(t, err)
+
+	resp := getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", orbitHost.ID), getHostSoftwareRequest{}, http.StatusOK, &resp)
+	assert.Len(t, resp.Software, 0)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), getHostSoftwareRequest{}, http.StatusOK, &resp)
+	assert.Len(t, resp.Software, 1)
 }
 
 func (s *integrationMDMTestSuite) TestSetupExperience() {

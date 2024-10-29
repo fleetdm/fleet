@@ -778,7 +778,8 @@ func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
 	// Test HostPolicyCounts
 
 	// Global Host
-	host, err := ds.NewHost(context.Background(), &fleet.Host{OsqueryHostID: ptr.String(fmt.Sprint("host1")), NodeKey: ptr.String(fmt.Sprint("host1", 1)), TeamID: nil})
+	host, err := ds.NewHost(context.Background(),
+		&fleet.Host{OsqueryHostID: ptr.String("host1"), NodeKey: ptr.String(fmt.Sprint("host1", 1)), TeamID: nil})
 	require.NoError(t, err)
 
 	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{gpol.ID: ptr.Bool(true)}, time.Now(), false)
