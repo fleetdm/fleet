@@ -7,6 +7,7 @@ import ScriptListItem from "./ScriptListItem";
 
 describe("ScriptListItem", () => {
   const onDelete = (script: IScript) => jest.fn();
+  const onClickScript = (script: IScript) => jest.fn();
   it("Renders a Script list item with correct graphic and platform for macOS", () => {
     const script: IScript = {
       id: 1,
@@ -15,7 +16,7 @@ describe("ScriptListItem", () => {
       created_at: "2021-01-01",
       updated_at: "2021-01-01",
     };
-    render(<ScriptListItem {...{ script, onDelete }} />);
+    render(<ScriptListItem {...{ script, onDelete, onClickScript }} />);
 
     expect(screen.getByText(/macOS & Linux/)).toBeInTheDocument();
     expect(screen.queryByTestId("file-sh-graphic")).toBeInTheDocument();
@@ -29,7 +30,7 @@ describe("ScriptListItem", () => {
       created_at: "2021-01-01",
       updated_at: "2021-01-01",
     };
-    render(<ScriptListItem {...{ script, onDelete }} />);
+    render(<ScriptListItem {...{ script, onDelete, onClickScript }} />);
 
     expect(screen.getByText(/Windows/)).toBeInTheDocument();
     expect(screen.queryByTestId("file-ps1-graphic")).toBeInTheDocument();

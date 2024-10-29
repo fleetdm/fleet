@@ -16,6 +16,7 @@ const baseClass = "script-list-item";
 interface IScriptListItemProps {
   script: IScript;
   onDelete: (script: IScript) => void;
+  onClickScript: (script: IScript) => void;
 }
 
 // TODO - useful to have a 'platform' field from API, for use elsewhere in app as well?
@@ -56,7 +57,11 @@ const ScriptListItemDetails = ({
   </div>
 );
 
-const ScriptListItem = ({ script, onDelete }: IScriptListItemProps) => {
+const ScriptListItem = ({
+  script,
+  onDelete,
+  onClickScript,
+}: IScriptListItemProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const onClickDownload = async () => {
@@ -77,7 +82,11 @@ const ScriptListItem = ({ script, onDelete }: IScriptListItemProps) => {
     <ListItem
       className={baseClass}
       graphic={graphicName}
-      title={script.name}
+      title={
+        <Button variant="text-link" onClick={() => onClickScript(script)}>
+          {script.name}
+        </Button>
+      }
       details={
         <ScriptListItemDetails
           platform={platform}

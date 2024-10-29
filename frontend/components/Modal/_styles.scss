@@ -117,4 +117,20 @@
     width: 100%;
     z-index: 1000;
   }
+
+  &__actions-footer {
+    display: flex;
+    justify-content: space-between;
+    padding-top: $pad-medium;
+
+    .modal-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: $pad-medium;
+    }
+
+    .button__text-icon {
+      padding: 11px;
+    }
+  }
 }

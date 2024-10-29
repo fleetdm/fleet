@@ -19,6 +19,7 @@ import ScriptListHeading from "./components/ScriptListHeading";
 import ScriptListItem from "./components/ScriptListItem";
 import ScriptListPagination from "./components/ScriptListPagination";
 import DeleteScriptModal from "./components/DeleteScriptModal";
+import ScriptDetailsModal from "./components/ScriptDetailsModal";
 import UploadList from "../components/UploadList";
 import ScriptUploader from "./components/ScriptUploader";
 
@@ -34,6 +35,7 @@ interface IScriptsProps {
 
 const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
+  const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
 
   const selectedScript = useRef<IScript | null>(null);
 
@@ -77,6 +79,16 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
   const { config } = useContext(AppContext);
   if (!config) return null;
 
+  const onClickScript = (script: IScript) => {
+    selectedScript.current = script;
+    setShowScriptDetailsModal(true);
+  };
+
+  const onCancelScriptDetails = () => {
+    selectedScript.current = null;
+    setShowScriptDetailsModal(false);
+  };
+
   const onClickDelete = (script: IScript) => {
     selectedScript.current = script;
     setShowDeleteScriptModal(true);
@@ -117,7 +129,11 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
           listItems={scripts || []}
           HeadingComponent={ScriptListHeading}
           ListItemComponent={({ listItem }) => (
-            <ScriptListItem script={listItem} onDelete={onClickDelete} />
+            <ScriptListItem
+              script={listItem}
+              onDelete={onClickDelete}
+              onClickScript={onClickScript}
+            />
           )}
         />
         <ScriptListPagination
@@ -138,6 +154,7 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
       </div>
     </InfoBanner>
   );
+  console.log("selectedScript", selectedScript);
 
   return (
     <div className={baseClass}>
@@ -159,6 +176,14 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
           scriptName={selectedScript.current?.name}
           scriptId={selectedScript.current?.id}
           onCancel={onCancelDelete}
+          onDone={onDeleteScript}
+        />
+      )}
+      {showScriptDetailsModal && selectedScript.current && (
+        <ScriptDetailsModal
+          scriptName={selectedScript.current?.name}
+          scriptId={selectedScript.current?.id}
+          onCancel={onCancelScriptDetails}
           onDone={onDeleteScript}
         />
       )}
