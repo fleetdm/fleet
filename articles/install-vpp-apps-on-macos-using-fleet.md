@@ -59,6 +59,8 @@ To add apps to Fleet, you must first purchase them through Apple Business Manage
    the **Details** -> **Activity** -> **Upcoming** tab of this page. After the app is installed and
    the host details are refetched, the app will show up as **Installed** in the **Software** tab.
 
+>**NOTE: VPP managed apps currently can't be uninstalled from devices.** Please see: [Uninstall App Store apps #20729](https://github.com/fleetdm/fleet/issues/20729)
+
 ## Install an app via self-service
 
 1. **Open Fleet from the host**: On the host that will be installing an application through self-service, click on the Fleet Desktop tray icon, then click **My Device**. This will open the browser to the device's page on Fleet.
