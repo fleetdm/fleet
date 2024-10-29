@@ -4,7 +4,7 @@
 
 ## Introduction
 
-In today's mobile-driven workplace, the health of a device's battery plays a crucial role in maintaining productivity and reliability. Fleet utilizes osquery to monitor device metrics, providing comprehensive insights into battery health and helping IT teams keep their fleets running smoothly.
+In today's mobile-driven workplace, the health of a device's battery plays a crucial role in maintaining productivity and reliability. Fleet utilizes osquery to monitor device metrics, providing comprehensive insights into battery health and helping IT teams keep their fleets running smoothly. 
 
 ## Prerequisites
 
