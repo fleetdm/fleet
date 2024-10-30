@@ -82,8 +82,8 @@ const FleetDesktop = ({
             placeholder="https://fleetdm.com/transparency"
             helpText={
               <>
-                When an end user clicks “About Fleet” in the Fleet Desktop
-                menu, by default they are taken to{" "}
+                When an end user clicks “About Fleet” in the Fleet Desktop menu,
+                by default they are taken to{" "}
                 <CustomLink
                   url="https://fleetdm.com/transparency"
                   text="https://fleetdm.com/transparency"
