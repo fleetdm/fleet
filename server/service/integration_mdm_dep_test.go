@@ -351,7 +351,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	require.Len(t, listHostsRes.Hosts, 1)
 	require.Equal(t, listHostsRes.Hosts[0].HardwareSerial, device.SerialNumber)
 	enrolledHost := listHostsRes.Hosts[0].Host
-	fmt.Println(">>>>> device platform: ", enrolledHost.Platform)
+	fmt.Println(">>>>> device platform, serial, uuid: ", enrolledHost.Platform, enrolledHost.HardwareSerial, enrolledHost.UUID)
 
 	t.Cleanup(func() {
 		// delete the enrolled host
@@ -362,6 +362,11 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	// enroll the host
 	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
 	mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+	var isIphone bool
+	if device.DeviceFamily == "iPhone" {
+		mdmDevice.Model = "iPhone 14,6"
+		isIphone = true
+	}
 	mdmDevice.SerialNumber = device.SerialNumber
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
@@ -380,28 +385,35 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 
 		// Can be useful for debugging
-		switch cmd.Command.RequestType {
-		case "InstallProfile":
-			fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
-		case "InstallEnterpriseApplication":
-			if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
-				fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
-			} else {
-				fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-			}
-		default:
-			fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-		}
+		// switch cmd.Command.RequestType {
+		// case "InstallProfile":
+		// 	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
+		// case "InstallEnterpriseApplication":
+		// 	if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
+		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
+		// 	} else {
+		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+		// 	}
+		// default:
+		// 	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+		// }
 
 		cmds = append(cmds, &fullCmd)
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
 	}
 
-	// expected commands: install fleetd, install bootstrap, install CA, install profiles
-	// (custom one, fleetd configuration, FileVault) (not expected: account
-	// configuration, since enrollment_reference not set)
-	require.Len(t, cmds, 6)
+	if isIphone {
+		// expected commands: install CA, install profile (only the custom one),
+		// not expected: account configuration, since enrollment_reference not set
+		require.Len(t, cmds, 2)
+	} else {
+		// expected commands: install fleetd, install bootstrap, install CA, install profiles
+		// (custom one, fleetd configuration, FileVault) (not expected: account
+		// configuration, since enrollment_reference not set)
+		require.Len(t, cmds, 6)
+	}
+
 	var installProfileCount, installEnterpriseCount, otherCount int
 	var profileCustomSeen, profileFleetdSeen, profileFleetCASeen, profileFileVaultSeen bool
 	for _, cmd := range cmds {
@@ -426,6 +438,68 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 			otherCount++
 		}
 	}
+
+	if isIphone {
+		require.Equal(t, 2, installProfileCount)
+		require.Equal(t, 0, installEnterpriseCount)
+		require.Equal(t, 0, otherCount)
+		require.True(t, profileCustomSeen)
+		require.False(t, profileFleetdSeen)
+		require.True(t, profileFleetCASeen)
+		require.False(t, profileFileVaultSeen)
+
+		// for iDevices, fleetd is not installed so the rest of this test does not apply.
+		if enableReleaseManually {
+			// get the worker's pending job from the future, there should not be any
+			// because it needs to be released manually
+			pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
+			require.NoError(t, err)
+			require.Empty(t, pending)
+		} else {
+			// otherwise the device release job should be enqueued
+			pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
+			require.NoError(t, err)
+			require.Len(t, pending, 1)
+			require.Equal(t, "apple_mdm", pending[0].Name)
+			require.Contains(t, string(*pending[0].Args), worker.AppleMDMPostDEPReleaseDeviceTask)
+
+			// make the pending job ready to run immediately and run the job
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before = ? WHERE id = ?`, time.Now().Add(-1*time.Minute).UTC(), pending[0].ID)
+				return err
+			})
+
+			s.runWorker()
+
+			// make the device process the commands, it should receive the
+			// DeviceConfigured one.
+			cmds = cmds[:0]
+			cmd, err = mdmDevice.Idle()
+			require.NoError(t, err)
+			for cmd != nil {
+				var fullCmd micromdm.CommandPayload
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+				cmds = append(cmds, &fullCmd)
+				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+				require.NoError(t, err)
+			}
+
+			require.Len(t, cmds, 1)
+			var deviceConfiguredCount int
+			for _, cmd := range cmds {
+				switch cmd.Command.RequestType {
+				case "DeviceConfigured":
+					deviceConfiguredCount++
+				default:
+					otherCount++
+				}
+			}
+			require.Equal(t, 1, deviceConfiguredCount)
+			require.Equal(t, 0, otherCount)
+		}
+		return
+	}
+
 	require.Equal(t, 4, installProfileCount)
 	require.Equal(t, 2, installEnterpriseCount)
 	require.Equal(t, 0, otherCount)
