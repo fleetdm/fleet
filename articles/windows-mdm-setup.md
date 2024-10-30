@@ -34,7 +34,7 @@ Restart the Fleet server.
 
 ### Step 3: Turn on Windows MDM
 
-1. Head to the **Settings > Integrations > Mobile device management (MDM) enrollment** page.
+1. Head to the **Settings > Integrations > Mobile device management (MDM)** page.
 
 2. Next to **Turn on Windows MDM** select **Turn on** to navigate to the **Turn on Windows MDM** page.
 
@@ -54,7 +54,7 @@ After you connect Fleet to Microsoft Entra ID, you can customize the Windows set
 
 In order to connect Fleet to Microsoft Entra ID, the IT admin (you) needs a Microsoft Enterprise Mobility + Security E3 license. 
 
-Each end user who automatically enrolls needs a Microsoft Intune license.
+Each end user who automatically enrolls needs a [Microsoft license](https://learn.microsoft.com/en-us/mem/intune/fundamentals/licenses.)
 
 ### Step 1: Buy Microsoft licenses
 
@@ -68,7 +68,7 @@ Each end user who automatically enrolls needs a Microsoft Intune license.
 
 5. On the **Enterprise Mobility + Security E3** page, select **Buy** and follow instructions to purchase the license. 
 
-6. Find and buy an Intune license.
+6. Find and buy a license.
 
 7. Sign in to [Microsoft Entra ID portal](https://portal.azure.com).
 
@@ -80,7 +80,7 @@ Each end user who automatically enrolls needs a Microsoft Intune license.
 
 ### Step 2: Connect Fleet to Microsoft Entra ID
 
-For instructions on how to connect Fleet to Microsoft Entra ID, in the Fleet UI, select the avatar on the right side of the top navigation and select **Settings > Integrations > Automatic enrollment**. Then, next to **Windows automatic enrollment** select **Details**.
+For instructions on how to connect Fleet to Microsoft Entra ID, in the Fleet UI, select the avatar on the right side of the top navigation and select **Settings > Integrations > Mobile device management (MDM)**. Then, next to **Windows automatic enrollment** select **Details**.
 
 ### Step 3: Test automatic enrollment
 

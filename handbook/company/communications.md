@@ -889,7 +889,7 @@ We're happy you've ventured a trip around the sun with Fleet- let's celebrate! T
 
 ### Compensation changes
 
-Fleet evaluates and (if relevant) updates compensation decisions yearly, shortly after the anniversary of a team member's start date. The Head of Digital Experience is responsible for the process to [update compensation](https://fleetdm.com/handbook/digital-experience#updating-compensation)
+Fleet evaluates and (if relevant) updates compensation decisions yearly, shortly after the anniversary of a team member's start date. The Head of Digital Experience is responsible for the process to [update compensation](https://fleetdm.com/handbook/digital-experience#update-a-team-members-compensation)
 
 
 ### Relocating
@@ -1369,11 +1369,13 @@ Related content...
 Wherever possible, avoid creating nested headings. For example:
 
 ```
-## Things
 
-### Thing 1
+### Things
+
+#### Thing 1
 
 Hi my name is Thing 1
+
 ```
 
 
@@ -1400,7 +1402,7 @@ Try to stay within three or four heading levels. Complicated documents may use m
 
 ### Line breaks and new lines
 
-Any time you need to add a line break in Markdown, you should add a new line. It is vital to make sure paragraphs are separated by new lines. Otherwise, they will render as the same HTML element.
+Any time you need to add a line break in Markdown, add an extra line break.
 
 For example, if you were adding this section:
 

@@ -3751,7 +3751,7 @@ func testListMDMAppleSerials(t *testing.T, ds *Datastore) {
 			// ABM assignment was deleted
 			err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID)
 			require.NoError(t, err)
-			err = ds.DeleteHostDEPAssignments(ctx, []string{h.HardwareSerial})
+			err = ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{h.HardwareSerial})
 			require.NoError(t, err)
 		case i == 6:
 			// assigned in ABM, but we don't have a serial
@@ -4687,7 +4687,7 @@ func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
 			_, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, devices, abmToken.ID, nil, nil, nil)
 			require.NoError(t, err)
 
-			err = ds.DeleteHostDEPAssignments(ctx, tt.in)
+			err = ds.DeleteHostDEPAssignments(ctx, abmToken.ID, tt.in)
 			if tt.err == "" {
 				require.NoError(t, err)
 			} else {
@@ -5650,7 +5650,7 @@ func testMDMAppleDEPAssignmentUpdates(t *testing.T, ds *Datastore) {
 	require.Equal(t, h.ID, assignment.HostID)
 	require.Nil(t, assignment.DeletedAt)
 
-	err = ds.DeleteHostDEPAssignments(ctx, []string{h.HardwareSerial})
+	err = ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{h.HardwareSerial})
 	require.NoError(t, err)
 
 	assignment, err = ds.GetHostDEPAssignment(ctx, h.ID)

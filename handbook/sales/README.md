@@ -8,7 +8,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Role                                  | Contributor(s)           |
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
 | Chief Revenue Officer (CRO)                  | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
-| Solutions Consulting (SC)                    | [Dave Herder](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_ <br> [Zach Wasserman](https://www.linkedin.com/in/zacharywasserman/) _([@zwass](https://github.com/zwass))_ <br> [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_
+| Solutions Consulting (SC)                    | [Dave Herder](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_ <br> [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_
 | Channel Sales                                | [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@tomostertag](https://github.com/TomOstertag))_
 | Account Executive (AE)                       | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_ <br> [Kendra McKeever](https://www.linkedin.com/in/kendramckeever/) _([@KendraAtFleet](https://github.com/KendraAtFleet))_
 
@@ -232,17 +232,15 @@ Temp Transfer to: Temp technical DRI
 3. If the customer "redlines" (i.e. wants to change) the NDA, follow the [contract review process](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) so that Digital Experience can look over any proposed changes and provide guidance on how to proceed.
 
 
-### Create a customer agreement
+### Create a subscription agreement
 
-- **Contract terms:** Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleetdm.com/terms). 
-  - **Effective date:** The start date for the subscription service.
-  - **Close date:** The date the last party to the contract signed the agreement.
-  - **Invoice date:** The date that Fleet sent the invoice to the customer.
-- Fleeties can find a summary of contract terms in the relevant [customer's Salesforce opportunity.](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Recent)
+1. Create a copy of the [subscription agreement template](https://docs.google.com/document/d/1ri9sS2rlBbBLEFi7RrfKZ9bZj8e48orsFKZDfF0PgAg/copy?tab=t.0).
+2. Add/remove table rows as needed for multi-year deals.
+3. Where possible, include a graphic of the customer's logo. Use good judgement and omit if a high quality graphic is unavailable. If in doubt, ask Digital Experience for help.
 
-- **Standard terms:** For all subscription agreements, NDAs, and similar contracts, Fleet maintains a [standard set of terms and maximum allowable adjustments for those terms](https://docs.google.com/spreadsheets/d/1gAenC948YWG2NwcaVHleUvX0LzS8suyMFpjaBqxHQNg/edit#gid=1136345578). Exceptions to these maximum allowable adjustments always require CEO approval, whether in the form of redlines to Fleet's agreements or in terms on a prospective customer's own contract.
-
-> All non-standard (from another party) subscription agreements, NDAs, and similar contracts require legal review from the Contracts and Compliance department before being signed. [Create an issue to request legal review](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/contract-review.md).
+> **Important**
+> - All changes to the [subscription agreement template](https://docs.google.com/document/d/1ri9sS2rlBbBLEFi7RrfKZ9bZj8e48orsFKZDfF0PgAg/copy?tab=t.0), or [standard terms](http://fleetdm.com/terms) must be brought to ["🦢🗣 Design review (#g-digital-experience)"](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none) for approval.
+> - All non-standard (from another party) subscription agreements, NDAs, and similar contracts require legal review from Digital Experience before being signed. [Create an issue to request legal review](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/contract-review.md).
 
 
 ### Close a new customer deal

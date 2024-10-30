@@ -569,9 +569,7 @@ func (m *memFailingPolicySet) ListHosts(policyID uint) ([]fleet.PolicySetHost, e
 	defer m.mMu.RUnlock()
 
 	hosts := make([]fleet.PolicySetHost, len(m.m[policyID]))
-	for i := range m.m[policyID] {
-		hosts[i] = m.m[policyID][i]
-	}
+	copy(hosts, m.m[policyID])
 	return hosts, nil
 }
 
@@ -743,6 +741,7 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"GET", "/api/latest/fleet/bootstrap/summary", false, true},
 		{"PATCH", "/api/latest/fleet/mdm/apple/setup", false, true},
 		{"PATCH", "/api/latest/fleet/setup_experience", false, true},
+		{"POST", "/api/fleet/orbit/setup_experience/status", false, true},
 	}
 }
 

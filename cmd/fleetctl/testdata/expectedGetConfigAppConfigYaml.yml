@@ -50,6 +50,8 @@ spec:
       enable_end_user_authentication: false
       enable_release_device_manually: false
       macos_setup_assistant:
+      script:
+      software:
     windows_settings:
       custom_settings: null
     end_user_authentication:

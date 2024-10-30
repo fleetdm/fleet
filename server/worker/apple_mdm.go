@@ -29,6 +29,10 @@ type AppleMDMTask string
 const (
 	AppleMDMPostDEPEnrollmentTask    AppleMDMTask = "post_dep_enrollment"
 	AppleMDMPostManualEnrollmentTask AppleMDMTask = "post_manual_enrollment"
+	// PostDEPReleaseDevice is not enqueued anymore for macOS but remains for
+	// backward compatibility (processing existing jobs after a fleet upgrade)
+	// and for ios/ipados. Macs are now released via the swift dialog UI of the
+	// setup experience flow.
 	AppleMDMPostDEPReleaseDeviceTask AppleMDMTask = "post_dep_release_device"
 )
 
@@ -159,35 +163,45 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		}
 	}
 
-	var manualRelease bool
-	if args.TeamID == nil {
-		ac, err := a.Datastore.AppConfig(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get AppConfig to read enable_release_device_manually")
+	// proceed to release the device only if it is not a macos, as those are
+	// released via the setup experience flow.
+	if !isMacOS(args.Platform) {
+		var manualRelease bool
+		if args.TeamID == nil {
+			ac, err := a.Datastore.AppConfig(ctx)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get AppConfig to read enable_release_device_manually")
+			}
+			manualRelease = ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
+		} else {
+			tm, err := a.Datastore.Team(ctx, *args.TeamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get Team to read enable_release_device_manually")
+			}
+			manualRelease = tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 		}
-		manualRelease = ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
-	} else {
-		tm, err := a.Datastore.Team(ctx, *args.TeamID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get Team to read enable_release_device_manually")
-		}
-		manualRelease = tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
-	}
 
-	if !manualRelease {
-		// send all command uuids for the commands sent here during post-DEP
-		// enrollment and enqueue a job to look for the status of those commands to
-		// be final and same for MDM profiles of that host; it means the DEP
-		// enrollment process is done and the device can be released.
-		if err := QueueAppleMDMJob(ctx, a.Datastore, a.Log, AppleMDMPostDEPReleaseDeviceTask,
-			args.HostUUID, args.Platform, args.TeamID, args.EnrollReference, awaitCmdUUIDs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "queue Apple Post-DEP release device job")
+		if !manualRelease {
+			// send all command uuids for the commands sent here during post-DEP
+			// enrollment and enqueue a job to look for the status of those commands to
+			// be final and same for MDM profiles of that host; it means the DEP
+			// enrollment process is done and the device can be released.
+			if err := QueueAppleMDMJob(ctx, a.Datastore, a.Log, AppleMDMPostDEPReleaseDeviceTask,
+				args.HostUUID, args.Platform, args.TeamID, args.EnrollReference, awaitCmdUUIDs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "queue Apple Post-DEP release device job")
+			}
 		}
 	}
 
 	return nil
 }
 
+// This job is deprecated for macos because releasing devices is now done via
+// the orbit endpoint /setup_experience/status that is polled by a swift dialog
+// UI window during the setup process, and automatically releases the device
+// once all pending setup tasks are done. However, it must remain implemented
+// for iOS and iPadOS and in case there are such jobs to process after a Fleet
+// migration to a new version.
 func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArgs) error {
 	// Edge cases:
 	//   - if the device goes offline for a long time, should we go ahead and

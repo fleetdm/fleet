@@ -1,0 +1,1 @@
+* Fixed orbit startup to not exit when "root.json", "snapshot.json", or "targets.json" TUF signatures have expired.

@@ -547,11 +547,11 @@ const HostDetailsPage = ({
       setIsUpdatingHost(true);
       try {
         await hostAPI.destroy(host);
+        router.push(PATHS.MANAGE_HOSTS);
         renderFlash(
           "success",
           `Host "${host.display_name}" was successfully deleted.`
         );
-        router.push(PATHS.MANAGE_HOSTS);
       } catch (error) {
         console.log(error);
         renderFlash(

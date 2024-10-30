@@ -51,7 +51,7 @@ func Exec(ctx context.Context, log zerolog.Logger, timeoutSeconds int, possibleB
 			continue
 		default:
 			// an actual error
-			return nil, fmt.Errorf("exec '%s'. Got: '%s': %w", cmd.String(), string(stderr.Bytes()), err)
+			return nil, fmt.Errorf("exec '%s'. Got: '%s': %w", cmd.String(), stderr.String(), err)
 		}
 
 	}

@@ -100,7 +100,7 @@ func (cs *CronSchedules) formatSupportedTriggerNames() string {
 	case 1:
 		return fmt.Sprintf("supported trigger name is %s", names[0])
 	default:
-		return fmt.Sprintf("supported trigger names are %s, and %s", strings.Join(names[:len(names)-1], fmt.Sprint(", ")), names[len(names)-1])
+		return fmt.Sprintf("supported trigger names are %s, and %s", strings.Join(names[:len(names)-1], ", "), names[len(names)-1])
 	}
 }
 
