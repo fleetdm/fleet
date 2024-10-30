@@ -11,11 +11,11 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 ### Install apps during new Mac boot
 
-Using Fleet, you can now block a user’s screen while software installs or scripts run during macOS Setup Assistant. This prevents users from accessing the desktop before required configurations are enforced, improving security and guaranteeing that all workstations meet organizational standards before use.
+Using Fleet, you can now block a user’s screen while software installs or scripts run during macOS Setup Assistant. This prevents users from accessing the desktop before required configurations are enforced, improving security and guaranteeing that all workstations meet organizational standards before use. Learn more in the guide [here](TODO).
 
 ### Connect end users to Wi-Fi
 
-With Fleet, you can now install a SCEP certificate from NDES on all macOS hosts as part of the Wi-Fi/Ethernet configuration profile. This ensures seamless and secure network access for end users.
+With Fleet, you can now install a SCEP certificate from NDES on all macOS hosts as part of the Wi-Fi/Ethernet configuration profile. This ensures seamless and secure network access for end users. Learn more in the guide [here](TODO).
 
 ## Changes
 
