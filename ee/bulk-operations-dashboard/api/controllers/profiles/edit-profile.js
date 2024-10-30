@@ -33,7 +33,7 @@ module.exports = {
       isIn: ['include', 'exclude'],
     },
     labels: {
-      type: ['string']
+      type: ['number']
     }
   },
 
