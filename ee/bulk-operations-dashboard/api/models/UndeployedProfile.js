@@ -48,7 +48,7 @@ module.exports = {
 
     labels: {
       type: 'json',
-      example: [4, 6],
+      example: ['All hosts', 'Linux hosts'],
       description: 'A list of the Fleet API IDs of labels this profile is associated with (if any).',
     },
 

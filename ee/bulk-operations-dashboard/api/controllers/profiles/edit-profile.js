@@ -33,7 +33,8 @@ module.exports = {
       isIn: ['include', 'exclude'],
     },
     labels: {
-      type: ['number']
+      type: ['string'],
+      description: 'A list of the names of labels that will be included/excluded.'
     }
   },
 
@@ -215,6 +216,14 @@ module.exports = {
     } else if(profile.id && newProfile){
       // If there is a new profile that is replacing a database record, update the profileContents in the database.
       // console.log('Updating existing undeployed profile!');
+      await UndeployedProfile.updateOne({id: profile.id}).set({
+        profileContents,
+        labels,
+        labelTargetBehavior,
+        profileTarget,
+      });
+    } else if(profile.id && labels) {
+      // Update label target behavior for undeployed profiles.
       await UndeployedProfile.updateOne({id: profile.id}).set({
         profileContents,
         labels,

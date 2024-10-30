@@ -29,7 +29,8 @@ module.exports = {
       isIn: ['include', 'exclude'],
     },
     labels: {
-      type: ['number']
+      type: ['string'],
+      description: 'A list of the names of labels that will be included/excluded.'
     }
   },
 
