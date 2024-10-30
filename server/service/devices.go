@@ -464,7 +464,7 @@ func (svc *Service) LogFleetdError(ctx context.Context, fleetdError fleet.Fleetd
 	}
 
 	err := ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap())
-	level.Info(svc.logger).Log(
+	level.Warn(svc.logger).Log(
 		"msg",
 		"fleetd error",
 		"error",

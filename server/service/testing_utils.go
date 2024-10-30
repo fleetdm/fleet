@@ -415,7 +415,11 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(1000)))
 	rootMux.Handle("/api/", apiHandler)
-	errHandler := ctxerr.FromContext(ctx).(*errorstore.Handler)
+	var errHandler *errorstore.Handler
+	ctxErrHandler := ctxerr.FromContext(ctx)
+	if ctxErrHandler != nil {
+		errHandler = ctxErrHandler.(*errorstore.Handler)
+	}
 	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds)
 	rootMux.Handle("/debug/", debugHandler)
 
