@@ -227,7 +227,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 				// setup experience flow.
 				mp, ok := capabilities.FromContext(ctx)
 				if !ok || !mp.Has(fleet.CapabilitySetupExperience) {
-					fmt.Println(">>>>> does NOT have setup experience capability")
 					level.Debug(svc.logger).Log("msg", "host doesn't support Setup experience, falling back to worker-based device release", "host_uuid", host.UUID)
 					if err := svc.processReleaseDeviceForOldFleetd(ctx, host); err != nil {
 						return fleet.OrbitConfig{}, err
@@ -431,40 +430,57 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 }
 
 func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *fleet.Host) error {
-	// For the commands to await, since we're in an orbit endpoint we know that
-	// fleetd has already been installed, so we only need to check for the
-	// bootstrap package install and the SSO account configuration (both are
-	// optional).
-	bootstrapCmdUUID, err := svc.ds.GetHostBootstrapPackageCommand(ctx, host.UUID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return ctxerr.Wrap(ctx, err, "get bootstrap package command")
+	var manualRelease bool
+	if host.TeamID == nil {
+		ac, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get AppConfig to read enable_release_device_manually")
+		}
+		manualRelease = ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
+	} else {
+		tm, err := svc.ds.Team(ctx, *host.TeamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get Team to read enable_release_device_manually")
+		}
+		manualRelease = tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 	}
 
-	// AccountConfiguration covers the (optional) command to setup SSO.
-	adminTeamFilter := fleet.TeamFilter{
-		User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-	}
-	acctCmds, err := svc.ds.ListMDMCommands(ctx, adminTeamFilter, &fleet.MDMCommandListOptions{
-		Filters: fleet.MDMCommandFilters{
-			HostIdentifier: host.UUID,
-			RequestType:    "AccountConfiguration",
-		},
-	})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list AccountConfiguration commands")
-	}
-	var acctConfigCmdUUID string
-	if len(acctCmds) > 0 {
-		// there may be more than one if e.g. the worker job that sends them had to
-		// retry, but they would all be processed anyway so we can only care about
-		// the first one.
-		acctConfigCmdUUID = acctCmds[0].CommandUUID
-	}
+	if !manualRelease {
+		// For the commands to await, since we're in an orbit endpoint we know that
+		// fleetd has already been installed, so we only need to check for the
+		// bootstrap package install and the SSO account configuration (both are
+		// optional).
+		bootstrapCmdUUID, err := svc.ds.GetHostBootstrapPackageCommand(ctx, host.UUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "get bootstrap package command")
+		}
 
-	// Enroll reference arg is not used in the release device task, passing empty string.
-	if err := worker.QueueAppleMDMJob(ctx, svc.ds, svc.logger, worker.AppleMDMPostDEPReleaseDeviceTask,
-		host.UUID, host.Platform, host.TeamID, "", bootstrapCmdUUID, acctConfigCmdUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "queue Apple Post-DEP release device job")
+		// AccountConfiguration covers the (optional) command to setup SSO.
+		adminTeamFilter := fleet.TeamFilter{
+			User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+		}
+		acctCmds, err := svc.ds.ListMDMCommands(ctx, adminTeamFilter, &fleet.MDMCommandListOptions{
+			Filters: fleet.MDMCommandFilters{
+				HostIdentifier: host.UUID,
+				RequestType:    "AccountConfiguration",
+			},
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list AccountConfiguration commands")
+		}
+		var acctConfigCmdUUID string
+		if len(acctCmds) > 0 {
+			// there may be more than one if e.g. the worker job that sends them had to
+			// retry, but they would all be processed anyway so we can only care about
+			// the first one.
+			acctConfigCmdUUID = acctCmds[0].CommandUUID
+		}
+
+		// Enroll reference arg is not used in the release device task, passing empty string.
+		if err := worker.QueueAppleMDMJob(ctx, svc.ds, svc.logger, worker.AppleMDMPostDEPReleaseDeviceTask,
+			host.UUID, host.Platform, host.TeamID, "", bootstrapCmdUUID, acctConfigCmdUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "queue Apple Post-DEP release device job")
+		}
 	}
 
 	// at this point we know for sure that it will get released, but we need to
