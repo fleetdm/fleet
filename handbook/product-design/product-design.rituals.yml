@@ -41,6 +41,16 @@
   moreInfoUrl: "https://fleetdm.com/handbook/product-design#unpacking-the-why" 
   dri: "noahtalerman"
 -
+  task: "Quarterly roadmap blog post"
+  startedOn: "2024-11-05" 
+  frequency: "Monthly" 
+  description: "Every quarter, Head of Product Design (HPD) writes a short blog post with the theme and an embedded YouTube video in which HPD walks through this." 
+  moreInfoUrl: "" 
+  dri: "noahtalerman"
+  autoIssue:   
+    labels: [ ":product" ]
+    repo: "fleet"
+-
   task: "🦢👁️ Product design check-in"
   startedOn: "2023-07-11" 
   frequency: "Weekly" 
