@@ -7,7 +7,7 @@ parasails.registerPage('query-library', {
     inputTimers: {},
     searchString: '', // The user input string to be searched against the query library
     selectedKind: 'policy', // Initially set to 'policy', the user may select a different option to filter queries by purpose (e.g., "all queries", "informational", "policies")
-    selectedPlatform: 'all platforms', // Initially set to all, the user may select a different option to filter queries by platform (e.g., "all platforms", "macOS", "Windows", "Linux")
+    selectedPlatform: 'macos', // Initially set to all, the user may select a different option to filter queries by platform (e.g., "all platforms", "macOS", "Windows", "Linux")
     selectedTag: 'built-in', // Initially set to the 'built-in' tag, the user may select a different tag to filter queries by.
   },
 
