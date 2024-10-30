@@ -82,7 +82,7 @@ parasails.registerPage('profiles', {
       this.formData = {
         profile: _.clone(profile),
         newTeamIds: _.pluck(this.profileToEdit.teams, 'fleetApid'),
-        profileTarget: profile.profileTarget === 'custom' ? 'custom' : 'all',
+        profileTarget: profile.target === 'custom' ? 'custom' : 'all',
         labelTargetBehavior: profile.labelTargetBehavior ? profile.labelTargetBehavior : 'include',
         labels: profile.labels ? profile.labels : [],
       };
