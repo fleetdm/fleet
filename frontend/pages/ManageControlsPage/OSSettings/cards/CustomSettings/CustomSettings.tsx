@@ -144,11 +144,11 @@ const CustomSettings = ({
         <UploadList
           keyAttribute="profile_uuid"
           listItems={profiles}
-          HeadingComponent={() =>
-            ProfileListHeading({
-              onClickAddProfile: () => setShowAddProfileModal(true),
-            })
-          }
+          HeadingComponent={() => (
+            <ProfileListHeading
+              onClickAddProfile={() => setShowAddProfileModal(true)}
+            />
+          )}
           ListItemComponent={({ listItem }) => (
             <ProfileListItem
               isPremium={!!isPremiumTier}
