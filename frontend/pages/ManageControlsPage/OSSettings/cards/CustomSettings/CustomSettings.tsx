@@ -208,7 +208,6 @@ const CustomSettings = ({
       )}
       {isPremiumTier && hasLabels && (
         <ProfileLabelsModal
-          baseClass={baseClass}
           profile={profileLabelsModalData}
           setModalData={setProfileLabelsModalData}
         />

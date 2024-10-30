@@ -40,30 +40,6 @@
     margin-top: $pad-xxlarge;
   }
 
-  &__labels-list {
-    border-radius: 6px;
-    border: 1px solid $ui-fleet-black-10;
-
-    &--label {
-      display: flex;
-      height: 41px;
-      padding: 0 $pad-large;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid $ui-fleet-black-10;
-
-      .warning {
-        display: flex;
-        padding: 0;
-        gap: $pad-small;
-      }
-
-      &:last-of-type {
-        border-bottom: none;
-      }
-    }
-  }
-
   .upload-list {
     &__list {
       .list-item__label-count {
