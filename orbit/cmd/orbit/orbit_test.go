@@ -137,7 +137,13 @@ func TestProcessLog(t *testing.T) {
 	runner := desktopRunner{}
 	runner.errorNotifyCh = make(chan string, 1)
 
+	// Nothing to report
 	runner.processLog("")
+	assert.Empty(t, runner.errorNotifyCh)
+	assert.Nil(t, runner.errorsReported)
+
+	// No errors found
+	runner.processLog("line 1\nline 2")
 	assert.Empty(t, runner.errorNotifyCh)
 	assert.Nil(t, runner.errorsReported)
 
