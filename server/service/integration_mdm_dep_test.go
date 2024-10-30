@@ -359,6 +359,17 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	orbitKey := setOrbitEnrollment(t, enrolledHost, s.ds)
 	enrolledHost.OrbitNodeKey = &orbitKey
 
+	// call the /config endpoint as fleetd would
+	var orbitConfigResp orbitGetConfigResponse
+	caps := fleet.GetOrbitClientCapabilities()
+	res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)),
+		http.StatusOK, map[string]string{fleet.CapabilitiesHeader: caps.String()})
+	b, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(b, &orbitConfigResp))
+	// should be notified of the setup experience flow
+	require.True(t, orbitConfigResp.Notifications.RunSetupExperience)
+
 	if enableReleaseManually {
 		// get the worker's pending job from the future, there should not be any
 		// because it needs to be released manually
