@@ -110,9 +110,17 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage([]byte(`{"mdm":{"macos_settings":{"enable_disk_encryption":true}}}`)), http.StatusOK)
 
 	s.enableABM("fleet_ade_test")
+
+	// test manual and automatic release with the new setup experience flow
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
-			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, enableReleaseManually, nil, "I1")
+			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, enableReleaseManually, nil, "I1", false)
+		})
+	}
+	// test manual and automatic release with the old worker flow
+	for _, enableReleaseManually := range []bool{false, true} {
+		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
+			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, enableReleaseManually, nil, "I1", true)
 		})
 	}
 }
@@ -199,14 +207,21 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	// enable FileVault
 	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", json.RawMessage([]byte(fmt.Sprintf(`{"enable_disk_encryption":true,"team_id":%d}`, tm.ID))), http.StatusNoContent)
 
+	// test manual and automatic release with the new setup experience flow
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
-			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, enableReleaseManually, &tm.ID, "I2")
+			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, enableReleaseManually, &tm.ID, "I2", false)
+		})
+	}
+	// test manual and automatic release with the old worker flow
+	for _, enableReleaseManually := range []bool{false, true} {
+		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
+			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, enableReleaseManually, &tm.ID, "I2", true)
 		})
 	}
 }
 
-func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, device godep.Device, enableReleaseManually bool, teamID *uint, customProfileIdent string) {
+func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, device godep.Device, enableReleaseManually bool, teamID *uint, customProfileIdent string, useOldFleetdFlow bool) {
 	ctx := context.Background()
 
 	// set the enable release device manually option
@@ -288,7 +303,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 
 	// run the worker to process the DEP enroll request
 	s.runWorker()
-	// run the worker to assign configuration profiles
+	// run the cron to assign configuration profiles
 	s.awaitTriggerProfileSchedule(t)
 
 	var cmds []*micromdm.CommandPayload
@@ -359,13 +374,65 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	orbitKey := setOrbitEnrollment(t, enrolledHost, s.ds)
 	enrolledHost.OrbitNodeKey = &orbitKey
 
+	// call the /config endpoint as fleetd would
+	var orbitConfigResp orbitGetConfigResponse
+	var caps fleet.CapabilityMap
+	if useOldFleetdFlow {
+		// important thing is that it doesn't have the CapabilitySetupExperience
+		caps.PopulateFromString(string(fleet.CapabilityEscrowBuddy))
+	} else {
+		caps = fleet.GetOrbitClientCapabilities()
+	}
+
+	res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)),
+		http.StatusOK, map[string]string{fleet.CapabilitiesHeader: caps.String()})
+	b, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(b, &orbitConfigResp))
+	// should be notified of the setup experience flow
+	require.True(t, orbitConfigResp.Notifications.RunSetupExperience)
+
 	if enableReleaseManually {
 		// get the worker's pending job from the future, there should not be any
 		// because it needs to be released manually
 		pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
 		require.NoError(t, err)
 		require.Empty(t, pending)
+		return
+	}
+
+	if useOldFleetdFlow {
+		// there should be a Release Device pending job
+		pending, err := s.ds.GetQueuedJobs(ctx, 2, time.Now().UTC().Add(time.Minute))
+		require.NoError(t, err)
+		require.Len(t, pending, 1)
+		require.Equal(t, "apple_mdm", pending[0].Name)
+		require.Contains(t, string(*pending[0].Args), worker.AppleMDMPostDEPReleaseDeviceTask)
+
+		// calling the orbit config endpoint again does NOT enqueue a new job, and doesn't
+		// return the RunSetupExperience notification anymore
+		orbitConfigResp = orbitGetConfigResponse{}
+		res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)),
+			http.StatusOK, map[string]string{fleet.CapabilitiesHeader: caps.String()})
+		b, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		require.NoError(t, json.Unmarshal(b, &orbitConfigResp))
+		require.False(t, orbitConfigResp.Notifications.RunSetupExperience)
+
+		pending, err = s.ds.GetQueuedJobs(ctx, 2, time.Now().UTC().Add(time.Minute))
+		require.NoError(t, err)
+		require.Len(t, pending, 1)
+
+		// make the pending job ready to run immediately and run the job
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before = ? WHERE id = ?`, time.Now().Add(-1*time.Minute).UTC(), pending[0].ID)
+			return err
+		})
+
+		s.runWorker()
+
 	} else {
+
 		// there shouldn't be a Release Device pending job anymore
 		pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
 		require.NoError(t, err)
@@ -374,33 +441,33 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		// call the /status endpoint to automatically release the host
 		var statusResp getOrbitSetupExperienceStatusResponse
 		s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
-
-		// make the device process the commands, it should receive the
-		// DeviceConfigured one.
-		cmds = cmds[:0]
-		cmd, err = mdmDevice.Idle()
-		require.NoError(t, err)
-		for cmd != nil {
-			var fullCmd micromdm.CommandPayload
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			cmds = append(cmds, &fullCmd)
-			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-			require.NoError(t, err)
-		}
-
-		require.Len(t, cmds, 1)
-		var deviceConfiguredCount int
-		for _, cmd := range cmds {
-			switch cmd.Command.RequestType {
-			case "DeviceConfigured":
-				deviceConfiguredCount++
-			default:
-				otherCount++
-			}
-		}
-		require.Equal(t, 1, deviceConfiguredCount)
-		require.Equal(t, 0, otherCount)
 	}
+
+	// make the device process the commands, it should receive the
+	// DeviceConfigured one.
+	cmds = cmds[:0]
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		cmds = append(cmds, &fullCmd)
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	require.Len(t, cmds, 1)
+	var deviceConfiguredCount int
+	for _, cmd := range cmds {
+		switch cmd.Command.RequestType {
+		case "DeviceConfigured":
+			deviceConfiguredCount++
+		default:
+			otherCount++
+		}
+	}
+	require.Equal(t, 1, deviceConfiguredCount)
+	require.Equal(t, 0, otherCount)
 }
 
 func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
