@@ -234,9 +234,9 @@ module.exports = {
     if(psychologicalStage !== userRecord.psychologicalStage) {
       let psychologicalStageChangeReason = 'Website - Organic start flow'; // Default psystageChangeReason to "Website - Organic start flow"
       if(this.req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
-        let thirtyMinutesAgoAt = Date.now() - (1000 * 60 * 30);
+        let sevenDaysAgoAt = Date.now() - (1000 * 60 * 60 * 24 * 7);
         // If this user visited the website from an ad, set the psychologicalStageChangeReason to be the adCampaignId stored in their session.
-        if(this.req.session.visitedSiteFromAdAt > thirtyMinutesAgoAt) {
+        if(this.req.session.visitedSiteFromAdAt > sevenDaysAgoAt) {
           psychologicalStageChangeReason = this.req.session.adAttributionString;
         }
       }
