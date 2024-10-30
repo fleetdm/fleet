@@ -154,7 +154,6 @@ func main() {
 		transparencyItem := systray.AddMenuItem("About Fleet", "")
 		transparencyItem.Disable()
 
-
 		tokenReader := token.Reader{Path: identifierPath}
 		if _, err := tokenReader.Read(); err != nil {
 			log.Fatal().Err(err).Msg("error reading device token from file")
