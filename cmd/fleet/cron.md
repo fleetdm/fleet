@@ -14,7 +14,7 @@ Cron schedules are set up on server start, in the `fleet` command's `func main`.
 
 ## List of cron schedules
 
-> Taken from [`server/fleet/cron_schedules.go`](https://github.com/fleetdm/fleet/blob/main/server/fleet/cron_schedules.go#L14)
+> Taken from [`server/fleet/cron_schedules.go`](https://github.com/fleetdm/fleet/blob/main/server/fleet/cron_schedules.go#L14-L29)
 
 ###	`apple_mdm_dep_profile_assigner`
 Takes care of 
