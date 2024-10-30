@@ -490,7 +490,6 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 	if err := svc.ds.SetHostAwaitingConfiguration(ctx, host.UUID, false); err != nil {
 		return ctxerr.Wrap(ctx, err, "unset host awaiting configuration")
 	}
-	// TODO: should we also clear the setup_experience_status_results table for that host?
 
 	return nil
 }
