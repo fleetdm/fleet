@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
@@ -55,6 +54,15 @@ import (
 
 // unusedFlagKeyword is used by the MSI installer to populate parameters, which cannot be empty
 const unusedFlagKeyword = "dummy"
+
+type logError string
+
+const (
+	logErrorLaunchServicesSubstr logError = "error=Error Domain=NSOSStatusErrorDomain Code=-10822"
+	logErrorLaunchServicesMsg    logError = "LaunchServices kLSServerCommunicationErr (-10822)"
+	logErrorMissingExecSubstr    logError = "The application cannot be opened because its executable is missing."
+	logErrorMissingExecMsg       logError = "bad desktop executable"
+)
 
 func main() {
 	app := cli.NewApp()
@@ -1188,10 +1196,7 @@ func main() {
 				c.String("fleet-desktop-alternative-browser-host"),
 				opt.RootDirectory,
 			)
-			var wg sync.WaitGroup
-			wg.Add(1)
 			go func() {
-				wg.Done()
 				for {
 					msg := <-desktopRunner.errorNotifyCh
 					// Vital errors are always sent to Fleet, regardless of the error reporting setting FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS.
@@ -1213,8 +1218,6 @@ func main() {
 					}
 				}
 			}()
-			// Wait for above goroutine to start
-			wg.Wait()
 			addSubsystem(&g, "desktop runner", desktopRunner)
 		}
 
@@ -1620,14 +1623,14 @@ func (d *desktopRunner) processLog(log string) {
 	// Important: make sure msg does not contain sensitive information since it is used for analytics.
 	var msg string
 	switch {
-	case strings.Contains(log, "error=Error Domain=NSOSStatusErrorDomain Code=-10822"):
+	case strings.Contains(log, string(logErrorLaunchServicesSubstr)):
 		// https://github.com/fleetdm/fleet/issues/19172
-		msg = "-10822"
-	case strings.Contains(log, "The application cannot be opened because its executable is missing."):
+		msg = string(logErrorLaunchServicesMsg)
+	case strings.Contains(log, string(logErrorMissingExecSubstr)):
 		// For manual testing.
 		// To get this message, delete Fleet Desktop.app directory, make an empty Fleet Desktop.app directory,
 		// and kill the fleet-desktop process. Orbit will try to re-start Fleet Desktop and log this message.
-		msg = "bad desktop executable"
+		msg = string(logErrorMissingExecMsg)
 	}
 	if msg == "" {
 		return

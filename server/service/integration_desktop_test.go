@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -352,6 +353,22 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	}
 	checkError(errors[0], expectedCount)
 
+	// Make sure metadata is present when error is aggregated.
+	srvCtx := s.server.Config.BaseContext(nil)
+	aggRaw, err := ctxerr.Aggregate(srvCtx)
+	require.NoError(t, err)
+	var errorAgg []ctxerr.ErrorAgg
+	require.NoError(t, json.Unmarshal(aggRaw, &errorAgg))
+	require.Len(t, errorAgg, 1)
+	assert.EqualValues(t, expectedCount, errorAgg[0].Count)
+	var receivedErr fleet.FleetdError
+	require.NoError(t, json.Unmarshal(errorAgg[0].Metadata, &receivedErr))
+	assert.EqualValues(t, ferr.ErrorSource, receivedErr.ErrorSource)
+	assert.EqualValues(t, ferr.ErrorSourceVersion, receivedErr.ErrorSourceVersion)
+	assert.EqualValues(t, ferr.ErrorMessage, receivedErr.ErrorMessage)
+	assert.EqualValues(t, ferr.ErrorAdditionalInfo, receivedErr.ErrorAdditionalInfo)
+	assert.NotEqual(t, ferr.ErrorTimestamp, receivedErr.ErrorTimestamp) // not included
+
 	// Sending error again should increment the count.
 	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", errBytes, http.StatusOK)
 	res.Body.Close()
@@ -378,6 +395,30 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	s.DoJSON("GET", "/debug/errors", nil, http.StatusOK, &errors)
 	require.Len(t, errors, 1)
 	checkError(errors[0], expectedCount)
+
+	// Changing vital flag should NOT create a new error, but will overwrite the existing one.
+	ferr = fleet.FleetdError{
+		Vital:               false,
+		ErrorSource:         "orbit",
+		ErrorSourceVersion:  "1.1.1",
+		ErrorTimestamp:      testTime,
+		ErrorMessage:        "test message",
+		ErrorAdditionalInfo: map[string]any{"foo": "bar"},
+	}
+	errBytes, err = json.Marshal(ferr)
+	require.NoError(t, err)
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", errBytes, http.StatusOK)
+	res.Body.Close()
+	expectedCount++
+
+	aggRaw, err = ctxerr.Aggregate(srvCtx)
+	require.NoError(t, err)
+	errorAgg = nil
+	require.NoError(t, json.Unmarshal(aggRaw, &errorAgg))
+	require.Len(t, errorAgg, 1)
+	assert.EqualValues(t, expectedCount, errorAgg[0].Count)
+	// Since the error is not vital, the metadata should be empty.
+	assert.Empty(t, string(errorAgg[0].Metadata))
 
 	// Changing additional info should create a new error
 	ferr = fleet.FleetdError{
