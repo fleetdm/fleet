@@ -4624,6 +4624,13 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 		Token:  uuid.New().String(),
 	}, nil)
 	require.NoError(t, err)
+
+	// host has no boostrap package command yet
+	cmd, err := ds.GetHostBootstrapPackageCommand(ctx, host.UUID)
+	require.Error(t, err)
+	nfe := &notFoundError{}
+	require.ErrorAs(t, err, &nfe)
+
 	err = ds.RecordHostBootstrapPackage(ctx, "command-uuid", host.UUID)
 	require.NoError(t, err)
 	// add a record of the host DEP assignment
@@ -4633,6 +4640,9 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 		ON DUPLICATE KEY UPDATE added_at = CURRENT_TIMESTAMP, deleted_at = NULL
 	`, host.ID)
 	require.NoError(t, err)
+	cmd, err = ds.GetHostBootstrapPackageCommand(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Equal(t, "command-uuid", cmd)
 	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "foo.mdm.example.com", true, "", "")
 	require.NoError(t, err)
 

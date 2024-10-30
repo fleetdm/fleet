@@ -76,18 +76,24 @@ const (
 	CapabilityTokenRotation  Capability = "token_rotation"
 	CapabilityErrorReporting Capability = "error_reporting"
 	// CapabilityEndUserEmail denotes the ability of the server to support
-	// receiving the end-user email from orbit.
+	// receiving the end-user email from orbit.23366
 	CapabilityEndUserEmail Capability = "end_user_email"
 	// CapabilityEscrowBuddy allows to use Escrow Buddy to rotate FileVault keys
 	CapabilityEscrowBuddy Capability = "escrow_buddy"
+	// CapabilitySetupExperience denotes the ability of the server to support
+	// installing software and running a script during macOS ADE enrollment, and
+	// the ability of the client to show the corresponding UI to support that
+	// flow.
+	CapabilitySetupExperience Capability = "setup_experience"
 )
 
 func GetServerOrbitCapabilities() CapabilityMap {
 	return CapabilityMap{
-		CapabilityOrbitEndpoints: {},
-		CapabilityTokenRotation:  {},
-		CapabilityEndUserEmail:   {},
-		CapabilityEscrowBuddy:    {},
+		CapabilityOrbitEndpoints:  {},
+		CapabilityTokenRotation:   {},
+		CapabilityEndUserEmail:    {},
+		CapabilityEscrowBuddy:     {},
+		CapabilitySetupExperience: {},
 	}
 }
 
@@ -101,7 +107,8 @@ func GetServerDeviceCapabilities() CapabilityMap {
 
 func GetOrbitClientCapabilities() CapabilityMap {
 	return CapabilityMap{
-		CapabilityEscrowBuddy: {},
+		CapabilityEscrowBuddy:     {},
+		CapabilitySetupExperience: {},
 	}
 }
 

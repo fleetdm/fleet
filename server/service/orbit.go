@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 )
 
@@ -221,9 +222,18 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 			if inSetupAssistant {
 				notifs.RunSetupExperience = true
+
+				// check if the client is running an old fleetd version that doesn't support the new
+				// setup experience flow.
+				mp, ok := capabilities.FromContext(ctx)
+				if !ok || !mp.Has(fleet.CapabilitySetupExperience) {
+					level.Debug(svc.logger).Log("msg", "host doesn't support Setup experience, falling back to worker-based device release", "host_uuid", host.UUID)
+					if err := svc.processReleaseDeviceForOldFleetd(ctx, host); err != nil {
+						return fleet.OrbitConfig{}, err
+					}
+				}
 			}
 		}
-
 	}
 
 	// set the host's orbit notifications for Windows MDM
@@ -417,6 +427,55 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		NudgeConfig:      nudgeConfig,
 		UpdateChannels:   updateChannels,
 	}, nil
+}
+
+func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *fleet.Host) error {
+	// For the commands to await, since we're in an orbit endpoint we know that
+	// fleetd has already been installed, so we only need to check for the
+	// bootstrap package install and the SSO account configuration (both are
+	// optional).
+	bootstrapCmdUUID, err := svc.ds.GetHostBootstrapPackageCommand(ctx, host.UUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get bootstrap package command")
+	}
+
+	// AccountConfiguration covers the (optional) command to setup SSO.
+	adminTeamFilter := fleet.TeamFilter{
+		User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+	}
+	acctCmds, err := svc.ds.ListMDMCommands(ctx, adminTeamFilter, &fleet.MDMCommandListOptions{
+		Filters: fleet.MDMCommandFilters{
+			HostIdentifier: host.UUID,
+			RequestType:    "AccountConfiguration",
+		},
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list AccountConfiguration commands")
+	}
+	var acctConfigCmdUUID string
+	if len(acctCmds) > 0 {
+		// there may be more than one if e.g. the worker job that sends them had to
+		// retry, but they would all be processed anyway so we can only care about
+		// the first one.
+		acctConfigCmdUUID = acctCmds[0].CommandUUID
+	}
+
+	// Enroll reference arg is not used in the release device task, passing empty string.
+	if err := worker.QueueAppleMDMJob(ctx, svc.ds, svc.logger, worker.AppleMDMPostDEPReleaseDeviceTask,
+		host.UUID, host.Platform, host.TeamID, "", bootstrapCmdUUID, acctConfigCmdUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue Apple Post-DEP release device job")
+	}
+
+	// at this point we know for sure that it will get released, but we need to
+	// ensure we won't continually enqueue new worker jobs for that host until it
+	// is released. To do so, we clear up the setup experience data (since anyway
+	// this host will not go through that new flow).
+	if err := svc.ds.SetHostAwaitingConfiguration(ctx, host.UUID, false); err != nil {
+		return ctxerr.Wrap(ctx, err, "unset host awaiting configuration")
+	}
+	// TODO: should we also clear the setup_experience_status_results table for that host?
+
+	return nil
 }
 
 func (svc *Service) setDiskEncryptionNotifications(
