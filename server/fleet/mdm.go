@@ -433,6 +433,7 @@ type MDMProfileBatchPayload struct {
 	// LabelsIncludeAll.
 	Labels           []string `json:"labels,omitempty"`
 	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
+	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
 }
 
@@ -449,6 +450,7 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
 		LabelsIncludeAll: cp.LabelsIncludeAll,
+		LabelsIncludeAny: cp.LabelsIncludeAny,
 		LabelsExcludeAny: cp.LabelsExcludeAny,
 	}
 }
@@ -468,6 +470,7 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
 		LabelsIncludeAll: cp.LabelsIncludeAll,
+		LabelsIncludeAny: cp.LabelsIncludeAny,
 		LabelsExcludeAny: cp.LabelsExcludeAny,
 	}
 }
@@ -564,6 +567,10 @@ func (p *MDMProfileSpec) Copy() *MDMProfileSpec {
 		clone.LabelsIncludeAll = make([]string, len(p.LabelsIncludeAll))
 		copy(clone.LabelsIncludeAll, p.LabelsIncludeAll)
 	}
+	if len(p.LabelsIncludeAny) > 0 {
+		clone.LabelsIncludeAny = make([]string, len(p.LabelsIncludeAny))
+		copy(clone.LabelsIncludeAny, p.LabelsIncludeAny)
+	}
 	if len(p.LabelsExcludeAny) > 0 {
 		clone.LabelsExcludeAny = make([]string, len(p.LabelsExcludeAny))
 		copy(clone.LabelsExcludeAny, p.LabelsExcludeAny)
@@ -597,6 +604,10 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 			pathLabelIncludeCounts[v.Path] = labelCountMap(v.Labels)
 		}
 	}
+	pathLabelsIncludeAnyCounts := make(map[string]map[string]int)
+	for _, v := range a {
+		pathLabelsIncludeAnyCounts[v.Path] = labelCountMap(v.LabelsIncludeAny)
+	}
 	pathLabelExcludeCounts := make(map[string]map[string]int)
 	for _, v := range a {
 		pathLabelExcludeCounts[v.Path] = labelCountMap(v.LabelsExcludeAny)
@@ -604,8 +615,9 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 
 	for _, v := range b {
 		includeLabels, okIncl := pathLabelIncludeCounts[v.Path]
+		includeAnyLabels, okInclAny := pathLabelsIncludeAnyCounts[v.Path]
 		excludeLabels, okExcl := pathLabelExcludeCounts[v.Path]
-		if !okIncl || !okExcl {
+		if !okIncl || !okExcl || !okInclAny {
 			return false
 		}
 
@@ -627,6 +639,19 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 			}
 		}
 
+		bLabelIncludeAnyCounts := labelCountMap(v.LabelsIncludeAny)
+		for label, count := range bLabelIncludeAnyCounts {
+			if includeAnyLabels[label] != count {
+				return false
+			}
+			includeAnyLabels[label] -= count
+		}
+		for _, count := range includeAnyLabels {
+			if count != 0 {
+				return false
+			}
+		}
+
 		bLabelExcludeCounts := labelCountMap(v.LabelsExcludeAny)
 		for label, count := range bLabelExcludeCounts {
 			if excludeLabels[label] != count {
@@ -641,10 +666,11 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 		}
 
 		delete(pathLabelIncludeCounts, v.Path)
+		delete(pathLabelsIncludeAnyCounts, v.Path)
 		delete(pathLabelExcludeCounts, v.Path)
 	}
 
-	return len(pathLabelIncludeCounts) == 0 && len(pathLabelExcludeCounts) == 0
+	return len(pathLabelIncludeCounts) == 0 && len(pathLabelsIncludeAnyCounts) == 0 && len(pathLabelExcludeCounts) == 0
 }
 
 type MDMAssetName string

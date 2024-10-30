@@ -201,6 +201,7 @@ type MDMAppleConfigProfile struct {
 	// Checksum is an MD5 hash of the Mobileconfig bytes
 	Checksum         []byte                      `db:"checksum" json:"checksum,omitempty"`
 	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
+	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_inclide_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
 	CreatedAt        time.Time                   `db:"created_at" json:"created_at"`
 	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
@@ -599,6 +600,7 @@ type MDMAppleDeclaration struct {
 
 	// labels associated with this Declaration
 	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
+	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
 
 	CreatedAt  time.Time `db:"created_at" json:"created_at"`
