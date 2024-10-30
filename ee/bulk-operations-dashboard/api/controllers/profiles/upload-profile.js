@@ -29,7 +29,7 @@ module.exports = {
       isIn: ['include', 'exclude'],
     },
     labels: {
-      type: ['ref']
+      type: ['number']
     }
   },
 
