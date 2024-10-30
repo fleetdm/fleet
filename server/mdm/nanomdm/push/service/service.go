@@ -50,7 +50,7 @@ func (s *PushService) getProvider(ctx context.Context, topic string) (push.PushP
 		stale bool
 	)
 	s.providersMu.RLock()
-	prov, _ := s.providers[topic]
+	prov := s.providers[topic]
 	s.providersMu.RUnlock()
 	if prov != nil && prov.provider != nil {
 		stale, err = s.certStore.IsPushCertStale(ctx, topic, prov.staleToken)

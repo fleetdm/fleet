@@ -21,7 +21,8 @@ const SetupAssistantPreview = () => {
       <img
         className={`${baseClass}__preview-img`}
         src={OsPrefillPreview}
-        alt="OS setup preview"
+        alt="End user experience during the macOS setup assistant customised by
+        an automatic enrollment profile"
       />
     </Card>
   );

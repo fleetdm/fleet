@@ -978,7 +978,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			}
 			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
 		}
-		queryStats, _ := stats[query]
+		queryStats := stats[query]
 
 		ingestedDetailUpdated, ingestedAdditionalUpdated, err := svc.ingestQueryResults(
 			ctx, query, host, rows, failed, messages, policyResults, labelResults, additionalResults, queryStats,
@@ -1249,11 +1249,11 @@ func preProcessSoftwareResults(
 		preProcessSoftwareExtraResults(fullQueryName, host.ID, results, statuses, messages, query, logger)
 	}
 
-	// Filter out python packages that are also deb packages on ubuntu
+	// Filter out python packages that are also deb packages on ubuntu/debian
 	pythonPackageFilter(host.Platform, results, statuses)
 }
 
-// pythonPackageFilter filters out duplicate python_packages that are installed under deb_packages on Ubuntu.
+// pythonPackageFilter filters out duplicate python_packages that are installed under deb_packages on Ubuntu and Debian.
 // python_packages not matching a Debian package names are updated to "python3-packagename" to match OVAL definitions.
 func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQueryResults, statuses *map[string]fleet.OsqueryStatus) {
 	const pythonPrefix = "python3-"
@@ -1261,9 +1261,9 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 	const debSource = "deb_packages"
 	const linuxSoftware = hostDetailQueryPrefix + "software_linux"
 
-	// Return early if platform is not Ubuntu
+	// Return early if platform is not Ubuntu or Debian
 	// We may need to add more platforms in the future
-	if platform != "ubuntu" {
+	if platform != "ubuntu" && platform != "debian" {
 		return
 	}
 
@@ -1358,7 +1358,7 @@ func preProcessSoftwareExtraResults(
 	}
 
 	// Extract the results of the extra query.
-	softwareExtraRows, _ := (*results)[softwareExtraQuery]
+	softwareExtraRows := (*results)[softwareExtraQuery]
 	if len(softwareExtraRows) == 0 {
 		return
 	}

@@ -1609,13 +1609,13 @@ func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
 	// res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/script?team_id=%d&alt=media", noTeamID), nil, http.StatusOK)
 
 	// delete the no-team script
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/script"), nil, http.StatusOK)
+	s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK)
 
 	// try get the no-team script
 	s.Do("GET", "/api/latest/fleet/setup_experience/script", nil, http.StatusNotFound)
 
 	// try deleting the no-team script again
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/script"), nil, http.StatusOK) // TODO: confirm if we want to return not found
+	s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK) // TODO: confirm if we want to return not found
 
 	// // TODO: confirm if we will allow team_id=0 requests
 	// s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/script/?team_id=%d", noTeamID), nil, http.StatusOK)
