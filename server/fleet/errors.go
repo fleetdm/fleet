@@ -538,6 +538,7 @@ func (fe FleetdError) Error() string {
 // about the error can be logged by the components that use zerolog (Orbit,
 // Fleet Desktop)
 func (fe FleetdError) MarshalZerologObject(e *zerolog.Event) {
+	e.Bool("vital", fe.Vital)
 	e.Str("error_source", fe.ErrorSource)
 	e.Str("error_source_version", fe.ErrorSourceVersion)
 	e.Time("error_timestamp", fe.ErrorTimestamp)
