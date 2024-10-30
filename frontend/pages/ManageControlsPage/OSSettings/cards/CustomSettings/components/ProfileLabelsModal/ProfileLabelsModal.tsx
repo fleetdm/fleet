@@ -88,23 +88,42 @@ const ProfileLabelsModal = ({
     return null;
   }
 
-  const { name, labels_include_all, labels_exclude_any } = profile;
-  const labels = labels_include_all || labels_exclude_any;
+  const {
+    name,
+    labels_include_all,
+    labels_include_any,
+    labels_exclude_any,
+  } = profile;
+  const labels = labels_include_all || labels_include_any || labels_exclude_any;
 
   if (!labels?.length) {
     // caller ensures this never happens
     return null;
   }
 
+  const renderlabelDescription = () => {
+    let targetTypeText = <></>;
+    if (labels_include_all) {
+      targetTypeText = <b>have all</b>;
+    } else if (labels_include_any) {
+      targetTypeText = <b>have all</b>;
+    } else {
+      targetTypeText = <b>don&apos;t have any</b>;
+    }
+
+    return (
+      <div className={`${baseClass}__description`}>
+        <b>{name}</b> profile only applies to hosts that {targetTypeText} of
+        these labels:
+      </div>
+    );
+  };
+
   return (
     <Modal title="Custom target" onExit={() => setModalData(null)}>
       <div className={`${baseClass}__modal-content-wrap`}>
         {labels.some((label) => label.broken) && <BrokenLabelWarning />}
-        <ModalDescription
-          baseClass={baseClass}
-          profileName={name}
-          targetType={labels_include_all ? "includeAll" : "excludeAny"}
-        />
+        <>{renderlabelDescription()}</>
         <LabelsList baseClass={baseClass} labels={labels} />
         <div className="modal-cta-wrap">
           <Button variant="brand" onClick={() => setModalData(null)}>
