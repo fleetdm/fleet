@@ -20,7 +20,7 @@ import Pagination from "pages/ManageControlsPage/components/Pagination";
 import UploadList from "../../../components/UploadList";
 
 import AddProfileCard from "./components/ProfileUploader/components/AddProfileCard";
-import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal/AddProfileModal";
+import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
 import ProfileLabelsModal from "./components/ProfileLabelsModal/ProfileLabelsModal";
 import ProfileListItem from "./components/ProfileListItem";
@@ -136,12 +136,7 @@ const CustomSettings = ({
     }
 
     if (!profiles?.length) {
-      return (
-        <AddProfileCard
-          baseClass="add-profile"
-          setShowModal={setShowAddProfileModal}
-        />
-      );
+      return <AddProfileCard setShowModal={setShowAddProfileModal} />;
     }
 
     return (
