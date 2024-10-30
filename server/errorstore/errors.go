@@ -270,6 +270,11 @@ func (h *Handler) Store(err error) {
 // ServeHTTP implements an http.Handler that retrieves the errors stored
 // by the Handler and returns them in the response as JSON.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if h == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		return
+	}
+
 	var flush bool
 	opts := r.URL.Query()
 
@@ -294,5 +299,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
 	w.Write(bytes) //nolint:errcheck
 }
