@@ -136,7 +136,12 @@ const CustomSettings = ({
     }
 
     if (!profiles?.length) {
-      return null;
+      return (
+        <AddProfileCard
+          baseClass="add-profile"
+          setShowModal={setShowAddProfileModal}
+        />
+      );
     }
 
     return (
@@ -184,14 +189,8 @@ const CustomSettings = ({
           url="https://fleetdm.com/learn-more-about/custom-os-settings"
         />
       </p>
-      {renderProfileList()}
-      {!isLoadingProfiles && !isErrorProfiles && !profiles?.length && (
-        <AddProfileCard
-          baseClass="add-profile"
-          setShowModal={setShowAddProfileModal}
-        />
-      )}
-      {showAddProfileModal && (
+      <>{renderProfileList()}</>
+      {true && (
         <AddProfileModal
           currentTeamId={currentTeamId}
           isPremiumTier={!!isPremiumTier}

@@ -5,11 +5,22 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
   {
     value: "labelsIncludeAll",
-    label: "Include all ",
+    label: "Include all",
     helpText: (
       <>
-        Profile will only be applied to hosts that have <b>all</b> of these
-        labels{" "}
+        Profile will only be applied to hosts that <b>have all</b> of these
+        labels.
+      </>
+    ),
+    disabled: false,
+  },
+  {
+    value: "labelsIncludeAny",
+    label: "Include any",
+    helpText: (
+      <>
+        Profile will only be applied to hosts that <b>have any</b> of these
+        labels.
       </>
     ),
     disabled: false,
@@ -19,8 +30,8 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
     label: "Exclude any",
     helpText: (
       <>
-        Profile will be applied to hosts that don&apos;t have <b>any</b> of
-        these labels{" "}
+        Profile will only be applied to hosts that <b>don&apos;t have any</b> of
+        these labels.
       </>
     ),
     disabled: false,
