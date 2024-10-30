@@ -425,8 +425,8 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 
 		// make the pending job ready to run immediately and run the job
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			q.ExecContext(ctx, `UPDATE jobs SET not_before = ? WHERE id = ?`, time.Now().Add(-1*time.Minute).UTC(), pending[0].ID)
-			return nil
+			_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before = ? WHERE id = ?`, time.Now().Add(-1*time.Minute).UTC(), pending[0].ID)
+			return err
 		})
 
 		s.runWorker()
