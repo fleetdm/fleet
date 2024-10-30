@@ -326,6 +326,7 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	require.NoError(t, err)
 	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", errBytes, http.StatusOK)
 	res.Body.Close()
+	time.Sleep(100 * time.Millisecond) // give time for the error to be saved
 
 	// Check that error was logged.
 	var errors []map[string]interface{}
@@ -390,6 +391,7 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", errBytes, http.StatusOK)
 	res.Body.Close()
 	expectedCount++
+	time.Sleep(100 * time.Millisecond) // give time for the error(s) to be saved
 
 	// Check that error was logged.
 	s.DoJSON("GET", "/debug/errors", nil, http.StatusOK, &errors)
@@ -410,6 +412,7 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", errBytes, http.StatusOK)
 	res.Body.Close()
 	expectedCount++
+	time.Sleep(100 * time.Millisecond) // give time for the error(s) to be saved
 
 	aggRaw, err = ctxerr.Aggregate(srvCtx)
 	require.NoError(t, err)
@@ -433,6 +436,7 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	require.NoError(t, err)
 	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", errBytes, http.StatusOK)
 	res.Body.Close()
+	time.Sleep(100 * time.Millisecond) // give time for the error(s) to be saved
 
 	s.DoJSON("GET", "/debug/errors", nil, http.StatusOK, &errors)
 	require.Len(t, errors, 2)
