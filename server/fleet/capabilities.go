@@ -76,7 +76,7 @@ const (
 	CapabilityTokenRotation  Capability = "token_rotation"
 	CapabilityErrorReporting Capability = "error_reporting"
 	// CapabilityEndUserEmail denotes the ability of the server to support
-	// receiving the end-user email from orbit.23366
+	// receiving the end-user email from orbit.
 	CapabilityEndUserEmail Capability = "end_user_email"
 	// CapabilityEscrowBuddy allows to use Escrow Buddy to rotate FileVault keys
 	CapabilityEscrowBuddy Capability = "escrow_buddy"
