@@ -1469,7 +1469,6 @@ func unionSelectDevices(devices []hostToCreateFromMDM) (stmt string, args []inte
 		case strings.Contains(normalizedHint, "ipad"):
 			platform = string(fleet.IPadOSPlatform)
 		}
-		fmt.Println(">>>> determining device platform: ", d.PlatformHint, platform)
 		args = append(args, d.HardwareSerial, d.HardwareModel, platform)
 	}
 

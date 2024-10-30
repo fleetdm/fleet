@@ -351,7 +351,6 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	require.Len(t, listHostsRes.Hosts, 1)
 	require.Equal(t, listHostsRes.Hosts[0].HardwareSerial, device.SerialNumber)
 	enrolledHost := listHostsRes.Hosts[0].Host
-	fmt.Println(">>>>> device platform, serial, uuid: ", enrolledHost.Platform, enrolledHost.HardwareSerial, enrolledHost.UUID)
 
 	t.Cleanup(func() {
 		// delete the enrolled host
