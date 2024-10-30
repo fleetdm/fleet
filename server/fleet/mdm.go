@@ -419,6 +419,7 @@ type MDMConfigProfilePayload struct {
 	CreatedAt        time.Time                   `json:"created_at" db:"created_at"`
 	UploadedAt       time.Time                   `json:"updated_at" db:"uploaded_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 	LabelsIncludeAll []ConfigurationProfileLabel `json:"labels_include_all,omitempty" db:"-"`
+	LabelsIncludeAny []ConfigurationProfileLabel `json:"labels_include_any,omitempty" db:"-"`
 	LabelsExcludeAny []ConfigurationProfileLabel `json:"labels_exclude_any,omitempty" db:"-"`
 }
 
@@ -486,6 +487,7 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 		CreatedAt:        decl.CreatedAt,
 		UploadedAt:       decl.UploadedAt,
 		LabelsIncludeAll: decl.LabelsIncludeAll,
+		LabelsIncludeAny: decl.LabelsExcludeAny,
 		LabelsExcludeAny: decl.LabelsExcludeAny,
 	}
 }
@@ -504,6 +506,10 @@ type MDMProfileSpec struct {
 	// of in order to receive the profile. It must be a member of all listed
 	// labels.
 	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
+	// LabelsIncludeAny is a list of label names that the host must be a member
+	// of in order to receive the profile. It may be a member of
+	// any listed labels.
+	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
 	// LabelsExcludeAll is a list of label names that the host must not be a
 	// member of in order to receive the profile. It must not be a member of any
 	// of the listed labels.
