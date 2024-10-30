@@ -40,9 +40,6 @@
   description: "Break down the 'why' for new customer requests in the 'Inbox' column on the drafting board." 
   moreInfoUrl: "https://fleetdm.com/handbook/product-design#unpacking-the-why" 
   dri: "noahtalerman"
-  autoIssue:   
-    labels: [ "#g-digital-experience" ]
-    repo: "fleet"
 -
   task: "Quarterly roadmap blog post"
   startedOn: "2024-11-05" 
