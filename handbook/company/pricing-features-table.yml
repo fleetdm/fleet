@@ -539,6 +539,7 @@
 #  ╚═╝╚═╝╩═╝╚    ╚═╝╚═╝╩╚═ ╚╝ ╩╚═╝╚═╝  ╩ ╩╩  ╩  ╩═╝╩╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╩ ╩ ╩ ╩╚═╝╝╚╝                                   
 - industryName: Self-service application installation
   description: Allow end users to install apps through Fleet Desktop for macOS, Linux, and Windows.
+  documentationUrl: https://fleetdm.com/guides/deploy-software-packages
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
