@@ -31,10 +31,10 @@ func TestUp_20241030102721(t *testing.T) {
 	var cps []struct {
 		ID        int64 `db:"id"`
 		Exclude   bool  `db:"exclude"`
-		AllLabels bool  `db:"all_labels"`
+		AllLabels bool  `db:"require_all"`
 	}
 
-	err := sqlx.SelectContext(context.Background(), db, &cps, `SELECT id, exclude, all_labels FROM mdm_configuration_profile_labels`)
+	err := sqlx.SelectContext(context.Background(), db, &cps, `SELECT id, exclude, require_all FROM mdm_configuration_profile_labels`)
 	require.NoError(t, err)
 
 	for _, c := range cps {
@@ -44,14 +44,14 @@ func TestUp_20241030102721(t *testing.T) {
 			require.False(t, c.AllLabels)
 		}
 
-		// the include all should have all_labels = true
+		// the include all should have require_all = true
 		if c.ID == cfgIncludeAllID {
 			require.False(t, c.Exclude)
 			require.True(t, c.AllLabels)
 		}
 	}
 
-	err = sqlx.SelectContext(context.Background(), db, &cps, `SELECT id, exclude, all_labels FROM mdm_declaration_labels`)
+	err = sqlx.SelectContext(context.Background(), db, &cps, `SELECT id, exclude, require_all FROM mdm_declaration_labels`)
 	require.NoError(t, err)
 
 	for _, c := range cps {
@@ -61,7 +61,7 @@ func TestUp_20241030102721(t *testing.T) {
 			require.False(t, c.AllLabels)
 		}
 
-		// the include all should have all_labels = true
+		// the include all should have require_all = true
 		if c.ID == declIncludeAllID {
 			require.False(t, c.Exclude)
 			require.True(t, c.AllLabels)
