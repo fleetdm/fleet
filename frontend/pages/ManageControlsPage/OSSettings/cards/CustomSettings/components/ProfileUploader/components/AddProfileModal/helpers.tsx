@@ -62,3 +62,8 @@ export const generateLabelKey = (
     [customTargetOption]: listNamesFromSelectedLabels(selectedLabels),
   };
 };
+
+export const getDescriptionText = (value: string) => {
+  return CUSTOM_TARGET_OPTIONS.find((option) => option.value === value)
+    ?.helpText;
+};

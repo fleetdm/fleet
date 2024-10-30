@@ -190,7 +190,7 @@ const CustomSettings = ({
         />
       </p>
       <>{renderProfileList()}</>
-      {true && (
+      {showAddProfileModal && (
         <AddProfileModal
           currentTeamId={currentTeamId}
           isPremiumTier={!!isPremiumTier}
