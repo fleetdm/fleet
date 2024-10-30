@@ -122,6 +122,14 @@
   },
   {
     "software": {
+      "bundle_identifier": ["/^com.jetbrains.*EAP/"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "bundle_identifier": ["/^com\\.jetbrains\\.intellij/"],
       "source": ["apps"]
     },
