@@ -47,7 +47,10 @@ export const listNamesFromSelectedLabels = (dict: Record<string, boolean>) => {
   }, [] as string[]);
 };
 
-export type CustomTargetOption = "labelsIncludeAll" | "labelsExcludeAny";
+export type CustomTargetOption =
+  | "labelsIncludeAll"
+  | "labelsIncldeAny"
+  | "labelsExcludeAny";
 
 export const generateLabelKey = (
   target: string,
