@@ -414,38 +414,45 @@ var (
 )
 
 func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
-	// allow delete only if install_during_setup is false
-	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM software_installers WHERE id = ? AND install_during_setup = 0`, id)
-	if err != nil {
-		if isMySQLForeignKey(err) {
-			// Check if the software installer is referenced by a policy automation.
-			var count int
-			if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM policies WHERE software_installer_id = ?`, id); err != nil {
-				return ctxerr.Wrapf(ctx, err, "getting reference from policies")
-			}
-			if count > 0 {
-				return errDeleteInstallerWithAssociatedPolicy
-			}
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, id, true, true)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "clean up related installs and uninstalls")
 		}
-		return ctxerr.Wrap(ctx, err, "delete software installer")
-	}
 
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		// could be that the software installer does not exist, or it is installed
-		// during setup, do additional check.
-		var installDuringSetup bool
-		if err := sqlx.GetContext(ctx, ds.reader(ctx), &installDuringSetup,
-			`SELECT install_during_setup FROM software_installers WHERE id = ?`, id); err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return ctxerr.Wrap(ctx, err, "check if software installer is installed during setup")
+		// allow delete only if install_during_setup is false
+		res, err := tx.ExecContext(ctx, `DELETE FROM software_installers WHERE id = ? AND install_during_setup = 0`, id)
+		if err != nil {
+			if isMySQLForeignKey(err) {
+				// Check if the software installer is referenced by a policy automation.
+				var count int
+				if err := sqlx.GetContext(ctx, tx, &count, `SELECT COUNT(*) FROM policies WHERE software_installer_id = ?`, id); err != nil {
+					return ctxerr.Wrapf(ctx, err, "getting reference from policies")
+				}
+				if count > 0 {
+					return errDeleteInstallerWithAssociatedPolicy
+				}
+			}
+			return ctxerr.Wrap(ctx, err, "delete software installer")
 		}
-		if installDuringSetup {
-			return errDeleteInstallerInstalledDuringSetup
-		}
-		return notFound("SoftwareInstaller").WithID(id)
-	}
 
-	return nil
+		rows, _ := res.RowsAffected()
+		if rows == 0 {
+			// could be that the software installer does not exist, or it is installed
+			// during setup, do additional check.
+			var installDuringSetup bool
+			if err := sqlx.GetContext(ctx, tx, &installDuringSetup,
+				`SELECT install_during_setup FROM software_installers WHERE id = ?`, id); err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, err, "check if software installer is installed during setup")
+			}
+			if installDuringSetup {
+				return errDeleteInstallerInstalledDuringSetup
+			}
+			return notFound("SoftwareInstaller").WithID(id)
+		}
+
+		return nil
+	})
 }
 
 func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool, policyID *uint) (string, error) {
@@ -963,9 +970,13 @@ ON DUPLICATE KEY UPDATE
 			if _, err := tx.ExecContext(ctx, unsetAllInstallersFromPolicies, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "unset all obsolete installers in policies")
 			}
+
+			// TODO process side effects on script runs, host software installs
+
 			if _, err := tx.ExecContext(ctx, deleteAllInstallersInTeam, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
 			}
+
 			return nil
 		}
 
@@ -1009,6 +1020,8 @@ ON DUPLICATE KEY UPDATE
 				return errDeleteInstallerInstalledDuringSetup
 			}
 		}
+
+		// TODO process side effects on script runs, host software installs
 
 		stmt, args, err = sqlx.In(deleteInstallersNotInList, globalOrTeamID, titleIDs)
 		if err != nil {
