@@ -2083,7 +2083,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	executeUpsertBatch := func(valuePart string, args []any) error {
 		// Check if the update needs to be done at all.
 		selectStmt := fmt.Sprintf(`
-			SELECT 
+			SELECT
 				host_uuid,
 				profile_uuid,
 				profile_identifier,
@@ -3299,6 +3299,18 @@ func (ds *Datastore) RecordHostBootstrapPackage(ctx context.Context, commandUUID
         ON DUPLICATE KEY UPDATE command_uuid = command_uuid`
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, commandUUID, hostUUID)
 	return ctxerr.Wrap(ctx, err, "record bootstrap package command")
+}
+
+func (ds *Datastore) GetHostBootstrapPackageCommand(ctx context.Context, hostUUID string) (string, error) {
+	var cmdUUID string
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &cmdUUID, `SELECT command_uuid FROM host_mdm_apple_bootstrap_packages WHERE host_uuid = ?`, hostUUID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", ctxerr.Wrap(ctx, notFound("HostMDMBootstrapPackage").WithName(hostUUID))
+		}
+		return "", ctxerr.Wrap(ctx, err, "get bootstrap package command")
+	}
+	return cmdUUID, nil
 }
 
 func (ds *Datastore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
@@ -4620,7 +4632,7 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 	executeUpsertBatch := func(valuePart string, args []any) error {
 		// Check if the update needs to be done at all.
 		selectStmt := fmt.Sprintf(`
-			SELECT 
+			SELECT
 				host_uuid,
 				declaration_uuid,
 				status,
@@ -5533,14 +5545,14 @@ func (ds *Datastore) CleanupHostMDMCommands(ctx context.Context) error {
 
 func (ds *Datastore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, serial string) (*fleet.AppleOSUpdateSettings, error) {
 	stmt := `
-SELECT 
-	team_id, platform 
-FROM 
-	hosts h 
-JOIN 
-	host_dep_assignments hdep ON h.id = host_id 
-WHERE 
-	hardware_serial = ? AND deleted_at IS NULL 
+SELECT
+	team_id, platform
+FROM
+	hosts h
+JOIN
+	host_dep_assignments hdep ON h.id = host_id
+WHERE
+	hardware_serial = ? AND deleted_at IS NULL
 LIMIT 1`
 
 	var dest struct {
