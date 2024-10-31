@@ -273,19 +273,19 @@ type StoredError struct {
 	Chain json.RawMessage `json:"chain"`
 }
 
-type handler interface {
+type Handler interface {
 	Store(error)
 	Retrieve(flush bool) ([]*StoredError, error)
 }
 
 // NewContext returns a context derived from ctx that contains the provided
 // error handler.
-func NewContext(ctx context.Context, eh handler) context.Context {
+func NewContext(ctx context.Context, eh Handler) context.Context {
 	return context.WithValue(ctx, errHandlerKey, eh)
 }
 
-func fromContext(ctx context.Context) handler {
-	v, _ := ctx.Value(errHandlerKey).(handler)
+func FromContext(ctx context.Context) Handler {
+	v, _ := ctx.Value(errHandlerKey).(Handler)
 	return v
 }
 
@@ -337,14 +337,14 @@ func Handle(ctx context.Context, err error) {
 		}
 	}
 
-	if eh := fromContext(ctx); eh != nil {
+	if eh := FromContext(ctx); eh != nil {
 		eh.Store(err)
 	}
 }
 
 // Retrieve retrieves an error from the registered error handler
 func Retrieve(ctx context.Context) ([]*StoredError, error) {
-	eh := fromContext(ctx)
+	eh := FromContext(ctx)
 	if eh == nil {
 		return nil, New(ctx, "missing handler in context")
 	}

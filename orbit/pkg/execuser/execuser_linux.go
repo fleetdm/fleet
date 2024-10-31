@@ -17,10 +17,10 @@ import (
 )
 
 // run uses sudo to run the given path as login user.
-func run(path string, opts eopts) error {
+func run(path string, opts eopts) (lastLogs string, err error) {
 	user, err := getLoginUID()
 	if err != nil {
-		return fmt.Errorf("get user: %w", err)
+		return "", fmt.Errorf("get user: %w", err)
 	}
 
 	// TODO(lucas): Default to display :0 if user DISPLAY environment variable
@@ -82,9 +82,9 @@ func run(path string, opts eopts) error {
 	log.Printf("cmd=%s", cmd.String())
 
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("open path %q: %w", path, err)
+		return "", fmt.Errorf("open path %q: %w", path, err)
 	}
-	return nil
+	return "", nil
 }
 
 type user struct {

@@ -33,7 +33,7 @@ func WithArg(name, value string) Option {
 // It assumes the caller is running with high privileges (root on Unix, SYSTEM on Windows).
 //
 // It returns after starting the child process.
-func Run(path string, opts ...Option) error {
+func Run(path string, opts ...Option) (lastLogs string, err error) {
 	var o eopts
 	for _, fn := range opts {
 		fn(&o)
