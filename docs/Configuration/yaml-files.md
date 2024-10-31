@@ -289,10 +289,7 @@ controls:
 - `macos_settings.custom_settings` is a list of paths to macOS configuration profiles (.mobileconfig) or declaration profiles (.json).
 - `windows_settings.custom_settings` is a list of paths to Windows configuration profiles (.xml).
 
-Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format. Variables beginning with `$FLEET_VAR_` are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. Supported variables include:
-   - `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`
-   - `$FLEET_VAR_NDES_SCEP_CHALLENGE`
-   - `$FLEET_VAR_NDES_SCEP_PROXY_URL`
+Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format. Variables beginning with `$FLEET_VAR_` are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. See supported variables in the guide [here](https://fleetdm.com/guides/ndes-scep-proxy).
 
 Use `labels_include_all` to only apply (scope) profiles to hosts that have all those labels or `labels_exclude_any` to apply profiles to hosts that don't have any of those labels.
 
@@ -525,7 +522,8 @@ org_settings:
 
 #### integrations
 
-The `integrations` section lets you define calendar events and ticket settings for failing policy and vulnerablity automations. Learn more about automations in Fleet [here](https://fleetdm.com/docs/using-fleet/automations).
+The `integrations` section lets you define calendar events and ticket settings for failing policy and vulnerability automations. Learn more about automations in Fleet [here](https://fleetdm.com/docs/using-fleet/automations).
+In addition, you can define the SCEP proxy settings for Network Device Enrollment Service (NDES). Learn more about SCEP and NDES in Fleet [here](https://fleetdm.com/guides/ndes-scep-proxy).
 
 ##### Example
 
@@ -545,6 +543,11 @@ org_settings:
         email: user1@example.com
         api_token: $ZENDESK_API_TOKEN
         group_id: 1234
+    ndes_scep_proxy:
+      url: https://example.com/certsrv/mscep/mscep.dll
+      admin_url: https://example.com/certsrv/mscep_admin/
+      username: Administrator@example.com
+      password: 'myPassword'
 ```
 
 For secrets, you can add [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow)
@@ -563,10 +566,16 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 
 ##### zendesk
 
-  - `url` is the URL of your Zendesk (default: `""`)
+- `url` is the URL of your Zendesk (default: `""`)
 - `username` is the username of your Zendesk account (default: `""`).
 - `api_token` is the Zendesk API token (default: `""`).
 - `group_id`is found by selecting **Admin > People > Groups** in Zendesk. Find your group and select it. The group ID will appear in the search field.
+
+##### ndes_scep_proxy
+- `url` is the URL of the NDES SCEP endpoint (default: `""`).
+- `admin_url` is the URL of the NDES admin endpoint (default: `""`).
+- `username` is the username of the NDES admin endpoint (default: `""`).
+- `password` is the password of the NDES admin endpoint (default: `""`).
 
 #### webhook_settings
 
