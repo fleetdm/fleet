@@ -417,10 +417,22 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		UserID:        u.ID,
 	})
 	require.NoError(t, err)
+	sw3, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install to delete",
+		InstallerFile: installer,
+		StorageID:     uuid.NewString(),
+		Filename:      "todelete.pkg",
+		Title:         "todelete",
+		Source:        "apps",
+		Version:       "0.0.3",
+		UserID:        u.ID,
+	})
+	require.NoError(t, err)
 	sw1Meta, err := ds.GetSoftwareInstallerMetadataByID(ctx, sw1)
 	require.NoError(t, err)
 	sw2Meta, err := ds.GetSoftwareInstallerMetadataByID(ctx, sw2)
 	require.NoError(t, err)
+	sw3Meta, err := ds.GetSoftwareInstallerMetadataByID(ctx, sw3)
 
 	// insert a VPP app
 	vppCommand1, vppCommand2 := "vpp-command-1", "vpp-command-2"
@@ -523,7 +535,15 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	h2SelfService, err := ds.InsertSoftwareInstallRequest(noUserCtx, h2.ID, sw1Meta.InstallerID, true, nil)
 	require.NoError(t, err)
 
-	// nothing for h3
+	// create pending install and uninstall requests for h3 that will be deleted
+	_, err = ds.InsertSoftwareInstallRequest(ctx, h3.ID, sw3Meta.InstallerID, false, nil)
+	require.NoError(t, err)
+	err = ds.InsertSoftwareUninstallRequest(ctx, "uninstallRun", h3.ID, sw3Meta.InstallerID)
+	require.NoError(t, err)
+
+	// delete installer (should clear pending requests)
+	err = ds.DeleteSoftwareInstaller(ctx, sw3Meta.InstallerID)
+	require.NoError(t, err)
 
 	// force-set the order of the created_at timestamps
 	endTime := SetOrderedCreatedAtTimestamps(t, ds, time.Now(), "host_script_results", "execution_id", h1A, h1B)
