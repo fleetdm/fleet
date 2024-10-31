@@ -15,7 +15,7 @@ Using Fleet, you can now block a user’s screen while software installs or scri
 
 ### Connect end users to Wi-Fi
 
-With Fleet, you can now install a SCEP certificate from NDES on all macOS hosts as part of the Wi-Fi/Ethernet configuration profile. This ensures seamless and secure network access for end users. Learn more in the guide [here](TODO).
+With Fleet, you can now install a SCEP certificate from NDES on all macOS hosts as part of the Wi-Fi/Ethernet configuration profile. This ensures seamless and secure network access for end users. Learn more in the guide [here](https://fleetdm.com/guides/ndes-scep-proxy).
 
 ## Changes
 
