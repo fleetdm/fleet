@@ -141,13 +141,14 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	teamRaw, teamOk := top["name"]
 	teamSettingsRaw, teamSettingsOk := top["team_settings"]
 	orgSettingsRaw, orgOk := top["org_settings"]
-	if orgOk {
+	switch {
+	case orgOk:
 		if teamOk || teamSettingsOk {
 			multiError = multierror.Append(multiError, errors.New("'org_settings' cannot be used with 'name', 'team_settings'"))
 		} else {
 			multiError = parseOrgSettings(orgSettingsRaw, result, baseDir, multiError)
 		}
-	} else if teamOk {
+	case teamOk:
 		multiError = parseName(teamRaw, result, multiError)
 		if result.IsNoTeam() {
 			if teamSettingsOk {
@@ -163,7 +164,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 				multiError = parseTeamSettings(teamSettingsRaw, result, baseDir, multiError)
 			}
 		}
-	} else {
+	default:
 		multiError = multierror.Append(multiError, errors.New("either 'org_settings' or 'name' and 'team_settings' is required"))
 	}
 
@@ -756,9 +757,16 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	for _, item := range software.Packages {
 		var softwarePackageSpec fleet.SoftwarePackageSpec
 		if item.Path != nil {
-			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
+			softwarePackageSpec.ReferencedYamlPath = resolveApplyRelativePath(baseDir, *item.Path)
+			fileBytes, err := os.ReadFile(softwarePackageSpec.ReferencedYamlPath)
 			if err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("failed to read policies file %s: %v", *item.Path, err))
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to read software package file %s: %v", *item.Path, err))
+				continue
+			}
+			// Replace $var and ${var} with env values.
+			fileBytes, err = ExpandEnvBytes(fileBytes)
+			if err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environmet in file %s: %v", *item.Path, err))
 				continue
 			}
 			if err := yaml.Unmarshal(fileBytes, &softwarePackageSpec); err != nil {

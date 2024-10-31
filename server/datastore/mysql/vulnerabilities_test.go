@@ -407,7 +407,7 @@ func testVulnerabilitiesTeamFilter(t *testing.T, ds *Datastore) {
 	}
 
 	for _, vuln := range list {
-		require.Equal(t, checkCounts[vuln.CVE.CVE], int(vuln.HostsCount), vuln.CVE)
+		require.EqualValues(t, checkCounts[vuln.CVE.CVE], vuln.HostsCount, vuln.CVE)
 	}
 
 	//
@@ -432,7 +432,7 @@ func testVulnerabilitiesTeamFilter(t *testing.T, ds *Datastore) {
 	}
 
 	for _, vuln := range list {
-		require.Equal(t, checkCounts[vuln.CVE.CVE], int(vuln.HostsCount), vuln.CVE)
+		require.EqualValues(t, checkCounts[vuln.CVE.CVE], vuln.HostsCount, vuln.CVE)
 	}
 
 	//
@@ -456,7 +456,7 @@ func testVulnerabilitiesTeamFilter(t *testing.T, ds *Datastore) {
 	}
 
 	for _, vuln := range list {
-		require.Equal(t, checkCounts[vuln.CVE.CVE], int(vuln.HostsCount), vuln.CVE)
+		require.EqualValues(t, checkCounts[vuln.CVE.CVE], vuln.HostsCount, vuln.CVE)
 	}
 }
 
@@ -759,7 +759,7 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 		Platform: "darwin",
 	}
 	for i := 4; i < 9; i++ {
-		err = ds.UpdateHostOperatingSystem(context.Background(), uint(i), macOSPatched)
+		err = ds.UpdateHostOperatingSystem(context.Background(), uint(i), macOSPatched) //nolint:gosec // dismiss G115
 		require.NoError(t, err)
 	}
 

@@ -17,6 +17,8 @@ export default {
   CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/setup-experience/end-user-auth`,
   CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/setup-experience/bootstrap-package`,
   CONTROLS_SETUP_ASSITANT: `${URL_PREFIX}/controls/setup-experience/setup-assistant`,
+  CONTROLS_INSTALL_SOFTWARE: `${URL_PREFIX}/controls/setup-experience/install-software`,
+  CONTROLS_RUN_SCRIPT: `${URL_PREFIX}/controls/setup-experience/run-script`,
   CONTROLS_SCRIPTS: `${URL_PREFIX}/controls/scripts`,
 
   // Dashboard pages

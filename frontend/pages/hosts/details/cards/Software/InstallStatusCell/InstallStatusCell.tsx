@@ -36,8 +36,10 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   installed: {
     iconName: "success",
     displayText: "Installed",
-    tooltip: () =>
-      "Software is installed (install script finished with exit code 0).",
+    tooltip: ({ isAppStoreApp }) =>
+      isAppStoreApp
+        ? "The host acknowledged the MDM command to install App Store app."
+        : "Software is installed (install script finished with exit code 0).",
   },
   pending_install: {
     iconName: "pending-outline",

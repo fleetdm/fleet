@@ -218,7 +218,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 	var metaData *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
-		if len(activities) > int(opt.ListOptions.PerPage) {
+		if len(activities) > int(opt.ListOptions.PerPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			activities = activities[:len(activities)-1]
 		}
@@ -340,7 +340,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			hsi.execution_id IS NULL
 `,
 		// list pending software installs
-		fmt.Sprintf(`SELECT
+		`SELECT
 			hsi.execution_id as uuid,
 			-- policies with automatic installers generate a host_software_installs with (user_id=NULL,self_service=0),
 			-- so we mark those as "Fleet"
@@ -376,9 +376,9 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		WHERE
 			hsi.host_id = :host_id AND
 			hsi.status = :software_status_install_pending
-		`),
+		`,
 		// list pending software uninstalls
-		fmt.Sprintf(`SELECT
+		`SELECT
 			hsi.execution_id as uuid,
 			-- policies with automatic installers generate a host_software_installs with (user_id=NULL,self_service=0),
 			-- so we mark those as "Fleet"
@@ -412,7 +412,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		WHERE
 			hsi.host_id = :host_id AND
 			hsi.status = :software_status_uninstall_pending
-		`),
+		`,
 		`
 SELECT
 	hvsi.command_uuid AS uuid,
@@ -481,9 +481,8 @@ WHERE
 		return nil, nil, ctxerr.Wrap(ctx, err, "select upcoming activities")
 	}
 
-	var metaData *fleet.PaginationMetadata
-	metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: count}
-	if len(activities) > int(opt.PerPage) {
+	metaData := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: count}
+	if len(activities) > int(opt.PerPage) { //nolint:gosec // dismiss G115
 		metaData.HasNextResults = true
 		activities = activities[:len(activities)-1]
 	}
@@ -523,7 +522,7 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 	var metaData *fleet.PaginationMetadata
 	if opt.IncludeMetadata {
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
-		if len(activities) > int(opt.PerPage) {
+		if len(activities) > int(opt.PerPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			activities = activities[:len(activities)-1]
 		}

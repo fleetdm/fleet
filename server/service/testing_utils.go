@@ -569,9 +569,7 @@ func (m *memFailingPolicySet) ListHosts(policyID uint) ([]fleet.PolicySetHost, e
 	defer m.mMu.RUnlock()
 
 	hosts := make([]fleet.PolicySetHost, len(m.m[policyID]))
-	for i := range m.m[policyID] {
-		hosts[i] = m.m[policyID][i]
-	}
+	copy(hosts, m.m[policyID])
 	return hosts, nil
 }
 
@@ -722,12 +720,12 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		// parsed before the MDM check, we need to refactor this
 		// function to return more information to the caller, or find a
 		// better way to test these endpoints.
-		//{"POST", "/api/latest/fleet/mdm/profiles", false, false},
-		//{"POST", "/api/latest/fleet/configuration_profiles", false, false},
-		//{"POST", "/api/latest/fleet/mdm/setup/eula"},
-		//{"POST", "/api/latest/fleet/setup_experience/eula"},
-		//{"POST", "/api/latest/fleet/mdm/bootstrap", false, true},
-		//{"POST", "/api/latest/fleet/bootstrap", false, true},
+		// {"POST", "/api/latest/fleet/mdm/profiles", false, false},
+		// {"POST", "/api/latest/fleet/configuration_profiles", false, false},
+		// {"POST", "/api/latest/fleet/mdm/setup/eula"},
+		// {"POST", "/api/latest/fleet/setup_experience/eula"},
+		// {"POST", "/api/latest/fleet/mdm/bootstrap", false, true},
+		// {"POST", "/api/latest/fleet/bootstrap", false, true},
 		{"GET", "/api/latest/fleet/mdm/profiles", false, false},
 		{"GET", "/api/latest/fleet/configuration_profiles", false, false},
 		{"GET", "/api/latest/fleet/mdm/manual_enrollment_profile", false, true},
@@ -743,6 +741,7 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"GET", "/api/latest/fleet/bootstrap/summary", false, true},
 		{"PATCH", "/api/latest/fleet/mdm/apple/setup", false, true},
 		{"PATCH", "/api/latest/fleet/setup_experience", false, true},
+		{"POST", "/api/fleet/orbit/setup_experience/status", false, true},
 	}
 }
 

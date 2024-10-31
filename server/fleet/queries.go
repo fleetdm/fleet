@@ -119,8 +119,7 @@ func (q *Query) Copy() *Query {
 		return nil
 	}
 
-	var clone Query
-	clone = *q
+	clone := *q
 
 	if q.TeamID != nil {
 		clone.TeamID = ptr.Uint(*q.TeamID)

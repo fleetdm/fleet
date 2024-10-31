@@ -294,7 +294,7 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 	var metaData *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
-		if len(vulns) > int(opt.ListOptions.PerPage) {
+		if len(vulns) > int(opt.ListOptions.PerPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			vulns = vulns[:len(vulns)-1]
 		}
@@ -318,14 +318,14 @@ func (ds *Datastore) CountVulnerabilities(ctx context.Context, opt fleet.VulnLis
 	`
 	var args []interface{}
 	if opt.TeamID == nil {
-		selectStmt = selectStmt + " AND global_stats = 1"
+		selectStmt += " AND global_stats = 1"
 	} else {
-		selectStmt = selectStmt + " AND global_stats = 0 AND vhc.team_id = ?"
+		selectStmt += " AND global_stats = 0 AND vhc.team_id = ?"
 		args = append(args, opt.TeamID)
 	}
 
 	if opt.KnownExploit {
-		selectStmt = selectStmt + " AND cm.cisa_known_exploit = 1"
+		selectStmt += " AND cm.cisa_known_exploit = 1"
 	}
 
 	if match := opt.ListOptions.MatchQuery; match != "" {

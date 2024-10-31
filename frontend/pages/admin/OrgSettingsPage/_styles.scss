@@ -93,10 +93,6 @@
         width: calc(90% - 50px);
         margin-bottom: $pad-medium;
       }
-
-      &__disabled-usage-statistics-checkbox {
-        @include disabled;
-      }
     }
   }
 }

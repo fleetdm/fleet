@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path"
@@ -27,6 +28,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/theupdateframework/go-tuf/client"
 	"github.com/theupdateframework/go-tuf/data"
+	"github.com/theupdateframework/go-tuf/verify"
 )
 
 const (
@@ -206,8 +208,28 @@ func (u *Updater) UpdateMetadata() error {
 	return nil
 }
 
+func IsExpiredErr(err error) bool {
+	var errDecodeFailed client.ErrDecodeFailed
+	if errors.As(err, &errDecodeFailed) {
+		err = errDecodeFailed.Err
+	}
+	var errExpired verify.ErrExpired
+	return errors.As(err, &errExpired)
+}
+
+// SignaturesExpired returns true if the "root", "targets", or "snapshot" signature is expired.
+func (u *Updater) SignaturesExpired() bool {
+	// When the "root", "targets", or "snapshot" signature is expired
+	// client.Target fails with an expiration error.
+	_, err := u.Lookup(constant.OrbitTUFTargetName)
+	return IsExpiredErr(err)
+}
+
 // repoPath returns the path of the target in the remote repository.
 func (u *Updater) repoPath(target string) (string, error) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
 	t, ok := u.opt.Targets[target]
 	if !ok {
 		return "", fmt.Errorf("unknown target: %s", target)
@@ -221,7 +243,26 @@ func (u *Updater) ExecutableLocalPath(target string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	ok, err := entryExists(localTarget.ExecPath)
+	if err != nil {
+		return "", err
+	}
+	if !ok {
+		return "", fmt.Errorf("path %q does not exist", localTarget.ExecPath)
+	}
 	return localTarget.ExecPath, nil
+}
+
+// entryExists returns whether a file or directory at path exists.
+func entryExists(path string) (bool, error) {
+	switch _, err := os.Stat(path); {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, fs.ErrNotExist):
+		return false, nil
+	default:
+		return false, err
+	}
 }
 
 // DirLocalPath returns the configured root directory local path of a tar.gz target.
@@ -231,6 +272,13 @@ func (u *Updater) DirLocalPath(target string) (string, error) {
 	localTarget, err := u.localTarget(target)
 	if err != nil {
 		return "", err
+	}
+	ok, err := entryExists(localTarget.DirPath)
+	if err != nil {
+		return "", err
+	}
+	if !ok {
+		return "", fmt.Errorf("path %q does not exist", localTarget.DirPath)
 	}
 	return localTarget.DirPath, nil
 }
@@ -281,6 +329,9 @@ type LocalTarget struct {
 
 // localTarget returns the info and local path of a target.
 func (u *Updater) localTarget(target string) (*LocalTarget, error) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
 	t, ok := u.opt.Targets[target]
 	if !ok {
 		return nil, fmt.Errorf("unknown target: %s", target)
@@ -670,4 +721,18 @@ func (u *Updater) initializeDirectories() error {
 	}
 
 	return nil
+}
+
+func CanRun(rootDirPath, targetName string, targetInfo TargetInfo) bool {
+	_, binaryPath, _ := LocalTargetPaths(
+		rootDirPath,
+		targetName,
+		targetInfo,
+	)
+
+	if _, err := os.Stat(binaryPath); err != nil {
+		return false
+	}
+
+	return true
 }

@@ -70,7 +70,7 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting last id after inserting policy")
 	}
-	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), nil)
+	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), nil) //nolint:gosec // dismiss G115
 }
 
 func policiesChecksumComputedColumn() string {
@@ -461,7 +461,7 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 
 // getInheritedPoliciesForTeam returns the list of global policies with the
 // passing and failing host counts for the provided teamID
-func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, TeamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, teamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 	var args []interface{}
 
 	query := `
@@ -478,7 +478,7 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, Tea
         WHERE p.team_id IS NULL
     `
 
-	args = append(args, TeamID)
+	args = append(args, teamID)
 
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	match := norm.NFC.String(opts.MatchQuery)
@@ -685,7 +685,7 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting last id after inserting policy")
 	}
-	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), &teamID)
+	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), &teamID) //nolint:gosec // dismiss G115
 }
 
 func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
@@ -931,7 +931,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 							}
 						}
 						if err = cleanupPolicy(
-							ctx, tx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, ds.logger,
+							ctx, tx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, //nolint:gosec // dismiss G115
+							removePolicyStats, ds.logger,
 						); err != nil {
 							return err
 						}
@@ -1422,7 +1423,7 @@ func amountPolicyViolationDaysDB(ctx context.Context, tx sqlx.QueryerContext) (i
 		return 0, 0, ctxerr.Wrap(ctx, err, "unmarshal policy violation counts")
 	}
 
-	return int(counts.FailingHostCount), int(counts.TotalHostCount), nil
+	return int(counts.FailingHostCount), int(counts.TotalHostCount), nil //nolint:gosec // dismiss G115
 }
 
 func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {

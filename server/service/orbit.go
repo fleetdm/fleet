@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 )
 
@@ -213,6 +214,26 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			notifs.NeedsMDMMigration = true
 		}
 
+		if isConnectedToFleetMDM {
+			inSetupAssistant, err := svc.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
+			if err != nil {
+				return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking if host is in setup experience")
+			}
+
+			if inSetupAssistant {
+				notifs.RunSetupExperience = true
+
+				// check if the client is running an old fleetd version that doesn't support the new
+				// setup experience flow.
+				mp, ok := capabilities.FromContext(ctx)
+				if !ok || !mp.Has(fleet.CapabilitySetupExperience) {
+					level.Debug(svc.logger).Log("msg", "host doesn't support Setup experience, falling back to worker-based device release", "host_uuid", host.UUID)
+					if err := svc.processReleaseDeviceForOldFleetd(ctx, host); err != nil {
+						return fleet.OrbitConfig{}, err
+					}
+				}
+			}
+		}
 	}
 
 	// set the host's orbit notifications for Windows MDM
@@ -406,6 +427,71 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		NudgeConfig:      nudgeConfig,
 		UpdateChannels:   updateChannels,
 	}, nil
+}
+
+func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *fleet.Host) error {
+	var manualRelease bool
+	if host.TeamID == nil {
+		ac, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get AppConfig to read enable_release_device_manually")
+		}
+		manualRelease = ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
+	} else {
+		tm, err := svc.ds.Team(ctx, *host.TeamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get Team to read enable_release_device_manually")
+		}
+		manualRelease = tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
+	}
+
+	if !manualRelease {
+		// For the commands to await, since we're in an orbit endpoint we know that
+		// fleetd has already been installed, so we only need to check for the
+		// bootstrap package install and the SSO account configuration (both are
+		// optional).
+		bootstrapCmdUUID, err := svc.ds.GetHostBootstrapPackageCommand(ctx, host.UUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "get bootstrap package command")
+		}
+
+		// AccountConfiguration covers the (optional) command to setup SSO.
+		adminTeamFilter := fleet.TeamFilter{
+			User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+		}
+		acctCmds, err := svc.ds.ListMDMCommands(ctx, adminTeamFilter, &fleet.MDMCommandListOptions{
+			Filters: fleet.MDMCommandFilters{
+				HostIdentifier: host.UUID,
+				RequestType:    "AccountConfiguration",
+			},
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list AccountConfiguration commands")
+		}
+		var acctConfigCmdUUID string
+		if len(acctCmds) > 0 {
+			// there may be more than one if e.g. the worker job that sends them had to
+			// retry, but they would all be processed anyway so we can only care about
+			// the first one.
+			acctConfigCmdUUID = acctCmds[0].CommandUUID
+		}
+
+		// Enroll reference arg is not used in the release device task, passing empty string.
+		if err := worker.QueueAppleMDMJob(ctx, svc.ds, svc.logger, worker.AppleMDMPostDEPReleaseDeviceTask,
+			host.UUID, host.Platform, host.TeamID, "", bootstrapCmdUUID, acctConfigCmdUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "queue Apple Post-DEP release device job")
+		}
+	}
+
+	// at this point we know for sure that it will get released, but we need to
+	// ensure we won't continually enqueue new worker jobs for that host until it
+	// is released. To do so, we clear up the setup experience data (since anyway
+	// this host will not go through that new flow).
+	if err := svc.ds.SetHostAwaitingConfiguration(ctx, host.UUID, false); err != nil {
+		return ctxerr.Wrap(ctx, err, "unset host awaiting configuration")
+	}
+
+	return nil
 }
 
 func (svc *Service) setDiskEncryptionNotifications(
@@ -688,6 +774,25 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 	hsr, action, err := svc.ds.SetHostScriptExecutionResult(ctx, result)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "save host script result")
+	}
+
+	// FIXME: datastore implementation of action seems rather brittle, can it be refactored?
+	if action == "" && fleet.IsSetupExperienceSupported(host.Platform) {
+		// this might be a setup experience script result
+		if updated, err := maybeUpdateSetupExperienceStatus(ctx, svc.ds, fleet.SetupExperienceScriptResult{
+			HostUUID:    host.UUID,
+			ExecutionID: result.ExecutionID,
+			ExitCode:    result.ExitCode,
+		}, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "update setup experience status")
+		} else if updated {
+			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.ExecutionID)
+			_, err := svc.EnterpriseOverrides.SetupExperienceNextStep(ctx, host.UUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
+			}
+
+		}
 	}
 
 	if hsr != nil {
@@ -1028,6 +1133,20 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return ctxerr.Wrap(ctx, err, "save host software installation result")
 	}
 
+	if fleet.IsSetupExperienceSupported(host.Platform) {
+		// this might be a setup experience software install result
+		if updated, err := maybeUpdateSetupExperienceStatus(ctx, svc.ds, fleet.SetupExperienceSoftwareInstallResult{
+			HostUUID:        host.UUID,
+			ExecutionID:     result.InstallUUID,
+			InstallerStatus: result.Status(),
+		}, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "update setup experience status")
+		} else if updated {
+			// TODO: call next step of setup experience?
+			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.InstallUUID)
+		}
+	}
+
 	if status := result.Status(); status != fleet.SoftwareInstallPending {
 		hsi, err := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID)
 		if err != nil {
@@ -1069,4 +1188,45 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}
 	}
 	return nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Get Orbit setup experience status
+/////////////////////////////////////////////////////////////////////////////////
+
+type getOrbitSetupExperienceStatusRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	ForceRelease bool   `json:"force_release"`
+}
+
+func (r *getOrbitSetupExperienceStatusRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *getOrbitSetupExperienceStatusRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type getOrbitSetupExperienceStatusResponse struct {
+	Results *fleet.SetupExperienceStatusPayload `json:"setup_experience_results,omitempty"`
+	Err     error                               `json:"error,omitempty"`
+}
+
+func (r getOrbitSetupExperienceStatusResponse) error() error { return r.Err }
+
+func getOrbitSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getOrbitSetupExperienceStatusRequest)
+	results, err := svc.GetOrbitSetupExperienceStatus(ctx, req.OrbitNodeKey, req.ForceRelease)
+	if err != nil {
+		return &getOrbitSetupExperienceStatusResponse{Err: err}, nil
+	}
+	return &getOrbitSetupExperienceStatusResponse{Results: results}, nil
+}
+
+func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*fleet.SetupExperienceStatusPayload, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }

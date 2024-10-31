@@ -26,7 +26,7 @@
 	},
 	{
 		"identifier": "docker",
-		"bundle_identifier": "com.electron.dockerdesktop",
+		"bundle_identifier": "com.docker.docker",
 		"installer_format": "dmg:app"
 	},
 	{
@@ -56,7 +56,7 @@
 	},
 	{
 		"identifier": "microsoft-teams",
-		"bundle_identifier": "com.microsoft.teams",
+		"bundle_identifier": "com.microsoft.teams2",
 		"installer_format": "pkg"
 	},
 	{
@@ -91,7 +91,7 @@
 	},
 	{
 		"identifier": "whatsapp",
-		"bundle_identifier": "desktop.WhatsApp",
+		"bundle_identifier": "net.whatsapp.WhatsApp",
 		"installer_format": "zip:app"
 	},
 	{

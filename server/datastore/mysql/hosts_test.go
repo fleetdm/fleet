@@ -458,7 +458,7 @@ func testSaveHostPackStatsDB(t *testing.T, ds *Datastore) {
 	})
 	assert.Equal(t, host.PackStats[1].PackName, "test2")
 	// Server calculates WallTimeMs if WallTimeMs==0 coming in. (osquery wall_time -> wall_time_ms -> DB wall_time)
-	stats2[0].WallTime = stats2[0].WallTime * 1000
+	stats2[0].WallTime *= 1000
 	assert.ElementsMatch(t, host.PackStats[1].QueryStats, stats2)
 }
 
@@ -1118,7 +1118,7 @@ func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
 		SeenTime:        time.Now(),
 		OsqueryHostID:   ptr.String("foo"),
 		NodeKey:         ptr.String("foo"),
-		UUID:            fmt.Sprintf("foo"),
+		UUID:            "foo",
 		Hostname:        "foo.local",
 	})
 	require.NoError(t, err)
@@ -1130,7 +1130,7 @@ func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
 		SeenTime:        time.Now(),
 		OsqueryHostID:   ptr.String("foo2"),
 		NodeKey:         ptr.String("foo2"),
-		UUID:            fmt.Sprintf("foo2"),
+		UUID:            "foo2",
 		Hostname:        "foo2.local",
 	})
 	require.NoError(t, err)
@@ -2654,7 +2654,7 @@ func testHostsAddToTeam(t *testing.T, ds *Datastore) {
 		host, err := ds.Host(context.Background(), uint(i))
 		require.NoError(t, err)
 		var expectedID *uint
-		switch {
+		switch { //nolint:gocritic // ignore singleCaseSwitch
 		case i >= 5:
 			expectedID = &team1.ID
 		}
@@ -4736,9 +4736,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 	// Plus we set schedule query stats for a query that does not apply (globalSQuery1)
 	// (This could happen if the target platform of a schedule query is changed after creation.)
 	stats := make([]fleet.ScheduledQueryStats, len(globalStats))
-	for i := range globalStats {
-		stats[i] = globalStats[i]
-	}
+	copy(stats, globalStats)
 	stats = append(stats, fleet.ScheduledQueryStats{
 		ScheduledQueryName: userSQuery1.Name,
 		ScheduledQueryID:   userSQuery1.ID,
@@ -6769,6 +6767,18 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, softwareInstaller, false, nil)
 	require.NoError(t, err)
 
+	// Add an awaiting configuration entry
+	err = ds.SetHostAwaitingConfiguration(ctx, host.UUID, false)
+	require.NoError(t, err)
+
+	// Add a setup experience status result
+	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "test.sh", ScriptContents: "echo foo"})
+	require.NoError(t, err)
+
+	added, err := ds.EnqueueSetupExperienceItems(ctx, host.UUID, 0)
+	require.NoError(t, err)
+	require.True(t, added)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool
@@ -7612,7 +7622,7 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	require.True(t, info.DEPAssignedToFleet)
 	require.True(t, info.OsqueryEnrolled)
 
-	err = ds.DeleteHostDEPAssignments(ctx, []string{host.HardwareSerial})
+	err = ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{host.HardwareSerial})
 	require.NoError(t, err)
 	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
 	require.NoError(t, err)
@@ -7745,7 +7755,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	// simulate a failed JSON profile assignment
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
-		"foo", []string{hFleet.HardwareSerial}, string(fleet.DEPAssignProfileResponseFailed),
+		"foo", []string{hFleet.HardwareSerial}, string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
 	)
 	require.NoError(t, err)
 	loadFleet, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
@@ -9703,5 +9713,4 @@ func testGetHostEmails(t *testing.T, ds *Datastore) {
 	emails, err = ds.GetHostEmails(ctx, host.UUID, fleet.DeviceMappingMDMIdpAccounts)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"foo@example.com", "bar@example.com"}, emails)
-
 }

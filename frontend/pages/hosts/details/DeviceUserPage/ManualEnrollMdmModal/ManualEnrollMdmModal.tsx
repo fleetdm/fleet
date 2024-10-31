@@ -1,11 +1,11 @@
-import React from "react";
+import React, { useContext } from "react";
+import FileSaver from "file-saver";
 
-import endpoints from "utilities/endpoints";
+import mdmAPI from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-
-const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
+import { NotificationContext } from "context/notification";
 
 interface IManualEnrollMdmModalProps {
   onCancel: () => void;
@@ -18,9 +18,24 @@ const ManualEnrollMdmModal = ({
   onCancel,
   token = "",
 }: IManualEnrollMdmModalProps): JSX.Element => {
-  const renderModalBody = () => {
-    const downloadUrl = `/api${DEVICE_USER_MDM_ENROLLMENT_PROFILE(token)}`;
+  const { renderFlash } = useContext(NotificationContext);
 
+  const onDownload = async () => {
+    try {
+      const profileContent = await mdmAPI.downloadManualEnrollmentProfile(
+        token
+      );
+      const file = new File(
+        [profileContent],
+        "fleet-mdm-enrollment-profile.mobileconfig"
+      );
+      FileSaver.saveAs(file);
+    } catch (e) {
+      renderFlash("error", "Failed to download the profile. Please try again.");
+    }
+  };
+
+  const renderModalBody = () => {
     return (
       <div>
         <p className={`${baseClass}__description`}>
@@ -32,13 +47,12 @@ const ManualEnrollMdmModal = ({
             <span>Download your profile.</span>
             <br />
             {/* TODO: make a link component that appears as a button. */}
-            <a
-              className={`${baseClass}__download-link`}
-              href={downloadUrl}
-              download
+            <Button
+              className={`${baseClass}__download-button`}
+              onClick={onDownload}
             >
               Download
-            </a>
+            </Button>
           </li>
           <li>Open the profile you just downloaded.</li>
           <li>

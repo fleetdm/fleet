@@ -312,8 +312,12 @@ the way that the Fleet server works.
 				}
 			}
 
+			// Strip the Redis URI scheme if it's present. Scheme docs are at: https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml
+			// This allows us to use Render's Redis service in render.yaml, including the free tier.
+			// In the future, we could support the full Redis URI if needed (including username, password, database, etc.)
+			redisAddress := strings.TrimPrefix(config.Redis.Address, "redis://")
 			redisPool, err := redis.NewPool(redis.PoolConfig{
-				Server:                    config.Redis.Address,
+				Server:                    redisAddress,
 				Username:                  config.Redis.Username,
 				Password:                  config.Redis.Password,
 				Database:                  config.Redis.Database,
@@ -1035,12 +1039,11 @@ the way that the Fleet server works.
 				if setupRequired {
 					apiHandler = service.WithSetup(svc, logger, apiHandler)
 					frontendHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler, config.Server.URLPrefix)
-					endUserEnrollOTAHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler, config.Server.URLPrefix)
 				} else {
 					frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler, config.Server.URLPrefix)
-					endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(config.Server.URLPrefix, logger)
 				}
 
+				endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(svc, config.Server.URLPrefix, logger)
 			}
 
 			healthCheckers := make(map[string]health.Checker)
@@ -1182,6 +1185,7 @@ the way that the Fleet server works.
 				}
 				apiHandler.ServeHTTP(rw, req)
 			})
+
 			rootMux.Handle("/enroll", endUserEnrollOTAHandler)
 			rootMux.Handle("/", frontendHandler)
 
@@ -1247,8 +1251,7 @@ the way that the Fleet server works.
 			liveQueryRestPeriod += 10 * time.Second
 
 			// Create the handler based on whether tracing should be there
-			var handler http.Handler
-			handler = launcher.Handler(rootMux)
+			handler := launcher.Handler(rootMux)
 
 			srv := config.Server.DefaultHTTPServer(ctx, handler)
 			if liveQueryRestPeriod > srv.WriteTimeout {

@@ -1516,13 +1516,23 @@ NOTE: when updating a policy, team and platform will be ignored.
       "description": "Checks to make sure that the FileVault feature is enabled on macOS devices.",
       "resolution": "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
       "platform": "darwin",
-      "critical": true
-    }
+      "critical": true,
+      "script_id": 123
+    },
+    {
+      "name": "Is Adobe Acrobat installed and up to date?",
+      "query": "SELECT 1 FROM apps WHERE name = 'Adobe Acrobat Reader.app' AND version_compare(bundle_short_version, '23.001.20687') >= 0;",
+      "team": "Workstations",
+      "description": "Checks to make sure that Adobe Acrobat is installed and up to date.",
+      "platform": "darwin",
+      "critical": false,
+      "software_title_id": 12
+    },
   ]
 }
 ```
 
-The field `critical` is available in Fleet Premium.
+The fields `critical`, `script_id`, and `software_title_id` are available in Fleet Premium.
 
 ##### Default response
 
@@ -3346,7 +3356,24 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 
 ##### Default response
 
-`Status: 204`
+`Status: 200`
+
+```json
+{
+  "scripts": [
+    {
+      "team_id": 3,
+      "id": 6690,
+      "name": "Ensure shields are up"
+    },
+    {
+      "team_id": 3,
+      "id": 10412,
+      "name": "Ensure flux capacitor is charged"
+    }
+  ]
+}
+```
 
 ### Run live script
 
