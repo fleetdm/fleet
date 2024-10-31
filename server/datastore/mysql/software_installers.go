@@ -865,14 +865,14 @@ WHERE
 	const deleteAllPendingSoftwareInstalls = `
 		DELETE FROM host_software_installs
 		   WHERE status IN('pending_install', 'pending_uninstall')
-				AND software_installer IN (
+				AND software_installer_id IN (
 					SELECT id FROM software_installers WHERE global_or_team_id = ?
 			   )
 `
 	const markAllSoftwareInstallsAsRemoved = `
 		UPDATE host_software_installs SET removed = TRUE
 			WHERE status IS NOT NULL AND host_deleted_at IS NULL
-				AND software_installer IN (
+				AND software_installer_id IN (
 					SELECT id FROM software_installers WHERE global_or_team_id = ?
 			   )
 `
@@ -895,14 +895,14 @@ WHERE
 	const deletePendingSoftwareInstallsNotInList = `
 		DELETE FROM host_software_installs
 		   WHERE status IN('pending_install', 'pending_uninstall')
-				AND software_installer IN (
+				AND software_installer_id IN (
 					SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
 			   )
 `
 	const markSoftwareInstallsNotInListAsRemoved = `
 		UPDATE host_software_installs SET removed = TRUE
 			WHERE status IS NOT NULL AND host_deleted_at IS NULL
-				AND software_installer IN (
+				AND software_installer_id IN (
 					SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
 			   )
 `
