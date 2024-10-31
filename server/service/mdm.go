@@ -1249,21 +1249,22 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	}
 
 	// add labels
-	var existsIncl, existsExcl, existsDepr bool
+	var existsIncl, existsInclAny, existsExcl, existsDepr bool
 	var deprecatedLabels []string
 	decoded.LabelsIncludeAll, existsIncl = r.MultipartForm.Value["labels_include_all"]
+	decoded.LabelsIncludeAny, existsInclAny = r.MultipartForm.Value["labels_include_any"]
 	decoded.LabelsExcludeAny, existsExcl = r.MultipartForm.Value["labels_exclude_any"]
 	deprecatedLabels, existsDepr = r.MultipartForm.Value["labels"]
 
 	// validate that only one of the labels type is provided
 	var count int
-	for _, b := range []bool{existsIncl, existsExcl, existsDepr} {
+	for _, b := range []bool{existsIncl, existsExcl, existsInclAny, existsDepr} {
 		if b {
 			count++
 		}
 	}
 	if count > 1 {
-		return nil, &fleet.BadRequestError{Message: `Only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`}
+		return nil, &fleet.BadRequestError{Message: `Only one of "labels_exclude_any", "labels_include_any", "labels_include_all" or "labels" can be included.`}
 	}
 	if existsDepr {
 		decoded.LabelsIncludeAll = deprecatedLabels
