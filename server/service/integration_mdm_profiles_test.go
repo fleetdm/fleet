@@ -1789,7 +1789,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 		}
   }`), http.StatusUnprocessableEntity)
 	msg := extractServerErrorText(res.Body)
-	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
+	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
 
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
