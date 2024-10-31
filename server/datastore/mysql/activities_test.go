@@ -433,6 +433,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	sw2Meta, err := ds.GetSoftwareInstallerMetadataByID(ctx, sw2)
 	require.NoError(t, err)
 	sw3Meta, err := ds.GetSoftwareInstallerMetadataByID(ctx, sw3)
+	require.NoError(t, err)
 
 	// insert a VPP app
 	vppCommand1, vppCommand2 := "vpp-command-1", "vpp-command-2"

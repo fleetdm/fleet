@@ -1081,7 +1081,7 @@ ON DUPLICATE KEY UPDATE
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build statement to delete pending uninstall script executions")
 		}
-		if _, err := tx.ExecContext(ctx, stmt, args); err != nil {
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete pending uninstall script executions")
 		}
 
@@ -1089,7 +1089,7 @@ ON DUPLICATE KEY UPDATE
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build statement to delete pending software installs")
 		}
-		if _, err := tx.ExecContext(ctx, stmt, globalOrTeamID); err != nil {
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete pending host software install records")
 		}
 
@@ -1097,7 +1097,7 @@ ON DUPLICATE KEY UPDATE
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build statement to mark obsolete host software installs as removed")
 		}
-		if _, err := tx.ExecContext(ctx, stmt, globalOrTeamID); err != nil {
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "mark obsolete host software installs as removed")
 		}
 
