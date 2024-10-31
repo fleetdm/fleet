@@ -3,7 +3,11 @@ import PropTypes from "prop-types";
 
 import { IFormField } from "./form_field";
 import { IPack } from "./pack";
-import { SelectedPlatformString, QueryablePlatform } from "./platform";
+import {
+  SelectedPlatformString,
+  QueryablePlatform,
+  SelectedPlatform,
+} from "./platform";
 
 // Query itself
 export interface ISchedulableQuery {
@@ -74,6 +78,7 @@ export interface IQueryKeyQueriesLoadAll {
   orderDirection?: "asc" | "desc";
   orderKey?: string;
   mergeInherited?: boolean;
+  compatiblePlatform?: SelectedPlatform;
 }
 // Create a new query
 /** POST /api/v1/fleet/queries */

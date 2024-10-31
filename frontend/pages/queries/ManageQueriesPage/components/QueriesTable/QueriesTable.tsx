@@ -39,7 +39,7 @@ export interface IQueriesTableProps {
   isAnyTeamObserverPlus: boolean;
   router?: InjectedRouter;
   queryParams?: {
-    platform?: SelectedPlatform;
+    compatible_platform?: SelectedPlatform;
     page?: string;
     query?: string;
     order_key?: string;
@@ -52,6 +52,7 @@ export interface IQueriesTableProps {
 const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_SORT_HEADER = "name";
 const DEFAULT_PAGE_SIZE = 20;
+// all platforms
 const DEFAULT_PLATFORM = "all";
 
 const PLATFORM_FILTER_OPTIONS = [
@@ -143,19 +144,23 @@ const QueriesTable = ({
   const initialSortDirection = (() =>
     (queryParams?.order_direction as "asc" | "desc") ??
     DEFAULT_SORT_DIRECTION)();
-  const initialPlatform = (() =>
-    (queryParams?.platform as "all" | "windows" | "linux" | "darwin") ??
-    DEFAULT_PLATFORM)();
   const initialPage = (() =>
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
 
   // Source of truth is state held within TableContainer. That state is initialized using URL
   // params, then subsequent updates to that state are pushed to the URL.
+  // TODO - remove extaneous defintions around these values
   const searchQuery = initialSearchQuery;
-  const platform = initialPlatform;
   const page = initialPage;
   const sortDirection = initialSortDirection;
   const sortHeader = initialSortHeader;
+
+  const curCompatiblePlatformFilter =
+    (queryParams?.compatible_platform as
+      | "all"
+      | "windows"
+      | "linux"
+      | "darwin") ?? DEFAULT_PLATFORM;
 
   // TODO: Look into useDebounceCallback with dependencies
   // TODO - ensure the events this triggers correctly lead to the updates intended
@@ -171,7 +176,10 @@ const QueriesTable = ({
       const newQueryParams: Record<string, string | number | undefined> = {};
       newQueryParams.order_key = newSortHeader;
       newQueryParams.order_direction = newSortDirection;
-      newQueryParams.platform = platform; // must set from URL
+      newQueryParams.compatible_platform =
+        curCompatiblePlatformFilter === "all"
+          ? undefined
+          : curCompatiblePlatformFilter;
       newQueryParams.page = newPageIndex;
       newQueryParams.query = newSearchQuery;
       // Reset page number to 0 for new filters
@@ -189,9 +197,16 @@ const QueriesTable = ({
         queryParams: { ...queryParams, ...newQueryParams },
       });
 
-      router?.replace(locationPath);
+      router?.push(locationPath);
     },
-    [sortHeader, sortDirection, searchQuery, platform, router, page]
+    [
+      sortHeader,
+      sortDirection,
+      searchQuery,
+      curCompatiblePlatformFilter,
+      router,
+      page,
+    ]
   );
 
   // const onClientSidePaginationChange = useCallback(
@@ -251,23 +266,33 @@ const QueriesTable = ({
     searchQuery,
   ]);
 
-  const renderPlatformDropdown = useCallback(() => {
-    const handlePlatformFilterDropdownChange = (platformSelected: string) => {
-      router?.replace(
+  // TODO - remove comment once stable
+  // if there are issues with the platform dropdown rendering stability, look here
+  const handlePlatformFilterDropdownChange = useCallback(
+    (selectedCompatiblePlatform: string) => {
+      router?.push(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_QUERIES,
           queryParams: {
             ...queryParams,
             page: 0,
-            platform: platformSelected,
+            compatible_platform:
+              // separate URL & API 0-values of "compatible_platform" (undefined) from dropdown
+              // 0-value of "all"
+              selectedCompatiblePlatform === "all"
+                ? undefined
+                : selectedCompatiblePlatform,
           },
         })
       );
-    };
+    },
+    [queryParams, router]
+  );
 
+  const renderPlatformDropdown = useCallback(() => {
     return (
       <Dropdown
-        value={platform}
+        value={curCompatiblePlatformFilter}
         className={`${baseClass}__platform-dropdown`}
         options={PLATFORM_FILTER_OPTIONS}
         searchable={false}
@@ -275,7 +300,7 @@ const QueriesTable = ({
         iconName="filter"
       />
     );
-  }, [platform, queryParams, router]);
+  }, [curCompatiblePlatformFilter, queryParams, router]);
 
   // const renderQueriesCount = useCallback(() => {
   //   // Fixes flashing incorrect count before clientside filtering
@@ -368,7 +393,7 @@ const QueriesTable = ({
         // onClientSidePaginationChange={onClientSidePaginationChange}
         // isClientSideFilter
         // TODO - consolidate this functionality within `filters`
-        selectedDropdownFilter={platform}
+        selectedDropdownFilter={curCompatiblePlatformFilter}
       />
     </div>
   ) : (

@@ -45,7 +45,8 @@ interface IManageQueriesPageProps {
   location: {
     pathname: string;
     query: {
-      platform?: SelectedPlatform;
+      // note that the URL value "darwin" will correspond to the request query param "macos" - TODO: reconcile
+      compatible_platform?: SelectedPlatform;
       page?: string;
       query?: string;
       order_key?: string;
@@ -68,6 +69,8 @@ export const enhanceQuery = (q: ISchedulableQuery): IEnhancedQuery => {
     performance: getPerformanceImpactDescription(
       pick(q.stats, ["user_time_p50", "system_time_p50", "total_executions"])
     ),
+    // TODO - once we are storing platform compatibility in a db column, remove this processing and
+    // rely on that instead
     platforms: getPlatforms(q.query),
   };
 };
@@ -142,10 +145,12 @@ const ManageQueriesPage = ({
         teamId: teamIdForApi,
         page: curPageFromURL,
         perPage: DEFAULT_PAGE_SIZE,
+        // a search match query, not a Fleet Query
         query: location.query.query,
         orderDirection: location.query.order_direction,
         orderKey: location.query.order_key,
         mergeInherited: teamIdForApi !== API_ALL_TEAMS_ID,
+        compatiblePlatform: location.query.compatible_platform,
       },
     ],
     ({ queryKey }) => queriesAPI.loadAll(queryKey[0]),
@@ -156,7 +161,6 @@ const ManageQueriesPage = ({
     }
   );
 
-  // select: ({ queries }) => queries.map(enhanceQuery),
   const enhancedQueries = queriesResponse?.queries.map(enhanceQuery);
 
   const queriesAvailableToAutomate =
@@ -275,13 +279,6 @@ const ManageQueriesPage = ({
     if (queriesError) {
       return <TableDataError />;
     }
-
-    // TODO - coordinate these properties with useQuery and the below table
-    // page: tableQueryData?.pageIndex,
-    // perPage: DEFAULT_PAGE_SIZE,
-    // query: searchQuery,
-    // orderDirection: orderBy,
-    // orderKey: orderKey,
     return (
       <QueriesTable
         queries={enhancedQueries || []}
@@ -293,6 +290,7 @@ const ManageQueriesPage = ({
         isOnlyObserver={isOnlyObserver}
         isObserverPlus={isObserverPlus}
         isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
+        // changes in table state are propagated to the API call on this page via this router pushing to the URL
         router={router}
         queryParams={queryParams}
         currentTeamId={teamIdForApi}

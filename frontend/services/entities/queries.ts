@@ -6,12 +6,14 @@ import { ISelectedTargetsForApi } from "interfaces/target";
 import {
   ICreateQueryRequestBody,
   IModifyQueryRequestBody,
+  IQueryKeyQueriesLoadAll,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
 import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
 } from "utilities/url";
+import { SelectedPlatform } from "interfaces/platform";
 
 export interface ILoadQueriesParams {
   teamId?: number;
@@ -21,6 +23,7 @@ export interface ILoadQueriesParams {
   orderDirection?: "asc" | "desc";
   orderKey?: string;
   mergeInherited?: boolean;
+  compatiblePlatform?: SelectedPlatform;
 }
 export interface IQueryKeyLoadQueries extends ILoadQueriesParams {
   scope: "queries";
@@ -69,7 +72,8 @@ export default {
     orderDirection,
     orderKey,
     mergeInherited,
-  }: IQueryKeyLoadQueries): Promise<IQueriesResponse> => {
+    compatiblePlatform,
+  }: IQueryKeyQueriesLoadAll): Promise<IQueriesResponse> => {
     const { QUERIES } = endpoints;
 
     const snakeCaseParams = convertParamsToSnakeCase({
@@ -80,7 +84,14 @@ export default {
       orderDirection,
       orderKey,
       mergeInherited,
+      compatiblePlatform,
     });
+
+    // API expects "macos" instead of "darwin"
+    if (snakeCaseParams.compatible_platform === "darwin") {
+      snakeCaseParams.compatible_platform = "macos";
+    }
+
     const queryString = buildQueryStringFromParams(snakeCaseParams);
 
     return sendRequest(
