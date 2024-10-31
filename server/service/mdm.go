@@ -2004,6 +2004,7 @@ func validateProfiles(profiles []fleet.MDMProfileBatchPayload) error {
 		var count int
 		for _, b := range []bool{
 			len(profile.LabelsIncludeAll) > 0,
+			len(profile.LabelsIncludeAny) > 0,
 			len(profile.LabelsExcludeAny) > 0,
 			len(profile.Labels) > 0,
 		} {
@@ -2012,7 +2013,7 @@ func validateProfiles(profiles []fleet.MDMProfileBatchPayload) error {
 			}
 		}
 		if count > 1 {
-			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
+			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
 		}
 
 		if len(profile.Contents) > 1024*1024 {
