@@ -18,7 +18,7 @@ const DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG =
 interface IDeleteSoftwareModalProps {
   softwareId: number;
   teamId: number;
-  software: any; // TODO
+  softwarePackageName?: string;
   onExit: () => void;
   onSuccess: () => void;
 }
@@ -26,7 +26,7 @@ interface IDeleteSoftwareModalProps {
 const DeleteSoftwareModal = ({
   softwareId,
   teamId,
-  software,
+  softwarePackageName,
   onExit,
   onSuccess,
 }: IDeleteSoftwareModalProps) => {
@@ -55,8 +55,15 @@ const DeleteSoftwareModal = ({
       <>
         <p>
           Software won&apos;t be uninstalled from existing hosts, but any
-          pending pending installs and uninstalls for <b>{software.name}</b>{" "}
-          will be cancelled.
+          pending pending installs and uninstalls{" "}
+          {softwarePackageName ? (
+            <>
+              for <b> {softwarePackageName}</b>{" "}
+            </>
+          ) : (
+            ""
+          )}
+          will be canceled.
         </p>
         <p>
           Installs or uninstalls currently running on a host will still

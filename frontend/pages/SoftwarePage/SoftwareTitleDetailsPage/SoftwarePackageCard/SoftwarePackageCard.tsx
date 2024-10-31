@@ -395,7 +395,7 @@ const SoftwarePackageCard = ({
       {showDeleteModal && (
         <DeleteSoftwareModal
           softwareId={softwareId}
-          software={softwarePackage}
+          softwarePackageName={softwarePackage?.name}
           teamId={teamId}
           onExit={() => setShowDeleteModal(false)}
           onSuccess={onDeleteSuccess}
