@@ -1,27 +1,14 @@
 /* eslint-disable react/prop-types */
-import React, {
-  useContext,
-  useCallback,
-  useMemo,
-  useState,
-  useEffect,
-} from "react";
+import React, { useContext, useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 import { IEmptyTableProps } from "interfaces/empty_table";
-import {
-  isQueryablePlatform,
-  QUERYABLE_PLATFORMS,
-  QueryablePlatform,
-  SelectedPlatform,
-} from "interfaces/platform";
+import { isQueryablePlatform, SelectedPlatform } from "interfaces/platform";
 import { IEnhancedQuery } from "interfaces/schedulable_query";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import PATHS from "router/paths";
 import { getNextLocationPath } from "utilities/helpers";
-import { checkPlatformCompatibility } from "utilities/sql_tools";
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
@@ -56,7 +43,6 @@ export interface IQueriesTableProps {
 
 const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_SORT_HEADER = "name";
-const DEFAULT_PAGE_SIZE = 20;
 // all platforms
 const DEFAULT_PLATFORM: SelectedPlatform = "all";
 
@@ -212,23 +198,6 @@ const QueriesTable = ({
     ]
   );
 
-  // const onClientSidePaginationChange = useCallback(
-  //   (pageIndex: number) => {
-  //     const newQueryParams = {
-  //       ...queryParams,
-  //       page: pageIndex, // update main table index
-  //       query: searchQuery,
-  //     };
-
-  //     const locationPath = getNextLocationPath({
-  //       pathPrefix: PATHS.MANAGE_QUERIES,
-  //       queryParams: newQueryParams,
-  //     });
-  //     router?.replace(locationPath);
-  //   },
-  //   [platform, searchQuery, sortDirection, sortHeader] // Dependencies required for correct variable state
-  // );
-
   const getEmptyStateParams = useCallback(() => {
     const emptyParams: IEmptyTableProps = {
       graphicName: "empty-queries",
@@ -305,15 +274,6 @@ const QueriesTable = ({
     );
   }, [curCompatiblePlatformFilter, queryParams, router]);
 
-  // const renderQueriesCount = useCallback(() => {
-  //   // Fixes flashing incorrect count before clientside filtering
-  //   if (isQueriesStateLoading) {
-  //     return null;
-  //   }
-
-  //   return <TableCount name="queries" count={queriesState?.length} />;
-  // }, [queriesState, isQueriesStateLoading]);
-
   const columnConfigs = useMemo(
     () =>
       currentUser &&
@@ -360,10 +320,7 @@ const QueriesTable = ({
       <TableContainer
         resultsTitle="queries"
         columnConfigs={columnConfigs}
-        // data={queriesState}
         data={queries}
-        // filters={{ name: trimmedSearchQuery }}
-        // isLoading={isLoading || isQueriesStateLoading}
         // won't ever actually be loading, see render condition above
         isLoading={isLoading}
         defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
@@ -372,7 +329,6 @@ const QueriesTable = ({
         defaultPageIndex={page}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        // primarySelectAction={deleteQueryTableActionButtonProps}
         primarySelectAction={{
           name: "delete query",
           buttonText: "Delete",
@@ -381,24 +337,17 @@ const QueriesTable = ({
           onActionButtonClick: onDeleteQueryClick,
         }}
         emptyComponent={emptyComponent}
-        // renderCount={renderQueriesCount}
         renderCount={() => (
           // TODO - is more logic necessary here? Can we omit this?
           <TableCount name="queries" count={totalQueriesCount} />
         )}
-        // pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
         searchable={searchable}
         // TODO - will likely need to implement this somehow. Looks messy for policies, so avoid if
         // not necessary.
         // resetPageIndex=
-
         customControl={searchable ? renderPlatformDropdown : undefined}
-        // searchQueryColumn="name"
-        // onClientSidePaginationChange={onClientSidePaginationChange}
-        // isClientSideFilter
-        // TODO - consolidate this functionality within `filters`
         selectedDropdownFilter={curCompatiblePlatformFilter}
       />
     </div>
