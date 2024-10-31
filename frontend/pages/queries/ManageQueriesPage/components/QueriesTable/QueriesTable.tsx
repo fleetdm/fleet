@@ -325,7 +325,10 @@ const QueriesTable = ({
     [currentUser, currentTeamId, onlyInheritedQueries]
   );
 
-  const searchable = (totalQueriesCount ?? 0) > 0;
+  const searchable =
+    (totalQueriesCount ?? 0) > 0 ||
+    !!curCompatiblePlatformFilter ||
+    !!searchQuery;
 
   const emptyComponent = useCallback(() => {
     const {
