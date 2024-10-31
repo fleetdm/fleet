@@ -490,7 +490,7 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 		CreatedAt:        decl.CreatedAt,
 		UploadedAt:       decl.UploadedAt,
 		LabelsIncludeAll: decl.LabelsIncludeAll,
-		LabelsIncludeAny: decl.LabelsExcludeAny,
+		LabelsIncludeAny: decl.LabelsIncludeAny,
 		LabelsExcludeAny: decl.LabelsExcludeAny,
 	}
 }
