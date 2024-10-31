@@ -325,7 +325,7 @@ const QueriesTable = ({
     [currentUser, currentTeamId, onlyInheritedQueries]
   );
 
-  const searchable = !(queries?.length === 0 && searchQuery === "");
+  const searchable = (totalQueriesCount ?? 0) > 0;
 
   const emptyComponent = useCallback(() => {
     const {
