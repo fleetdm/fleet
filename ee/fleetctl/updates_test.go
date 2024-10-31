@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
+	"github.com/fleetdm/fleet/v4/pkg/race"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -462,6 +463,10 @@ func TestRollback(t *testing.T) {
 // behavior depends on which of the roles has the expired signature).
 func TestIntegrationsUpdatesExpiredSignatures(t *testing.T) {
 	// Not t.Parallel() due to modifications to environment and global variables.
+	if race.Enabled {
+		// Because execution is slower and thus sleep time would need to be higher.
+		t.Skip("Skipping test when race is enabled")
+	}
 
 	setPassphrases(t)
 	const timeToExpire = 5 * time.Second

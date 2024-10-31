@@ -76,13 +76,12 @@ const CustomDropdownIndicator = (
 };
 
 const CustomOption: React.FC<OptionProps<IDropdownOption, false>> = (props) => {
-  const { innerProps, innerRef, data, isDisabled } = props;
+  const { innerRef, data, isDisabled } = props;
 
   const optionContent = (
     <div
       className={`${baseClass}__option`}
       ref={innerRef}
-      {...innerProps}
       tabIndex={isDisabled ? -1 : 0} // Tabbing skipped when disabled
       aria-disabled={isDisabled}
     >
@@ -124,10 +123,6 @@ const ActionsDropdown = ({
   };
 
   const customStyles: StylesConfig<IDropdownOption, false> = {
-    container: (provided) => ({
-      ...provided,
-      width: "80px",
-    }),
     control: (provided, state) => ({
       ...provided,
       display: "flex",
@@ -182,11 +177,10 @@ const ActionsDropdown = ({
       boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
       borderRadius: "4px",
       zIndex: 6,
-      overflow: "hidden",
       border: 0,
       marginTop: 0,
-      minWidth: "158px",
-      maxHeight: "220px",
+      width: "auto",
+      minWidth: "100%",
       position: "absolute",
       left: getLeftMenuAlign(menuAlign),
       right: getRightMenuAlign(menuAlign),
@@ -195,6 +189,7 @@ const ActionsDropdown = ({
     menuList: (provided) => ({
       ...provided,
       padding: PADDING["pad-small"],
+      maxHeight: "initial", // Override react-select default height of 300px to avoid scrollbar on hostactionsdropdown
     }),
     valueContainer: (provided) => ({
       ...provided,
@@ -205,6 +200,7 @@ const ActionsDropdown = ({
       padding: "10px 8px",
       fontSize: "14px",
       backgroundColor: getOptionBackgroundColor(state),
+      whiteSpace: "nowrap",
       "&:hover": {
         backgroundColor: state.isDisabled
           ? "transparent"

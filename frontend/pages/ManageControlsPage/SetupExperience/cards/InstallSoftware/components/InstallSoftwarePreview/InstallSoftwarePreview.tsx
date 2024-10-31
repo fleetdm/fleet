@@ -22,7 +22,8 @@ const InstallSoftwarePreview = () => {
       <img
         className={`${baseClass}__preview-img`}
         src={InstallSoftwarePreviewImg}
-        alt="install software preview"
+        alt="End user experience during the macOS setup assistant with selected
+        software being installed"
       />
     </Card>
   );

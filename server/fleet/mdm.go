@@ -548,8 +548,7 @@ func (p *MDMProfileSpec) Copy() *MDMProfileSpec {
 		return nil
 	}
 
-	var clone MDMProfileSpec
-	clone = *p
+	clone := *p
 
 	if len(p.Labels) > 0 {
 		clone.Labels = make([]string, len(p.Labels))

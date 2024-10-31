@@ -1,19 +1,15 @@
-import classnames from "classnames";
 import React from "react";
+import classnames from "classnames";
+
+import OsSetupPreview from "../../../../../../../../assets/images/os-setup-preview.gif";
 
 const baseClass = "end-user-experience-preview";
 
 interface IEndUserExperiencePreviewProps {
-  previewImage: string;
-  altText?: string;
-  children?: React.ReactNode;
   className?: string;
 }
 
 const EndUserExperiencePreview = ({
-  previewImage,
-  altText = "end user experience preview",
-  children,
   className,
 }: IEndUserExperiencePreviewProps) => {
   const classes = classnames(baseClass, className);
@@ -21,11 +17,20 @@ const EndUserExperiencePreview = ({
   return (
     <div className={classes}>
       <h3>End user experience</h3>
-      <>{children}</>
+      <p>
+        When the end user reaches the <b>Remote Management</b> screen in the
+        macOS Setup Assistant, they are asked to authenticate and agree to the
+        end user license agreement (EULA).
+      </p>
+      <p>
+        After, Fleet enrolls the Mac, applies macOS settings, and installs the
+        bootstrap package.
+      </p>
       <img
         className={`${baseClass}__preview-img`}
-        src={previewImage}
-        alt={altText}
+        src={OsSetupPreview}
+        alt="End user experience during the macOS setup assistant with the user
+        logging in with their IdP provider"
       />
     </div>
   );

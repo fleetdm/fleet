@@ -116,7 +116,7 @@ by an exit code of zero.`,
 					return err
 				}
 			}
-			level.Info(logger).Log("msg", "vulnerability processing finished", "took", time.Now().Sub(start))
+			level.Info(logger).Log("msg", "vulnerability processing finished", "took", time.Since(start))
 
 			return
 		},

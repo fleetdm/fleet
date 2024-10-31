@@ -353,9 +353,7 @@ func (uhsdbr *UpdateHostSoftwareDBResult) CurrInstalled() []Software {
 		}
 	}
 
-	for _, i := range uhsdbr.Inserted {
-		r = append(r, i)
-	}
+	r = append(r, uhsdbr.Inserted...)
 
 	return r
 }
