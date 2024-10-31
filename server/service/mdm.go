@@ -1209,6 +1209,7 @@ type newMDMConfigProfileRequest struct {
 	TeamID           uint
 	Profile          *multipart.FileHeader
 	LabelsIncludeAll []string
+	LabelsIncludeAny []string
 	LabelsExcludeAny []string
 }
 

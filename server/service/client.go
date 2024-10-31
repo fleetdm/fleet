@@ -381,6 +381,7 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 				Contents:         fileContents,
 				Labels:           profile.Labels,
 				LabelsIncludeAll: profile.LabelsIncludeAll,
+				LabelsIncludeAny: profile.LabelsIncludeAny,
 				LabelsExcludeAny: profile.LabelsExcludeAny,
 			})
 
