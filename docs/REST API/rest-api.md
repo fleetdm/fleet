@@ -4505,7 +4505,7 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 ```
 
 
-> Note: To verify the host successfully locked, use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`.
+> To verify the host successfully locked, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`.
 
 ### Unlock host
 
@@ -4545,9 +4545,13 @@ To unlock a Windows or Linux host, the host must have [scripts enabled](https://
 ```json
 {
   "host_id": 8,
-  "unlock_pin": "123456"
+  "unlock_pin": "123456",
+  "device_status": "locked",
+  "pending_action": ""
 }
 ```
+
+> To verify the host successfully unlocked, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`.
 
 ### Wipe host
 
@@ -4577,6 +4581,8 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
   "pending_action": "wipe"
 }
 ```
+
+> To verify the host was successfully wiped, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`.
 
 
 ### Get host's past activity
