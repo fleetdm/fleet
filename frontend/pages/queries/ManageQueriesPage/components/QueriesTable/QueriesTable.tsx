@@ -10,7 +10,12 @@ import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 import { IEmptyTableProps } from "interfaces/empty_table";
-import { SelectedPlatform } from "interfaces/platform";
+import {
+  isQueryablePlatform,
+  QUERYABLE_PLATFORMS,
+  QueryablePlatform,
+  SelectedPlatform,
+} from "interfaces/platform";
 import { IEnhancedQuery } from "interfaces/schedulable_query";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
@@ -39,7 +44,7 @@ export interface IQueriesTableProps {
   isAnyTeamObserverPlus: boolean;
   router?: InjectedRouter;
   queryParams?: {
-    compatible_platform?: SelectedPlatform;
+    compatible_platform?: string;
     page?: string;
     query?: string;
     order_key?: string;
@@ -53,7 +58,7 @@ const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_SORT_HEADER = "name";
 const DEFAULT_PAGE_SIZE = 20;
 // all platforms
-const DEFAULT_PLATFORM = "all";
+const DEFAULT_PLATFORM: SelectedPlatform = "all";
 
 const PLATFORM_FILTER_OPTIONS = [
   {
@@ -155,12 +160,10 @@ const QueriesTable = ({
   const sortDirection = initialSortDirection;
   const sortHeader = initialSortHeader;
 
-  const curCompatiblePlatformFilter =
-    (queryParams?.compatible_platform as
-      | "all"
-      | "windows"
-      | "linux"
-      | "darwin") ?? DEFAULT_PLATFORM;
+  const compatPlatformParam = queryParams?.compatible_platform;
+  const curCompatiblePlatformFilter = isQueryablePlatform(compatPlatformParam)
+    ? compatPlatformParam
+    : DEFAULT_PLATFORM;
 
   // TODO: Look into useDebounceCallback with dependencies
   // TODO - ensure the events this triggers correctly lead to the updates intended
