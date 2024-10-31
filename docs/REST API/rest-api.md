@@ -4499,8 +4499,8 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 ```json
 {
   "unlock_pin": "123456",
-  "device_status": "locked",
-  "pending_action": "",
+  "device_status": "unlocked",
+  "pending_action": "lock",
 }
 ```
 
