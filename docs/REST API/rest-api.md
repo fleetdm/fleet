@@ -4505,6 +4505,7 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 ```
 
 
+> Note: To verify the host successfully locked, use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`.
 
 ### Unlock host
 
