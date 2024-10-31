@@ -230,16 +230,16 @@ const QueriesTable = ({
   // );
 
   const getEmptyStateParams = useCallback(() => {
-    const emptyQueries: IEmptyTableProps = {
+    const emptyParams: IEmptyTableProps = {
       graphicName: "empty-queries",
       header: "You don't have any queries",
     };
-    if (searchQuery) {
-      delete emptyQueries.graphicName;
-      emptyQueries.header = "No matching queries";
-      emptyQueries.info = "No queries match the current filters.";
+    if (searchQuery || curCompatiblePlatformFilter !== "all") {
+      delete emptyParams.graphicName;
+      emptyParams.header = "No matching queries";
+      emptyParams.info = "No queries match the current filters.";
     } else if (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) {
-      emptyQueries.additionalInfo = (
+      emptyParams.additionalInfo = (
         <>
           Create a new query, or{" "}
           <CustomLink
@@ -249,7 +249,7 @@ const QueriesTable = ({
           />
         </>
       );
-      emptyQueries.primaryButton = (
+      emptyParams.primaryButton = (
         <Button
           variant="brand"
           className={`${baseClass}__create-button`}
@@ -260,7 +260,7 @@ const QueriesTable = ({
       );
     }
 
-    return emptyQueries;
+    return emptyParams;
   }, [
     isAnyTeamObserverPlus,
     isObserverPlus,
