@@ -214,7 +214,6 @@ const ActionsDropdown = ({
       ...(state.isDisabled && {
         color: COLORS["ui-fleet-black-50"],
         fontStyle: "italic",
-        // pointerEvents: "none", // Prevents any mouse interaction
       }),
     }),
   };
