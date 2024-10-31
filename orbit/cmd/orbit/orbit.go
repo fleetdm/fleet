@@ -1199,7 +1199,7 @@ func main() {
 			go func() {
 				for {
 					msg := <-desktopRunner.errorNotifyCh
-					log.Error().Msgf("fleet-desktop runner error: %s", msg)
+					log.Error().Err(errors.New(msg)).Msg("fleet-desktop runner error")
 					// Vital errors are always sent to Fleet, regardless of the error reporting setting FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS.
 					fleetdErr := fleet.FleetdError{
 						Vital:              true,
