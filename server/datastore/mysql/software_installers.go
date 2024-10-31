@@ -854,11 +854,57 @@ WHERE
   team_id = ?
 `
 
+	const deleteAllPendingUninstallScriptExecutions = `
+		DELETE FROM host_script_results WHERE execution_id IN (
+			SELECT execution_id FROM host_software_installs WHERE status = 'pending_uninstall'
+				AND software_installer_id IN (
+					SELECT id FROM software_installers WHERE global_or_team_id = ?
+			   )
+		)
+`
+	const deleteAllPendingSoftwareInstalls = `
+		DELETE FROM host_software_installs
+		   WHERE status IN('pending_install', 'pending_uninstall')
+				AND software_installer IN (
+					SELECT id FROM software_installers WHERE global_or_team_id = ?
+			   )
+`
+	const markAllSoftwareInstallsAsRemoved = `
+		UPDATE host_software_installs SET removed = TRUE
+			WHERE status IS NOT NULL AND host_deleted_at IS NULL
+				AND software_installer IN (
+					SELECT id FROM software_installers WHERE global_or_team_id = ?
+			   )
+`
+
 	const deleteAllInstallersInTeam = `
 DELETE FROM
   software_installers
 WHERE
   global_or_team_id = ?
+`
+
+	const deletePendingUninstallScriptExecutionsNotInList = `
+		DELETE FROM host_script_results WHERE execution_id IN (
+			SELECT execution_id FROM host_software_installs WHERE status = 'pending_uninstall'
+				AND software_installer_id IN (
+					SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
+			   )
+		)
+`
+	const deletePendingSoftwareInstallsNotInList = `
+		DELETE FROM host_software_installs
+		   WHERE status IN('pending_install', 'pending_uninstall')
+				AND software_installer IN (
+					SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
+			   )
+`
+	const markSoftwareInstallsNotInListAsRemoved = `
+		UPDATE host_software_installs SET removed = TRUE
+			WHERE status IS NOT NULL AND host_deleted_at IS NULL
+				AND software_installer IN (
+					SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
+			   )
 `
 
 	const unsetInstallersNotInListFromPolicies = `
@@ -971,7 +1017,17 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrap(ctx, err, "unset all obsolete installers in policies")
 			}
 
-			// TODO process side effects on script runs, host software installs
+			if _, err := tx.ExecContext(ctx, deleteAllPendingUninstallScriptExecutions, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete all pending uninstall script executions")
+			}
+
+			if _, err := tx.ExecContext(ctx, deleteAllPendingSoftwareInstalls, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete all pending host software install records")
+			}
+
+			if _, err := tx.ExecContext(ctx, markAllSoftwareInstallsAsRemoved, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "mark all host software installs as removed")
+			}
 
 			if _, err := tx.ExecContext(ctx, deleteAllInstallersInTeam, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
@@ -1021,7 +1077,29 @@ ON DUPLICATE KEY UPDATE
 			}
 		}
 
-		// TODO process side effects on script runs, host software installs
+		stmt, args, err = sqlx.In(deletePendingUninstallScriptExecutionsNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete pending uninstall script executions")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete pending uninstall script executions")
+		}
+
+		stmt, args, err = sqlx.In(deletePendingSoftwareInstallsNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete pending software installs")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, globalOrTeamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete pending host software install records")
+		}
+
+		stmt, args, err = sqlx.In(markSoftwareInstallsNotInListAsRemoved, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to mark obsolete host software installs as removed")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, globalOrTeamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "mark obsolete host software installs as removed")
+		}
 
 		stmt, args, err = sqlx.In(deleteInstallersNotInList, globalOrTeamID, titleIDs)
 		if err != nil {
