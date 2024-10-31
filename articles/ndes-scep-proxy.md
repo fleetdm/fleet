@@ -140,9 +140,9 @@ A common use case for SCEP is connecting devices to a corporate WiFi network. Th
 
 Fleet's NDES SCEP proxy feature allows your devices to receive certificates from your certificate authority's NDES service. This feature simplifies managing certificates on your devices and enables a secure and efficient way to connect them to your corporate network.
 
-<meta name="articleTitle" value="Configuring and using NDES SCEP proxy">
+<meta name="articleTitle" value="Connect end users to Wi-Fi with Simple Certificate Enrollment Protocol (SCEP)">
 <meta name="authorFullName" value="Victor Lyuboslavsky">
 <meta name="authorGitHubUsername" value="getvictor">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2024-10-30">
-<meta name="description" value="A guide to configuring and using NDES with Fleet acting as a SCEP proxy.">
+<meta name="description" value="Learn how to help your end users connect to Wi-Fi by adding your SCEP server">
