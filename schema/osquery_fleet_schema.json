@@ -21510,7 +21510,7 @@
       },
       {
         "name": "family",
-        "description": "Network protocol (IPv4, IPv6)",
+        "description": "Network protocol (IPv4, IPv6). [Learn more](https://students.mimuw.edu.pl/SO/Linux/Kod/include/linux/socket.h.html)",
         "type": "integer",
         "notes": "",
         "hidden": false,
@@ -30210,8 +30210,7 @@
     "url": "https://fleetdm.com/tables/yara_events",
     "platforms": [
       "darwin",
-      "linux",
-      "windows"
+      "linux"
     ],
     "evented": true,
     "cacheable": false,
@@ -30308,8 +30307,7 @@
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/yara/yara_events.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fyara_events.yml&value=name%3A%20yara_events%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/yara_events.yml"
   },
   {
     "name": "ycloud_instance_metadata",

@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -28,6 +29,7 @@ import (
 	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -108,9 +110,17 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage([]byte(`{"mdm":{"macos_settings":{"enable_disk_encryption":true}}}`)), http.StatusOK)
 
 	s.enableABM("fleet_ade_test")
+
+	// test manual and automatic release with the new setup experience flow
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
-			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, enableReleaseManually, nil, "I1")
+			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, enableReleaseManually, nil, "I1", false)
+		})
+	}
+	// test manual and automatic release with the old worker flow
+	for _, enableReleaseManually := range []bool{false, true} {
+		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
+			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, enableReleaseManually, nil, "I1", true)
 		})
 	}
 }
@@ -197,14 +207,85 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	// enable FileVault
 	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", json.RawMessage([]byte(fmt.Sprintf(`{"enable_disk_encryption":true,"team_id":%d}`, tm.ID))), http.StatusNoContent)
 
+	// test manual and automatic release with the new setup experience flow
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
-			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, enableReleaseManually, &tm.ID, "I2")
+			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, enableReleaseManually, &tm.ID, "I2", false)
+		})
+	}
+	// test manual and automatic release with the old worker flow
+	for _, enableReleaseManually := range []bool{false, true} {
+		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
+			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, enableReleaseManually, &tm.ID, "I2", true)
 		})
 	}
 }
 
-func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, device godep.Device, enableReleaseManually bool, teamID *uint, customProfileIdent string) {
+func (s *integrationMDMTestSuite) TestDEPEnrollReleaseIphoneTeam() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Set up a mock DEP Apple API
+	s.enableABM(t.Name())
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
+		case "/account":
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
+		case "/profile":
+			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
+		}
+	}))
+
+	teamDevice := godep.Device{SerialNumber: "IOS0_SERIAL", Model: "iPhone 16 Pro", OS: "ios", DeviceFamily: "iPhone", OpType: "added"}
+
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "test-team-device-release"})
+	require.NoError(t, err)
+
+	enrollSecret := "test-release-dep-device-team"
+	err = s.ds.ApplyEnrollSecrets(ctx, &tm.ID, []*fleet.EnrollSecret{{Secret: enrollSecret}})
+	require.NoError(t, err)
+
+	// add a custom setup assistant and ensure enable_release_device_manually is
+	// false (the default)
+	teamProf := `{"y": 2}`
+	s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            &tm.ID,
+		Name:              "team",
+		EnrollmentProfile: json.RawMessage(teamProf),
+	}, http.StatusOK)
+	payload := map[string]any{
+		"enable_release_device_manually": false,
+	}
+	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
+
+	var acResp appConfigResponse
+	s.enableABM("fleet_ade_test")
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+			"mdm": {
+			       "apple_business_manager": [{
+			         "organization_name": %q,
+			         "macos_team": %q,
+			         "ios_team": %q,
+			         "ipados_team": %q
+			       }]
+			}
+		}`, "fleet_ade_test", tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)
+
+	// add a team profile
+	teamProfile := mobileconfigForTest("N2", "I2")
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+
+	for _, enableReleaseManually := range []bool{false, true} {
+		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
+			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, enableReleaseManually, &tm.ID, "I2", false)
+		})
+	}
+}
+
+func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, device godep.Device, enableReleaseManually bool, teamID *uint, customProfileIdent string, useOldFleetdFlow bool) {
 	ctx := context.Background()
 
 	// set the enable release device manually option
@@ -280,13 +361,18 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	// enroll the host
 	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
 	mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+	var isIphone bool
+	if device.DeviceFamily == "iPhone" {
+		mdmDevice.Model = "iPhone 14,6"
+		isIphone = true
+	}
 	mdmDevice.SerialNumber = device.SerialNumber
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
 	// run the worker to process the DEP enroll request
 	s.runWorker()
-	// run the worker to assign configuration profiles
+	// run the cron to assign configuration profiles
 	s.awaitTriggerProfileSchedule(t)
 
 	var cmds []*micromdm.CommandPayload
@@ -316,17 +402,25 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		require.NoError(t, err)
 	}
 
-	// expected commands: install fleetd, install bootstrap, install CA, install profiles
-	// (custom one, fleetd configuration, FileVault) (not expected: account
-	// configuration, since enrollment_reference not set)
-	require.Len(t, cmds, 6)
+	if isIphone {
+		// expected commands: install CA, install profile (only the custom one),
+		// not expected: account configuration, since enrollment_reference not set
+		require.Len(t, cmds, 2)
+	} else {
+		// expected commands: install fleetd, install bootstrap, install CA, install profiles
+		// (custom one, fleetd configuration, FileVault) (not expected: account
+		// configuration, since enrollment_reference not set)
+		require.Len(t, cmds, 6)
+	}
+
 	var installProfileCount, installEnterpriseCount, otherCount int
 	var profileCustomSeen, profileFleetdSeen, profileFleetCASeen, profileFileVaultSeen bool
 	for _, cmd := range cmds {
 		switch cmd.Command.RequestType {
 		case "InstallProfile":
 			installProfileCount++
-			if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", customProfileIdent)) {
+			if strings.Contains(string(cmd.Command.InstallProfile.Payload), //nolint:gocritic // ignore ifElseChain
+				fmt.Sprintf("<string>%s</string>", customProfileIdent)) {
 				profileCustomSeen = true
 			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)) {
 				profileFleetdSeen = true
@@ -343,6 +437,68 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 			otherCount++
 		}
 	}
+
+	if isIphone {
+		require.Equal(t, 2, installProfileCount)
+		require.Equal(t, 0, installEnterpriseCount)
+		require.Equal(t, 0, otherCount)
+		require.True(t, profileCustomSeen)
+		require.False(t, profileFleetdSeen)
+		require.True(t, profileFleetCASeen)
+		require.False(t, profileFileVaultSeen)
+
+		// for iDevices, fleetd is not installed so the rest of this test does not apply.
+		if enableReleaseManually {
+			// get the worker's pending job from the future, there should not be any
+			// because it needs to be released manually
+			pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
+			require.NoError(t, err)
+			require.Empty(t, pending)
+		} else {
+			// otherwise the device release job should be enqueued
+			pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
+			require.NoError(t, err)
+			require.Len(t, pending, 1)
+			require.Equal(t, "apple_mdm", pending[0].Name)
+			require.Contains(t, string(*pending[0].Args), worker.AppleMDMPostDEPReleaseDeviceTask)
+
+			// make the pending job ready to run immediately and run the job
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before = ? WHERE id = ?`, time.Now().Add(-1*time.Minute).UTC(), pending[0].ID)
+				return err
+			})
+
+			s.runWorker()
+
+			// make the device process the commands, it should receive the
+			// DeviceConfigured one.
+			cmds = cmds[:0]
+			cmd, err = mdmDevice.Idle()
+			require.NoError(t, err)
+			for cmd != nil {
+				var fullCmd micromdm.CommandPayload
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+				cmds = append(cmds, &fullCmd)
+				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+				require.NoError(t, err)
+			}
+
+			require.Len(t, cmds, 1)
+			var deviceConfiguredCount int
+			for _, cmd := range cmds {
+				switch cmd.Command.RequestType {
+				case "DeviceConfigured":
+					deviceConfiguredCount++
+				default:
+					otherCount++
+				}
+			}
+			require.Equal(t, 1, deviceConfiguredCount)
+			require.Equal(t, 0, otherCount)
+		}
+		return
+	}
+
 	require.Equal(t, 4, installProfileCount)
 	require.Equal(t, 2, installEnterpriseCount)
 	require.Equal(t, 0, otherCount)
@@ -356,13 +512,65 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	orbitKey := setOrbitEnrollment(t, enrolledHost, s.ds)
 	enrolledHost.OrbitNodeKey = &orbitKey
 
+	// call the /config endpoint as fleetd would
+	var orbitConfigResp orbitGetConfigResponse
+	var caps fleet.CapabilityMap
+	if useOldFleetdFlow {
+		// important thing is that it doesn't have the CapabilitySetupExperience
+		caps.PopulateFromString(string(fleet.CapabilityEscrowBuddy))
+	} else {
+		caps = fleet.GetOrbitClientCapabilities()
+	}
+
+	res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)),
+		http.StatusOK, map[string]string{fleet.CapabilitiesHeader: caps.String()})
+	b, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(b, &orbitConfigResp))
+	// should be notified of the setup experience flow
+	require.True(t, orbitConfigResp.Notifications.RunSetupExperience)
+
 	if enableReleaseManually {
 		// get the worker's pending job from the future, there should not be any
 		// because it needs to be released manually
 		pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
 		require.NoError(t, err)
 		require.Empty(t, pending)
+		return
+	}
+
+	if useOldFleetdFlow {
+		// there should be a Release Device pending job
+		pending, err := s.ds.GetQueuedJobs(ctx, 2, time.Now().UTC().Add(time.Minute))
+		require.NoError(t, err)
+		require.Len(t, pending, 1)
+		require.Equal(t, "apple_mdm", pending[0].Name)
+		require.Contains(t, string(*pending[0].Args), worker.AppleMDMPostDEPReleaseDeviceTask)
+
+		// calling the orbit config endpoint again does NOT enqueue a new job, and doesn't
+		// return the RunSetupExperience notification anymore
+		orbitConfigResp = orbitGetConfigResponse{}
+		res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)),
+			http.StatusOK, map[string]string{fleet.CapabilitiesHeader: caps.String()})
+		b, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		require.NoError(t, json.Unmarshal(b, &orbitConfigResp))
+		require.False(t, orbitConfigResp.Notifications.RunSetupExperience)
+
+		pending, err = s.ds.GetQueuedJobs(ctx, 2, time.Now().UTC().Add(time.Minute))
+		require.NoError(t, err)
+		require.Len(t, pending, 1)
+
+		// make the pending job ready to run immediately and run the job
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before = ? WHERE id = ?`, time.Now().Add(-1*time.Minute).UTC(), pending[0].ID)
+			return err
+		})
+
+		s.runWorker()
+
 	} else {
+
 		// there shouldn't be a Release Device pending job anymore
 		pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
 		require.NoError(t, err)
@@ -371,33 +579,33 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		// call the /status endpoint to automatically release the host
 		var statusResp getOrbitSetupExperienceStatusResponse
 		s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
-
-		// make the device process the commands, it should receive the
-		// DeviceConfigured one.
-		cmds = cmds[:0]
-		cmd, err = mdmDevice.Idle()
-		require.NoError(t, err)
-		for cmd != nil {
-			var fullCmd micromdm.CommandPayload
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			cmds = append(cmds, &fullCmd)
-			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-			require.NoError(t, err)
-		}
-
-		require.Len(t, cmds, 1)
-		var deviceConfiguredCount int
-		for _, cmd := range cmds {
-			switch cmd.Command.RequestType {
-			case "DeviceConfigured":
-				deviceConfiguredCount++
-			default:
-				otherCount++
-			}
-		}
-		require.Equal(t, 1, deviceConfiguredCount)
-		require.Equal(t, 0, otherCount)
 	}
+
+	// make the device process the commands, it should receive the
+	// DeviceConfigured one.
+	cmds = cmds[:0]
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		cmds = append(cmds, &fullCmd)
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	require.Len(t, cmds, 1)
+	var deviceConfiguredCount int
+	for _, cmd := range cmds {
+		switch cmd.Command.RequestType {
+		case "DeviceConfigured":
+			deviceConfiguredCount++
+		default:
+			otherCount++
+		}
+	}
+	require.Equal(t, 1, deviceConfiguredCount)
+	require.Equal(t, 0, otherCount)
 }
 
 func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
@@ -734,6 +942,14 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		{SerialNumber: addedSerial, Model: "MacBook Mini", OS: "osx", OpType: "added"},
 	}
 	profileAssignmentReqs = []profileAssignmentReq{}
+
+	// Enroll the host to be deleted. It will stay in Fleet after deletion from DEP.
+	mdmDeviceToDelete := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+	mdmDeviceToDelete.SerialNumber = deletedSerial
+	require.NoError(t, mdmDeviceToDelete.Enroll())
+	// make sure the host gets post enrollment requests
+	checkPostEnrollmentCommands(mdmDeviceToDelete, true)
+
 	s.runDEPSchedule()
 
 	// all hosts should be returned from the hosts endpoint
@@ -820,6 +1036,50 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// it should get the post-enrollment commands
 	require.NoError(t, mdmDevice.Enroll())
 	checkPostEnrollmentCommands(mdmDevice, true)
+
+	// Delete a pending device from DEP
+	addedModifiedDeletedSerial := uuid.NewString() // no-op
+	deletedAddedSerial := devices[0].SerialNumber  // stay as is
+	deletedSerial = devices[1].SerialNumber
+	devices = []godep.Device{
+		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added", OpDate: time.Now()},
+		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "modified",
+			OpDate: time.Now().Add(time.Second)},
+		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "deleted",
+			OpDate: time.Now().Add(2 * time.Second)},
+		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added",
+			OpDate: time.Now().Add(3 * time.Second)},
+		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "deleted",
+			OpDate: time.Now().Add(4 * time.Second)},
+
+		{SerialNumber: deletedAddedSerial, Model: "MacBook Pro", OS: "osx", OpType: "deleted", OpDate: time.Now()},
+		{SerialNumber: deletedAddedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added", OpDate: time.Now().Add(time.Second)},
+		{SerialNumber: deletedAddedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added", OpDate: time.Now().Add(2 * time.Second)},
+
+		{SerialNumber: deletedSerial, Model: "MacBook Mini", OS: "osx", OpType: "modified", OpDate: time.Now()},
+		{SerialNumber: deletedSerial, Model: "MacBook Mini", OS: "osx", OpType: "modified", OpDate: time.Now().Add(time.Second)},
+		{SerialNumber: deletedSerial, Model: "MacBook Mini", OS: "osx", OpType: "deleted", OpDate: time.Now().Add(2 * time.Second)},
+	}
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runDEPSchedule()
+	// all hosts should be returned from the hosts endpoint
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	// all previous devices minus the pending deleted one
+	wantSerials = slices.DeleteFunc(wantSerials, func(s string) bool { return s == deletedSerial })
+	assert.Len(t, listHostsRes.Hosts, len(wantSerials))
+	gotSerials = []string{}
+	for _, device := range listHostsRes.Hosts {
+		gotSerials = append(gotSerials, device.HardwareSerial)
+	}
+	assert.ElementsMatch(t, wantSerials, gotSerials)
+	assert.Len(t, profileAssignmentReqs, 2)
+	gotSerials = []string{}
+	for _, req := range profileAssignmentReqs {
+		assert.Len(t, req.Devices, 1)
+		gotSerials = append(gotSerials, req.Devices...)
+	}
+	assert.ElementsMatch(t, []string{addedModifiedDeletedSerial, deletedAddedSerial}, gotSerials)
 
 	// delete all MDM info
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1149,6 +1409,279 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	require.Empty(t, profileAssignmentReqs)
 }
 
+func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
+	t := s.T()
+
+	ctx := context.Background()
+	type hostDEPRow struct {
+		HostID                uint      `db:"host_id"`
+		ProfileUUID           string    `db:"profile_uuid"`
+		AssignProfileResponse string    `db:"assign_profile_response"`
+		ResponseUpdatedAt     time.Time `db:"response_updated_at"`
+		RetryJobID            uint      `db:"retry_job_id"`
+	}
+	checkHostDEPAssignProfileResponses := func(deviceSerials []string, expectedProfileUUID string,
+		expectedStatus fleet.DEPAssignProfileResponseStatus) map[string]hostDEPRow {
+		bySerial := make(map[string]hostDEPRow, len(deviceSerials))
+		for _, deviceSerial := range deviceSerials {
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				var dest hostDEPRow
+				err := sqlx.GetContext(ctx, q, &dest,
+					"SELECT host_id, assign_profile_response, profile_uuid, response_updated_at, retry_job_id FROM host_dep_assignments WHERE profile_uuid = ? AND host_id = (SELECT id FROM hosts WHERE hardware_serial = ?)",
+					expectedProfileUUID, deviceSerial)
+				require.NoError(t, err)
+				require.Equal(t, string(expectedStatus), dest.AssignProfileResponse)
+				bySerial[deviceSerial] = dest
+				return nil
+			})
+		}
+		return bySerial
+	}
+
+	devices := []godep.Device{
+		{SerialNumber: uuid.New().String(), Model: "MacBook Pro M1", OS: "osx", OpType: "added", OpDate: time.Now()},
+		{SerialNumber: uuid.New().String(), Model: "MacBook Mini M1", OS: "osx", OpType: "added", OpDate: time.Now()},
+	}
+	defaultOrgDevices := []godep.Device{
+		{SerialNumber: uuid.New().String(), Model: "MacBook Mini M2", OS: "osx", OpType: "added", OpDate: time.Now()},
+		{SerialNumber: uuid.New().String(), Model: "MacBook Pro M2", OS: "osx", OpType: "added", OpDate: time.Now()},
+	}
+
+	// set release device manually to true so there is no job enqueued at a later
+	// time to release the device (this is not what this test is about)
+	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, map[string]any{
+		"enable_release_device_manually": true,
+	})), http.StatusNoContent)
+
+	// set up multiple ABM tokens with different org names
+	defaultOrgName := "default_" + t.Name()
+	s.enableABM(defaultOrgName)
+	tmOrgName := t.Name()
+	s.enableABM(tmOrgName)
+
+	// create a new team
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        tmOrgName,
+		Description: "desc",
+	})
+	require.NoError(t, err)
+	// set the default bm assignment for that token to that team
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": {
+			"apple_business_manager": [{
+			  "organization_name": %q,
+			  "macos_team": %q,
+			  "ios_team": %q,
+			  "ipados_team": %q
+			}]
+		}
+	}`, tmOrgName, tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)
+	t.Cleanup(func() {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"apple_business_manager": []
+			}
+		}`), http.StatusOK, &acResp)
+	})
+	tmProf := `{"profile_name": "Team Profile"}`
+	var createResp createMDMAppleSetupAssistantResponse
+	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            &tm.ID,
+		Name:              tmOrgName,
+		EnrollmentProfile: json.RawMessage(tmProf),
+	}, http.StatusOK, &createResp)
+	assert.Equal(t, tm.ID, *createResp.TeamID)
+
+	var teamProfileUUIDs []string
+	var defaultProfileUUIDs []string
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
+			require.NoError(t, err)
+		case "/profile":
+			profileUUID := uuid.NewString()
+			teamProfileUUIDs = append(teamProfileUUIDs, profileUUID)
+			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: profileUUID})
+			require.NoError(t, err)
+		case "/server/devices":
+			// This endpoint  is used to get an initial list of
+			// devices, return a single device
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices[:1]})
+			require.NoError(t, err)
+		case "/devices/sync":
+			// This endpoint is polled over time to sync devices from
+			// ABM, send a repeated serial and a new one
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices, Cursor: "foo"})
+			require.NoError(t, err)
+		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var prof profileAssignmentReq
+			require.NoError(t, json.Unmarshal(b, &prof))
+			var resp godep.ProfileResponse
+			resp.ProfileUUID = prof.ProfileUUID
+			assert.Contains(t, teamProfileUUIDs, resp.ProfileUUID)
+			resp.Devices = make(map[string]string, len(prof.Devices))
+			for _, device := range prof.Devices {
+				resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
+			}
+			err = encoder.Encode(resp)
+			require.NoError(t, err)
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
+	s.mockDEPResponse(defaultOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
+			require.NoError(t, err)
+		case "/profile":
+			profileUUID := uuid.NewString()
+			defaultProfileUUIDs = append(defaultProfileUUIDs, profileUUID)
+			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: profileUUID})
+			require.NoError(t, err)
+		case "/server/devices":
+			// This endpoint  is used to get an initial list of
+			// devices, return a single device
+			err := encoder.Encode(godep.DeviceResponse{Devices: defaultOrgDevices[:1]})
+			require.NoError(t, err)
+		case "/devices/sync":
+			// This endpoint is polled over time to sync devices from
+			// ABM, send a repeated serial and a new one
+			err := encoder.Encode(godep.DeviceResponse{Devices: defaultOrgDevices, Cursor: "foo"})
+			require.NoError(t, err)
+		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var prof profileAssignmentReq
+			require.NoError(t, json.Unmarshal(b, &prof))
+			var resp godep.ProfileResponse
+			resp.ProfileUUID = prof.ProfileUUID
+			assert.Contains(t, defaultProfileUUIDs, resp.ProfileUUID)
+			resp.Devices = make(map[string]string, len(prof.Devices))
+			for _, device := range prof.Devices {
+				resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
+			}
+			err = encoder.Encode(resp)
+			require.NoError(t, err)
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
+	// query all hosts
+	listHostsRes := listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Empty(t, listHostsRes.Hosts)
+
+	// trigger a profile sync
+	s.runDEPSchedule()
+
+	// all hosts should be returned from the hosts endpoint
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	numHosts := len(devices) + len(defaultOrgDevices)
+	assert.Len(t, listHostsRes.Hosts, numHosts)
+	defaultSerials := []string{defaultOrgDevices[0].SerialNumber, defaultOrgDevices[1].SerialNumber}
+	teamSerials := []string{devices[0].SerialNumber, devices[1].SerialNumber}
+	for _, host := range listHostsRes.Hosts {
+		switch {
+		case slices.Contains(defaultSerials, host.HardwareSerial):
+			assert.Nil(t, host.TeamID)
+		case slices.Contains(teamSerials, host.HardwareSerial):
+			assert.NotNil(t, host.TeamID)
+		default:
+			t.Errorf("unexpected host serial %s", host.HardwareSerial)
+		}
+	}
+	require.GreaterOrEqual(t, len(defaultProfileUUIDs), 1)
+	require.Len(t, teamProfileUUIDs, 2)
+	checkHostDEPAssignProfileResponses(defaultSerials, defaultProfileUUIDs[len(defaultProfileUUIDs)-1],
+		fleet.DEPAssignProfileResponseSuccess)
+	checkHostDEPAssignProfileResponses(teamSerials, teamProfileUUIDs[len(teamProfileUUIDs)-1], fleet.DEPAssignProfileResponseSuccess)
+
+	// Delete the devices in one org, and add them to the other (x2)
+	devices = []godep.Device{
+		{SerialNumber: devices[0].SerialNumber, Model: "MacBook Pro M1", OS: "osx", OpType: "added", OpDate: time.Now()},
+		{SerialNumber: devices[1].SerialNumber, Model: "MacBook Mini M1", OS: "osx", OpType: "deleted", OpDate: time.Now()},
+		{SerialNumber: defaultOrgDevices[1].SerialNumber, Model: "MacBook Pro M2", OS: "osx", OpType: "added",
+			OpDate: time.Now().Add(time.Microsecond)},
+	}
+	defaultOrgDevices = []godep.Device{
+		{SerialNumber: defaultOrgDevices[0].SerialNumber, Model: "MacBook Mini M2", OS: "osx", OpType: "added", OpDate: time.Now()},
+		{SerialNumber: defaultOrgDevices[1].SerialNumber, Model: "MacBook Pro M2", OS: "osx", OpType: "deleted", OpDate: time.Now()},
+		{SerialNumber: devices[1].SerialNumber, Model: "MacBook Mini M1", OS: "osx", OpType: "added",
+			OpDate: time.Now().Add(time.Microsecond)},
+	}
+
+	// trigger a profile sync
+	s.runDEPSchedule()
+
+	// all hosts should be returned from the hosts endpoint; the 2 deleted and re-added hosts should switch teams and profiles
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	assert.Len(t, listHostsRes.Hosts, numHosts)
+	defaultSerials = []string{defaultOrgDevices[0].SerialNumber, defaultOrgDevices[2].SerialNumber}
+	teamSerials = []string{devices[0].SerialNumber, devices[2].SerialNumber}
+	for _, host := range listHostsRes.Hosts {
+		switch {
+		case slices.Contains(defaultSerials, host.HardwareSerial):
+			assert.Nil(t, host.TeamID)
+		case slices.Contains(teamSerials, host.HardwareSerial):
+			assert.NotNil(t, host.TeamID)
+		default:
+			t.Errorf("unexpected host serial %s", host.HardwareSerial)
+		}
+	}
+	checkHostDEPAssignProfileResponses(defaultSerials, defaultProfileUUIDs[len(defaultProfileUUIDs)-1],
+		fleet.DEPAssignProfileResponseSuccess)
+	checkHostDEPAssignProfileResponses(teamSerials, teamProfileUUIDs[len(teamProfileUUIDs)-1], fleet.DEPAssignProfileResponseSuccess)
+
+	// Delete the devices
+	devices = []godep.Device{
+		{SerialNumber: devices[0].SerialNumber, Model: "MacBook Pro M1", OS: "osx", OpType: "modified", OpDate: time.Now()},
+		{SerialNumber: devices[2].SerialNumber, Model: "MacBook Pro M2", OS: "osx", OpType: "deleted",
+			OpDate: time.Now().Add(time.Microsecond)},
+	}
+	defaultOrgDevices = []godep.Device{
+		{SerialNumber: defaultOrgDevices[0].SerialNumber, Model: "MacBook Mini M2", OS: "osx", OpType: "modified", OpDate: time.Now()},
+		{SerialNumber: defaultOrgDevices[2].SerialNumber, Model: "MacBook Mini M1", OS: "osx", OpType: "deleted",
+			OpDate: time.Now().Add(time.Microsecond)},
+	}
+
+	// trigger a profile sync
+	s.runDEPSchedule()
+
+	// 2 hosts should be gone
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	assert.Len(t, listHostsRes.Hosts, numHosts-2)
+	defaultSerials = []string{defaultOrgDevices[0].SerialNumber}
+	teamSerials = []string{devices[0].SerialNumber}
+	for _, host := range listHostsRes.Hosts {
+		switch {
+		case slices.Contains(defaultSerials, host.HardwareSerial):
+			assert.Nil(t, host.TeamID)
+		case slices.Contains(teamSerials, host.HardwareSerial):
+			assert.NotNil(t, host.TeamID)
+		default:
+			t.Errorf("unexpected host serial %s", host.HardwareSerial)
+		}
+	}
+	checkHostDEPAssignProfileResponses(defaultSerials, defaultProfileUUIDs[len(defaultProfileUUIDs)-1],
+		fleet.DEPAssignProfileResponseSuccess)
+	checkHostDEPAssignProfileResponses(teamSerials, teamProfileUUIDs[len(teamProfileUUIDs)-1], fleet.DEPAssignProfileResponseSuccess)
+
+}
+
 func (s *integrationMDMTestSuite) TestDeprecatedDefaultAppleBMTeam() {
 	t := s.T()
 
@@ -1281,13 +1814,13 @@ func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
 	// res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/script?team_id=%d&alt=media", noTeamID), nil, http.StatusOK)
 
 	// delete the no-team script
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/script"), nil, http.StatusOK)
+	s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK)
 
 	// try get the no-team script
 	s.Do("GET", "/api/latest/fleet/setup_experience/script", nil, http.StatusNotFound)
 
 	// try deleting the no-team script again
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/script"), nil, http.StatusOK) // TODO: confirm if we want to return not found
+	s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK) // TODO: confirm if we want to return not found
 
 	// // TODO: confirm if we will allow team_id=0 requests
 	// s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/script/?team_id=%d", noTeamID), nil, http.StatusOK)
@@ -1422,18 +1955,18 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 
 		// Can be useful for debugging
-		//switch cmd.Command.RequestType {
-		//case "InstallProfile":
-		//	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
-		//case "InstallEnterpriseApplication":
-		//	if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
-		//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
-		//	} else {
-		//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-		//	}
-		//default:
-		//	fmt.Println(">>>> device received command: ", cmd.Command.RequestType)
-		//}
+		// switch cmd.Command.RequestType {
+		// case "InstallProfile":
+		// 	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
+		// case "InstallEnterpriseApplication":
+		// 	if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
+		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
+		// 	} else {
+		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+		// 	}
+		// default:
+		// 	fmt.Println(">>>> device received command: ", cmd.Command.RequestType)
+		// }
 
 		cmds = append(cmds, &fullCmd)
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
@@ -1449,14 +1982,15 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 		switch cmd.Command.RequestType {
 		case "InstallProfile":
 			installProfileCount++
-			if strings.Contains(string(cmd.Command.InstallProfile.Payload), "<string>I1</string>") {
+			switch {
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), "<string>I1</string>"):
 				profileCustomSeen = true
-			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)) {
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)):
 				profileFleetdSeen = true
-			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetCARootConfigPayloadIdentifier)) {
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetCARootConfigPayloadIdentifier)):
 				profileFleetCASeen = true
-			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string", mobileconfig.FleetFileVaultPayloadIdentifier)) &&
-				strings.Contains(string(cmd.Command.InstallProfile.Payload), "ForceEnableInSetupAssistant") {
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string", mobileconfig.FleetFileVaultPayloadIdentifier)) &&
+				strings.Contains(string(cmd.Command.InstallProfile.Payload), "ForceEnableInSetupAssistant"):
 				profileFileVaultSeen = true
 			}
 
@@ -1476,6 +2010,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 
 	// simulate fleetd being installed and the host being orbit-enrolled now
 	enrolledHost.OsqueryHostID = ptr.String(mdmDevice.UUID)
+	enrolledHost.UUID = mdmDevice.UUID
 	orbitKey := setOrbitEnrollment(t, enrolledHost, s.ds)
 	enrolledHost.OrbitNodeKey = &orbitKey
 
@@ -1514,74 +2049,127 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
-	// TODO(mna): here we should call the "state machine" to trigger creation of
-	// the software install and script execution requests, but that is not
-	// implemented yet.
+	statusResp = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+	// Software is now running, script is still pending
+	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusRunning, statusResp.Results.Software[0].Status)
+	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
+	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
 
-	// TODO(mna): when callback of software/script results are implemented, this will
-	// automatically update the /status responses, and once everything has run it will
-	// automatically release the device.
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
+
+	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
+	// it out manually
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
+	require.Len(t, results, 2)
+	require.NoError(t, err)
+	var installUUID string
+	for _, r := range results {
+		if r.HostSoftwareInstallsExecutionID != nil {
+			installUUID = *r.HostSoftwareInstallsExecutionID
+		}
+	}
+
+	require.NotEmpty(t, installUUID)
 
 	// record a result for software installation
-	/*
-			var installResp orbitPostSoftwareInstallResultResponse
-			s.DoJSON("POST", "/api/fleet/orbit/software_install/result",
-				json.RawMessage(fmt.Sprintf(`{
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
 					"orbit_node_key": %q,
 					"install_uuid": %q,
 					"install_script_exit_code": 0,
 					"install_script_output": "ok"
-				}`, *enrolledHost.OrbitNodeKey, installUUID)), http.StatusOK, &installResp)
+				}`, *enrolledHost.OrbitNodeKey, installUUID)), http.StatusNoContent)
 
-		// status still shows script as pending
-		statusResp = getOrbitSetupExperienceStatusResponse{}
-		s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
-		require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
-		require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
-		require.Len(t, statusResp.Results.ConfigurationProfiles, 3) // fleetd config, root CA, custom profile
-		require.NotNil(t, statusResp.Results.Script)
-		require.Equal(t, "script.sh", statusResp.Results.Script.Name)
-		require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
-		require.Len(t, statusResp.Results.Software, 1)
-		require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
-		require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
+	// status still shows script as pending
+	statusResp = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
+	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
+	require.Len(t, statusResp.Results.ConfigurationProfiles, 3) // fleetd config, root CA, custom profile
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
+	require.Len(t, statusResp.Results.Software, 1)
+	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
 
-		// no MDM command got enqueued due to the /status call (device not released yet)
-		cmd, err = mdmDevice.Idle()
-		require.NoError(t, err)
-		require.Nil(t, cmd)
+	// no MDM command got enqueued due to the /status call (device not released yet)
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
 
-		// record a result for script execution
-		var scriptResp orbitPostScriptResultResponse
-		s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
-			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *enrolledHost.OrbitNodeKey, execID)),
-			http.StatusOK, &scriptResp)
+	// Software is installed, now we should run the script
+	statusResp = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+	// Software is now running, script is still pending
+	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
+	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
+	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
 
-		// check that the host received the device configured command automatically
-		cmd, err = mdmDevice.Idle()
-		require.NoError(t, err)
-		cmds = cmds[:0]
-		for cmd != nil {
-			var fullCmd micromdm.CommandPayload
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			cmds = append(cmds, &fullCmd)
-			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-			require.NoError(t, err)
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusRunning, statusResp.Results.Script.Status)
+
+	// Get script exec ID
+	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
+	require.Len(t, results, 2)
+	require.NoError(t, err)
+	var execID string
+	for _, r := range results {
+		if r.ScriptExecutionID != nil {
+			execID = *r.ScriptExecutionID
 		}
+	}
 
-		require.Len(t, cmds, 1)
-		var deviceConfiguredCount int
-		for _, cmd := range cmds {
-			switch cmd.Command.RequestType {
-			case "DeviceConfigured":
-				deviceConfiguredCount++
-			default:
-				otherCount++
-			}
+	// record a result for script execution
+	var scriptResp orbitPostScriptResultResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *enrolledHost.OrbitNodeKey, execID)),
+		http.StatusOK, &scriptResp)
+
+	// Get status again, now the script should be complete. This should also trigger the automatic
+	// release of the device, as all setup experience steps are now complete.
+	statusResp = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+	// Software is now running, script is still pending
+	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
+	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
+	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
+
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Script.Status)
+
+	// check that the host received the device configured command automatically
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	cmds = cmds[:0]
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		cmds = append(cmds, &fullCmd)
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	require.Len(t, cmds, 1)
+	var deviceConfiguredCount int
+	for _, cmd := range cmds {
+		switch cmd.Command.RequestType {
+		case "DeviceConfigured":
+			deviceConfiguredCount++
+		default:
+			otherCount++
 		}
-		require.Equal(t, 1, deviceConfiguredCount)
-		require.Equal(t, 0, otherCount)
-	*/
+	}
+	require.Equal(t, 1, deviceConfiguredCount)
+	require.Equal(t, 0, otherCount)
 }
 
 func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptForceRelease() {
@@ -1611,18 +2199,18 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptFo
 		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 
 		// Can be useful for debugging
-		//switch cmd.Command.RequestType {
-		//case "InstallProfile":
-		//	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
-		//case "InstallEnterpriseApplication":
-		//	if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
-		//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
-		//	} else {
-		//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-		//	}
-		//default:
-		//	fmt.Println(">>>> device received command: ", cmd.Command.RequestType)
-		//}
+		// switch cmd.Command.RequestType {
+		// case "InstallProfile":
+		// 	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
+		// case "InstallEnterpriseApplication":
+		// 	if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
+		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
+		// 	} else {
+		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+		// 	}
+		// default:
+		// 	fmt.Println(">>>> device received command: ", cmd.Command.RequestType)
+		// }
 
 		cmds = append(cmds, &fullCmd)
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
@@ -1638,14 +2226,15 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptFo
 		switch cmd.Command.RequestType {
 		case "InstallProfile":
 			installProfileCount++
-			if strings.Contains(string(cmd.Command.InstallProfile.Payload), "<string>I1</string>") {
+			switch {
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), "<string>I1</string>"):
 				profileCustomSeen = true
-			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)) {
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)):
 				profileFleetdSeen = true
-			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetCARootConfigPayloadIdentifier)) {
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetCARootConfigPayloadIdentifier)):
 				profileFleetCASeen = true
-			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string", mobileconfig.FleetFileVaultPayloadIdentifier)) &&
-				strings.Contains(string(cmd.Command.InstallProfile.Payload), "ForceEnableInSetupAssistant") {
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string", mobileconfig.FleetFileVaultPayloadIdentifier)) &&
+				strings.Contains(string(cmd.Command.InstallProfile.Payload), "ForceEnableInSetupAssistant"):
 				profileFileVaultSeen = true
 			}
 
@@ -1706,11 +2295,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptFo
 	// call the /status endpoint again but this time force the release
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "force_release": true}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 
-	// the software and script are still pending
+	// the software and script have not completed yet
 	require.NotNil(t, statusResp.Results.Script)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
 	require.Len(t, statusResp.Results.Software, 1)
-	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[0].Status)
+	require.Equal(t, fleet.SetupExperienceStatusRunning, statusResp.Results.Software[0].Status)
 
 	// check that the host received the device configured command even if
 	// software and script are still pending

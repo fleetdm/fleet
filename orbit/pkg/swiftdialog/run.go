@@ -32,6 +32,7 @@ type SwiftDialog struct {
 	exitErr     error
 	done        chan struct{}
 	closed      bool
+	binPath     string
 }
 
 type SwiftDialogExit struct {
@@ -53,13 +54,8 @@ const (
 	ExitFileNotFound          ExitCode = 202
 )
 
-func Create(ctx context.Context, swiftDialogBin string, options *SwiftDialogOptions) (*SwiftDialog, error) {
+func Create(ctx context.Context, swiftDialogBin string) (*SwiftDialog, error) {
 	commandFile, err := os.CreateTemp("", "swiftDialogCommand")
-	if err != nil {
-		return nil, err
-	}
-
-	jsonBytes, err := json.Marshal(options)
 	if err != nil {
 		return nil, err
 	}
@@ -73,39 +69,51 @@ func Create(ctx context.Context, swiftDialogBin string, options *SwiftDialogOpti
 		return nil, err
 	}
 
+	sd := &SwiftDialog{
+		cancel:      cancel,
+		commandFile: commandFile,
+		context:     ctx,
+		done:        make(chan struct{}),
+		binPath:     swiftDialogBin,
+	}
+
+	return sd, nil
+}
+
+func (s *SwiftDialog) Start(ctx context.Context, opts *SwiftDialogOptions) error {
+	jsonBytes, err := json.Marshal(opts)
+	if err != nil {
+		return err
+	}
+
 	cmd := exec.CommandContext( //nolint:gosec
 		ctx,
-		swiftDialogBin,
+		s.binPath,
 		"--jsonstring", string(jsonBytes),
-		"--commandfile", commandFile.Name(),
+		"--commandfile", s.commandFile.Name(),
 		"--json",
 	)
+
+	s.cmd = cmd
 
 	outBuf := &bytes.Buffer{}
 	cmd.Stdout = outBuf
 
+	s.output = outBuf
+
 	err = cmd.Start()
 	if err != nil {
-		cancel(errors.New("could not start swiftDialog"))
-		return nil, err
-	}
-
-	sd := &SwiftDialog{
-		cancel:      cancel,
-		cmd:         cmd,
-		commandFile: commandFile,
-		context:     ctx,
-		done:        make(chan struct{}),
-		output:      outBuf,
+		s.cancel(errors.New("could not start swiftDialog"))
+		return err
 	}
 
 	go func() {
 		if err := cmd.Wait(); err != nil {
 			errExit := &exec.ExitError{}
 			if errors.As(err, &errExit) && strings.Contains(errExit.Error(), "exit status") {
-				sd.exitCode = ExitCode(errExit.ExitCode())
+				s.exitCode = ExitCode(errExit.ExitCode())
 			} else {
-				sd.exitErr = fmt.Errorf("waiting for swiftDialog: %w", err)
+				s.exitErr = fmt.Errorf("waiting for swiftDialog: %w", err)
 			}
 		}
 		sd.closed = true
@@ -118,7 +126,7 @@ func Create(ctx context.Context, swiftDialogBin string, options *SwiftDialogOpti
 	// commands may be lost.
 	time.Sleep(500 * time.Millisecond)
 
-	return sd, nil
+	return nil
 }
 
 func (s *SwiftDialog) finished() {
@@ -178,15 +186,26 @@ func (s *SwiftDialog) sendCommand(command, arg string) error {
 	if err := s.context.Err(); err != nil {
 		return fmt.Errorf("could not send command: %w", context.Cause(s.context))
 	}
+
+	fullCommand := fmt.Sprintf("%s: %s", command, arg)
+
+	return s.writeCommand(fullCommand)
+}
+
+func (s *SwiftDialog) sendMultiCommand(commands ...string) error {
+	multiCommands := strings.Join(commands, "\n")
+	return s.writeCommand(multiCommands)
+}
+
+func (s *SwiftDialog) writeCommand(fullCommand string) error {
 	// For some reason swiftDialog needs us to open and close the file
 	// to detect a new command, just writing to the file doesn't cause
 	// a change
+
 	commandFile, err := os.OpenFile(s.commandFile.Name(), os.O_APPEND|os.O_WRONLY|os.O_CREATE, CommandFilePerms)
 	if err != nil {
 		return fmt.Errorf("opening command file for writing: %w", err)
 	}
-
-	fullCommand := fmt.Sprintf("%s: %s", command, arg)
 
 	_, err = fmt.Fprintf(commandFile, "%s\n", fullCommand)
 	if err != nil {
@@ -227,6 +246,11 @@ func (s *SwiftDialog) SetMessage(text string) error {
 // Append to the dialog message
 func (s *SwiftDialog) AppendMessage(text string) error {
 	return s.sendCommand("message", fmt.Sprintf("+ %s", sanitize(text)))
+}
+
+// SetMessageKeepListItems sets the message to the given string while preserving the current list items.
+func (s *SwiftDialog) SetMessageKeepListItems(message string) error {
+	return s.sendMultiCommand(fmt.Sprintf("message: %s", sanitize(message)), "list: show")
 }
 
 ///////////
@@ -336,6 +360,11 @@ func (s *SwiftDialog) UpdateListItemByIndex(index uint, statusText string, statu
 	}
 	arg := fmt.Sprintf("index: %d, status: %s, statustext: %s", index, argStatus, statusText)
 	return s.sendCommand("listitem", arg)
+}
+
+// ShowList forces the list to render.
+func (s *SwiftDialog) ShowList() error {
+	return s.sendCommand("list", "show")
 }
 
 /////////////

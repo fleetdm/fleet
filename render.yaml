@@ -47,6 +47,7 @@ services:
         value: 8080
 
   - name: fleet-mysql
+    plan: standard
     type: pserv
     runtime: docker
     repo: https://github.com/render-examples/mysql
@@ -65,6 +66,7 @@ services:
         value: fleet
 
   - name: fleet-redis
+    plan: starter
     type: pserv
     runtime: image
     image:

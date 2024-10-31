@@ -12,10 +12,13 @@ import softwareAPI, {
 } from "services/entities/software";
 
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
 import { getErrorReason } from "interfaces/errors";
 
 import CustomLink from "components/CustomLink";
 import FileProgressModal from "components/FileProgressModal";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+
 import PackageForm from "pages/SoftwarePage/components/PackageForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
 
@@ -37,6 +40,7 @@ const SoftwareCustomPackage = ({
   setSidePanelOpen,
 }: ISoftwarePackageProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const { isPremiumTier } = useContext(AppContext);
   const [uploadProgress, setUploadProgress] = React.useState(0);
   const [uploadDetails, setUploadDetails] = React.useState<IFileDetails | null>(
     null
@@ -104,15 +108,6 @@ const SoftwareCustomPackage = ({
           setUploadProgress(Math.max(progress - 0.03, 0.01));
         },
       });
-      renderFlash(
-        "success",
-        <>
-          <b>{formData.software?.name}</b> successfully added.
-          {formData.selfService
-            ? " The end user can install from Fleet Desktop."
-            : ""}
-        </>
-      );
 
       const newQueryParams: QueryParams = { team_id: currentTeamId };
       if (formData.selfService) {
@@ -122,6 +117,16 @@ const SoftwareCustomPackage = ({
       }
       router.push(
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(newQueryParams)}`
+      );
+
+      renderFlash(
+        "success",
+        <>
+          <b>{formData.software?.name}</b> successfully added.
+          {formData.selfService
+            ? " The end user can install from Fleet Desktop."
+            : ""}
+        </>
       );
     } catch (e) {
       const isTimeout =
@@ -153,6 +158,12 @@ const SoftwareCustomPackage = ({
     }
     setUploadDetails(null);
   };
+
+  if (!isPremiumTier) {
+    return (
+      <PremiumFeatureMessage className={`${baseClass}__premium-message`} />
+    );
+  }
 
   return (
     <div className={baseClass}>

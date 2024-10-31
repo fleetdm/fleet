@@ -6,9 +6,12 @@ import {
   MdmProfileStatus,
 } from "interfaces/mdm";
 import { API_NO_TEAM_ID } from "interfaces/team";
+import { ISoftwareTitle } from "interfaces/software";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
+
+import { ISoftwareTitlesResponse } from "./software";
 
 export interface IEulaMetadataResponse {
   name: string;
@@ -87,6 +90,15 @@ export interface IGetSetupExperienceScriptResponse {
   created_at: string;
   updated_at: string;
 }
+
+interface IGetSetupExperienceSoftwareParams {
+  team_id: number;
+  per_page: number;
+}
+
+export type IGetSetupExperienceSoftwareResponse = ISoftwareTitlesResponse & {
+  software_titles: ISoftwareTitle[] | null;
+};
 
 const mdmService = {
   unenrollHostFromMdm: (hostId: number, timeout?: number) => {
@@ -342,6 +354,30 @@ const mdmService = {
     return sendRequest("GET", url);
   },
 
+  downloadManualEnrollmentProfile: (token: string) => {
+    const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
+    return sendRequest(
+      "GET",
+      DEVICE_USER_MDM_ENROLLMENT_PROFILE(token),
+      undefined,
+      "blob"
+    );
+  },
+
+  getSetupExperienceSoftware: (
+    params: IGetSetupExperienceSoftwareParams
+  ): Promise<IGetSetupExperienceSoftwareResponse> => {
+    const { MDM_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
+
+    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
+      {
+        ...params,
+      }
+    )}`;
+
+    return sendRequest("GET", path);
+  },
+
   updateSetupExperienceSoftware: (
     teamId: number,
     softwareTitlesIds: number[]
@@ -377,9 +413,7 @@ const mdmService = {
     const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
 
     let path = MDM_SETUP_EXPERIENCE_SCRIPT;
-    if (teamId) {
-      path += `?${buildQueryStringFromParams({ team_id: teamId })}`;
-    }
+    path += `?${buildQueryStringFromParams({ team_id: teamId, alt: "media" })}`;
 
     return sendRequest("GET", path);
   },

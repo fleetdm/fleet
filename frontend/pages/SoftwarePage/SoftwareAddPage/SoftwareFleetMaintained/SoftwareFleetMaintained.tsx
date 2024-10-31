@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useContext } from "react";
 import { InjectedRouter } from "react-router";
 import { Location } from "history";
 import { useQuery } from "react-query";
@@ -10,9 +10,11 @@ import softwareAPI, {
   ISoftwareFleetMaintainedAppsResponse,
 } from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { AppContext } from "context/app";
 
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
 import FleetMaintainedAppsTable from "./FleetMaintainedAppsTable";
 import { ISoftwareAddPageQueryParams } from "../SoftwareAddPage";
@@ -46,6 +48,8 @@ const SoftwareFleetMaintained = ({
   router,
   location,
 }: ISoftwareFleetMaintainedProps) => {
+  const { isPremiumTier } = useContext(AppContext);
+
   const {
     order_key = DEFAULT_SORT_HEADER,
     order_direction = DEFAULT_SORT_DIRECTION,
@@ -79,6 +83,12 @@ const SoftwareFleetMaintained = ({
       ...QUERY_OPTIONS,
     }
   );
+
+  if (!isPremiumTier) {
+    return (
+      <PremiumFeatureMessage className={`${baseClass}__premium-message`} />
+    );
+  }
 
   if (isLoading) {
     return <Spinner />;

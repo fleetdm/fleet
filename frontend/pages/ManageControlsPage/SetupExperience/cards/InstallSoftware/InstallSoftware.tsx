@@ -2,11 +2,10 @@ import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 
+import mdmAPI, {
+  IGetSetupExperienceSoftwareResponse,
+} from "services/entities/mdm";
 import { ISoftwareTitle } from "interfaces/software";
-import softwareAPI, {
-  ISoftwareTitlesResponse,
-} from "services/entities/software";
-
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import SectionHeader from "components/SectionHeader";
@@ -35,13 +34,16 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
     isLoading,
     isError,
     refetch: refetchSoftwareTitles,
-  } = useQuery<ISoftwareTitlesResponse, AxiosError, ISoftwareTitle[]>(
+  } = useQuery<
+    IGetSetupExperienceSoftwareResponse,
+    AxiosError,
+    ISoftwareTitle[] | null
+  >(
     ["install-software", currentTeamId],
     () =>
-      softwareAPI.getSoftwareTitles({
-        teamId: currentTeamId,
-        availableForInstall: true,
-        perPage: PER_PAGE_SIZE,
+      mdmAPI.getSetupExperienceSoftware({
+        team_id: currentTeamId,
+        per_page: PER_PAGE_SIZE,
       }),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
@@ -63,7 +65,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
       return <DataError />;
     }
 
-    if (softwareTitles) {
+    if (softwareTitles || softwareTitles === null) {
       return (
         <div className={`${baseClass}__content`}>
           <AddInstallSoftware

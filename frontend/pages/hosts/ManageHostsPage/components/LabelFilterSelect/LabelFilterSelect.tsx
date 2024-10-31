@@ -24,12 +24,12 @@ declare module "react-select-5/dist/declarations/src/Select" {
     IsMulti extends boolean,
     Group extends GroupBase<Option>
   > {
-    labelQuery: string;
-    canAddNewLabels: boolean;
-    onAddLabel: () => void;
-    onChangeLabelQuery: (event: React.ChangeEvent<HTMLInputElement>) => void;
-    onClickLabelSearchInput: React.MouseEventHandler<HTMLInputElement>;
-    onBlurLabelSearchInput: React.FocusEventHandler<HTMLInputElement>;
+    labelQuery?: string;
+    canAddNewLabels?: boolean;
+    onAddLabel?: () => void;
+    onChangeLabelQuery?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    onClickLabelSearchInput?: React.MouseEventHandler<HTMLInputElement>;
+    onBlurLabelSearchInput?: React.FocusEventHandler<HTMLInputElement>;
   }
 }
 
@@ -129,6 +129,10 @@ const LabelFilterSelect = ({
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
+      setMenuIsOpen(false);
+      selectRef.current?.blur();
+    } else if (e.key === "Tab" && !e.shiftKey) {
+      // Allow tabbing out of the component
       setMenuIsOpen(false);
       selectRef.current?.blur();
     } else {

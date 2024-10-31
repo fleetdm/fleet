@@ -89,7 +89,7 @@ func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, roo
 
 func (r *Runner) Run(config *fleet.OrbitConfig) error {
 	if runtime.GOOS == "darwin" {
-		if config.Notifications.RunSetupExperience && update.CanRun(r.rootDirPath, "swiftDialog", update.SwiftDialogMacOSTarget) {
+		if config.Notifications.RunSetupExperience && !update.CanRun(r.rootDirPath, "swiftDialog", update.SwiftDialogMacOSTarget) {
 			log.Debug().Msg("exiting software installer config runner early during setup experience: swiftDialog is not installed")
 			return nil
 		}

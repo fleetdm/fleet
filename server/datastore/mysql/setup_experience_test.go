@@ -186,13 +186,13 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 			HostUUID: hostTeam1,
 			Name:     "script1",
 			Status:   "pending",
-			ScriptID: nullableUint(uint(script1ID)),
+			ScriptID: nullableUint(uint(script1ID)), // nolint: gosec
 		},
 		{
 			HostUUID: hostTeam2,
 			Name:     "script2",
 			Status:   "pending",
-			ScriptID: nullableUint(uint(script2ID)),
+			ScriptID: nullableUint(uint(script2ID)), // nolint: gosec
 		},
 	} {
 		var found bool
@@ -267,7 +267,7 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 			HostUUID: hostTeam1,
 			Name:     "script1",
 			Status:   "pending",
-			ScriptID: nullableUint(uint(script1ID)),
+			ScriptID: nullableUint(uint(script1ID)), // nolint: gosec
 		},
 	} {
 		var found bool
@@ -303,7 +303,7 @@ type setupExperienceInsertTestRows struct {
 }
 
 func nullableUint(val uint) sql.NullInt64 {
-	return sql.NullInt64{Int64: int64(val), Valid: true}
+	return sql.NullInt64{Int64: int64(val), Valid: true} // nolint: gosec
 }
 
 func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
@@ -370,8 +370,8 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 
 	titles, count, meta, err := ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	assert.Len(t, titles, 0)
-	assert.Equal(t, 0, count)
+	assert.Len(t, titles, 1)
+	assert.Equal(t, 1, count)
 	assert.NotNil(t, meta)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -518,8 +518,8 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 
 	titles, count, meta, err := ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	assert.Len(t, titles, 0)
-	assert.Equal(t, 0, count)
+	assert.Len(t, titles, 2)
+	assert.Equal(t, 2, count)
 	assert.NotNil(t, meta)
 
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
@@ -571,41 +571,51 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 		}
 	}
 
+	// Single installer
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleSoftware["file1"]})
 	require.NoError(t, err)
 
 	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	assert.Len(t, titles, 1)
-	assert.Equal(t, 1, count)
+	assert.Len(t, titles, 3)
+	assert.Equal(t, 3, count)
 	assert.Equal(t, "file1", titles[0].SoftwarePackage.Name)
+	assert.Equal(t, "file2", titles[1].SoftwarePackage.Name)
+	assert.Equal(t, "1", titles[2].AppStoreApp.AppStoreID)
 	assert.NotNil(t, meta)
 
+	assert.True(t, *titles[0].SoftwarePackage.InstallDuringSetup)
+	assert.False(t, *titles[1].SoftwarePackage.InstallDuringSetup)
+	assert.False(t, *titles[2].AppStoreApp.InstallDuringSetup)
+
+	// Single vpp app replaces installer
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["1"]})
 	require.NoError(t, err)
 
 	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, titles, 1)
-	require.Equal(t, 1, count)
-	assert.Equal(t, "1", titles[0].AppStoreApp.AppStoreID)
+	require.Len(t, titles, 3)
+	require.Equal(t, 3, count)
+	assert.Equal(t, "file1", titles[0].SoftwarePackage.Name)
+	assert.Equal(t, "file2", titles[1].SoftwarePackage.Name)
+	assert.Equal(t, "1", titles[2].AppStoreApp.AppStoreID)
 	assert.NotNil(t, meta)
 
+	assert.False(t, *titles[0].SoftwarePackage.InstallDuringSetup)
+	assert.False(t, *titles[1].SoftwarePackage.InstallDuringSetup)
+	assert.True(t, *titles[2].AppStoreApp.InstallDuringSetup)
+
+	// Team 2 unaffected
 	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team2.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, titles, 0)
-	require.Equal(t, 0, count)
+	require.Len(t, titles, 2)
+	require.Equal(t, 2, count)
+	assert.Equal(t, "file3", titles[0].SoftwarePackage.Name)
+	assert.Equal(t, "3", titles[1].AppStoreApp.AppStoreID)
 	require.NotNil(t, meta)
 
-	// Assign one vpp and one installer app
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["1"], titleSoftware["file1"]})
-	require.NoError(t, err)
-
-	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
-	require.NoError(t, err)
-	assert.Len(t, titles, 2)
-	assert.Equal(t, 2, count)
-	assert.NotNil(t, meta)
+	assert.False(t, *titles[0].SoftwarePackage.InstallDuringSetup)
+	assert.False(t, *titles[1].AppStoreApp.InstallDuringSetup)
 
 	// iOS software
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, team2.ID, []uint{titleSoftware["file4"]})
@@ -630,9 +640,24 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	// Failures and other team assignments didn't affected the number of apps on team 1
 	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	assert.Len(t, titles, 2)
-	assert.Equal(t, 2, count)
+	assert.Len(t, titles, 3)
+	assert.Equal(t, 3, count)
 	assert.NotNil(t, meta)
+
+	// Empty slice removes all tiles
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{})
+	require.NoError(t, err)
+
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, titles, 3)
+	assert.Equal(t, 3, count)
+	assert.NotNil(t, meta)
+
+	assert.False(t, *titles[0].SoftwarePackage.InstallDuringSetup)
+	assert.False(t, *titles[1].SoftwarePackage.InstallDuringSetup)
+	assert.False(t, *titles[2].AppStoreApp.InstallDuringSetup)
+
 }
 
 func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
@@ -672,7 +697,7 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		id, err := res.LastInsertId()
 		require.NoError(t, err)
-		scriptID = uint(id)
+		scriptID = uint(id) // nolint: gosec
 		return nil
 	})
 
@@ -684,7 +709,7 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			id, err := res.LastInsertId()
 			require.NoError(t, err)
-			sesr.ID = uint(id)
+			sesr.ID = uint(id) // nolint: gosec
 			return nil
 		})
 	}

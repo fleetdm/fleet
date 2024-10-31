@@ -319,7 +319,7 @@ func (newMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *htt
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = uint(teamID)
+		decoded.TeamID = uint(teamID) //nolint:gosec // dismiss G115
 	}
 
 	fhs, ok := r.MultipartForm.File["profile"]
@@ -1052,6 +1052,7 @@ func (uploadAppleInstallerRequest) DecodeRequest(ctx context.Context, r *http.Re
 
 func (r uploadAppleInstallerResponse) error() error { return r.Err }
 
+// Deprecated: Not in Use
 func uploadAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*uploadAppleInstallerRequest)
 	ff, err := req.Installer.Open()
@@ -1421,7 +1422,7 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.ServerSettings.ServerURL, ref)
+	enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.MDMUrl(), ref)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
 	}
@@ -2209,7 +2210,7 @@ func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = uint(teamID)
+		decoded.TeamID = uint(teamID) //nolint:gosec // dismiss G115
 	}
 
 	return &decoded, nil
@@ -3162,7 +3163,7 @@ func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.
 		var contents bytes.Buffer
 		params := mobileconfig.FleetdProfileOptions{
 			EnrollSecret: es.Secret,
-			ServerURL:    appCfg.ServerSettings.ServerURL,
+			ServerURL:    appCfg.ServerSettings.ServerURL, // ServerURL must be set to the Fleet URL.  Do not use appCfg.MDMUrl() here.
 			PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
 			PayloadName:  mdm_types.FleetdConfigProfileName,
 		}
@@ -3637,7 +3638,6 @@ func preprocessProfileContents(
 					return ctxerr.Wrap(ctx, err, "updating host MDM Apple profiles for unknown variable")
 				}
 				valid = false
-				break
 			}
 		}
 		if !valid {
@@ -3649,13 +3649,25 @@ func preprocessProfileContents(
 		// Currently, all supported Fleet variables are unique per host, so we split the profile into multiple profiles.
 		// We generate a new temporary profileUUID which is currently only used to install the profile.
 		// The profileUUID in host_mdm_apple_profiles is still the original profileUUID.
+		// We also generate a new commandUUID which is used to install the profile via nano_commands table.
 		if addedTargets == nil {
 			addedTargets = make(map[string]*cmdTarget, 1)
 		}
 		// We store the timestamp when the challenge was retrieved to know if it has expired.
 		var managedCertificatePayloads []*fleet.MDMBulkUpsertManagedCertificatePayload
+		// We need to update the profiles of each host with the new command UUID
+		profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.hostUUIDs))
 		for _, hostUUID := range target.hostUUIDs {
 			tempProfUUID := uuid.NewString()
+			// Use the same UUID for command UUID, which will be the primary key for nano_commands
+			tempCmdUUID := tempProfUUID
+			profile, ok := hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]
+			if !ok { // Should never happen
+				continue
+			}
+			profile.CommandUUID = tempCmdUUID
+			profilesToUpdate = append(profilesToUpdate, profile)
+
 			hostContents := contentsStr
 
 			failed := false
@@ -3715,7 +3727,7 @@ func preprocessProfileContents(
 					hostContents = replaceFleetVariable(fleetVarNDESSCEPChallengeRegexp, hostContents, challenge)
 				case FleetVarNDESSCEPProxyURL:
 					// Insert the SCEP URL into the profile contents
-					proxyURL := fmt.Sprintf("%s%s%s", appConfig.ServerSettings.ServerURL, apple_mdm.SCEPProxyPath,
+					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
 						url.PathEscape(fmt.Sprintf("%s,%s", hostUUID, profUUID)))
 					hostContents = replaceFleetVariable(fleetVarNDESSCEPProxyURLRegexp, hostContents, proxyURL)
 				case FleetVarHostEndUserEmailIDP:
@@ -3750,12 +3762,16 @@ func preprocessProfileContents(
 			}
 			if !failed {
 				addedTargets[tempProfUUID] = &cmdTarget{
-					cmdUUID:   target.cmdUUID,
+					cmdUUID:   tempCmdUUID,
 					profIdent: target.profIdent,
 					hostUUIDs: []string{hostUUID},
 				}
 				profileContents[tempProfUUID] = mobileconfig.Mobileconfig(hostContents)
 			}
+		}
+		// Update profiles with the new command UUID
+		if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, profilesToUpdate); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating host profiles")
 		}
 		err := ds.BulkUpsertMDMManagedCertificates(ctx, managedCertificatePayloads)
 		if err != nil {
@@ -3896,7 +3912,7 @@ func RenewSCEPCertificates(
 	if len(assocsWithoutRefs) > 0 {
 		profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 			appConfig.OrgInfo.OrgName,
-			appConfig.ServerSettings.ServerURL,
+			appConfig.MDMUrl(),
 			scepChallenge,
 			mdmPushCertTopic,
 		)
@@ -3911,7 +3927,7 @@ func RenewSCEPCertificates(
 
 	// send individual commands for each host with a reference
 	for _, assoc := range assocsWithRefs {
-		enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.ServerSettings.ServerURL, assoc.EnrollReference)
+		enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.MDMUrl(), assoc.EnrollReference)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
 		}
@@ -4486,7 +4502,7 @@ func (renewABMTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) 
 
 	return &renewABMTokenRequest{
 		Token:   token[0],
-		TokenID: uint(id),
+		TokenID: uint(id), //nolint:gosec // dismiss G115
 	}, nil
 }
 
@@ -4550,7 +4566,7 @@ func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret string) ([]b
 		return nil, ctxerr.Wrap(ctx, err, "getting app config to get org name")
 	}
 
-	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.ServerSettings.ServerURL, enrollSecret)
+	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating ota mobileconfig file")
 	}
@@ -4682,12 +4698,13 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "reading app config")
 	}
-	fleetURL := appCfg.ServerSettings.ServerURL
+
+	mdmURL := appCfg.MDMUrl()
 
 	// if the root signer was issued by Apple's CA, it means we're in the
 	// first phase and we should return a SCEP payload.
 	if err := apple_mdm.VerifyFromAppleIphoneDeviceCA(rootSigner); err == nil {
-		scepURL, err := apple_mdm.ResolveAppleSCEPURL(fleetURL)
+		scepURL, err := apple_mdm.ResolveAppleSCEPURL(mdmURL)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "resolve Apple SCEP url")
 		}
@@ -4719,7 +4736,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 
 	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appCfg.OrgInfo.OrgName,
-		appCfg.ServerSettings.ServerURL,
+		mdmURL,
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
 	)

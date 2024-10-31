@@ -19,6 +19,11 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		return nil, ctxerr.Wrap(ctx, err, "loading host by orbit node key")
 	}
 
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting app config")
+	}
+
 	// get the status of the bootstrap package deployment
 	bootstrapPkg, err := svc.ds.GetHostMDMMacOSSetup(ctx, host.ID)
 	if err != nil && !fleet.IsNotFound(err) {
@@ -95,6 +100,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		ConfigurationProfiles: cfgProfResults,
 		AccountConfiguration:  acctCfgResult,
 		Software:              make([]*fleet.SetupExperienceStatusResult, 0),
+		OrgLogoURL:            appCfg.OrgInfo.OrgLogoURLLightBackground,
 	}
 	for _, r := range res {
 		if r.IsForScript() {
@@ -128,6 +134,11 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 			return nil, ctxerr.Wrap(ctx, err, "failed to enqueue DeviceConfigured command")
 		}
 
+	}
+
+	_, err = svc.SetupExperienceNextStep(ctx, host.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
 	}
 
 	return payload, nil

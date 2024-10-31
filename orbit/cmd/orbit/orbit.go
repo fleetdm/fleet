@@ -315,7 +315,7 @@ func main() {
 				if keystore.Supported() && !c.Bool("disable-keystore") {
 					// Check if secret is already in the keystore.
 					secretFromKeystore, err := keystore.GetSecret()
-					if err != nil {
+					if err != nil { //nolint:gocritic // ignore ifElseChain
 						log.Warn().Err(err).Msgf("failed to retrieve enroll secret from %v", keystore.Name())
 					} else if secretFromKeystore == "" {
 						// Keystore secret not found, so we will add it to the keystore.
@@ -324,7 +324,7 @@ func main() {
 						} else {
 							// Sanity check that the secret was added to the keystore.
 							checkSecret, err := keystore.GetSecret()
-							if err != nil {
+							if err != nil { //nolint:gocritic // ignore ifElseChain
 								log.Warn().Err(err).Msgf("failed to check that enroll secret was saved in %v", keystore.Name())
 							} else if checkSecret != secret {
 								log.Warn().Msgf("enroll secret was not saved correctly in %v", keystore.Name())
@@ -340,7 +340,7 @@ func main() {
 						} else {
 							// Sanity check that the secret was updated in the keystore.
 							checkSecret, err := keystore.GetSecret()
-							if err != nil {
+							if err != nil { //nolint:gocritic // ignore ifElseChain
 								log.Warn().Err(err).Msgf("failed to check that enroll secret was updated in %v", keystore.Name())
 							} else if checkSecret != secret {
 								log.Warn().Msgf("enroll secret was not updated correctly in %v", keystore.Name())
@@ -428,25 +428,25 @@ func main() {
 		if c.Bool("fleet-desktop") {
 			switch runtime.GOOS {
 			case "darwin":
-				opt.Targets["desktop"] = update.DesktopMacOSTarget
+				opt.Targets[constant.DesktopTUFTargetName] = update.DesktopMacOSTarget
 			case "windows":
-				opt.Targets["desktop"] = update.DesktopWindowsTarget
+				opt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsTarget
 			case "linux":
 				if runtime.GOARCH == "arm64" {
-					opt.Targets["desktop"] = update.DesktopLinuxArm64Target
+					opt.Targets[constant.DesktopTUFTargetName] = update.DesktopLinuxArm64Target
 				} else {
-					opt.Targets["desktop"] = update.DesktopLinuxTarget
+					opt.Targets[constant.DesktopTUFTargetName] = update.DesktopLinuxTarget
 				}
 			default:
 				log.Fatal().Str("GOOS", runtime.GOOS).Msg("unsupported GOOS for desktop target")
 			}
 			// Override default channel with the provided value.
-			opt.Targets.SetTargetChannel("desktop", c.String("desktop-channel"))
+			opt.Targets.SetTargetChannel(constant.DesktopTUFTargetName, c.String("desktop-channel"))
 		}
 
 		// Override default channels with the provided values.
-		opt.Targets.SetTargetChannel("orbit", c.String("orbit-channel"))
-		opt.Targets.SetTargetChannel("osqueryd", c.String("osqueryd-channel"))
+		opt.Targets.SetTargetChannel(constant.OrbitTUFTargetName, c.String("orbit-channel"))
+		opt.Targets.SetTargetChannel(constant.OsqueryTUFTargetName, c.String("osqueryd-channel"))
 
 		opt.RootDirectory = c.String("root-dir")
 		opt.ServerURL = c.String("update-url")
@@ -496,21 +496,28 @@ func main() {
 			if err != nil {
 				return fmt.Errorf("create updater: %w", err)
 			}
+
 			if err := updater.UpdateMetadata(); err != nil {
-				log.Info().Err(err).Msg("update metadata. using saved metadata")
+				log.Info().Err(err).Msg("update metadata, using saved metadata")
 			}
 
-			targets := []string{"orbit", "osqueryd"}
+			signaturesExpiredAtStartup := updater.SignaturesExpired()
+			if signaturesExpiredAtStartup {
+				log.Info().Err(err).Msg("detected signatures expired at startup")
+			}
+
+			targets := []string{constant.OrbitTUFTargetName, constant.OsqueryTUFTargetName}
 
 			if c.Bool("fleet-desktop") {
-				targets = append(targets, "desktop")
+				targets = append(targets, constant.DesktopTUFTargetName)
 			}
 			if c.Bool("dev-mode") {
 				targets = targets[1:] // exclude orbit itself on dev-mode.
 			}
 			updateRunner, err = update.NewRunner(updater, update.RunnerOptions{
-				CheckInterval: c.Duration("update-interval"),
-				Targets:       targets,
+				CheckInterval:              c.Duration("update-interval"),
+				Targets:                    targets,
+				SignaturesExpiredAtStartup: signaturesExpiredAtStartup,
 			})
 			if err != nil {
 				return err
@@ -518,7 +525,7 @@ func main() {
 
 			// Get current version of osquery
 			log.Info().Msgf("orbit version: %s", build.Version)
-			osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
+			osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
 			if err != nil {
 				log.Info().Err(err).Msg("Could not find local osqueryd executable")
 			} else {
@@ -571,20 +578,20 @@ func main() {
 		} else {
 			log.Info().Msg("running with auto updates disabled")
 			updater = update.NewDisabled(opt)
-			osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
+			osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
 			if err != nil {
-				log.Fatal().Err(err).Msg("locate osqueryd")
+				log.Fatal().Err(err).Msgf("locate %s", constant.OsqueryTUFTargetName)
 			}
 			if c.Bool("fleet-desktop") {
 				if runtime.GOOS == "darwin" {
-					desktopPath, err = updater.DirLocalPath("desktop")
+					desktopPath, err = updater.DirLocalPath(constant.DesktopTUFTargetName)
 					if err != nil {
-						return fmt.Errorf("get desktop target: %w", err)
+						return fmt.Errorf("get %s target: %w", constant.DesktopTUFTargetName, err)
 					}
 				} else {
-					desktopPath, err = updater.ExecutableLocalPath("desktop")
+					desktopPath, err = updater.ExecutableLocalPath(constant.DesktopTUFTargetName)
 					if err != nil {
-						return fmt.Errorf("get desktop target: %w", err)
+						return fmt.Errorf("get %s target: %w", constant.DesktopTUFTargetName, err)
 					}
 				}
 			}
@@ -745,7 +752,7 @@ func main() {
 			certPath = filepath.Join(proxyDirectory, "fleet.crt")
 
 			// Write cert that proxy uses
-			err = os.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
+			err = os.WriteFile(certPath, []byte(insecure.ServerCert), os.FileMode(0o644))
 			if err != nil {
 				return fmt.Errorf("write server cert: %w", err)
 			}
@@ -871,7 +878,7 @@ func main() {
 			orbitClient.RegisterConfigReceiver(update.ApplyNudgeConfigReceiverMiddleware(update.NudgeConfigFetcherOptions{
 				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
 			}))
-			setupExperiencer := setupexperience.NewSetupExperiencer(orbitClient)
+			setupExperiencer := setupexperience.NewSetupExperiencer(orbitClient, c.String("root-dir"))
 			orbitClient.RegisterConfigReceiver(setupExperiencer)
 			orbitClient.RegisterConfigReceiver(update.ApplySwiftDialogDownloaderMiddleware(updateRunner))
 
@@ -945,11 +952,9 @@ func main() {
 		//	- `command_line_flags` (osquery startup flags)
 		if err := orbitClient.RunConfigReceivers(); err != nil {
 			log.Error().Msgf("failed initial config fetch: %s", err)
-		} else {
-			if orbitClient.RestartTriggered() {
-				log.Info().Msg("exiting after early config fetch")
-				return nil
-			}
+		} else if orbitClient.RestartTriggered() {
+			log.Info().Msg("exiting after early config fetch")
+			return nil
 		}
 
 		addSubsystem(&g, "config receivers", &wrapSubsystem{
@@ -1091,9 +1096,7 @@ func main() {
 		// on their flagfiles.
 		hostIdentifier := c.String("host-identifier")
 		options = append(options, osquery.WithFlags([]string{"--host-identifier", hostIdentifier}))
-		for _, option := range optionsAfterFlagfile {
-			options = append(options, option)
-		}
+		options = append(options, optionsAfterFlagfile...)
 
 		// Handle additional args after '--' in the command line. These are added last and should
 		// override all other flags and flagfile entries.
@@ -1285,17 +1288,17 @@ func setServerOverrides(c *cli.Context) fallbackServerOverridesConfig {
 	}
 	if overrideCfg.OrbitChannel != "" {
 		if err := c.Set("orbit-channel", overrideCfg.OrbitChannel); err != nil {
-			log.Error().Err(err).Str("component", "orbit").Msg("failed to set server overrides")
+			log.Error().Err(err).Str("component", constant.OrbitTUFTargetName).Msg("failed to set server overrides")
 		}
 	}
 	if overrideCfg.OsquerydChannel != "" {
 		if err := c.Set("osqueryd-channel", overrideCfg.OsquerydChannel); err != nil {
-			log.Error().Err(err).Str("component", "osqueryd").Msg("failed to set server overrides")
+			log.Error().Err(err).Str("component", constant.OsqueryTUFTargetName).Msg("failed to set server overrides")
 		}
 	}
 	if overrideCfg.DesktopChannel != "" {
 		if err := c.Set("desktop-channel", overrideCfg.DesktopChannel); err != nil {
-			log.Error().Err(err).Str("component", "desktop").Msg("failed to set server overrides")
+			log.Error().Err(err).Str("component", constant.DesktopTUFTargetName).Msg("failed to set server overrides")
 		}
 	}
 
@@ -1314,14 +1317,54 @@ func getFleetdComponentPaths(
 		log.Error().Err(err).Msg("update metadata before getting components")
 	}
 
+	// "root", "targets", or "snapshot" signatures have expired, thus
+	// we attempt to get local paths for the targets (updater.Get will fail
+	// because of the expired signatures).
+	if updater.SignaturesExpired() {
+		log.Error().Err(err).Msg("expired metadata, using local targets")
+
+		// Attempt to get local path of osqueryd.
+		osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
+		if err != nil {
+			log.Info().Err(err).Msgf("failed to get local path for %s target", constant.OsqueryTUFTargetName)
+			// Attempt to use fallback path.
+			if fallbackCfg.OsquerydPath == "" {
+				log.Info().Err(err).Msgf("no fallback local path for %s", constant.OsqueryTUFTargetName)
+				return "", "", fmt.Errorf("get local %s target: %w", constant.OsqueryTUFTargetName, err)
+			}
+			log.Info().Err(err).Msgf("get local %s target failed, fallback to using %s", constant.OsqueryTUFTargetName, fallbackCfg.OsquerydPath)
+			osquerydPath = fallbackCfg.OsquerydPath
+		}
+		// Attempt to get local path of Fleet Desktop.
+		if c.Bool("fleet-desktop") {
+			if runtime.GOOS == "darwin" {
+				desktopPath, err = updater.DirLocalPath(constant.DesktopTUFTargetName)
+			} else {
+				desktopPath, err = updater.ExecutableLocalPath(constant.DesktopTUFTargetName)
+			}
+			if err != nil {
+				log.Info().Err(err).Msgf("failed to get local path for %s target", constant.DesktopTUFTargetName)
+				// Attempt to use fallback path.
+				if fallbackCfg.DesktopPath == "" {
+					log.Info().Err(err).Msgf("no fallback local path for %s", constant.DesktopTUFTargetName)
+					return "", "", fmt.Errorf("get local %s target: %w", constant.DesktopTUFTargetName, err)
+				}
+				log.Info().Err(err).Msgf("get local %s target failed, fallback to using %s", constant.DesktopTUFTargetName, fallbackCfg.DesktopPath)
+				desktopPath = fallbackCfg.DesktopPath
+			}
+		}
+
+		return osquerydPath, desktopPath, nil
+	}
+
 	// osqueryd
-	osquerydLocalTarget, err := updater.Get("osqueryd")
+	osquerydLocalTarget, err := updater.Get(constant.OsqueryTUFTargetName)
 	if err != nil {
 		if fallbackCfg.OsquerydPath == "" {
-			log.Info().Err(err).Msg("get osqueryd target failed")
-			return "", "", fmt.Errorf("get osqueryd target: %w", err)
+			log.Info().Err(err).Msgf("get %s target failed", constant.OsqueryTUFTargetName)
+			return "", "", fmt.Errorf("get %s target: %w", constant.OsqueryTUFTargetName, err)
 		}
-		log.Info().Err(err).Msgf("get osqueryd target failed, fallback to using %s", fallbackCfg.OsquerydPath)
+		log.Info().Err(err).Msgf("get %s target failed, fallback to using %s", constant.OsqueryTUFTargetName, fallbackCfg.OsquerydPath)
 		osquerydPath = fallbackCfg.OsquerydPath
 	} else {
 		osquerydPath = osquerydLocalTarget.ExecPath
@@ -1329,13 +1372,13 @@ func getFleetdComponentPaths(
 
 	// Fleet Desktop
 	if c.Bool("fleet-desktop") {
-		fleetDesktopLocalTarget, err := updater.Get("desktop")
+		fleetDesktopLocalTarget, err := updater.Get(constant.DesktopTUFTargetName)
 		if err != nil {
 			if fallbackCfg.DesktopPath == "" {
-				log.Info().Err(err).Msg("get desktop target failed")
-				return "", "", fmt.Errorf("get desktop target: %w", err)
+				log.Info().Err(err).Msgf("get %s target failed", constant.DesktopTUFTargetName)
+				return "", "", fmt.Errorf("get %s target: %w", constant.DesktopTUFTargetName, err)
 			}
-			log.Info().Err(err).Msgf("get desktop target failed, fallback to using %s", fallbackCfg.DesktopPath)
+			log.Info().Err(err).Msgf("get %s target failed, fallback to using %s", constant.DesktopTUFTargetName, fallbackCfg.DesktopPath)
 			desktopPath = fallbackCfg.DesktopPath
 		} else {
 			if runtime.GOOS == "darwin" {
@@ -1577,9 +1620,9 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 		if unmarshalErr != nil {
 			// Since the original command failed, we log the original error and the output for debugging purposes.
 			log.Error().Str(
-				"output", string(osquerydStdout.Bytes()),
+				"output", osquerydStdout.String(),
 			).Str(
-				"stderr", string(osquerydStderr.Bytes()),
+				"stderr", osquerydStderr.String(),
 			).Msg("getHostInfo via osquery")
 			return nil, err
 		}

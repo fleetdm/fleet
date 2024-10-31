@@ -35,6 +35,7 @@ type EnterpriseOverrides struct {
 	MDMWindowsEnableOSUpdates         func(ctx context.Context, teamID *uint, updates WindowsUpdates) error
 	MDMWindowsDisableOSUpdates        func(ctx context.Context, teamID *uint) error
 	MDMAppleEditedAppleOSUpdates      func(ctx context.Context, teamID *uint, appleDevice AppleDevice, updates AppleOSUpdateSettings) error
+	SetupExperienceNextStep           func(ctx context.Context, hostUUID string) (bool, error)
 }
 
 type OsqueryService interface {

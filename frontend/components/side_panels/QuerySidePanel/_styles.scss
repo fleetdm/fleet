@@ -18,13 +18,20 @@
     z-index: 2;
 
     &:focus {
+      border: 1px solid $core-vibrant-blue;
       outline: none;
+
+      svg {
+        path {
+          stroke: $core-vibrant-blue;
+        }
+      }
     }
 
     &:hover {
       svg {
         path {
-          stroke: $core-vibrant-blue;
+          stroke: $core-vibrant-blue-over;
         }
       }
     }

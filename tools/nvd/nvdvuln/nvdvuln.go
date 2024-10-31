@@ -82,7 +82,7 @@ func main() {
 	if *debug {
 		// Sample the process CPU and memory usage every second
 		// and store it on a file under the dbDir.
-		process, err := process.NewProcess(int32(os.Getpid()))
+		myProcess, err := process.NewProcess(int32(os.Getpid())) //nolint:gosec // dismiss G115
 		if err != nil {
 			panic(err)
 		}
@@ -93,19 +93,17 @@ func main() {
 		defer cpuAndMemFile.Close()
 		go func() {
 			for {
-				select {
-				case <-time.After(1 * time.Second):
-					cpuPercent, err := process.CPUPercent()
-					if err != nil {
-						panic(err)
-					}
-					memInfo, err := process.MemoryInfo()
-					if err != nil {
-						panic(err)
-					}
-					now := time.Now().UTC().Format("15:04:05")
-					fmt.Fprintf(cpuAndMemFile, "%s %.2f %.2f\n", now, cpuPercent, float64(memInfo.RSS)/1024.0/1024.0)
+				time.Sleep(time.Second)
+				cpuPercent, err := myProcess.CPUPercent()
+				if err != nil {
+					panic(err)
 				}
+				memInfo, err := myProcess.MemoryInfo()
+				if err != nil {
+					panic(err)
+				}
+				now := time.Now().UTC().Format("15:04:05")
+				fmt.Fprintf(cpuAndMemFile, "%s %.2f %.2f\n", now, cpuPercent, float64(memInfo.RSS)/1024.0/1024.0)
 			}
 		}()
 	}
@@ -281,10 +279,7 @@ type softwareIterator struct {
 }
 
 func (s *softwareIterator) Next() bool {
-	if s.i >= len(s.software) {
-		return false
-	}
-	return true
+	return s.i < len(s.software)
 }
 
 func (s *softwareIterator) Value() (*fleet.Software, error) {

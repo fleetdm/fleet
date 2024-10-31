@@ -11,6 +11,7 @@ export interface IRadioProps {
   id: string;
   onChange: (value: string) => void;
   checked?: boolean;
+  /** Allows tabbing to the group, then using arrow keys to move between options with same name attribute */
   name?: string;
   className?: string;
   disabled?: boolean;

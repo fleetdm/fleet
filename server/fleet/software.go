@@ -123,8 +123,7 @@ type VulnSoftwareFilter struct {
 type SliceString []string
 
 func (c *SliceString) Scan(v interface{}) error {
-	switch tv := v.(type) {
-	case []byte:
+	if tv, ok := v.([]byte); ok {
 		return json.Unmarshal(tv, &c)
 	}
 	return errors.New("unsupported type")
@@ -229,7 +228,6 @@ type SoftwareTitleListOptions struct {
 	MaximumCVSS         float64 `query:"max_cvss_score,optional"`
 	PackagesOnly        bool    `query:"packages_only,optional"`
 	Platform            string  `query:"platform,optional"`
-	SetupExperienceOnly bool    `query:"setup_experience,optional"`
 }
 
 type HostSoftwareTitleListOptions struct {
@@ -252,6 +250,9 @@ type HostSoftwareTitleListOptions struct {
 	OnlyAvailableForInstall bool `query:"available_for_install,optional"`
 
 	VulnerableOnly bool `query:"vulnerable,optional"`
+
+	// Non-MDM-enabled hosts cannot install VPP apps
+	ExcludeVPPApps bool
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.
@@ -352,9 +353,7 @@ func (uhsdbr *UpdateHostSoftwareDBResult) CurrInstalled() []Software {
 		}
 	}
 
-	for _, i := range uhsdbr.Inserted {
-		r = append(r, i)
-	}
+	r = append(r, uhsdbr.Inserted...)
 
 	return r
 }
@@ -429,12 +428,14 @@ func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, releas
 }
 
 type VPPBatchPayload struct {
-	AppStoreID  string `json:"app_store_id"`
-	SelfService bool   `json:"self_service"`
+	AppStoreID         string `json:"app_store_id"`
+	SelfService        bool   `json:"self_service"`
+	InstallDuringSetup *bool  `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 }
 
 type VPPBatchPayloadWithPlatform struct {
-	AppStoreID  string              `json:"app_store_id"`
-	SelfService bool                `json:"self_service"`
-	Platform    AppleDevicePlatform `json:"platform"`
+	AppStoreID         string              `json:"app_store_id"`
+	SelfService        bool                `json:"self_service"`
+	Platform           AppleDevicePlatform `json:"platform"`
+	InstallDuringSetup *bool               `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 }

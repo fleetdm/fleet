@@ -39,6 +39,7 @@ const HostStatusWebhookPreviewModal = ({
     <Modal
       title="Host status webhook"
       onExit={toggleModal}
+      onEnter={toggleModal}
       className={baseClass}
     >
       <>
@@ -53,7 +54,7 @@ const HostStatusWebhookPreviewModal = ({
           />
         </div>
         <div className="modal-cta-wrap">
-          <Button type="button" onClick={toggleModal}>
+          <Button type="button" onClick={toggleModal} variant="brand">
             Done
           </Button>
         </div>

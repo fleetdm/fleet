@@ -17,7 +17,7 @@ import (
 
 type putSetupExperienceSoftwareRequest struct {
 	TeamID   uint   `json:"team_id"`
-	TitleIDs []uint `json:"title_ids"`
+	TitleIDs []uint `json:"software_title_ids"`
 }
 
 type putSetupExperienceSoftwareResponse struct {

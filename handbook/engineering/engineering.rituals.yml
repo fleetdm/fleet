@@ -84,20 +84,13 @@
   description: "Every release cycle, by end of day Friday of release week, move all issues to the ”✅ Ready for release” column on the #g-mdm and #g-endpoint-ops sprint boards."
   moreInfoUrl:
   dri: "xpkoala"
-#-
-#   task: "Review ongoing articles"
-#   startedOn: "2023-10-02"
-#   frequency: "Daily"
-#   description: "Check 📃 Planned articles and complete steps in each issue"
-#   moreInfoUrl: "https://fleetdm.com/handbook/demand#review-ongoing-articles"
-#   dri: "spokanemac"
 -
-  task: "Check ongoing events"
-  startedOn: "2024-02-09"
+  task: "Review ongoing articles"
+  startedOn: "2023-10-02"
   frequency: "Daily"
-  description: "Check event issues and complete steps."
-  moreInfoUrl: "https://fleetdm.com/handbook/engineering#book-an-event"
-  dri: "spokanemac"
+  description: "Check 📃 Planned articles and complete steps in each issue"
+  moreInfoUrl: "https://fleetdm.com/handbook/demand#review-ongoing-articles"
+  dri: "rachaelshaw"
 
 
 
