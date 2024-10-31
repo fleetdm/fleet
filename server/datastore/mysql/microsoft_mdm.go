@@ -707,7 +707,7 @@ WHERE
 	if dest.Status == "" {
 		// This is unexpected. We know that disk encryption is enabled so we treat it failed to draw
 		// attention to the issue and log potential debugging
-		level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID, "mdm_info")
+		level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID)
 		dest.Status = fleet.DiskEncryptionFailed
 	}
 

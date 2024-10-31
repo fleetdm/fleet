@@ -1141,6 +1141,8 @@ type GetHostMDMCertificateProfileFunc func(ctx context.Context, hostUUID string,
 
 type CleanUpMDMManagedCertificatesFunc func(ctx context.Context) error
 
+type GetLinuxDiskEncryptionStatusFunc func(ctx context.Context, hostID uint, hostTeamID *uint) (*fleet.HostMDMDiskEncryption, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -2821,6 +2823,9 @@ type DataStore struct {
 
 	CleanUpMDMManagedCertificatesFunc        CleanUpMDMManagedCertificatesFunc
 	CleanUpMDMManagedCertificatesFuncInvoked bool
+
+	GetLinuxDiskEncryptionStatusFunc        GetLinuxDiskEncryptionStatusFunc
+	GetLinuxDiskEncryptionStatusFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -6743,4 +6748,11 @@ func (s *DataStore) CleanUpMDMManagedCertificates(ctx context.Context) error {
 	s.CleanUpMDMManagedCertificatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanUpMDMManagedCertificatesFunc(ctx)
+}
+
+func (s *DataStore) GetLinuxDiskEncryptionStatus(ctx context.Context, hostID uint, hostTeamID *uint) (*fleet.HostMDMDiskEncryption, error) {
+	s.mu.Lock()
+	s.GetLinuxDiskEncryptionStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetLinuxDiskEncryptionStatusFunc(ctx, hostID, hostTeamID)
 }

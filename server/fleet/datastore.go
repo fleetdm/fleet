@@ -1789,7 +1789,7 @@ type Datastore interface {
 	// metadata provided via app.
 	UpsertMaintainedApp(ctx context.Context, app *MaintainedApp) (*MaintainedApp, error)
 
-	// /////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////
 	// Certificate management
 
 	// BulkUpsertMDMManagedCertificates updates metadata regarding certificates on the host.
@@ -1801,6 +1801,11 @@ type Datastore interface {
 
 	// CleanUpMDMManagedCertificates removes all managed certificates that are not associated with any host+profile.
 	CleanUpMDMManagedCertificates(ctx context.Context) error
+
+	/////////////////////////////////////////////////////////////////////////////////
+	// Linux disk encryption status
+
+	GetLinuxDiskEncryptionStatus(ctx context.Context, hostID uint, hostTeamID *uint) (*HostMDMDiskEncryption, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

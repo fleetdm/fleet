@@ -1218,27 +1218,42 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 			}
 
 		case "darwin", "ios", "ipados":
-			if ac.MDM.EnabledAndConfigured {
-				profs, err := svc.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "get host mdm profiles")
-				}
+			if !ac.MDM.EnabledAndConfigured {
+				break
+			}
 
-				// determine disk encryption and action required here based on profiles and
-				// raw decryptable key status.
-				host.MDM.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
+			profs, err := svc.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get host mdm profiles")
+			}
 
-				for _, p := range profs {
-					if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {
-						p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
-					}
-					p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
-					profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
+			// determine disk encryption and action required here based on profiles and
+			// raw decryptable key status.
+			host.MDM.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
+
+			for _, p := range profs {
+				if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {
+					p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
 				}
+				p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
+				profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
 			}
 		}
 	}
 	host.MDM.Profiles = &profiles
+
+	// TODO(lucas): Check for Ubuntu and Fedora workstations only.
+	if fleet.IsLinux(host.Platform) {
+		hostMDMDiskEncryption, err := svc.ds.GetLinuxDiskEncryptionStatus(ctx, host.ID, host.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host linux disk encryption status")
+		}
+		if hostMDMDiskEncryption != nil {
+			host.MDM.OSSettings = &fleet.HostMDMOSSettings{
+				DiskEncryption: *hostMDMDiskEncryption,
+			}
+		}
+	}
 
 	var macOSSetup *fleet.HostMDMMacOSSetup
 	if ac.MDM.EnabledAndConfigured && license.IsPremium(ctx) {

@@ -707,12 +707,6 @@ LIMIT
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get host by id")
 	}
-	if host.DiskEncryptionEnabled != nil && !(*host.DiskEncryptionEnabled) && fleet.IsLinux(host.Platform) {
-		// omit disk encryption information for linux if it is not enabled, as we
-		// cannot know for sure that it is not encrypted (See
-		// https://github.com/fleetdm/fleet/issues/3906).
-		host.DiskEncryptionEnabled = nil
-	}
 
 	packStats, err := loadHostPackStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform)
 	if err != nil {
@@ -5492,4 +5486,63 @@ func (ds *Datastore) CleanupHostIssues(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "cleanup host issues")
 	}
 	return nil
+}
+
+// TODO(lucas): Check for Ubuntu and Fedora workstations only.
+func (ds *Datastore) GetLinuxDiskEncryptionStatus(ctx context.Context, hostID uint, hostTeamID *uint) (*fleet.HostMDMDiskEncryption, error) {
+	enabled, err := ds.getConfigEnableDiskEncryption(ctx, hostTeamID)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
+		return nil, nil
+	}
+
+	const stmt = `SELECT 
+		(hd.encrypted IS NOT NULL AND hd.encrypted = 1) AS encrypted,
+		(hdek.base64_encrypted IS NOT NULL AND hdek.base64_encrypted != '' AND hdek.decryptable IS NOT NULL AND hdek.decryptable = 1) AS key_available,
+		COALESCE(hdek.client_error, '') as client_error
+	FROM host_disks hd
+	LEFT JOIN host_disk_encryption_keys hdek ON hd.host_id = hdek.host_id
+	WHERE
+		hd.host_id = ?`
+
+	var dest struct {
+		Encrypted    bool   `db:"encrypted"`
+		KeyAvailable bool   `db:"key_available"`
+		ClientError  string `db:"client_error"`
+	}
+
+	switch err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, hostID); {
+	case err != nil && !errors.Is(err, sql.ErrNoRows):
+		return nil, ctxerr.Wrapf(ctx, err, "failed to check linux disk encryption status for host_id=%d", hostID)
+	case errors.Is(err, sql.ErrNoRows):
+		// Host hasn't reported host_disks results yet.
+		return &fleet.HostMDMDiskEncryption{
+			Status: ptrDiskEncryptionStatus(fleet.DiskEncryptionEnforcing),
+		}, nil
+	case dest.ClientError != "":
+		return &fleet.HostMDMDiskEncryption{
+			Status: ptrDiskEncryptionStatus(fleet.DiskEncryptionFailed),
+			Detail: dest.ClientError,
+		}, nil
+	case !dest.Encrypted:
+		return &fleet.HostMDMDiskEncryption{
+			Status: ptrDiskEncryptionStatus(fleet.DiskEncryptionActionRequired),
+			Detail: "non-encrypted",
+		}, nil
+	case !dest.KeyAvailable:
+		return &fleet.HostMDMDiskEncryption{
+			Status: ptrDiskEncryptionStatus(fleet.DiskEncryptionActionRequired),
+			Detail: "non-escrowed",
+		}, nil
+	default: // dest.KeyAvailable
+		return &fleet.HostMDMDiskEncryption{
+			Status: ptrDiskEncryptionStatus(fleet.DiskEncryptionVerified),
+		}, nil
+	}
+}
+
+func ptrDiskEncryptionStatus(s fleet.DiskEncryptionStatus) *fleet.DiskEncryptionStatus {
+	return &s
 }
