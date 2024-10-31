@@ -79,14 +79,23 @@ INSERT INTO
 		// filled in.
 		profileID, _ = res.LastInsertId()
 
-		labels := make([]fleet.ConfigurationProfileLabel, 0, len(cp.LabelsIncludeAll)+len(cp.LabelsExcludeAny))
+		labels := make([]fleet.ConfigurationProfileLabel, 0, len(cp.LabelsIncludeAll)+len(cp.LabelsIncludeAny)+len(cp.LabelsExcludeAny))
 		for i := range cp.LabelsIncludeAll {
 			cp.LabelsIncludeAll[i].ProfileUUID = profUUID
+			cp.LabelsIncludeAll[i].Exclude = false
+			cp.LabelsIncludeAll[i].RequireAll = true
 			labels = append(labels, cp.LabelsIncludeAll[i])
+		}
+		for i := range cp.LabelsIncludeAny {
+			cp.LabelsIncludeAny[i].ProfileUUID = profUUID
+			cp.LabelsIncludeAny[i].Exclude = false
+			cp.LabelsIncludeAny[i].RequireAll = false
+			labels = append(labels, cp.LabelsIncludeAny[i])
 		}
 		for i := range cp.LabelsExcludeAny {
 			cp.LabelsExcludeAny[i].ProfileUUID = profUUID
 			cp.LabelsExcludeAny[i].Exclude = true
+			cp.LabelsExcludeAny[i].RequireAll = false
 			labels = append(labels, cp.LabelsExcludeAny[i])
 		}
 		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, "darwin"); err != nil {
@@ -3808,7 +3817,8 @@ func (ds *Datastore) updateHostDEPAssignProfileResponses(ctx context.Context, pa
 }
 
 func updateHostDEPAssignProfileResponses(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, profileUUID string, serials []string,
-	status string, abmTokenID *uint) error {
+	status string, abmTokenID *uint,
+) error {
 	if len(serials) == 0 {
 		return nil
 	}
@@ -4320,14 +4330,23 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 		}
 
 		labels := make([]fleet.ConfigurationProfileLabel, 0,
-			len(declaration.LabelsIncludeAll)+len(declaration.LabelsExcludeAny))
+			len(declaration.LabelsIncludeAll)+len(declaration.LabelsIncludeAny)+len(declaration.LabelsExcludeAny))
 		for i := range declaration.LabelsIncludeAll {
 			declaration.LabelsIncludeAll[i].ProfileUUID = declUUID
+			declaration.LabelsIncludeAll[i].Exclude = false
+			declaration.LabelsIncludeAll[i].RequireAll = true
 			labels = append(labels, declaration.LabelsIncludeAll[i])
+		}
+		for i := range declaration.LabelsIncludeAny {
+			declaration.LabelsIncludeAny[i].ProfileUUID = declUUID
+			declaration.LabelsIncludeAny[i].Exclude = false
+			declaration.LabelsIncludeAny[i].RequireAll = false
+			labels = append(labels, declaration.LabelsIncludeAny[i])
 		}
 		for i := range declaration.LabelsExcludeAny {
 			declaration.LabelsExcludeAny[i].ProfileUUID = declUUID
 			declaration.LabelsExcludeAny[i].Exclude = true
+			declaration.LabelsExcludeAny[i].RequireAll = false
 			labels = append(labels, declaration.LabelsExcludeAny[i])
 		}
 		if _, err := batchSetDeclarationLabelAssociationsDB(ctx, tx, labels); err != nil {
