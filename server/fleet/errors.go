@@ -525,6 +525,8 @@ type FleetdError struct {
 	ErrorTimestamp      time.Time      `json:"error_timestamp"`
 	ErrorMessage        string         `json:"error_message"`
 	ErrorAdditionalInfo map[string]any `json:"error_additional_info"`
+	// Vital errors are always reported to Fleet server.
+	Vital bool `json:"vital"`
 }
 
 // Error implements the error interface
@@ -536,6 +538,7 @@ func (fe FleetdError) Error() string {
 // about the error can be logged by the components that use zerolog (Orbit,
 // Fleet Desktop)
 func (fe FleetdError) MarshalZerologObject(e *zerolog.Event) {
+	e.Bool("vital", fe.Vital)
 	e.Str("error_source", fe.ErrorSource)
 	e.Str("error_source_version", fe.ErrorSourceVersion)
 	e.Time("error_timestamp", fe.ErrorTimestamp)
@@ -546,6 +549,7 @@ func (fe FleetdError) MarshalZerologObject(e *zerolog.Event) {
 // ToMap returns a map representation of the error
 func (fe FleetdError) ToMap() map[string]any {
 	return map[string]any{
+		"vital":                 fe.Vital,
 		"error_source":          fe.ErrorSource,
 		"error_source_version":  fe.ErrorSourceVersion,
 		"error_timestamp":       fe.ErrorTimestamp,

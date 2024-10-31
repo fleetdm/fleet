@@ -590,6 +590,7 @@ func (s *integrationMDMTestSuite) setupLifecycleSettings() {
 // Host is renewing SCEP certificates
 func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	t := s.T()
+	t.Skip("flaky test, see https://github.com/fleetdm/fleet/issues/20936")
 	ctx := context.Background()
 	// ensure there's a token for automatic enrollments
 	s.enableABM(t.Name())

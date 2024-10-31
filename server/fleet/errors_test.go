@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -62,7 +63,8 @@ func TestFleetdErrors(t *testing.T) {
 	}
 
 	require.Equal(t, "test message", ferr.Error())
-	require.Equal(t, map[string]any{
+	assert.Equal(t, map[string]any{
+		"vital":                 ferr.Vital,
 		"error_source":          ferr.ErrorSource,
 		"error_source_version":  ferr.ErrorSourceVersion,
 		"error_timestamp":       ferr.ErrorTimestamp,
@@ -75,5 +77,7 @@ func TestFleetdErrors(t *testing.T) {
 	zevent := logger.Log()
 	ferr.MarshalZerologObject(zevent)
 	zevent.Send()
-	require.JSONEq(t, `{"error_source":"orbit","error_source_version":"1.1.1","error_timestamp":"1969-06-19T21:44:05Z","error_message":"test message","error_additional_info":{"foo":"bar"}}`, logBuf.String())
+	assert.JSONEq(t,
+		`{"error_source":"orbit","error_source_version":"1.1.1","error_timestamp":"1969-06-19T21:44:05Z","error_message":"test message","error_additional_info":{"foo":"bar"},"vital":false}`,
+		logBuf.String())
 }

@@ -55,6 +55,15 @@ import (
 // unusedFlagKeyword is used by the MSI installer to populate parameters, which cannot be empty
 const unusedFlagKeyword = "dummy"
 
+type logError string
+
+const (
+	logErrorLaunchServicesSubstr logError = "error=Error Domain=NSOSStatusErrorDomain Code=-10822"
+	logErrorLaunchServicesMsg    logError = "LaunchServices kLSServerCommunicationErr (-10822)"
+	logErrorMissingExecSubstr    logError = "The application cannot be opened because its executable is missing."
+	logErrorMissingExecMsg       logError = "bad desktop executable"
+)
+
 func main() {
 	app := cli.NewApp()
 	app.Name = "Orbit osquery"
@@ -956,6 +965,7 @@ func main() {
 		})
 
 		var trw *token.ReadWriter
+		var deviceClient *service.DeviceClient
 		if c.Bool("fleet-desktop") {
 			trw = token.NewReadWriter(filepath.Join(c.String("root-dir"), "identifier"))
 			if err := trw.LoadOrGenerate(); err != nil {
@@ -975,7 +985,7 @@ func main() {
 			// Note that the deviceClient used by orbit must not define a retry on
 			// invalid token, because its goal is to detect invalid tokens when
 			// making requests with this client.
-			deviceClient, err := service.NewDeviceClient(
+			deviceClient, err = service.NewDeviceClient(
 				fleetURL,
 				c.Bool("insecure"),
 				c.String("fleet-certificate"),
@@ -1179,6 +1189,29 @@ func main() {
 				c.String("fleet-desktop-alternative-browser-host"),
 				opt.RootDirectory,
 			)
+			go func() {
+				for {
+					msg := <-desktopRunner.errorNotifyCh
+					log.Error().Err(errors.New(msg)).Msg("fleet-desktop runner error")
+					// Vital errors are always sent to Fleet, regardless of the error reporting setting FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS.
+					fleetdErr := fleet.FleetdError{
+						Vital:              true,
+						ErrorSource:        "fleet-desktop",
+						ErrorSourceVersion: desktopVersion,
+						ErrorTimestamp:     time.Now(),
+						ErrorMessage:       msg,
+						ErrorAdditionalInfo: map[string]interface{}{
+							"orbit_version":   build.Version,
+							"osquery_version": osqueryHostInfo.OsqueryVersion,
+							"os_platform":     osqueryHostInfo.Platform,
+							"os_version":      osqueryHostInfo.OSVersion,
+						},
+					}
+					if err = deviceClient.ReportError(trw.GetCached(), fleetdErr); err != nil {
+						log.Error().Err(err).Msg(fmt.Sprintf("failed to send error report to Fleet: %s", msg))
+					}
+				}
+			}()
 			addSubsystem(&g, "desktop runner", desktopRunner)
 		}
 
@@ -1378,6 +1411,10 @@ type desktopRunner struct {
 	interruptCh chan struct{} //
 	// executeDoneCh is closed when execute returns.
 	executeDoneCh chan struct{}
+	// errorNotifyCh is used to notify errors to the main orbit process.
+	errorNotifyCh chan string
+	// errorsReported is used to keep track of errors already reported to the main orbit process.
+	errorsReported map[string]struct{}
 }
 
 func newDesktopRunner(
@@ -1400,6 +1437,7 @@ func newDesktopRunner(
 		fleetAlternativeBrowserHost: fleetAlternativeBrowserHost,
 		interruptCh:                 make(chan struct{}),
 		executeDoneCh:               make(chan struct{}),
+		errorNotifyCh:               make(chan string),
 	}
 }
 
@@ -1474,8 +1512,9 @@ func (d *desktopRunner) Execute() error {
 			// To be able to run the desktop application (mostly to register the icon in the system tray)
 			// we need to run the application as the login user.
 			// Package execuser provides multi-platform support for this.
-			if err := execuser.Run(d.desktopPath, opts...); err != nil {
+			if lastLogs, err := execuser.Run(d.desktopPath, opts...); err != nil {
 				log.Debug().Err(err).Msg("execuser.Run")
+				d.processLog(lastLogs)
 				return true
 			}
 			return false
@@ -1531,6 +1570,34 @@ func (d *desktopRunner) Interrupt(err error) {
 	}
 }
 
+func (d *desktopRunner) processLog(log string) {
+	if len(log) == 0 {
+		return
+	}
+	// Important: make sure msg does not contain sensitive information since it is used for analytics.
+	var msg string
+	switch {
+	case strings.Contains(log, string(logErrorLaunchServicesSubstr)):
+		// https://github.com/fleetdm/fleet/issues/19172
+		msg = string(logErrorLaunchServicesMsg)
+	case strings.Contains(log, string(logErrorMissingExecSubstr)):
+		// For manual testing.
+		// To get this message, delete Fleet Desktop.app directory, make an empty Fleet Desktop.app directory,
+		// and kill the fleet-desktop process. Orbit will try to re-start Fleet Desktop and log this message.
+		msg = string(logErrorMissingExecMsg)
+	}
+	if msg == "" {
+		return
+	}
+	if d.errorsReported == nil {
+		d.errorsReported = make(map[string]struct{})
+	}
+	if _, ok := d.errorsReported[msg]; !ok {
+		d.errorsReported[msg] = struct{}{}
+		d.errorNotifyCh <- msg
+	}
+}
+
 // osqueryHostInfo is used to parse osquery JSON output from system tables.
 type osqueryHostInfo struct {
 	// HardwareUUID is the unique identifier for this device (extracted from `system_info` osquery table).
@@ -1544,6 +1611,10 @@ type osqueryHostInfo struct {
 	// InstanceID is the osquery's randomly generated instance ID
 	// (extracted from `osquery_info` osquery table).
 	InstanceID string `json:"instance_id"`
+	// OSVersion is the device's OS version as defined by osquery (extracted from `os_version` osquery table).
+	OSVersion string `json:"os_version"`
+	// OsqueryVersion is the version of osquery running on the device (extracted from `osquery_info` osquery table).
+	OsqueryVersion string `json:"osquery_version"`
 }
 
 // getHostInfo retrieves system information about the host by shelling out to `osqueryd -S` and performing a `SELECT` query.
@@ -1552,7 +1623,7 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 	if err := os.MkdirAll(filepath.Dir(osqueryDBPath), constant.DefaultDirMode); err != nil {
 		return nil, err
 	}
-	const systemQuery = "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform, oi.instance_id FROM system_info si, os_version os, osquery_info oi"
+	const systemQuery = "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform, os.version as os_version, oi.instance_id, oi.version as osquery_version FROM system_info si, os_version os, osquery_info oi"
 	args := []string{
 		"-S",
 		"--database_path", osqueryDBPath,
