@@ -49,6 +49,7 @@ export interface IUploadProfileApiParams {
   file: File;
   teamId?: number;
   labelsIncludeAll?: string[];
+  labelsIncludeAny?: string[];
   labelsExcludeAny?: string[];
 }
 
@@ -132,6 +133,7 @@ const mdmService = {
     file,
     teamId,
     labelsIncludeAll,
+    labelsIncludeAny,
     labelsExcludeAny,
   }: IUploadProfileApiParams) => {
     const { MDM_PROFILES } = endpoints;
@@ -143,11 +145,18 @@ const mdmService = {
       formData.append("team_id", teamId.toString());
     }
 
-    if (labelsIncludeAll || labelsExcludeAny) {
-      const labels = labelsIncludeAll || labelsExcludeAny;
-      const labelKey = labelsIncludeAll
-        ? "labels_include_all"
-        : "labels_exclude_any";
+    if (labelsIncludeAll || labelsIncludeAny || labelsExcludeAny) {
+      const labels = labelsIncludeAll || labelsIncludeAny || labelsExcludeAny;
+
+      let labelKey = "";
+      if (labelsIncludeAll) {
+        labelKey = "labels_include_all";
+      } else if (labelsIncludeAny) {
+        labelKey = "labels_include_any";
+      } else {
+        labelKey = "labels_exclude_any";
+      }
+
       labels?.forEach((label) => {
         formData.append(labelKey, label);
       });
