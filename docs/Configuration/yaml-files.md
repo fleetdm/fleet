@@ -265,8 +265,8 @@ controls:
 
 ### windows_updates
 
-- `deadline_days` specifies the number of days before Windows installs updates (default: null)
-- `grace_period_days` specifies the number of days before Windows restarts to install updates (default: null)
+- `deadline_days` specifies the number of days before Windows installs updates (default: `null`)
+- `grace_period_days` specifies the number of days before Windows restarts to install updates (default: `null`)
 
 ### macos_settings and windows_settings
 

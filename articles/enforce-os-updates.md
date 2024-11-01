@@ -16,11 +16,19 @@ In Fleet, you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hos
 
 ### Fleet API
 
-Use the [modify team endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-team) to turn on minimum OS version enforcement. The relevant payload keys are `macos_updates`, `ios_updates`, `ipados_updates`, and `windows_updates` under the `mdm` object.
+Use the [modify team endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-team) to turn on minimum OS version enforcement. The relevant payload keys in the `mdm` object are:
++ `macos_updates`
++ `ios_updates`
++ `ipados_updates`
++ `windows_updates`
 
 ### GitOps
 
-OS version enforcement options are declared within the [controls](https://fleetdm.com/docs/configuration/yaml-files#controls) section of a Fleet GitOps YAML file, using [macos_updates](https://fleetdm.com/docs/configuration/yaml-files#macos-updates), [is_updates](https://fleetdm.com/docs/configuration/yaml-files#ios-updates), [ipados_updates](https://fleetdm.com/docs/configuration/yaml-files#ipados-updates), and [windows_updates](https://fleetdm.com/docs/configuration/yaml-files#windows-updates) keys.
+OS version enforcement options are declared within the [controls](https://fleetdm.com/docs/configuration/yaml-files#controls) section of a Fleet GitOps YAML file, using the following keys: 
++ [macos_updates](https://fleetdm.com/docs/configuration/yaml-files#macos-updates)
++ [ios_updates](https://fleetdm.com/docs/configuration/yaml-files#ios-updates)
++ [ipados_updates](https://fleetdm.com/docs/configuration/yaml-files#ipados-updates)
++ [windows_updates](https://fleetdm.com/docs/configuration/yaml-files#windows-updates)
 
 ## End user experience
 
