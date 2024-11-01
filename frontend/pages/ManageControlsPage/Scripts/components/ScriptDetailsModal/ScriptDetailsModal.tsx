@@ -3,6 +3,7 @@ import { useQuery } from "react-query";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
 
+import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import scriptAPI from "services/entities/scripts";
 import { IHostScript } from "interfaces/script";
@@ -23,28 +24,31 @@ import { generateActionDropdownOptions } from "pages/hosts/details/HostDetailsPa
 const baseClass = "script-details-modal";
 
 interface IScriptDetailsModalProps {
-  hostId: number;
-  scriptId: number;
-  scriptName?: string;
   onCancel: () => void;
   onDelete: () => void;
   runScriptHelpText?: boolean;
   showHostScriptActions?: boolean;
-  toggleShowRunScriptDetailsModal?: any;
+  toggleRunScriptDetailsModal?: any;
   setRunScriptRequested?: (value: boolean) => void;
+  hostId?: number | null;
+  hostTeamId?: number | null;
+  refetchHostScripts?: any;
+  selectedScriptDetails: IHostScript;
 }
 
 const ScriptDetailsModal = ({
-  hostId,
-  scriptId,
-  scriptName,
   onCancel,
   onDelete,
   runScriptHelpText = false,
   showHostScriptActions = false,
-  toggleShowRunScriptDetailsModal,
+  toggleRunScriptDetailsModal,
   setRunScriptRequested,
+  hostId,
+  hostTeamId,
+  refetchHostScripts,
+  selectedScriptDetails,
 }: IScriptDetailsModalProps) => {
+  const { currentUser } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   // Note: Script metadata and script content require two separate API calls
@@ -58,7 +62,7 @@ const ScriptDetailsModal = ({
     isLoading: isLoadingScriptContent,
   } = useQuery<any, Error>(
     ["scriptContent"],
-    () => scriptAPI.downloadScript(scriptId),
+    () => scriptAPI.downloadScript(selectedScriptDetails.script_id),
     {
       refetchOnWindowFocus: false,
     }
@@ -66,40 +70,48 @@ const ScriptDetailsModal = ({
 
   const onClickDownload = () => {
     const formatDate = format(new Date(), "yyyy-MM-dd");
-    const filename = `${formatDate} ${scriptName}`;
+    const filename = `${formatDate} ${selectedScriptDetails}`;
     const file = new File([scriptContent], filename);
     FileSaver.saveAs(file);
   };
 
   const onSelectMoreActions = useCallback(
     async (action: string, script: IHostScript) => {
-      switch (action) {
-        case "showRunDetails": {
-          toggleShowRunScriptDetailsModal(script);
-          break;
-        }
-        case "run": {
-          try {
-            setRunScriptRequested && setRunScriptRequested(true);
-            await scriptAPI.runScript({
-              host_id: hostId,
-              script_id: script.script_id,
-            });
-            renderFlash(
-              "success",
-              "Script is running or will run when the host comes online."
-            );
-            refetchHostScripts();
-          } catch (e) {
-            renderFlash("error", getErrorReason(e));
-            setRunScriptRequested(false);
+      if (hostId && setRunScriptRequested && refetchHostScripts) {
+        switch (action) {
+          case "showRunDetails": {
+            toggleRunScriptDetailsModal(script);
+            break;
           }
-          break;
+          case "run": {
+            try {
+              setRunScriptRequested && setRunScriptRequested(true);
+              await scriptAPI.runScript({
+                host_id: hostId,
+                script_id: script.script_id,
+              });
+              renderFlash(
+                "success",
+                "Script is running or will run when the host comes online."
+              );
+              refetchHostScripts();
+            } catch (e) {
+              renderFlash("error", getErrorReason(e));
+              setRunScriptRequested(false);
+            }
+            break;
+          }
+          default: // do nothing
         }
-        default: // do nothing
       }
     },
-    [host.id, refetchHostScripts, renderFlash, setScriptDetails]
+    [
+      hostId,
+      refetchHostScripts,
+      renderFlash,
+      setRunScriptRequested,
+      toggleRunScriptDetailsModal,
+    ]
   );
 
   const renderFooter = () => {
@@ -129,13 +141,15 @@ const ScriptDetailsModal = ({
             <div className={`${baseClass}__manage-automations-wrapper`}>
               <ActionsDropdown
                 className={`${baseClass}__manage-automations-dropdown`}
-                onChange={(value) => onSelectMoreActions(value, script)}
+                onChange={(value) =>
+                  onSelectMoreActions(value, selectedScriptDetails)
+                }
                 placeholder="More actions"
                 isSearchable={false}
                 options={generateActionDropdownOptions(
                   currentUser,
-                  hostTeamId,
-                  "" // TODO
+                  hostTeamId || null,
+                  selectedScriptDetails
                 )}
               />
             </div>
@@ -189,7 +203,7 @@ const ScriptDetailsModal = ({
   return (
     <Modal
       className={baseClass}
-      title={scriptName || "Script details"}
+      title={selectedScriptDetails?.name || "Script details"}
       width="large"
       onExit={onCancel}
       modalActionsFooter={renderFooter()}

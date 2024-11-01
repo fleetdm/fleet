@@ -70,8 +70,6 @@ import {
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
 import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
-import ScriptDetailsModal from "pages/ManageControlsPage/Scripts/components/ScriptDetailsModal";
-import DeleteScriptModal from "pages/ManageControlsPage/Scripts/components/DeleteScriptModal";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -168,11 +166,9 @@ const HostDetailsPage = ({
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
   const [showRunScriptModal, setShowRunScriptModal] = useState(false);
-  const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
   const [showRunScriptDetailsModal, setShowRunScriptDetailsModal] = useState(
     false
   );
-  const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
@@ -540,24 +536,6 @@ const HostDetailsPage = ({
     setShowRunScriptModal(!showRunScriptModal);
   }, [setShowRunScriptModal, showRunScriptModal]);
 
-  const toggleScriptDetailsModal = useCallback(
-    (script?: IHostScript) => {
-      setShowScriptDetailsModal(!showScriptDetailsModal);
-      toggleRunScriptModal();
-      setSelectedScriptDetails(script);
-    },
-    [
-      showScriptDetailsModal,
-      setShowScriptDetailsModal,
-      setSelectedScriptDetails,
-      toggleRunScriptModal,
-    ]
-  );
-
-  const toggleDeleteScriptModal = useCallback(() => {
-    setShowDeleteScriptModal(!showDeleteScriptModal);
-  }, [setShowDeleteScriptModal, showDeleteScriptModal]);
-
   const toggleRunScriptDetailsModal = useCallback(
     (script: IHostScript | undefined) => {
       setShowRunScriptDetailsModal(!showRunScriptDetailsModal);
@@ -697,21 +675,6 @@ const HostDetailsPage = ({
       PATHS.EDIT_QUERY(selectedQuery.id) +
         TAGGED_TEMPLATES.queryByHostRoute(host?.id, currentTeam?.id)
     );
-  };
-
-  const onCancelScriptDetailsModal = useCallback(() => {
-    setSelectedScriptDetails(undefined);
-    toggleScriptDetailsModal();
-  }, [setSelectedScriptDetails, toggleScriptDetailsModal]);
-
-  const onCancelDeleteScriptModal = useCallback(() => {
-    setShowScriptDetailsModal(true);
-    toggleDeleteScriptModal();
-  }, [setShowScriptDetailsModal, toggleDeleteScriptModal]);
-
-  const onClickDelete = () => {
-    setShowScriptDetailsModal(false);
-    setShowDeleteScriptModal(true);
   };
 
   const onCancelRunScriptDetailsModal = useCallback(() => {
@@ -907,11 +870,6 @@ const HostDetailsPage = ({
     [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,
   });
 
-  console.log("showRunScriptModal", showRunScriptModal);
-  console.log("showRunScriptDetailsModal", showRunScriptDetailsModal);
-  console.log("showScriptDetailsModal", showScriptDetailsModal);
-  console.log("showDeleteScriptModal", showDeleteScriptModal);
-
   return (
     <MainContent className={baseClass}>
       <>
@@ -1081,46 +1039,14 @@ const HostDetailsPage = ({
             <RunScriptModal
               host={host}
               currentUser={currentUser}
-              setScriptDetails={setSelectedScriptDetails}
-              toggleShowRunScriptDetailsModal={toggleRunScriptDetailsModal}
-              toggleScriptDetailsModal={toggleScriptDetailsModal}
+              selectedScriptDetails={selectedScriptDetails}
+              setSelectedScriptDetails={setSelectedScriptDetails}
+              toggleRunScriptDetailsModal={toggleRunScriptDetailsModal}
               onClose={onCloseRunScriptModal}
               runScriptRequested={runScriptRequested}
               setRunScriptRequested={setRunScriptRequested}
             />
           )}
-        {showScriptDetailsModal && selectedScriptDetails && (
-          // force run script modal to unmount when script details modal is shown;
-          // it will be remounted when script details modal is closed
-          <ScriptDetailsModal
-            hostId={host.id}
-            scriptName={selectedScriptDetails?.name || ""}
-            scriptId={selectedScriptDetails?.script_id}
-            onCancel={onCancelScriptDetailsModal}
-            onDelete={onClickDelete}
-            showHostScriptActions
-            toggleShowRunScriptDetailsModal={setShowRunScriptDetailsModal(
-              !showRunScriptDetailsModal
-            )}
-            setRunScriptRequested={setRunScriptRequested}
-          />
-        )}
-        {showDeleteScriptModal && selectedScriptDetails && (
-          // force script details modal to unmount when delete script modal is shown;
-          // it will be remounted when script delete modal is closed
-          <DeleteScriptModal
-            scriptId={selectedScriptDetails.script_id}
-            scriptName={selectedScriptDetails.name}
-            onCancel={() => {
-              onCancelDeleteScriptModal();
-            }}
-            onDone={() => {
-              toggleDeleteScriptModal();
-              refetchHostDetails();
-              setSelectedScriptDetails(undefined);
-            }}
-          />
-        )}
         {!!host && showTransferHostModal && (
           <TransferHostModal
             onCancel={() => setShowTransferHostModal(false)}

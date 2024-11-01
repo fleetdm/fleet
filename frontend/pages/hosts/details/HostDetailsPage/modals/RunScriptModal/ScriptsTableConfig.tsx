@@ -72,7 +72,7 @@ export const generateTableColumnConfigs = (
   currentUser: IUser | null,
   hostTeamId: number | null,
   scriptsDisabled: boolean,
-  toggleScriptDetails: (script: IHostScript, teamId?: number) => void,
+  viewScriptDetailsModal: any,
   onSelectAction: (value: string, script: IHostScript) => void
 ) => {
   return [
@@ -88,8 +88,9 @@ export const generateTableColumnConfigs = (
         const onClickScriptName = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row
           e.stopPropagation();
-          toggleScriptDetails(cellProps.row.original);
+          viewScriptDetailsModal(cellProps.row.original);
         };
+
         return (
           <Button
             className="script-info"

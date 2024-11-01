@@ -188,8 +188,16 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
       )}
       {showScriptDetailsModal && selectedScript.current && (
         <ScriptDetailsModal
-          scriptName={selectedScript.current?.name}
-          scriptId={selectedScript.current?.id}
+          selectedScriptDetails={{
+            script_id: selectedScript.current?.id,
+            name: selectedScript.current?.name,
+            // TODO
+            last_execution: {
+              execution_id: "string",
+              executed_at: "string",
+              status: "error",
+            },
+          }}
           onCancel={onCancelScriptDetails}
           onDelete={() => {
             setShowScriptDetailsModal(false);

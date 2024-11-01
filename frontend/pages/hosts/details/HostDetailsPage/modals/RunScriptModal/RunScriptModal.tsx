@@ -19,6 +19,8 @@ import DataError from "components/DataError/DataError";
 import EmptyTable from "components/EmptyTable";
 import Modal from "components/Modal";
 import Spinner from "components/Spinner/Spinner";
+import ScriptDetailsModal from "pages/ManageControlsPage/Scripts/components/ScriptDetailsModal";
+import DeleteScriptModal from "pages/ManageControlsPage/Scripts/components/DeleteScriptModal";
 
 import TableContainer, {
   ITableQueryData,
@@ -31,11 +33,11 @@ const baseClass = "run-script-modal";
 interface IScriptsProps {
   currentUser: IUser | null;
   host: IHost;
-  setScriptDetails: React.Dispatch<
+  selectedScriptDetails: IHostScript | undefined;
+  setSelectedScriptDetails: React.Dispatch<
     React.SetStateAction<IHostScript | undefined>
   >;
-  toggleScriptDetailsModal: (script: IHostScript) => void;
-  toggleShowRunScriptDetailsModal: (script: IHostScript) => void;
+  toggleRunScriptDetailsModal: any;
   onClose: () => void;
   runScriptRequested: boolean;
   setRunScriptRequested: React.Dispatch<React.SetStateAction<boolean>>;
@@ -46,17 +48,42 @@ const EmptyComponent = () => <></>;
 const RunScriptModal = ({
   currentUser,
   host,
-  setScriptDetails,
-  toggleScriptDetailsModal,
-  toggleShowRunScriptDetailsModal,
+  selectedScriptDetails,
+  setSelectedScriptDetails,
+  toggleRunScriptDetailsModal,
   onClose,
   runScriptRequested,
   setRunScriptRequested,
 }: IScriptsProps) => {
-  const [page, setPage] = useState<number>(0);
-
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
+
+  const [page, setPage] = useState<number>(0);
+  const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
+  const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
+
+  const onCancelScriptDetailsModal = useCallback(() => {
+    setSelectedScriptDetails(undefined);
+    setShowScriptDetailsModal(false);
+  }, [setSelectedScriptDetails, setShowScriptDetailsModal]);
+
+  const onClickDelete = () => {
+    setShowScriptDetailsModal(false);
+    setShowDeleteScriptModal(true);
+  };
+
+  const onCancelDeleteScriptModal = useCallback(() => {
+    setShowScriptDetailsModal(true);
+    setShowDeleteScriptModal(false);
+  }, [setShowScriptDetailsModal, setShowDeleteScriptModal]);
+
+  const viewScriptDetailsModal = useCallback(
+    (script: IHostScript) => {
+      setSelectedScriptDetails(script);
+      setShowScriptDetailsModal(true);
+    },
+    [setSelectedScriptDetails, setShowScriptDetailsModal]
+  );
 
   const {
     data: hostScriptResponse,
@@ -86,8 +113,8 @@ const RunScriptModal = ({
     async (action: string, script: IHostScript) => {
       switch (action) {
         case "showRunDetails": {
-          setScriptDetails(script);
-          toggleShowRunScriptDetailsModal(script);
+          setSelectedScriptDetails(script);
+          toggleRunScriptDetailsModal(script);
           break;
         }
         case "run": {
@@ -111,7 +138,7 @@ const RunScriptModal = ({
         default: // do nothing
       }
     },
-    [host.id, refetchHostScripts, renderFlash, setScriptDetails]
+    [host.id, refetchHostScripts, renderFlash]
   );
 
   const onQueryChange = useCallback(({ pageIndex }: ITableQueryData) => {
@@ -124,15 +151,60 @@ const RunScriptModal = ({
         currentUser,
         host.team_id,
         !!config?.server_settings?.scripts_disabled,
-        toggleScriptDetailsModal,
+        viewScriptDetailsModal,
         onSelectAction
       ),
-    [currentUser, host.team_id, config, onSelectAction]
+    [
+      currentUser,
+      host.team_id,
+      config,
+      onSelectAction,
+      setShowScriptDetailsModal,
+      setSelectedScriptDetails,
+    ]
   );
 
   if (!config) return null;
 
   const tableData = hostScriptResponse?.scripts;
+
+  if (showScriptDetailsModal && selectedScriptDetails) {
+    console.log("does this work?");
+    return (
+      // force run script modal to unmount when script details modal is shown;
+      // it will be remounted when script details modal is closed
+      <ScriptDetailsModal
+        hostId={host.id}
+        hostTeamId={host.team_id}
+        selectedScriptDetails={selectedScriptDetails}
+        onCancel={onCancelScriptDetailsModal}
+        onDelete={onClickDelete}
+        showHostScriptActions
+        toggleRunScriptDetailsModal={toggleRunScriptDetailsModal}
+        setRunScriptRequested={setRunScriptRequested}
+        refetchHostScripts={refetchHostScripts}
+      />
+    );
+  }
+
+  if (showDeleteScriptModal) {
+    return (
+      // force script details modal to unmount when delete script modal is shown;
+      // it will be remounted when script delete modal is closed
+      <DeleteScriptModal
+        scriptId={selectedScriptDetails?.script_id || 1}
+        scriptName={selectedScriptDetails?.name || ""}
+        onCancel={() => {
+          onCancelDeleteScriptModal();
+        }}
+        onDone={() => {
+          setShowDeleteScriptModal(false);
+          refetchHostScripts();
+          setSelectedScriptDetails(undefined);
+        }}
+      />
+    );
+  }
 
   return (
     <Modal
