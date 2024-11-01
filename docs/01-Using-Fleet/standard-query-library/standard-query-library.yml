@@ -1104,7 +1104,6 @@ spec:
   name: Identify Apple development secrets (macOS)
   query: SELECT * FROM keychain_items WHERE label LIKE '%ABCDEFG%';
   description: "Identifies certificates associated with Apple development signing and notarization. Replace ABCDEFG with your company's identifier."
-  resolution: "Ensure your official Apple builds, signing and notarization happen on a centralized system, and remove these certificates from workstations."
   tags: compliance, inventory, built-in
   platform: darwin
   contributors: GuillaumeRoss
