@@ -7368,7 +7368,7 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 
 	_, err = ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, "label_1_include_any_prof", "label_1_include_any_prof", "label_1_include_any_prof", l1, l2, l3))
 
-	// hostLabel is a member of l1, but NOT of l2
+	// hostLabel is a member of l1, but NOT of l2 or l3
 	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l1.ID, hostLabel.ID}})
 	require.NoError(t, err)
 
@@ -7387,6 +7387,23 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
 
 		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+	}, profilesToInstall)
+
+	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l1.ID, hostLabel.ID}})
+	require.NoError(t, err)
+
+	// we removed the label membership; the label-based profile should no longer show up
+	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	for _, p := range profilesToInstall {
+		t.Logf("name: %q, hostUUID: %q", p.ProfileName, p.HostUUID)
+	}
+	require.NoError(t, err)
+	matchProfiles([]*fleet.MDMAppleProfilePayload{
+		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
+
 		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
 		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
 	}, profilesToInstall)
