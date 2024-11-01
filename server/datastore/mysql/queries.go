@@ -557,7 +557,7 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	var meta *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
 		meta = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
-		if len(queries) > int(opt.ListOptions.PerPage) {
+		if len(queries) > int(opt.ListOptions.PerPage) { //nolint:gosec // dismiss G115
 			meta.HasNextResults = true
 			queries = queries[:len(queries)-1]
 		}
