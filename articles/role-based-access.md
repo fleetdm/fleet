@@ -64,7 +64,8 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Filter hosts using policies                                                                                                                | ✅       | ✅         | ✅         | ✅    |         |
 | Create, edit, and delete policies for all hosts                                                                                            |          |            | ✅         | ✅    | ✅      |
 | Create, edit, and delete policies for all hosts assigned to team\*                                                                         |          |            | ✅         | ✅    | ✅      |
-| Manage [policy automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations)                                           |          |            |            | ✅    | ✅      |
+| Manage [software installation](https://fleetdm.com/guides/automatic-software-install-in-fleet) and [script execution](https://fleetdm.com/guides/policy-automation-run-script) policy automations\* |          |            | ✅         | ✅    | ✅      |
+| Manage global (webhook and issue tracker) [policy automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations)                                                                 |          |            |            | ✅    | ✅      |
 | Create, edit, view, and delete users                                                                                                       |          |            |            | ✅    |         |
 | Add and remove team users\*                                                                                                                |          |            |            | ✅    | ✅      |
 | Create, edit, and delete teams\*                                                                                                           |          |            |            | ✅    | ✅      |
@@ -179,6 +180,6 @@ Users with access to multiple teams can be assigned different roles for each tea
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
-<meta name="publishedOn" value="2024-08-10">
+<meta name="publishedOn" value="2024-10-31">
 <meta name="articleTitle" value="Role-based access">
 <meta name="description" value="Learn about the different roles and permissions in Fleet.">
