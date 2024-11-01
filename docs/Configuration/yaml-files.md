@@ -250,7 +250,7 @@ controls:
 
 ### macos_updates
 
-- `deadline` specifies the deadline in `YYYY-MM-DD` format; the exact deadline is set to noon local time. (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time for hosts on macOS 14 and above, 20:00 UTC for hosts on older macOS versions. (default: `""`).
 - `minimum_version` specifies the minimum required macOS version (default: `""`).
 
 ### ios_updates
