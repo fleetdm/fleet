@@ -64,8 +64,9 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Filter hosts using policies                                                                                                                | ✅       | ✅         | ✅         | ✅    |         |
 | Create, edit, and delete policies for all hosts                                                                                            |          |            | ✅         | ✅    | ✅      |
 | Create, edit, and delete policies for all hosts assigned to team\*                                                                         |          |            | ✅         | ✅    | ✅      |
-| Edit policy automations: calendar events, install software, and run script\* |          |            | ✅         | ✅    | ✅      |
-| Edit policy automations: other workflows (tickets and webhooks) [policy automations                  |          |            |            | ✅    | ✅      |
+| Edit global ("All teams") policy automations                  |          |            |            | ✅    | ✅      |
+| Edit team policy automations: calendar events, install software, and run script\* |          |            | ✅         | ✅    | ✅      |
+| Edit team policy automations: other workflows (tickets and webhooks)\*                 |          |            |            | ✅    | ✅      |
 | Create, edit, view, and delete users                                                                                                       |          |            |            | ✅    |         |
 | Add and remove team users\*                                                                                                                |          |            |            | ✅    | ✅      |
 | Create, edit, and delete teams\*                                                                                                           |          |            |            | ✅    | ✅      |
@@ -147,8 +148,8 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Run global (inherited) policies as a live policy                                                                                 |               | ✅             | ✅              | ✅         |             |
 | Filter hosts using policies                                                                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Create, edit, and delete team policies                                                                                           |               |                | ✅              | ✅         | ✅          |
-| Edit policy automations: calendar events, install software, and run script |          |            | ✅         | ✅    | ✅      |
-| Edit policy automations: other workflows (tickets and webhooks) [policy automations                  |          |            |            | ✅    | ✅      |
+| Edit team policy automations: calendar events, install software, and run script |          |            | ✅         | ✅    | ✅      |
+| Edit team policy automations: other workflows (tickets and webhooks)                 |          |            |            | ✅    | ✅      |
 | Add and remove team users                                                                                                        |               |                |                 | ✅         | ✅          |
 | Edit team name                                                                                                                   |               |                |                 | ✅         | ✅          |
 | Create, edit, and delete [team enroll secrets](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)      |               |                | ✅              | ✅         |             |
