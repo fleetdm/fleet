@@ -1099,7 +1099,7 @@ spec:
   contributors: defensivedepth
 ---
 apiVersion: v1
-kind: policy
+kind: query
 spec:
   name: Identify Apple development secrets (macOS)
   query: SELECT * FROM keychain_items WHERE label LIKE '%ABCDEFG%';
