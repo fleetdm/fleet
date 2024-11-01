@@ -45,6 +45,7 @@ class InputField extends Component {
     enableCopy: PropTypes.bool,
     copyButtonPosition: PropTypes.oneOf(["inside", "outside"]),
     ignore1password: PropTypes.bool,
+    autoExpand: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -65,6 +66,7 @@ class InputField extends Component {
     enableCopy: false,
     copyButtonPosition: "outside",
     ignore1password: false,
+    autoExpand: false,
   };
 
   constructor() {
@@ -97,6 +99,10 @@ class InputField extends Component {
     }
 
     return onChange(value);
+  };
+
+  calculateLines = (text) => {
+    return text.split("\n").length;
   };
 
   renderCopyButton = () => {
@@ -197,6 +203,8 @@ class InputField extends Component {
     ]);
 
     if (type === "textarea") {
+      const lineCount = readOnly ? this.calculateLines(value) : 1;
+
       return (
         <FormField
           {...formFieldProps}
@@ -216,6 +224,9 @@ class InputField extends Component {
             type={type}
             {...inputOptions}
             value={value}
+            readOnly={readOnly}
+            rows={readOnly ? lineCount : undefined}
+            style={readOnly ? { resize: "none", overflow: "hidden" } : {}}
           />
         </FormField>
       );

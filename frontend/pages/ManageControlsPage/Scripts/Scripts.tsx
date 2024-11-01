@@ -36,6 +36,7 @@ interface IScriptsProps {
 const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
   const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
+  const [goBackToScriptDetails, setGoBackToScriptDetails] = useState(false); // Used for onCancel in delete modal
 
   const selectedScript = useRef<IScript | null>(null);
 
@@ -87,6 +88,7 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
   const onCancelScriptDetails = () => {
     selectedScript.current = null;
     setShowScriptDetailsModal(false);
+    setGoBackToScriptDetails(false);
   };
 
   const onClickDelete = (script: IScript) => {
@@ -95,8 +97,13 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
   };
 
   const onCancelDelete = () => {
-    selectedScript.current = null;
     setShowDeleteScriptModal(false);
+
+    if (goBackToScriptDetails) {
+      setShowScriptDetailsModal(true);
+    } else {
+      selectedScript.current = null;
+    }
   };
 
   const onDeleteScript = () => {
@@ -184,7 +191,12 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
           scriptName={selectedScript.current?.name}
           scriptId={selectedScript.current?.id}
           onCancel={onCancelScriptDetails}
-          onDone={onDeleteScript}
+          onDelete={() => {
+            setShowScriptDetailsModal(false);
+            setShowDeleteScriptModal(true);
+            setGoBackToScriptDetails(true);
+          }}
+          runScriptHelpText
         />
       )}
     </div>

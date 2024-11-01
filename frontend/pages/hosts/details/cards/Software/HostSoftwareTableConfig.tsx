@@ -249,7 +249,9 @@ export const generateSoftwareTableHeaders = ({
               software_package,
               app_store_app,
             })}
-            onChange={(action) => onSelectAction(original, action)}
+            onChange={(action) => {
+              onSelectAction(original, action);
+            }}
           />
         );
       },

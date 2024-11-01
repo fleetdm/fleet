@@ -39,6 +39,7 @@ import {
   IQueryKeyQueriesLoadAll,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
+import { IHostScript } from "interfaces/script";
 
 import {
   normalizeEmptyValues,
@@ -59,7 +60,7 @@ import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
-import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
+import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 import {
   AppInstallDetailsModal,
   IAppInstallDetails,
@@ -69,6 +70,7 @@ import {
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
 import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
+import ScriptDetailsModal from "pages/ManageControlsPage/Scripts/components/ScriptDetailsModal";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -165,6 +167,10 @@ const HostDetailsPage = ({
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
   const [showRunScriptModal, setShowRunScriptModal] = useState(false);
+  const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
+  const [showRunScriptDetailsModal, setShowRunScriptDetailsModal] = useState(
+    false
+  );
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
@@ -175,7 +181,9 @@ const HostDetailsPage = ({
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
-  const [scriptDetailsId, setScriptDetailsId] = useState("");
+  const [selectedScriptDetails, setSelectedScript] = useState<
+    IHostScript | undefined
+  >(undefined);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -517,12 +525,48 @@ const HostDetailsPage = ({
 
   const osqueryData = normalizeEmptyValues(pick(host, HOST_OSQUERY_DATA));
 
+  console.log("showRunScriptModal", showRunScriptModal);
+  console.log("showRunScriptDetailsModal", showRunScriptDetailsModal);
+  console.log("showScriptDetailsModal", showScriptDetailsModal);
+
   const togglePolicyDetailsModal = useCallback(
     (policy: IHostPolicy) => {
       setPolicyDetailsModal(!showPolicyDetailsModal);
       setSelectedPolicy(policy);
     },
     [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]
+  );
+
+  const toggleRunScriptModal = useCallback(() => {
+    setShowRunScriptModal(!showRunScriptModal);
+  }, [setShowRunScriptModal, showRunScriptModal]);
+
+  const toggleScriptDetailsModal = useCallback(
+    (script?: IHostScript) => {
+      setShowScriptDetailsModal(!showScriptDetailsModal);
+      toggleRunScriptModal();
+      setSelectedScript(script);
+    },
+    [
+      showScriptDetailsModal,
+      setShowScriptDetailsModal,
+      setSelectedScript,
+      toggleRunScriptModal,
+    ]
+  );
+
+  const toggleRunScriptDetailsModal = useCallback(
+    (script: IHostScript | undefined) => {
+      setShowRunScriptDetailsModal(!showRunScriptDetailsModal);
+      toggleRunScriptModal();
+      setSelectedScript(script);
+    },
+    [
+      showRunScriptDetailsModal,
+      setShowRunScriptDetailsModal,
+      toggleRunScriptModal,
+      setSelectedScript,
+    ]
   );
 
   const toggleOSSettingsModal = useCallback(() => {
@@ -595,7 +639,7 @@ const HostDetailsPage = ({
     ({ type, details }: IShowActivityDetailsData) => {
       switch (type) {
         case "ran_script":
-          setScriptDetailsId(details?.script_execution_id || "");
+          // setSelectedScript(details); TODO WHATS WRONG
           break;
         case "installed_software":
           setPackageInstallDetails({
@@ -653,7 +697,17 @@ const HostDetailsPage = ({
   };
 
   const onCancelScriptDetailsModal = useCallback(() => {
-    setScriptDetailsId("");
+    setSelectedScript(undefined);
+    toggleScriptDetailsModal();
+  }, [setSelectedScript, toggleScriptDetailsModal]);
+
+  const onDeleteScript = useCallback(() => {
+    // TODO
+    console.log("TODO");
+  }, []);
+
+  const onCancelRunScriptDetailsModal = useCallback(() => {
+    setSelectedScript(undefined);
     // refetch activities to make sure they up-to-date with what was displayed in the modal
     refetchPastActivities();
     refetchUpcomingActivities();
@@ -1010,14 +1064,26 @@ const HostDetailsPage = ({
         {showRunScriptModal &&
           // force run script modal to unmount when script details modal is shown;
           // it will be remounted when script details modal is closed
-          !scriptDetailsId && (
+          !selectedScriptDetails && (
             <RunScriptModal
               host={host}
               currentUser={currentUser}
-              setScriptDetailsId={setScriptDetailsId}
+              setScriptDetails={setSelectedScript}
+              toggleShowRunScriptDetailsModal={toggleRunScriptDetailsModal}
+              toggleScriptDetailsModal={toggleScriptDetailsModal}
               onClose={onCloseRunScriptModal}
             />
           )}
+        {showScriptDetailsModal && selectedScriptDetails && (
+          // force run script modal to unmount when script details modal is shown;
+          // it will be remounted when script details modal is closed
+          <ScriptDetailsModal
+            scriptName={selectedScriptDetails?.name || ""}
+            scriptId={selectedScriptDetails?.script_id}
+            onCancel={onCancelScriptDetailsModal}
+            onDelete={onDeleteScript}
+          />
+        )}
         {!!host && showTransferHostModal && (
           <TransferHostModal
             onCancel={() => setShowTransferHostModal(false)}
@@ -1064,10 +1130,12 @@ const HostDetailsPage = ({
               onClose={() => setShowBootstrapPackageModal(false)}
             />
           )}
-        {!!scriptDetailsId && (
-          <ScriptDetailsModal
-            scriptExecutionId={scriptDetailsId}
-            onCancel={onCancelScriptDetailsModal}
+        {showRunScriptDetailsModal && (
+          <RunScriptDetailsModal
+            scriptExecutionId={
+              selectedScriptDetails?.last_execution?.execution_id || ""
+            }
+            onCancel={onCancelRunScriptDetailsModal}
           />
         )}
         {!!packageInstallDetails && (

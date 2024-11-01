@@ -11,7 +11,7 @@ import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import Spinner from "components/Spinner/Spinner";
 
-const baseClass = "script-details-modal";
+const baseClass = "run-script-details-modal";
 
 interface IScriptContentProps {
   content: string;
@@ -175,17 +175,17 @@ const ScriptResult = ({
   );
 };
 
-interface IScriptDetailsModalProps {
+interface IRunScriptDetailsModalProps {
   scriptExecutionId: string;
   onCancel: () => void;
 }
 
-const ScriptDetailsModal = ({
+const RunScriptDetailsModal = ({
   scriptExecutionId,
   onCancel,
-}: IScriptDetailsModalProps) => {
+}: IRunScriptDetailsModalProps) => {
   const { data, isLoading, isError } = useQuery<IScriptResultResponse>(
-    ["scriptDetailsModal", scriptExecutionId],
+    ["runScriptDetailsModal", scriptExecutionId],
     () => {
       return scriptsAPI.getScriptResult(scriptExecutionId);
     },
@@ -238,4 +238,4 @@ const ScriptDetailsModal = ({
   );
 };
 
-export default ScriptDetailsModal;
+export default RunScriptDetailsModal;

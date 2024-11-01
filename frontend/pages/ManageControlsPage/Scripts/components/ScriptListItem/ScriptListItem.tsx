@@ -42,6 +42,18 @@ interface IScriptListItemDetailsProps {
   createdAt: string;
 }
 
+const onClickDownload = async (script: IScript, renderFlash: any) => {
+  try {
+    const content = await scriptAPI.downloadScript(script.id);
+    const formatDate = format(new Date(), "yyyy-MM-dd");
+    const filename = `${formatDate} ${script.name}`;
+    const file = new File([content], filename);
+    FileSaver.saveAs(file);
+  } catch {
+    renderFlash("error", "Couldn’t Download. Please try again.");
+  }
+};
+
 const ScriptListItemDetails = ({
   platform,
   createdAt,
@@ -63,18 +75,6 @@ const ScriptListItem = ({
   onClickScript,
 }: IScriptListItemProps) => {
   const { renderFlash } = useContext(NotificationContext);
-
-  const onClickDownload = async () => {
-    try {
-      const content = await scriptAPI.downloadScript(script.id);
-      const formatDate = format(new Date(), "yyyy-MM-dd");
-      const filename = `${formatDate} ${script.name}`;
-      const file = new File([content], filename);
-      FileSaver.saveAs(file);
-    } catch {
-      renderFlash("error", "Couldn’t Download. Please try again.");
-    }
-  };
 
   const { graphicName, platform } = getFileRenderDetails(script.name);
 
@@ -98,7 +98,7 @@ const ScriptListItem = ({
           <Button
             className={`${baseClass}__action-button`}
             variant="text-icon"
-            onClick={onClickDownload}
+            onClick={() => onClickDownload(script, renderFlash)}
           >
             <Icon name="download" />
           </Button>

@@ -31,7 +31,11 @@ const baseClass = "run-script-modal";
 interface IScriptsProps {
   currentUser: IUser | null;
   host: IHost;
-  setScriptDetailsId: React.Dispatch<React.SetStateAction<string>>;
+  setScriptDetails: React.Dispatch<
+    React.SetStateAction<IHostScript | undefined>
+  >;
+  toggleScriptDetailsModal: (script: IHostScript) => void;
+  toggleShowRunScriptDetailsModal: (script: IHostScript) => void;
   onClose: () => void;
 }
 
@@ -40,7 +44,9 @@ const EmptyComponent = () => <></>;
 const RunScriptModal = ({
   currentUser,
   host,
-  setScriptDetailsId,
+  setScriptDetails,
+  toggleScriptDetailsModal,
+  toggleShowRunScriptDetailsModal,
   onClose,
 }: IScriptsProps) => {
   const [page, setPage] = useState<number>(0);
@@ -76,8 +82,9 @@ const RunScriptModal = ({
   const onSelectAction = useCallback(
     async (action: string, script: IHostScript) => {
       switch (action) {
-        case "showDetails": {
-          setScriptDetailsId(script.last_execution?.execution_id || "");
+        case "showRunDetails": {
+          setScriptDetails(script);
+          toggleShowRunScriptDetailsModal(script);
           break;
         }
         case "run": {
@@ -101,7 +108,7 @@ const RunScriptModal = ({
         default: // do nothing
       }
     },
-    [host.id, refetchHostScripts, renderFlash, setScriptDetailsId]
+    [host.id, refetchHostScripts, renderFlash, setScriptDetails]
   );
 
   const onQueryChange = useCallback(({ pageIndex }: ITableQueryData) => {
@@ -114,6 +121,7 @@ const RunScriptModal = ({
         currentUser,
         host.team_id,
         !!config?.server_settings?.scripts_disabled,
+        toggleScriptDetailsModal,
         onSelectAction
       ),
     [currentUser, host.team_id, config, onSelectAction]

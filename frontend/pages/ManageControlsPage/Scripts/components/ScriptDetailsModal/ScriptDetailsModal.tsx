@@ -1,8 +1,9 @@
-import React, { useContext } from "react";
+import React from "react";
 import { useQuery } from "react-query";
+import { format } from "date-fns";
+import FileSaver from "file-saver";
 
 import scriptAPI from "services/entities/scripts";
-import { NotificationContext } from "context/notification";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -11,100 +12,128 @@ import Icon from "components/Icon";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
 import paths from "router/paths";
-import { AxiosResponse } from "axios";
-import { IApiError } from "../../../../../interfaces/errors";
-import { getErrorMessage } from "../ScriptUploader/helpers";
 
 const baseClass = "script-details-modal";
 
 interface IScriptDetailsModalProps {
-  scriptName: string;
   scriptId: number;
+  scriptName?: string;
   onCancel: () => void;
-  onDownload: () => void;
-  onDelete: (script: string) => void;
+  onDelete: () => void;
+  runScriptHelpText?: boolean;
 }
 
 const ScriptDetailsModal = ({
-  scriptName,
   scriptId,
+  scriptName,
   onCancel,
-  onDownload,
   onDelete,
+  runScriptHelpText = false,
 }: IScriptDetailsModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
+  // Note: Script metadata and script content require two separate API calls
+  // Source: https://fleetdm.com/docs/rest-api/rest-api#example-get-script
+  // So to get script name, we pass it into this modal instead of another API call
+  // If in future iterations we want more script metadata, call scriptAPI.getScript()
+  // and consider refactoring .getScript to return script content as well
   const {
-    data: script,
-    error: fetchScriptError,
-    isLoading: isLoadingScript,
-    isFetching: isFetchingScript,
-  } = useQuery<string, Error>(
-    ["certificate"],
+    data: scriptContent,
+    error: isScriptContentError,
+    isLoading: isLoadingScriptContent,
+  } = useQuery<any, Error>(
+    ["scriptContent"],
     () => scriptAPI.downloadScript(scriptId),
     {
       refetchOnWindowFocus: false,
     }
   );
 
+  const onClickDownload = () => {
+    const formatDate = format(new Date(), "yyyy-MM-dd");
+    const filename = `${formatDate} ${scriptName}`;
+    const file = new File([scriptContent], filename);
+    FileSaver.saveAs(file);
+  };
+
+  const renderFooter = () => {
+    if (isLoadingScriptContent) {
+      return <></>;
+    }
+    return (
+      <>
+        <div className="modal-actions">
+          <Button
+            className={`${baseClass}__action-button`}
+            variant="icon"
+            onClick={() => onClickDownload()}
+          >
+            <Icon name="download" />
+          </Button>
+          <Button
+            className={`${baseClass}__action-button`}
+            variant="icon"
+            onClick={onDelete}
+          >
+            <Icon name="trash" color="ui-fleet-black-75" />
+          </Button>
+        </div>{" "}
+        <div className="modal-cta-wrap">
+          <Button onClick={onCancel} variant="brand">
+            Done
+          </Button>
+        </div>
+      </>
+    );
+  };
+
+  const renderContent = () => {
+    if (isLoadingScriptContent) {
+      return <Spinner />;
+    }
+
+    if (isScriptContentError) {
+      return <DataError description="Close this modal and try again." />;
+    }
+
+    return (
+      <InputField
+        readOnly
+        inputWrapperClass={`${baseClass}__script-content`}
+        name="script-content"
+        label="Script content:"
+        type="textarea"
+        value={scriptContent}
+        helpText={
+          runScriptHelpText ? (
+            <>
+              To run this script on a host, go to the{" "}
+              <CustomLink text="Hosts" url={paths.MANAGE_HOSTS} /> page and
+              select a host.
+              <br />
+              To run the script across multiple hosts, add a policy automation
+              on the <CustomLink
+                text="Policies"
+                url={paths.MANAGE_POLICIES}
+              />{" "}
+              page.
+            </>
+          ) : null
+        }
+        autoExpand
+      />
+    );
+  };
+
   return (
     <Modal
       className={baseClass}
-      title={scriptName}
+      title={scriptName || "Script details"}
+      width="large"
       onExit={onCancel}
-      onEnter={onCancel}
-      modalActionsFooter={
-        <>
-          <div className="modal-actions">
-            <Button
-              className={`${baseClass}__action-button`}
-              variant="text-icon"
-              onClick={onDownload}
-            >
-              <Icon name="download" />
-            </Button>
-            <Button
-              className={`${baseClass}__action-button`}
-              variant="text-icon"
-              onClick={() => onDelete(script)}
-            >
-              <Icon name="trash" color="ui-fleet-black-75" />
-            </Button>
-          </div>{" "}
-          <div className="modal-cta-wrap">
-            <Button onClick={onCancel} variant="brand">
-              Done
-            </Button>
-          </div>
-        </>
-      }
+      modalActionsFooter={renderFooter()}
     >
-      <>
-        {isLoadingScript ? (
-          <Spinner />
-        ) : (
-          <InputField
-            readOnly
-            inputWrapperClass={`${baseClass}__script-content`}
-            name="script-content"
-            label="Script content:"
-            type="textarea"
-            value={script}
-            helpText={
-              <>
-                To run this script on a host, go to the{" "}
-                <CustomLink text="Hosts" url={paths.MANAGE_HOSTS} /> page and
-                select a host.
-                <br />
-                To run the script across multiple hosts, add a policy automation
-                on the{" "}
-                <CustomLink text="Policies" url={paths.MANAGE_POLICIES} /> page.
-              </>
-            }
-          />
-        )}
-      </>
+      {renderContent()}
     </Modal>
   );
 };

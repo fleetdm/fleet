@@ -19,6 +19,8 @@
   &__content-wrapper {
     margin-top: $pad-large;
     font-size: $x-small;
+    max-height: 800px;
+    overflow-y: auto;
 
     .input-field {
       width: 100%;
