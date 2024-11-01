@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
@@ -86,6 +87,7 @@ func (ts *withServer) SetupSuite(dbName string) {
 		Rs:          rs,
 		Lq:          ts.lq,
 		FleetConfig: &cfg,
+		Pool:        redistest.SetupRedis(ts.s.T(), "integration_core", false, false, false),
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		opts.Logger = kitlog.NewNopLogger()

@@ -1,4 +1,4 @@
-# What are Fleet policies?
+# Policies
 
 Fleet policies are a great way to quickly monitor your devices by asking yes or no questions about them. Policies are also an easy way to make sure you maintain data integrity, confidentiality, and security. Whether you’re checking in on a small set of devices, or a fleet of thousands, policies give quick insight into their status and IT compliance. For example, suppose one of your defined controls makes sure that all of your macOS devices have Gatekeeper enabled. In that case, the Security team can create a policy to quickly and easily return a yes or no response from all of your enrolled devices.
 
@@ -54,6 +54,11 @@ These principles helped us create policies for our own devices to track:
 - Is system Integrity Protection enabled (macOS)
 
 Policies and automation help your security and IT teams feel confident that devices are passing your organization’s standards. Fleet is building an open, transparent, and simple future for device management and is the [most widely deployed osquery fleet manager.](https://fleetdm.com/) 
+
+## Further reading
+
+- [Understanding the intricacies of Fleet policies](https://fleetdm.com/guides/understanding-the-intricacies-of-fleet-policies)
+
 
 <meta name="category" value="security">
 <meta name="authorGitHubUsername" value="Drew-P-drawers">
