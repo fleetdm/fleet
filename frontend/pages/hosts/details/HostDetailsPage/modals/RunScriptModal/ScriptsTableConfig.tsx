@@ -34,7 +34,7 @@ interface IActionsDropdownProps {
   };
 }
 
-const generateActionDropdownOptions = (
+export const generateActionDropdownOptions = (
   currentUser: IUser | null,
   teamId: number | null,
   { last_execution }: IHostScript
@@ -148,6 +148,7 @@ export const generateTableColumnConfigs = (
             }
             placeholder="Actions"
             disabled={scriptsDisabled}
+            menuAlign="right"
           />
         );
       },

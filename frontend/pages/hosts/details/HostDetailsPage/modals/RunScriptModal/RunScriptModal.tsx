@@ -37,6 +37,8 @@ interface IScriptsProps {
   toggleScriptDetailsModal: (script: IHostScript) => void;
   toggleShowRunScriptDetailsModal: (script: IHostScript) => void;
   onClose: () => void;
+  runScriptRequested: boolean;
+  setRunScriptRequested: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const EmptyComponent = () => <></>;
@@ -48,9 +50,10 @@ const RunScriptModal = ({
   toggleScriptDetailsModal,
   toggleShowRunScriptDetailsModal,
   onClose,
+  runScriptRequested,
+  setRunScriptRequested,
 }: IScriptsProps) => {
   const [page, setPage] = useState<number>(0);
-  const [runScriptRequested, setRunScriptRequested] = useState(false);
 
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);

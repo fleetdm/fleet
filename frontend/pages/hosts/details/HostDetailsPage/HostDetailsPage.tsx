@@ -183,9 +183,10 @@ const HostDetailsPage = ({
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
-  const [selectedScriptDetails, setSelectedScript] = useState<
+  const [selectedScriptDetails, setSelectedScriptDetails] = useState<
     IHostScript | undefined
   >(undefined);
+  const [runScriptRequested, setRunScriptRequested] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -543,12 +544,12 @@ const HostDetailsPage = ({
     (script?: IHostScript) => {
       setShowScriptDetailsModal(!showScriptDetailsModal);
       toggleRunScriptModal();
-      setSelectedScript(script);
+      setSelectedScriptDetails(script);
     },
     [
       showScriptDetailsModal,
       setShowScriptDetailsModal,
-      setSelectedScript,
+      setSelectedScriptDetails,
       toggleRunScriptModal,
     ]
   );
@@ -561,13 +562,13 @@ const HostDetailsPage = ({
     (script: IHostScript | undefined) => {
       setShowRunScriptDetailsModal(!showRunScriptDetailsModal);
       toggleRunScriptModal();
-      setSelectedScript(script);
+      setSelectedScriptDetails(script);
     },
     [
       showRunScriptDetailsModal,
       setShowRunScriptDetailsModal,
       toggleRunScriptModal,
-      setSelectedScript,
+      setSelectedScriptDetails,
     ]
   );
 
@@ -699,9 +700,9 @@ const HostDetailsPage = ({
   };
 
   const onCancelScriptDetailsModal = useCallback(() => {
-    setSelectedScript(undefined);
+    setSelectedScriptDetails(undefined);
     toggleScriptDetailsModal();
-  }, [setSelectedScript, toggleScriptDetailsModal]);
+  }, [setSelectedScriptDetails, toggleScriptDetailsModal]);
 
   const onCancelDeleteScriptModal = useCallback(() => {
     setShowScriptDetailsModal(true);
@@ -714,7 +715,7 @@ const HostDetailsPage = ({
   };
 
   const onCancelRunScriptDetailsModal = useCallback(() => {
-    setSelectedScript(undefined);
+    setSelectedScriptDetails(undefined);
     // refetch activities to make sure they up-to-date with what was displayed in the modal
     refetchPastActivities();
     refetchUpcomingActivities();
@@ -906,6 +907,11 @@ const HostDetailsPage = ({
     [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,
   });
 
+  console.log("showRunScriptModal", showRunScriptModal);
+  console.log("showRunScriptDetailsModal", showRunScriptDetailsModal);
+  console.log("showScriptDetailsModal", showScriptDetailsModal);
+  console.log("showDeleteScriptModal", showDeleteScriptModal);
+
   return (
     <MainContent className={baseClass}>
       <>
@@ -1075,20 +1081,28 @@ const HostDetailsPage = ({
             <RunScriptModal
               host={host}
               currentUser={currentUser}
-              setScriptDetails={setSelectedScript}
+              setScriptDetails={setSelectedScriptDetails}
               toggleShowRunScriptDetailsModal={toggleRunScriptDetailsModal}
               toggleScriptDetailsModal={toggleScriptDetailsModal}
               onClose={onCloseRunScriptModal}
+              runScriptRequested={runScriptRequested}
+              setRunScriptRequested={setRunScriptRequested}
             />
           )}
         {showScriptDetailsModal && selectedScriptDetails && (
           // force run script modal to unmount when script details modal is shown;
           // it will be remounted when script details modal is closed
           <ScriptDetailsModal
+            hostId={host.id}
             scriptName={selectedScriptDetails?.name || ""}
             scriptId={selectedScriptDetails?.script_id}
             onCancel={onCancelScriptDetailsModal}
             onDelete={onClickDelete}
+            showHostScriptActions
+            toggleShowRunScriptDetailsModal={setShowRunScriptDetailsModal(
+              !showRunScriptDetailsModal
+            )}
+            setRunScriptRequested={setRunScriptRequested}
           />
         )}
         {showDeleteScriptModal && selectedScriptDetails && (
@@ -1102,6 +1116,8 @@ const HostDetailsPage = ({
             }}
             onDone={() => {
               toggleDeleteScriptModal();
+              refetchHostDetails();
+              setSelectedScriptDetails(undefined);
             }}
           />
         )}

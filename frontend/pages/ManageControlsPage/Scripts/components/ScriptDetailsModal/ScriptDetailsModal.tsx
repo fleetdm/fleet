@@ -1,9 +1,12 @@
-import React from "react";
+import React, { useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
 
+import { NotificationContext } from "context/notification";
 import scriptAPI from "services/entities/scripts";
+import { IHostScript } from "interfaces/script";
+import { getErrorReason } from "interfaces/errors";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -14,24 +17,36 @@ import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import paths from "router/paths";
+import ActionsDropdown from "components/ActionsDropdown";
+import { generateActionDropdownOptions } from "pages/hosts/details/HostDetailsPage/modals/RunScriptModal/ScriptsTableConfig";
 
 const baseClass = "script-details-modal";
 
 interface IScriptDetailsModalProps {
+  hostId: number;
   scriptId: number;
   scriptName?: string;
   onCancel: () => void;
   onDelete: () => void;
   runScriptHelpText?: boolean;
+  showHostScriptActions?: boolean;
+  toggleShowRunScriptDetailsModal?: any;
+  setRunScriptRequested?: (value: boolean) => void;
 }
 
 const ScriptDetailsModal = ({
+  hostId,
   scriptId,
   scriptName,
   onCancel,
   onDelete,
   runScriptHelpText = false,
+  showHostScriptActions = false,
+  toggleShowRunScriptDetailsModal,
+  setRunScriptRequested,
 }: IScriptDetailsModalProps) => {
+  const { renderFlash } = useContext(NotificationContext);
+
   // Note: Script metadata and script content require two separate API calls
   // Source: https://fleetdm.com/docs/rest-api/rest-api#example-get-script
   // So to get script name, we pass it into this modal instead of another API call
@@ -56,6 +71,37 @@ const ScriptDetailsModal = ({
     FileSaver.saveAs(file);
   };
 
+  const onSelectMoreActions = useCallback(
+    async (action: string, script: IHostScript) => {
+      switch (action) {
+        case "showRunDetails": {
+          toggleShowRunScriptDetailsModal(script);
+          break;
+        }
+        case "run": {
+          try {
+            setRunScriptRequested && setRunScriptRequested(true);
+            await scriptAPI.runScript({
+              host_id: hostId,
+              script_id: script.script_id,
+            });
+            renderFlash(
+              "success",
+              "Script is running or will run when the host comes online."
+            );
+            refetchHostScripts();
+          } catch (e) {
+            renderFlash("error", getErrorReason(e));
+            setRunScriptRequested(false);
+          }
+          break;
+        }
+        default: // do nothing
+      }
+    },
+    [host.id, refetchHostScripts, renderFlash, setScriptDetails]
+  );
+
   const renderFooter = () => {
     if (isLoadingScriptContent) {
       return <></>;
@@ -79,6 +125,21 @@ const ScriptDetailsModal = ({
           </Button>
         </div>{" "}
         <div className="modal-cta-wrap">
+          {showHostScriptActions && (
+            <div className={`${baseClass}__manage-automations-wrapper`}>
+              <ActionsDropdown
+                className={`${baseClass}__manage-automations-dropdown`}
+                onChange={(value) => onSelectMoreActions(value, script)}
+                placeholder="More actions"
+                isSearchable={false}
+                options={generateActionDropdownOptions(
+                  currentUser,
+                  hostTeamId,
+                  "" // TODO
+                )}
+              />
+            </div>
+          )}
           <Button onClick={onCancel} variant="brand">
             Done
           </Button>
