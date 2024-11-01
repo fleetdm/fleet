@@ -31,20 +31,21 @@
         <div purpose="policy-details" class="d-flex flex-column">
           <h2 purpose="policy-name"><%- query.name %></h2>
           <p purpose="policy-description"><%- query.description %></p>
-          <div purpose="policy-control" v-if="query.control">
+<!--           <div purpose="policy-control" v-if="query.control">
             <h3>Control</h3>
-            <p>Create or edit a configuration profile with the following information:</p>
+            <p v-if="query.controlType === 'profile'">Create or edit a configuration profile with the following information:</p>
+            <p v-if="query.controlType === 'script'">Create or edit the following script and configure it to run when the check fails:</p>
             <div  purpose="codeblock">
               <div purpose="copy-button"></div>
               <pre><code><%= query.control %></code></pre>
             </div>
-          </div>
+          </div> -->
           <div purpose="policy-check">
             <h3>Check</h3>
             <p>Use the policy below to verify</p>
             <div purpose="codeblock">
               <div purpose="copy-button"></div>
-              <pre><code><%= query.query %></code></pre>
+              <pre><code><%- query.query %></code></pre>
             </div>
           </div>
         </div>
@@ -52,10 +53,10 @@
           <div purpose="right-sidebar" class="d-flex flex-column">
             <div purpose="policy-platform">
               <h4>Platform</h4>
-              <img class="d-inline-flex" src="/images/os-macos-dark-24x24@2x.png" alt="macOS" v-if="query.platform.includes('darwin')"/>
-              <img class="d-inline-flex" src="/images/os-windows-dark-24x24@2x.png" alt="Windows" v-if="query.platform.includes('windows')"/>
-              <img class="d-inline-flex" src="/images/os-linux-dark-24x24@2x.png" alt="Linux" v-if="query.platform.includes('linux')"/>
-              <img class="d-inline-flex" src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" v-if="query.platform.includes('chrome')"/>
+              <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" v-if="query.platform.includes('darwin')"/>
+              <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" v-if="query.platform.includes('windows')"/>
+              <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" v-if="query.platform.includes('linux')"/>
+              <img src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" v-if="query.platform.includes('chrome')"/>
             </div>
             <div purpose="social-share-buttons" class="d-flex flex-column order-lg-2 order-1">
               <p><strong>Share</strong></p>
@@ -69,7 +70,7 @@
               <a href="/docs">Docs</a>
               <a href="/docs/rest-api">REST API</a>
               <a href="/guides">Guides</a>
-              <a purpose="edit-button" class="d-inline-block text-nowrap" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath"><img alt="A pencil icon" src="/images/pencil-16x16@2x.png">Edit page</a>
+              <a purpose="edit-button" class="d-flex align-items-center text-nowrap" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath"><img alt="A pencil icon" src="/images/pencil-16x16@2x.png">Edit page</a>
             </div>
           </div>
         </div>
