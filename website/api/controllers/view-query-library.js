@@ -21,17 +21,14 @@ module.exports = {
     let policies = _.where(sails.config.builtStaticContent.queries, {kind: 'policy'});
     let macOsPolicies = _.filter(policies, (policy)=>{
       let platformsForThisPolicy = policy.platform.split(',');
-      console.log(platformsForThisPolicy, _.includes(platformsForThisPolicy, 'darwin'));
       return _.includes(platformsForThisPolicy, 'darwin');
     });
     let windowsPolicies = _.filter(policies, (policy)=>{
       let platformsForThisPolicy = policy.platform.split(',');
-      console.log(platformsForThisPolicy, _.includes(platformsForThisPolicy, 'darwin'));
       return _.includes(platformsForThisPolicy, 'windows');
     });
     let linuxPolicies = _.filter(policies, (policy)=>{
       let platformsForThisPolicy = policy.platform.split(',');
-      console.log(platformsForThisPolicy, _.includes(platformsForThisPolicy, 'darwin'));
       return _.includes(platformsForThisPolicy, 'linux');
     });
     // console.log(macOsQueries);
@@ -39,7 +36,8 @@ module.exports = {
     return {
       macOsPolicies,
       windowsPolicies,
-      linuxPolicies
+      linuxPolicies,
+      policies,
     };
 
   }
