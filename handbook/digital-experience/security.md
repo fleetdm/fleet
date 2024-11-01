@@ -344,7 +344,7 @@ is kept up to date.
 
 We strongly recommend using hardware security keys. Fleet configures privileged user accounts with a policy that enforces the use of hardware security keys. This prevents credential theft better than other methods of 2FA/2-SV. If you do not already have a pair of hardware security keys, order [two YubiKey 5C NFC security
 keys](https://www.yubico.com/us/product/yubikey-5-nfc/) with your company card, or ask
-for help in [#help-login](https://fleetdm.com/handbook/security#slack-channels) to get one if you do not have a company card.
+for help in [#help-login](https://fleetdm.com/handbook/digital-experience/security#slack-channels) to get one if you do not have a company card.
 
 
 #### Are they YubiKeys or security keys?
@@ -362,7 +362,7 @@ Because they are the only type of Two-Factor Authentication (2FA) that protects 
 phishing, we will make them **mandatory for everyone** soon. 
 
 See the [Google Workspace security
-section](https://fleetdm.com/handbook/security#google-workspace-security-authentication) for more
+section](https://fleetdm.com/handbook/digital-experience/security#google-workspace-security-authentication) for more
 information on the security of different types of 2FA.
 
 
@@ -952,17 +952,17 @@ Fleet requires all workforce members to comply with the following acceptable use
 
 
 
-- [Asset management policy](./security-policies.md#asset-management-policy)
-- [Business continuity and disaster recovery policy](./security-policies.md#business-continuity-and-disaster-recovery-policy)
-- [Data management policy](./security-policies.md#data-management-policy)
-- [Encryption policy](./security-policies.md#encryption-policy)
-- [Human resources security policy](./security-policies.md#human-resources-security-policy)
-- [Incident response policy](./security-policies.md#incident-response-policy)
-- [Operations security and change management policy](./security-policies.md#operations-security-and-change-management-policy)
-- [Risk management policy](./security-policies.md#risk-management-policy)
-- [Secure software development and product security policy](./security-policies.md#secure-software-development-and-product-security-policy)
-- [Security policy management policy](./security-policies.md#security-policy-management-policy)
-- [Third-party management policy](./security-policies.md#third-party-management-policy)
+- [Asset management policy](https://fleetdm.com/handbook/digital-experience/security#asset-management-policy)
+- [Business continuity and disaster recovery policy](https://fleetdm.com/handbook/digital-experience/security#business-continuity-and-disaster-recovery-policy)
+- [Data management policy](https://fleetdm.com/handbook/digital-experience/security#data-management-policy)
+- [Encryption policy](https://fleetdm.com/handbook/digital-experience/security#encryption-policy)
+- [Human resources security policy](https://fleetdm.com/handbook/digital-experience/security#human-resources-security-policy)
+- [Incident response policy](https://fleetdm.com/handbook/digital-experience/security#incident-response-policy)
+- [Operations security and change management policy](https://fleetdm.com/handbook/digital-experience/security#operations-security-and-change-management-policy)
+- [Risk management policy](https://fleetdm.com/handbook/digital-experience/security#risk-management-policy)
+- [Secure software development and product security policy](https://fleetdm.com/handbook/digital-experience/security#secure-software-development-and-product-security-policy)
+- [Security policy management policy](https://fleetdm.com/handbook/digital-experience/security#security-policy-management-policy)
+- [Third-party management policy](https://fleetdm.com/handbook/digital-experience/security#third-party-management-policy)
 
 
 ### Access authorization and termination
@@ -1825,7 +1825,7 @@ so within a week of a report.
 
 Libraries are inventoried and monitored for vulnerabilities. Our process for fixing vulnerable
 libraries and other vulnerabilities is available in our
-[handbook](https://fleetdm.com/handbook/security#vulnerability-management). We use
+[handbook](https://fleetdm.com/handbook/digital-experience/security#vulnerability-management). We use
 [Dependabot](https://github.com/dependabot) to automatically open PRs to update vulnerable dependencies.
 
 
