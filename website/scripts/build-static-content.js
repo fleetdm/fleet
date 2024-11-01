@@ -48,7 +48,7 @@ module.exports = {
           query.kind = yamlDocument.toJSON().kind;
           query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
           // Remove the platform name from query names. This allows us to keep queries at their existing URLs while hiding them in the UI.
-          query.name = query.name.replace(/\s\(macOS\)|\(Windows\)|\(Linux\)$/gmi, '');
+          query.name = query.name.replace(/\s\(macOS\)|\(Windows\)|\(Linux\)$/i, '');
           if ((query.resolution !== undefined && !_.isString(query.resolution)) || (query.kind !== 'policy' && _.isString(query.resolution))) {
             // console.log(typeof query.resolution);
             queriesWithProblematicResolutions.push(query);
