@@ -754,6 +754,8 @@ This meeting is to disseminate engineering-wide announcements, promote cohesion 
 
 The Account Executive (AE) schedules this meeting before Fleet commits to one or more new customer promises. It's meant to streamline communication and encourage getting the best product decisions.
 
+If the buyer (aka the "Santa") hasn't reviewed the price in the first order form or we don't have a date attatched to the promise(s), then we're not ready for this call.
+
 **Participants:** AE, SC, and Head of Product Design.  (+ temporarily: CRO)
 
 **Agenda:**
