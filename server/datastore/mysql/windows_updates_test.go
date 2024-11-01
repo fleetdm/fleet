@@ -30,7 +30,7 @@ func TestWindowsUpdates(t *testing.T) {
 
 func testListWindowsUpdatesByHostID(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	now := uint(time.Now().Unix())
+	now := uint(time.Now().Unix()) //nolint:gosec // dismiss G115
 
 	t.Run("with no stored updates", func(t *testing.T) {
 		actual, err := ds.ListWindowsUpdatesByHostID(ctx, 1)
@@ -69,7 +69,7 @@ func testListWindowsUpdatesByHostID(t *testing.T, ds *Datastore) {
 
 func testInsertWindowsUpdates(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	now := uint(time.Now().Unix())
+	now := uint(time.Now().Unix()) //nolint:gosec // dismiss G115
 	smt := `SELECT kb_id, date_epoch FROM windows_updates WHERE host_id = ?`
 
 	t.Run("with no stored updates", func(t *testing.T) {

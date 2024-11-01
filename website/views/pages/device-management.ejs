@@ -28,6 +28,10 @@
             </a>
           </div>
         </div>
+        <div purpose="button-row" class="d-flex flex-row align-items-center">
+          <a purpose="cta-button" href="/contact">Talk to us</a>
+          <animated-arrow-button  href="/register">Try it yourself</animated-arrow-button>
+        </div>
       </div>
       <logo-carousel></logo-carousel>
 
@@ -80,7 +84,16 @@
           </div>
         </div>
       </div>
-
+      <div v-if="showSwagForm">
+      <a purpose="swag-request-button" class="d-flex align-items-center justify-content-center mx-auto" @click="clickSwagRequestCTA()">
+        <div class="d-flex flex-row align-items-center">
+        <img style="height: auto; width: 47px;" alt="A very nice Fleet branded shirt" src="/images/fleet-shirt-60x55@2x.png">
+          <p class="mb-0"><strong class="mr-1">Request Fleet swag. </strong>
+          </p>
+          <span>It's free <img purpose="right-arrow" class="d-inline" style="height: 16px; width: auto; margin-bottom: 2px;" alt="right arrow" src="/images/arrow-right-red-16x16@2x.png" /></span>
+        </div>
+      </a>
+      </div>
       <div purpose="comparison-section">
         <h2>Head-to-head with the big players</h2>
         <p>Considering a move to Fleet as a cross-platform, open-source MDM alternative? See how we compare:</p>
@@ -511,8 +524,8 @@
         <h4>Device management (MDM)</h4>
         <h1>Your easiest MDM migration</h1>
         <div purpose="button-row" style="margin-top: 32px;" class="d-flex flex-row justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" href="/register">Start now</a>
-          <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>
+          <a purpose="cta-button" href="/contact">Talk to us</a>
+          <animated-arrow-button  href="/register">Try it yourself</animated-arrow-button>
         </div>
       </div>
     </div>

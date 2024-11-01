@@ -86,8 +86,13 @@ func gitopsCommand() *cli.Command {
 				noTeamControls spec.Controls
 				noTeamPresent  bool
 			)
+			isPremium := appConfig.License.IsPremium()
 			for _, flFilename := range flFilenames.Value() {
 				if filepath.Base(flFilename) == "no-team.yml" {
+					if !isPremium {
+						// Message is printed in the next flFilenames loop to avoid printing it multiple times
+						break
+					}
 					baseDir := filepath.Dir(flFilename)
 					config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, func(format string, a ...interface{}) {})
 					if err != nil {
@@ -148,13 +153,16 @@ func gitopsCommand() *cli.Command {
 					if !config.Controls.Set() {
 						config.Controls = noTeamControls
 					}
+				} else if !isPremium {
+					logf("[!] skipping team config %s since teams are only supported for premium Fleet users\n", flFilename)
+					continue
 				}
 
 				// Special handling for tokens is required because they link to teams (by
 				// name.) Because teams can be created/deleted during the same gitops run, we
 				// grab some information to help us determine allowed/restricted actions and
 				// when to perform the associations.
-				if isGlobalConfig && totalFilenames > 1 && !(totalFilenames == 2 && noTeamPresent) {
+				if isGlobalConfig && totalFilenames > 1 && !(totalFilenames == 2 && noTeamPresent) && isPremium {
 					abmTeams, hasMissingABMTeam, usesLegacyABMConfig, err = checkABMTeamAssignments(config, fleetClient)
 					if err != nil {
 						return err
@@ -234,7 +242,7 @@ func gitopsCommand() *cli.Command {
 					return err
 				}
 			}
-			if flDeleteOtherTeams {
+			if flDeleteOtherTeams && appConfig.License.IsPremium() { // skip team deletion for non-premium users
 				teams, err := fleetClient.ListTeams("")
 				if err != nil {
 					return err

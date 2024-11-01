@@ -1,0 +1,164 @@
+# Test config
+queries:
+  - name: Scheduled query stats
+    description: Collect osquery performance stats directly from osquery
+    query: SELECT *,
+      (SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
+      FROM osquery_schedule;
+    interval: 0
+    platform: darwin,linux,windows
+    min_osquery_version: all
+    observer_can_run: false
+    automations_enabled: false
+    logging: snapshot
+  - name: orbit_info
+    query: SELECT * from orbit_info;
+    interval: 0
+    platform: darwin,linux,windows
+    min_osquery_version: all
+    observer_can_run: false
+    automations_enabled: true
+    logging: snapshot
+  - name: osquery_info
+    query: SELECT * from osquery_info;
+    interval: 604800 # 1 week
+    platform: darwin,linux,windows,chrome
+    min_osquery_version: all
+    observer_can_run: false
+    automations_enabled: true
+    logging: snapshot
+policies:
+  - name: 😊 Failing policy
+    platform: linux
+    description: This policy should always fail.
+    resolution: There is no resolution for this policy.
+    query: SELECT 1 FROM osquery_info WHERE start_time < 0;
+  - name: Passing policy
+    platform: linux,windows,darwin,chrome
+    description: This policy should always pass.
+    resolution: There is no resolution for this policy.
+    query: SELECT 1;
+  - name: No root logins (macOS, Linux)
+    platform: linux,darwin
+    query: SELECT 1 WHERE NOT EXISTS (SELECT * FROM last
+      WHERE username = "root"
+      AND time > (( SELECT unix_time FROM time ) - 3600 ))
+    critical: true
+  - name: 🔥 Failing policy
+    platform: linux
+    description: This policy should always fail.
+    resolution: There is no resolution for this policy.
+    query: SELECT 1 FROM osquery_info WHERE start_time < 0;
+  - name: 😊😊 Failing policy
+    platform: linux
+    description: This policy should always fail.
+    resolution: There is no resolution for this policy.
+    query: SELECT 1 FROM osquery_info WHERE start_time < 0;
+agent_options:
+  command_line_flags:
+    distributed_denylist_duration: 0
+  config:
+    decorators:
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    options:
+      disable_distributed: false
+      distributed_interval: 10
+      distributed_plugin: tls
+      distributed_tls_max_attempts: 3
+      logger_tls_endpoint: /api/v1/osquery/log
+      pack_delimiter: /
+org_settings:
+  server_settings:
+    debug_host_ids:
+      - 10728
+    deferred_save_host: false
+    enable_analytics: true
+    live_query_disabled: false
+    query_report_cap: 2000
+    query_reports_disabled: false
+    scripts_disabled: false
+    server_url: $FLEET_SERVER_URL
+    ai_features_disabled: true
+  org_info:
+    contact_url: https://fleetdm.com/company/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: $ORG_NAME
+  smtp_settings:
+    authentication_method: authmethod_plain
+    authentication_type: authtype_username_password
+    configured: false
+    domain: ""
+    enable_smtp: false
+    enable_ssl_tls: true
+    enable_start_tls: true
+    password: ""
+    port: 587
+    sender_address: ""
+    server: ""
+    user_name: ""
+    verify_ssl_certs: true
+  sso_settings:
+    enable_jit_provisioning: false
+    enable_jit_role_sync: false
+    enable_sso: true
+    enable_sso_idp_login: false
+    entity_id: https://saml.example.com/entityid
+    idp_image_url: ""
+    idp_name: MockSAML
+    issuer_uri: ""
+    metadata: ""
+    metadata_url: https://mocksaml.com/api/saml/metadata
+  integrations:
+    jira: []
+    zendesk: []
+    google_calendar:
+      - domain: example.com
+        api_key_json: {
+                        "client_email": "service@example.com",
+                        "private_key": "google_calendar_private_key",
+      }
+  mdm:
+    end_user_authentication:
+      entity_id: ""
+      idp_name: ""
+      issuer_uri: ""
+      metadata: ""
+      metadata_url: ""
+  webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: https://activities_webhook_url
+    failing_policies_webhook:
+      destination_url: https://host.docker.internal:8080/bozo
+      enable_failing_policies_webhook: false
+      host_batch_size: 0
+      policy_ids: []
+    host_status_webhook:
+      days_count: 0
+      destination_url: ""
+      enable_host_status_webhook: false
+      host_percentage: 0
+    interval: 24h0m0s
+    vulnerabilities_webhook:
+      destination_url: ""
+      enable_vulnerabilities_webhook: false
+      host_batch_size: 0
+  fleet_desktop: # Applies to Fleet Premium only
+    transparency_url: https://fleetdm.com/transparency
+  host_expiry_settings: # Applies to all teams
+    host_expiry_enabled: false
+  activity_expiry_settings:
+    activity_expiry_enabled: true
+    activity_expiry_window: 60
+  features: # Features added to all teams
+    enable_host_users: true
+    enable_software_inventory: true
+  vulnerability_settings:
+    databases_path: ""
+  secrets: # These secrets are used to enroll hosts to the "All teams" team
+    - secret: SampleSecret123
+    - secret: ABC
+software:

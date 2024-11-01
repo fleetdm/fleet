@@ -20,6 +20,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/log/level"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -462,12 +463,15 @@ func (svc *Service) LogFleetdError(ctx context.Context, fleetdError fleet.Fleetd
 		return ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
 	}
 
-	svc.logger.Log(
+	err := ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap())
+	level.Warn(svc.logger).Log(
 		"msg",
 		"fleetd error",
 		"error",
-		ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap()),
+		err,
 	)
+	// Send to Redis/telemetry (if enabled)
+	ctxerr.Handle(ctx, err)
 
 	return nil
 }
@@ -498,7 +502,7 @@ func (r getDeviceMDMManualEnrollProfileResponse) hijackRender(ctx context.Contex
 	// detect short writes (if it fails to send the full content properly)
 	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.Profile)), 10))
 	// this content type will make macos open the profile with the proper application
-	w.Header().Set("Content-Type", "application/x-apple-aspen-config; charset=urf-8")
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config; charset=utf-8")
 	// prevent detection of content, obey the provided content-type
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 
@@ -555,7 +559,7 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]b
 	}
 
 	enrollSecret := tmSecrets[0].Secret
-	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.ServerSettings.ServerURL, enrollSecret)
+	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating ota mobileconfig file for manual enrollment")
 	}
@@ -642,5 +646,5 @@ func getDeviceSoftwareEndpoint(ctx context.Context, request interface{}, svc fle
 	if res == nil {
 		res = []*fleet.HostSoftwareWithInstaller{}
 	}
-	return getDeviceSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil
+	return getDeviceSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil //nolint:gosec // dismiss G115
 }

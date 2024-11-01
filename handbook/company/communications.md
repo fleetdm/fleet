@@ -691,7 +691,7 @@ For recurring business expenses paid by credit card, there are four accounts pay
 - Choose a modest location with inexpensive lodging and [minimally-viable comfort](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
 - For events, check the event's website for travel & hotel accommodations and book as soon as the event is approved. As a general rule, do not spend more on lodging than the average listed hotel accommodations.
 - Avoid expensive neighborhoods and popular destination cities.
-- Do not share bedrooms.  Shared bathrooms are OK, but make sure every hotel room or Airbnb has at least one bathroom per gender identity.   <!-- Make sure everyone is well-rested, efficiently primped, with sufficient privacy. -->
+- Please do not share bedrooms.  Shared bathrooms are OK, but make sure every hotel room or Airbnb has at least one bathroom per gender identity.   <!-- Make sure everyone is well-rested, efficiently primped, with sufficient privacy. -->
 - Be creative.  If an AirBnb is the most efficient way to house the team, then do that.  If separate hotel rooms are more efficient, then do that.
 - If the stay is longer than 4 nights and an Airbnb with a washing machine is not available, then dry cleaning can be purchased with your Brex card.
 - If you need to meet with a large group that won't fit in your hotel room or Airbnb (e.g. more than 5 people), [contact Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us) for their help approving and booking additional event space.
@@ -889,7 +889,7 @@ We're happy you've ventured a trip around the sun with Fleet- let's celebrate! T
 
 ### Compensation changes
 
-Fleet evaluates and (if relevant) updates compensation decisions yearly, shortly after the anniversary of a team member's start date. The Head of Digital Experience is responsible for the process to [update compensation](https://fleetdm.com/handbook/digital-experience#updating-compensation)
+Fleet evaluates and (if relevant) updates compensation decisions yearly, shortly after the anniversary of a team member's start date. The Head of Digital Experience is responsible for the process to [update compensation](https://fleetdm.com/handbook/digital-experience#update-a-team-members-compensation)
 
 
 ### Relocating
@@ -1015,7 +1015,7 @@ Fleet provides laptops, YubiKey security keys, and software licenses for core te
 
 As soon as an offer is accepted, Digital Experience will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company.
 
-If you are in need of additional equipment for any reason, [open an IT support request](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%3Ahelp-it&projects=&template=request-it-support.md&title=%F0%9F%92%BB+Request+IT+support). When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
+If you are in need of additional equipment for any reason, [open a support request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=) with Digital Experience. When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
 
 - **Tracking equipment:** When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet. When you receive your new computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
 
@@ -1028,7 +1028,7 @@ If you are in need of additional equipment for any reason, [open an IT support r
 
 ### Requesting IT support
 
-If you are in need of IT support to assist with a software or hardware issue, [open an IT support request](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%3Ahelp-it&projects=&template=request-it-support.md&title=%F0%9F%92%BB+Request+IT+support). A Fleet IT team member will attempt to correct your issue remotely using Fleet, and will notify you if any action is needed on your part.
+If you are in need of IT support to assist with a software or hardware issue, [open a support request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=) with Digital Experience. A Fleet IT team member will attempt to correct your issue remotely using Fleet, and will notify you if any action is needed on your part.
 
 
 ## Writing
@@ -1039,7 +1039,7 @@ Learn how to communicate as Fleet with guidelines for tone of voice, our approac
 ### Writing style
 
   - Infuse the core [values](https://fleetdm.com/handbook/company#values) into everything you write. 
-  - Read and reread, then rewrite to make it shorter. Use links rather than explanations, short sentences. 
+  - Read and reread, then rewrite to make it shorter. Use links rather than explanations, and favor short sentences. 
   - Get to where you feel like it’s really good, short, simple, and clear, hack away at any word that’s too confusing. 
   - Don’t sound formal, sound welcoming so that anyone can understand. Translate "[puffery](https://www.linkedin.com/pulse/puffery-adam-frankl%3FtrackingId=SBVWxzqXTBm9qlO7Rw3ddw%253D%253D/?trackingId=SBVWxzqXTBm9qlO7Rw3ddw%3D%3D)" into "ease of use" or "readability".
     - Disarm puffery for engineers by replacing puffery with real data.
@@ -1369,11 +1369,13 @@ Related content...
 Wherever possible, avoid creating nested headings. For example:
 
 ```
-## Things
 
-### Thing 1
+### Things
+
+#### Thing 1
 
 Hi my name is Thing 1
+
 ```
 
 
@@ -1400,7 +1402,7 @@ Try to stay within three or four heading levels. Complicated documents may use m
 
 ### Line breaks and new lines
 
-Any time you need to add a line break in Markdown, you should add a new line. It is vital to make sure paragraphs are separated by new lines. Otherwise, they will render as the same HTML element.
+Any time you need to add a line break in Markdown, add an extra line break.
 
 For example, if you were adding this section:
 

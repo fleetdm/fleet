@@ -17,7 +17,7 @@ type InitialStateType = {
   renderFlash: (
     alertType: "success" | "error" | "warning-filled" | null,
     message: JSX.Element | string | null,
-    undoAction?: (evt: React.MouseEvent<HTMLButtonElement>) => void
+    options?: { persistOnPageChange?: boolean }
   ) => void;
   hideFlash: () => void;
 };
@@ -30,24 +30,24 @@ const initialState = {
   hideFlash: noop,
 };
 
-const actions = {
+const actionTypes = {
   RENDER_FLASH: "RENDER_FLASH",
   HIDE_FLASH: "HIDE_FLASH",
-};
+} as const;
 
 const reducer = (state: any, action: any) => {
   switch (action.type) {
-    case actions.RENDER_FLASH:
+    case actionTypes.RENDER_FLASH:
       return {
         ...state,
         notification: {
           alertType: action.alertType,
           isVisible: true,
           message: action.message,
-          undoAction: action.undoAction,
+          persistOnPageChange: action.options?.persistOnPageChange ?? false,
         },
       };
-    case actions.HIDE_FLASH:
+    case actionTypes.HIDE_FLASH:
       return initialState;
     default:
       return state;
@@ -60,25 +60,31 @@ export const NotificationContext = createContext<InitialStateType>(
 
 const NotificationProvider = ({ children }: Props) => {
   const [state, dispatch] = useReducer(reducer, initialState);
-
   const renderFlash = useCallback(
     (
       alertType: "success" | "error" | "warning-filled" | null,
       message: JSX.Element | string | null,
-      undoAction?: (evt: React.MouseEvent<HTMLButtonElement>) => void
+      options?: {
+        persistOnPageChange?: boolean;
+      }
     ) => {
-      dispatch({
-        type: actions.RENDER_FLASH,
-        alertType,
-        message,
-        undoAction,
+      // wrapping the dispatch in a timeout ensures it is evaluated on the next event loop,
+      // preventing bugs related to the FlashMessage's self-hiding behavior on URL changes.
+      // react router v3 router.push is asynchronous
+      setTimeout(() => {
+        dispatch({
+          type: actionTypes.RENDER_FLASH,
+          alertType,
+          message,
+          options,
+        });
       });
     },
     []
   );
 
   const hideFlash = useCallback(() => {
-    dispatch({ type: actions.HIDE_FLASH });
+    dispatch({ type: actionTypes.HIDE_FLASH });
   }, []);
 
   const value = useMemo(

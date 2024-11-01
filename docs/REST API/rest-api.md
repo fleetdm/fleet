@@ -3588,6 +3588,8 @@ _Available in Fleet Premium_
 
 ### Turn off MDM for a host
 
+Turns off MDM for the specified macOS host.
+
 `DELETE /api/v1/fleet/hosts/:id/mdm`
 
 #### Parameters
@@ -5786,7 +5788,7 @@ Learn more about OTA profiles [here](https://developer.apple.com/library/archive
 
 ```http
   Content-Length: 542
-  Content-Type: application/x-apple-aspen-config; charset=urf-8
+  Content-Type: application/x-apple-aspen-config; charset=utf-8
   Content-Disposition: attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"
   X-Content-Type-Options: nosniff
 ```
@@ -7087,6 +7089,8 @@ Team policies work the same as policies, but at the team level.
 
 ### Add team policy
 
+> **Experimental feature**. Software related features (like install software policy automation) are undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 The semantics for creating a team policy are the same as for global policies, see [Add policy](#add-policy).
 
 `POST /api/v1/fleet/teams/:id/policies`
@@ -7194,6 +7198,8 @@ Either `query` or `query_id` must be provided.
 ```
 
 ### Edit team policy
+
+> **Experimental feature**. Software related features (like install software policy automation) are undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 `PATCH /api/v1/fleet/teams/:team_id/policies/:policy_id`
 
@@ -9210,7 +9216,7 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Li
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | form | **Required**. Installer package file. Supported packages are PKG, MSI, EXE, DEB, and RPM.   |
+| software        | file    | form | **Required**. Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
 | team_id         | integer | form | **Required**. The team ID. Adds a software package to the specified team. |
 | install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs [default install script](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
@@ -9271,7 +9277,7 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | form | Installer package file. Supported packages are PKG, MSI, EXE, DEB, and RPM.   |
+| software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |

@@ -293,15 +293,18 @@ type runScriptsConfigReceiver struct {
 
 	// ensures only one script execution runs at a time
 	mu sync.Mutex
+
+	rootDirPath string
 }
 
 func ApplyRunScriptsConfigFetcherMiddleware(
-	scriptsEnabled bool, scriptsClient scripts.Client,
+	scriptsEnabled bool, scriptsClient scripts.Client, rootDirPath string,
 ) (fleet.OrbitConfigReceiver, func() bool) {
 	scriptsFetcher := &runScriptsConfigReceiver{
 		ScriptsExecutionEnabled:            scriptsEnabled,
 		ScriptsClient:                      scriptsClient,
 		dynamicScriptsEnabledCheckInterval: 5 * time.Minute,
+		rootDirPath:                        rootDirPath,
 	}
 	// start the dynamic check for scripts enabled if required
 	scriptsFetcher.runDynamicScriptsEnabledCheck()
@@ -350,6 +353,13 @@ func (h *runScriptsConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 	timeout := fleetscripts.MaxHostExecutionTime
 	if cfg.ScriptExeTimeout > 0 {
 		timeout = time.Duration(cfg.ScriptExeTimeout) * time.Second
+	}
+
+	if runtime.GOOS == "darwin" {
+		if cfg.Notifications.RunSetupExperience && !CanRun(h.rootDirPath, "swiftDialog", SwiftDialogMacOSTarget) {
+			log.Debug().Msg("exiting scripts config runner early during setup experience: swiftDialog is not installed")
+			return nil
+		}
 	}
 
 	if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {

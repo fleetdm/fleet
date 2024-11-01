@@ -319,7 +319,7 @@ func (newMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *htt
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = uint(teamID)
+		decoded.TeamID = uint(teamID) //nolint:gosec // dismiss G115
 	}
 
 	fhs, ok := r.MultipartForm.File["profile"]
@@ -1052,6 +1052,7 @@ func (uploadAppleInstallerRequest) DecodeRequest(ctx context.Context, r *http.Re
 
 func (r uploadAppleInstallerResponse) error() error { return r.Err }
 
+// Deprecated: Not in Use
 func uploadAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*uploadAppleInstallerRequest)
 	ff, err := req.Installer.Open()
@@ -1421,7 +1422,7 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.ServerSettings.ServerURL, ref)
+	enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.MDMUrl(), ref)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
 	}
@@ -2209,7 +2210,7 @@ func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = uint(teamID)
+		decoded.TeamID = uint(teamID) //nolint:gosec // dismiss G115
 	}
 
 	return &decoded, nil
@@ -2750,6 +2751,15 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		return ctxerr.Wrap(r.Context, err, "cleaning SCEP refs")
 	}
 
+	if m.AwaitingConfiguration {
+		// Enqueue setup experience items and mark the host as being in setup experience
+		_, err := svc.ds.EnqueueSetupExperienceItems(r.Context, r.ID, info.TeamID)
+		if err != nil {
+			return ctxerr.Wrap(r.Context, err, "queueing setup experience tasks")
+		}
+
+	}
+
 	return svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:          mdmlifecycle.HostActionTurnOn,
 		Platform:        info.Platform,
@@ -2894,7 +2904,20 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.UDID, status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
 	case "InstallApplication":
-		// Create an activity for installing only if we're in a terminal state
+		// this might be a setup experience VPP install, so we'll try to update setup experience status
+		// TODO: consider limiting this to only macOS hosts
+		if updated, err := maybeUpdateSetupExperienceStatus(r.Context, svc.ds, fleet.SetupExperienceVPPInstallResult{
+			HostUUID:      cmdResult.UDID,
+			CommandUUID:   cmdResult.CommandUUID,
+			CommandStatus: cmdResult.Status,
+		}, true); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "updating setup experience status from VPP install result")
+		} else if updated {
+			// TODO: call next step of setup experience?
+			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", cmdResult.UDID, "execution_id", cmdResult.CommandUUID)
+		}
+
+		// create an activity for installing only if we're in a terminal state
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
 			cmdResult.Status == fleet.MDMAppleStatusError ||
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
@@ -2911,6 +2934,10 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			if err := newActivity(r.Context, user, act, svc.ds, svc.logger); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
 			}
+		}
+	case "DeviceConfigured":
+		if err := svc.ds.SetHostAwaitingConfiguration(r.Context, r.ID, false); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to mark host as non longer awaiting configuration")
 		}
 	}
 
@@ -3136,7 +3163,7 @@ func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.
 		var contents bytes.Buffer
 		params := mobileconfig.FleetdProfileOptions{
 			EnrollSecret: es.Secret,
-			ServerURL:    appCfg.ServerSettings.ServerURL,
+			ServerURL:    appCfg.ServerSettings.ServerURL, // ServerURL must be set to the Fleet URL.  Do not use appCfg.MDMUrl() here.
 			PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
 			PayloadName:  mdm_types.FleetdConfigProfileName,
 		}
@@ -3521,7 +3548,6 @@ func preprocessProfileContents(
 	profileContents map[string]mobileconfig.Mobileconfig,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 ) error {
-
 	// This method replaces Fleet variables ($FLEET_VAR_<NAME>) in the profile contents, generating a unique profile for each host.
 	// For a 2KB profile and 30K hosts, this method may generate ~60MB of profile data in memory.
 
@@ -3612,7 +3638,6 @@ func preprocessProfileContents(
 					return ctxerr.Wrap(ctx, err, "updating host MDM Apple profiles for unknown variable")
 				}
 				valid = false
-				break
 			}
 		}
 		if !valid {
@@ -3702,7 +3727,7 @@ func preprocessProfileContents(
 					hostContents = replaceFleetVariable(fleetVarNDESSCEPChallengeRegexp, hostContents, challenge)
 				case FleetVarNDESSCEPProxyURL:
 					// Insert the SCEP URL into the profile contents
-					proxyURL := fmt.Sprintf("%s%s%s", appConfig.ServerSettings.ServerURL, apple_mdm.SCEPProxyPath,
+					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
 						url.PathEscape(fmt.Sprintf("%s,%s", hostUUID, profUUID)))
 					hostContents = replaceFleetVariable(fleetVarNDESSCEPProxyURLRegexp, hostContents, proxyURL)
 				case FleetVarHostEndUserEmailIDP:
@@ -3887,7 +3912,7 @@ func RenewSCEPCertificates(
 	if len(assocsWithoutRefs) > 0 {
 		profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 			appConfig.OrgInfo.OrgName,
-			appConfig.ServerSettings.ServerURL,
+			appConfig.MDMUrl(),
 			scepChallenge,
 			mdmPushCertTopic,
 		)
@@ -3902,7 +3927,7 @@ func RenewSCEPCertificates(
 
 	// send individual commands for each host with a reference
 	for _, assoc := range assocsWithRefs {
-		enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.ServerSettings.ServerURL, assoc.EnrollReference)
+		enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.MDMUrl(), assoc.EnrollReference)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
 		}
@@ -4477,7 +4502,7 @@ func (renewABMTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) 
 
 	return &renewABMTokenRequest{
 		Token:   token[0],
-		TokenID: uint(id),
+		TokenID: uint(id), //nolint:gosec // dismiss G115
 	}, nil
 }
 
@@ -4541,7 +4566,7 @@ func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret string) ([]b
 		return nil, ctxerr.Wrap(ctx, err, "getting app config to get org name")
 	}
 
-	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.ServerSettings.ServerURL, enrollSecret)
+	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating ota mobileconfig file")
 	}
@@ -4673,12 +4698,13 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "reading app config")
 	}
-	fleetURL := appCfg.ServerSettings.ServerURL
+
+	mdmURL := appCfg.MDMUrl()
 
 	// if the root signer was issued by Apple's CA, it means we're in the
 	// first phase and we should return a SCEP payload.
 	if err := apple_mdm.VerifyFromAppleIphoneDeviceCA(rootSigner); err == nil {
-		scepURL, err := apple_mdm.ResolveAppleSCEPURL(fleetURL)
+		scepURL, err := apple_mdm.ResolveAppleSCEPURL(mdmURL)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "resolve Apple SCEP url")
 		}
@@ -4710,7 +4736,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 
 	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appCfg.OrgInfo.OrgName,
-		appCfg.ServerSettings.ServerURL,
+		mdmURL,
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
 	)

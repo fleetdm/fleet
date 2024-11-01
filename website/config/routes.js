@@ -518,6 +518,7 @@ module.exports.routes = {
   'GET /g':                       (req,res)=> { let originalQueryStringWithAmp = req.url.match(/\?(.+)$/) ? '&'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/?meet-fleet'+originalQueryStringWithAmp); },
   'GET /test-fleet-sandbox':     '/register',
   'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-marketing-emails?'+originalQueryString);},
+  'GET /unsubscribe-from-newsletter':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
   'GET /tables':                 '/tables/account_policy_data',
   'GET /imagine/launch-party':  'https://www.eventbrite.com/e/601763519887',
   'GET /blackhat2023':   'https://github.com/fleetdm/fleet/tree/main/tools/blackhat-mdm', // Assets from @marcosd4h & @zwass Black Hat 2023 talk
@@ -583,6 +584,7 @@ module.exports.routes = {
   'GET /feature-request': 'https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~feature+fest%2C%3Aproduct&projects=&template=feature-request.md&title=',
   'GET /learn-more-about/policy-automation-run-script': '/guides/policy-automation-run-script',
   'GET /learn-more-about/installing-fleetctl': '/guides/fleetctl#installing-fleetctl',
+  'GET /contribute-to/policies': 'https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml',
 
   // Sitemap
   // =============================================================================================================
