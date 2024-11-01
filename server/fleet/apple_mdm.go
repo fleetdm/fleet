@@ -225,6 +225,7 @@ type ConfigurationProfileLabel struct {
 	LabelID     uint   `db:"label_id" json:"id,omitempty"`   // omitted if 0 (which is impossible if the label is not broken)
 	Broken      bool   `db:"broken" json:"broken,omitempty"` // omitted (not rendered to JSON) if false
 	Exclude     bool   `db:"exclude" json:"-"`               // not rendered in JSON, used to store the profile in LabelsIncludeAll or LabelsExcludeAny on the parent profile
+	RequireAll  bool   `db:"require_all" json:"-"`           // not rendered in JSON, used to store the profile in  LabelsIncludeAll, LabelsIncludeAny, or LabelsIncludeAny on the parent profile
 }
 
 func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile, error) {

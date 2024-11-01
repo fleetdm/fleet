@@ -1841,8 +1841,9 @@ func getAppleProfiles(
 			for _, labelName := range prof.LabelsIncludeAll {
 				if lbl, ok := labelMap[labelName]; ok {
 					declLabel := fleet.ConfigurationProfileLabel{
-						LabelName: lbl.LabelName,
-						LabelID:   lbl.LabelID,
+						LabelName:  lbl.LabelName,
+						LabelID:    lbl.LabelID,
+						RequireAll: true,
 					}
 					mdmDecl.LabelsIncludeAll = append(mdmDecl.LabelsIncludeAll, declLabel)
 				}
@@ -1901,6 +1902,11 @@ func getAppleProfiles(
 		for _, labelName := range prof.LabelsIncludeAll {
 			if lbl, ok := labelMap[labelName]; ok {
 				mdmProf.LabelsIncludeAll = append(mdmProf.LabelsIncludeAll, lbl)
+			}
+		}
+		for _, labelName := range prof.LabelsIncludeAny {
+			if lbl, ok := labelMap[labelName]; ok {
+				mdmProf.LabelsIncludeAny = append(mdmProf.LabelsIncludeAny, lbl)
 			}
 		}
 		for _, labelName := range prof.LabelsExcludeAny {
