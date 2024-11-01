@@ -1,3 +1,14 @@
+## Orbit 1.35.0 (Nov 01, 2024)
+
+* Fixed orbit startup to not exit when "root.json", "snapshot.json", or "targets.json" TUF signatures have expired.
+
+* Adds a UI for the Fleet setup experience to show users the status of software installs and script
+executions during macOS Setup Assistant.
+
+* Gracefully shutdown fleet desktop when receiving interrupt and terminate signals
+
+Added capability for fleetd to report vital errors to Fleet server, such as when Fleet Desktop is unable to start.
+
 ## Orbit 1.34.0 (Oct 02, 2024)
 
 * Added a timeout to all script executions during software installs to prevent having install requests stuck in pending state forever.
