@@ -5,16 +5,16 @@ spec:
   name: Ensure a password is required to wake the computer from sleep or screen saver is enabled
   platforms: macOS
   platform: darwin
-  description: Checks that Password is Required to Wake the Computer From Sleep or Screen Saver Is Enabled.
+  description: Checks that password is required to wake the computer from sleep or screen saver is enabled.
   resolution: |
     Automated method:
-    Ask your system administrator to deploy an MDM profile that Ensure a Password is Required to Wake the Computer From Sleep or Screen Saver Is Enabled.
+    Ask your system administrator to deploy an MDM profile that ensures a password is required to wake the computer from sleep or screen saver is enabled.
     Graphical method:
-      Perform the following steps to ensure a Password is Required to Wake the Computer From Sleep or Screen Saver Is Enabled:
+      Perform the following steps to ensure a password is required to wake the computer from sleep or screen saver is enabled:
         1. Open System Settings
         2. Select Lock Screen
-        3. Verify that Require password after screensaver begins or display is turned
-        off is set with After 0 seconds or After 5 seconds
+        3. Verify that "Require password after screensaver begins or display is turned
+        off" is set with "After 0 seconds" or "After 5 seconds"
   query: |-
     SELECT 1 WHERE 
       EXISTS (
