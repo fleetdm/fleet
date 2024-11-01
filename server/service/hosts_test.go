@@ -637,6 +637,9 @@ func TestHostAuth(t *testing.T) {
 	ds.ListHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
 		return nil, nil, nil
 	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
 
 	testCases := []struct {
 		name                  string
