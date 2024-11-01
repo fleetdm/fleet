@@ -11,13 +11,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -3304,8 +3302,6 @@ func ReconcileAppleProfiles(
 		return ctxerr.Wrap(ctx, err, "getting profiles to install")
 	}
 
-	slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: toInstall ", "toInstall", toInstall)
-
 	// Exclude macOS only profiles from iPhones/iPads.
 	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
 
@@ -3429,8 +3425,6 @@ func ReconcileAppleProfiles(
 			Checksum:          p.Checksum,
 		})
 	}
-
-	slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: targets ", "installTargets", installTargets, "removeTargets", removeTargets)
 
 	// delete all profiles that have a matching identifier to be installed.
 	// This is to prevent sending both a `RemoveProfile` and an
