@@ -641,6 +641,14 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 	return len(pathLabelIncludeCounts) == 0 && len(pathLabelExcludeCounts) == 0
 }
 
+type MDMLabelsMode string
+
+const (
+	LabelsIncludeAll MDMLabelsMode = "labels_include_all"
+	LabelsIncludeAny MDMLabelsMode = "labels_include_any"
+	LabelsExcludeAny MDMLabelsMode = "labels_exclude_any"
+)
+
 type MDMAssetName string
 
 const (
@@ -741,9 +749,11 @@ func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []
 }
 
 // RefetchBaseCommandUUIDPrefix and below command prefixes are the prefixes used for MDM commands used to refetch information from iOS/iPadOS devices.
-const RefetchBaseCommandUUIDPrefix = "REFETCH-"
-const RefetchDeviceCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "DEVICE-"
-const RefetchAppsCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "APPS-"
+const (
+	RefetchBaseCommandUUIDPrefix   = "REFETCH-"
+	RefetchDeviceCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "DEVICE-"
+	RefetchAppsCommandUUIDPrefix   = RefetchBaseCommandUUIDPrefix + "APPS-"
+)
 
 // VPPTokenInfo is the representation of the VPP token that we send out via API.
 type VPPTokenInfo struct {
