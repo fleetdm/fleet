@@ -307,7 +307,6 @@ func TestAutomationsSchedule(t *testing.T) {
 }
 
 func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
-	t.Skip() // https://github.com/fleetdm/fleet/issues/23258
 	t.Parallel()
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
@@ -355,24 +354,22 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx, cancel := context.WithCancel(ctx)
 	lg := kitlog.NewJSONLogger(os.Stdout)
-	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, lg, &config)
-	require.NoError(t, err)
-	s.Start()
-	t.Cleanup(func() {
-		cancel()
-		<-s.Done()
-	})
+
+	go func() {
+		defer func() {
+			recover() // we expect this test to panic as we're ending it early, so we shouldn't fail our suite on this panic
+		}()
+		_ = cronVulnerabilities(ctx, ds, lg, &config)
+	}()
 
 	assert.Eventually(t, func() bool {
 		info, err := os.Lstat(vulnPath)
-		if err != nil {
-			return false
-		}
-		if !info.IsDir() {
-			return false
-		}
-		return true
-	}, 5*time.Minute, 30*time.Second)
+		return err == nil && info.IsDir()
+	}, 10*time.Second, 1*time.Second)
+
+	t.Cleanup(func() {
+		cancel()
+	})
 
 	// at this point, the assertion has succeeded or failed, try to remove the
 	// temp dir and all content instead of leaving it to the testing package to
