@@ -31,7 +31,6 @@ module.exports = {
       let platformsForThisPolicy = policy.platform.split(',');
       return _.includes(platformsForThisPolicy, 'linux');
     });
-    // console.log(macOsQueries);
     // Respond with view.
     return {
       macOsPolicies,
