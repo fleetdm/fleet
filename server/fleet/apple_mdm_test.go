@@ -608,6 +608,8 @@ func TestConfigurationProfileLabelEqual(t *testing.T) {
 	fieldsInEqualMethod++
 	items[1].Exclude = items[0].Exclude
 	fieldsInEqualMethod++
+	items[1].RequireAll = items[0].RequireAll
+	fieldsInEqualMethod++
 
 	assert.Equal(t, fieldsInEqualMethod, numberOfFields,
 		"Does cmp.Equal for ConfigurationProfileLabel needs to be updated for new/updated field(s)?")
