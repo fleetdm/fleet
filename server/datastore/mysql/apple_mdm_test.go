@@ -1928,7 +1928,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	res, err := ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)), res.Pending)
+	require.EqualValues(t, len(hosts), res.Pending)
 	require.Equal(t, uint(0), res.Failed)
 	require.Equal(t, uint(0), res.Verifying)
 	require.Equal(t, uint(0), res.Verified)
@@ -1938,7 +1938,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	res, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)), res.Pending) // still pending because filevault not installed
+	require.EqualValues(t, len(hosts), res.Pending) // still pending because filevault not installed
 	require.Equal(t, uint(0), res.Failed)
 	require.Equal(t, uint(0), res.Verifying)
 	require.Equal(t, uint(0), res.Verified)
@@ -1948,7 +1948,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	res, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)), res.Pending) // still pending because filevault not installed
+	require.EqualValues(t, len(hosts), res.Pending) // still pending because filevault not installed
 	require.Equal(t, uint(0), res.Failed)
 	require.Equal(t, uint(0), res.Verifying)
 	require.Equal(t, uint(0), res.Verified)
@@ -1958,7 +1958,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	res, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)), res.Pending) // still pending because filevault pending
+	require.EqualValues(t, len(hosts), res.Pending) // still pending because filevault pending
 	require.Equal(t, uint(0), res.Failed)
 	require.Equal(t, uint(0), res.Verifying)
 	require.Equal(t, uint(0), res.Verified)
@@ -1967,7 +1967,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	res, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)), res.Pending) // still pending because no disk encryption key
+	require.EqualValues(t, len(hosts), res.Pending) // still pending because no disk encryption key
 	require.Equal(t, uint(0), res.Failed)
 	require.Equal(t, uint(0), res.Verifying)
 	require.Equal(t, uint(0), res.Verified)
@@ -1978,7 +1978,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	// hosts still pending because disk encryption key decryptable is not set
-	require.Equal(t, uint(len(hosts)-1), res.Pending)
+	require.EqualValues(t, len(hosts)-1, res.Pending)
 	require.Equal(t, uint(0), res.Failed)
 	// one host is verifying because the disk is encrypted and we're verifying the key
 	require.Equal(t, uint(1), res.Verifying)
@@ -1989,7 +1989,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	res, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)), res.Pending) // still pending because disk encryption key decryptable is false
+	require.EqualValues(t, len(hosts), res.Pending) // still pending because disk encryption key decryptable is false
 	require.Equal(t, uint(0), res.Failed)
 	require.Equal(t, uint(0), res.Verifying)
 	require.Equal(t, uint(0), res.Verified)
@@ -1999,7 +1999,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	res, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)-1), res.Pending)
+	require.EqualValues(t, len(hosts)-1, res.Pending)
 	require.Equal(t, uint(0), res.Failed)
 	require.Equal(t, uint(1), res.Verifying) // hosts[0] now has filevault fully enforced but not verified
 	require.Equal(t, uint(0), res.Verified)
@@ -2009,7 +2009,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	res, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)-1), res.Pending)
+	require.EqualValues(t, len(hosts)-1, res.Pending)
 	require.Equal(t, uint(0), res.Failed)
 	require.Equal(t, uint(0), res.Verifying)
 	require.Equal(t, uint(1), res.Verified) // hosts[0] now has filevault fully enforced and verified
@@ -2021,7 +2021,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	res, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)-1), res.Pending) // hosts[1] still pending because disk encryption key decryptable is false
+	require.EqualValues(t, len(hosts)-1, res.Pending) // hosts[1] still pending because disk encryption key decryptable is false
 	require.Equal(t, uint(0), res.Failed)
 	require.Equal(t, uint(0), res.Verifying)
 	require.Equal(t, uint(1), res.Verified)
@@ -2031,7 +2031,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	res, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)-2), res.Pending)
+	require.EqualValues(t, len(hosts)-2, res.Pending)
 	require.Equal(t, uint(0), res.Failed)
 	require.Equal(t, uint(1), res.Verifying) // hosts[1] now has filevault fully enforced
 	require.Equal(t, uint(1), res.Verified)
@@ -2202,7 +2202,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	res, err := ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)), res.Pending) // each host only counts once
+	require.EqualValues(t, len(hosts), res.Pending) // each host only counts once
 	require.Equal(t, uint(0), res.Failed)
 	require.Equal(t, uint(0), res.Verifying)
 	require.Equal(t, uint(0), res.Verified)
@@ -2220,7 +2220,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	res, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)), res.Pending) // each host only counts once
+	require.EqualValues(t, len(hosts), res.Pending) // each host only counts once
 	require.Equal(t, uint(0), res.Failed)
 	require.Equal(t, uint(0), res.Verifying)
 	require.Equal(t, uint(0), res.Verified)
@@ -2246,7 +2246,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	res, err = ds.GetMDMAppleProfilesSummary(ctx, nil) // get summary for profiles with no team
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)-2), res.Pending) // two hosts are failing at least one profile (hosts[0] and hosts[1])
+	require.EqualValues(t, len(hosts)-2, res.Pending) // two hosts are failing at least one profile (hosts[0] and hosts[1])
 	require.Equal(t, uint(2), res.Failed)             // only count one failure per host (hosts[0] failed two profiles but only counts once)
 	require.Equal(t, uint(0), res.Verifying)
 	require.Equal(t, uint(0), res.Verified)
@@ -2264,7 +2264,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	res, err = ds.GetMDMAppleProfilesSummary(ctx, nil) // get summary for profiles with no team
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)-2), res.Pending) // no change
+	require.EqualValues(t, len(hosts)-2, res.Pending) // no change
 	require.Equal(t, uint(2), res.Failed)             // no change
 	require.Equal(t, uint(0), res.Verifying)          // no change, host must apply all profiles count as latest
 	require.Equal(t, uint(0), res.Verified)
@@ -2282,11 +2282,12 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, ds.deleteMDMOSCustomSettingsForHost(ctx, tx, hosts[6].UUID, "darwin"))
 	require.NoError(t, tx.Commit())
-	pendingHosts := append(hosts[2:6:6], hosts[7:]...)
+	pendingHosts := hosts[2:6:6]
+	pendingHosts = append(pendingHosts, hosts[7:]...)
 	res, err = ds.GetMDMAppleProfilesSummary(ctx, nil) // get summary for profiles with no team
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)-3), res.Pending) // hosts[6] not reported here anymore
+	require.EqualValues(t, len(hosts)-3, res.Pending) // hosts[6] not reported here anymore
 	require.Equal(t, uint(2), res.Failed)             // no change
 	require.Equal(t, uint(0), res.Verifying)          // no change, host must apply all profiles count as latest
 	require.Equal(t, uint(0), res.Verified)
@@ -2302,11 +2303,12 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	// hosts[9] installed all profiles but one is with status nil (pending)
 	upsertHostCPs(hosts[9:10], noTeamCPs[:9], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
 	upsertHostCPs(hosts[9:10], noTeamCPs[9:10], fleet.MDMOperationTypeInstall, nil, ctx, ds, t)
-	pendingHosts = append(hosts[2:6:6], hosts[7:]...)
+	pendingHosts = hosts[2:6:6]
+	pendingHosts = append(pendingHosts, hosts[7:]...)
 	res, err = ds.GetMDMAppleProfilesSummary(ctx, nil) // get summary for profiles with no team
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)-3), res.Pending) // hosts[6] not reported here anymore, hosts[9] still pending
+	require.EqualValues(t, len(hosts)-3, res.Pending) // hosts[6] not reported here anymore, hosts[9] still pending
 	require.Equal(t, uint(2), res.Failed)             // no change
 	require.Equal(t, uint(0), res.Verifying)          // no change, host must apply all profiles count as latest
 	require.Equal(t, uint(0), res.Verified)
@@ -2321,11 +2323,12 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 
 	// hosts[9] installed all profiles
 	upsertHostCPs(hosts[9:10], noTeamCPs, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
-	pendingHosts = append(hosts[2:6:6], hosts[7:9]...)
+	pendingHosts = hosts[2:6:6]
+	pendingHosts = append(pendingHosts, hosts[7:9]...)
 	res, err = ds.GetMDMAppleProfilesSummary(ctx, nil) // get summary for profiles with no team
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)-4), res.Pending) // subtract hosts[6 and 9] from pending
+	require.EqualValues(t, len(hosts)-4, res.Pending) // subtract hosts[6 and 9] from pending
 	require.Equal(t, uint(2), res.Failed)             // no change
 	require.Equal(t, uint(1), res.Verifying)          // add one host that has installed all profiles
 	require.Equal(t, uint(0), res.Verified)
@@ -2362,8 +2365,9 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	res, err = ds.GetMDMAppleProfilesSummary(ctx, nil) // get summary for profiles with no team
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	pendingHosts = append(hosts[2:6:6], hosts[7:9]...)
-	require.Equal(t, uint(len(hosts)-4), res.Pending) // hosts[9] is still not pending, transferred to team
+	pendingHosts = hosts[2:6:6]
+	pendingHosts = append(pendingHosts, hosts[7:9]...)
+	require.EqualValues(t, len(hosts)-4, res.Pending) // hosts[9] is still not pending, transferred to team
 	require.Equal(t, uint(2), res.Failed)             // no change
 	require.Equal(t, uint(0), res.Verifying)          // hosts[9] was transferred so this is now zero
 	require.True(t, checkListHosts(fleet.OSSettingsPending, nil, pendingHosts))
@@ -2455,8 +2459,9 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	res, err = ds.GetMDMAppleProfilesSummary(ctx, ptr.Uint(0)) // team id zero represents no team
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	pendingHosts = append(hosts[2:6:6], hosts[7:9]...)
-	require.Equal(t, uint(len(hosts)-4), res.Pending) // subtract two failed hosts, one without profiles and hosts[9] transferred
+	pendingHosts = hosts[2:6:6]
+	pendingHosts = append(pendingHosts, hosts[7:9]...)
+	require.EqualValues(t, len(hosts)-4, res.Pending) // subtract two failed hosts, one without profiles and hosts[9] transferred
 	require.Equal(t, uint(2), res.Failed)             // two failed hosts
 	require.Equal(t, uint(0), res.Verifying)          // hosts[9] transferred to new team so is not counted under no team
 	require.Equal(t, uint(0), res.Verified)
@@ -3746,7 +3751,7 @@ func testListMDMAppleSerials(t *testing.T, ds *Datastore) {
 			// ABM assignment was deleted
 			err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID)
 			require.NoError(t, err)
-			err = ds.DeleteHostDEPAssignments(ctx, []string{h.HardwareSerial})
+			err = ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{h.HardwareSerial})
 			require.NoError(t, err)
 		case i == 6:
 			// assigned in ABM, but we don't have a serial
@@ -4619,6 +4624,13 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 		Token:  uuid.New().String(),
 	}, nil)
 	require.NoError(t, err)
+
+	// host has no boostrap package command yet
+	_, err = ds.GetHostBootstrapPackageCommand(ctx, host.UUID)
+	require.Error(t, err)
+	nfe := &notFoundError{}
+	require.ErrorAs(t, err, &nfe)
+
 	err = ds.RecordHostBootstrapPackage(ctx, "command-uuid", host.UUID)
 	require.NoError(t, err)
 	// add a record of the host DEP assignment
@@ -4628,6 +4640,9 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 		ON DUPLICATE KEY UPDATE added_at = CURRENT_TIMESTAMP, deleted_at = NULL
 	`, host.ID)
 	require.NoError(t, err)
+	cmd, err := ds.GetHostBootstrapPackageCommand(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Equal(t, "command-uuid", cmd)
 	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "foo.mdm.example.com", true, "", "")
 	require.NoError(t, err)
 
@@ -4682,7 +4697,7 @@ func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
 			_, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, devices, abmToken.ID, nil, nil, nil)
 			require.NoError(t, err)
 
-			err = ds.DeleteHostDEPAssignments(ctx, tt.in)
+			err = ds.DeleteHostDEPAssignments(ctx, abmToken.ID, tt.in)
 			if tt.err == "" {
 				require.NoError(t, err)
 			} else {
@@ -4922,7 +4937,7 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl2.DeclarationUUID}, nil)
 	require.NoError(t, err)
 	assert.False(t, updates.AppleConfigProfile)
-	assert.True(t, updates.AppleDeclaration)
+	assert.False(t, updates.AppleDeclaration) // This is false because we delete references in `host_mdm_apple_declarations` for declarations that aren't sent to the host
 	assert.False(t, updates.WindowsConfigProfile)
 
 	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, host1.UUID)
@@ -5645,7 +5660,7 @@ func testMDMAppleDEPAssignmentUpdates(t *testing.T, ds *Datastore) {
 	require.Equal(t, h.ID, assignment.HostID)
 	require.Nil(t, assignment.DeletedAt)
 
-	err = ds.DeleteHostDEPAssignments(ctx, []string{h.HardwareSerial})
+	err = ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{h.HardwareSerial})
 	require.NoError(t, err)
 
 	assignment, err = ds.GetHostDEPAssignment(ctx, h.ID)
@@ -6850,7 +6865,8 @@ func testHostMDMCommands(t *testing.T, ds *Datastore) {
 	}
 
 	badHostID := h.ID + 1
-	allCommands := append(hostCommands, fleet.HostMDMCommand{
+	allCommands := hostCommands
+	allCommands = append(allCommands, fleet.HostMDMCommand{
 		HostID:      badHostID,
 		CommandType: "command-1",
 	})
@@ -7211,5 +7227,4 @@ func testMDMManagedCertificates(t *testing.T, ds *Datastore) {
 			badProfileUUID)
 	})
 	require.ErrorIs(t, err, sql.ErrNoRows)
-
 }

@@ -12,7 +12,6 @@ import (
 	"os"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -2233,11 +2232,11 @@ func TestDistributedQueryResults(t *testing.T) {
 
 	lq.On("QueriesForHost", uint(1)).Return(
 		map[string]string{
-			strconv.Itoa(int(campaign.ID)): "select * from time",
+			fmt.Sprint(campaign.ID): "select * from time",
 		},
 		nil,
 	)
-	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(nil)
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(nil)
 
 	// Now we should get the active distributed query
 	queries, discovery, acc, err := svc.GetDistributedQueries(hostCtx)
@@ -2463,7 +2462,7 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 	ds.SaveDistributedQueryCampaignFunc = func(ctx context.Context, campaign *fleet.DistributedQueryCampaign) error {
 		return nil
 	}
-	lq.On("StopQuery", strconv.Itoa(int(campaign.ID))).Return(errors.New("failed"))
+	lq.On("StopQuery", fmt.Sprint(campaign.ID)).Return(errors.New("failed"))
 
 	host := fleet.Host{ID: 1}
 
@@ -2500,7 +2499,7 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 	ds.SaveDistributedQueryCampaignFunc = func(ctx context.Context, campaign *fleet.DistributedQueryCampaign) error {
 		return nil
 	}
-	lq.On("StopQuery", strconv.Itoa(int(campaign.ID))).Return(nil)
+	lq.On("StopQuery", fmt.Sprint(campaign.ID)).Return(nil)
 
 	host := fleet.Host{ID: 1}
 
@@ -2526,7 +2525,7 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 	host := fleet.Host{ID: 1}
 
-	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(errors.New("fail"))
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(errors.New("fail"))
 
 	go func() {
 		ch, err := rs.ReadChannel(context.Background(), *campaign)
@@ -2557,7 +2556,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 	host := fleet.Host{ID: 1}
 
-	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(nil)
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(nil)
 
 	go func() {
 		ch, err := rs.ReadChannel(context.Background(), *campaign)
@@ -3965,7 +3964,58 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			},
 		},
 		{
-			name: "non-ubuntu installed python packages are NOT filtered out",
+			name: "debian dpkg installed python packages are filtered out",
+			host: &fleet.Host{ID: 1, Platform: "debian"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_linux": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_linux": []map[string]string{
+					{
+						"name":    "python3-twisted",
+						"version": "22.4.0-4",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "Twisted", // duplicate of python3-twisted
+						"version": "22.4.0-4",
+						"source":  "python_packages",
+					},
+					// known issue below: names don't match so we don't deduplicate
+					{
+						"name":    "python3-attr", // osquery source column is python-attrs
+						"version": "22.2.0-1",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "Attrs",
+						"version": "22.2.0",
+						"source":  "python_packages",
+					},
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_linux": []map[string]string{
+					{
+						"name":    "python3-twisted",
+						"version": "22.4.0-4",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "python3-attr",
+						"version": "22.2.0-1",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "python3-attrs",
+						"version": "22.2.0",
+						"source":  "python_packages",
+					},
+				},
+			},
+		},
+		{
+			name: "non-ubuntu/debian installed python packages are NOT filtered out",
 			host: &fleet.Host{ID: 1, Platform: "rhel"},
 			statusesIn: map[string]fleet.OsqueryStatus{
 				hostDetailQueryPrefix + "software_linux": fleet.StatusOK,

@@ -823,6 +823,8 @@ type GetMDMAppleBootstrapPackageSummaryFunc func(ctx context.Context, teamID uin
 
 type RecordHostBootstrapPackageFunc func(ctx context.Context, commandUUID string, hostUUID string) error
 
+type GetHostBootstrapPackageCommandFunc func(ctx context.Context, hostUUID string) (string, error)
+
 type CleanupUnusedBootstrapPackagesFunc func(ctx context.Context, pkgStore fleet.MDMBootstrapPackageStore, removeCreatedBefore time.Time) error
 
 type GetHostMDMMacOSSetupFunc func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error)
@@ -851,9 +853,13 @@ type GetMDMAppleDefaultSetupAssistantFunc func(ctx context.Context, teamID *uint
 
 type GetMatchingHostSerialsFunc func(ctx context.Context, serials []string) (map[string]*fleet.Host, error)
 
-type DeleteHostDEPAssignmentsFunc func(ctx context.Context, serials []string) error
+type DeleteHostDEPAssignmentsFromAnotherABMFunc func(ctx context.Context, abmTokenID uint, serials []string) error
 
-type UpdateHostDEPAssignProfileResponsesFunc func(ctx context.Context, resp *godep.ProfileResponse) error
+type DeleteHostDEPAssignmentsFunc func(ctx context.Context, abmTokenID uint, serials []string) error
+
+type UpdateHostDEPAssignProfileResponsesFunc func(ctx context.Context, resp *godep.ProfileResponse, abmTokenID uint) error
+
+type UpdateHostDEPAssignProfileResponsesSameABMFunc func(ctx context.Context, resp *godep.ProfileResponse) error
 
 type ScreenDEPAssignProfileSerialsForCooldownFunc func(ctx context.Context, serials []string) (skipSerialsByOrgName map[string][]string, serialsByOrgName map[string][]string, err error)
 
@@ -1096,6 +1102,32 @@ type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, app
 type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
 
 type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPPTokenDB, error)
+
+type SetSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint, titleIDs []uint) error
+
+type ListSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error)
+
+type SetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string, inSetupExperience bool) error
+
+type GetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string) (bool, error)
+
+type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error)
+
+type UpdateSetupExperienceStatusResultFunc func(ctx context.Context, status *fleet.SetupExperienceStatusResult) error
+
+type EnqueueSetupExperienceItemsFunc func(ctx context.Context, hostUUID string, teamID uint) (bool, error)
+
+type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) (*fleet.Script, error)
+
+type SetSetupExperienceScriptFunc func(ctx context.Context, script *fleet.Script) error
+
+type DeleteSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) error
+
+type MaybeUpdateSetupExperienceScriptStatusFunc func(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error)
+
+type MaybeUpdateSetupExperienceSoftwareInstallStatusFunc func(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error)
+
+type MaybeUpdateSetupExperienceVPPStatusFunc func(ctx context.Context, hostUUID string, commandUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error)
 
 type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
 
@@ -2313,6 +2345,9 @@ type DataStore struct {
 	RecordHostBootstrapPackageFunc        RecordHostBootstrapPackageFunc
 	RecordHostBootstrapPackageFuncInvoked bool
 
+	GetHostBootstrapPackageCommandFunc        GetHostBootstrapPackageCommandFunc
+	GetHostBootstrapPackageCommandFuncInvoked bool
+
 	CleanupUnusedBootstrapPackagesFunc        CleanupUnusedBootstrapPackagesFunc
 	CleanupUnusedBootstrapPackagesFuncInvoked bool
 
@@ -2355,11 +2390,17 @@ type DataStore struct {
 	GetMatchingHostSerialsFunc        GetMatchingHostSerialsFunc
 	GetMatchingHostSerialsFuncInvoked bool
 
+	DeleteHostDEPAssignmentsFromAnotherABMFunc        DeleteHostDEPAssignmentsFromAnotherABMFunc
+	DeleteHostDEPAssignmentsFromAnotherABMFuncInvoked bool
+
 	DeleteHostDEPAssignmentsFunc        DeleteHostDEPAssignmentsFunc
 	DeleteHostDEPAssignmentsFuncInvoked bool
 
 	UpdateHostDEPAssignProfileResponsesFunc        UpdateHostDEPAssignProfileResponsesFunc
 	UpdateHostDEPAssignProfileResponsesFuncInvoked bool
+
+	UpdateHostDEPAssignProfileResponsesSameABMFunc        UpdateHostDEPAssignProfileResponsesSameABMFunc
+	UpdateHostDEPAssignProfileResponsesSameABMFuncInvoked bool
 
 	ScreenDEPAssignProfileSerialsForCooldownFunc        ScreenDEPAssignProfileSerialsForCooldownFunc
 	ScreenDEPAssignProfileSerialsForCooldownFuncInvoked bool
@@ -2723,6 +2764,45 @@ type DataStore struct {
 
 	GetVPPTokenByLocationFunc        GetVPPTokenByLocationFunc
 	GetVPPTokenByLocationFuncInvoked bool
+
+	SetSetupExperienceSoftwareTitlesFunc        SetSetupExperienceSoftwareTitlesFunc
+	SetSetupExperienceSoftwareTitlesFuncInvoked bool
+
+	ListSetupExperienceSoftwareTitlesFunc        ListSetupExperienceSoftwareTitlesFunc
+	ListSetupExperienceSoftwareTitlesFuncInvoked bool
+
+	SetHostAwaitingConfigurationFunc        SetHostAwaitingConfigurationFunc
+	SetHostAwaitingConfigurationFuncInvoked bool
+
+	GetHostAwaitingConfigurationFunc        GetHostAwaitingConfigurationFunc
+	GetHostAwaitingConfigurationFuncInvoked bool
+
+	ListSetupExperienceResultsByHostUUIDFunc        ListSetupExperienceResultsByHostUUIDFunc
+	ListSetupExperienceResultsByHostUUIDFuncInvoked bool
+
+	UpdateSetupExperienceStatusResultFunc        UpdateSetupExperienceStatusResultFunc
+	UpdateSetupExperienceStatusResultFuncInvoked bool
+
+	EnqueueSetupExperienceItemsFunc        EnqueueSetupExperienceItemsFunc
+	EnqueueSetupExperienceItemsFuncInvoked bool
+
+	GetSetupExperienceScriptFunc        GetSetupExperienceScriptFunc
+	GetSetupExperienceScriptFuncInvoked bool
+
+	SetSetupExperienceScriptFunc        SetSetupExperienceScriptFunc
+	SetSetupExperienceScriptFuncInvoked bool
+
+	DeleteSetupExperienceScriptFunc        DeleteSetupExperienceScriptFunc
+	DeleteSetupExperienceScriptFuncInvoked bool
+
+	MaybeUpdateSetupExperienceScriptStatusFunc        MaybeUpdateSetupExperienceScriptStatusFunc
+	MaybeUpdateSetupExperienceScriptStatusFuncInvoked bool
+
+	MaybeUpdateSetupExperienceSoftwareInstallStatusFunc        MaybeUpdateSetupExperienceSoftwareInstallStatusFunc
+	MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked bool
+
+	MaybeUpdateSetupExperienceVPPStatusFunc        MaybeUpdateSetupExperienceVPPStatusFunc
+	MaybeUpdateSetupExperienceVPPStatusFuncInvoked bool
 
 	ListAvailableFleetMaintainedAppsFunc        ListAvailableFleetMaintainedAppsFunc
 	ListAvailableFleetMaintainedAppsFuncInvoked bool
@@ -5552,6 +5632,13 @@ func (s *DataStore) RecordHostBootstrapPackage(ctx context.Context, commandUUID 
 	return s.RecordHostBootstrapPackageFunc(ctx, commandUUID, hostUUID)
 }
 
+func (s *DataStore) GetHostBootstrapPackageCommand(ctx context.Context, hostUUID string) (string, error) {
+	s.mu.Lock()
+	s.GetHostBootstrapPackageCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostBootstrapPackageCommandFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) CleanupUnusedBootstrapPackages(ctx context.Context, pkgStore fleet.MDMBootstrapPackageStore, removeCreatedBefore time.Time) error {
 	s.mu.Lock()
 	s.CleanupUnusedBootstrapPackagesFuncInvoked = true
@@ -5650,18 +5737,32 @@ func (s *DataStore) GetMatchingHostSerials(ctx context.Context, serials []string
 	return s.GetMatchingHostSerialsFunc(ctx, serials)
 }
 
-func (s *DataStore) DeleteHostDEPAssignments(ctx context.Context, serials []string) error {
+func (s *DataStore) DeleteHostDEPAssignmentsFromAnotherABM(ctx context.Context, abmTokenID uint, serials []string) error {
+	s.mu.Lock()
+	s.DeleteHostDEPAssignmentsFromAnotherABMFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostDEPAssignmentsFromAnotherABMFunc(ctx, abmTokenID, serials)
+}
+
+func (s *DataStore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID uint, serials []string) error {
 	s.mu.Lock()
 	s.DeleteHostDEPAssignmentsFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteHostDEPAssignmentsFunc(ctx, serials)
+	return s.DeleteHostDEPAssignmentsFunc(ctx, abmTokenID, serials)
 }
 
-func (s *DataStore) UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse) error {
+func (s *DataStore) UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse, abmTokenID uint) error {
 	s.mu.Lock()
 	s.UpdateHostDEPAssignProfileResponsesFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateHostDEPAssignProfileResponsesFunc(ctx, resp)
+	return s.UpdateHostDEPAssignProfileResponsesFunc(ctx, resp, abmTokenID)
+}
+
+func (s *DataStore) UpdateHostDEPAssignProfileResponsesSameABM(ctx context.Context, resp *godep.ProfileResponse) error {
+	s.mu.Lock()
+	s.UpdateHostDEPAssignProfileResponsesSameABMFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostDEPAssignProfileResponsesSameABMFunc(ctx, resp)
 }
 
 func (s *DataStore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerialsByOrgName map[string][]string, serialsByOrgName map[string][]string, err error) {
@@ -6509,6 +6610,97 @@ func (s *DataStore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fle
 	s.GetVPPTokenByLocationFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetVPPTokenByLocationFunc(ctx, loc)
+}
+
+func (s *DataStore) SetSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, titleIDs []uint) error {
+	s.mu.Lock()
+	s.SetSetupExperienceSoftwareTitlesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetSetupExperienceSoftwareTitlesFunc(ctx, teamID, titleIDs)
+}
+
+func (s *DataStore) ListSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListSetupExperienceSoftwareTitlesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSetupExperienceSoftwareTitlesFunc(ctx, teamID, opts)
+}
+
+func (s *DataStore) SetHostAwaitingConfiguration(ctx context.Context, hostUUID string, inSetupExperience bool) error {
+	s.mu.Lock()
+	s.SetHostAwaitingConfigurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostAwaitingConfigurationFunc(ctx, hostUUID, inSetupExperience)
+}
+
+func (s *DataStore) GetHostAwaitingConfiguration(ctx context.Context, hostUUID string) (bool, error) {
+	s.mu.Lock()
+	s.GetHostAwaitingConfigurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostAwaitingConfigurationFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+	s.mu.Lock()
+	s.ListSetupExperienceResultsByHostUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSetupExperienceResultsByHostUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) UpdateSetupExperienceStatusResult(ctx context.Context, status *fleet.SetupExperienceStatusResult) error {
+	s.mu.Lock()
+	s.UpdateSetupExperienceStatusResultFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateSetupExperienceStatusResultFunc(ctx, status)
+}
+
+func (s *DataStore) EnqueueSetupExperienceItems(ctx context.Context, hostUUID string, teamID uint) (bool, error) {
+	s.mu.Lock()
+	s.EnqueueSetupExperienceItemsFuncInvoked = true
+	s.mu.Unlock()
+	return s.EnqueueSetupExperienceItemsFunc(ctx, hostUUID, teamID)
+}
+
+func (s *DataStore) GetSetupExperienceScript(ctx context.Context, teamID *uint) (*fleet.Script, error) {
+	s.mu.Lock()
+	s.GetSetupExperienceScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSetupExperienceScriptFunc(ctx, teamID)
+}
+
+func (s *DataStore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) error {
+	s.mu.Lock()
+	s.SetSetupExperienceScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetSetupExperienceScriptFunc(ctx, script)
+}
+
+func (s *DataStore) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {
+	s.mu.Lock()
+	s.DeleteSetupExperienceScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteSetupExperienceScriptFunc(ctx, teamID)
+}
+
+func (s *DataStore) MaybeUpdateSetupExperienceScriptStatus(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+	s.mu.Lock()
+	s.MaybeUpdateSetupExperienceScriptStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.MaybeUpdateSetupExperienceScriptStatusFunc(ctx, hostUUID, executionID, status)
+}
+
+func (s *DataStore) MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+	s.mu.Lock()
+	s.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.MaybeUpdateSetupExperienceSoftwareInstallStatusFunc(ctx, hostUUID, executionID, status)
+}
+
+func (s *DataStore) MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hostUUID string, commandUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+	s.mu.Lock()
+	s.MaybeUpdateSetupExperienceVPPStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.MaybeUpdateSetupExperienceVPPStatusFunc(ctx, hostUUID, commandUUID, status)
 }
 
 func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {

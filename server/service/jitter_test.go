@@ -17,7 +17,7 @@ func TestJitterForHost(t *testing.T) {
 	for i := 0; i < hostCount; i++ {
 		hostID, err := crand.Int(crand.Reader, big.NewInt(10000))
 		require.NoError(t, err)
-		jitter := jh.jitterForHost(uint(hostID.Int64() + 10000))
+		jitter := jh.jitterForHost(uint(hostID.Int64() + 10000)) //nolint:gosec // dismiss G115
 		jitterMinutes := int64(jitter.Minutes())
 		histogram[jitterMinutes]++
 	}
@@ -45,7 +45,7 @@ func TestNoJitter(t *testing.T) {
 	for i := 0; i < hostCount; i++ {
 		hostID, err := crand.Int(crand.Reader, big.NewInt(10000))
 		require.NoError(t, err)
-		jitter := jh.jitterForHost(uint(hostID.Int64() + 10000))
+		jitter := jh.jitterForHost(uint(hostID.Int64() + 10000)) //nolint:gosec // dismiss G115
 		jitterMinutes := int64(jitter.Minutes())
 		require.Equal(t, int64(0), jitterMinutes)
 	}

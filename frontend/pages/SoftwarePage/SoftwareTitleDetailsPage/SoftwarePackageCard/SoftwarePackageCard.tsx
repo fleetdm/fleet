@@ -16,10 +16,9 @@ import { buildQueryStringFromParams } from "utilities/url";
 import { internationalTimeFormat } from "utilities/helpers";
 import { uploadedFromNow } from "utilities/date_format";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
 import Card from "components/Card";
 import Graphic from "components/Graphic";
+import ActionsDropdown from "components/ActionsDropdown";
 import TooltipWrapper from "components/TooltipWrapper";
 import DataSet from "components/DataSet";
 import Icon from "components/Icon";
@@ -183,7 +182,7 @@ interface IActionsDropdownProps {
   onEditSoftwareClick: () => void;
 }
 
-const ActionsDropdown = ({
+const SoftwareActionsDropdown = ({
   isSoftwarePackage,
   onDownloadClick,
   onDeleteClick,
@@ -207,16 +206,17 @@ const ActionsDropdown = ({
 
   return (
     <div className={`${baseClass}__actions`}>
-      <Dropdown
+      <ActionsDropdown
         className={`${baseClass}__host-actions-dropdown`}
         onChange={onSelect}
         placeholder="Actions"
-        searchable={false}
+        isSearchable={false}
         options={
           isSoftwarePackage
-            ? SOFTWARE_PACKAGE_DROPDOWN_OPTIONS
-            : APP_STORE_APP_DROPDOWN_OPTIONS
+            ? [...SOFTWARE_PACKAGE_DROPDOWN_OPTIONS]
+            : [...APP_STORE_APP_DROPDOWN_OPTIONS]
         }
+        menuAlign="right"
       />
     </div>
   );
@@ -353,7 +353,7 @@ const SoftwarePackageCard = ({
             </div>
           )}
           {showActions && (
-            <ActionsDropdown
+            <SoftwareActionsDropdown
               isSoftwarePackage={!!softwarePackage}
               onDownloadClick={onDownloadClick}
               onDeleteClick={onDeleteClick}
@@ -395,6 +395,7 @@ const SoftwarePackageCard = ({
       {showDeleteModal && (
         <DeleteSoftwareModal
           softwareId={softwareId}
+          softwarePackageName={softwarePackage?.name}
           teamId={teamId}
           onExit={() => setShowDeleteModal(false)}
           onSuccess={onDeleteSuccess}

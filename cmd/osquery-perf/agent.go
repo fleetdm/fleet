@@ -1285,7 +1285,7 @@ func (a *agent) installSoftwareItem(installerID string, orbitClient *service.Orb
 	failed := false
 	if installer.PreInstallCondition != "" {
 		time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
-		if installer.PreInstallCondition == "select 1" {
+		if installer.PreInstallCondition == "select 1" { //nolint:gocritic // ignore ifElseChain
 			// Always pass
 			payload.PreInstallConditionOutput = ptr.String("1")
 		} else if installer.PreInstallCondition == "select 0" ||
@@ -1317,7 +1317,7 @@ func (a *agent) installSoftwareItem(installerID string, orbitClient *service.Orb
 		}
 
 		time.Sleep(time.Duration(rand.Intn(30)) * time.Second)
-		if installer.InstallScript == "exit 0" {
+		if installer.InstallScript == "exit 0" { //nolint:gocritic // ignore ifElseChain
 			// Always pass
 			payload.InstallScriptExitCode = ptr.Int(0)
 			payload.InstallScriptOutput = ptr.String("Installed on osquery-perf (always pass)")
@@ -1364,7 +1364,7 @@ func (a *agent) installSoftwareItem(installerID string, orbitClient *service.Orb
 
 		if installer.PostInstallScript != "" {
 			time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
-			if installer.PostInstallScript == "exit 0" {
+			if installer.PostInstallScript == "exit 0" { //nolint:gocritic // ignore ifElseChain
 				// Always pass
 				payload.PostInstallScriptExitCode = ptr.Int(0)
 				payload.PostInstallScriptOutput = ptr.String("PostInstall on osquery-perf (always pass)")
@@ -1602,7 +1602,8 @@ func (a *agent) hostUsers() []map[string]string {
 			"shell":     shells[i%len(shells)],
 		}
 	}
-	users := append(commonUsers, uniqueUsers...)
+	users := commonUsers
+	users = append(users, uniqueUsers...)
 	rand.Shuffle(len(users), func(i, j int) {
 		users[i], users[j] = users[j], users[i]
 	})
@@ -1669,7 +1670,8 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"installed_path":    fmt.Sprintf("/some/path/%s", sw.Name),
 		}
 	}
-	software := append(commonSoftware, uniqueSoftware...)
+	software := commonSoftware
+	software = append(software, uniqueSoftware...)
 	software = append(software, randomVulnerableSoftware...)
 	a.installedSoftware.Range(func(key, value interface{}) bool {
 		software = append(software, value.(map[string]string))
@@ -1712,7 +1714,8 @@ func (a *mdmAgent) softwareIOSandIPadOS(source string) []fleet.Software {
 		})
 		uniqueSoftware = uniqueSoftware[:a.softwareCount.unique-a.softwareCount.uniqueSoftwareUninstallCount]
 	}
-	software := append(commonSoftware, uniqueSoftware...)
+	software := commonSoftware
+	software = append(software, uniqueSoftware...)
 	rand.Shuffle(len(software), func(i, j int) {
 		software[i], software[j] = software[j], software[i]
 	})
@@ -1766,7 +1769,8 @@ func (a *agent) softwareVSCodeExtensions() []map[string]string {
 			"source":  vsCodeExtension.Source,
 		})
 	}
-	software := append(commonVSCodeExtensionsSoftware, uniqueVSCodeExtensionsSoftware...)
+	software := commonVSCodeExtensionsSoftware
+	software = append(software, uniqueVSCodeExtensionsSoftware...)
 	software = append(software, vulnerableVSCodeExtensionsSoftware...)
 	rand.Shuffle(len(software), func(i, j int) {
 		software[i], software[j] = software[j], software[i]
@@ -2181,7 +2185,7 @@ func (a *agent) processQuery(name, query string) (
 			ss = fleet.OsqueryStatus(1)
 		}
 		if ss == fleet.StatusOK {
-			switch a.os {
+			switch a.os { //nolint:gocritic // ignore singleCaseSwitch
 			case "ubuntu":
 				results = ubuntuSoftware
 				a.installedSoftware.Range(func(key, value interface{}) bool {
@@ -2562,7 +2566,8 @@ func main() {
 
 		disableFleetDesktop = flag.Bool("disable_fleet_desktop", false, "Disable Fleet Desktop")
 		// logger_tls_max_lines is simulating the osquery setting with the same name.
-		loggerTLSMaxLines = flag.Int("", 1024, "Maximum number of buffered result log lines to send on every log request")
+		loggerTLSMaxLines = flag.Int("logger_tls_max_lines", 1024,
+			"Maximum number of buffered result log lines to send on every log request")
 	)
 
 	flag.Parse()
@@ -2638,7 +2643,7 @@ func main() {
 			for tmpl_, hostCount := range tmplsm {
 				if hostCount > 0 {
 					tmpl = tmpl_
-					tmplsm[tmpl_] = tmplsm[tmpl_] - 1
+					tmplsm[tmpl_]--
 					break
 				}
 			}

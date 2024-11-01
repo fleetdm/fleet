@@ -395,11 +395,11 @@ func (s S3Config) CarvesToInternalCfg() S3ConfigInternal {
 		internal.StsExternalID = s.StsExternalID
 	}
 	internal.DisableSSL = s.CarvesDisableSSL
-	if s.CarvesDisableSSL == false {
+	if !s.CarvesDisableSSL {
 		internal.DisableSSL = s.DisableSSL
 	}
 	internal.ForceS3PathStyle = s.CarvesForceS3PathStyle
-	if s.CarvesForceS3PathStyle == false {
+	if !s.CarvesForceS3PathStyle {
 		internal.ForceS3PathStyle = s.ForceS3PathStyle
 	}
 
@@ -1657,12 +1657,12 @@ func (man Manager) IsSet(key string) bool {
 // envNameFromConfigKey converts a config key into the corresponding
 // environment variable name
 func envNameFromConfigKey(key string) string {
-	return envPrefix + "_" + strings.ToUpper(strings.Replace(key, ".", "_", -1))
+	return envPrefix + "_" + strings.ToUpper(strings.ReplaceAll(key, ".", "_"))
 }
 
 // flagNameFromConfigKey converts a config key into the corresponding flag name
 func flagNameFromConfigKey(key string) string {
-	return strings.Replace(key, ".", "_", -1)
+	return strings.ReplaceAll(key, ".", "_")
 }
 
 // Manager manages the addition and retrieval of config values for Fleet

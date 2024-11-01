@@ -166,7 +166,7 @@ func main() {
 			depsync.WithCallback(callback),
 		}
 		if *flDur > 0 {
-			syncerOpts = append(syncerOpts, depsync.WithDuration(time.Duration(*flDur)*time.Second))
+			syncerOpts = append(syncerOpts, depsync.WithDuration(time.Duration(*flDur)*time.Second)) //nolint:gosec // ignore G115
 		}
 		if *flLimit > 0 {
 			syncerOpts = append(syncerOpts, depsync.WithLimit(*flLimit))

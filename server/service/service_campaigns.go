@@ -388,11 +388,11 @@ func (svc Service) updateStats(
 			} else {
 				// Combine old and new stats.
 				stats.AverageMemory = (stats.AverageMemory*stats.Executions + gatheredStats.Memory) / (stats.Executions + 1)
-				stats.Executions = stats.Executions + 1
-				stats.SystemTime = stats.SystemTime + gatheredStats.SystemTime
-				stats.UserTime = stats.UserTime + gatheredStats.UserTime
-				stats.WallTime = stats.WallTime + gatheredStats.WallTimeMs
-				stats.OutputSize = stats.OutputSize + gatheredStats.outputSize
+				stats.Executions++
+				stats.SystemTime += gatheredStats.SystemTime
+				stats.UserTime += gatheredStats.UserTime
+				stats.WallTime += gatheredStats.WallTimeMs
+				stats.OutputSize += gatheredStats.outputSize
 				stats.LastExecuted = lastExecuted
 			}
 		}
@@ -465,5 +465,4 @@ func (svc Service) updateStats(
 		}
 		tracker.aggregationNeeded = false
 	}
-	return
 }

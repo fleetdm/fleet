@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -162,7 +161,7 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 		return nil, ctxerr.Wrap(ctx, err, "counting hosts")
 	}
 
-	err = svc.liveQueryStore.RunQuery(strconv.Itoa(int(campaign.ID)), queryString, hostIDs)
+	err = svc.liveQueryStore.RunQuery(fmt.Sprint(campaign.ID), queryString, hostIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "run query")
 	}

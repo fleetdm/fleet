@@ -245,7 +245,7 @@ func (ds *Datastore) NewQuery(
 	}
 
 	id, _ := result.LastInsertId()
-	query.ID = uint(id)
+	query.ID = uint(id) //nolint:gosec // dismiss G115
 	query.Packs = []fleet.Pack{}
 	return query, nil
 }

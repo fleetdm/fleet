@@ -163,7 +163,7 @@ func TestDebugCheckAPIEndpoint(t *testing.T) {
 	cli, base, err := rawHTTPClientFromConfig(Context{Address: srv.URL, TLSSkipVerify: true})
 	require.NoError(t, err)
 	for i, c := range cases {
-		atomic.StoreInt32(&callCount, int32(i))
+		atomic.StoreInt32(&callCount, int32(i)) //nolint:gosec // dismiss G115
 		t.Run(fmt.Sprint(c.code), func(t *testing.T) {
 			err := checkAPIEndpoint(context.Background(), timeout, base, cli)
 			if c.errContains == "" {

@@ -356,7 +356,7 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 		require.NotZero(t, endTime)
 
 		eventsMu.Lock()
-		calendarEventID := uint(len(calendarEvents) + 1)
+		calendarEventID := uint(len(calendarEvents) + 1) //nolint:gosec // dismiss G115
 		calendarEvents[email] = &fleet.CalendarEvent{
 			ID:        calendarEventID,
 			Email:     email,
@@ -364,7 +364,7 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 			EndTime:   endTime,
 			Data:      data,
 		}
-		hostCalendarEventID := uint(len(hostCalendarEvents) + 1)
+		hostCalendarEventID := uint(len(hostCalendarEvents) + 1) //nolint:gosec // dismiss G115
 		hostCalendarEvents[hostID] = &fleet.HostCalendarEvent{
 			ID:              hostCalendarEventID,
 			HostID:          hostID,
@@ -572,7 +572,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 		newHost := fleet.HostPolicyMembershipData{
 			Email:              fmt.Sprintf("user%d@example.com", i),
 			Passing:            i%2 == 0,
-			HostID:             uint(i),
+			HostID:             uint(i), //nolint:gosec // dismiss G115
 			HostDisplayName:    fmt.Sprintf("display_name%d", i),
 			HostHardwareSerial: fmt.Sprintf("serial%d", i),
 		}
@@ -680,7 +680,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 		hosts = append(hosts, fleet.HostPolicyMembershipData{
 			Email:              fmt.Sprintf("user%d@example.com", i),
 			Passing:            true,
-			HostID:             uint(i),
+			HostID:             uint(i), //nolint:gosec // dismiss G115
 			HostDisplayName:    fmt.Sprintf("display_name%d", i),
 			HostHardwareSerial: fmt.Sprintf("serial%d", i),
 		})
@@ -692,13 +692,13 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 		if hostID%2 == 0 {
 			return nil, nil, notFoundErr{}
 		}
-		require.Contains(t, eventPerHost, uint(hostID))
+		require.Contains(t, eventPerHost, uint(hostID)) //nolint:gosec // dismiss G115
 		return &fleet.HostCalendarEvent{
-			ID:              uint(hostID),
-			HostID:          uint(hostID),
-			CalendarEventID: uint(hostID),
+			ID:              uint(hostID), //nolint:gosec // dismiss G115
+			HostID:          uint(hostID), //nolint:gosec // dismiss G115
+			CalendarEventID: uint(hostID), //nolint:gosec // dismiss G115
 			WebhookStatus:   fleet.CalendarWebhookStatusNone,
-		}, eventPerHost[uint(hostID)], nil
+		}, eventPerHost[uint(hostID)], nil //nolint:gosec // dismiss G115
 	}
 
 	ds.DeleteCalendarEventFunc = func(ctx context.Context, calendarEventID uint) error {
@@ -935,7 +935,7 @@ func TestEventBody(t *testing.T) {
 		require.NotZero(t, endTime)
 
 		eventsMu.Lock()
-		calendarEventID := uint(len(calendarEvents) + 1)
+		calendarEventID := uint(len(calendarEvents) + 1) //nolint:gosec // dismiss G115
 		calendarEvents[hostID] = &fleet.CalendarEvent{
 			ID:        calendarEventID,
 			Email:     email,
@@ -943,7 +943,7 @@ func TestEventBody(t *testing.T) {
 			EndTime:   endTime,
 			Data:      data,
 		}
-		hostCalendarEventID := uint(len(hostCalendarEvents) + 1)
+		hostCalendarEventID := uint(len(hostCalendarEvents) + 1) //nolint:gosec // dismiss G115
 		hostCalendarEvents[hostID] = &fleet.HostCalendarEvent{
 			ID:              hostCalendarEventID,
 			HostID:          hostID,

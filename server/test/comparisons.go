@@ -23,11 +23,8 @@ func ElementsMatchSkipID(t TestingT, listA, listB interface{}, msgAndArgs ...int
 
 	opt := cmp.FilterPath(func(p cmp.Path) bool {
 		for _, ps := range p {
-			switch ps := ps.(type) {
-			case cmp.StructField:
-				if strings.HasSuffix(ps.Name(), "ID") {
-					return true
-				}
+			if ps, ok := ps.(cmp.StructField); ok && strings.HasSuffix(ps.Name(), "ID") {
+				return true
 			}
 		}
 		return false
@@ -42,11 +39,8 @@ func ElementsMatchSkipIDAndHostCount(t TestingT, listA, listB interface{}, msgAn
 
 	opt := cmp.FilterPath(func(p cmp.Path) bool {
 		for _, ps := range p {
-			switch ps := ps.(type) {
-			case cmp.StructField:
-				if ps.Name() == "ID" || ps.Name() == "HostCount" {
-					return true
-				}
+			if ps, ok := ps.(cmp.StructField); ok && (ps.Name() == "ID" || ps.Name() == "HostCount") {
+				return true
 			}
 		}
 		return false
@@ -61,9 +55,8 @@ func ElementsMatchSkipTimestampsID(t TestingT, listA, listB interface{}, msgAndA
 
 	opt := cmp.FilterPath(func(p cmp.Path) bool {
 		for _, ps := range p {
-			switch ps := ps.(type) {
-			case cmp.StructField:
-				switch ps.Name() {
+			if ps, ok := ps.(cmp.StructField); ok {
+				switch ps.Name() { //nolint:gocritic // ignore singleCaseSwitch
 				case "ID", "UpdateCreateTimestamps", "CreateTimestamp", "UpdateTimestamp", "CreatedAt", "UpdatedAt":
 					return true
 				}
@@ -82,9 +75,8 @@ func EqualSkipTimestampsID(t TestingT, a, b interface{}, msgAndArgs ...interface
 
 	opt := cmp.FilterPath(func(p cmp.Path) bool {
 		for _, ps := range p {
-			switch ps := ps.(type) {
-			case cmp.StructField:
-				switch ps.Name() {
+			if ps, ok := ps.(cmp.StructField); ok {
+				switch ps.Name() { //nolint:gocritic // ignore singleCaseSwitch
 				case "ID", "UpdateCreateTimestamps", "CreateTimestamp", "UpdateTimestamp", "CreatedAt", "UpdatedAt":
 					return true
 				}
@@ -237,9 +229,8 @@ func QueryElementsMatch(t TestingT, listA, listB interface{}, msgAndArgs ...inte
 
 	opt := cmp.FilterPath(func(p cmp.Path) bool {
 		for _, ps := range p {
-			switch ps := ps.(type) {
-			case cmp.StructField:
-				switch ps.Name() {
+			if ps, ok := ps.(cmp.StructField); ok {
+				switch ps.Name() { //nolint:gocritic // ignore singleCaseSwitch
 				case "ID",
 					"UpdateCreateTimestamps",
 					"AuthorID",
@@ -262,9 +253,8 @@ func QueriesMatch(t TestingT, a, b interface{}, msgAndArgs ...interface{}) (ok b
 
 	opt := cmp.FilterPath(func(p cmp.Path) bool {
 		for _, ps := range p {
-			switch ps := ps.(type) {
-			case cmp.StructField:
-				switch ps.Name() {
+			if ps, ok := ps.(cmp.StructField); ok {
+				switch ps.Name() { //nolint:gocritic // ignore singleCaseSwitch
 				case "ID",
 					"UpdateCreateTimestamps",
 					"AuthorID",

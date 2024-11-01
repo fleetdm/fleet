@@ -955,7 +955,7 @@ func getMDMProfilesSummaryEndpoint(ctx context.Context, request interface{}, svc
 func (svc *Service) authorizeAllHostsTeams(ctx context.Context, hostUUIDs []string, authzAction any, authorizer fleet.TeamIDSetter) ([]*fleet.Host, error) {
 	// load hosts (lite) by uuids, check that the user has the rights to run
 	// commands for every affected team.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
 		return nil, err
 	}
 
@@ -1111,7 +1111,7 @@ func deleteMDMConfigProfileEndpoint(ctx context.Context, request interface{}, sv
 	req := request.(*deleteMDMConfigProfileRequest)
 
 	var err error
-	if isAppleProfileUUID(req.ProfileUUID) {
+	if isAppleProfileUUID(req.ProfileUUID) { //nolint:gocritic // ignore ifElseChain
 		err = svc.DeleteMDMAppleConfigProfile(ctx, req.ProfileUUID)
 	} else if isAppleDeclarationUUID(req.ProfileUUID) {
 		// TODO: we could potentially combined with the other service methods
@@ -1233,7 +1233,7 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = uint(teamID)
+		decoded.TeamID = uint(teamID) //nolint:gosec // dismiss G115
 	}
 
 	// add profile
@@ -1678,7 +1678,8 @@ func (svc *Service) BatchSetMDMProfiles(
 }
 
 func validateFleetVariables(ctx context.Context, appleProfiles []*fleet.MDMAppleConfigProfile,
-	windowsProfiles []*fleet.MDMWindowsConfigProfile, appleDecls []*fleet.MDMAppleDeclaration) error {
+	windowsProfiles []*fleet.MDMWindowsConfigProfile, appleDecls []*fleet.MDMAppleDeclaration,
+) error {
 	var err error
 	for _, p := range appleProfiles {
 		err = validateConfigProfileFleetVariables(string(p.Mobileconfig))

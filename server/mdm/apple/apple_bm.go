@@ -24,13 +24,14 @@ func SetABMTokenMetadata(
 	depStorage storage.AllDEPStorage,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
+	renewal bool,
 ) error {
 	decryptedToken, err := assets.ABMToken(ctx, ds, abmToken.OrganizationName)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting ABM token")
 	}
 
-	return SetDecryptedABMTokenMetadata(ctx, abmToken, decryptedToken, depStorage, ds, logger)
+	return SetDecryptedABMTokenMetadata(ctx, abmToken, decryptedToken, depStorage, ds, logger, renewal)
 }
 
 const UnsavedABMTokenOrgName = "new_abm_token" //nolint:gosec
@@ -42,6 +43,7 @@ func SetDecryptedABMTokenMetadata(
 	depStorage storage.AllDEPStorage,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
+	renewal bool,
 ) error {
 	depClient := NewDEPClient(depStorage, ds, logger)
 
@@ -54,6 +56,11 @@ func SetDecryptedABMTokenMetadata(
 		ctx = abmctx.NewContext(ctx, decryptedToken)
 		// We don't have an org name, but the depClient expects an org name, so we set this fake one.
 		orgName = UnsavedABMTokenOrgName
+	}
+
+	if renewal {
+		// If we're renewing the token, we need to ensure the new token included in the context.
+		ctx = abmctx.NewContext(ctx, decryptedToken)
 	}
 
 	res, err := depClient.AccountDetail(ctx, orgName)

@@ -85,7 +85,7 @@ func nullIntToPtrUint(v *null.Int) *uint {
 	if v == nil {
 		return nil
 	}
-	return ptr.Uint(uint(v.ValueOrZero()))
+	return ptr.Uint(uint(v.ValueOrZero())) //nolint:gosec // dismiss G115
 }
 
 func teamScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {

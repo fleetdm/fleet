@@ -156,6 +156,26 @@ This is the content of the PEM-encoded private key for the Apple Business Manage
       -----END RSA PRIVATE KEY-----
   ```
 
+##### license.enforce_host_limit
+
+Whether Fleet should enforce the host limit of the license, if true, attempting to enroll new hosts when the limit is reached will fail.
+
+- Default value: `false`
+- Environment variable: `FLEET_LICENSE_ENFORCE_HOST_LIMIT`
+- Config file format:
+  ```yaml
+  license:
+    enforce_host_limit: true
+  ```
+
+##### Example YAML
+
+```yaml
+license:
+  key: foobar
+  enforce_host_limit: false
+```
+
 ## Environment variables
 
 ### FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS

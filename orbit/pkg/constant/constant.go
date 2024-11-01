@@ -26,10 +26,6 @@ const (
 	OrbitEnrollBackoffMultiplier = 2
 	// OrbitEnrollRetrySleep is the duration to sleep between enroll retries.
 	OrbitEnrollRetrySleep = 10 * time.Second
-	// OsquerydName is the name of osqueryd binary
-	// We use osqueryd as name to properly identify the process when listing
-	// running processes/tasks.
-	OsquerydName = "osqueryd"
 	// OsqueryPidfile is the file containing the PID of the running osqueryd process
 	OsqueryPidfile = "osquery.pid"
 	// OsqueryEnrollSecretFileName is the filename on disk where we write
@@ -68,4 +64,11 @@ const (
 	// the presence of the migration file.
 	MDMMigrationOfflineWatcherInterval = 3 * time.Minute
 	SonomaMajorVersion                 = 14
+
+	// OrbitTUFTargetName is the target name of the orbit component of fleetd in TUF.
+	OrbitTUFTargetName = "orbit"
+	// OsqueryTUFTargetName is the target name of the osquery component of fleetd in TUF.
+	OsqueryTUFTargetName = "osqueryd"
+	// DesktopTUFTargetName is the target name of the Fleet Desktop component of fleetd in TUF.
+	DesktopTUFTargetName = "desktop"
 )

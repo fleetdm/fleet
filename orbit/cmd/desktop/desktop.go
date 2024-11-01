@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
+	"syscall"
 	"time"
 
 	"fyne.io/systray"
@@ -438,16 +440,35 @@ func main() {
 	// FIXME: it doesn't look like this is actually triggering, at least when desktop gets
 	// killed (https://github.com/fleetdm/fleet/issues/21256)
 	onExit := func() {
-		log.Info().Msg("exit")
+		log.Info().Msg("exiting")
 		if mdmMigrator != nil {
+			log.Debug().Err(err).Msg("exiting mdmMigrator")
 			mdmMigrator.Exit()
 		}
 		if swiftDialogCh != nil {
+			log.Debug().Err(err).Msg("exiting swiftDialogCh")
 			close(swiftDialogCh)
 		}
+		log.Debug().Msg("stopping ticker")
 		summaryTicker.Stop()
+		log.Debug().Msg("canceling offline watcher ctx")
 		cancelOfflineWatcherCtx()
 	}
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(
+		sigChan,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
+
+	// Catch signals and exit gracefully
+	go func() {
+		s := <-sigChan
+		log.Info().Stringer("signal", s).Msg("Caught signal, exiting")
+		systray.Quit()
+	}()
 
 	systray.Run(onReady, onExit)
 }
@@ -464,7 +485,7 @@ func refreshMenuItems(sum fleet.DesktopSummary, selfServiceItem *systray.MenuIte
 
 	failingPolicies := 0
 	if sum.FailingPolicies != nil {
-		failingPolicies = int(*sum.FailingPolicies)
+		failingPolicies = int(*sum.FailingPolicies) //nolint:gosec // dismiss G115
 	}
 
 	if failingPolicies > 0 {

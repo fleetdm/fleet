@@ -286,7 +286,7 @@ func main() {
 	host.NodeKey = "macos-seed-host"
 	macosID, err := insertOrUpdateHost(db, host)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err) //nolint:gocritic // ignore exitAfterDefer
 	}
 
 	// windows Host

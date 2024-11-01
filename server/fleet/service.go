@@ -35,6 +35,7 @@ type EnterpriseOverrides struct {
 	MDMWindowsEnableOSUpdates         func(ctx context.Context, teamID *uint, updates WindowsUpdates) error
 	MDMWindowsDisableOSUpdates        func(ctx context.Context, teamID *uint) error
 	MDMAppleEditedAppleOSUpdates      func(ctx context.Context, teamID *uint, appleDevice AppleDevice, updates AppleOSUpdateSettings) error
+	SetupExperienceNextStep           func(ctx context.Context, hostUUID string) (bool, error)
 }
 
 type OsqueryService interface {
@@ -1119,6 +1120,24 @@ type Service interface {
 	DownloadSoftwareInstaller(ctx context.Context, skipAuthz bool, alt string, titleID uint,
 		teamID *uint) (*DownloadSoftwareInstallerPayload, error)
 	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
+
+	////////////////////////////////////////////////////////////////////////////////
+	// Setup Experience
+
+	SetSetupExperienceSoftware(ctx context.Context, teamID uint, titleIDs []uint) error
+	ListSetupExperienceSoftware(ctx context.Context, teamID uint, opts ListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
+	// GetOrbitSetupExperienceStatus gets the current status of a macOS setup experience for the given host.
+	GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*SetupExperienceStatusPayload, error)
+	// GetSetupExperienceScript gets the current setup experience script for the given team.
+	GetSetupExperienceScript(ctx context.Context, teamID *uint, downloadRequested bool) (*Script, []byte, error)
+	// SetSetupExperienceScript sets the setup experience script for the given team.
+	SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error
+	// DeleteSetupExperienceScript deletes the setup experience script for the given team.
+	DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error
+	// SetupExperienceNextStep is a callback that processes the
+	// setup experience status results table and enqueues the next
+	// step. It returns true when there is nothing left to do (setup finished)
+	SetupExperienceNextStep(ctx context.Context, hostUUID string) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Fleet-maintained apps
