@@ -3241,6 +3241,7 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	var listQryResp listQueriesResponse
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp)
 	assert.Len(t, listQryResp.Queries, 0)
+	assert.Equal(t, listQryResp.Count, 0)
 
 	// create a query
 	var createQueryResp createQueryResponse
@@ -3275,9 +3276,11 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	require.Len(t, listQryResp.Queries, 1)
 	assert.Equal(t, query.Name, listQryResp.Queries[0].Name)
 
-	// next page returns nothing
+	// next page returns nothing, count and meta are correct
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "per_page", "2", "page", "1")
 	require.Len(t, listQryResp.Queries, 0)
+	require.Equal(t, listQryResp.Count, 1)
+	require.True(t, listQryResp.Meta.HasPreviousResults)
 
 	// getting that query works
 	var getQryResp getQueryResponse
@@ -3419,6 +3422,78 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 		"ids": []uint{query.ID, query2.ID, query3.ID},
 	}, http.StatusNotFound, &delBatchResp)
 	assert.Equal(t, uint(0), delBatchResp.Deleted)
+}
+
+func (s *integrationTestSuite) TestQueriesPagination() {
+	t := s.T()
+
+	// make a few queries
+	testQueries := []*fleet.Query{
+		{Name: "paginationTestQuery1", Query: "select 1"},
+		{Name: "paginationTestQuery2", Query: "select 2"},
+		{Name: "paginationTestQuery3", Query: "select 3"},
+		{Name: "paginationTestQuery4", Query: "select 4"},
+		{Name: "paginationTestQuery5", Query: "select 5"},
+		{Name: "paginationTestQuery6", Query: "select 6"},
+		{Name: "paginationTestQuery7", Query: "select 7"},
+		{Name: "paginationTestQuery8", Query: "select 8"},
+		{Name: "paginationTestQuery9", Query: "select 9"},
+		{Name: "paginationTestQuery10", Query: "select 10"},
+	}
+	var createQueryResp createQueryResponse
+	for _, q := range testQueries {
+		reqQuery := &fleet.QueryPayload{
+			Name:  &q.Name,
+			Query: &q.Query,
+		}
+		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
+		require.NotZero(t, createQueryResp.Query.ID)
+	}
+
+	var listQryResp listQueriesResponse
+	queryNameToMatch := "paginationTestQuery"
+
+	// middle of the pages
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "query", queryNameToMatch, "per_page", "2", "page", "1")
+	require.Len(t, listQryResp.Queries, 2)
+	require.Equal(t, listQryResp.Count, 10)
+	require.True(t, listQryResp.Meta.HasPreviousResults)
+	require.True(t, listQryResp.Meta.HasNextResults)
+
+	// first and only page
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "query", queryNameToMatch, "per_page", "10", "page", "0")
+	require.Len(t, listQryResp.Queries, 10)
+	require.Equal(t, listQryResp.Count, 10)
+	require.False(t, listQryResp.Meta.HasPreviousResults)
+	require.False(t, listQryResp.Meta.HasNextResults)
+
+	// first of a few pages
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "query", queryNameToMatch, "per_page", "2", "page", "0")
+	require.Len(t, listQryResp.Queries, 2)
+	require.Equal(t, listQryResp.Count, 10)
+	require.False(t, listQryResp.Meta.HasPreviousResults)
+	require.True(t, listQryResp.Meta.HasNextResults)
+
+	// last page
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "query", queryNameToMatch, "per_page", "5", "page", "1")
+	require.Len(t, listQryResp.Queries, 5)
+	require.Equal(t, listQryResp.Count, 10)
+	require.True(t, listQryResp.Meta.HasPreviousResults)
+	require.False(t, listQryResp.Meta.HasNextResults)
+
+	// after last page
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "query", queryNameToMatch, "per_page", "2", "page", "5")
+	require.Len(t, listQryResp.Queries, 0)
+	require.Equal(t, listQryResp.Count, 10)
+	require.True(t, listQryResp.Meta.HasPreviousResults)
+	require.False(t, listQryResp.Meta.HasNextResults)
+
+	// delete them by name
+	var delByNameResp deleteQueryResponse
+	// for _, qId := range testQueryIds {
+	for _, q := range testQueries {
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/%s", q.Name), nil, http.StatusOK, &delByNameResp)
+	}
 }
 
 func (s *integrationTestSuite) TestHostDeviceMapping() {
