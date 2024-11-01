@@ -357,7 +357,11 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 
 	go func() {
 		defer func() {
-			recover() // we expect this test to panic as we're ending it early, so we shouldn't fail our suite on this panic
+			// this test may panic as we're ending it early, so we shouldn't fail our suite on this panic
+			// but depending on where we are in the cron call it may not panic, hence not checking the recover
+			// value either way
+			// nolint:errcheck
+			recover()
 		}()
 		_ = cronVulnerabilities(ctx, ds, lg, &config)
 	}()
