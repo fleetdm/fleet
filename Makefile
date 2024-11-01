@@ -127,7 +127,8 @@ fleet-dev: fleet
 fleetctl: .prefix .pre-build .pre-fleetctl
 	# Race requires cgo
 	$(eval CGO_ENABLED := $(shell [[ "${GO_BUILD_RACE_ENABLED_VAR}" = "true" ]] && echo 1 || echo 0))
-	CGO_ENABLED=${CGO_ENABLED} go build -race=${GO_BUILD_RACE_ENABLED_VAR} -o build/fleetctl -ldflags ${LDFLAGS_VERSION} ./cmd/fleetctl
+	$(eval FLEETCTL_LDFLAGS := $(shell echo "${LDFLAGS_VERSION} ${EXTRA_FLEETCTL_LDFLAGS}"))
+	CGO_ENABLED=${CGO_ENABLED} go build -race=${GO_BUILD_RACE_ENABLED_VAR} -o build/fleetctl -ldflags="${FLEETCTL_LDFLAGS}" ./cmd/fleetctl
 
 fleetctl-dev: GO_BUILD_RACE_ENABLED_VAR=true
 fleetctl-dev: fleetctl
@@ -481,7 +482,7 @@ desktop-windows:
 desktop-linux:
 	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
 	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
-		mkdir /output/fleet-desktop && \
+		mkdir -p /output/fleet-desktop && \
 		go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
 		cd /output && \
 		tar czf desktop.tar.gz fleet-desktop && \
@@ -496,7 +497,7 @@ desktop-linux:
 desktop-linux-arm64:
 	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
 	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
-		mkdir /output/fleet-desktop && \
+		mkdir -p /output/fleet-desktop && \
 		GOARCH=arm64 go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
 		cd /output && \
 		tar czf desktop.tar.gz fleet-desktop && \

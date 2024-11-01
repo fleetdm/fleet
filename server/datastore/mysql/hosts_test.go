@@ -1118,7 +1118,7 @@ func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
 		SeenTime:        time.Now(),
 		OsqueryHostID:   ptr.String("foo"),
 		NodeKey:         ptr.String("foo"),
-		UUID:            fmt.Sprintf("foo"),
+		UUID:            "foo",
 		Hostname:        "foo.local",
 	})
 	require.NoError(t, err)
@@ -1130,7 +1130,7 @@ func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
 		SeenTime:        time.Now(),
 		OsqueryHostID:   ptr.String("foo2"),
 		NodeKey:         ptr.String("foo2"),
-		UUID:            fmt.Sprintf("foo2"),
+		UUID:            "foo2",
 		Hostname:        "foo2.local",
 	})
 	require.NoError(t, err)
@@ -4736,9 +4736,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 	// Plus we set schedule query stats for a query that does not apply (globalSQuery1)
 	// (This could happen if the target platform of a schedule query is changed after creation.)
 	stats := make([]fleet.ScheduledQueryStats, len(globalStats))
-	for i := range globalStats {
-		stats[i] = globalStats[i]
-	}
+	copy(stats, globalStats)
 	stats = append(stats, fleet.ScheduledQueryStats{
 		ScheduledQueryName: userSQuery1.Name,
 		ScheduledQueryID:   userSQuery1.ID,

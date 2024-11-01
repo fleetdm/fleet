@@ -5,7 +5,7 @@ import { AxiosError } from "axios";
 import mdmAPI, {
   IGetSetupExperienceSoftwareResponse,
 } from "services/entities/mdm";
-import software, { ISoftwareTitle } from "interfaces/software";
+import { ISoftwareTitle } from "interfaces/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import SectionHeader from "components/SectionHeader";
@@ -37,7 +37,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
   } = useQuery<
     IGetSetupExperienceSoftwareResponse,
     AxiosError,
-    ISoftwareTitle[]
+    ISoftwareTitle[] | null
   >(
     ["install-software", currentTeamId],
     () =>
@@ -65,7 +65,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
       return <DataError />;
     }
 
-    if (softwareTitles) {
+    if (softwareTitles || softwareTitles === null) {
       return (
         <div className={`${baseClass}__content`}>
           <AddInstallSoftware

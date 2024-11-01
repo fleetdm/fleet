@@ -752,13 +752,13 @@ This meeting is to disseminate engineering-wide announcements, promote cohesion 
  
 ### New customer promise(s)
 
-The Chief Revenue Office (CRO) schedules this meeting before Fleet commits to one or more new customer promises. It's meant to streamline communication and encourage getting the best product decisions.
+The Account Executive (AE) schedules this meeting before Fleet commits to one or more new customer promises. It's meant to streamline communication and encourage getting the best product decisions.
 
-**Participants:** CRO, CEO, CTO, VP of Customer Success, and Head of Product Design.
+**Participants:** AE, SC, and Head of Product Design.  (+ temporarily: CRO)
 
 **Agenda:**
-- Discuss new promises
-- Decide if we know enough to say yes/no or go back to the customer for more digging
+- Discuss new promises from an order form with promises
+- Kick off 1 business day SLA for Head of Product Design to process this and work with CTO to deliver a revised order form back to the AE.
 
 ## Development best practices
 

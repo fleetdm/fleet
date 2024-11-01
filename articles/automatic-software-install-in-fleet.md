@@ -1,10 +1,10 @@
-# Automatic policy-based installation of software on hosts
-
-![Top Image](../website/assets/images/articles/automatic-software-install-top-image.png)
+# Automatically install software
 
 Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) introduces the ability to automatically and remotely install software on hosts based on predefined policy failures. This guide will walk you through the process of configuring fleet for automatic installation of software on hosts using uploaded installation images and based on programmed policies.  You'll learn how to configure and use this feature, as well as understand how the underlying mechanism works.
 
 Fleet allows its users to upload trusted software installation files to be installed and used on hosts. This installation could be conditioned on a failure of a specific Fleet Policy.
+
+> Currently, custom packages and Fleet-maintained apps can be automatically installed. (macOS App Store apps [coming soon](https://github.com/fleetdm/fleet/issues/23115))
 
 ## Prerequisites
 
@@ -45,6 +45,8 @@ Note: In order to know the exact application name to put in the query (e.g. "Ado
 ![Install software modal](../website/assets/images/articles/automatic-software-install-install-software.png)
 
 Upon failure of the selected policy, the selected software installation will be triggered.
+
+> Adding software to a policy will reset the policy's host counts.
 
 ## How does it work?
 
@@ -121,7 +123,7 @@ Leveraging Fleet’s ability to install and upgrade software on your hosts, you 
 
 By automating software deployment, you can gain greater control over what's installed on your machines and have better oversight of version upgrades, ensuring old software with known issues is replaced.
 
-<meta name="articleTitle" value="Automatic installation of software on hosts">
+<meta name="articleTitle" value="Automatically install software">
 <meta name="authorFullName" value="Sharon Katz">
 <meta name="authorGitHubUsername" value="sharon-fdm">
 <meta name="category" value="guides">

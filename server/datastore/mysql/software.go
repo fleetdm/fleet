@@ -407,9 +407,7 @@ func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, d
 			// We don't support installing browser plugins as of 2024/08/22
 			if i.Browser == "" {
 				key := UniqueSoftwareTitleStr(i.Name, i.Source, i.BundleIdentifier)
-				if _, ok := deletedTitles[key]; ok {
-					delete(deletedTitles, key)
-				}
+				delete(deletedTitles, key)
 			}
 		}
 	}
@@ -2162,6 +2160,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		onlySelfServiceClause = ` AND ( si.self_service = 1 OR vat.self_service = 1 ) `
 	}
 
+	var excludeVPPAppsClause string
+	if opts.ExcludeVPPApps {
+		excludeVPPAppsClause = ` AND vat.id IS NULL `
+	}
+
 	var onlyVulnerableJoin string
 	if opts.VulnerableOnly {
 		onlyVulnerableJoin = `
@@ -2281,8 +2284,8 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			-- on host (via installer or VPP app). If only available for install is
 			-- requested, then the software installed on host clause is empty.
 			( %s hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
-			%s
-`, status, softwareIsInstalledOnHostClause, onlySelfServiceClause)
+			%s %s
+`, status, softwareIsInstalledOnHostClause, onlySelfServiceClause, excludeVPPAppsClause)
 
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be
@@ -2347,8 +2350,8 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			) AND
 			-- either the software installer or the vpp app exists for the host's team
 			( si.id IS NOT NULL OR vat.platform = :host_platform )
-			%s
-`, onlySelfServiceClause)
+			%s %s
+`, onlySelfServiceClause, excludeVPPAppsClause)
 
 	// this is the top-level SELECT of fields from the UNION of the sub-selects
 	// (stmtAvailable and stmtInstalled).
