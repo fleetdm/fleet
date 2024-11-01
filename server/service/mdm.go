@@ -1588,6 +1588,7 @@ func (svc *Service) BatchSetMDMProfiles(
 			profiles[i].Labels = nil
 		}
 		labels = append(labels, profiles[i].LabelsIncludeAll...)
+		labels = append(labels, profiles[i].LabelsIncludeAny...)
 		labels = append(labels, profiles[i].LabelsExcludeAny...)
 	}
 	labelMap, err := svc.batchValidateProfileLabels(ctx, labels)
@@ -1846,6 +1847,15 @@ func getAppleProfiles(
 					mdmDecl.LabelsIncludeAll = append(mdmDecl.LabelsIncludeAll, declLabel)
 				}
 			}
+			for _, labelName := range prof.LabelsIncludeAny {
+				if lbl, ok := labelMap[labelName]; ok {
+					declLabel := fleet.ConfigurationProfileLabel{
+						LabelName: lbl.LabelName,
+						LabelID:   lbl.LabelID,
+					}
+					mdmDecl.LabelsIncludeAny = append(mdmDecl.LabelsIncludeAny, declLabel)
+				}
+			}
 			for _, labelName := range prof.LabelsExcludeAny {
 				if lbl, ok := labelMap[labelName]; ok {
 					declLabel := fleet.ConfigurationProfileLabel{
@@ -1967,6 +1977,11 @@ func getWindowsProfiles(
 		for _, labelName := range profile.LabelsIncludeAll {
 			if lbl, ok := labelMap[labelName]; ok {
 				mdmProf.LabelsIncludeAll = append(mdmProf.LabelsIncludeAll, lbl)
+			}
+		}
+		for _, labelName := range profile.LabelsIncludeAny {
+			if lbl, ok := labelMap[labelName]; ok {
+				mdmProf.LabelsIncludeAny = append(mdmProf.LabelsIncludeAny, lbl)
 			}
 		}
 		for _, labelName := range profile.LabelsExcludeAny {
