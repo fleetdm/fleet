@@ -16,6 +16,7 @@ import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+
 import generateColumnConfigs from "./QueriesTableConfig";
 
 const baseClass = "queries-table";
@@ -314,45 +315,44 @@ const QueriesTable = ({
   //     ( as IActionButtonProps),
   //   [onDeleteQueryClick]
   // );
-
-  return columnConfigs && !isLoading ? (
-    <div className={`${baseClass}`}>
-      <TableContainer
-        resultsTitle="queries"
-        columnConfigs={columnConfigs}
-        data={queries}
-        // won't ever actually be loading, see render condition above
-        isLoading={isLoading}
-        defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
-        defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
-        defaultSearchQuery={trimmedSearchQuery}
-        defaultPageIndex={page}
-        showMarkAllPages={false}
-        isAllPagesSelected={false}
-        primarySelectAction={{
-          name: "delete query",
-          buttonText: "Delete",
-          iconSvg: "trash",
-          variant: "text-icon",
-          onActionButtonClick: onDeleteQueryClick,
-        }}
-        emptyComponent={emptyComponent}
-        renderCount={() => (
-          // TODO - is more logic necessary here? Can we omit this?
-          <TableCount name="queries" count={totalQueriesCount} />
-        )}
-        inputPlaceHolder="Search by name"
-        onQueryChange={onQueryChange}
-        searchable={searchable}
-        // TODO - will likely need to implement this somehow. Looks messy for policies, so avoid if
-        // not necessary.
-        // resetPageIndex=
-        customControl={searchable ? renderPlatformDropdown : undefined}
-        selectedDropdownFilter={curCompatiblePlatformFilter}
-      />
-    </div>
-  ) : (
-    <></>
+  return (
+    columnConfigs && (
+      <div className={`${baseClass}`}>
+        <TableContainer
+          resultsTitle="queries"
+          columnConfigs={columnConfigs}
+          data={queries}
+          // won't ever actually be loading, see render condition above
+          isLoading={isLoading}
+          defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
+          defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
+          defaultSearchQuery={trimmedSearchQuery}
+          defaultPageIndex={page}
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          primarySelectAction={{
+            name: "delete query",
+            buttonText: "Delete",
+            iconSvg: "trash",
+            variant: "text-icon",
+            onActionButtonClick: onDeleteQueryClick,
+          }}
+          emptyComponent={emptyComponent}
+          renderCount={() => (
+            // TODO - is more logic necessary here? Can we omit this?
+            <TableCount name="queries" count={totalQueriesCount} />
+          )}
+          inputPlaceHolder="Search by name"
+          onQueryChange={onQueryChange}
+          searchable={searchable}
+          // TODO - will likely need to implement this somehow. Looks messy for policies, so avoid if
+          // not necessary.
+          // resetPageIndex=
+          customControl={searchable ? renderPlatformDropdown : undefined}
+          selectedDropdownFilter={curCompatiblePlatformFilter}
+        />
+      </div>
+    )
   );
 };
 

@@ -454,7 +454,7 @@ const ManagePolicyPage = ({
         queryParams: { ...queryParams, ...newQueryParams },
       });
 
-      router?.replace(locationPath);
+      router?.push(locationPath);
     },
     [
       isRouteOk,

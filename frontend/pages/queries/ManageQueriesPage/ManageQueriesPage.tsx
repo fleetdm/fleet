@@ -79,7 +79,6 @@ const ManageQueriesPage = ({
   router,
   location,
 }: IManageQueriesPageProps): JSX.Element => {
-  const queryParams = location.query;
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -132,6 +131,7 @@ const ManageQueriesPage = ({
     data: queriesResponse,
     error: queriesError,
     isFetching: isFetchingQueries,
+    isLoading: isLoadingQueries,
     refetch: refetchQueries,
   } = useQuery<
     IQueriesResponse,
@@ -273,7 +273,7 @@ const ManageQueriesPage = ({
   };
 
   const renderQueriesTable = () => {
-    if (isFetchingQueries) {
+    if (isLoadingQueries) {
       return <Spinner />;
     }
     if (queriesError) {
@@ -292,7 +292,7 @@ const ManageQueriesPage = ({
         isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
         // changes in table state are propagated to the API call on this page via this router pushing to the URL
         router={router}
-        queryParams={queryParams}
+        queryParams={location.query}
         currentTeamId={teamIdForApi}
         // on PoliciesTable, this is passed down and set as TableContainer.defaultPageIndex - TBD if necessary?
         // page={page}
@@ -386,6 +386,13 @@ const ManageQueriesPage = ({
     isTeamMaintainer ||
     isObserverPlus; // isObserverPlus checks global and selected team
 
+  const hideQueryActions =
+    // there are no filters and no returned queries, indicating there are no global/team queries at all
+    !(!!location.query.query || !!location.query.compatible_platform) &&
+    !queriesResponse?.count &&
+    // the user has permission
+    (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus);
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
@@ -395,7 +402,8 @@ const ManageQueriesPage = ({
               <div className={`${baseClass}__title`}>{renderHeader()}</div>
             </div>
           </div>
-          {!!enhancedQueries?.length && (
+
+          {!hideQueryActions && (
             <div className={`${baseClass}__action-button-container`}>
               {(isGlobalAdmin || isTeamAdmin) && !onlyInheritedQueries && (
                 <Button
