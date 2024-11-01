@@ -533,7 +533,7 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 
 	getQueriesStmt += whereClauses
 
-	// build the count statement before adding  pagination constraints
+	// build the count statement before adding pagination constraints
 	getQueriesCountStmt := fmt.Sprintf("SELECT COUNT(DISTINCT id) FROM (%s) AS s", getQueriesStmt)
 
 	getQueriesStmt, args = appendListOptionsWithCursorToSQL(getQueriesStmt, args, &opt.ListOptions)
