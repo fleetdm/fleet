@@ -279,39 +279,19 @@
     margin-bottom: 24px;
     code {
       color: #515774;
-      font-family: "Source Code Pro";
+      font-family: 'Source Code Pro';
       font-size: 14px;
       font-weight: 400;
       line-height: 150%;
       .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
         color: #AE6DDF;
-        white-space: pre;
-      }
-      .hljs-attr { // For table and column names
-        .hljs-keyword {
-          color: #FFF;
-        }
-        color: #FFF;
-        background-color: #AE6DDF;
-        border-radius: 4px;
-        padding: 4px 4px 4px 4px;
-        white-space: pre;
-        vertical-align: baseline;
-        line-height: 16px;
-        span {
-          padding: 0;
-        }
       }
       .hljs-string { // For words wrapped in quotation marks
         color: #3DB67B;
       }
       background-color: @ui-off-white;
       border: none;
-      word-break: break-word;
-      text-wrap: wrap;
       padding: 0;
-      font-size: 13px;
-      line-height: 24px;
     }
   }
 
