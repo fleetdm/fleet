@@ -22,6 +22,7 @@ import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDet
 
 import ActivityItem from "./ActivityItem";
 import ScriptDetailsModal from "./components/ScriptDetailsModal/ScriptDetailsModal";
+import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {
@@ -49,6 +50,10 @@ const ActivityFeed = ({
   const [
     appInstallDetails,
     setAppInstallDetails,
+  ] = useState<IActivityDetails | null>(null);
+  const [
+    activityAutomationDetails,
+    setActivityAutomationDetails,
   ] = useState<IActivityDetails | null>(null);
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
@@ -116,6 +121,10 @@ const ActivityFeed = ({
         break;
       case ActivityType.InstalledAppStoreApp:
         setAppInstallDetails({ ...details });
+        break;
+      case ActivityType.EnabledActivityAutomations:
+      case ActivityType.EditedActivityAutomations:
+        setActivityAutomationDetails({ ...details });
         break;
       default:
         break;
@@ -223,6 +232,12 @@ const ActivityFeed = ({
         <AppInstallDetailsModal
           details={appInstallDetails}
           onCancel={() => setAppInstallDetails(null)}
+        />
+      )}
+      {activityAutomationDetails && (
+        <ActivityAutomationDetailsModal
+          details={activityAutomationDetails}
+          onCancel={() => setActivityAutomationDetails(null)}
         />
       )}
     </div>
