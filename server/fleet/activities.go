@@ -112,6 +112,10 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedNDESSCEPProxy{},
 	ActivityDeletedNDESSCEPProxy{},
 	ActivityEditedNDESSCEPProxy{},
+
+	ActivityTypeEnabledActivityAutomations{},
+	ActivityTypeEditedActivityAutomations{},
+	ActivityTypeDisabledActivityAutomations{},
 }
 
 type ActivityDetails interface {
@@ -126,6 +130,49 @@ type ActivityDetails interface {
 type ActivityHosts interface {
 	ActivityDetails
 	HostIDs() []uint
+}
+
+type ActivityTypeEnabledActivityAutomations struct {
+	WebhookUrl string `json:"webhook_url"`
+}
+
+func (a ActivityTypeEnabledActivityAutomations) ActivityName() string {
+	return "enabled_activity_automations"
+}
+
+func (a ActivityTypeEnabledActivityAutomations) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when activity automations are enabled`,
+		`This activity contains the following field:
+- "webhook_url": the URL to broadcast activities to.`, `{
+	"webhook_url": "https://example.com/notify"
+}`
+}
+
+type ActivityTypeEditedActivityAutomations struct {
+	WebhookUrl string `json:"webhook_url"`
+}
+
+func (a ActivityTypeEditedActivityAutomations) ActivityName() string {
+	return "edited_activity_automations"
+}
+
+func (a ActivityTypeEditedActivityAutomations) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when activity automations are edited while enabled`,
+		`This activity contains the following field:
+- "webhook_url": the URL to broadcast activities to, post-edit.`, `{
+	"webhook_url": "https://example.com/notify"
+}`
+}
+
+type ActivityTypeDisabledActivityAutomations struct{}
+
+func (a ActivityTypeDisabledActivityAutomations) ActivityName() string {
+	return "disabled_activity_automations"
+}
+
+func (a ActivityTypeDisabledActivityAutomations) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when activity automations are disabled`,
+		`This activity does not contain any detail fields.`, ""
 }
 
 type ActivityTypeCreatedPack struct {

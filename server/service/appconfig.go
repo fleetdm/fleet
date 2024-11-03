@@ -483,7 +483,28 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
+
 	fleet.ValidateEnabledActivitiesWebhook(appConfig.WebhookSettings.ActivitiesWebhook, invalid)
+	if appConfig.WebhookSettings.ActivitiesWebhook.Enable && !oldAppConfig.WebhookSettings.ActivitiesWebhook.Enable {
+		act := fleet.ActivityTypeEnabledActivityAutomations{WebhookUrl: appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for enabled activity automations")
+		}
+	} else if !appConfig.WebhookSettings.ActivitiesWebhook.Enable && oldAppConfig.WebhookSettings.ActivitiesWebhook.Enable {
+		act := fleet.ActivityTypeDisabledActivityAutomations{}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for disabled activity automations")
+		}
+	} else if appConfig.WebhookSettings.ActivitiesWebhook.Enable &&
+		appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL != oldAppConfig.WebhookSettings.ActivitiesWebhook.DestinationURL {
+		act := fleet.ActivityTypeEditedActivityAutomations{
+			WebhookUrl: appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL,
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for edited activity automations")
+		}
+	}
+
 	if err := svc.validateMDM(ctx, license, &oldAppConfig.MDM, &appConfig.MDM, invalid); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")
 	}
