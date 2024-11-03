@@ -27,6 +27,7 @@ import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetai
 const baseClass = "activity-feed";
 interface IActvityCardProps {
   setShowActivityFeedTitle: (showActivityFeedTitle: boolean) => void;
+  setRefetchActivities: (refetch: () => void) => void;
   isPremiumTier: boolean;
 }
 
@@ -34,6 +35,7 @@ const DEFAULT_PAGE_SIZE = 8;
 
 const ActivityFeed = ({
   setShowActivityFeedTitle,
+  setRefetchActivities,
   isPremiumTier,
 }: IActvityCardProps): JSX.Element => {
   const [pageIndex, setPageIndex] = useState(0);
@@ -63,6 +65,7 @@ const ActivityFeed = ({
     data: activitiesData,
     error: errorActivities,
     isFetching: isFetchingActivities,
+    refetch,
   } = useQuery<
     IActivitiesResponse,
     Error,
@@ -88,6 +91,8 @@ const ActivityFeed = ({
       },
     }
   );
+
+  setRefetchActivities(refetch);
 
   const onLoadPrevious = () => {
     setPageIndex(pageIndex - 1);
