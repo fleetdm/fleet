@@ -7839,6 +7839,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		// compare only the fields we care about
 		for i := range got {
 			require.NotZero(t, got[i].ID)
+			got[i].CountsUpdatedAt = nil
 			got[i].ID = 0
 
 			for j := range got[i].Versions {
@@ -8463,6 +8464,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	// valid title
 	stResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", fooTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp)
+	s.NotNil(*stResp.SoftwareTitle.CountsUpdatedAt)
 	softwareTitlesMatch([]fleet.SoftwareTitle{
 		{
 			Name:          "foo",
