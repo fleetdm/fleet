@@ -957,7 +957,7 @@ func (a ActivityTypeReadHostDiskEncryptionKey) Documentation() (activity string,
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.`, `{
   "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
+  "host_display_name": "Anna's MacBook Pro"
 }`
 }
 
