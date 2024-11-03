@@ -485,18 +485,19 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
 
 	fleet.ValidateEnabledActivitiesWebhook(appConfig.WebhookSettings.ActivitiesWebhook, invalid)
-	if appConfig.WebhookSettings.ActivitiesWebhook.Enable && !oldAppConfig.WebhookSettings.ActivitiesWebhook.Enable {
+	switch {
+	case appConfig.WebhookSettings.ActivitiesWebhook.Enable && !oldAppConfig.WebhookSettings.ActivitiesWebhook.Enable:
 		act := fleet.ActivityTypeEnabledActivityAutomations{WebhookUrl: appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for enabled activity automations")
 		}
-	} else if !appConfig.WebhookSettings.ActivitiesWebhook.Enable && oldAppConfig.WebhookSettings.ActivitiesWebhook.Enable {
+	case !appConfig.WebhookSettings.ActivitiesWebhook.Enable && oldAppConfig.WebhookSettings.ActivitiesWebhook.Enable:
 		act := fleet.ActivityTypeDisabledActivityAutomations{}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for disabled activity automations")
 		}
-	} else if appConfig.WebhookSettings.ActivitiesWebhook.Enable &&
-		appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL != oldAppConfig.WebhookSettings.ActivitiesWebhook.DestinationURL {
+	case appConfig.WebhookSettings.ActivitiesWebhook.Enable &&
+		appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL != oldAppConfig.WebhookSettings.ActivitiesWebhook.DestinationURL:
 		act := fleet.ActivityTypeEditedActivityAutomations{
 			WebhookUrl: appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL,
 		}
