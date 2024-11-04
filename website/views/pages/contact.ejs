@@ -76,18 +76,24 @@
             <input class="form-control" id="organization" name="organization" type="text" :class="[formErrors.organization ? 'is-invalid' : '']" v-model.trim="formData.organization" autocomplete="email">
             <div class="invalid-feedback" v-if="formErrors.organization">Please enter the name of your organization.</div>
           </div>
-          <div class="form-group">
-            <label for="primaryBuyingSituation">What will you be using Fleet for? *</label>
-            <div class="selectbox">
-            <select class="form-control" id="primaryBuyingSituation" name="primaryBuyingSituation" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model="formData.primaryBuyingSituation">
-              <option disabled hidden value="undefined">Choose an option</option>
-              <option value="mdm">Device management (MDM)</option>
-              <option value="eo-it">IT engineering</option>
-              <option value="eo-security">Security engineering</option>
-              <!-- <option value="vm">Vulnerability management</option> -->
-            </select>
-            </div>
-            <div class="d-block invalid-feedback" v-if="formErrors.topic">Please select an option.</div>
+          <div class="form-group" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" >
+            <label class="mb-3"><strong>What will you be using Fleet for? *</strong></label>
+            <label purpose="form-option" class="form-control" :class="[formData.primaryBuyingSituation === 'mdm' ? 'selected' : '']">
+              <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData.primaryBuyingSituation" value="mdm">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Device management (MDM)
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData.primaryBuyingSituation === 'eo-it' ? 'selected' : '']">
+              <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData.primaryBuyingSituation" value="eo-it">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              IT engineering
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData.primaryBuyingSituation === 'eo-security' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData.primaryBuyingSituation" value="eo-security">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Security engineering
+            </label>
+            <div class="invalid-feedback" v-if="formErrors.primaryBuyingSituation">Please select an option</div>
           </div>
          <div class="form-group">
            <label for="number-of-hosts">How many <%= primaryBuyingSituation === 'mdm' ? 'devices' : 'hosts' %> do you have? *</label>

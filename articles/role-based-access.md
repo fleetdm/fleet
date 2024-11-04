@@ -64,7 +64,9 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Filter hosts using policies                                                                                                                | ✅       | ✅         | ✅         | ✅    |         |
 | Create, edit, and delete policies for all hosts                                                                                            |          |            | ✅         | ✅    | ✅      |
 | Create, edit, and delete policies for all hosts assigned to team\*                                                                         |          |            | ✅         | ✅    | ✅      |
-| Manage [policy automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations)                                           |          |            |            | ✅    | ✅      |
+| Edit global ("All teams") policy automations                  |          |            |            | ✅    | ✅      |
+| Edit team policy automations: calendar events, install software, and run script\* |          |            | ✅         | ✅    | ✅      |
+| Edit team policy automations: other workflows (tickets and webhooks)\*                 |          |            |            | ✅    | ✅      |
 | Create, edit, view, and delete users                                                                                                       |          |            |            | ✅    |         |
 | Add and remove team users\*                                                                                                                |          |            |            | ✅    | ✅      |
 | Create, edit, and delete teams\*                                                                                                           |          |            |            | ✅    | ✅      |
@@ -146,7 +148,8 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Run global (inherited) policies as a live policy                                                                                 |               | ✅             | ✅              | ✅         |             |
 | Filter hosts using policies                                                                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Create, edit, and delete team policies                                                                                           |               |                | ✅              | ✅         | ✅          |
-| Manage [policy automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations)                                 |               |                |                 | ✅         | ✅          |
+| Edit team policy automations: calendar events, install software, and run script |          |            | ✅         | ✅    | ✅      |
+| Edit team policy automations: other workflows (tickets and webhooks)                 |          |            |            | ✅    | ✅      |
 | Add and remove team users                                                                                                        |               |                |                 | ✅         | ✅          |
 | Edit team name                                                                                                                   |               |                |                 | ✅         | ✅          |
 | Create, edit, and delete [team enroll secrets](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)      |               |                | ✅              | ✅         |             |
@@ -175,6 +178,6 @@ Users with access to multiple teams can be assigned different roles for each tea
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
-<meta name="publishedOn" value="2024-08-10">
+<meta name="publishedOn" value="2024-10-31">
 <meta name="articleTitle" value="Role-based access">
 <meta name="description" value="Learn about the different roles and permissions in Fleet.">
