@@ -2367,7 +2367,10 @@ func generateDesiredStateQuery(entityType string) string {
 	UNION
 
 	-- label-based entities where the host is NOT a member of any of the labels (exclude-any).
-	-- explicitly ignore profiles with broken excluded labels so that they are never applied.
+	-- explicitly ignore profiles with broken excluded labels so that they are never applied,
+	-- and ignore profiles that depend on labels created _after_ the label_updated_at timestamp
+	-- of the host (because we don't have results for that label yet, the host may or may not be
+	-- a member).
 	SELECT
 		mae.${entityUUIDColumn},
 		h.uuid as host_uuid,
