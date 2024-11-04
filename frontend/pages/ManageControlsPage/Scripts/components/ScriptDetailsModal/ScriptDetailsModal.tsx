@@ -1,5 +1,6 @@
 import React, { useCallback, useContext } from "react";
 import { format } from "date-fns";
+import { useQuery } from "react-query";
 import FileSaver from "file-saver";
 
 import { AppContext } from "context/app";
@@ -60,11 +61,25 @@ const ScriptDetailsModal = ({
   const { currentUser } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
+  // TODO
+  const {
+    data: scriptContent,
+    error: isSelectedScriptContentError,
+    isLoading: isLoadingSelectedScriptContent,
+  } = useQuery<any, Error>(
+    ["scriptContent", selectedScriptDetails?.script_id],
+    () =>
+      selectedScriptDetails
+        ? scriptAPI.downloadScript(selectedScriptDetails.script_id!)
+        : Promise.resolve(null),
+    {
+      refetchOnWindowFocus: false,
+      enabled: !selectedScriptContent && !!selectedScriptDetails?.script_id,
+    }
+  );
   const getScriptContent = async () => {
     try {
-      const content = await scriptAPI.downloadScript(
-        selectedScriptDetails?.script_id || 1
-      );
+      const content = selectedScriptContent || scriptContent;
       const formatDate = format(new Date(), "yyyy-MM-dd");
       const filename = `${formatDate} ${
         selectedScriptDetails?.name || "Script details"
@@ -190,11 +205,11 @@ const ScriptDetailsModal = ({
   };
 
   const renderContent = () => {
-    if (isLoadingScriptContent) {
+    if (isLoadingScriptContent || isLoadingSelectedScriptContent) {
       return <Spinner />;
     }
 
-    if (isScriptContentError) {
+    if (isScriptContentError || isSelectedScriptContentError) {
       return <DataError description="Close this modal and try again." />;
     }
 
