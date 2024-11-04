@@ -1,6 +1,6 @@
 # Unified queue implementation
 
-Goal: 
+Goal:
 - Upcoming activities run in order as listed (one queue) and can be canceled.
 - So that I have the ability to prioritize an important action (ex. lock/wipe) by cancelling all upcoming activity.
 
@@ -26,10 +26,16 @@ Notable challenges with that approach are:
 
 ### MDM commands
 
-### Script execution 
+### Script execution
 
 - `host_script_results` is used during the "pending" phase:
-	* 
+	* Updating a software installer should cancel pending uninstall requests, which use script execution: https://github.com/fleetdm/fleet/blob/85dd21267700e76ee8fe184ddef2dc54692afe43/server/datastore/mysql/software_installers.go#L525
+	* Batch-set software installers deletes pending uninstalls from scripts: https://github.com/fleetdm/fleet/blob/85dd21267700e76ee8fe184ddef2dc54692afe43/server/datastore/mysql/software_installers.go#L858
+	* List pending host script executions: https://github.com/fleetdm/fleet/blob/85dd21267700e76ee8fe184ddef2dc54692afe43/server/datastore/mysql/scripts.go#L213
+	* Check if saved script is pending execution on a host: https://github.com/fleetdm/fleet/blob/85dd21267700e76ee8fe184ddef2dc54692afe43/server/datastore/mysql/scripts.go#L238
+	* Get host script execution result, which I believe can be called in the pending phase: https://github.com/fleetdm/fleet/blob/85dd21267700e76ee8fe184ddef2dc54692afe43/server/datastore/mysql/scripts.go#L274
+	* Get the latest execution for a saved script on a host, which I believe has to handle the pending state: https://github.com/fleetdm/fleet/blob/85dd21267700e76ee8fe184ddef2dc54692afe43/server/datastore/mysql/scripts.go#L570
+	* Cleanup of unused script contents deletes a script that isn't used, will need to take into account scripts in the new unified queue: https://github.com/fleetdm/fleet/blob/85dd21267700e76ee8fe184ddef2dc54692afe43/server/datastore/mysql/scripts.go#L1209
 
 ### Software installs
 
@@ -53,3 +59,4 @@ Note that ["software uninstall" requests](https://github.com/fleetdm/fleet/blob/
 
 ### DB schema changes and migrations
 
+- Entries in the unified queue for a given host will need to be deleted if that host is deleted: https://github.com/fleetdm/fleet/blob/85dd21267700e76ee8fe184ddef2dc54692afe43/server/datastore/mysql/hosts.go#L563
