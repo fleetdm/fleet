@@ -91,7 +91,7 @@ import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
-import RunScriptModal from "./modals/RunScriptModal";
+import ScriptModalGroup from "./modals/ScriptModalGroup";
 import SelectQueryModal from "./modals/SelectQueryModal";
 import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncryptionKeyModal";
 import HostDetailsBanners from "./components/HostDetailsBanners";
@@ -165,7 +165,7 @@ const HostDetailsPage = ({
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
-  const [showRunScriptModal, setShowRunScriptModal] = useState(false);
+  const [showScriptModalGroup, setShowScriptModalGroup] = useState(false);
   const [showRunScriptDetailsModal, setShowRunScriptDetailsModal] = useState(
     false
   );
@@ -532,20 +532,14 @@ const HostDetailsPage = ({
     [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]
   );
 
-  const toggleRunScriptModal = useCallback(() => {
-    setShowRunScriptModal(!showRunScriptModal);
-  }, [setShowRunScriptModal, showRunScriptModal]);
-
   const toggleRunScriptDetailsModal = useCallback(
     (script: IHostScript | undefined) => {
       setShowRunScriptDetailsModal(!showRunScriptDetailsModal);
-      toggleRunScriptModal();
       setSelectedScriptDetails(script);
     },
     [
       showRunScriptDetailsModal,
       setShowRunScriptDetailsModal,
-      toggleRunScriptModal,
       setSelectedScriptDetails,
     ]
   );
@@ -724,8 +718,8 @@ const HostDetailsPage = ({
     []
   );
 
-  const onCloseRunScriptModal = useCallback(() => {
-    setShowRunScriptModal(false);
+  const onCloseScriptModalGroup = useCallback(() => {
+    setShowScriptModalGroup(false);
     refetchPastActivities();
     refetchUpcomingActivities();
   }, [refetchPastActivities, refetchUpcomingActivities]);
@@ -748,7 +742,7 @@ const HostDetailsPage = ({
         setShowDeleteHostModal(true);
         break;
       case "runScript":
-        setShowRunScriptModal(true);
+        setShowScriptModalGroup(true);
         break;
       case "lock":
         setShowLockHostModal(true);
@@ -1032,21 +1026,15 @@ const HostDetailsPage = ({
             hostsTeamId={host?.team_id}
           />
         )}
-        {showRunScriptModal &&
-          // force run script modal to unmount when script details modal is shown;
-          // it will be remounted when script details modal is closed
-          !selectedScriptDetails && (
-            <RunScriptModal
-              host={host}
-              currentUser={currentUser}
-              selectedScriptDetails={selectedScriptDetails}
-              setSelectedScriptDetails={setSelectedScriptDetails}
-              toggleRunScriptDetailsModal={toggleRunScriptDetailsModal}
-              onClose={onCloseRunScriptModal}
-              runScriptRequested={runScriptRequested}
-              setRunScriptRequested={setRunScriptRequested}
-            />
-          )}
+        {showScriptModalGroup && (
+          <ScriptModalGroup
+            host={host}
+            currentUser={currentUser}
+            onCloseScriptModalGroup={onCloseScriptModalGroup}
+            runScriptRequested={runScriptRequested}
+            setRunScriptRequested={setRunScriptRequested}
+          />
+        )}
         {!!host && showTransferHostModal && (
           <TransferHostModal
             onCancel={() => setShowTransferHostModal(false)}

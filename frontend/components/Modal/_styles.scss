@@ -7,10 +7,15 @@
     display: flex;
     justify-content: center;
     animation: fade-in 150ms ease-out;
+    opacity: 1;
+    visibility: visible;
   }
 
   &__hidden {
+    opacity: 0;
     visibility: hidden;
+    transition: opacity 150ms ease-out, visibility 0s 150ms;
+
     .fleet-checkbox__tick:after {
       visibility: hidden;
     }
@@ -36,14 +41,6 @@
     .form .modal-cta-wrap {
       // compensate for form gap to maintain consistent 32px spacing on top of modal ctas
       margin-top: $pad-small;
-    }
-
-    .modal-cta-wrap {
-      align-self: flex-end;
-      display: flex;
-      flex-direction: row-reverse;
-      margin-top: $pad-xlarge;
-      gap: $pad-medium;
     }
   }
 
@@ -135,4 +132,12 @@
       padding: 11px;
     }
   }
+}
+
+.modal-cta-wrap {
+  align-self: flex-end;
+  display: flex;
+  flex-direction: row-reverse;
+  margin-top: $pad-xlarge;
+  gap: $pad-medium;
 }

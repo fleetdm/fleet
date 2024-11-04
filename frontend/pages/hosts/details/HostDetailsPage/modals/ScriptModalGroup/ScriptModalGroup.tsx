@@ -1,0 +1,190 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { useQuery } from "react-query";
+
+import { IApiError } from "interfaces/errors";
+import { IHost } from "interfaces/host";
+import { IHostScript } from "interfaces/script";
+import { IUser } from "interfaces/user";
+
+import scriptsAPI, {
+  IHostScriptsQueryKey,
+  IHostScriptsResponse,
+} from "services/entities/scripts";
+
+import ScriptDetailsModal from "pages/ManageControlsPage/Scripts/components/ScriptDetailsModal";
+import DeleteScriptModal from "pages/ManageControlsPage/Scripts/components/DeleteScriptModal";
+import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
+import RunScriptModal from "../RunScriptModal";
+
+interface IScriptsProps {
+  currentUser: IUser | null;
+  host: IHost;
+  onCloseScriptModalGroup: () => void;
+  runScriptRequested: boolean;
+  setRunScriptRequested: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+type ScriptGroupModals =
+  | "run-script"
+  | "view-script"
+  | "run-script-details"
+  | "delete-script"
+  | null;
+
+const ScriptModalGroup = ({
+  currentUser,
+  host,
+  onCloseScriptModalGroup,
+  runScriptRequested,
+  setRunScriptRequested,
+}: IScriptsProps) => {
+  const [previousModal, setPreviousModal] = useState<ScriptGroupModals>(null);
+  const [currentModal, setCurrentModal] = useState<ScriptGroupModals>(
+    "run-script"
+  );
+  const [runScriptTablePage, setRunScriptTablePage] = useState(0);
+  const [selectedScriptId, setSelectedScriptId] = useState<number | undefined>(
+    undefined
+  );
+  const [selectedScriptDetails, setSelectedScriptDetails] = useState<
+    IHostScript | undefined
+  >(undefined);
+
+  const {
+    data: hostScriptResponse,
+    isError,
+    isLoading,
+    isFetching,
+    refetch: refetchHostScripts,
+  } = useQuery<
+    IHostScriptsResponse,
+    IApiError,
+    IHostScriptsResponse,
+    IHostScriptsQueryKey[]
+  >(
+    [
+      {
+        scope: "host_scripts",
+        host_id: host.id,
+        page: runScriptTablePage,
+        per_page: 10,
+      },
+    ],
+    ({ queryKey }) => scriptsAPI.getHostScripts(queryKey[0]),
+    {
+      refetchOnWindowFocus: false,
+      retry: false,
+      staleTime: 3000,
+      onSuccess: () => {
+        setRunScriptRequested(false);
+      },
+    }
+  );
+
+  // Note: Script metadata and script content require two separate API calls
+  // Source: https://fleetdm.com/docs/rest-api/rest-api#example-get-script
+  // So to get script name, we pass it into this modal instead of another API call
+  // If in future iterations we want more script metadata, call scriptAPI.getScript()
+  // and consider refactoring .getScript to return script content as well
+  const {
+    data: selectedScriptContent,
+    error: isSelectedScriptContentError,
+    isLoading: isLoadingSelectedScriptContent,
+  } = useQuery<any, Error>(
+    ["scriptContent", selectedScriptId],
+    () => scriptsAPI.downloadScript(selectedScriptId!),
+    {
+      refetchOnWindowFocus: false,
+      enabled: !!selectedScriptId,
+    }
+  );
+
+  useEffect(() => {
+    if (runScriptRequested) {
+      setCurrentModal("run-script");
+    }
+  }, [runScriptRequested]);
+
+  console.log("currentModal", currentModal);
+  console.log("selectedScriptId", selectedScriptId);
+
+  return (
+    <>
+      <RunScriptModal
+        currentUser={currentUser}
+        host={host}
+        onClose={onCloseScriptModalGroup}
+        onClickViewScript={(scriptId: number, scriptDetails: IHostScript) => {
+          setPreviousModal("run-script");
+          setCurrentModal("view-script");
+          setSelectedScriptId(scriptId);
+          setSelectedScriptDetails(scriptDetails);
+        }}
+        onClickRunDetails={(scriptId: number) => {
+          setPreviousModal("run-script");
+          setCurrentModal("run-script-details");
+          setSelectedScriptId(scriptId);
+        }}
+        runScriptRequested={runScriptRequested}
+        setRunScriptRequested={setRunScriptRequested}
+        isHidden={currentModal !== "run-script"}
+      />
+
+      <ScriptDetailsModal
+        hostId={host.id}
+        hostTeamId={host.team_id}
+        selectedScriptDetails={selectedScriptDetails}
+        selectedScriptContent={selectedScriptContent}
+        onCancel={() => {
+          setCurrentModal("run-script");
+          setPreviousModal(null);
+        }}
+        onDelete={() => {
+          setCurrentModal("delete-script");
+          setPreviousModal("view-script");
+        }}
+        onShowRunDetails={() => {
+          setCurrentModal("run-script-details");
+          setPreviousModal("view-script");
+        }}
+        setRunScriptRequested={setRunScriptRequested}
+        refetchHostScripts={refetchHostScripts}
+        isLoadingScriptContent={isLoadingSelectedScriptContent}
+        isScriptContentError={isSelectedScriptContentError}
+        isHidden={currentModal !== "view-script"}
+        showHostScriptActions
+      />
+      <DeleteScriptModal
+        scriptId={selectedScriptDetails?.script_id || 1}
+        scriptName={selectedScriptDetails?.name || ""}
+        onCancel={() => {
+          setCurrentModal(previousModal);
+          setPreviousModal("run-script");
+        }}
+        onDone={() => {
+          // The delete API call is handled in DeleteScriptModal
+          setCurrentModal(previousModal);
+          setPreviousModal("run-script");
+          refetchHostScripts();
+          setSelectedScriptDetails(undefined);
+        }}
+        isHidden={currentModal !== "delete-script"}
+      />
+      <RunScriptDetailsModal
+        scriptExecutionId={"0"} // TODO
+        onCancel={() => {
+          if (previousModal === "view-script") {
+            setCurrentModal(previousModal);
+            setPreviousModal("run-script");
+          } else if (previousModal === "run-script") {
+            setCurrentModal(previousModal);
+            setPreviousModal(null);
+          }
+        }}
+        isHidden={currentModal !== "run-script-details"}
+      />
+    </>
+  );
+};
+
+export default ScriptModalGroup;

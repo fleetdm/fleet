@@ -72,7 +72,7 @@ export const generateTableColumnConfigs = (
   currentUser: IUser | null,
   hostTeamId: number | null,
   scriptsDisabled: boolean,
-  viewScriptDetailsModal: any,
+  onClickViewScript: (scriptId: number, scriptDetails: IHostScript) => void,
   onSelectAction: (value: string, script: IHostScript) => void
 ) => {
   return [
@@ -83,12 +83,13 @@ export const generateTableColumnConfigs = (
       accessor: "name",
       Cell: (cellProps: any) => {
         // TODO any
-        const { name } = cellProps.row.original;
+        const { name, script_id } = cellProps.row.original;
 
+        console.log("cellProps.row", cellProps.row);
         const onClickScriptName = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row
           e.stopPropagation();
-          viewScriptDetailsModal(cellProps.row.original);
+          onClickViewScript(script_id, cellProps.row.original);
         };
 
         return (

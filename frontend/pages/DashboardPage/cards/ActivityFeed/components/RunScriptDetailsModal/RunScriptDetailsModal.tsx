@@ -178,11 +178,13 @@ const ScriptResult = ({
 interface IRunScriptDetailsModalProps {
   scriptExecutionId: string;
   onCancel: () => void;
+  isHidden?: boolean;
 }
 
 const RunScriptDetailsModal = ({
   scriptExecutionId,
   onCancel,
+  isHidden = false,
 }: IRunScriptDetailsModalProps) => {
   const { data, isLoading, isError } = useQuery<IScriptResultResponse>(
     ["runScriptDetailsModal", scriptExecutionId],
@@ -232,6 +234,7 @@ const RunScriptDetailsModal = ({
       onExit={onCancel}
       onEnter={onCancel}
       className={baseClass}
+      isHidden={isHidden}
     >
       {renderContent()}
     </Modal>

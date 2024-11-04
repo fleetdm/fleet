@@ -1,5 +1,4 @@
 import React, { useCallback, useContext } from "react";
-import { useQuery } from "react-query";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
 
@@ -28,12 +27,17 @@ interface IScriptDetailsModalProps {
   onDelete: () => void;
   runScriptHelpText?: boolean;
   showHostScriptActions?: boolean;
-  toggleRunScriptDetailsModal?: any;
   setRunScriptRequested?: (value: boolean) => void;
   hostId?: number | null;
   hostTeamId?: number | null;
   refetchHostScripts?: any;
-  selectedScriptDetails: IHostScript;
+  selectedScriptDetails?: IHostScript;
+  selectedScriptContent?: string;
+  isLoadingScriptContent?: boolean;
+  isScriptContentError?: Error | null;
+  isHidden?: boolean;
+  onCloseScriptModalGroup?: () => void;
+  onShowRunDetails?: () => void;
 }
 
 const ScriptDetailsModal = ({
@@ -41,38 +45,46 @@ const ScriptDetailsModal = ({
   onDelete,
   runScriptHelpText = false,
   showHostScriptActions = false,
-  toggleRunScriptDetailsModal,
   setRunScriptRequested,
   hostId,
   hostTeamId,
   refetchHostScripts,
   selectedScriptDetails,
+  selectedScriptContent,
+  isLoadingScriptContent,
+  isScriptContentError,
+  isHidden = false,
+  onCloseScriptModalGroup,
+  onShowRunDetails,
 }: IScriptDetailsModalProps) => {
   const { currentUser } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  // Note: Script metadata and script content require two separate API calls
-  // Source: https://fleetdm.com/docs/rest-api/rest-api#example-get-script
-  // So to get script name, we pass it into this modal instead of another API call
-  // If in future iterations we want more script metadata, call scriptAPI.getScript()
-  // and consider refactoring .getScript to return script content as well
-  const {
-    data: scriptContent,
-    error: isScriptContentError,
-    isLoading: isLoadingScriptContent,
-  } = useQuery<any, Error>(
-    ["scriptContent"],
-    () => scriptAPI.downloadScript(selectedScriptDetails.script_id),
-    {
-      refetchOnWindowFocus: false,
+  const getScriptContent = async () => {
+    try {
+      const content = await scriptAPI.downloadScript(
+        selectedScriptDetails?.script_id || 1
+      );
+      const formatDate = format(new Date(), "yyyy-MM-dd");
+      const filename = `${formatDate} ${
+        selectedScriptDetails?.name || "Script details"
+      }`;
+      const file = new File([content], filename);
+      FileSaver.saveAs(file);
+    } catch {
+      renderFlash("error", "Couldn’t Download. Please try again.");
     }
-  );
+  };
 
   const onClickDownload = () => {
-    const formatDate = format(new Date(), "yyyy-MM-dd");
-    const filename = `${formatDate} ${selectedScriptDetails}`;
-    const file = new File([scriptContent], filename);
-    FileSaver.saveAs(file);
+    if (selectedScriptContent) {
+      const formatDate = format(new Date(), "yyyy-MM-dd");
+      const filename = `${formatDate} ${selectedScriptDetails}`;
+      const file = new File([selectedScriptContent], filename);
+      FileSaver.saveAs(file);
+    } else {
+      getScriptContent();
+    }
   };
 
   const onSelectMoreActions = useCallback(
@@ -80,7 +92,7 @@ const ScriptDetailsModal = ({
       if (hostId && setRunScriptRequested && refetchHostScripts) {
         switch (action) {
           case "showRunDetails": {
-            toggleRunScriptDetailsModal(script);
+            onShowRunDetails && onShowRunDetails();
             break;
           }
           case "run": {
@@ -95,6 +107,7 @@ const ScriptDetailsModal = ({
                 "Script is running or will run when the host comes online."
               );
               refetchHostScripts();
+              onCloseScriptModalGroup && onCloseScriptModalGroup(); // Running a script closes the modal groups
             } catch (e) {
               renderFlash("error", getErrorReason(e));
               setRunScriptRequested(false);
@@ -107,17 +120,25 @@ const ScriptDetailsModal = ({
     },
     [
       hostId,
-      refetchHostScripts,
-      renderFlash,
+      onShowRunDetails,
       setRunScriptRequested,
-      toggleRunScriptDetailsModal,
+      refetchHostScripts,
+      onCloseScriptModalGroup,
+      renderFlash,
     ]
   );
 
+  const shouldShowFooter = () => {
+    return !isLoadingScriptContent && selectedScriptDetails !== undefined;
+  };
+
+  console.log("selectedScriptDetails", selectedScriptDetails);
+
   const renderFooter = () => {
-    if (isLoadingScriptContent) {
+    if (!shouldShowFooter) {
       return <></>;
     }
+
     return (
       <>
         <div className="modal-actions">
@@ -137,7 +158,7 @@ const ScriptDetailsModal = ({
           </Button>
         </div>{" "}
         <div className="modal-cta-wrap">
-          {showHostScriptActions && (
+          {showHostScriptActions && selectedScriptDetails && (
             <div className={`${baseClass}__manage-automations-wrapper`}>
               <ActionsDropdown
                 className={`${baseClass}__manage-automations-dropdown`}
@@ -178,7 +199,7 @@ const ScriptDetailsModal = ({
         name="script-content"
         label="Script content:"
         type="textarea"
-        value={scriptContent}
+        value={selectedScriptContent}
         helpText={
           runScriptHelpText ? (
             <>
@@ -200,13 +221,15 @@ const ScriptDetailsModal = ({
     );
   };
 
+  console.log("shouldshowfooter", shouldShowFooter());
   return (
     <Modal
       className={baseClass}
       title={selectedScriptDetails?.name || "Script details"}
       width="large"
       onExit={onCancel}
-      modalActionsFooter={renderFooter()}
+      modalActionsFooter={shouldShowFooter() ? renderFooter() : undefined}
+      isHidden={isHidden}
     >
       {renderContent()}
     </Modal>
