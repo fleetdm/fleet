@@ -1,0 +1,1 @@
+* GitOps: Fixed path resolution for installer queries and scripts to always be relative to where the query file or script is referenced
