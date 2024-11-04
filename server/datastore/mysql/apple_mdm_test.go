@@ -7267,8 +7267,6 @@ func testMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
-// TODO(JVE): ds.BatchSetMDMAppleProfiles DOES NOT WORK with the new labels logic. something about
-// it doesn't set the profile <-> label connection correctly. Look into this first thing.
 func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -7378,9 +7376,7 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 
 	// still the same profiles to assign (plus the one for labelHost) as there are no profiles for team 1
 	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
-	for _, p := range profilesToInstall {
-		t.Logf("name: %q, hostUUID: %q", p.ProfileName, p.HostUUID)
-	}
+
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
 		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
@@ -7391,20 +7387,51 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
 	}, profilesToInstall)
 
+	// Remove the l1<->hostLabel relationship, but add l2<->labelHost. The profile should still show
+	// up since it's "include any"
 	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l1.ID, hostLabel.ID}})
 	require.NoError(t, err)
 
-	// we removed the label membership; the label-based profile should no longer show up
+	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l2.ID, hostLabel.ID}})
+	require.NoError(t, err)
+
 	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
-	for _, p := range profilesToInstall {
-		t.Logf("name: %q, hostUUID: %q", p.ProfileName, p.HostUUID)
-	}
+
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
 		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
 		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
 
+		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
 		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
 		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
 	}, profilesToInstall)
+
+	// TODO(JVE): have to "install" the profile first to get it to be removed when the label is removed
+	// the profile should now be in the "to remove" list
+
+	// ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+	// 	_, err := tx.ExecContext(ctx,
+	// 		`UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_identifier = ?`,
+	// 		fleet.MDMDeliveryVerifying, hostLabel.UUID, globalPfs[2].Identifier)
+	// 	return err
+	// })
+
+	// require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hostLabel, profilesByIdentifier([]*fleet.HostMacOSProfile{
+	// 	{
+	// 		Identifier:  globalPfs[2].Identifier,
+	// 		DisplayName: globalPfs[2].Name,
+	// 		InstallDate: time.Now(),
+	// 	},
+	// })),
+	// )
+
+	// err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l2.ID, hostLabel.ID}})
+	// require.NoError(t, err)
+
+	// profilesToRemove, err := ds.ListMDMAppleProfilesToRemove(ctx)
+	// require.NoError(t, err)
+	// matchProfiles([]*fleet.MDMAppleProfilePayload{
+	// 	{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+	// }, profilesToRemove)
 }
