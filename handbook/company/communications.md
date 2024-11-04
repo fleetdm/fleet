@@ -96,8 +96,8 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Apprentice | ✅ Super admin| ✅ Owner | ✅ Owner | ✅ Admin | ❌ | ✅ Admin | ✅ Admin |
 | Digital Experience Engineer | ✅ Super admin | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ✅ Admin |
 | Head of Product Design | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
-| VP of CX | ❌ | ✅ Owner | ❌ | ❌ | ❌ | ❌ | ❌ |
-| CX Sr. Suppoert Engineer | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
+| VP of CS | ❌ | ✅ Owner | ❌ | ❌ | ❌ | ❌ | ❌ |
+| CS Support Engineer | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Pilot bookkeeper | ❌ | ❌ | ❌ | ✅ Admin | ❌ | ✅ Admin | ❌ |
 
 ### Docs
