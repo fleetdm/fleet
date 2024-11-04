@@ -49,6 +49,21 @@ focused on cleaning up old live queries that are still hanging around.
 ###	`integrations`
 ###	`activities_streaming`
 ###	`mdm_apple_profile_manager`
+
+Despite the name, this cron job actually manages profiles for both Apple devices _and_ Windows
+devices. It has 3 sub-jobs:
+
+- `ReconcileAppleProfiles`: handles Apple configuration profiles (`.mobileconfig` files)
+- `ReconcileWindowsProfiles`: handles Windows profiles (`.xml` files)
+- `ReconcileAppleDeclarations`: handles Apple DDM (Declarative Device Management) profiles (`.json` files)
+
+Each of these jobs calculates the current desired state of profile assignment based on host
+configuration: for example, which labels a host has or which team it's on. It then applies that
+desired state and kicks off sending/executing those profiles on the hosts.
+
+#### Default interval
+30s
+
 ###	`apple_mdm_iphone_ipad_refetcher`
 ###	`apple_mdm_apns_pusher`
 ###	`calendar`
