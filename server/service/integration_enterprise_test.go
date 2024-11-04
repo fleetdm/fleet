@@ -8464,7 +8464,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	// valid title
 	stResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", fooTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp)
-	s.NotNil(*stResp.SoftwareTitle.CountsUpdatedAt)
+	s.NotZero(*stResp.SoftwareTitle.CountsUpdatedAt)
 	softwareTitlesMatch([]fleet.SoftwareTitle{
 		{
 			Name:          "foo",
