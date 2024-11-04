@@ -2029,34 +2029,67 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	windowsEnroll(t, ds, host)
 
 	// Create 3 labels
-	label := &fleet.Label{
-		Name:        "my label",
-		Description: "a label",
-		Query:       "select 1 from processes;",
-	}
-	label, err = ds.NewLabel(ctx, label)
+
+	l1, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:        "label1",
+		Description: "desc",
+		Query:       "select 1;",
+	})
+	require.NoError(t, err)
+
+	l2, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:        "label2",
+		Description: "desc",
+		Query:       "select 1;",
+	})
+	require.NoError(t, err)
+
+	l3, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:        "label3",
+		Description: "desc",
+		Query:       "select 1;",
+	})
 	require.NoError(t, err)
 
 	// Create a profile with "include-any" with l1
 	profWithLabel, err := ds.NewMDMWindowsConfigProfile(
 		ctx,
 		fleet.MDMWindowsConfigProfile{
-			Name:             "with-labelsb",
+			Name:             "include-any",
 			TeamID:           nil,
 			SyncML:           []byte("<Replace></Replace>"),
-			LabelsIncludeAny: []fleet.ConfigurationProfileLabel{{LabelName: label.Name, LabelID: label.ID}},
+			LabelsIncludeAny: []fleet.ConfigurationProfileLabel{{LabelName: l1.Name, LabelID: l1.ID}, {LabelName: l2.Name, LabelID: l2.ID}, {LabelName: l3.Name, LabelID: l3.ID}},
 		})
 	require.NoError(t, err)
 	require.NotEmpty(t, profWithLabel.ProfileUUID)
 
 	// Connect the host and l1
-	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{label.ID, host.ID}})
+	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l1.ID, host.ID}})
 	require.NoError(t, err)
 
 	// We should see the profile in the "to install" list
 	profilesToInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
 	require.NoError(t, err)
 	require.Len(t, profilesToInstall, 1)
+
+	// Remove the l1<->host relationship, but add l2<->labelHost. The profile should still show
+	// up since it's "include any"
+	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l1.ID, host.ID}})
+	require.NoError(t, err)
+
+	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l2.ID, host.ID}})
+	require.NoError(t, err)
+
+	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.Len(t, profilesToInstall, 1)
+
+	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l2.ID, host.ID}})
+	require.NoError(t, err)
+
+	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.Empty(t, profilesToInstall)
 }
 
 func expectWindowsProfiles(
