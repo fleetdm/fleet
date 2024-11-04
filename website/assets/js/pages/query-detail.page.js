@@ -16,6 +16,14 @@ parasails.registerPage('query-detail', {
     $('pre code').each((i, block) => {
       window.hljs.highlightElement(block);
     });
+    $('[purpose="copy-button"]').on('click', async function() {
+      let code = $(this).siblings('pre').find('code').text();
+      $(this).addClass('copied');
+      await setTimeout(()=>{
+        $(this).removeClass('copied');
+      }, 2000);
+      navigator.clipboard.writeText(code);
+    });
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
