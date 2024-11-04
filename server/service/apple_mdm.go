@@ -3667,7 +3667,6 @@ func preprocessProfileContents(
 				continue
 			}
 			profile.CommandUUID = tempCmdUUID
-			profilesToUpdate = append(profilesToUpdate, profile)
 
 			hostContents := contentsStr
 
@@ -3768,6 +3767,7 @@ func preprocessProfileContents(
 					hostUUIDs: []string{hostUUID},
 				}
 				profileContents[tempProfUUID] = mobileconfig.Mobileconfig(hostContents)
+				profilesToUpdate = append(profilesToUpdate, profile)
 			}
 		}
 		// Update profiles with the new command UUID
