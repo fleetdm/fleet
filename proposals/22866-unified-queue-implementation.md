@@ -77,4 +77,4 @@ The new table will need to have at least those columns:
 - activity "type" (MDM command, script execution, software install, software uninstall, etc.)
 - a creation time and a priority column to allow for easy re-ordering (by default all are at the same prority so ordering could be `priority DESC, created_at ASC`)
 - an arbitrary JSON payload for the rest of the activity-specific payload, promoting columns as needed to support the "pending" behaviour that we have today via the other tables
-
+- a version number to allow for data migration of the JSON payload field (e.g. when changing that structure, a DB migration could use this version number to migrate it to the latest version, and then increment the version number)
