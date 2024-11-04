@@ -12,18 +12,21 @@ Fleet starts with some of the most common and popular apps, enabling you to pull
 2. From the **Add software** page, navigate to the **Fleet-maintained** tab.
 3. You’ll see a list of popular apps, such as Chrome, Visual Studio Code, and Notion. Click on a row in the table to select the desired app.
 4. You will be taken to the app details page after selecting the app. Here, you can set the app as a self-service app, allowing hosts to install it on demand. You can also expand the **Advanced options**, which will enable you to edit the following:
+
    - Pre-install query
    - Installation script
    - Post-install script
    - Uninstall scripts
 
-   These scripts are auto-generated based on the app's Homebrew Cask formula, but you can modify them. Modifying these scripts allows you to tailor the app installation process to your organization's needs, such as automating additional setup tasks or custom configurations post-installation.
+These scripts are auto-generated based on the app's Homebrew Cask formula, but you can modify them. Modifying these scripts allows you to tailor the app installation process to your organization's needs, such as automating additional setup tasks or custom configurations post-installation.
 
 ## Install the app
 
 Once configured, click **Add Software**. This will download the installer specified in the Homebrew Cask and apply the installation scripts. The process may take a moment as it pulls the package.
 
 Once completed, the app will be available for install on your hosts.
+
+When you add a Fleet-maintained app, Fleet downloads the latest version available to a configured s3 bucket. The Host downloads the package through Fleet from s3 at install.
 
 The app can now be installed on a host in the **Host Details** page under the **Software** tab. Select the app you just added and choose Install from the actions dropdown to do so. Alternatively, host users can install the app via the **Self-service** tab on the **My Device** page if you've marked the app as self-service. You can learn more about [Software self-service](https://fleetdm.com/guides/software-self-service).
 
@@ -35,9 +38,22 @@ To remove the app, select **Uninstall** from the same actions dropdown. Fleet wi
 
 The uninstallation process is also visible in the  **Activities** section on the **Details** tab of this **Host Details** page.
 
+## Update the app
+
+Currently, Fleet does not automatically update apps. To update the app, remove the app and re-add it from the Fleet-maintained list on the **Software** page, then reinstall it.
+
 ## How does Fleet maintain these apps?
 
-Fleet checks [Homebrew Casks](https://github.com/Homebrew/homebrew-cask) every hour for updates to app definitions. When you add an app, Fleet downloads the latest version available. Currently, Fleet does not automatically update apps. To update the app, remove the app and re-add it from the Fleet-maintained list on the **Software** page, then reinstall it.
+Fleet:
+
+- verifies, installs, uninstalls & tests all Fleet-maintained apps
+- verifies the translation of all Homebrew scripts we use
+- checks Homebrew cask metadata at [Homebrew Casks](https://github.com/Homebrew/homebrew-cask) every hour for updates to Fleet-maintained app definitions
+- DOES NOT directly pull casks from Homebrew sources to computers
+
+At Fleet's current scale, having a dedicated team keeping up with update versions and all maintenance is not feasible. Our decision to build on top of Homebrew provides a lot of benefit to customers looking to add these apps quickly and easily while we avoid the burden of maintaining a system that is fully independent. It also lets us quickly add new apps to the repo when they are requested.
+
+This is not to say there isn't a path to improve or change this going forward and we appreciate your feedback to help us drive our strategy. Thanks!
 
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Gabriel Hernandez">
