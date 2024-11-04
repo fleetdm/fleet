@@ -1,3 +1,5 @@
+const userAgent = 'Fleet/Vanta Updater';
+
 module.exports = {
 
 
@@ -63,7 +65,7 @@ module.exports = {
         responseFromUserEndpoint = await sails.helpers.http.get(
           updatedRecord.fleetInstanceUrl + '/api/v1/fleet/users',
           {},
-          {'Authorization': 'Bearer '+updatedRecord.fleetApiKey }
+          {'Authorization': 'Bearer '+updatedRecord.fleetApiKey, 'User-Agent': userAgent }
         )
         .retry()
         .tolerate((err)=>{// If an error occurs while sending a request to the Fleet instance, we'll add the error to the errorReportById object, with this connections ID set as the key.
@@ -136,7 +138,7 @@ module.exports = {
         let getHostsResponse = await sails.helpers.http.get(
           `${updatedRecord.fleetInstanceUrl}/api/v1/fleet/hosts?per_page=${numberOfHostsPerRequest}&page=${pageNumberForPossiblePaginatedResults}`,
           {},
-          {'Authorization': 'bearer '+updatedRecord.fleetApiKey},
+          {'Authorization': 'bearer '+updatedRecord.fleetApiKey, 'User-Agent': userAgent},
         )
         .retry();
         // Add the results to the allHostsOnThisFleetInstance array.
@@ -211,7 +213,7 @@ module.exports = {
         let detailedInformationAboutThisHost = await sails.helpers.http.get(
           updatedRecord.fleetInstanceUrl + '/api/v1/fleet/hosts/'+encodeURIComponent(hostIdAsString),
           {},
-          {'Authorization': 'bearer '+updatedRecord.fleetApiKey}
+          {'Authorization': 'bearer '+updatedRecord.fleetApiKey, 'User-Agent': userAgent}
         )
         .retry()
         .intercept((err)=>{// If an error occurs while sending a request to the Fleet instance, we'll throw an error.
@@ -299,7 +301,7 @@ module.exports = {
         let detailedInformationAboutThisHost = await sails.helpers.http.get(
           updatedRecord.fleetInstanceUrl + '/api/v1/fleet/hosts/'+encodeURIComponent(hostIdAsString),
           {},
-          {'Authorization': 'bearer '+updatedRecord.fleetApiKey}
+          {'Authorization': 'bearer '+updatedRecord.fleetApiKey, 'User-Agent': userAgent}
         )
         .retry()
         .intercept((err)=>{// If an error occurs while sending a request to the Fleet instance, we'll throw an error.
