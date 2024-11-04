@@ -9014,6 +9014,7 @@ Returns information about the specified software. By default, `versions` are sor
       }
     },
     "app_store_app": null,
+    "counts_updated_at": "2024-11-03T22:39:36Z",
     "source": "apps",
     "browser": "",
     "hosts_count": 48,
