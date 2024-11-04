@@ -21,8 +21,8 @@ const ActivityAutomationDetailsModal = ({
       <>
         <div className={`${baseClass}__modal-content`}>
           <p>
-            Fleet was configured to send a JSON payload to this URL whenever a
-            new activity is generated:
+            Fleet will send a JSON payload to this URL whenever a new activity
+            is generated:
           </p>
           <div className={`${baseClass}__webhook-url`}>
             <Textarea className={`${baseClass}__webhook-url-textarea`}>
