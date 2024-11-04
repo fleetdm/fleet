@@ -36,7 +36,7 @@ module.exports = {
       macOsPolicies,
       windowsPolicies,
       linuxPolicies,
-      policies,// FUTURE: remove this once Algolia search is on this page
+      algoliaPublicKey: sails.config.custom.algoliaPublicKey,
     };
 
   }
