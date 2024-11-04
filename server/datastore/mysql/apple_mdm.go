@@ -1554,7 +1554,7 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID ui
 		for _, host := range hosts {
 			hostIDs = append(hostIDs, host.ID)
 			if host.EnrollmentStatus != nil && *host.EnrollmentStatus == "Pending" {
-				hostIDsPending = append(hostIDs, host.ID)
+				hostIDsPending = append(hostIDsPending, host.ID)
 			}
 		}
 
