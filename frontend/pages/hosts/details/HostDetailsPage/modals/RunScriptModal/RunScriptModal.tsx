@@ -9,10 +9,7 @@ import { IHost } from "interfaces/host";
 import { IHostScript } from "interfaces/script";
 import { IUser } from "interfaces/user";
 
-import scriptsAPI, {
-  IHostScriptsQueryKey,
-  IHostScriptsResponse,
-} from "services/entities/scripts";
+import scriptsAPI, { IHostScriptsResponse } from "services/entities/scripts";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError/DataError";
@@ -33,9 +30,16 @@ interface IScriptsProps {
   host: IHost;
   onClose: () => void;
   runScriptRequested: boolean;
+  refetchHostScripts: () => void;
+  page: number;
+  setPage: React.Dispatch<React.SetStateAction<number>>;
+  hostScriptResponse?: IHostScriptsResponse;
+  isFetching: boolean;
+  isLoading: boolean;
+  isError: boolean;
   setRunScriptRequested: React.Dispatch<React.SetStateAction<boolean>>;
   onClickViewScript: (scriptId: number, scriptDetails: IHostScript) => void;
-  onClickRunDetails: (scriptId: number) => void;
+  onClickRunDetails: (scriptExecutionId: string) => void;
   isHidden: boolean;
 }
 
@@ -46,7 +50,14 @@ const RunScriptModal = ({
   host,
   onClose,
   runScriptRequested,
+  refetchHostScripts,
+  page,
+  setPage,
   setRunScriptRequested,
+  hostScriptResponse,
+  isFetching,
+  isLoading,
+  isError,
   onClickViewScript,
   onClickRunDetails,
   isHidden = false,
@@ -54,37 +65,12 @@ const RunScriptModal = ({
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
 
-  const [page, setPage] = useState<number>(0);
-
-  const {
-    data: hostScriptResponse,
-    isError,
-    isLoading,
-    isFetching,
-    refetch: refetchHostScripts,
-  } = useQuery<
-    IHostScriptsResponse,
-    IApiError,
-    IHostScriptsResponse,
-    IHostScriptsQueryKey[]
-  >(
-    [{ scope: "host_scripts", host_id: host.id, page, per_page: 10 }],
-    ({ queryKey }) => scriptsAPI.getHostScripts(queryKey[0]),
-    {
-      refetchOnWindowFocus: false,
-      retry: false,
-      staleTime: 3000,
-      onSuccess: () => {
-        setRunScriptRequested(false);
-      },
-    }
-  );
-
   const onSelectAction = useCallback(
     async (action: string, script: IHostScript) => {
       switch (action) {
         case "showRunDetails": {
-          onClickRunDetails(script.script_id);
+          script.last_execution?.execution_id &&
+            onClickRunDetails(script.last_execution?.execution_id);
           break;
         }
         case "run": {

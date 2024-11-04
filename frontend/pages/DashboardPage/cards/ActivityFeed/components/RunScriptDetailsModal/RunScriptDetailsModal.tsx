@@ -154,7 +154,6 @@ const ScriptResult = ({
   hostname,
   hostTimeout,
   exitCode,
-  message,
   output,
 }: IScriptResultProps) => {
   const hostTimedOut = exitCode === null && hostTimeout === true;
@@ -165,11 +164,6 @@ const ScriptResult = ({
 
   return (
     <div className={`${baseClass}__script-result`}>
-      <StatusMessage
-        hostTimeout={hostTimeout}
-        exitCode={exitCode}
-        message={message}
-      />
       {showOutputText && <ScriptOutput output={output} hostname={hostname} />}
     </div>
   );
@@ -191,7 +185,7 @@ const RunScriptDetailsModal = ({
     () => {
       return scriptsAPI.getScriptResult(scriptExecutionId);
     },
-    { refetchOnWindowFocus: false }
+    { refetchOnWindowFocus: false, enabled: !!scriptExecutionId }
   );
 
   const renderContent = () => {
@@ -204,6 +198,11 @@ const RunScriptDetailsModal = ({
     } else if (data) {
       content = (
         <>
+          <StatusMessage
+            hostTimeout={data.host_timeout}
+            exitCode={data.exit_code}
+            message={data.output}
+          />
           <ScriptContent content={data.script_contents} />
           <ScriptResult
             hostname={data.hostname}

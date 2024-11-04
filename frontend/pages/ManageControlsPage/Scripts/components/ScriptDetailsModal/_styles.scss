@@ -2,4 +2,11 @@
   &__script-name {
     font-weight: $bold;
   }
+
+  #script-content {
+    box-sizing: border-box;
+    height: 300px;
+    overflow-y: auto;
+    font-family: "SourceCodePro";
+  }
 }

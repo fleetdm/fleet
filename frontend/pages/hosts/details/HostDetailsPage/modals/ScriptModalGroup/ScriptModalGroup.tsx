@@ -46,12 +46,17 @@ const ScriptModalGroup = ({
   const [selectedScriptId, setSelectedScriptId] = useState<number | undefined>(
     undefined
   );
+  const [selectedExecutionId, setSelectedExecutionId] = useState<
+    string | undefined
+  >(undefined);
   const [selectedScriptDetails, setSelectedScriptDetails] = useState<
     IHostScript | undefined
   >(undefined);
 
+  // Almost everything from this is needed on RunScript.tsx modal
+  // except refetch is used multiple places
   const {
-    data: hostScriptResponse,
+    data: runScriptTableResponse,
     isError,
     isLoading,
     isFetching,
@@ -120,12 +125,19 @@ const ScriptModalGroup = ({
           setSelectedScriptId(scriptId);
           setSelectedScriptDetails(scriptDetails);
         }}
-        onClickRunDetails={(scriptId: number) => {
+        onClickRunDetails={(scriptExecutionId: string) => {
           setPreviousModal("run-script");
           setCurrentModal("run-script-details");
-          setSelectedScriptId(scriptId);
+          scriptExecutionId && setSelectedExecutionId(scriptExecutionId);
         }}
         runScriptRequested={runScriptRequested}
+        refetchHostScripts={refetchHostScripts}
+        page={runScriptTablePage}
+        setPage={setRunScriptTablePage}
+        hostScriptResponse={runScriptTableResponse}
+        isFetching={isFetching}
+        isLoading={isLoading}
+        isError={isError}
         setRunScriptRequested={setRunScriptRequested}
         isHidden={currentModal !== "run-script"}
       />
@@ -143,9 +155,10 @@ const ScriptModalGroup = ({
           setCurrentModal("delete-script");
           setPreviousModal("view-script");
         }}
-        onShowRunDetails={() => {
+        onClickRunDetails={(scriptExecutionId: string) => {
           setCurrentModal("run-script-details");
           setPreviousModal("view-script");
+          scriptExecutionId && setSelectedExecutionId(scriptExecutionId);
         }}
         setRunScriptRequested={setRunScriptRequested}
         refetchHostScripts={refetchHostScripts}
@@ -171,7 +184,7 @@ const ScriptModalGroup = ({
         isHidden={currentModal !== "delete-script"}
       />
       <RunScriptDetailsModal
-        scriptExecutionId={"0"} // TODO
+        scriptExecutionId={selectedExecutionId || ""}
         onCancel={() => {
           if (previousModal === "view-script") {
             setCurrentModal(previousModal);

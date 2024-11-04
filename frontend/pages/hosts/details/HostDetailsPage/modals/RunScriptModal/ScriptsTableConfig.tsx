@@ -19,6 +19,17 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 import ScriptStatusCell from "./components/ScriptStatusCell";
 
+interface IRowProps {
+  row: {
+    original: IHostScript;
+  };
+}
+interface ICellProps extends IRowProps {
+  cell: {
+    value: string;
+  };
+}
+
 interface IStatusCellProps {
   cell: {
     value: ILastExecution | null;
@@ -81,11 +92,9 @@ export const generateTableColumnConfigs = (
       Header: "Name",
       disableSortBy: true,
       accessor: "name",
-      Cell: (cellProps: any) => {
-        // TODO any
+      Cell: (cellProps: ICellProps) => {
         const { name, script_id } = cellProps.row.original;
 
-        console.log("cellProps.row", cellProps.row);
         const onClickScriptName = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row
           e.stopPropagation();

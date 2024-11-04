@@ -37,7 +37,7 @@ interface IScriptDetailsModalProps {
   isScriptContentError?: Error | null;
   isHidden?: boolean;
   onCloseScriptModalGroup?: () => void;
-  onShowRunDetails?: () => void;
+  onClickRunDetails?: (scriptExecutionId: string) => void;
 }
 
 const ScriptDetailsModal = ({
@@ -55,7 +55,7 @@ const ScriptDetailsModal = ({
   isScriptContentError,
   isHidden = false,
   onCloseScriptModalGroup,
-  onShowRunDetails,
+  onClickRunDetails,
 }: IScriptDetailsModalProps) => {
   const { currentUser } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -89,10 +89,16 @@ const ScriptDetailsModal = ({
 
   const onSelectMoreActions = useCallback(
     async (action: string, script: IHostScript) => {
-      if (hostId && setRunScriptRequested && refetchHostScripts) {
+      if (
+        hostId &&
+        setRunScriptRequested &&
+        refetchHostScripts &&
+        script.last_execution?.execution_id
+      ) {
         switch (action) {
           case "showRunDetails": {
-            onShowRunDetails && onShowRunDetails();
+            onClickRunDetails &&
+              onClickRunDetails(script.last_execution?.execution_id);
             break;
           }
           case "run": {
@@ -120,7 +126,7 @@ const ScriptDetailsModal = ({
     },
     [
       hostId,
-      onShowRunDetails,
+      onClickRunDetails,
       setRunScriptRequested,
       refetchHostScripts,
       onCloseScriptModalGroup,
