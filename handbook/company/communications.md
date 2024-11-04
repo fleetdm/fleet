@@ -934,9 +934,9 @@ Expectations during onboarding:
 
 ### Sightseeing tour
 
-During their first day at Fleet, new team members join a sightseeing tour call. During this call, the new team member will participate in an interactive tour of the seven main attractions in our all-remote company, including the primary tools used company-wide, what the human experience is like, and when/why we use them at Fleet.
+During their first day at Fleet, new team members join a sightseeing tour call. During this call, the new team member will participate in an interactive tour of the main attractions in our all-remote company, including the primary tools used company-wide, what the human experience is like, and when/why we use them at Fleet.
 
-In this meeting, we'll take a look at:
+In this meeting, we'll [use this agenda](https://docs.google.com/document/d/1_gAy_ndrRQ-RwHAm4xhZ8rbY8XJZl9QqZBMS7YU2aMY/edit?tab=t.0#heading=h.7en766pueek4) to walk through the following:
 - Handbook: values, purpose, key pages to pay special attention to
 - GitHub issues: the living bloodstream of the company.
 - Kanban boards: the bulletin board of quests you can get and how you update status and let folks know things are done.
