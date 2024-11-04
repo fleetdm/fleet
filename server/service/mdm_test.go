@@ -2011,10 +2011,6 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 				assert.True(t, profile.LabelsExcludeAny[0].Exclude, "profile label should have Exclude: %s", profile.Name)
 				profileLabels[profile.Name].ExcludeAny = true
 			}
-			// fmt.Printf("profile.Name: %v\n", profile.Name)
-			// fmt.Printf("macProfile.LabelsIncludeAll: %+v\n", profile.LabelsIncludeAll)
-			// fmt.Printf("macProfile.LabelsIncludeAny: %+v\n", profile.LabelsIncludeAny)
-			// fmt.Printf("macProfile.LabelsExcludeAny: %+v\n", profile.LabelsExcludeAny)
 		}
 
 		for _, profile := range winProfiles {
@@ -2034,10 +2030,6 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 				assert.True(t, profile.LabelsExcludeAny[0].Exclude, "profile label should have Exclude: %s", profile.Name)
 				profileLabels[profile.Name].ExcludeAny = true
 			}
-			// fmt.Printf("profile.Name: %v\n", profile.Name)
-			// fmt.Printf("winProfile.LabelsIncludeAll: %+v\n", profile.LabelsIncludeAll)
-			// fmt.Printf("winProfile.LabelsIncludeAny: %+v\n", profile.LabelsIncludeAny)
-			// fmt.Printf("winProfile.LabelsExcludeAny: %+v\n", profile.LabelsExcludeAny)
 		}
 
 		for _, profile := range macDeclarations {
@@ -2057,10 +2049,6 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 				assert.True(t, profile.LabelsExcludeAny[0].Exclude, "profile label should have Exclude: %s", profile.Name)
 				profileLabels[profile.Name].ExcludeAny = true
 			}
-			// fmt.Printf("profile.Name: %v\n", profile.Name)
-			// fmt.Printf("declProfile.LabelsIncludeAll: %+v\n", profile.LabelsIncludeAll)
-			// fmt.Printf("declProfile.LabelsIncludeAny: %+v\n", profile.LabelsIncludeAny)
-			// fmt.Printf("declProfile.LabelsExcludeAny: %+v\n", profile.LabelsExcludeAny)
 		}
 
 		return fleet.MDMProfilesUpdates{}, nil
@@ -2079,6 +2067,7 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	}
 
 	profiles := []fleet.MDMProfileBatchPayload{
+		// macOS
 		{
 			Name:             "MIncAll",
 			Contents:         mobileconfigForTest("MIncAll", "1"),
@@ -2094,6 +2083,7 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 			Contents:         mobileconfigForTest("MExclAny", "3"),
 			LabelsExcludeAny: []string{"a", "b"},
 		},
+		// Windows
 		{
 			Name:             "WIncAll",
 			Contents:         syncMLForTest("./Foo/Bar"),
@@ -2109,6 +2099,7 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 			Contents:         syncMLForTest("./Foo/Barf"),
 			LabelsExcludeAny: []string{"a", "b"},
 		},
+		// Declarative
 		{
 			Name:             "DIncAll",
 			Contents:         declarationForTest("DIncAll"),

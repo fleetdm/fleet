@@ -1901,17 +1901,31 @@ func getAppleProfiles(
 
 		for _, labelName := range prof.LabelsIncludeAll {
 			if lbl, ok := labelMap[labelName]; ok {
-				mdmProf.LabelsIncludeAll = append(mdmProf.LabelsIncludeAll, lbl)
+				mdmLabel := fleet.ConfigurationProfileLabel{
+					LabelName:  lbl.LabelName,
+					LabelID:    lbl.LabelID,
+					RequireAll: true,
+				}
+				mdmProf.LabelsIncludeAll = append(mdmProf.LabelsIncludeAll, mdmLabel)
 			}
 		}
 		for _, labelName := range prof.LabelsIncludeAny {
 			if lbl, ok := labelMap[labelName]; ok {
-				mdmProf.LabelsIncludeAny = append(mdmProf.LabelsIncludeAny, lbl)
+				mdmLabel := fleet.ConfigurationProfileLabel{
+					LabelName: lbl.LabelName,
+					LabelID:   lbl.LabelID,
+				}
+				mdmProf.LabelsIncludeAny = append(mdmProf.LabelsIncludeAny, mdmLabel)
 			}
 		}
 		for _, labelName := range prof.LabelsExcludeAny {
 			if lbl, ok := labelMap[labelName]; ok {
-				mdmProf.LabelsExcludeAny = append(mdmProf.LabelsExcludeAny, lbl)
+				mdmLabel := fleet.ConfigurationProfileLabel{
+					LabelName: lbl.LabelName,
+					LabelID:   lbl.LabelID,
+					Exclude:   true,
+				}
+				mdmProf.LabelsExcludeAny = append(mdmProf.LabelsExcludeAny, mdmLabel)
 			}
 		}
 
@@ -1982,17 +1996,31 @@ func getWindowsProfiles(
 		}
 		for _, labelName := range profile.LabelsIncludeAll {
 			if lbl, ok := labelMap[labelName]; ok {
-				mdmProf.LabelsIncludeAll = append(mdmProf.LabelsIncludeAll, lbl)
+				mdmLabel := fleet.ConfigurationProfileLabel{
+					LabelName:  lbl.LabelName,
+					LabelID:    lbl.LabelID,
+					RequireAll: true,
+				}
+				mdmProf.LabelsIncludeAll = append(mdmProf.LabelsIncludeAll, mdmLabel)
 			}
 		}
 		for _, labelName := range profile.LabelsIncludeAny {
 			if lbl, ok := labelMap[labelName]; ok {
-				mdmProf.LabelsIncludeAny = append(mdmProf.LabelsIncludeAny, lbl)
+				mdmLabel := fleet.ConfigurationProfileLabel{
+					LabelName: lbl.LabelName,
+					LabelID:   lbl.LabelID,
+				}
+				mdmProf.LabelsIncludeAny = append(mdmProf.LabelsIncludeAny, mdmLabel)
 			}
 		}
 		for _, labelName := range profile.LabelsExcludeAny {
 			if lbl, ok := labelMap[labelName]; ok {
-				mdmProf.LabelsExcludeAny = append(mdmProf.LabelsExcludeAny, lbl)
+				mdmLabel := fleet.ConfigurationProfileLabel{
+					LabelName: lbl.LabelName,
+					LabelID:   lbl.LabelID,
+					Exclude:   true,
+				}
+				mdmProf.LabelsExcludeAny = append(mdmProf.LabelsExcludeAny, mdmLabel)
 			}
 		}
 
