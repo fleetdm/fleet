@@ -1612,7 +1612,7 @@ INSERT INTO
 			cp.LabelsIncludeAny[i].ProfileUUID = profileUUID
 			cp.LabelsIncludeAny[i].RequireAll = false
 			cp.LabelsIncludeAny[i].Exclude = false
-			labels = append(labels, cp.LabelsIncludeAll[i])
+			labels = append(labels, cp.LabelsIncludeAny[i])
 		}
 		for i := range cp.LabelsExcludeAny {
 			cp.LabelsExcludeAny[i].ProfileUUID = profileUUID

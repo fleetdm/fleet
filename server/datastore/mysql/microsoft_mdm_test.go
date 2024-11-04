@@ -40,6 +40,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsDiskEncryption", testMDMWindowsDiskEncryption},
 		{"TestMDMWindowsProfilesSummary", testMDMWindowsProfilesSummary},
 		{"TestBatchSetMDMWindowsProfiles", testBatchSetMDMWindowsProfiles},
+		{"TestMDMWindowsProfileLabels", testMDMWindowsProfileLabels},
 	}
 
 	for _, c := range cases {
@@ -2010,6 +2011,54 @@ func testSetOrReplaceMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	expectWindowsProfiles(t, ds, nil, []*fleet.MDMWindowsConfigProfile{&cp2, &cp6})
 }
 
+func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	// Create a windows host
+	u := uuid.New().String()
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         &u,
+		UUID:            u,
+		Hostname:        u,
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+	windowsEnroll(t, ds, host)
+
+	// Create 3 labels
+	label := &fleet.Label{
+		Name:        "my label",
+		Description: "a label",
+		Query:       "select 1 from processes;",
+	}
+	label, err = ds.NewLabel(ctx, label)
+	require.NoError(t, err)
+
+	// Create a profile with "include-any" with l1
+	profWithLabel, err := ds.NewMDMWindowsConfigProfile(
+		ctx,
+		fleet.MDMWindowsConfigProfile{
+			Name:             "with-labelsb",
+			TeamID:           nil,
+			SyncML:           []byte("<Replace></Replace>"),
+			LabelsIncludeAny: []fleet.ConfigurationProfileLabel{{LabelName: label.Name, LabelID: label.ID}},
+		})
+	require.NoError(t, err)
+	require.NotEmpty(t, profWithLabel.ProfileUUID)
+
+	// Connect the host and l1
+	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{label.ID, host.ID}})
+	require.NoError(t, err)
+
+	// We should see the profile in the "to install" list
+	profilesToInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.Len(t, profilesToInstall, 1)
+}
+
 func expectWindowsProfiles(
 	t *testing.T,
 	ds *Datastore,
@@ -2068,7 +2117,8 @@ func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	applyAndExpect := func(newSet []*fleet.MDMWindowsConfigProfile, tmID *uint, want []*fleet.MDMWindowsConfigProfile,
-		wantUpdated bool) map[string]string {
+		wantUpdated bool,
+	) map[string]string {
 		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 			updatedDB, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, newSet)
 			require.NoError(t, err)
