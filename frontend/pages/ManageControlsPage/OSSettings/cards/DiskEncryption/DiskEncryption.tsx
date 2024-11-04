@@ -114,7 +114,12 @@ const DiskEncryption = ({
 
   return (
     <div className={baseClass}>
-      <SectionHeader title="Disk encryption" />
+      <SectionHeader
+        title="Disk encryption"
+        subTitle="Disk encryption is available on macOS, Windows, Ubuntu Linux, and Fedora Linux hosts."
+        alignLeftHeaderVertically
+        greySubtitle
+      />
       {!isPremiumTier ? (
         <PremiumFeatureMessage
           className={`${baseClass}__premium-feature-message`}

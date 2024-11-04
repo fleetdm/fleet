@@ -109,6 +109,21 @@ const defaultTableHeaders: IDataColumn[] = [
     },
   },
   {
+    title: "Linux hosts",
+    Header: (cellProps: IHeaderProps) => (
+      <HeaderCell
+        value={cellProps.column.title}
+        isSortedDesc={cellProps.column.isSortedDesc}
+        disableSortBy
+      />
+    ),
+    disableSortBy: true,
+    accessor: "linuxHosts",
+    Cell: ({ cell: { value: aggregateCount } }: ICellProps) => {
+      return <TextCell value={aggregateCount} />;
+    },
+  },
+  {
     title: "",
     Header: "",
     accessor: "linkToFilteredHosts",

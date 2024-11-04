@@ -24,6 +24,7 @@ export type ProfileStatusSummaryResponse = Record<MdmProfileStatus, number>;
 export interface IDiskEncryptionStatusAggregate {
   macos: number;
   windows: number;
+  linux: number;
 }
 
 export type IDiskEncryptionSummaryResponse = Record<

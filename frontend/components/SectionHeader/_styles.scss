@@ -7,6 +7,15 @@
     display: flex;
     align-items: center;
     gap: $pad-small;
+    &--vertical {
+      flex-direction: column;
+    }
+  }
+
+  &__sub-title {
+    &--grey {
+      @include grey-text;
+    }
   }
 
   h2 {
