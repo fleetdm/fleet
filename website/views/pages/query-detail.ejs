@@ -53,10 +53,12 @@
           <div purpose="right-sidebar" class="d-flex flex-column">
             <div purpose="policy-platform">
               <h4>Platform</h4>
-              <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" v-if="query.platform.includes('darwin')"/>
-              <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" v-if="query.platform.includes('windows')"/>
-              <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" v-if="query.platform.includes('linux')"/>
-              <img src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" v-if="query.platform.includes('chrome')"/>
+              <div class="d-flex flex-row">
+                <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" v-if="query.platform.includes('darwin')"/>
+                <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" v-if="query.platform.includes('windows')"/>
+                <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" v-if="query.platform.includes('linux')"/>
+                <img src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" v-if="query.platform.includes('chrome')"/>
+              </div>
             </div>
             <div purpose="social-share-buttons" class="d-flex flex-column order-lg-2 order-1">
               <p><strong>Share</strong></p>
