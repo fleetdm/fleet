@@ -205,7 +205,7 @@ func (g *GitOps) IsNoTeam() bool {
 }
 
 func isNoTeam(teamName string) bool {
-	return strings.ToLower(teamName) == strings.ToLower(noTeam)
+	return strings.EqualFold(teamName, noTeam)
 }
 
 const noTeam = "No team"
@@ -588,9 +588,7 @@ func parsePolicyRunScript(baseDir string, teamName *string, policy *Policy, scri
 	}
 
 	scriptOnTeamFound := false
-	var foundScriptPaths []string
 	for _, script := range scripts {
-		foundScriptPaths = append(foundScriptPaths, *script.Path)
 		if scriptPath == *script.Path {
 			scriptOnTeamFound = true
 			break

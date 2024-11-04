@@ -1205,7 +1205,7 @@ func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// host_mdm entry should not exist anymore.
-	hmdm, err = ds.GetHostMDM(ctx, h2.ID)
+	_, err = ds.GetHostMDM(ctx, h2.ID)
 	require.NoError(t, err)
 
 	// host_mdm entry should still exist with empty values.
@@ -3491,7 +3491,7 @@ func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
 	checkHostIssues(t, ds, hosts, filter, h1.ID, 1)
 
-	checkHostIssuesWithOpts(t, ds, hosts, filter, h1.ID, fleet.HostListOptions{DisableIssues: true}, 0)
+	checkHostIssuesWithOpts(t, ds, filter, h1.ID, fleet.HostListOptions{DisableIssues: true}, 0)
 }
 
 // This doesn't work when running the whole test suite, but helps inspect individual tests
@@ -3582,13 +3582,13 @@ func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
 }
 
 func checkHostIssues(t *testing.T, ds *Datastore, hosts []*fleet.Host, filter fleet.TeamFilter, hid uint, expected uint64) {
-	checkHostIssuesWithOpts(t, ds, hosts, filter, hid, fleet.HostListOptions{}, expected)
+	checkHostIssuesWithOpts(t, ds, filter, hid, fleet.HostListOptions{}, expected)
 }
 
 func checkHostIssuesWithOpts(
-	t *testing.T, ds *Datastore, hosts []*fleet.Host, filter fleet.TeamFilter, hid uint, opts fleet.HostListOptions, expected uint64,
+	t *testing.T, ds *Datastore, filter fleet.TeamFilter, hid uint, opts fleet.HostListOptions, expected uint64,
 ) {
-	hosts = listHostsCheckCount(t, ds, filter, opts, 10)
+	hosts := listHostsCheckCount(t, ds, filter, opts, 10)
 	foundH2 := false
 	var foundHost *fleet.Host
 	for _, host := range hosts {
@@ -7749,7 +7749,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	// simulate the device being assigned to Fleet in ABM
 	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hFleet}, abmToken.ID)
 	require.NoError(t, err)
-	loadFleet, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
+	_, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
 	require.NoError(t, err)
 
 	// simulate a failed JSON profile assignment
@@ -7758,7 +7758,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		"foo", []string{hFleet.HardwareSerial}, string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
 	)
 	require.NoError(t, err)
-	loadFleet, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
+	_, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
 	require.NoError(t, err)
 }
 

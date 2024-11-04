@@ -50,7 +50,7 @@ func (s *FileStorage) IsCertHashAssociated(r *mdm.Request, hash string) (bool, e
 		}
 		return false, err
 	}
-	return strings.ToLower(string(b)) == strings.ToLower(hash), nil
+	return strings.EqualFold(string(b), hash), nil
 }
 
 func (s *FileStorage) AssociateCertHash(r *mdm.Request, hash string, _ time.Time) error {
