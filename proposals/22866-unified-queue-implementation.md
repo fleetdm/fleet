@@ -26,6 +26,10 @@ Notable challenges with that approach are:
 
 ### MDM commands
 
+- For `nano_commands`/`nano_enrollment_queue`, I don't think we rely on a command being stored there while pending, AFAICT we mostly let the MDM protocol do its thing.
+	* Of course it could still matter for some explicit flows, for example `fleetctl mdm run-command` followed by `fleetctl get mdm-command-results` would fail to find the command if it was in the upcoming queue but not in the MDM queue.
+- Similar for Windows MDM tables.
+
 ### Script execution
 
 - `host_script_results` is used during the "pending" phase:
@@ -60,3 +64,16 @@ Note that ["software uninstall" requests](https://github.com/fleetdm/fleet/blob/
 ### DB schema changes and migrations
 
 - Entries in the unified queue for a given host will need to be deleted if that host is deleted: https://github.com/fleetdm/fleet/blob/85dd21267700e76ee8fe184ddef2dc54692afe43/server/datastore/mysql/hosts.go#L563
+- Should secondary data be created when creating the unified queue pending record entry? E.g. the `script_contents` row for a script in a software install or script execution request? 
+	* I'd say yes, otherwise we could end up taking lots of storage place in this table, defeating the purpose of the `script_contents` deduplication table.
+	* This means that if the script contents are updated, the pending row should be deleted (which I believe is how it works today).
+
+The new table will need to have at least those columns:
+- uuid (unique for each action, will allow cancelation support)
+- host_id (but without FK for performance reasons, as per our DB performance patterns)
+- actor id, email, name and avatar (copied into the table to persist even if user is deleted? a bit like we do for `activities`?)
+- fleet-initiated vs user-initiated? (e.g. a disk encryption MDM command or OS upgrade is fleet-initiated via Fleet settings, while deploying a custom profile is user-initiated by the user that added the profile to the team)
+- activity "type" (MDM command, script execution, software install, software uninstall, etc.)
+- a creation time and a priority column to allow for easy re-ordering (by default all are at the same prority so ordering could be `priority DESC, created_at ASC`)
+- an arbitrary JSON payload for the rest of the activity-specific payload, promoting columns as needed to support the "pending" behaviour that we have today via the other tables
+
