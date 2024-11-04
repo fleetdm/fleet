@@ -23,6 +23,7 @@ Notable challenges with that approach are:
 - The logic today expects data to be immediately stored in the relevant tables even while it is pending. With that approach, we'd store it in the unified queue until it is ready to be processed, and only then we'd store it in the relevant tables (e.g. `nano_commands` or `host_script_results` etc.). If not properly addressed this may cause subtle issues in behavior, UI, summary counts, etc.
 - Ensuring everything that is mutable still works after mutation (I don't think a lot of things are mutable - MDM commands certainly are not - but e.g. software install, what if the installer's information is updated?).
 - Triggering execution of the next item in the queue - push or pull? In most cases, when we save the result of the previous item we could trigger (push) execution of the next one, but what about the very first item in the queue, or what if there are no more items at this moment?
+	* An additional challenge is that even when the next item is created in the "delivery" table, it is still pending for a bit (e.g. for a script execution, pending until the host requests its config, gets the script to execute, and starts executing), so we should probably not remove it from the unified queue until it has been processed, but we should mark it as "in processing" so that it is not seen as the next item to process...
 
 ### MDM commands
 
@@ -64,7 +65,7 @@ Note that ["software uninstall" requests](https://github.com/fleetdm/fleet/blob/
 ### DB schema changes and migrations
 
 - Entries in the unified queue for a given host will need to be deleted if that host is deleted: https://github.com/fleetdm/fleet/blob/85dd21267700e76ee8fe184ddef2dc54692afe43/server/datastore/mysql/hosts.go#L563
-- Should secondary data be created when creating the unified queue pending record entry? E.g. the `script_contents` row for a script in a software install or script execution request? 
+- Should secondary data be created when creating the unified queue pending record entry? E.g. the `script_contents` row for a script in a software install or script execution request?
 	* I'd say yes, otherwise we could end up taking lots of storage place in this table, defeating the purpose of the `script_contents` deduplication table.
 	* This means that if the script contents are updated, the pending row should be deleted (which I believe is how it works today).
 
