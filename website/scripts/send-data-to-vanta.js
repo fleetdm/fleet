@@ -154,6 +154,13 @@ module.exports = {
         return;
       }
 
+      // If this is Fleet's Vanta connection, exclude hosts on the "Compliance exclusions" team.
+      if(vantaConnection.id === 3){
+        allHostsOnThisFleetInstance = allHostsOnThisFleetInstance.filter((host)=>{
+          return host.team_id !== 178;// Compliance exclusions team
+        });
+      }
+
       let macOsHosts = allHostsOnThisFleetInstance.filter((host)=>{
         return host.platform === 'darwin';
       });
