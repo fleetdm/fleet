@@ -51,10 +51,6 @@ Fleet:
 - checks Homebrew cask metadata at [Homebrew Casks](https://github.com/Homebrew/homebrew-cask) every hour for updates to Fleet-maintained app definitions
 - DOES NOT directly pull casks from Homebrew sources to computers
 
-At Fleet's current scale, having a dedicated team keeping up with update versions and all maintenance is not feasible. Our decision to build on top of Homebrew provides a lot of benefit to customers looking to add these apps quickly and easily while we avoid the burden of maintaining a system that is fully independent. It also lets us quickly add new apps to the repo when they are requested.
-
-This is not to say there isn't a path to improve or change this going forward and we appreciate your feedback to help us drive our strategy. Thanks!
-
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Gabriel Hernandez">
 <meta name="authorGitHubUsername" value="ghernandez345">
