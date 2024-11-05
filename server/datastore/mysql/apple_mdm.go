@@ -2311,7 +2311,8 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.checksum as checksum,
 		0 as ${countEntityLabelsColumn},
 		0 as count_non_broken_labels,
-		0 as count_host_labels
+		0 as count_host_labels,
+		0 as count_host_updated_after_labels
 	FROM
 		${mdmAppleEntityTable} mae
 			JOIN hosts h
@@ -2343,7 +2344,8 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.checksum as checksum,
 		COUNT(*) as ${countEntityLabelsColumn},
 		COUNT(mel.label_id) as count_non_broken_labels,
-		COUNT(lm.label_id) as count_host_labels
+		COUNT(lm.label_id) as count_host_labels,
+		0 as count_host_updated_after_labels
 	FROM
 		${mdmAppleEntityTable} mae
 			JOIN hosts h
@@ -2380,7 +2382,10 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.checksum as checksum,
 		COUNT(*) as ${countEntityLabelsColumn},
 		COUNT(mel.label_id) as count_non_broken_labels,
-		COUNT(lm.label_id) as count_host_labels
+		COUNT(lm.label_id) as count_host_labels,
+		-- this helps avoid the case where the host is not a member of a label 
+		-- just because it hasn't reported results for that label yet.
+		SUM(CASE WHEN lbl.created_at IS NOT NULL AND h.label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
 	FROM
 		${mdmAppleEntityTable} mae
 			JOIN hosts h
@@ -2389,6 +2394,8 @@ func generateDesiredStateQuery(entityType string) string {
 				ON ne.device_id = h.uuid
 			JOIN ${mdmEntityLabelsTable} mel
 				ON mel.${appleEntityUUIDColumn} = mae.${entityUUIDColumn} AND mel.exclude = 1
+			LEFT OUTER JOIN labels lbl
+				ON lbl.id = mel.label_id
 			LEFT OUTER JOIN label_membership lm
 				ON lm.label_id = mel.label_id AND lm.host_id = h.id
 	WHERE
@@ -2399,8 +2406,8 @@ func generateDesiredStateQuery(entityType string) string {
 	GROUP BY
 		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.checksum
 	HAVING
-		-- considers only the profiles with labels, without any broken label, and with the host not in any label
-		${countEntityLabelsColumn} > 0 AND ${countEntityLabelsColumn} = count_non_broken_labels AND count_host_labels = 0
+		-- considers only the profiles with labels, without any broken label, with results reported after all labels were created and with the host not in any label
+		${countEntityLabelsColumn} > 0 AND ${countEntityLabelsColumn} = count_non_broken_labels AND ${countEntityLabelsColumn} = count_host_updated_after_labels AND count_host_labels = 0
 	`, func(s string) string { return dynamicNames[s] })
 }
 
