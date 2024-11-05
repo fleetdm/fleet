@@ -53,7 +53,7 @@
           <div purpose="policy" class="d-flex flex-lg-row flex-column justify-content-between">
             <div purpose="policy-name-and-description" class="d-flex flex-column">
               <div class="d-flex flex-column">
-                <p purpose="policy-name"><%- policy.name %></p>
+                <p purpose="policy-name"><a href="/queries/<%- policy.slug%>"><%- policy.name %></a></p>
                 <% if(policy.tags.includes('premium')) {%><div purpose="premium-badge">PREMIUM</div><% } %>
                 <% if(policy.requiresMdm) {%><div purpose="requires-mdm-badge">mdm-required</div><% } %>
               </div>
