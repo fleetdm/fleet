@@ -44,6 +44,9 @@ module.exports = {
     },
     getStartedResponses: {
       type: 'string',
+    },
+    intentSignal: {
+      type: 'string',
     }
 
   },
@@ -61,15 +64,15 @@ module.exports = {
   },
 
 
-  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses}) {
+  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses, intentSignal}) {
     // Return undefined if we're not running in a production environment.
-    if(sails.config.environment !== 'production') {
-      sails.log.verbose('Skipping Salesforce integration...');
-      return {
-        salesforceAccountId: undefined,
-        salesforceContactId: undefined
-      };
-    }
+    // if(sails.config.environment !== 'production') {
+    //   sails.log.verbose('Skipping Salesforce integration...');
+    //   return {
+    //     salesforceAccountId: undefined,
+    //     salesforceContactId: undefined
+    //   };
+    // }
 
     require('assert')(sails.config.custom.salesforceIntegrationUsername);
     require('assert')(sails.config.custom.salesforceIntegrationPasskey);
@@ -114,6 +117,9 @@ module.exports = {
     if(psychologicalStageChangeReason) {
       valuesToSet.Psystage_change_reason__c = psychologicalStageChangeReason;// eslint-disable-line camelcase
     }
+    if(intentSignal) {
+      valuesToSet.Intent_signals__c = intentSignal;// eslint-disable-line camelcase
+    }
 
     let existingContactRecord;
     // Search for an existing Contact record using the provided email address or linkedIn profile URL.
@@ -133,6 +139,24 @@ module.exports = {
       // If a description was provided and the contact has a description, append the new description to it.
       if(description && existingContactRecord.Description) {
         valuesToSet.Description = existingContactRecord.Description + '\n' + description;
+      }
+      // If an intent signal was specified, add it to the list of intent signals on the exisitng contact.
+      // Note: intent signals values are stored as a single string in salesforce, separated by a semicolon.
+      if(intentSignal && existingContactRecord.Intent_signals__c) {
+        // Convert the string from the Salesforce record into an array.
+        let existingContactIntentSignalsAsAnArray = existingContactRecord.Intent_signals__c.split(';');
+        console.log('Existing intent signals!', existingContactIntentSignalsAsAnArray);
+        // If this intent signal is not included in the exisitng contacts intent signals, add it.
+        if(!existingContactIntentSignalsAsAnArray.includes(intentSignal)) {
+          existingContactIntentSignalsAsAnArray.push(intentSignal);
+          // Convert the array back into a string to send it to Salesforce.
+          valuesToSet.Intent_signals__c = existingContactIntentSignalsAsAnArray.join(';');// eslint-disable-line camelcase
+          console.log('updated intent signals!', valuesToSet.Intent_signals__c);
+        } else {
+          console.log('Removing duplicate intent signal', intentSignal);
+          // Otherwise, if the existing contact already has this intent signal tracked, remove it from the valuesToSet
+          delete valuesToSet.Intent_signals__c;// eslint-disable-line camelcase
+        }
       }
       // Check the existing contact record's psychologicalStage.
       if(psychologicalStage) {
