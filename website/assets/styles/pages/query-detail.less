@@ -249,11 +249,11 @@
       position: absolute;
       top: 11px;
       right: 10px;
-      // padding: 9px;
       border-radius: 8px;
       height: 32px;
       width: 32px;
       background: url('/images/icon-copy-16x16@2x.png');
+      background-color: #F9FAFC;
       background-size: 14px 14px;
       background-position: center;
       background-repeat: no-repeat;
@@ -287,6 +287,24 @@
       line-height: 150%;
       .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
         color: #AE6DDF;
+      }
+      [purpose='line-break']:not(:first-of-type)::before {
+        content: '\a   ';
+      }
+      .hljs-attr { // For table and column names
+        .hljs-keyword {
+          color: #FFF;
+        }
+        color: #FFF;
+        background-color: #AE6DDF;
+        border-radius: 4px;
+        padding: 4px 4px 4px 4px;
+        white-space: pre;
+        vertical-align: baseline;
+        line-height: 16px;
+        span {
+          padding: 0;
+        }
       }
       .hljs-string { // For words wrapped in quotation marks
         color: #3DB67B;

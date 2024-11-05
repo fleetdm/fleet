@@ -34,6 +34,27 @@ module.exports = {
       throw 'notFound';
     }
 
+    // Find the related osquery table documentation for tables used in this query, and grab the keywordsForSyntaxHighlighting from each table used.
+    let allTablesInformation = _.filter(sails.config.builtStaticContent.markdownPages, (pageInfo)=>{
+      return _.startsWith(pageInfo.url, '/tables/');
+    });
+    // Get all the osquery table names, we'll use this list to determine which tables are used.
+    let allTableNames = _.pluck(allTablesInformation, 'title');
+    // Create an array of words in the query.
+    let queryWords = _.words(query.query, /[^ ]+/g);
+    let keywordsForSyntaxHighlighting = [];
+    // Get all of the words that appear in both arrays
+    let intersectionBetweenQueryWordsAndTableNames = _.intersection(queryWords, allTableNames);
+    // For each matched osquery table, add the keywordsForSyntaxHighlighting (names of tables and columns) to the array we'll use for this page.
+    for(let tableName of intersectionBetweenQueryWordsAndTableNames) {
+      let tableMentionedInThisQuery = _.find(sails.config.builtStaticContent.markdownPages, {title: tableName});
+      let keyWordsForThisTable = tableMentionedInThisQuery.keywordsForSyntaxHighlighting;
+      keywordsForSyntaxHighlighting = keywordsForSyntaxHighlighting.concat(keyWordsForThisTable);
+    }
+
+
+
+
     // Setting the meta title and description of this page using the query object, and falling back to a generic title or description if query.name or query.description are missing.
     let pageTitleForMeta = query.name ? query.name + ' | Query details' : 'Query details';
     let pageDescriptionForMeta = query.description ? query.description : 'View more information about a query in Fleet\'s standard query library';
@@ -43,6 +64,7 @@ module.exports = {
       queryLibraryYmlRepoPath: sails.config.builtStaticContent.queryLibraryYmlRepoPath,
       pageTitleForMeta,
       pageDescriptionForMeta,
+      keywordsForSyntaxHighlighting,
       algoliaPublicKey: sails.config.custom.algoliaPublicKey,
     };
 
