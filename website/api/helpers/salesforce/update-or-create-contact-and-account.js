@@ -157,7 +157,7 @@ module.exports = {
           valuesToSet.Intent_signals__c = existingContactIntentSignalsAsAnArray.join(';');// eslint-disable-line camelcase
         } else {
           // Otherwise, if the existing contact already has this intent signal tracked, remove it from the valuesToSet
-          delete valuesToSet.Intent_signals__c;// eslint-disable-line camelcase
+          delete valuesToSet.Intent_signals__c;
         }
       }
       // Check the existing contact record's psychologicalStage.
