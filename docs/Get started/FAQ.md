@@ -166,19 +166,7 @@ Anyone is free to contribute to the free or paid features of the project. We are
 The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
 
 ## How can I uninstall fleetd?
-To uninstall Fleet's agent (fleetd), follow the below instructions for your operating system.
-
-#### MacOS
-Run the Orbit [cleanup script](https://github.com/fleetdm/fleet/blob/main/orbit/tools/cleanup/cleanup_macos.sh)
-
-#### Windows
-Use the "Add or remove programs" dialog to remove Fleet osquery.
-
-#### Ubuntu
-Run `sudo apt remove fleet-osquery -y`
-
-#### CentOS
-Run `sudo rpm -e fleet-osquery-X.Y.Z.x86_64`
+To uninstall Fleet's agent (fleetd), follow the instructions [here](https://fleetdm.com/guides/how-to-uninstall-fleetd).
 
 <!--
 Mike T: In 2023 we made the decision to comment out the following questions because the FAQs had become a dumping ground for miscellaneous content that wasn't quite reference docs and wasn't quite committed learning docs (suitable for articles). We chose to hide the content rather than remove, or spend time trying to figure out better places in the docs, with the assumption that if it's important enough content, someone will circle back at some point to prioritize a better home.
