@@ -242,6 +242,14 @@ Why bother with all that?  And why do it in this particular order?
 - **It helps us prevent future outages.** By finding outages sooner, we incentivize ourselves to fix the root cause sooner.  And by fixing bugs sooner, we prevent them from stacking and bleeding into one another, and we prevent ourselves from implementing future fixes and improvements on top of shaky foundations.  This makes contributions less risky and reduces the number of outages.
 
 
+## Why fix small inconsistencies quickly?
+
+It's critical because it keeps the product polished and functional for everyone. When small details are overlooked, they add up over time, creating problems for both users and employees. By bringing up these issues immediately, you avoid the minor problems piling up and becoming major obstacles. It can also create a perception of disorder, much like the "Broken Windows Theory" which uses the metaphor of how having an unrepaired broken window can result in having all the windows broken over time. 
+
+(insert story of 1st grade teacher
+
+At Fleet, prioritizing swift action on the small inconsistencies reinforces the idea that clarity and precision build trust and improve the user experience, fostering a culture where the team strives for excellence in every detail.
+
 ## Why make it obvious when stuff breaks?
 
 At Fleet, we detect and fix bugs as quickly as possible.  
