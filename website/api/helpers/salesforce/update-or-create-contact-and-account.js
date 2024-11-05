@@ -47,6 +47,12 @@ module.exports = {
     },
     intentSignal: {
       type: 'string',
+      isIn: [
+        'Subscribed to the Fleet newsletter',
+        // 'Signed up for a fleetdm.com account',//
+        // 'Submitted the "Talk to us" form',
+        // 'Submitted the "Send a message" form',
+      ],
     }
 
   },
@@ -63,16 +69,15 @@ module.exports = {
 
   },
 
-
   fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses, intentSignal}) {
     // Return undefined if we're not running in a production environment.
-    // if(sails.config.environment !== 'production') {
-    //   sails.log.verbose('Skipping Salesforce integration...');
-    //   return {
-    //     salesforceAccountId: undefined,
-    //     salesforceContactId: undefined
-    //   };
-    // }
+    if(sails.config.environment !== 'production') {
+      sails.log.verbose('Skipping Salesforce integration...');
+      return {
+        salesforceAccountId: undefined,
+        salesforceContactId: undefined
+      };
+    }
 
     require('assert')(sails.config.custom.salesforceIntegrationUsername);
     require('assert')(sails.config.custom.salesforceIntegrationPasskey);
@@ -145,15 +150,12 @@ module.exports = {
       if(intentSignal && existingContactRecord.Intent_signals__c) {
         // Convert the string from the Salesforce record into an array.
         let existingContactIntentSignalsAsAnArray = existingContactRecord.Intent_signals__c.split(';');
-        console.log('Existing intent signals!', existingContactIntentSignalsAsAnArray);
         // If this intent signal is not included in the exisitng contacts intent signals, add it.
         if(!existingContactIntentSignalsAsAnArray.includes(intentSignal)) {
           existingContactIntentSignalsAsAnArray.push(intentSignal);
           // Convert the array back into a string to send it to Salesforce.
           valuesToSet.Intent_signals__c = existingContactIntentSignalsAsAnArray.join(';');// eslint-disable-line camelcase
-          console.log('updated intent signals!', valuesToSet.Intent_signals__c);
         } else {
-          console.log('Removing duplicate intent signal', intentSignal);
           // Otherwise, if the existing contact already has this intent signal tracked, remove it from the valuesToSet
           delete valuesToSet.Intent_signals__c;// eslint-disable-line camelcase
         }
