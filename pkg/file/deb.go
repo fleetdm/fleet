@@ -97,6 +97,7 @@ func parseControl(r io.Reader, ext string) (name, version string, err error) {
 	case ".bz2":
 		r = bzip2.NewReader(r)
 	case ".xz":
+		// this seems to allocate a lot of memory (~8MB)...
 		r, err = xz.NewReader(r, 0)
 		if err != nil {
 			return "", "", fmt.Errorf("failed to create xz reader: %w", err)
