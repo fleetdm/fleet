@@ -520,14 +520,13 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 	d := fleet.NewMDMAppleDeclaration(data, tmID, name, rawDecl.Type, rawDecl.Identifier)
 
 	switch labelsMembershipMode {
-	case fleet.LabelsIncludeAll:
-		d.LabelsIncludeAll = validatedLabels
 	case fleet.LabelsIncludeAny:
 		d.LabelsIncludeAny = validatedLabels
 	case fleet.LabelsExcludeAny:
 		d.LabelsExcludeAny = validatedLabels
 	default:
-		// TODO what happens if mode is not set?s
+		// default to include all
+		d.LabelsIncludeAll = validatedLabels
 	}
 
 	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d)
