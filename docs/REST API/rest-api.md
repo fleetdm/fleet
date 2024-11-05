@@ -9129,7 +9129,7 @@ Returns information about the specified software. By default, `versions` are sor
 
 #### Example
 
-`GET /api/v1/fleet/software/titles/12`
+`GET /api/v1/fleet/software/titles/12?team_id=3`
 
 ##### Default response
 
