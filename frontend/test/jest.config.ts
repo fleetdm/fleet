@@ -29,7 +29,7 @@ const esModules = [
 const config: Config = {
   rootDir: "../../",
   moduleDirectories: ["node_modules", "frontend"],
-  testEnvironment: "jsdom",
+  testEnvironment: "jest-fixed-jsdom",
   moduleNameMapper: {
     "\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$":
       "<rootDir>/frontend/__mocks__/fileMock.js",
@@ -45,9 +45,13 @@ const config: Config = {
   clearMocks: true,
   testEnvironmentOptions: {
     url: "http://localhost:8080",
+    customExportConditions: [""],
   },
   // transformIgnorePatterns: ["node_modules/(?!react-markdown/)"],
   transformIgnorePatterns: [`/node_modules/(?!(${esModules})/)`],
+  globals: {
+    TransformStream,
+  },
 };
 
 export default config;
