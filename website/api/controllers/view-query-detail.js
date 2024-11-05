@@ -43,6 +43,7 @@ module.exports = {
       queryLibraryYmlRepoPath: sails.config.builtStaticContent.queryLibraryYmlRepoPath,
       pageTitleForMeta,
       pageDescriptionForMeta,
+      algoliaPublicKey: sails.config.custom.algoliaPublicKey,
     };
 
   }

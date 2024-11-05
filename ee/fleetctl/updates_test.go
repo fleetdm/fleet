@@ -452,7 +452,7 @@ func TestRollback(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 
 	// Roots should NOT have changed.
-	repo, err = openRepo(tmpDir)
+	_, err = openRepo(tmpDir)
 	require.NoError(t, err)
 	roots := getRoots(t, tmpDir)
 	assert.Equal(t, initialRoots, roots)
