@@ -13,7 +13,16 @@ parasails.registerPage('pricing', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    if(this.primaryBuyingSituation){
+    if(window.location.hash){
+      if(window.location.hash === '#it') {
+        this.pricingMode = 'IT';
+        this.showExpandedTable = true;
+      } else if(window.location.hash === '#security'){
+        this.pricingMode = 'Security';
+        this.showExpandedTable = true;
+      }
+      window.location.hash = '';
+    } else if(this.primaryBuyingSituation){
       if(['eo-security', 'vm'].includes(this.primaryBuyingSituation)){
         this.pricingMode = 'Security';
       } else {
