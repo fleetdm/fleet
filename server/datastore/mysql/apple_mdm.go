@@ -1527,22 +1527,35 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID ui
 	}
 
 	selectStmt, selectArgs, err := sqlx.In(`
-		SELECT h.id
+		SELECT h.id, hmdm.enrollment_status
 		FROM hosts h
 		JOIN host_dep_assignments hdep ON h.id = hdep.host_id
+		LEFT JOIN host_mdm hmdm ON h.id = hmdm.host_id
 		WHERE hdep.abm_token_id = ? AND h.hardware_serial IN (?)`, abmTokenID, serials)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building IN statement for selecting host IDs")
 	}
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		var hostIDs []uint
-		if err = sqlx.SelectContext(ctx, tx, &hostIDs, selectStmt, selectArgs...); err != nil {
+		type hostWithEnrollmentStatus struct {
+			ID               uint    `db:"id"`
+			EnrollmentStatus *string `db:"enrollment_status"`
+		}
+		var hosts []hostWithEnrollmentStatus
+		if err = sqlx.SelectContext(ctx, tx, &hosts, selectStmt, selectArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "selecting host IDs")
 		}
-		if len(hostIDs) == 0 {
+		if len(hosts) == 0 {
 			// Nothing to delete. Hosts may have already been transferred to another ABM.
 			return nil
+		}
+		var hostIDs []uint
+		var hostIDsPending []uint
+		for _, host := range hosts {
+			hostIDs = append(hostIDs, host.ID)
+			if host.EnrollmentStatus != nil && *host.EnrollmentStatus == "Pending" {
+				hostIDsPending = append(hostIDsPending, host.ID)
+			}
 		}
 
 		stmt, args, err := sqlx.In(`
@@ -1558,17 +1571,11 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID ui
 
 		// If pending host is no longer in ABM, we should delete it because it will never enroll in Fleet.
 		// If the host is later re-added to ABM, it will be re-created.
-		deletePendingStmt, args, err := sqlx.In(`
-		DELETE h, hmdm FROM hosts h
-		JOIN host_mdm hmdm ON h.id = hmdm.host_id
-		WHERE h.id IN (?) AND hmdm.enrollment_status = 'Pending'`, hostIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building delete IN statement")
+		if len(hostIDsPending) == 0 {
+			return nil
 		}
-		if _, err := tx.ExecContext(ctx, deletePendingStmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting pending hosts by host_id")
-		}
-		return nil
+
+		return deleteHosts(ctx, tx, hostIDsPending)
 	})
 }
 
