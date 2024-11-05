@@ -13,7 +13,7 @@ export interface IHostBannersBaseProps {
   mdmEnrollmentStatus: MdmEnrollmentStatus | null;
   connectedToFleetMdm?: boolean;
   hostPlatform?: string;
-  /** Whether an enabled disk encryption setting applies to this host (via a team or the "no team" team) */
+  /** Disk encryption setting status and detail, if any, that apply to this host (via a team or the "no team" team) */
   diskEncryptionOSSetting?: IOSSettings["disk_encryption"];
   /** Whether or not this host's disk is encrypted */
   diskIsEncrypted?: boolean;

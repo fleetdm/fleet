@@ -4,6 +4,7 @@ import InfoBanner from "components/InfoBanner";
 import Button from "components/buttons/Button";
 import { MacDiskEncryptionActionRequired } from "interfaces/host";
 import { IHostBannersBaseProps } from "pages/hosts/details/HostDetailsPage/components/HostDetailsBanners/HostDetailsBanners";
+import CustomLink from "components/CustomLink";
 
 const baseClass = "device-user-banners";
 
@@ -21,6 +22,9 @@ const DeviceUserBanners = ({
   macDiskEncryptionStatus,
   diskEncryptionActionRequired,
   onTurnOnMdm,
+  diskEncryptionOSSetting,
+  diskIsEncrypted,
+  diskEncryptionKeyAvailable,
 }: IDeviceUserBannersProps) => {
   const isMdmUnenrolled =
     mdmEnrollmentStatus === "Off" || mdmEnrollmentStatus === null;
@@ -62,6 +66,49 @@ const DeviceUserBanners = ({
           <strong>Refetch</strong> to clear this banner.
         </InfoBanner>
       );
+    }
+
+    // TODO - should these banners only be shown for linux?
+    // setting applies
+    if (diskEncryptionOSSetting?.status) {
+      // host not in compliance with setting
+      if (!diskIsEncrypted) {
+        // banner 1
+        return (
+          <InfoBanner
+            cta={
+              <CustomLink
+                url="https://fleetdm.com/learn-more-about/encrypt-linux-device"
+                text="Guide"
+                color="core-fleet-black"
+                iconColor="core-fleet-black"
+              />
+            }
+            color="yellow"
+          >
+            Disk encryption: Follow the instructions in the guide to encrypt
+            your device. This lets your organization help you unlock your device
+            if you forget your password.
+          </InfoBanner>
+        );
+      }
+      // host disk is encrypted, so in compliance with the setting
+      if (!diskEncryptionKeyAvailable) {
+        // key is not escrowed: banner 3
+        return (
+          <InfoBanner
+            cta={
+              // TODO - API call to trigger agent prompting to enter passphrase on command line
+              <>Reset key</>
+            }
+            color="yellow"
+          >
+            Disk encryption: Reset your disk encryption key. This lets your
+            organization help you unlock your device if you forget your
+            password.
+          </InfoBanner>
+        );
+      }
     }
 
     return null;
