@@ -97,14 +97,16 @@ type integrationMDMTestSuite struct {
 	onIntegrationsScheduleDone func() // function called when integrationsSchedule.Trigger() job completed
 	mdmStorage                 *mysql.NanoMDMStorage
 	worker                     *worker.Worker
-	mdmCommander               *apple_mdm.MDMAppleCommander
-	logger                     kitlog.Logger
-	scepChallenge              string
-	appleVPPConfigSrv          *httptest.Server
-	appleVPPConfigSrvConfig    *appleVPPConfigSrvConf
-	appleITunesSrv             *httptest.Server
-	appleGDMFSrv               *httptest.Server
-	mockedDownloadFleetdmMeta  fleetdbase.Metadata
+	// Flag to skip jobs processing by worker
+	skipWorkerJobs            bool
+	mdmCommander              *apple_mdm.MDMAppleCommander
+	logger                    kitlog.Logger
+	scepChallenge             string
+	appleVPPConfigSrv         *httptest.Server
+	appleVPPConfigSrvConfig   *appleVPPConfigSrvConf
+	appleITunesSrv            *httptest.Server
+	appleGDMFSrv              *httptest.Server
+	mockedDownloadFleetdmMeta fleetdbase.Metadata
 }
 
 // appleVPPConfigSrvConf is used to configure the mock server that mocks Apple's VPP endpoints.
@@ -261,6 +263,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Minute, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("integrations_worker", func(ctx context.Context) error {
+							if s.skipWorkerJobs {
+								return nil
+							}
 							return s.worker.ProcessJobs(ctx)
 						}),
 						schedule.WithJob("dep_cooldowns", func(ctx context.Context) error {
