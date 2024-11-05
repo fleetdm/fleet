@@ -11,7 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	. "github.com/fleetdm/fleet/v4/pkg/scripts"
+	constants "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
@@ -223,7 +223,7 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
     created_at ASC`
 
 	var results []*fleet.HostScriptResult
-	seconds := int(MaxServerWaitTime.Seconds())
+	seconds := int(constants.MaxServerWaitTime.Seconds())
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, hostID, seconds); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list pending host script executions")
 	}
@@ -444,7 +444,7 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, `DELETE FROM host_script_results WHERE script_id = ?
        		  AND exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)`,
-			id, MaxServerWaitTime,
+			id, int(constants.MaxServerWaitTime.Seconds()),
 		)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "cancel pending script executions")
@@ -747,7 +747,7 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrap(ctx, err, "build statement to unset obsolete scripts from policies")
 			}
 
-			executionsStmt, executionsArgs, err = sqlx.In(clearPendingExecutionsNotInList, MaxServerWaitTime, globalOrTeamID, keepNames)
+			executionsStmt, executionsArgs, err = sqlx.In(clearPendingExecutionsNotInList, int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID, keepNames)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build statement to clear pending script executions from obsolete scripts")
 			}
@@ -759,7 +759,7 @@ ON DUPLICATE KEY UPDATE
 			policiesArgs = []any{globalOrTeamID}
 
 			executionsStmt = clearAllPendingExecutions
-			executionsArgs = []any{MaxServerWaitTime, globalOrTeamID}
+			executionsArgs = []any{int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID}
 		}
 		if _, err := tx.ExecContext(ctx, policiesStmt, policiesArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "unset obsolete scripts from policies")
@@ -778,12 +778,12 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrapf(ctx, err, "inserting script contents for script with name %q", s.Name)
 			}
 			contentID, _ := scRes.LastInsertId()
-			insertRes, err := tx.ExecContext(ctx, insertNewOrEditedScript, tmID, globalOrTeamID, s.Name, uint(contentID))
-			if err != nil { //nolint:gosec // dismiss G115
+			insertRes, err := tx.ExecContext(ctx, insertNewOrEditedScript, tmID, globalOrTeamID, s.Name, uint(contentID)) //nolint:gosec // dismiss G115
+			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "insert new/edited script with name %q", s.Name)
 			}
 			scriptID, _ := insertRes.LastInsertId()
-			if _, err := tx.ExecContext(ctx, clearPendingExecutionsWithObsoleteScript, MaxServerWaitTime, scriptID, contentID); err != nil {
+			if _, err := tx.ExecContext(ctx, clearPendingExecutionsWithObsoleteScript, int(constants.MaxServerWaitTime.Seconds()), scriptID, contentID); err != nil {
 				return ctxerr.Wrapf(ctx, err, "clear obsolete pending script executions with name %q", s.Name)
 			}
 		}
