@@ -10,7 +10,7 @@ import (
 var defaultOptions = Options{
 	RootDirectory:     `C:\Program Files\Orbit`,
 	ServerURL:         defaultURL,
-	RootKeys:          defaultRootKeys,
+	RootKeys:          defaultRootMetadata,
 	LocalStore:        client.MemoryLocalStore(),
 	InsecureTransport: false,
 	Targets:           WindowsTargets,

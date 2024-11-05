@@ -7,7 +7,7 @@ import (
 var defaultOptions = Options{
 	RootDirectory:     "/opt/orbit",
 	ServerURL:         defaultURL,
-	RootKeys:          defaultRootKeys,
+	RootKeys:          defaultRootMetadata,
 	LocalStore:        client.MemoryLocalStore(),
 	InsecureTransport: false,
 	Targets:           LinuxTargets,
