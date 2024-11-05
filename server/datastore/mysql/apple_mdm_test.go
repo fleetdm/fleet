@@ -1464,6 +1464,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, host2, false)
 
 	profiles, err := ds.ListMDMAppleProfilesToInstall(ctx)
+	require.NoError(t, err)
 
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
 		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin"},
