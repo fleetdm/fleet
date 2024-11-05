@@ -1,7 +1,5 @@
 # Configuring an Alternative Apple MDM URL
 
-![Fleet MDM Configuration](../website/assets/images/articles/configuring-alternative-mdm-url-800x450@2x.png)
-
 Fleet [v4.59.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.59.0) allows setting an alternative MDM URL helps organizations differentiate MDM traffic from other Fleet traffic, allowing the application of network rules specific to MDM communications. The `mdm.apple_server_url` configuration specifies the URL that Apple devices use to communicate with your Fleet instance for MDM purposes. This configuration is optional; if not set, MDM will default to using the Fleet Server URL.
 
 However, be aware that changing this URL after devices have been enrolled in MDM requires those devices to be re-enrolled into MDM.
