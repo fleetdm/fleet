@@ -303,14 +303,8 @@ func main() {
 			return fmt.Errorf("the osquery database must be an absolute path: %q", odb)
 		}
 
-		enrollSecretPath := c.String("enroll-secret-path")
-		if enrollSecretPath != "" {
-			if c.String("enroll-secret") != "" {
-				return errors.New("enroll-secret and enroll-secret-path may not be specified together")
-			}
-
+		readEnrollSecretFromFile := func(enrollSecretPath string) error {
 			// Read secret from file. If secret is found and keystore enabled, write/overwrite the secret to the keystore and delete the file.
-
 			b, err := os.ReadFile(enrollSecretPath)
 			if err != nil {
 				if !errors.Is(err, os.ErrNotExist) || !keystore.Supported() || c.Bool("disable-keystore") {
@@ -364,16 +358,33 @@ func main() {
 					}
 				}
 			}
+			return nil
 		}
-		if c.String("enroll-secret") == "" && keystore.Supported() && !c.Bool("disable-keystore") &&
-			!(runtime.GOOS == "darwin" && c.Bool("use-system-configuration")) {
-			secret, err := keystore.GetSecret()
-			if err != nil || secret == "" {
-				return fmt.Errorf("failed to retrieve enroll secret from %v: %w", keystore.Name(), err)
+		enrollSecretPath := c.String("enroll-secret-path")
+		if enrollSecretPath != "" {
+			if c.String("enroll-secret") != "" {
+				return errors.New("enroll-secret and enroll-secret-path may not be specified together")
 			}
-			log.Info().Msgf("found enroll secret in keystore: %v", keystore.Name())
-			if err = c.Set("enroll-secret", secret); err != nil {
-				return fmt.Errorf("set enroll secret from keystore: %w", err)
+			if err := readEnrollSecretFromFile(enrollSecretPath); err != nil {
+				return err
+			}
+		}
+		tryReadEnrollSecretFromKeystore := func() error {
+			if c.String("enroll-secret") == "" && keystore.Supported() && !c.Bool("disable-keystore") {
+				secret, err := keystore.GetSecret()
+				if err != nil || secret == "" {
+					return fmt.Errorf("failed to retrieve enroll secret from %v: %w", keystore.Name(), err)
+				}
+				log.Info().Msgf("found enroll secret in keystore: %v", keystore.Name())
+				if err = c.Set("enroll-secret", secret); err != nil {
+					return fmt.Errorf("set enroll secret from keystore: %w", err)
+				}
+			}
+			return nil
+		}
+		if !(runtime.GOOS == "darwin" && c.Bool("use-system-configuration")) {
+			if err := tryReadEnrollSecretFromKeystore(); err != nil {
+				return err
 			}
 		}
 
@@ -415,10 +426,40 @@ func main() {
 					if err := writeSecret(config.EnrollSecret, c.String("root-dir")); err != nil {
 						return fmt.Errorf("write enroll secret: %w", err)
 					}
+					if err := writeFleetURL(config.FleetURL, c.String("root-dir")); err != nil {
+						return fmt.Errorf("write fleet URL: %w", err)
+					}
 				}
 
 				if c.String("fleet-url") != "" && c.String("enroll-secret") != "" {
 					log.Info().Msg("found configuration values in system profile")
+					break
+				}
+
+				// if we didn't find the configuration values, try to read them from the files
+				// Get Fleet URL
+				b, err := os.ReadFile(path.Join(c.String("root-dir"), constant.FleetURLFileName))
+				if err != nil {
+					if !errors.Is(err, os.ErrNotExist) {
+						return fmt.Errorf("read fleet URL file: %w", err)
+					}
+				} else {
+					fleetURL := strings.TrimSpace(string(b))
+					if err = c.Set("fleet-url", fleetURL); err != nil {
+						return fmt.Errorf("set fleet URL from file: %w", err)
+					}
+				}
+				// Get enroll secret
+				if err := readEnrollSecretFromFile(path.Join(c.String("root-dir"), constant.OsqueryEnrollSecretFileName)); err != nil {
+					return err
+				}
+				if err := tryReadEnrollSecretFromKeystore(); err != nil {
+					// Log the error but don't return it, as we want to keep trying to read the configuration
+					// from the system profile.
+					log.Error().Err(err).Msg("failed to read enroll secret from keystore")
+				}
+				if c.String("fleet-url") != "" && c.String("enroll-secret") != "" {
+					log.Info().Msg("found configuration values in local files")
 					break
 				}
 
@@ -1833,16 +1874,26 @@ func (f *capabilitiesChecker) Interrupt(err error) {
 // intentionally kept separate to prevent issues since the writes happen at two
 // completely different circumstances.
 func writeSecret(enrollSecret string, orbitRoot string) error {
-	path := filepath.Join(orbitRoot, constant.OsqueryEnrollSecretFileName)
-	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+	return writeOrbitFile(enrollSecret, orbitRoot, constant.OsqueryEnrollSecretFileName)
+}
+
+func writeOrbitFile(contents string, orbitRoot string, fileName string) error {
+	filePath := filepath.Join(orbitRoot, fileName)
+	if err := secure.MkdirAll(filepath.Dir(filePath), constant.DefaultDirMode); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
-	if err := os.WriteFile(path, []byte(enrollSecret), constant.DefaultFileMode); err != nil {
+	if err := os.WriteFile(filePath, []byte(contents), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
 	return nil
+}
+
+// writeFleetURL writes the Fleet URL to the designated file. This is needed in case the
+// Fleet URL originally came from a config profile, which was subsequently removed.
+func writeFleetURL(contents string, orbitRoot string) error {
+	return writeOrbitFile(contents, orbitRoot, constant.FleetURLFileName)
 }
 
 // serverOverridesRunner is a oklog.Group runner that polls for configuration overrides from Fleet.
