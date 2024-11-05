@@ -3554,7 +3554,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	}, nil)
 
 	// can resend a profile after it has failed
-	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, globalProfiles[0]), nil, http.StatusAccepted)
+	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, globalProfiles[0]), nil,
+		http.StatusAccepted)
 	verifyProfiles(mdmDevice, 1, false)                                                 // trigger a profile sync, device gets the profile resent
 	checkHostProfileStatus(t, host.UUID, globalProfiles[0], fleet.MDMDeliveryVerifying) // profile was resent, so it back to verifying
 
@@ -3664,7 +3665,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	}, nil)
 
 	// can resend a profile after it has failed
-	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, teamProfiles[0]), nil, http.StatusAccepted)
+	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, teamProfiles[0]), nil,
+		http.StatusAccepted)
 	verifyProfiles(mdmDevice, 1, false)                                               // trigger a profile sync, device gets the profile resent
 	checkHostProfileStatus(t, host.UUID, teamProfiles[0], fleet.MDMDeliveryVerifying) // profile was resent, so back to verifying
 	s.lastActivityMatches(
