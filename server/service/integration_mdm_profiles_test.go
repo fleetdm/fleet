@@ -4653,6 +4653,13 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 		require.NoError(t, err)
 		labels[i] = label
 	}
+	// simulate reporting label results for those hosts
+	appleHost.LabelUpdatedAt = time.Now()
+	windowsHost.LabelUpdatedAt = time.Now()
+	err := s.ds.UpdateHost(ctx, appleHost)
+	require.NoError(t, err)
+	err = s.ds.UpdateHost(ctx, windowsHost)
+	require.NoError(t, err)
 
 	// set an Apple profile and declaration and a Windows profile
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -4694,7 +4701,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 	})
 
 	// mark some profiles as verified (despite accepting a HostMacOSProfile struct, it supports Windows too)
-	err := apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, appleHost, map[string]*fleet.HostMacOSProfile{
+	err = apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, appleHost, map[string]*fleet.HostMacOSProfile{
 		"A1": {Identifier: "A1", DisplayName: "A1", InstallDate: time.Now()},
 	})
 	require.NoError(t, err)
