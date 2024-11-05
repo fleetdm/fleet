@@ -60,14 +60,7 @@ const DiscardDataOption = ({
           </Link>
         </>
       ) : (
-        <>
-          The most recent results for each host will not be available in Fleet.
-          {breakHelpText ? <br /> : " "}
-          Data will still be sent to your log destination if <b>
-            automations
-          </b>{" "}
-          are <b>on</b>.
-        </>
+        "The most recent results for each host will not be available in Fleet."
       )}
     </div>
   );
