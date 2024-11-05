@@ -218,7 +218,11 @@ type MDMProfilesUpdates struct {
 // profiles and labels.
 //
 // NOTE: json representation of the fields is a bit awkward to match the
-// required API response, as this struct is returned within profile responses.
+// required API response, as this struct is returned within profile
+// responses.
+//
+// NOTE The fields in this struct other than LabelName and LabelID
+// MAY NOT BE SET CORRECTLY, dependong on where they're being ingested from.
 type ConfigurationProfileLabel struct {
 	ProfileUUID string `db:"profile_uuid" json:"-"`
 	LabelName   string `db:"label_name" json:"name"`

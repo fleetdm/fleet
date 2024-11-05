@@ -20,6 +20,7 @@ import (
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -1962,4 +1963,176 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			checkShouldFail(t, err, tt.shouldFailTeamWrite)
 		})
 	}
+}
+
+func TestBatchSetMDMProfilesLabels(t *testing.T) {
+	ds := new(mock.Store)
+	// while the config profiles are not premium-only, teams are and we want to test with teams.
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+	_ = ctx
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnabledAndConfigured:        true,
+				WindowsEnabledAndConfigured: true,
+			},
+		}, nil
+	}
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{
+			ID:   tid,
+			Name: "team1",
+		}, nil
+	}
+
+	type ProfileLabels struct {
+		IncludeAll bool
+		IncludeAny bool
+		ExcludeAny bool
+	}
+
+	profileLabels := map[string]*ProfileLabels{}
+
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) (updates fleet.MDMProfilesUpdates, err error) {
+		for _, profile := range macProfiles {
+			profileLabels[profile.Name] = &ProfileLabels{}
+			if len(profile.LabelsIncludeAll) > 0 {
+				assert.True(t, profile.LabelsIncludeAll[0].RequireAll, "profile label missing RequireAll: %s", profile.Name)
+				assert.False(t, profile.LabelsIncludeAll[0].Exclude, "profile label shouldn't have Exclude: %s", profile.Name)
+				profileLabels[profile.Name].IncludeAll = true
+			}
+			if len(profile.LabelsIncludeAny) > 0 {
+				assert.False(t, profile.LabelsIncludeAny[0].RequireAll, "profile label shouldn't have RequireAll: %s", profile.Name)
+				assert.False(t, profile.LabelsIncludeAny[0].Exclude, "profile label shouldn't have Exclude: %s", profile.Name)
+				profileLabels[profile.Name].IncludeAny = true
+			}
+			if len(profile.LabelsExcludeAny) > 0 {
+				assert.False(t, profile.LabelsExcludeAny[0].RequireAll, "profile label shouldn't have RequireAll: %s", profile.Name)
+				assert.True(t, profile.LabelsExcludeAny[0].Exclude, "profile label should have Exclude: %s", profile.Name)
+				profileLabels[profile.Name].ExcludeAny = true
+			}
+		}
+
+		for _, profile := range winProfiles {
+			profileLabels[profile.Name] = &ProfileLabels{}
+			if len(profile.LabelsIncludeAll) > 0 {
+				assert.True(t, profile.LabelsIncludeAll[0].RequireAll, "profile label missing RequireAll: %s", profile.Name)
+				assert.False(t, profile.LabelsIncludeAll[0].Exclude, "profile label shouldn't have Exclude: %s", profile.Name)
+				profileLabels[profile.Name].IncludeAll = true
+			}
+			if len(profile.LabelsIncludeAny) > 0 {
+				assert.False(t, profile.LabelsIncludeAny[0].RequireAll, "profile label shouldn't have RequireAll: %s", profile.Name)
+				assert.False(t, profile.LabelsIncludeAny[0].Exclude, "profile label shouldn't have Exclude: %s", profile.Name)
+				profileLabels[profile.Name].IncludeAny = true
+			}
+			if len(profile.LabelsExcludeAny) > 0 {
+				assert.False(t, profile.LabelsExcludeAny[0].RequireAll, "profile label shouldn't have RequireAll: %s", profile.Name)
+				assert.True(t, profile.LabelsExcludeAny[0].Exclude, "profile label should have Exclude: %s", profile.Name)
+				profileLabels[profile.Name].ExcludeAny = true
+			}
+		}
+
+		for _, profile := range macDeclarations {
+			profileLabels[profile.Name] = &ProfileLabels{}
+			if len(profile.LabelsIncludeAll) > 0 {
+				assert.True(t, profile.LabelsIncludeAll[0].RequireAll, "profile label missing RequireAll: %s", profile.Name)
+				assert.False(t, profile.LabelsIncludeAll[0].Exclude, "profile label shouldn't have Exclude: %s", profile.Name)
+				profileLabels[profile.Name].IncludeAll = true
+			}
+			if len(profile.LabelsIncludeAny) > 0 {
+				assert.False(t, profile.LabelsIncludeAny[0].RequireAll, "profile label shouldn't have RequireAll: %s", profile.Name)
+				assert.False(t, profile.LabelsIncludeAny[0].Exclude, "profile label shouldn't have Exclude: %s", profile.Name)
+				profileLabels[profile.Name].IncludeAny = true
+			}
+			if len(profile.LabelsExcludeAny) > 0 {
+				assert.False(t, profile.LabelsExcludeAny[0].RequireAll, "profile label shouldn't have RequireAll: %s", profile.Name)
+				assert.True(t, profile.LabelsExcludeAny[0].Exclude, "profile label should have Exclude: %s", profile.Name)
+				profileLabels[profile.Name].ExcludeAny = true
+			}
+		}
+
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	var labelID uint
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		m := map[string]uint{}
+		for _, label := range labels {
+			labelID++
+			m[label] = labelID
+		}
+		return m, nil
+	}
+
+	profiles := []fleet.MDMProfileBatchPayload{
+		// macOS
+		{
+			Name:             "MIncAll",
+			Contents:         mobileconfigForTest("MIncAll", "1"),
+			LabelsIncludeAll: []string{"a", "b"},
+		},
+		{
+			Name:             "MIncAny",
+			Contents:         mobileconfigForTest("MIncAny", "2"),
+			LabelsIncludeAny: []string{"a", "b"},
+		},
+		{
+			Name:             "MExclAny",
+			Contents:         mobileconfigForTest("MExclAny", "3"),
+			LabelsExcludeAny: []string{"a", "b"},
+		},
+		// Windows
+		{
+			Name:             "WIncAll",
+			Contents:         syncMLForTest("./Foo/Bar"),
+			LabelsIncludeAll: []string{"a", "b"},
+		},
+		{
+			Name:             "WIncAny",
+			Contents:         syncMLForTest("./Foo/Barz"),
+			LabelsIncludeAny: []string{"a", "b"},
+		},
+		{
+			Name:             "WExclAny",
+			Contents:         syncMLForTest("./Foo/Barf"),
+			LabelsExcludeAny: []string{"a", "b"},
+		},
+		// Declarative
+		{
+			Name:             "DIncAll",
+			Contents:         declarationForTest("DIncAll"),
+			LabelsIncludeAll: []string{"a", "b"},
+		},
+		{
+			Name:             "DIncAny",
+			Contents:         declarationForTest("DIncAny"),
+			LabelsIncludeAny: []string{"a", "b"},
+		},
+		{
+			Name:             "DExclAny",
+			Contents:         declarationForTest("DExclAny"),
+			LabelsExcludeAny: []string{"a", "b"},
+		},
+	}
+
+	authCtx := test.UserContext(ctx, test.UserAdmin)
+
+	err := svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, profiles, false, false, ptr.Bool(true))
+	require.NoError(t, err)
+
+	assert.Equal(t, ProfileLabels{IncludeAll: true}, *profileLabels["MIncAll"])
+	assert.Equal(t, ProfileLabels{IncludeAny: true}, *profileLabels["MIncAny"])
+	assert.Equal(t, ProfileLabels{ExcludeAny: true}, *profileLabels["MExclAny"])
+
+	assert.Equal(t, ProfileLabels{IncludeAll: true}, *profileLabels["WIncAll"])
+	assert.Equal(t, ProfileLabels{IncludeAny: true}, *profileLabels["WIncAny"])
+	assert.Equal(t, ProfileLabels{ExcludeAny: true}, *profileLabels["WExclAny"])
+
+	assert.Equal(t, ProfileLabels{IncludeAll: true}, *profileLabels["DIncAll"])
+	assert.Equal(t, ProfileLabels{IncludeAny: true}, *profileLabels["DIncAny"])
+	assert.Equal(t, ProfileLabels{ExcludeAny: true}, *profileLabels["DExclAny"])
 }
