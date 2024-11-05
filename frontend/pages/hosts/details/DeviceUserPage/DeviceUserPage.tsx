@@ -353,8 +353,8 @@ const DeviceUserPage = ({
               mdmEnabledAndConfigured={
                 !!globalConfig?.mdm.enabled_and_configured
               }
-              mdmConnectedToFleet={!!host.mdm.connected_to_fleet}
-              diskEncryptionStatus={
+              connectedToFleetMdm={!!host.mdm.connected_to_fleet}
+              macDiskEncryptionStatus={
                 host.mdm.macos_settings?.disk_encryption ?? null
               }
               diskEncryptionActionRequired={

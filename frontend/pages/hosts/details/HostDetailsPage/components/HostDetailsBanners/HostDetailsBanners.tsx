@@ -8,31 +8,30 @@ import { IOSSettings } from "interfaces/host";
 
 const baseClass = "host-details-banners";
 
-interface IHostDetailsBannersProps {
-  hostMdmEnrollmentStatus?: MdmEnrollmentStatus | null;
-  hostPlatform?: string;
+export interface IHostBannersBaseProps {
   macDiskEncryptionStatus: DiskEncryptionStatus | null | undefined;
+  mdmEnrollmentStatus: MdmEnrollmentStatus | null;
   connectedToFleetMdm?: boolean;
+  hostPlatform?: string;
   /** Whether an enabled disk encryption setting applies to this host (via a team or the "no team" team) */
   diskEncryptionOSSetting?: IOSSettings["disk_encryption"];
-  /** Whether or not this host's disk is actually encrypted */
+  /** Whether or not this host's disk is encrypted */
   diskIsEncrypted?: boolean;
   /** Whether or not Fleet has escrowed the host's disk encryption key */
   diskEncryptionKeyAvailable?: boolean;
 }
-
 /**
  * Handles the displaying of banners on the host details page
  */
 const HostDetailsBanners = ({
-  hostMdmEnrollmentStatus,
+  mdmEnrollmentStatus,
   hostPlatform,
   connectedToFleetMdm,
   macDiskEncryptionStatus,
   diskEncryptionOSSetting,
   diskIsEncrypted,
   diskEncryptionKeyAvailable,
-}: IHostDetailsBannersProps) => {
+}: IHostBannersBaseProps) => {
   const {
     config,
     isPremiumTier,
@@ -63,8 +62,7 @@ const HostDetailsBanners = ({
       willVppExpire ||
       isFleetLicenseExpired);
 
-  const isMdmUnenrolled =
-    hostMdmEnrollmentStatus === "Off" || !hostMdmEnrollmentStatus;
+  const isMdmUnenrolled = mdmEnrollmentStatus === "Off" || !mdmEnrollmentStatus;
 
   const showTurnOnMdmInfoBanner =
     !showingAppWideBanner &&

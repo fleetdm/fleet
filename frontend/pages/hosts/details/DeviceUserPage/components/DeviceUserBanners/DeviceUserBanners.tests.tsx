@@ -14,8 +14,8 @@ describe("Device User Banners", () => {
         hostPlatform="darwin"
         mdmEnrollmentStatus="Off"
         mdmEnabledAndConfigured
-        mdmConnectedToFleet
-        diskEncryptionStatus={null}
+        connectedToFleetMdm
+        macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
         onTurnOnMdm={noop}
       />
@@ -29,8 +29,8 @@ describe("Device User Banners", () => {
         hostPlatform="darwin"
         mdmEnrollmentStatus="On (automatic)"
         mdmEnabledAndConfigured
-        mdmConnectedToFleet
-        diskEncryptionStatus="action_required"
+        connectedToFleetMdm
+        macDiskEncryptionStatus="action_required"
         diskEncryptionActionRequired="rotate_key"
         onTurnOnMdm={noop}
       />
@@ -47,8 +47,8 @@ describe("Device User Banners", () => {
         hostPlatform="darwin"
         mdmEnrollmentStatus={null}
         mdmEnabledAndConfigured={false}
-        mdmConnectedToFleet={false}
-        diskEncryptionStatus={null}
+        connectedToFleetMdm={false}
+        macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
         onTurnOnMdm={noop}
       />

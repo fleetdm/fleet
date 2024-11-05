@@ -851,7 +851,7 @@ const HostDetailsPage = ({
     <MainContent className={baseClass}>
       <>
         <HostDetailsBanners
-          hostMdmEnrollmentStatus={host?.mdm.enrollment_status}
+          mdmEnrollmentStatus={host?.mdm.enrollment_status}
           hostPlatform={host?.platform}
           macDiskEncryptionStatus={host?.mdm.macos_settings?.disk_encryption}
           connectedToFleetMdm={host?.mdm.connected_to_fleet}

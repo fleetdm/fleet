@@ -2,17 +2,13 @@ import React from "react";
 
 import InfoBanner from "components/InfoBanner";
 import Button from "components/buttons/Button";
-import { DiskEncryptionStatus, MdmEnrollmentStatus } from "interfaces/mdm";
 import { MacDiskEncryptionActionRequired } from "interfaces/host";
+import { IHostBannersBaseProps } from "pages/hosts/details/HostDetailsPage/components/HostDetailsBanners/HostDetailsBanners";
 
 const baseClass = "device-user-banners";
 
-interface IDeviceUserBannersProps {
-  hostPlatform: string;
-  mdmEnrollmentStatus: MdmEnrollmentStatus | null;
+interface IDeviceUserBannersProps extends IHostBannersBaseProps {
   mdmEnabledAndConfigured: boolean;
-  mdmConnectedToFleet: boolean;
-  diskEncryptionStatus: DiskEncryptionStatus | null;
   diskEncryptionActionRequired: MacDiskEncryptionActionRequired | null;
   onTurnOnMdm: () => void;
 }
@@ -21,8 +17,8 @@ const DeviceUserBanners = ({
   hostPlatform,
   mdmEnrollmentStatus,
   mdmEnabledAndConfigured,
-  mdmConnectedToFleet,
-  diskEncryptionStatus,
+  connectedToFleetMdm,
+  macDiskEncryptionStatus,
   diskEncryptionActionRequired,
   onTurnOnMdm,
 }: IDeviceUserBannersProps) => {
@@ -30,14 +26,14 @@ const DeviceUserBanners = ({
     mdmEnrollmentStatus === "Off" || mdmEnrollmentStatus === null;
 
   const diskEncryptionBannersEnabled =
-    mdmEnabledAndConfigured && mdmConnectedToFleet;
+    mdmEnabledAndConfigured && connectedToFleetMdm;
 
   const showTurnOnMdmBanner =
     hostPlatform === "darwin" && isMdmUnenrolled && mdmEnabledAndConfigured;
 
   const showDiskEncryptionKeyResetRequired =
     diskEncryptionBannersEnabled &&
-    diskEncryptionStatus === "action_required" &&
+    macDiskEncryptionStatus === "action_required" &&
     diskEncryptionActionRequired === "rotate_key";
 
   const turnOnMdmButton = (
