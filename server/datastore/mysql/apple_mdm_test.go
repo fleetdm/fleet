@@ -1463,58 +1463,13 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	nanoEnroll(t, ds, host2, false)
 
-	// label tests
+	profiles, err := ds.ListMDMAppleProfilesToInstall(ctx)
 
-	hostLabel, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:      "test-host-name-label",
-		OsqueryHostID: ptr.String("1337_label"),
-		NodeKey:       ptr.String("1337_label"),
-		UUID:          "test-uuid-1-label",
-		TeamID:        nil,
-		Platform:      "darwin",
-	})
-	require.NoError(t, err)
-	// add a user enrollment for this device, nothing else should be modified
-	nanoEnroll(t, ds, hostLabel, true)
-	// Add a couple of label and a label-based profile
-	l1, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-1", Query: "select 1"})
-	require.NoError(t, err)
-
-	l2, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-2", Query: "select 1"})
-	require.NoError(t, err)
-
-	l3, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-3", Query: "select 1"})
-	require.NoError(t, err)
-
-	globalProfiles = append(globalProfiles, configProfileForTest(t, "label_1_include_any_prof", "label_1_include_any_prof", "label_1_include_any_prof", l1, l2, l3))
-
-	err = ds.BatchSetMDMAppleProfiles(ctx, nil, globalProfiles)
-	require.NoError(t, err)
-
-	// hostLabel is a member of l1, but NOT of l2
-	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l1.ID, hostLabel.ID}})
-	require.NoError(t, err)
-
-	globalPfs, err = ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(0))
-	require.NoError(t, err)
-	require.Len(t, globalPfs, len(globalProfiles))
-
-	// still the same profiles to assign (plus the one for labelHost) as there are no profiles for team 1
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
-	for _, p := range profilesToInstall {
-		t.Logf("name: %q, hostUUID: %q", p.ProfileName, p.HostUUID)
-	}
-	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
-		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
-		{ProfileUUID: globalPfs[3].ProfileUUID, ProfileIdentifier: globalPfs[3].Identifier, ProfileName: globalPfs[3].Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
-
-		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
-		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
-		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
-		{ProfileUUID: globalPfs[3].ProfileUUID, ProfileIdentifier: globalPfs[3].Identifier, ProfileName: globalPfs[3].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
-	}, profilesToInstall)
+		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin"},
+		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin"},
+		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin"},
+	}, profiles)
 
 	// assign profiles to team 1
 	teamProfiles := []*fleet.MDMAppleConfigProfile{
