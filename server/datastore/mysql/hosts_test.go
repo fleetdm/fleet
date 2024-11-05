@@ -748,6 +748,43 @@ func testHostsDelete(t *testing.T, ds *Datastore) {
 
 	_, err = ds.Host(context.Background(), host.ID)
 	assert.NotNil(t, err)
+
+	originalHostDeleteBatchSize := hostsDeleteBatchSize
+	hostsDeleteBatchSize = 2
+	t.Cleanup(func() {
+		hostsDeleteBatchSize = originalHostDeleteBatchSize
+	})
+
+	// Delete nothing -- no-op
+	require.NoError(t, ds.DeleteHosts(context.Background(), nil))
+
+	numHosts := 5
+	hosts := make([]*fleet.Host, numHosts)
+	for i := 0; i < numHosts; i++ {
+		hosts[i], err = ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String(fmt.Sprint(i)),
+			UUID:            fmt.Sprint(i),
+			Hostname:        fmt.Sprintf("foo.local.%d", i),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, hosts[i])
+	}
+	var hostIDs []uint
+	for _, h := range hosts {
+		hostIDs = append(hostIDs, h.ID)
+	}
+
+	// Delete all hosts
+	require.NoError(t, ds.DeleteHosts(context.Background(), hostIDs))
+	// Make sure each host is deleted
+	for _, h := range hosts {
+		_, err = ds.Host(context.Background(), h.ID)
+		assert.NotNil(t, err)
+	}
 }
 
 func listHostsCheckCount(t *testing.T, ds *Datastore, filter fleet.TeamFilter, opt fleet.HostListOptions, expectedCount int) []*fleet.Host {
