@@ -13,11 +13,12 @@ parasails.registerPage('pricing', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
+    // Switch the pricing features table's mode and show all features if a user visits /pricing#it or /pricing#security
     if(window.location.hash){
-      if(window.location.hash === '#it') {
+      if(window.location.hash.toLowerCase() === '#it') {
         this.pricingMode = 'IT';
         this.showExpandedTable = true;
-      } else if(window.location.hash === '#security'){
+      } else if(window.location.hash.toLowerCase() === '#security'){
         this.pricingMode = 'Security';
         this.showExpandedTable = true;
       }
