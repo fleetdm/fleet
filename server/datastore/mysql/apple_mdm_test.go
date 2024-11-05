@@ -7273,27 +7273,17 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 	matchProfiles := func(want, got []*fleet.MDMAppleProfilePayload) {
 		// match only the fields we care about
 		for _, p := range got {
-			require.NotEmpty(t, p.Checksum)
 			p.Checksum = nil
 		}
 		require.ElementsMatch(t, want, got)
 	}
 
-	gp1 := configProfileForTest(t, "N1", "I1", "z")
-	gp2 := configProfileForTest(t, "N2", "I2", "x")
-
-	_, err := ds.NewMDMAppleConfigProfile(ctx, *gp1)
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *gp2)
+	globProf1, err := ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, "N1", "I1", "z"))
+	globProf2, err := ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, "N2", "I2", "x"))
 
 	globalPfs, err := ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(0))
 	require.NoError(t, err)
 	require.Len(t, globalPfs, 2)
-
-	_, err = ds.writer(ctx).Exec(`
-          INSERT INTO nano_commands (command_uuid, request_type, command)
-          VALUES ('command-uuid', 'foo', '<?xml')
-	`)
-	require.NoError(t, err)
 
 	// if there are no hosts, then no profilesToInstall need to be installed
 	profilesToInstall, err := ds.ListMDMAppleProfilesToInstall(ctx)
@@ -7339,8 +7329,8 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin"},
-		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin"},
+		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: "test-uuid-1", HostPlatform: "darwin"},
+		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: "test-uuid-1", HostPlatform: "darwin"},
 	}, profilesToInstall)
 
 	hostLabel, err := ds.NewHost(ctx, &fleet.Host{
@@ -7354,7 +7344,8 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// add a user enrollment for this device, nothing else should be modified
 	nanoEnroll(t, ds, hostLabel, true)
-	// Add a couple of labels and a label-based profile
+
+	// include-any labels
 	l1, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-1", Query: "select 1"})
 	require.NoError(t, err)
 
@@ -7364,30 +7355,49 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 	l3, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-3", Query: "select 1"})
 	require.NoError(t, err)
 
-	_, err = ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, "label_1_include_any_prof", "label_1_include_any_prof", "label_1_include_any_prof", l1, l2, l3))
+	// include-all labels
+	l4, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-4", Query: "select 1"})
+	require.NoError(t, err)
 
-	// hostLabel is a member of l1, but NOT of l2 or l3
-	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l1.ID, hostLabel.ID}})
+	l5, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-5", Query: "select 1"})
+	require.NoError(t, err)
+
+	// exclude-any labels
+	l6, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-any-6", Query: "select 1"})
+	require.NoError(t, err)
+
+	l7, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-any-7", Query: "select 1"})
+	require.NoError(t, err)
+
+	profIncludeAny, err := ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, "prof-include-any", "prof-include-any", "prof-include-any", l1, l2, l3))
+	profIncludeAll, err := ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, "prof-include-all", "prof-include-all", "prof-include-all", l4, l5))
+	profExcludeAny, err := ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, "prof-exclude-any", "prof-exclude-any", "prof-exclude-any", l6, l7))
+
+	// hostLabel is a member of l1, l4, l5
+	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l1.ID, hostLabel.ID}, {l4.ID, hostLabel.ID}, {l5.ID, hostLabel.ID}})
 	require.NoError(t, err)
 
 	globalPfs, err = ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(0))
 	require.NoError(t, err)
-	require.Len(t, globalPfs, 3)
+	require.Len(t, globalPfs, 5)
 
-	// still the same profiles to assign (plus the one for labelHost) as there are no profiles for team 1
+	// still the same profiles to assign (plus the one for hostLabel) as there are no profiles for team 1
 	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
 
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
-		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: profExcludeAny.ProfileUUID, ProfileIdentifier: profExcludeAny.Identifier, ProfileName: profExcludeAny.Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
 
-		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
-		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
-		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: profIncludeAny.ProfileUUID, ProfileIdentifier: profIncludeAny.Identifier, ProfileName: profIncludeAny.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: profIncludeAll.ProfileUUID, ProfileIdentifier: profIncludeAll.Identifier, ProfileName: profIncludeAll.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: profExcludeAny.ProfileUUID, ProfileIdentifier: profExcludeAny.Identifier, ProfileName: profExcludeAny.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
 	}, profilesToInstall)
 
-	// Remove the l1<->hostLabel relationship, but add l2<->labelHost. The profile should still show
+	// Remove the l1<->hostLabel relationship, but add l2<->hostLabel. The profile should still show
 	// up since it's "include any"
 	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l1.ID, hostLabel.ID}})
 	require.NoError(t, err)
@@ -7399,39 +7409,64 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
-		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: profExcludeAny.ProfileUUID, ProfileIdentifier: profExcludeAny.Identifier, ProfileName: profExcludeAny.Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
 
-		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
-		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
-		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: profIncludeAny.ProfileUUID, ProfileIdentifier: profIncludeAny.Identifier, ProfileName: profIncludeAny.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: profIncludeAll.ProfileUUID, ProfileIdentifier: profIncludeAll.Identifier, ProfileName: profIncludeAll.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: profExcludeAny.ProfileUUID, ProfileIdentifier: profExcludeAny.Identifier, ProfileName: profExcludeAny.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
 	}, profilesToInstall)
 
-	// TODO(JVE): have to "install" the profile first to get it to be removed when the label is removed
-	// the profile should now be in the "to remove" list
+	// Remove the l2<->hostLabel relationship. The profie should no longer show up since it's
+	// include-any
+	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l2.ID, hostLabel.ID}})
+	require.NoError(t, err)
+	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	require.NoError(t, err)
 
-	// ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-	// 	_, err := tx.ExecContext(ctx,
-	// 		`UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_identifier = ?`,
-	// 		fleet.MDMDeliveryVerifying, hostLabel.UUID, globalPfs[2].Identifier)
-	// 	return err
-	// })
+	matchProfiles([]*fleet.MDMAppleProfilePayload{
+		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: profExcludeAny.ProfileUUID, ProfileIdentifier: profExcludeAny.Identifier, ProfileName: profExcludeAny.Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
 
-	// require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hostLabel, profilesByIdentifier([]*fleet.HostMacOSProfile{
-	// 	{
-	// 		Identifier:  globalPfs[2].Identifier,
-	// 		DisplayName: globalPfs[2].Name,
-	// 		InstallDate: time.Now(),
-	// 	},
-	// })),
-	// )
+		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: profIncludeAll.ProfileUUID, ProfileIdentifier: profIncludeAll.Identifier, ProfileName: profIncludeAll.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: profExcludeAny.ProfileUUID, ProfileIdentifier: profExcludeAny.Identifier, ProfileName: profExcludeAny.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+	}, profilesToInstall)
 
-	// err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l2.ID, hostLabel.ID}})
-	// require.NoError(t, err)
+	// Remove the l4<->hostLabel relationship. Since the profile is "include-all", it should no longer show
+	// up even though the l5<->hostLabel connection is still there.
+	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l4.ID, hostLabel.ID}})
+	require.NoError(t, err)
+	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	require.NoError(t, err)
 
-	// profilesToRemove, err := ds.ListMDMAppleProfilesToRemove(ctx)
-	// require.NoError(t, err)
-	// matchProfiles([]*fleet.MDMAppleProfilePayload{
-	// 	{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
-	// }, profilesToRemove)
+	matchProfiles([]*fleet.MDMAppleProfilePayload{
+		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: profExcludeAny.ProfileUUID, ProfileIdentifier: profExcludeAny.Identifier, ProfileName: profExcludeAny.Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
+
+		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: profExcludeAny.ProfileUUID, ProfileIdentifier: profExcludeAny.Identifier, ProfileName: profExcludeAny.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+	}, profilesToInstall)
+
+	// Add a l6<->host relationship. The exclude-any profile should no longer be assigned to hostLabel.
+	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l6.ID, hostLabel.ID}})
+	require.NoError(t, err)
+	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	require.NoError(t, err)
+
+	matchProfiles([]*fleet.MDMAppleProfilePayload{
+		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: profExcludeAny.ProfileUUID, ProfileIdentifier: profExcludeAny.Identifier, ProfileName: profExcludeAny.Name, HostUUID: host1.UUID, HostPlatform: "darwin"},
+
+		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
+	}, profilesToInstall)
 }

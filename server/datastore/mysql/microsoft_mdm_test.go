@@ -2104,12 +2104,8 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 
-	// Connect the host and l1
-	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l1.ID, host.ID}})
-	require.NoError(t, err)
-
-	// Connect the host and l4 + l5
-	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l4.ID, host.ID}, {l5.ID, host.ID}})
+	// Connect the host and l1, l4, l5
+	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l1.ID, host.ID}, {l4.ID, host.ID}, {l5.ID, host.ID}})
 	require.NoError(t, err)
 
 	// We should see all 3  profiles in the "to install" list
@@ -2137,7 +2133,7 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 		{ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID},
 	}, profilesToInstall)
 
-	// Remove the l1<->host relationship. Since the profile is "include-any", it should no longer
+	// Remove the l2<->host relationship. Since the profile is "include-any", it should no longer
 	// show up
 	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l2.ID, host.ID}})
 	require.NoError(t, err)
@@ -2160,7 +2156,7 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 		{ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID},
 	}, profilesToInstall)
 
-	// Add a l6<->host relationship. The exclude-any profile should still be there.
+	// Add a l6<->host relationship. The exclude-any profile should be gone now.
 	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l6.ID, host.ID}})
 	require.NoError(t, err)
 
