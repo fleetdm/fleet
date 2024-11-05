@@ -99,7 +99,7 @@ const SetupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
           <div className={`${baseClass}__upload-container`}>
             <p className={`${baseClass}__section-description`}>
               Add an automatic enrollment profile to customize the macOS Setup
-              Assistant.
+              Assistant.{" "}
               <CustomLink
                 url="https://fleetdm.com/learn-more-about/setup-assistant"
                 text="Learn how"

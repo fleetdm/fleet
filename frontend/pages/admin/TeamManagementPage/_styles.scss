@@ -9,29 +9,31 @@
     .data-table__table {
       thead {
         .name__header {
-          width: $col-md;
+          width: auto;
         }
 
-        .host_count__header {
+        .host_count__header,
+        .user_count__header {
           width: $col-md;
         }
 
         .actions__header {
-          width: auto;
+          width: $col-sm;
         }
       }
 
       tbody {
         .name__cell {
-          max-width: $col-md;
+          width: auto;
         }
 
-        .host_count__cell {
+        .host_count__cell,
+        .user_count__cell {
           max-width: $col-md;
         }
 
         .actions__cell {
-          width: auto;
+          width: $col-sm;
         }
       }
     }

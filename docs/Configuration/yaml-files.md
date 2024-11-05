@@ -222,8 +222,14 @@ controls:
   windows_enabled_and_configured: true
   enable_disk_encryption: true # Available in Fleet Premium
   macos_updates: # Available in Fleet Premium
-    deadline: "2023-06-13"
-    minimum_version: 13.4.1
+    deadline: "2024-12-31"
+    minimum_version: 15.1
+  ios_updates: # Available in Fleet Premium
+    deadline: "2024-12-31"
+    minimum_version: 18.1
+  ipados_updates: # Available in Fleet Premium
+    deadline: "2024-12-31"
+    minimum_version: 18.1
   windows_updates: # Available in Fleet Premium
     deadline_days: 5
     grace_period_days: 2
@@ -251,23 +257,23 @@ controls:
 
 ### macos_updates
 
-- `deadline` specifies the deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8) (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time for hosts on macOS 14 and above, 20:00 UTC for hosts on older macOS versions. (default: `""`).
 - `minimum_version` specifies the minimum required macOS version (default: `""`).
-
-### windows_updates
-
-- `deadline_days` (default: null)
-- `grace_period_days` (default: null)
 
 ### ios_updates
 
-- `deadline` specifies the deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8) (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format; the exact deadline is set to noon local time. (default: `""`).
 - `minimum_version` specifies the minimum required iOS version (default: `""`).
 
 ### ipados_updates
 
-- `deadline` specifies the deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8) (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format; the exact deadline is set to noon local time. (default: `""`).
 - `minimum_version` specifies the minimum required iPadOS version (default: `""`).
+
+### windows_updates
+
+- `deadline_days` specifies the number of days before Windows installs updates (default: `null`)
+- `grace_period_days` specifies the number of days before Windows restarts to install updates (default: `null`)
 
 ### macos_settings and windows_settings
 

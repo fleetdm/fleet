@@ -20,6 +20,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/log/level"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -462,12 +463,15 @@ func (svc *Service) LogFleetdError(ctx context.Context, fleetdError fleet.Fleetd
 		return ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
 	}
 
-	svc.logger.Log(
+	err := ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap())
+	level.Warn(svc.logger).Log(
 		"msg",
 		"fleetd error",
 		"error",
-		ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap()),
+		err,
 	)
+	// Send to Redis/telemetry (if enabled)
+	ctxerr.Handle(ctx, err)
 
 	return nil
 }
