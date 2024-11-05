@@ -214,13 +214,12 @@ const HostDetailsPage = ({
   >("past");
   const [activityPage, setActivityPage] = useState(0);
 
-  // TODO - move this call into the SelectQuery modal, since queries are only used if that modal is opened
+  // Optimization TODO: move this call into the SelectQuery modal, since queries are only used if that modal is opened
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IListQueriesResponse,
     Error,
     ISchedulableQuery[],
     IQueryKeyQueriesLoadAll[]
-    // TODO - paginate this call and below UI that uses this response?
   >(
     [{ scope: "queries", teamId: undefined }],
     ({ queryKey }) => queryAPI.loadAll(queryKey[0]),

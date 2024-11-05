@@ -96,38 +96,6 @@ const QueriesTable = ({
 }: IQueriesTableProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
 
-  // Client side filtering bugs fixed with bypassing TableContainer filters
-  // queriesState tracks search filter and compatible platform filter
-  // to correctly show filtered queries and filtered count
-  // isQueryStateLoading prevents flashing of unfiltered count during clientside filtering
-  // const [queriesState, setQueriesState] = useState<IEnhancedQuery[]>([]);
-  // const [isQueriesStateLoading, setIsQueriesStateLoading] = useState(true);
-
-  // useEffect(() => {
-  //   setIsQueriesStateLoading(true);
-  //   if (queries) {
-  //     setQueriesState(
-  //       queries.filter((query) => {
-  //         const filterSearchQuery = queryParams?.query
-  //           ? query.name
-  //               .toLowerCase()
-  //               .includes(queryParams?.query.toLowerCase())
-  //           : true;
-  //         const compatiblePlatforms =
-  //           checkPlatformCompatibility(query.query).platforms || [];
-
-  //         const filterCompatiblePlatform =
-  //           queryParams?.platform && queryParams?.platform !== "all"
-  //             ? compatiblePlatforms.includes(queryParams?.platform)
-  //             : true;
-
-  //         return filterSearchQuery && filterCompatiblePlatform;
-  //       }) || []
-  //     );
-  //   }
-  //   setIsQueriesStateLoading(false);
-  // }, [queries, queryParams]);
-
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams?.query ?? "")();
   const initialSortHeader = (() =>
@@ -153,7 +121,6 @@ const QueriesTable = ({
     : DEFAULT_PLATFORM;
 
   // TODO: Look into useDebounceCallback with dependencies
-  // TODO - ensure the events this triggers correctly lead to the updates intended
   const onQueryChange = useCallback(
     (newTableQuery: ITableQueryData) => {
       const {
@@ -239,8 +206,6 @@ const QueriesTable = ({
     searchQuery,
   ]);
 
-  // TODO - remove comment once stable
-  // if there are issues with the platform dropdown rendering stability, look here
   const handlePlatformFilterDropdownChange = useCallback(
     (selectedCompatiblePlatform: string) => {
       router?.push(
@@ -310,11 +275,6 @@ const QueriesTable = ({
 
   const trimmedSearchQuery = searchQuery.trim();
 
-  // const deleteQueryTableActionButtonProps = useMemo(
-  //   () =>
-  //     ( as IActionButtonProps),
-  //   [onDeleteQueryClick]
-  // );
   return (
     columnConfigs && (
       <div className={`${baseClass}`}>
@@ -339,15 +299,11 @@ const QueriesTable = ({
           }}
           emptyComponent={emptyComponent}
           renderCount={() => (
-            // TODO - is more logic necessary here? Can we omit this?
             <TableCount name="queries" count={totalQueriesCount} />
           )}
           inputPlaceHolder="Search by name"
           onQueryChange={onQueryChange}
           searchable={searchable}
-          // TODO - will likely need to implement this somehow. Looks messy for policies, so avoid if
-          // not necessary.
-          // resetPageIndex=
           customControl={searchable ? renderPlatformDropdown : undefined}
           selectedDropdownFilter={curCompatiblePlatformFilter}
         />

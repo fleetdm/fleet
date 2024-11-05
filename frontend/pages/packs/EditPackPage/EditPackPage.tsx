@@ -62,7 +62,6 @@ const EditPacksPage = ({
     IQueryKeyQueriesLoadAll[]
   >(
     [{ scope: "queries", teamId: undefined }],
-    // TODO - paginate?
     ({ queryKey }) => queriesAPI.loadAll(queryKey[0]),
     {
       select: (data) => data.queries,

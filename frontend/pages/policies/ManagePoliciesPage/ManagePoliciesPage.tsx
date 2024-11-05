@@ -417,8 +417,6 @@ const ManagePolicyPage = ({
         return;
       }
 
-      // sets state before any of the below logic factored in. This would seem to have potential
-      // discrepancies for page, which is potentially modified to be "0" - maybe improve this logic
       setTableQueryDataForApi({ ...newTableQuery });
 
       const {

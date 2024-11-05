@@ -1,4 +1,3 @@
-// TODO - update these tests
 import React from "react";
 
 import { screen, waitFor } from "@testing-library/react";

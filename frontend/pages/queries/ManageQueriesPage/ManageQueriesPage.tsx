@@ -45,7 +45,7 @@ interface IManageQueriesPageProps {
   location: {
     pathname: string;
     query: {
-      // note that the URL value "darwin" will correspond to the request query param "macos" - TODO: reconcile
+      // note that the URL value "darwin" will correspond to the request query param "macos"
       compatible_platform?: SelectedPlatform;
       page?: string;
       query?: string;
@@ -294,8 +294,6 @@ const ManageQueriesPage = ({
         router={router}
         queryParams={location.query}
         currentTeamId={teamIdForApi}
-        // on PoliciesTable, this is passed down and set as TableContainer.defaultPageIndex - TBD if necessary?
-        // page={page}
       />
     );
   };
