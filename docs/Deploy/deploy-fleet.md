@@ -125,21 +125,21 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
     terraform apply -target aws_route53_zone.main
     ```
 
-9. From the Terminal output, obtain the NS records created for the zone and add them to the parent DNS zone in the AWS Route 53 GUI.
+9. From the Terminal output, obtain the NS records created for the zone and add them to the parent DNS zone in the AWS Route 53 GUI. Ensure you're *adding* the subdomain and its NS records to the parent DNS, not changing the NS records for the parent. For example - if the subdomain is `fleet.acme.com` and the NS record is `ns-420.awsdns-52.com`, *add* this record to the parent domain. 
 
-10. Run the following command in Terminal:
+12. Run the following command in Terminal:
     
     ```
     terraform apply -target module.fleet
     ```
 
-11. Run the following command in Terminal:
+13. Run the following command in Terminal:
     
     ```
     terraform apply
     ```
 
-12. That’s it! You should now be able to log in to Fleet and [enroll a host](https://fleetdm.com/docs/using-fleet/enroll-hosts).
+14. That’s it! You should now be able to log in to Fleet and [enroll a host](https://fleetdm.com/docs/using-fleet/enroll-hosts).
 
 <meta name="pageOrderInSection" value="100">
 <meta name="description" value="Learn how to easily deploy Fleet on Render or AWS with Terraform.">
