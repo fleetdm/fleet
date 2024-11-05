@@ -166,6 +166,7 @@ const DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK: ISoftwareTitleDetails = {
   versions: [createMockSoftwareTitleVersion()],
   bundle_identifier: "com.test.Desktop",
   versions_count: 1,
+  counts_updated_at: "2024-11-01T01:23:45Z",
 };
 
 export const createMockSoftwareTitleDetails = (
