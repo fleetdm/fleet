@@ -110,9 +110,6 @@ const ScriptModalGroup = ({
     }
   }, [runScriptRequested]);
 
-  console.log("currentModal", currentModal);
-  console.log("selectedScriptId", selectedScriptId);
-
   return (
     <>
       <RunScriptModal

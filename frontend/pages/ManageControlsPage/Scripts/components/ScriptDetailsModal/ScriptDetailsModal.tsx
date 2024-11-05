@@ -13,8 +13,7 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
+import Textarea from "components/Textarea";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import paths from "router/paths";
@@ -162,7 +161,7 @@ const ScriptDetailsModal = ({
 
     return (
       <>
-        <div className="modal-actions">
+        <div className={`secondary-actions ${baseClass}__script-actions`}>
           <Button
             className={`${baseClass}__action-button`}
             variant="icon"
@@ -177,8 +176,8 @@ const ScriptDetailsModal = ({
           >
             <Icon name="trash" color="ui-fleet-black-75" />
           </Button>
-        </div>{" "}
-        <div className="modal-cta-wrap">
+        </div>
+        <div className={`primary-actions ${baseClass}__host-script-actions`}>
           {showHostScriptActions && selectedScriptDetails && (
             <div className={`${baseClass}__manage-automations-wrapper`}>
               <ActionsDropdown
@@ -193,6 +192,7 @@ const ScriptDetailsModal = ({
                   hostTeamId || null,
                   selectedScriptDetails
                 )}
+                menuPlacement="top"
               />
             </div>
           )}
@@ -214,42 +214,32 @@ const ScriptDetailsModal = ({
     }
 
     return (
-      <InputField
-        readOnly
-        inputWrapperClass={`${baseClass}__script-content`}
-        name="script-content"
-        label="Script content:"
-        type="textarea"
-        value={selectedScriptContent}
-        helpText={
-          runScriptHelpText ? (
-            <>
-              To run this script on a host, go to the{" "}
-              <CustomLink text="Hosts" url={paths.MANAGE_HOSTS} /> page and
-              select a host.
-              <br />
-              To run the script across multiple hosts, add a policy automation
-              on the <CustomLink
-                text="Policies"
-                url={paths.MANAGE_POLICIES}
-              />{" "}
-              page.
-            </>
-          ) : null
-        }
-        autoExpand
-      />
+      <div className={`${baseClass}__script-content`}>
+        <span>Script content:</span>
+        <Textarea className={`${baseClass}__script-content-textarea`}>
+          {scriptContent}
+        </Textarea>
+        {runScriptHelpText && (
+          <div className="form-field__help-text">
+            To run this script on a host, go to the{" "}
+            <CustomLink text="Hosts" url={paths.MANAGE_HOSTS} /> page and select
+            a host.
+            <br />
+            To run the script across multiple hosts, add a policy automation on
+            the <CustomLink text="Policies" url={paths.MANAGE_POLICIES} /> page.
+          </div>
+        )}
+      </div>
     );
   };
 
-  console.log("shouldshowfooter", shouldShowFooter());
   return (
     <Modal
       className={baseClass}
       title={selectedScriptDetails?.name || "Script details"}
       width="large"
       onExit={onCancel}
-      modalActionsFooter={shouldShowFooter() ? renderFooter() : undefined}
+      actionsFooter={shouldShowFooter() ? renderFooter() : undefined}
       isHidden={isHidden}
     >
       {renderContent()}

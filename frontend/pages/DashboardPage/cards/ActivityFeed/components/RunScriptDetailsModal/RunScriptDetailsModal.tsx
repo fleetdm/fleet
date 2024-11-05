@@ -144,27 +144,13 @@ const ScriptOutput = ({ output, hostname }: IScriptOutputProps) => {
 
 interface IScriptResultProps {
   hostname: string;
-  hostTimeout: boolean;
-  exitCode: number | null;
-  message: string;
   output: string;
 }
 
-const ScriptResult = ({
-  hostname,
-  hostTimeout,
-  exitCode,
-  output,
-}: IScriptResultProps) => {
-  const hostTimedOut = exitCode === null && hostTimeout === true;
-  const scriptsDisabledForHost = exitCode === -2;
-  const scriptStillRunning = exitCode === null && hostTimeout === false;
-  const showOutputText =
-    !hostTimedOut && !scriptsDisabledForHost && !scriptStillRunning;
-
+const ScriptResult = ({ hostname, output }: IScriptResultProps) => {
   return (
     <div className={`${baseClass}__script-result`}>
-      {showOutputText && <ScriptOutput output={output} hostname={hostname} />}
+      <ScriptOutput output={output} hostname={hostname} />
     </div>
   );
 };
@@ -196,6 +182,14 @@ const RunScriptDetailsModal = ({
     } else if (isError) {
       content = <DataError description="Close this modal and try again." />;
     } else if (data) {
+      const hostTimedOut =
+        data.exit_code === null && data.host_timeout === true;
+      const scriptsDisabledForHost = data.exit_code === -2;
+      const scriptStillRunning =
+        data.exit_code === null && data.host_timeout === false;
+      const showOutputText =
+        !hostTimedOut && !scriptsDisabledForHost && !scriptStillRunning;
+
       content = (
         <>
           <StatusMessage
@@ -204,13 +198,9 @@ const RunScriptDetailsModal = ({
             message={data.output}
           />
           <ScriptContent content={data.script_contents} />
-          <ScriptResult
-            hostname={data.hostname}
-            hostTimeout={data.host_timeout}
-            exitCode={data.exit_code}
-            message={data.message}
-            output={data.output}
-          />
+          {showOutputText && (
+            <ScriptResult hostname={data.hostname} output={data.output} />
+          )}
         </>
       );
     }
@@ -218,15 +208,17 @@ const RunScriptDetailsModal = ({
     return (
       <>
         <div className={`${baseClass}__modal-content`}>{content}</div>
-        <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="brand">
-            Done
-          </Button>
-        </div>
       </>
     );
   };
 
+  const renderFooter = () => (
+    <div className={`primary-actions ${baseClass}__host-script-actions`}>
+      <Button onClick={onCancel} variant="brand">
+        Done
+      </Button>
+    </div>
+  );
   return (
     <Modal
       title="Script details"
@@ -234,6 +226,7 @@ const RunScriptDetailsModal = ({
       onEnter={onCancel}
       className={baseClass}
       isHidden={isHidden}
+      actionsFooter={renderFooter()}
     >
       {renderContent()}
     </Modal>

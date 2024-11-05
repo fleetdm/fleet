@@ -1,12 +1,13 @@
 .script-details-modal {
-  &__script-name {
-    font-weight: $bold;
+  &__script-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
   }
 
-  #script-content {
-    box-sizing: border-box;
-    height: 300px;
-    overflow-y: auto;
+  &__script-content-textarea {
     font-family: "SourceCodePro";
+    max-height: 572px;
+    overflow: auto;
   }
 }

@@ -37,7 +37,7 @@ export interface IModalProps {
    * */
   disableClosingModal?: boolean;
   className?: string;
-  modalActionsFooter?: JSX.Element;
+  actionsFooter?: JSX.Element;
 }
 
 const Modal = ({
@@ -51,7 +51,7 @@ const Modal = ({
   isContentDisabled = false,
   disableClosingModal = false,
   className,
-  modalActionsFooter,
+  actionsFooter,
 }: IModalProps): JSX.Element => {
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {
@@ -127,10 +127,8 @@ const Modal = ({
           )}
           <div className={contentClasses}>{children}</div>
         </div>
-        {modalActionsFooter && (
-          <div className={`${baseClass}__actions-footer`}>
-            {modalActionsFooter}
-          </div>
+        {actionsFooter && (
+          <div className={`${baseClass}__actions-footer`}>{actionsFooter}</div>
         )}
       </div>
     </div>

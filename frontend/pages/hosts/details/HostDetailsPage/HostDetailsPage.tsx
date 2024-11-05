@@ -179,9 +179,7 @@ const HostDetailsPage = ({
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
-  const [selectedScriptDetails, setSelectedScriptDetails] = useState<
-    IHostScript | undefined
-  >(undefined);
+  const [scriptExecutionId, setScriptExecutiontId] = useState("");
   const [runScriptRequested, setRunScriptRequested] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
@@ -535,12 +533,13 @@ const HostDetailsPage = ({
   const toggleRunScriptDetailsModal = useCallback(
     (script: IHostScript | undefined) => {
       setShowRunScriptDetailsModal(!showRunScriptDetailsModal);
-      setSelectedScriptDetails(script);
+      script?.last_execution &&
+        setScriptExecutiontId(script.last_execution.execution_id);
     },
     [
       showRunScriptDetailsModal,
       setShowRunScriptDetailsModal,
-      setSelectedScriptDetails,
+      setScriptExecutiontId,
     ]
   );
 
@@ -614,7 +613,7 @@ const HostDetailsPage = ({
     ({ type, details }: IShowActivityDetailsData) => {
       switch (type) {
         case "ran_script":
-          // setSelectedScript(details); TODO WHATS WRONG
+          setScriptExecutiontId(details?.script_execution_id || "");
           break;
         case "installed_software":
           setPackageInstallDetails({
@@ -672,7 +671,7 @@ const HostDetailsPage = ({
   };
 
   const onCancelRunScriptDetailsModal = useCallback(() => {
-    setSelectedScriptDetails(undefined);
+    setScriptExecutiontId("");
     // refetch activities to make sure they up-to-date with what was displayed in the modal
     refetchPastActivities();
     refetchUpcomingActivities();
@@ -1083,9 +1082,7 @@ const HostDetailsPage = ({
           )}
         {showRunScriptDetailsModal && (
           <RunScriptDetailsModal
-            scriptExecutionId={
-              selectedScriptDetails?.last_execution?.execution_id || ""
-            }
+            scriptExecutionId={scriptExecutionId}
             onCancel={onCancelRunScriptDetailsModal}
           />
         )}

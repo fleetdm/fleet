@@ -7,14 +7,15 @@
     display: flex;
     justify-content: center;
     animation: fade-in 150ms ease-out;
-    opacity: 1;
     visibility: visible;
+    opacity: 1; // Used for transitions between modals
+    transition: opacity 150ms ease-out, visibility 0s; // Used for transitions between modals
   }
 
   &__hidden {
-    opacity: 0;
     visibility: hidden;
-    transition: opacity 150ms ease-out, visibility 0s 150ms;
+    opacity: 0; // Used for transitions between modals
+    transition: opacity 150ms ease-out, visibility 0s 150ms; // Used for transitions between modals
 
     .fleet-checkbox__tick:after {
       visibility: hidden;
@@ -122,10 +123,17 @@
     justify-content: space-between;
     padding-top: $pad-medium;
 
-    .modal-actions {
+    // Styles both primary-actions and secondary-actions
+    > * {
       display: flex;
       justify-content: space-between;
       gap: $pad-medium;
+      align-items: center;
+    }
+
+    // Align primary actions right if no secondary actions
+    > :last-child {
+      margin-left: auto;
     }
 
     .button__text-icon {

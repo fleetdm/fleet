@@ -161,7 +161,6 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
       </div>
     </InfoBanner>
   );
-  console.log("selectedScript", selectedScript);
 
   return (
     <div className={baseClass}>
