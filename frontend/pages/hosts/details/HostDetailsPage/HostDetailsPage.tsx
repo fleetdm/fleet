@@ -166,9 +166,6 @@ const HostDetailsPage = ({
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
   const [showScriptModalGroup, setShowScriptModalGroup] = useState(false);
-  const [showRunScriptDetailsModal, setShowRunScriptDetailsModal] = useState(
-    false
-  );
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
@@ -179,6 +176,7 @@ const HostDetailsPage = ({
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
+  // Used in activities to show run script details modal
   const [scriptExecutionId, setScriptExecutiontId] = useState("");
   const [runScriptRequested, setRunScriptRequested] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
@@ -528,19 +526,6 @@ const HostDetailsPage = ({
       setSelectedPolicy(policy);
     },
     [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]
-  );
-
-  const toggleRunScriptDetailsModal = useCallback(
-    (script: IHostScript | undefined) => {
-      setShowRunScriptDetailsModal(!showRunScriptDetailsModal);
-      script?.last_execution &&
-        setScriptExecutiontId(script.last_execution.execution_id);
-    },
-    [
-      showRunScriptDetailsModal,
-      setShowRunScriptDetailsModal,
-      setScriptExecutiontId,
-    ]
   );
 
   const toggleOSSettingsModal = useCallback(() => {
@@ -1080,7 +1065,7 @@ const HostDetailsPage = ({
               onClose={() => setShowBootstrapPackageModal(false)}
             />
           )}
-        {showRunScriptDetailsModal && (
+        {scriptExecutionId && (
           <RunScriptDetailsModal
             scriptExecutionId={scriptExecutionId}
             onCancel={onCancelRunScriptDetailsModal}
