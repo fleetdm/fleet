@@ -782,10 +782,13 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
+	var device1ID uint
 	for _, h := range listHostsRes.Hosts {
 		if h.HardwareSerial == devices[1].SerialNumber {
 			err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{h.ID})
 			require.NoError(t, err)
+			device1ID = h.ID
+			break
 		}
 	}
 
@@ -923,6 +926,12 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		{SerialNumber: deletedSerial, Model: "MacBook Mini", OS: "osx", OpType: "deleted", OpDate: time.Now().Add(2 * time.Second)},
 	}
 	profileAssignmentReqs = []profileAssignmentReq{}
+	// Check that host display name is present for the device to be deleted; later we will check that it has been deleted
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var dest uint
+		return sqlx.GetContext(ctx, q, &dest,
+			"SELECT 1 FROM host_display_names WHERE host_id = ?", device1ID)
+	})
 	s.runDEPSchedule()
 	// all hosts should be returned from the hosts endpoint
 	listHostsRes = listHostsResponse{}
@@ -942,6 +951,12 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		gotSerials = append(gotSerials, req.Devices...)
 	}
 	assert.ElementsMatch(t, []string{addedModifiedDeletedSerial, deletedAddedSerial}, gotSerials)
+	// Check that host display name was deleted
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var dest uint
+		return sqlx.GetContext(ctx, q, &dest,
+			"SELECT 1 FROM host_display_names WHERE NOT EXISTS (SELECT 1 FROM host_display_names WHERE host_id = ?)", device1ID)
+	})
 
 	// delete all MDM info
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
