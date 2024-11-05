@@ -22,6 +22,10 @@ import { generateActionDropdownOptions } from "pages/hosts/details/HostDetailsPa
 
 const baseClass = "script-details-modal";
 
+type PartialOrFullHostScript =
+  | Pick<IHostScript, "script_id" | "name"> // Use on Scripts page does not include last_execution
+  | IHostScript;
+
 interface IScriptDetailsModalProps {
   onCancel: () => void;
   onDelete: () => void;
@@ -31,7 +35,7 @@ interface IScriptDetailsModalProps {
   hostId?: number | null;
   hostTeamId?: number | null;
   refetchHostScripts?: any;
-  selectedScriptDetails?: IHostScript;
+  selectedScriptDetails?: PartialOrFullHostScript;
   selectedScriptContent?: string;
   isLoadingScriptContent?: boolean;
   isScriptContentError?: Error | null;
@@ -60,7 +64,6 @@ const ScriptDetailsModal = ({
   const { currentUser } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  // TODO
   const {
     data: scriptContent,
     error: isSelectedScriptContentError,
@@ -93,7 +96,7 @@ const ScriptDetailsModal = ({
   const onClickDownload = () => {
     if (selectedScriptContent) {
       const formatDate = format(new Date(), "yyyy-MM-dd");
-      const filename = `${formatDate} ${selectedScriptDetails}`;
+      const filename = `${formatDate} ${selectedScriptDetails?.name}`;
       const file = new File([selectedScriptContent], filename);
       FileSaver.saveAs(file);
     } else {
@@ -152,8 +155,6 @@ const ScriptDetailsModal = ({
     return !isLoadingScriptContent && selectedScriptDetails !== undefined;
   };
 
-  console.log("selectedScriptDetails", selectedScriptDetails);
-
   const renderFooter = () => {
     if (!shouldShowFooter) {
       return <></>;
@@ -183,14 +184,17 @@ const ScriptDetailsModal = ({
               <ActionsDropdown
                 className={`${baseClass}__manage-automations-dropdown`}
                 onChange={(value) =>
-                  onSelectMoreActions(value, selectedScriptDetails)
+                  onSelectMoreActions(
+                    value,
+                    selectedScriptDetails as IHostScript
+                  )
                 }
                 placeholder="More actions"
                 isSearchable={false}
                 options={generateActionDropdownOptions(
                   currentUser,
                   hostTeamId || null,
-                  selectedScriptDetails
+                  selectedScriptDetails as IHostScript
                 )}
                 menuPlacement="top"
               />
