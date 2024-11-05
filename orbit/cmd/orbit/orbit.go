@@ -436,8 +436,8 @@ func main() {
 					break
 				}
 
-				// if we didn't find the configuration values, try to read them from the files
-				// Get Fleet URL
+				// If we didn't find the configuration values, try to read them from the stored files.
+				// First, get Fleet URL
 				b, err := os.ReadFile(path.Join(c.String("root-dir"), constant.FleetURLFileName))
 				if err != nil {
 					if !errors.Is(err, os.ErrNotExist) {
@@ -449,10 +449,12 @@ func main() {
 						return fmt.Errorf("set fleet URL from file: %w", err)
 					}
 				}
-				// Get enroll secret
+				// Now, get enroll secret
 				if err := readEnrollSecretFromFile(path.Join(c.String("root-dir"), constant.OsqueryEnrollSecretFileName)); err != nil {
 					return err
 				}
+				// Since the normal enroll secret flow supports keychain, we can use it here as well.
+				// The story to remove the enroll secret from macOS MDM profile is: https://github.com/fleetdm/fleet/issues/16118
 				if err := tryReadEnrollSecretFromKeystore(); err != nil {
 					// Log the error but don't return it, as we want to keep trying to read the configuration
 					// from the system profile.
