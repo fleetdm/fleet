@@ -1564,8 +1564,15 @@ func UninstallSoftwareMigration(
 			return ctxerr.Wrap(ctx, err, "getting installer from store")
 		}
 
-		meta, err := file.ExtractInstallerMetadata(installer)
-		installer.Close()
+		tfr, err := file.NewTempFileReader(installer, nil)
+		_ = installer.Close()
+		if err != nil {
+			level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
+				err)
+			continue
+		}
+		meta, err := file.ExtractInstallerMetadata(tfr)
+		_ = tfr.Close() // best-effort closing and deleting of temp file
 		if err != nil {
 			level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
 				err)
