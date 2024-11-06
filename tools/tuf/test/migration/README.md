@@ -14,3 +14,8 @@ WINDOWS_HOST_HOSTNAME=DESKTOP-USFLJ3H \
 LINUX_HOST_HOSTNAME=foobar-ubuntu \
 ./tools/tuf/test/migration/migration_test.sh
 ```
+
+To simulate an outage of the TUF during the migration run the above with:
+```sh
+SIMULATE_NEW_TUF_OUTAGE=1 \
+```

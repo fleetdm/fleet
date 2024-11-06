@@ -109,25 +109,25 @@ ROOT_KEYS2=$(./build/fleetctl updates roots --path $NEW_TUF_PATH)
 CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build \
     -o orbit-darwin \
     -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=1.36.0 \
-    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultURL=$NEW_TUF_URL \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.DefaultURL=$NEW_TUF_URL \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultRootMetadata=$ROOT_KEYS2 \
-    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.oldFleetTUFURL=$OLD_TUF_URL \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.OldFleetTUFURL=$OLD_TUF_URL \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.oldFleetTUFRootMetadata=$ROOT_KEYS1" \
     ./orbit/cmd/orbit
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -o orbit-linux \
     -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=1.36.0 \
-    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultURL=$NEW_TUF_URL \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.DefaultURL=$NEW_TUF_URL \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultRootMetadata=$ROOT_KEYS2 \
-    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.oldFleetTUFURL=$OLD_TUF_URL \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.OldFleetTUFURL=$OLD_TUF_URL \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.oldFleetTUFRootMetadata=$ROOT_KEYS1" \
     ./orbit/cmd/orbit
 CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build \
     -o orbit.exe \
     -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=1.36.0 \
-    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultURL=$NEW_TUF_URL \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.DefaultURL=$NEW_TUF_URL \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultRootMetadata=$ROOT_KEYS2 \
-    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.oldFleetTUFURL=$OLD_TUF_URL \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.OldFleetTUFURL=$OLD_TUF_URL \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.oldFleetTUFRootMetadata=$ROOT_KEYS1" \
     ./orbit/cmd/orbit
 
@@ -136,16 +136,32 @@ TUF_PATH=$NEW_TUF_PATH ./tools/tuf/test/push_target.sh macos orbit ./orbit-darwi
 TUF_PATH=$NEW_TUF_PATH ./tools/tuf/test/push_target.sh linux orbit ./orbit-linux 42
 TUF_PATH=$NEW_TUF_PATH ./tools/tuf/test/push_target.sh windows orbit ./orbit.exe 42
 
+if [ "$SIMULATE_NEW_TUF_OUTAGE" = "1" ]; then
+    echo "Simulating outage of the new TUF repository..."
+    mkdir $NEW_TUF_PATH/tmp
+    mv $NEW_TUF_PATH/repository/*.json $NEW_TUF_PATH/tmp/
+fi
+
 echo "Pushing orbit to old repository..."
 TUF_PATH=$OLD_TUF_PATH ./tools/tuf/test/push_target.sh macos orbit ./orbit-darwin 42
 TUF_PATH=$OLD_TUF_PATH ./tools/tuf/test/push_target.sh linux orbit ./orbit-linux 42
 TUF_PATH=$OLD_TUF_PATH ./tools/tuf/test/push_target.sh windows orbit ./orbit.exe 42
 
-echo "Waiting until migration happens on the macOS host..."
+if [ "$SIMULATE_NEW_TUF_OUTAGE" = "1" ]; then
+    echo "Waiting until migration is probed and expected to fail on the macOS host (greping logs)..."
+    until sudo grep "failed to probe TUF migration" /var/log/orbit/orbit.stderr.log; do
+        sleep 1
+    done
+    prompt "Please check for \"failed to probe TUF migration\" in the logs on the Linux and Windows host. And make sure devices are working as expected."
+
+    echo "Restoring new TUF repository..."
+    mv $NEW_TUF_PATH/tmp/*.json $NEW_TUF_PATH/repository/
+fi
+
+echo "Waiting until migration happens on the macOS host (greping logs)..."
 until sudo grep "migration to new TUF repository completed" /var/log/orbit/orbit.stderr.log; do
     sleep 1
 done
-
 prompt "Please check for \"migration to new TUF repository completed\" in the logs on the Linux and Windows host."
 
 echo "Restarting fleetd on the macOS host..."
@@ -153,7 +169,7 @@ sudo launchctl unload /Library/LaunchDaemons/com.fleetdm.orbit.plist && sudo lau
 
 prompt "Please restart fleetd on the Linux and Windows host."
 
-echo "Waiting until migration happens..."
+echo "Waiting until migration happens (greping logs)..."
 until sudo grep "nothing to do, already migrated" /var/log/orbit/orbit.stderr.log; do
     sleep 1
 done
@@ -175,25 +191,25 @@ ROOT_KEYS2=$(./build/fleetctl updates roots --path $NEW_TUF_PATH)
 CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build \
     -o orbit-darwin \
     -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=1.37.0 \
-    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultURL=$NEW_TUF_URL \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.DefaultURL=$NEW_TUF_URL \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultRootMetadata=$ROOT_KEYS2 \
-    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.oldFleetTUFURL=$OLD_TUF_URL \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.OldFleetTUFURL=$OLD_TUF_URL \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.oldFleetTUFRootMetadata=$ROOT_KEYS1" \
     ./orbit/cmd/orbit
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -o orbit-linux \
     -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=1.37.0 \
-    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultURL=$NEW_TUF_URL \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.DefaultURL=$NEW_TUF_URL \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultRootMetadata=$ROOT_KEYS2 \
-    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.oldFleetTUFURL=$OLD_TUF_URL \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.OldFleetTUFURL=$OLD_TUF_URL \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.oldFleetTUFRootMetadata=$ROOT_KEYS1" \
     ./orbit/cmd/orbit
 CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build \
     -o orbit.exe \
     -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=1.37.0 \
-    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultURL=$NEW_TUF_URL \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.DefaultURL=$NEW_TUF_URL \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultRootMetadata=$ROOT_KEYS2 \
-    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.oldFleetTUFURL=$OLD_TUF_URL \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.OldFleetTUFURL=$OLD_TUF_URL \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.oldFleetTUFRootMetadata=$ROOT_KEYS1" \
     ./orbit/cmd/orbit
 TUF_PATH=$NEW_TUF_PATH ./tools/tuf/test/push_target.sh macos orbit ./orbit-darwin 42

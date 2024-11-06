@@ -544,13 +544,9 @@ func main() {
 		var updater *update.Updater
 		var updateRunner *update.Runner
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
-			updater, err = update.NewUpdater(opt)
+			updater, err = createUpdater(opt)
 			if err != nil {
 				return fmt.Errorf("create updater: %w", err)
-			}
-
-			if err := updater.UpdateMetadata(); err != nil {
-				log.Info().Err(err).Msg("update metadata, using saved metadata")
 			}
 
 			signaturesExpiredAtStartup := updater.SignaturesExpired()
@@ -2085,4 +2081,48 @@ func (w *wrapSubsystem) Execute() error {
 // Interrupt partially implements subSystem.
 func (w *wrapSubsystem) Interrupt(err error) {
 	w.interrupt(err)
+}
+
+func createUpdater(opt update.Options) (*update.Updater, error) {
+	create := func(opt update.Options) (*update.Updater, error) {
+		updater, err := update.NewUpdater(opt)
+		if err != nil {
+			return nil, fmt.Errorf("update new updater: %w", err)
+		}
+		if err := updater.UpdateMetadata(); err != nil {
+			log.Info().Err(err).Msg("update metadata, using saved metadata")
+		}
+		return updater, nil
+	}
+
+	if opt.ServerURL != update.OldFleetTUFURL {
+		// Nothing to do. Using different TUF server+roots.
+		return create(opt)
+	}
+
+	// orbit is configured to use Fleet's old TUF URL,
+	// we now check if it already migrated or needs to run migration.
+
+	ok, err := update.CheckAlreadyMigrated(opt.LocalStore)
+	if err != nil || ok {
+		if err != nil {
+			log.Error().Err(err).Msg("failed to check for TUF migration")
+		}
+		opt.ServerURL = update.DefaultURL
+		return create(opt)
+	}
+
+	if err := update.ProbeMigration(opt); err != nil {
+		log.Error().Err(err).Msg("failed to probe TUF migration")
+		return create(opt)
+	}
+
+	if err := update.PerformMigration(&opt); err != nil {
+		log.Error().Err(err).Msg("failed to perform TUF migration")
+		return create(opt)
+	}
+
+	// Migration was successful, update default URL.
+	opt.ServerURL = update.DefaultURL
+	return create(opt)
 }
