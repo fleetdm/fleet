@@ -178,7 +178,6 @@ const HostDetailsPage = ({
   const [showWipeModal, setShowWipeModal] = useState(false);
   // Used in activities to show run script details modal
   const [scriptExecutionId, setScriptExecutiontId] = useState("");
-  const [runScriptRequested, setRunScriptRequested] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -1015,8 +1014,6 @@ const HostDetailsPage = ({
             host={host}
             currentUser={currentUser}
             onCloseScriptModalGroup={onCloseScriptModalGroup}
-            runScriptRequested={runScriptRequested}
-            setRunScriptRequested={setRunScriptRequested}
           />
         )}
         {!!host && showTransferHostModal && (

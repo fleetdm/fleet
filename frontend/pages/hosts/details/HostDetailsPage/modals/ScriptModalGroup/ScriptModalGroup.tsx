@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery } from "react-query";
 
 import { IApiError } from "interfaces/errors";
@@ -20,8 +20,6 @@ interface IScriptsProps {
   currentUser: IUser | null;
   host: IHost;
   onCloseScriptModalGroup: () => void;
-  runScriptRequested: boolean;
-  setRunScriptRequested: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 type ScriptGroupModals =
@@ -35,8 +33,6 @@ const ScriptModalGroup = ({
   currentUser,
   host,
   onCloseScriptModalGroup,
-  runScriptRequested,
-  setRunScriptRequested,
 }: IScriptsProps) => {
   const [previousModal, setPreviousModal] = useState<ScriptGroupModals>(null);
   const [currentModal, setCurrentModal] = useState<ScriptGroupModals>(
@@ -52,6 +48,8 @@ const ScriptModalGroup = ({
   const [selectedScriptDetails, setSelectedScriptDetails] = useState<
     IHostScript | undefined
   >(undefined);
+  // This sets a loading state of the Run script modal during a run request
+  const [runScriptRequested, setRunScriptRequested] = useState(false);
 
   // Almost everything from this is needed on RunScript.tsx modal
   // except refetch is used multiple places
@@ -95,8 +93,9 @@ const ScriptModalGroup = ({
     data: selectedScriptContent,
     error: isSelectedScriptContentError,
     isLoading: isLoadingSelectedScriptContent,
-  } = useQuery<any, Error>(
+  } = useQuery<string, Error>(
     ["scriptContent", selectedScriptId],
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     () => scriptsAPI.downloadScript(selectedScriptId!),
     {
       refetchOnWindowFocus: false,
@@ -104,6 +103,7 @@ const ScriptModalGroup = ({
     }
   );
 
+  // Anytime a script runs, return back to Run script modal
   useEffect(() => {
     if (runScriptRequested) {
       setCurrentModal("run-script");

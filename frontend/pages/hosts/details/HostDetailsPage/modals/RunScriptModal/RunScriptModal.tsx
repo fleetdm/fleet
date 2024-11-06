@@ -1,10 +1,9 @@
-import React, { useCallback, useContext, useMemo, useState } from "react";
-import { useQuery } from "react-query";
+import React, { useCallback, useContext, useMemo } from "react";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
-import { getErrorReason, IApiError } from "interfaces/errors";
+import { getErrorReason } from "interfaces/errors";
 import { IHost } from "interfaces/host";
 import { IHostScript } from "interfaces/script";
 import { IUser } from "interfaces/user";
@@ -94,7 +93,13 @@ const RunScriptModal = ({
         default: // do nothing
       }
     },
-    [host.id, refetchHostScripts, renderFlash]
+    [
+      host.id,
+      onClickRunDetails,
+      refetchHostScripts,
+      renderFlash,
+      setRunScriptRequested,
+    ]
   );
 
   const onQueryChange = useCallback(({ pageIndex }: ITableQueryData) => {
