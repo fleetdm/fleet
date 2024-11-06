@@ -482,13 +482,65 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	opts := fleet.ListQueryOptions{}
-	results, count, _, err := ds.ListQueries(context.Background(), opts)
+	opts.IncludeMetadata = true
+
+	// paginated - beginning
+	opts.PerPage = 3
+	opts.Page = 0
+	results, count, meta, err := ds.ListQueries(context.Background(), opts)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(results))
+	require.Equal(t, "Zach", results[0].AuthorName)
+	require.Equal(t, "zwass@fleet.co", results[0].AuthorEmail)
+	require.True(t, results[0].DiscardData)
+	assert.Equal(t, count, 10)
+	assert.False(t, meta.HasPreviousResults)
+	assert.True(t, meta.HasNextResults)
+
+	// paginated - middle
+	opts.Page = 1
+	results, count, meta, err = ds.ListQueries(context.Background(), opts)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(results))
+	require.Equal(t, "Zach", results[0].AuthorName)
+	require.Equal(t, "zwass@fleet.co", results[0].AuthorEmail)
+	require.True(t, results[0].DiscardData)
+	assert.Equal(t, count, 10)
+	assert.True(t, meta.HasPreviousResults)
+	assert.True(t, meta.HasNextResults)
+
+	// paginated - end
+	opts.Page = 3
+	results, count, meta, err = ds.ListQueries(context.Background(), opts)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(results))
+	require.Equal(t, "Zach", results[0].AuthorName)
+	require.Equal(t, "zwass@fleet.co", results[0].AuthorEmail)
+	require.True(t, results[0].DiscardData)
+	assert.Equal(t, count, 10)
+	assert.True(t, meta.HasPreviousResults)
+	assert.False(t, meta.HasNextResults)
+
+	// paginated - past end
+	opts.Page = 4
+	results, count, meta, err = ds.ListQueries(context.Background(), opts)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(results))
+	assert.Equal(t, count, 10)
+	assert.True(t, meta.HasPreviousResults)
+	assert.False(t, meta.HasNextResults)
+
+	opts.PerPage = 0
+	opts.Page = 0
+	results, count, meta, err = ds.ListQueries(context.Background(), opts)
 	require.NoError(t, err)
 	require.Equal(t, 10, len(results))
 	require.Equal(t, "Zach", results[0].AuthorName)
 	require.Equal(t, "zwass@fleet.co", results[0].AuthorEmail)
 	require.True(t, results[0].DiscardData)
 	assert.Equal(t, count, 10)
+	assert.False(t, meta.HasPreviousResults)
+	assert.False(t, meta.HasNextResults)
 
 	idWithAgg := results[0].ID
 
