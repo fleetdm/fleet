@@ -6,6 +6,8 @@ In Fleet, you can install Fleet-maintained apps on macOS hosts without the need 
 
 Fleet maintains these [celebrity apps](https://github.com/fleetdm/fleet/blob/main/server/mdm/maintainedapps/apps.json), enabling you to pull directly from this curated list and install them on your hosts without any additional configuration.
 
+> Currently, these apps are only supported for Apple Silicon Macs: 1Password, Brave, Docker Desktop, Figma, Microsoft Visual Studio (VS) Code, Notion, Postman, Slack, and Zoom.
+
 ## Add a Fleet-maintained app
 
 1. Head to the **Software** page and click **Add software**.
