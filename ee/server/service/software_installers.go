@@ -1268,6 +1268,7 @@ func (svc *Service) softwareBatchUpload(
 			)
 		}
 
+		// TODO(mna): prevent that, store in temp file and pass along the reference
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			// the max size error can be received either at client.Do or here when
@@ -1564,6 +1565,7 @@ func UninstallSoftwareMigration(
 		}
 
 		meta, err := file.ExtractInstallerMetadata(installer)
+		installer.Close()
 		if err != nil {
 			level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
 				err)

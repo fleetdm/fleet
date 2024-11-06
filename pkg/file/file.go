@@ -28,28 +28,92 @@ type InstallerMetadata struct {
 	PackageIDs       []string
 }
 
+type TempFileReader struct {
+	*os.File
+	keepFile bool
+}
+
+func (r *TempFileReader) Rewind() error {
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Close closes the TempFileReader and deletes the underlying temp file unless
+// it was instructed not to do so at creation time.
+func (r *TempFileReader) Close() error {
+	cerr := r.File.Close()
+	var rerr error
+	if !r.keepFile {
+		rerr = os.Remove(r.File.Name())
+	}
+	if cerr != nil {
+		return cerr
+	}
+	return rerr
+}
+
+// NewKeepFileReader creates a TempFileReader from a file path and keeps the
+// file on Close, instead of deleting it.
+func NewKeepFileReader(filename string) (*TempFileReader, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	return &TempFileReader{File: f, keepFile: true}, nil
+}
+
+// NewTempFileReader creates a temp file to store the data from the provided
+// reader and returns a TempFileReader that reads from that temp file, deleting
+// it on close.
+func NewTempFileReader(from io.Reader, tempDirFn func() string) (*TempFileReader, error) {
+	if tempDirFn == nil {
+		tempDirFn = os.TempDir
+	}
+
+	tempFile, err := os.CreateTemp(tempDirFn(), "fleet-temp-file-*")
+	if err != nil {
+		return nil, err
+	}
+	tfr := &TempFileReader{File: tempFile}
+
+	if _, err := io.Copy(tempFile, from); err != nil {
+		_ = tfr.Close() // best-effort close/delete
+		return nil, err
+	}
+	if err := tfr.Rewind(); err != nil {
+		_ = tfr.Close() // best-effort close/delete
+		return nil, err
+	}
+	return tfr, nil
+}
+
 // ExtractInstallerMetadata extracts the software name and version from the
 // installer file and returns them along with the sha256 hash of the bytes. The
 // format of the installer is determined based on the magic bytes of the content.
-func ExtractInstallerMetadata(r io.Reader) (*InstallerMetadata, error) {
-	br := bufio.NewReader(r)
+func ExtractInstallerMetadata(tfr *TempFileReader) (*InstallerMetadata, error) {
+	br := bufio.NewReader(tfr)
 	extension, err := typeFromBytes(br)
 	if err != nil {
+		return nil, err
+	}
+	if err := tfr.Rewind(); err != nil {
 		return nil, err
 	}
 
 	var meta *InstallerMetadata
 	switch extension {
 	case "deb":
-		meta, err = ExtractDebMetadata(br)
+		meta, err = ExtractDebMetadata(tfr)
 	case "rpm":
-		meta, err = ExtractRPMMetadata(br)
+		meta, err = ExtractRPMMetadata(tfr)
 	case "exe":
-		meta, err = ExtractPEMetadata(br)
+		meta, err = ExtractPEMetadata(tfr)
 	case "pkg":
-		meta, err = ExtractXARMetadata(br)
+		meta, err = ExtractXARMetadata(tfr)
 	case "msi":
-		meta, err = ExtractMSIMetadata(br)
+		meta, err = ExtractMSIMetadata(tfr)
 	default:
 		return nil, ErrUnsupportedType
 	}

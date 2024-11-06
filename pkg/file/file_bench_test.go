@@ -42,12 +42,12 @@ func BenchmarkExtractInstallerMetadata(b *testing.B) {
 				// memory usage, so it doesn't matter that the file is read from disk on each
 				// iteration.
 				for i := 0; i < b.N; i++ {
-					f, err := os.Open(filepath.Join("testdata", "installers", dent.Name()))
+					tfr, err := file.NewKeepFileReader(filepath.Join("testdata", "installers", dent.Name()))
 					require.NoError(b, err)
 
-					meta, err := file.ExtractInstallerMetadata(f)
+					meta, err := file.ExtractInstallerMetadata(tfr)
 					require.NoError(b, err)
-					f.Close()
+					tfr.Close()
 
 					assert.Equal(b, wantName, meta.Name)
 					assert.Equal(b, wantVersion, meta.Version)
