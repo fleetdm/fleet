@@ -66,10 +66,10 @@
               <a purpose="sidebar-link" :href="'https://github.com/fleetdm/fleet/edit/main/articles/'+thisPage.sectionRelativeRepoPath"> <img src="/images/icon-edit-16x16@2x.png" alt="Suggest an edit">Suggest an edit</a>
             </div>
             <div purpose="sidebar-cta">
-              <a href="<% if(!me) {%>/register<% } else { %>/start<% } %>">
+              <a href="<% if(typeof me === 'undefined') {%>/register<% } else { %>/start<% } %>">
               <div purpose="cta-image"></div>
               <div purpose="cta-text">
-                <% if(!me){ %>
+                <% if(typeof me === 'undefined'){ %>
                   <h4>Try it out</h4>
                   <p>See what Fleet can do</p>
                   <a purpose="cta-button" class="btn btn-primary docs-cta-continue-button" href="/register">Start now</a>
