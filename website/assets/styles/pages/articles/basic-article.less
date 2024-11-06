@@ -267,6 +267,9 @@
     margin-top: 24px;
     margin-bottom: 8px;
     max-width: 256px;
+    a {
+      text-decoration: none;
+    }
     &:hover {
       box-shadow: 0px 0px 0px 3px rgba(0, 0, 0, 0.03);
     }
@@ -322,6 +325,35 @@
           margin-right: 16px;
         }
       }
+    }
+  }
+
+  [purpose='sidebar-contact-cta'] {
+    display: flex;
+    padding: 16px;
+    align-items: center;
+    border-radius: 8px;
+    border: 1px solid #E2E4EA;
+    background: #FFF;
+    font-size: 14px;
+    line-height: 150%;
+    color: @core-fleet-black;
+    p {
+      line-height: 120%;
+      margin-bottom: 0px;
+      font-weight: 800;
+    }
+    [parasails-component='animated-arrow-button'] {
+      line-height: 150%;
+    }
+    img {
+      width: 20px;
+      height: 18.947px;
+      margin-right: 10px;
+    }
+    &:hover {
+      box-shadow: 0px 0px 0px 3px rgba(0, 0, 0, 0.03);
+      text-decoration: none;
     }
   }
 
