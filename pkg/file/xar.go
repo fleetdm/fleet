@@ -188,8 +188,10 @@ func ExtractXARMetadata(r io.Reader) (*InstallerMetadata, error) {
 	}
 
 	heapOffset := xarHeaderSize + hdr.CompressedSize
+	var packageInfoFile *xmlFile
 	for _, f := range root.TOC.Files {
-		if f.Name == "Distribution" {
+		switch f.Name {
+		case "Distribution":
 			contents, err := readCompressedFile(rr, heapOffset, int64(len(b)), f)
 			if err != nil {
 				return nil, err
@@ -201,25 +203,24 @@ func ExtractXARMetadata(r io.Reader) (*InstallerMetadata, error) {
 			}
 			meta.SHASum = h.Sum(nil)
 			return meta, nil
+		case "PackageInfo":
+			// If Distribution archive was not found, we will use the top-level PackageInfo archive
+			packageInfoFile = f
 		}
 	}
 
-	// If Distribution archive was not found, we look for a top-level PackageInfo archive
-	// Unofficial specs: http://s.sudre.free.fr/Stuff/Ivanhoe/FLAT.html
-	for _, f := range root.TOC.Files {
-		if f.Name == "PackageInfo" {
-			contents, err := readCompressedFile(rr, heapOffset, int64(len(b)), f)
-			if err != nil {
-				return nil, err
-			}
-
-			meta, err := parsePackageInfoFile(contents)
-			if err != nil {
-				return nil, fmt.Errorf("parsing PackageInfo file: %w", err)
-			}
-			meta.SHASum = h.Sum(nil)
-			return meta, nil
+	if packageInfoFile != nil {
+		contents, err := readCompressedFile(rr, heapOffset, int64(len(b)), packageInfoFile)
+		if err != nil {
+			return nil, err
 		}
+
+		meta, err := parsePackageInfoFile(contents)
+		if err != nil {
+			return nil, fmt.Errorf("parsing PackageInfo file: %w", err)
+		}
+		meta.SHASum = h.Sum(nil)
+		return meta, nil
 	}
 
 	return &InstallerMetadata{SHASum: h.Sum(nil)}, nil
