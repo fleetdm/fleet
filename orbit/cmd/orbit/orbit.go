@@ -2096,7 +2096,8 @@ func createUpdater(opt update.Options) (*update.Updater, error) {
 	}
 
 	if opt.ServerURL != update.OldFleetTUFURL {
-		// Nothing to do. Using different TUF server+roots.
+		// Nothing to do. Using different TUF server+roots or a package
+		// built using the new TUF repository URL.
 		return create(opt)
 	}
 
