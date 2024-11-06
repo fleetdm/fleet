@@ -70,6 +70,23 @@ import (
 // BenchmarkExtractInstallerMetadata/ruby.deb/file_size:_11_kb-8                                         578      3.48 ms/op     8449575 B/op      122 allocs/op
 // ok  	github.com/fleetdm/fleet/v4/pkg/file	37.775s
 
+// Results @64321f8d241bba9233a1de21845ac0c7a6f4dda6 with the .exe improvements (read from disk with mmap) - massively
+// better memory usage (only exe benchmarks show):
+//
+// $ GO_TEST_EXTRA_FLAGS="--timeout 20m" FLEET_INTEGRATION_TESTS_DISABLE_LOG=1 REDIS_TEST=1 MYSQL_TEST=1 MINIO_STORAGE_TEST=1 go test ./pkg/file -run zzz -bench . -benchmem | prettybench
+// goos: linux
+// goarch: amd64
+// pkg: github.com/fleetdm/fleet/v4/pkg/file
+// cpu: Intel(R) Core(TM) i7-10510U CPU @ 1.80GHz
+// PASS
+// benchmark                                                                                            iter       time/iter      bytes alloc             allocs
+// ---------                                                                                            ----       ---------      -----------             ------
+// BenchmarkExtractInstallerMetadata/.exe/file_size:_39712_kb-8                                            6    208.14 ms/op     6135304 B/op   251345 allocs/op
+// BenchmarkExtractInstallerMetadata/Notion_3.11.1.exe/file_size:_77768_kb-8                               3    337.30 ms/op       61258 B/op      521 allocs/op
+// BenchmarkExtractInstallerMetadata/Vim.exe/file_size:_10704_kb-8                                        22     47.32 ms/op       67321 B/op      604 allocs/op
+// BenchmarkExtractInstallerMetadata/Visual_Studio_Code.exe/file_size:_97156_kb-8                          3    421.23 ms/op       65573 B/op      591 allocs/op
+// ok  	github.com/fleetdm/fleet/v4/pkg/file	35.887s
+
 func BenchmarkExtractInstallerMetadata(b *testing.B) {
 	dents, err := os.ReadDir(filepath.Join("testdata", "installers"))
 	if err != nil {

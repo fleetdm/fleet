@@ -150,27 +150,28 @@ type distributionApp struct {
 
 // ExtractXARMetadata extracts the name and version metadata from a .pkg file
 // in the XAR format.
-func ExtractXARMetadata(r io.Reader) (*InstallerMetadata, error) {
+func ExtractXARMetadata(tfr *TempFileReader) (*InstallerMetadata, error) {
 	var hdr xarHeader
 
 	h := sha256.New()
-	r = io.TeeReader(r, h)
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read all content: %w", err)
+	size, _ := io.Copy(h, tfr) // writes to a hash cannot fail
+
+	if err := tfr.Rewind(); err != nil {
+		return nil, fmt.Errorf("rewind reader: %w", err)
 	}
 
-	rr := bytes.NewReader(b)
-	if err := binary.Read(rr, binary.BigEndian, &hdr); err != nil {
+	// read the file header
+	if err := binary.Read(tfr, binary.BigEndian, &hdr); err != nil {
 		return nil, fmt.Errorf("decode xar header: %w", err)
 	}
 
-	zr, err := zlib.NewReader(io.LimitReader(rr, hdr.CompressedSize))
+	zr, err := zlib.NewReader(io.LimitReader(tfr, hdr.CompressedSize))
 	if err != nil {
 		return nil, fmt.Errorf("create zlib reader: %w", err)
 	}
 	defer zr.Close()
 
+	// decode the TOC data (in XML inside the zlib-compressed data)
 	var root xmlXar
 	decoder := xml.NewDecoder(zr)
 	decoder.Strict = false
@@ -178,43 +179,47 @@ func ExtractXARMetadata(r io.Reader) (*InstallerMetadata, error) {
 		return nil, fmt.Errorf("decode xar xml: %w", err)
 	}
 
+	// look for the distribution file, with the metadata information
 	heapOffset := xarHeaderSize + hdr.CompressedSize
 	for _, f := range root.TOC.Files {
-		if f.Name == "Distribution" {
-			var fileReader io.Reader
-			heapReader := io.NewSectionReader(rr, heapOffset, int64(len(b))-heapOffset)
-			fileReader = io.NewSectionReader(heapReader, f.Data.Offset, f.Data.Length)
-
-			// the distribution file can be compressed differently than the TOC, the
-			// actual compression is specified in the Encoding.Style field.
-			if strings.Contains(f.Data.Encoding.Style, "x-gzip") {
-				// despite the name, x-gzip fails to decode with the gzip package
-				// (invalid header), but it works with zlib.
-				zr, err := zlib.NewReader(fileReader)
-				if err != nil {
-					return nil, fmt.Errorf("create zlib reader: %w", err)
-				}
-				defer zr.Close()
-				fileReader = zr
-			} else if strings.Contains(f.Data.Encoding.Style, "x-bzip2") {
-				fileReader = bzip2.NewReader(fileReader)
-			}
-			// TODO: what other compression methods are supported?
-
-			contents, err := io.ReadAll(fileReader)
-			if err != nil {
-				return nil, fmt.Errorf("reading Distribution file: %w", err)
-			}
-
-			meta, err := parseDistributionFile(contents)
-			if err != nil {
-				return nil, fmt.Errorf("parsing Distribution file: %w", err)
-			}
-			meta.SHASum = h.Sum(nil)
-			return meta, err
+		if f.Name != "Distribution" {
+			continue
 		}
+
+		var fileReader io.Reader
+		heapReader := io.NewSectionReader(tfr, heapOffset, size-heapOffset)
+		fileReader = io.NewSectionReader(heapReader, f.Data.Offset, f.Data.Length)
+
+		// the distribution file can be compressed differently than the TOC, the
+		// actual compression is specified in the Encoding.Style field.
+		if strings.Contains(f.Data.Encoding.Style, "x-gzip") {
+			// despite the name, x-gzip fails to decode with the gzip package
+			// (invalid header), but it works with zlib.
+			zr, err := zlib.NewReader(fileReader)
+			if err != nil {
+				return nil, fmt.Errorf("create zlib reader: %w", err)
+			}
+			defer zr.Close()
+			fileReader = zr
+		} else if strings.Contains(f.Data.Encoding.Style, "x-bzip2") {
+			fileReader = bzip2.NewReader(fileReader)
+		}
+		// TODO: what other compression methods are supported?
+
+		contents, err := io.ReadAll(fileReader)
+		if err != nil {
+			return nil, fmt.Errorf("reading Distribution file: %w", err)
+		}
+
+		meta, err := parseDistributionFile(contents)
+		if err != nil {
+			return nil, fmt.Errorf("parsing Distribution file: %w", err)
+		}
+		meta.SHASum = h.Sum(nil)
+		return meta, err
 	}
 
+	// if it reaches here, no distribution file was found, no metadata
 	return &InstallerMetadata{SHASum: h.Sum(nil)}, nil
 }
 
