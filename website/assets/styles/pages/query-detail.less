@@ -273,7 +273,7 @@
   pre {
     width: 100%;
     max-width: 100%;
-    padding: 16px 24px;
+    padding: 16px 44px 16px 24px;
     border: 1px solid #E2E4EA;
     background: #F9FAFC;
     border-radius: 4px;
@@ -281,6 +281,12 @@
     margin-bottom: 24px;
     code {
       color: #515774;
+      &.has-linebreaks {
+        white-space: pre;
+      }
+      &.no-linebreaks {
+        white-space: normal;
+      }
       font-family: 'Source Code Pro';
       font-size: 14px;
       font-weight: 400;
