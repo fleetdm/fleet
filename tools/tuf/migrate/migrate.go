@@ -42,7 +42,7 @@ func main() {
 	// Perform addition of targets by iterating source repository.
 	sourceEntries := make(map[string]targetEntry)
 	iterateRepository(*sourceRepositoryDirectory, func(target, targetPath, platform, targetName, version, channel, hashSHA512 string, length int) error {
-		cmd := exec.Command("fleetctl", "updates", "add",
+		cmd := exec.Command("fleetctl", "updates", "add", //nolint:gosec
 			"--path", *destRepositoryDirectory,
 			"--target", targetPath,
 			"--platform", platform,
