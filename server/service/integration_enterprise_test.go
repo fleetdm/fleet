@@ -6378,7 +6378,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	// Make the host offline so that scripts enqueue
 	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now().Add(-time.Hour))
 	require.NoError(t, err)
-	for i := 0; i <= 1000; i++ {
+	for i := 1; i <= 1000; i++ {
 		script, err := s.ds.NewScript(ctx, &fleet.Script{
 			TeamID:         nil,
 			Name:           fmt.Sprintf("script_1k_%d.sh", i),
