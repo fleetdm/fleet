@@ -9154,7 +9154,7 @@ Returns information about the specified software. By default, `versions` are sor
 
 #### Example (App Store app)
 
-`GET /api/v1/fleet/software/titles/15`
+`GET /api/v1/fleet/software/titles/15?team_id=3`
 
 ##### Default response
 
