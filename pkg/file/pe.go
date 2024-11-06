@@ -11,17 +11,18 @@ import (
 
 // ExtractPEMetadata extracts the name and version metadata from a .exe file in
 // the Portable Executable (PE) format.
-func ExtractPEMetadata(r io.Reader) (*InstallerMetadata, error) {
+func ExtractPEMetadata(tfr *TempFileReader) (*InstallerMetadata, error) {
+	// compute its hash
 	h := sha256.New()
-	r = io.TeeReader(r, h)
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read all content: %w", err)
+	_, _ = io.Copy(h, tfr) // writes to a hash cannot fail
+
+	if err := tfr.Rewind(); err != nil {
+		return nil, err
 	}
 
 	// cannot use the "Fast" option, we need the data directories for the
 	// resources to be available.
-	pep, err := pe.NewBytes(b, &pe.Options{
+	pep, err := pe.New(tfr.Name(), &pe.Options{
 		OmitExportDirectory:       true,
 		OmitImportDirectory:       true,
 		OmitExceptionDirectory:    true,
