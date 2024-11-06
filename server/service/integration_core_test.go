@@ -11531,7 +11531,7 @@ func (s *integrationTestSuite) TestHostPastActivities() {
 	require.Equal(t, user.Email, *listResp.Activities[0].ActorEmail)
 	require.Equal(t, user.Name, *listResp.Activities[0].ActorFullName)
 	require.Equal(t, user.GravatarURL, *listResp.Activities[0].ActorGravatar)
-	require.Equal(t, "ran_script", *&listResp.Activities[0].Type)
+	require.Equal(t, "ran_script", listResp.Activities[0].Type)
 	d := getDetails(listResp.Activities[0])
 	require.Equal(t, execID1, d.ScriptExecutionID)
 	require.Equal(t, savedScript.Name, d.ScriptName)

@@ -48,7 +48,8 @@ func TestGetMDMApple(t *testing.T) {
 	require.NoError(t, err)
 
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 			fleet.MDMAssetAPNSCert: {Name: fleet.MDMAssetAPNSCert, Value: certPEM},
 			fleet.MDMAssetAPNSKey:  {Name: fleet.MDMAssetAPNSKey, Value: keyPEM},
@@ -108,7 +109,8 @@ func TestMDMAppleAuthorization(t *testing.T) {
 	}
 
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{}, nil
 	}
 
@@ -396,7 +398,7 @@ func TestRunMDMCommandAuthz(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	singleUnenrolledHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a"}}
+	singleUnenrolledHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", Platform: "darwin"}}
 	team1And2UnenrolledHosts := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a"}, {ID: 2, TeamID: ptr.Uint(2), UUID: "b"}}
 	team2And3UnenrolledHosts := []*fleet.Host{{ID: 2, TeamID: ptr.Uint(2), UUID: "b"}, {ID: 3, TeamID: ptr.Uint(3), UUID: "c"}}
 
@@ -472,7 +474,7 @@ func TestRunMDMCommandAuthz(t *testing.T) {
 		{"admin", test.UserAdmin, singleUnenrolledHost, false},
 		{"observer", test.UserObserver, singleUnenrolledHost, true},
 		{"observer+", test.UserObserverPlus, singleUnenrolledHost, true},
-		{"gitops", test.UserGitOps, singleUnenrolledHost, true},
+		{"gitops", test.UserGitOps, singleUnenrolledHost, false},
 		{"team 1 admin", test.UserTeamAdminTeam1, singleUnenrolledHost, false},
 		{"team 2 admin", test.UserTeamAdminTeam2, singleUnenrolledHost, true},
 		{"team 1 maintainer", test.UserTeamMaintainerTeam1, singleUnenrolledHost, false},
@@ -481,7 +483,7 @@ func TestRunMDMCommandAuthz(t *testing.T) {
 		{"team 2 observer", test.UserTeamObserverTeam2, singleUnenrolledHost, true},
 		{"team 1 observer+", test.UserTeamObserverPlusTeam1, singleUnenrolledHost, true},
 		{"team 2 observer+", test.UserTeamObserverPlusTeam2, singleUnenrolledHost, true},
-		{"team 1 gitops", test.UserTeamGitOpsTeam1, singleUnenrolledHost, true},
+		{"team 1 gitops", test.UserTeamGitOpsTeam1, singleUnenrolledHost, false},
 		{"team 2 gitops", test.UserTeamGitOpsTeam2, singleUnenrolledHost, true},
 		{"team 1 admin mix of teams", test.UserTeamAdminTeam1, team1And2UnenrolledHosts, true},
 		{"team 1 maintainer mix of teams", test.UserTeamMaintainerTeam1, team1And2UnenrolledHosts, true},
@@ -502,6 +504,15 @@ func TestRunMDMCommandAuthz(t *testing.T) {
 		t.Run(c.desc, func(t *testing.T) {
 			ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
 				return c.hosts, nil
+			}
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{
+						EnabledAndConfigured:        true,
+						WindowsEnabledAndConfigured: true,
+					},
+				}, nil
 			}
 
 			ctx = test.UserContext(ctx, c.user)

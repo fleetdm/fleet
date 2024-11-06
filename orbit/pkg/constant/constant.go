@@ -71,4 +71,6 @@ const (
 	OsqueryTUFTargetName = "osqueryd"
 	// DesktopTUFTargetName is the target name of the Fleet Desktop component of fleetd in TUF.
 	DesktopTUFTargetName = "desktop"
+	// FleetURLFileName is the file where Fleet URL is stored after being read from Apple config profile.
+	FleetURLFileName = "fleet_url.txt"
 )

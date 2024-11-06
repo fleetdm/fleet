@@ -1,0 +1,31 @@
+name: Update Osquery versions in UI
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # Run daily at midnight UTC
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  update-versions:
+    permissions:
+      contents: write # for peter-evans/create-pull-request to create branch
+      pull-requests: write # for peter-evans/create-pull-request to create a PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+      - name: Install dependencies
+        run: pip install requests
+      - name: Update Osquery versions in UI
+        run: python .github/scripts/update_osquery_versions.py
+      - name: PR changes
+        uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: Update MIN_OSQUERY_VERSION_OPTIONS
+          title: "Fleet UI: Update osquery version options"
+          body: "Automated update of MIN_OSQUERY_VERSION_OPTIONS with any new osquery release. (Note: This automatic update is the solution to issue #21431)"
+          branch: update-osquery-versions
+          delete-branch: true

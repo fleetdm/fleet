@@ -2,9 +2,11 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hosts remotely using the Fleet UI, Fleet API, or [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
+In Fleet, you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hosts remotely using the Fleet UI, Fleet API, or Fleet's GitOps workflow.
 
-Fleet UI:
+## Turning on enforcement
+
+### Fleet UI
 
 1. Head to the **Controls** > **OS updates** tab.
 
@@ -12,13 +14,27 @@ Fleet UI:
 
 3. For Windows, select **Windows** and set a **Deadline** and **Grace period**.
 
-Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#modify-team).
+### Fleet API
+
+Use the [modify team endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-team) to turn on minimum OS version enforcement. The relevant payload keys in the `mdm` object are:
++ `macos_updates`
++ `ios_updates`
++ `ipados_updates`
++ `windows_updates`
+
+### GitOps
+
+OS version enforcement options are declared within the [controls](https://fleetdm.com/docs/configuration/yaml-files#controls) section of a Fleet GitOps YAML file, using the following keys: 
++ [macos_updates](https://fleetdm.com/docs/configuration/yaml-files#macos-updates)
++ [ios_updates](https://fleetdm.com/docs/configuration/yaml-files#ios-updates)
++ [ipados_updates](https://fleetdm.com/docs/configuration/yaml-files#ipados-updates)
++ [windows_updates](https://fleetdm.com/docs/configuration/yaml-files#windows-updates)
 
 ## End user experience
 
 ### macOS
 
-When a minimum version is enforced, the end users see a native macOS notification (DDM) once per day. Users can choose to update ahead of the deadline or schedule it for that night. 24 hours before the deadline, the notification appears hourly and ignores Do Not Disturb. One hour before the deadline, the notification appears every 30 minutes and then every 10 minutes.   
+When a minimum version is enforced, end users see a native macOS notification (DDM) once per day. Users can choose to update ahead of the deadline or schedule it for that night. 24 hours before the deadline, the notification appears hourly and ignores Do Not Disturb. One hour before the deadline, the notification appears every 30 minutes and then every 10 minutes.   
 
 If the host was turned off when the deadline passed, the update will be scheduled an hour after it’s turned on.
 

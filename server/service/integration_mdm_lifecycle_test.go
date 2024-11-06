@@ -591,6 +591,12 @@ func (s *integrationMDMTestSuite) setupLifecycleSettings() {
 func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	t := s.T()
 	ctx := context.Background()
+
+	// Skip worker jobs to avoid running into timing issues with this test.
+	// We can manually run the jobs if needed with s.runWorker().
+	s.skipWorkerJobs = true
+	t.Cleanup(func() { s.skipWorkerJobs = false })
+
 	// ensure there's a token for automatic enrollments
 	s.enableABM(t.Name())
 	s.runDEPSchedule()
