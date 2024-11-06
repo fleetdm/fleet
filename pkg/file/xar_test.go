@@ -211,7 +211,7 @@ func TestParseRealDistributionFiles(t *testing.T) {
 	}
 }
 
-func TestParseRealPackageInfoFiles(t *testing.T) {
+func TestParsePackageInfoFiles(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		file               string
@@ -234,6 +234,20 @@ func TestParseRealPackageInfoFiles(t *testing.T) {
 			expectedBundleID: "com.iriun.macwebcam",
 			expectedPackageIDs: []string{"com.iriun.macwebcam", "com.iriun.macwebcam.extension4", "com.iriun.macwebcam.extension",
 				"com.iriun.mic"},
+		},
+		{
+			file:               "packageInfo-empty.xml",
+			expectedName:       "",
+			expectedVersion:    "",
+			expectedBundleID:   "",
+			expectedPackageIDs: []string{},
+		},
+		{
+			file:               "packageInfo-versionOnly.xml",
+			expectedName:       "",
+			expectedVersion:    "test-version",
+			expectedBundleID:   "",
+			expectedPackageIDs: []string{},
 		},
 	}
 
