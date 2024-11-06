@@ -236,6 +236,13 @@ func TestParsePackageInfoFiles(t *testing.T) {
 				"com.iriun.mic"},
 		},
 		{
+			file:               "packageInfo-scriptOnly.xml",
+			expectedName:       "HelloWorld",
+			expectedVersion:    "1.2.3",
+			expectedBundleID:   "com.mygreatcompany.pkg.HelloWorld",
+			expectedPackageIDs: []string{"com.mygreatcompany.pkg.HelloWorld"},
+		},
+		{
 			file:               "packageInfo-empty.xml",
 			expectedName:       "",
 			expectedVersion:    "",

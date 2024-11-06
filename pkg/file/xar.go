@@ -115,6 +115,7 @@ type distributionXML struct {
 type packageInfoXML struct {
 	Version         string               `xml:"version,attr"`
 	InstallLocation string               `xml:"install-location,attr"`
+	Identifier      string               `xml:"identifier,attr"`
 	Bundles         []distributionBundle `xml:"bundle"`
 }
 
@@ -432,6 +433,24 @@ func getPackageInfo(p *packageInfoXML) (name string, identifier string, version 
 	// Note: this version may be wrong since it is the version of the package and not the app
 	if version == "" {
 		version = fleet.Preprocess(p.Version)
+	}
+
+	// if we didn't find a bundle identifier, grab the identifier from pkg-info element
+	if identifier == "" {
+		identifier = fleet.Preprocess(p.Identifier)
+	}
+
+	// if we didn't find a name, grab the name from the identifier
+	if name == "" {
+		idParts := strings.Split(identifier, ".")
+		if len(idParts) > 0 {
+			name = idParts[len(idParts)-1]
+		}
+	}
+
+	// if we didn't find package IDs, use the identifier as the package ID
+	if len(packageIDs) == 0 && identifier != "" {
+		packageIDs = append(packageIDs, identifier)
 	}
 
 	return name, identifier, version, packageIDs
