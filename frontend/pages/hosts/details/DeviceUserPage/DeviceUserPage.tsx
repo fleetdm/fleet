@@ -7,6 +7,7 @@ import { pick, findIndex } from "lodash";
 
 import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
+import mdmAPI from "services/entities/mdm";
 import {
   IDeviceMappingResponse,
   IMacadminsResponse,
@@ -46,6 +47,7 @@ import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
 import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
+import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
@@ -108,10 +110,14 @@ const DeviceUserPage = ({
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
+  const [showCreateLinuxKeyModal, setShowCreateLinuxKeyModal] = useState(false);
   const [globalConfig, setGlobalConfig] = useState<IDeviceGlobalConfig | null>(
     null
   );
   const [hasSelfService, setSelfService] = useState(false);
+  const [isTriggeringCreateLinuxKey, setIsTriggeringCreateLinuxKey] = useState(
+    false
+  );
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", deviceAuthToken],
@@ -321,6 +327,23 @@ const DeviceUserPage = ({
     );
   };
 
+  const onTriggerEscrowLinuxKey = async () => {
+    setIsTriggeringCreateLinuxKey(true);
+    // modal opens in loading state
+    setShowCreateLinuxKeyModal(true);
+    try {
+      await mdmAPI.triggerLinuxDiskEncryptionKeyEscrow(deviceAuthToken);
+      // TODO - actual api call
+      await setTimeout(() => null, 1000);
+      renderFlash("success", "Successfully triggered key creation.");
+    } catch (e) {
+      renderFlash("error", "Failed to trigger key creation.");
+      setShowCreateLinuxKeyModal(false);
+    } finally {
+      setIsTriggeringCreateLinuxKey(false);
+    }
+  };
+
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
 
@@ -361,6 +384,7 @@ const DeviceUserPage = ({
                 host.mdm.macos_settings?.action_required ?? null
               }
               onTurnOnMdm={toggleEnrollMdmModal}
+              onTriggerEscrowLinuxKey={onTriggerEscrowLinuxKey}
             />
             <HostSummaryCard
               summaryData={summaryData}
@@ -474,6 +498,14 @@ const DeviceUserPage = ({
               onClose={() => setShowBootstrapPackageModal(false)}
             />
           )}
+        {showCreateLinuxKeyModal && !!host && (
+          <CreateLinuxKeyModal
+            isTriggeringCreateLinuxKey={isTriggeringCreateLinuxKey}
+            onExit={() => {
+              setShowCreateLinuxKeyModal(false);
+            }}
+          />
+        )}
       </div>
     );
   };

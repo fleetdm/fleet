@@ -282,6 +282,7 @@ const HostSummary = ({
   };
   const renderDiskEncryptionSummary = () => {
     // TODO: improve this typing, platforms!
+    // TODO - add platform for Ubuntu/Fedora here
     if (!["darwin", "windows", "chrome"].includes(platform)) {
       return <></>;
     }
@@ -488,6 +489,7 @@ const HostSummary = ({
           platform === "windows" ||
           platform === "ios" ||
           platform === "ipados") &&
+          // TODO - include Ubuntu + Fedora here – ongoing discussions of how to identify those
           isPremiumTier &&
           isConnectedToFleetMdm && // show if 1 - host is enrolled in Fleet MDM, and
           hostMdmProfiles &&

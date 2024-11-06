@@ -364,6 +364,13 @@ const mdmService = {
       "blob"
     );
   },
+  triggerLinuxDiskEncryptionKeyEscrow: (token: string) => {
+    const { DEVICE_TRIGGER_LINUX_DISK_ENCRYPTION_KEY_ESCROW } = endpoints;
+    return sendRequest(
+      "POST",
+      DEVICE_TRIGGER_LINUX_DISK_ENCRYPTION_KEY_ESCROW(token)
+    );
+  },
 
   getSetupExperienceSoftware: (
     params: IGetSetupExperienceSoftwareParams

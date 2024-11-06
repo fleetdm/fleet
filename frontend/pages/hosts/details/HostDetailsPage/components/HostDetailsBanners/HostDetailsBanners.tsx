@@ -116,7 +116,12 @@ const HostDetailsBanners = ({
     // host disk is encrypted, so in compliance with the setting
     if (!diskEncryptionKeyAvailable) {
       // TODO - banner 4
-      throw new Error("Implement Banner 4!");
+      console.warn("Implement Banner 4!");
+      return (
+        <div className={baseClass}>
+          <InfoBanner color="yellow">IMPLEMENT BANNER 4</InfoBanner>
+        </div>
+      );
     }
   }
   return null;

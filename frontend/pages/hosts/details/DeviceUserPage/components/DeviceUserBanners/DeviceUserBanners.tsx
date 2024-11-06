@@ -12,6 +12,7 @@ interface IDeviceUserBannersProps extends IHostBannersBaseProps {
   mdmEnabledAndConfigured: boolean;
   diskEncryptionActionRequired: MacDiskEncryptionActionRequired | null;
   onTurnOnMdm: () => void;
+  onTriggerEscrowLinuxKey: () => void;
 }
 
 const DeviceUserBanners = ({
@@ -25,6 +26,7 @@ const DeviceUserBanners = ({
   diskEncryptionOSSetting,
   diskIsEncrypted,
   diskEncryptionKeyAvailable,
+  onTriggerEscrowLinuxKey,
 }: IDeviceUserBannersProps) => {
   const isMdmUnenrolled =
     mdmEnrollmentStatus === "Off" || mdmEnrollmentStatus === null;
@@ -47,6 +49,25 @@ const DeviceUserBanners = ({
   );
 
   const renderBanner = () => {
+    // TODO - undo
+    return (
+      <InfoBanner
+        cta={
+          <Button
+            variant="unstyled"
+            onClick={onTriggerEscrowLinuxKey}
+            className="create-key-button"
+          >
+            Create key
+          </Button>
+        }
+        color="yellow"
+      >
+        Disk encryption: Create a new disk encryption key. This lets your
+        organization help you unlock your device if you forget your passphrase.
+      </InfoBanner>
+    );
+
     if (showTurnOnMdmBanner) {
       return (
         <InfoBanner color="yellow" cta={turnOnMdmButton}>
@@ -98,14 +119,19 @@ const DeviceUserBanners = ({
         return (
           <InfoBanner
             cta={
-              // TODO - API call to trigger agent prompting to enter passphrase on command line
-              <>Reset key</>
+              <Button
+                variant="unstyled"
+                onClick={onTriggerEscrowLinuxKey}
+                className="create-key-button"
+              >
+                Create key
+              </Button>
             }
             color="yellow"
           >
-            Disk encryption: Reset your disk encryption key. This lets your
+            Disk encryption: Create a new disk encryption key. This lets your
             organization help you unlock your device if you forget your
-            password.
+            passphrase.
           </InfoBanner>
         );
       }

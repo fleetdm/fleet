@@ -740,11 +740,6 @@ const HostDetailsPage = ({
     }
   };
 
-  // const hostDeviceStatusUIState = getHostDeviceStatusUIState(
-  //   host.mdm.device_status,
-  //   host.mdm.pending_action
-  // );
-
   const renderActionDropdown = () => {
     if (!host) {
       return null;
