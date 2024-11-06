@@ -33,7 +33,7 @@ const InfoBanner = ({
   closable,
   link,
   icon,
-}: IInfoBannerProps): JSX.Element => {
+}: IInfoBannerProps) => {
   const wrapperClasses = classNames(
     baseClass,
     `${baseClass}__${color}`,

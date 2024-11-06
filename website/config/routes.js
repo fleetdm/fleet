@@ -60,8 +60,8 @@ module.exports.routes = {
     action: 'view-query-library',
     locals: {
       currentSection: 'documentation',
-      pageTitleForMeta: 'Queries',
-      pageDescriptionForMeta: 'A growing collection of useful queries for organizations deploying Fleet and osquery.'
+      pageTitleForMeta: 'Controls and policies',
+      pageDescriptionForMeta: 'A growing collection of useful controls and policies for organizations deploying Fleet and osquery.'
     }
   },
 
@@ -352,12 +352,12 @@ module.exports.routes = {
   'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
   'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
   'GET /handbook/security': '/handbook/digital-experience/security',
-  'GET /handbook/security/security-policies':'/handbook/digital-experience/security-policies#information-security-policy-and-acceptable-use-policy',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
-  'GET /handbook/business-operations/security-policies':'/handbook/digital-experience/security-policies',
-  'GET /handbook/business-operations/application-security': '/handbook/digital-experience/application-security',
-  'GET /handbook/business-operations/security-audits': '/handbook/digital-experience/security-audits',
+  'GET /handbook/security/security-policies':'/handbook/digital-experience/security',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
+  'GET /handbook/business-operations/security-policies':'/handbook/digital-experience/security',
+  'GET /handbook/business-operations/application-security': '/handbook/digital-experience/security',
+  'GET /handbook/business-operations/security-audits': '/handbook/digital-experience/security',
   'GET /handbook/business-operations/security': '/handbook/digital-experience/security',
-  'GET /handbook/business-operations/vendor-questionnaires': '/handbook/digital-experience/vendor-questionnaires',
+  'GET /handbook/business-operations/vendor-questionnaires': '/handbook/digital-experience/security',
   'GET /handbook/handbook': '/handbook/company/handbook',
   'GET /handbook/company/development-groups': '/handbook/company/product-groups',
   'GET /docs/using-fleet/mdm-macos-settings': '/docs/using-fleet/mdm-custom-macos-settings',

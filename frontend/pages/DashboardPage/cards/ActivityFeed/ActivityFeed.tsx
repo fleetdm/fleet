@@ -21,8 +21,8 @@ import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallD
 import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import ActivityItem from "./ActivityItem";
-import ScriptDetailsModal from "./components/ScriptDetailsModal/ScriptDetailsModal";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
+import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {
@@ -216,7 +216,7 @@ const ActivityFeed = ({
         />
       )}
       {showScriptDetailsModal && (
-        <ScriptDetailsModal
+        <RunScriptDetailsModal
           scriptExecutionId={scriptExecutionId.current}
           onCancel={() => setShowScriptDetailsModal(false)}
         />

@@ -97,14 +97,16 @@ type integrationMDMTestSuite struct {
 	onIntegrationsScheduleDone func() // function called when integrationsSchedule.Trigger() job completed
 	mdmStorage                 *mysql.NanoMDMStorage
 	worker                     *worker.Worker
-	mdmCommander               *apple_mdm.MDMAppleCommander
-	logger                     kitlog.Logger
-	scepChallenge              string
-	appleVPPConfigSrv          *httptest.Server
-	appleVPPConfigSrvConfig    *appleVPPConfigSrvConf
-	appleITunesSrv             *httptest.Server
-	appleGDMFSrv               *httptest.Server
-	mockedDownloadFleetdmMeta  fleetdbase.Metadata
+	// Flag to skip jobs processing by worker
+	skipWorkerJobs            bool
+	mdmCommander              *apple_mdm.MDMAppleCommander
+	logger                    kitlog.Logger
+	scepChallenge             string
+	appleVPPConfigSrv         *httptest.Server
+	appleVPPConfigSrvConfig   *appleVPPConfigSrvConf
+	appleITunesSrv            *httptest.Server
+	appleGDMFSrv              *httptest.Server
+	mockedDownloadFleetdmMeta fleetdbase.Metadata
 }
 
 // appleVPPConfigSrvConf is used to configure the mock server that mocks Apple's VPP endpoints.
@@ -261,6 +263,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Minute, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("integrations_worker", func(ctx context.Context) error {
+							if s.skipWorkerJobs {
+								return nil
+							}
 							return s.worker.ProcessJobs(ctx)
 						}),
 						schedule.WithJob("dep_cooldowns", func(ctx context.Context) error {
@@ -10336,7 +10341,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 		[]fleet.Software{expectedSoftware[0].Software})
 	require.NoError(t, err)
 	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
-	cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceName, "iPhone SE")
+	_, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceName, "iPhone SE")
 	require.NoError(t, err)
 
 	commands, err = s.ds.GetHostMDMCommands(context.Background(), host.ID)
@@ -11133,7 +11138,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
 	gotSW = getHostSw.Software
 	require.Len(t, gotSW, 2) // App 1 and App 2
-	got1, got2 = gotSW[0], gotSW[1]
+	got1 = gotSW[0]
 	require.Equal(t, got1.Name, "App 1")
 	require.NotNil(t, got1.AppStoreApp)
 	require.Equal(t, got1.AppStoreApp.AppStoreID, addedApp.AdamID)

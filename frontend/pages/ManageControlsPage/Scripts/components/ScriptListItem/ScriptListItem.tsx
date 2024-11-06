@@ -16,6 +16,7 @@ const baseClass = "script-list-item";
 interface IScriptListItemProps {
   script: IScript;
   onDelete: (script: IScript) => void;
+  onClickScript: (script: IScript) => void;
 }
 
 // TODO - useful to have a 'platform' field from API, for use elsewhere in app as well?
@@ -41,6 +42,18 @@ interface IScriptListItemDetailsProps {
   createdAt: string;
 }
 
+const onClickDownload = async (script: IScript, renderFlash: any) => {
+  try {
+    const content = await scriptAPI.downloadScript(script.id);
+    const formatDate = format(new Date(), "yyyy-MM-dd");
+    const filename = `${formatDate} ${script.name}`;
+    const file = new File([content], filename);
+    FileSaver.saveAs(file);
+  } catch {
+    renderFlash("error", "Couldn’t Download. Please try again.");
+  }
+};
+
 const ScriptListItemDetails = ({
   platform,
   createdAt,
@@ -56,20 +69,12 @@ const ScriptListItemDetails = ({
   </div>
 );
 
-const ScriptListItem = ({ script, onDelete }: IScriptListItemProps) => {
+const ScriptListItem = ({
+  script,
+  onDelete,
+  onClickScript,
+}: IScriptListItemProps) => {
   const { renderFlash } = useContext(NotificationContext);
-
-  const onClickDownload = async () => {
-    try {
-      const content = await scriptAPI.downloadScript(script.id);
-      const formatDate = format(new Date(), "yyyy-MM-dd");
-      const filename = `${formatDate} ${script.name}`;
-      const file = new File([content], filename);
-      FileSaver.saveAs(file);
-    } catch {
-      renderFlash("error", "Couldn’t Download. Please try again.");
-    }
-  };
 
   const { graphicName, platform } = getFileRenderDetails(script.name);
 
@@ -77,7 +82,11 @@ const ScriptListItem = ({ script, onDelete }: IScriptListItemProps) => {
     <ListItem
       className={baseClass}
       graphic={graphicName}
-      title={script.name}
+      title={
+        <Button variant="text-link" onClick={() => onClickScript(script)}>
+          {script.name}
+        </Button>
+      }
       details={
         <ScriptListItemDetails
           platform={platform}
@@ -89,7 +98,7 @@ const ScriptListItem = ({ script, onDelete }: IScriptListItemProps) => {
           <Button
             className={`${baseClass}__action-button`}
             variant="text-icon"
-            onClick={onClickDownload}
+            onClick={() => onClickDownload(script, renderFlash)}
           >
             <Icon name="download" />
           </Button>

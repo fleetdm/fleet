@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<pkg-info overwrite-permissions="true" relocatable="false" identifier="com.okta.mobile" postinstall-action="none" version="9.27.0" format-version="2" generator-version="InstallCmds-834 (23B74)" install-location="/Applications" auth="root" minimumSystemVersion="12.0">
+    <payload numberOfFiles="270" installKBytes="134424"/>
+    <bundle path="./Okta Verify.app" id="com.okta.mobile" CFBundleShortVersionString="9.27.0" CFBundleVersion="2024.1004.1653"/>
+    <bundle-version>
+        <bundle id="com.okta.mobile"/>
+    </bundle-version>
+    <upgrade-bundle>
+        <bundle id="com.okta.mobile"/>
+    </upgrade-bundle>
+    <update-bundle/>
+    <atomic-update-bundle/>
+    <strict-identifier>
+        <bundle id="com.okta.mobile"/>
+    </strict-identifier>
+    <relocate>
+        <bundle id="com.okta.mobile"/>
+    </relocate>
+    <scripts>
+        <postinstall file="./postinstall"/>
+    </scripts>
+</pkg-info>

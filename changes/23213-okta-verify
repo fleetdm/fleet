@@ -1,0 +1,1 @@
+Fixed issue with uploading macOS software packages that do not have a top level Distribution.xml, but do have a top level PackageInfo.xml. For example, Okta Verify.app
