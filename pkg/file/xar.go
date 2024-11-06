@@ -31,6 +31,8 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 const (
@@ -110,6 +112,13 @@ type distributionXML struct {
 	PkgRefs []distributionPkgRef `xml:"pkg-ref"`
 }
 
+type packageInfoXML struct {
+	Version         string               `xml:"version,attr"`
+	InstallLocation string               `xml:"install-location,attr"`
+	Identifier      string               `xml:"identifier,attr"`
+	Bundles         []distributionBundle `xml:"bundle"`
+}
+
 // distributionProduct represents the product element
 type distributionProduct struct {
 	ID      string `xml:"id,attr"`
@@ -181,46 +190,71 @@ func ExtractXARMetadata(tfr *TempFileReader) (*InstallerMetadata, error) {
 
 	// look for the distribution file, with the metadata information
 	heapOffset := xarHeaderSize + hdr.CompressedSize
+	var packageInfoFile *xmlFile
 	for _, f := range root.TOC.Files {
-		if f.Name != "Distribution" {
-			continue
-		}
-
-		var fileReader io.Reader
-		heapReader := io.NewSectionReader(tfr, heapOffset, size-heapOffset)
-		fileReader = io.NewSectionReader(heapReader, f.Data.Offset, f.Data.Length)
-
-		// the distribution file can be compressed differently than the TOC, the
-		// actual compression is specified in the Encoding.Style field.
-		if strings.Contains(f.Data.Encoding.Style, "x-gzip") {
-			// despite the name, x-gzip fails to decode with the gzip package
-			// (invalid header), but it works with zlib.
-			zr, err := zlib.NewReader(fileReader)
+		switch f.Name {
+		case "Distribution":
+			contents, err := readCompressedFile(tfr, heapOffset, size, f)
 			if err != nil {
-				return nil, fmt.Errorf("create zlib reader: %w", err)
+				return nil, err
 			}
-			defer zr.Close()
-			fileReader = zr
-		} else if strings.Contains(f.Data.Encoding.Style, "x-bzip2") {
-			fileReader = bzip2.NewReader(fileReader)
-		}
-		// TODO: what other compression methods are supported?
 
-		contents, err := io.ReadAll(fileReader)
-		if err != nil {
-			return nil, fmt.Errorf("reading Distribution file: %w", err)
-		}
+			meta, err := parseDistributionFile(contents)
+			if err != nil {
+				return nil, fmt.Errorf("parsing Distribution file: %w", err)
+			}
+			meta.SHASum = h.Sum(nil)
+			return meta, nil
 
-		meta, err := parseDistributionFile(contents)
-		if err != nil {
-			return nil, fmt.Errorf("parsing Distribution file: %w", err)
+		case "PackageInfo":
+			// If Distribution archive was not found, we will use the top-level PackageInfo archive
+			packageInfoFile = f
 		}
-		meta.SHASum = h.Sum(nil)
-		return meta, err
 	}
 
-	// if it reaches here, no distribution file was found, no metadata
+	if packageInfoFile != nil {
+		contents, err := readCompressedFile(tfr, heapOffset, size, packageInfoFile)
+		if err != nil {
+			return nil, err
+		}
+
+		meta, err := parsePackageInfoFile(contents)
+		if err != nil {
+			return nil, fmt.Errorf("parsing PackageInfo file: %w", err)
+		}
+		meta.SHASum = h.Sum(nil)
+		return meta, nil
+	}
+
 	return &InstallerMetadata{SHASum: h.Sum(nil)}, nil
+}
+
+func readCompressedFile(rat io.ReaderAt, heapOffset int64, sectionLength int64, f *xmlFile) ([]byte, error) {
+	var fileReader io.Reader
+	heapReader := io.NewSectionReader(rat, heapOffset, sectionLength-heapOffset)
+	fileReader = io.NewSectionReader(heapReader, f.Data.Offset, f.Data.Length)
+
+	// the distribution file can be compressed differently than the TOC, the
+	// actual compression is specified in the Encoding.Style field.
+	if strings.Contains(f.Data.Encoding.Style, "x-gzip") {
+		// despite the name, x-gzip fails to decode with the gzip package
+		// (invalid header), but it works with zlib.
+		zr, err := zlib.NewReader(fileReader)
+		if err != nil {
+			return nil, fmt.Errorf("create zlib reader: %w", err)
+		}
+		defer zr.Close()
+		fileReader = zr
+	} else if strings.Contains(f.Data.Encoding.Style, "x-bzip2") {
+		fileReader = bzip2.NewReader(fileReader)
+	}
+	// TODO: what other compression methods are supported?
+
+	contents, err := io.ReadAll(fileReader)
+	if err != nil {
+		return nil, fmt.Errorf("reading %s file: %w", f.Name, err)
+	}
+	return contents, nil
 }
 
 func parseDistributionFile(rawXML []byte) (*InstallerMetadata, error) {
@@ -353,6 +387,74 @@ out:
 				version = pkgRef.Version
 			}
 		}
+	}
+
+	return name, identifier, version, packageIDs
+}
+
+func parsePackageInfoFile(rawXML []byte) (*InstallerMetadata, error) {
+	var packageInfo packageInfoXML
+	if err := xml.Unmarshal(rawXML, &packageInfo); err != nil {
+		return nil, fmt.Errorf("unmarshal PackageInfo XML: %w", err)
+	}
+
+	name, identifier, version, packageIDs := getPackageInfo(&packageInfo)
+	return &InstallerMetadata{
+		Name:             name,
+		Version:          version,
+		BundleIdentifier: identifier,
+		PackageIDs:       packageIDs,
+	}, nil
+
+}
+
+// getPackageInfo gets the name, bundle identifier and version of a PKG top level PackageInfo file
+func getPackageInfo(p *packageInfoXML) (name string, identifier string, version string, packageIDs []string) {
+	var packageIDSet = make(map[string]struct{}, 1)
+	for _, bundle := range p.Bundles {
+		installPath := bundle.Path
+		if p.InstallLocation != "" {
+			installPath = filepath.Join(p.InstallLocation, installPath)
+		}
+		installPath = strings.TrimPrefix(installPath, "/")
+		installPath = strings.TrimPrefix(installPath, "./")
+		if base, isValid := isValidAppFilePath(installPath); isValid {
+			identifier = fleet.Preprocess(bundle.ID)
+			name = base
+			version = fleet.Preprocess(bundle.CFBundleShortVersionString)
+		}
+		bundleID := fleet.Preprocess(bundle.ID)
+		if bundleID != "" {
+			packageIDSet[bundleID] = struct{}{}
+		}
+	}
+
+	for id := range packageIDSet {
+		packageIDs = append(packageIDs, id)
+	}
+
+	// if we didn't find a version, grab the version from pkg-info element
+	// Note: this version may be wrong since it is the version of the package and not the app
+	if version == "" {
+		version = fleet.Preprocess(p.Version)
+	}
+
+	// if we didn't find a bundle identifier, grab the identifier from pkg-info element
+	if identifier == "" {
+		identifier = fleet.Preprocess(p.Identifier)
+	}
+
+	// if we didn't find a name, grab the name from the identifier
+	if name == "" {
+		idParts := strings.Split(identifier, ".")
+		if len(idParts) > 0 {
+			name = idParts[len(idParts)-1]
+		}
+	}
+
+	// if we didn't find package IDs, use the identifier as the package ID
+	if len(packageIDs) == 0 && identifier != "" {
+		packageIDs = append(packageIDs, identifier)
 	}
 
 	return name, identifier, version, packageIDs
