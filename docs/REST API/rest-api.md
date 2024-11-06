@@ -4927,10 +4927,10 @@ If both `query` and `hosts` aren't specified, a manual label with no hosts will 
 
 ```json
 {
-  "name": "Ubuntu hosts",
-  "description": "Filters ubuntu hosts",
-  "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
-  "platform": ""
+  "name": "macOS hosts (x86_64)",
+  "description": "Filters macOS hosts with x86_64 architecture",
+  "query": "SELECT 1 FROM os_version WHERE platform = 'darwin' AND instr(arch, 'x86_64')",
+  "platform": "darwin"
 }
 ```
 
@@ -4943,15 +4943,14 @@ If both `query` and `hosts` aren't specified, a manual label with no hosts will 
   "label": {
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
-    "id": 1,
-    "name": "Ubuntu hosts",
-    "description": "Filters ubuntu hosts",
-    "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
+    "id": 42,
+    "name": "macOS hosts (x86_64)",
+    "description": "Filters macOS hosts with x86_64 architecture",
+    "query": "SELECT 1 FROM os_version WHERE platform = 'darwin' AND instr(arch, 'x86_64')",
     "label_type": "regular",
     "label_membership_type": "dynamic",
-    "display_text": "Ubuntu hosts",
+    "display_text": "macOS hosts (x86_64)",
     "count": 0,
-    "host_ids": null
   }
 }
 ```
@@ -4969,20 +4968,18 @@ Updates the specified label. Note: Label queries and platforms are immutable. To
 | id          | integer | path | **Required**. The label's id. |
 | name        | string  | body | The label's name.             |
 | description | string  | body | The label's description.      |
-| hosts       | array   | body | If updating a manual label: the list of host identifiers (`hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `name`) the label will apply to. |
+| hosts       | array   | body | If updating a manual label: the list of host identifiers (`hardware_serial`, `uuid`, or `hostname`) the label will apply to. **Note: The provided list fully replaces the previous list.** |
 
 
 #### Example
 
-`PATCH /api/v1/fleet/labels/1`
+`PATCH /api/v1/fleet/labels/21`
 
 ##### Request body
 
 ```json
 {
-  "name": "macOS label",
-  "description": "Now this label only includes macOS machines",
-  "platform": "darwin"
+  "hosts": ["ABC1234", "XYZ5678"]
 }
 ```
 
@@ -4995,16 +4992,16 @@ Updates the specified label. Note: Label queries and platforms are immutable. To
   "label": {
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
-    "id": 1,
-    "name": "Ubuntu hosts",
-    "description": "Filters ubuntu hosts",
-    "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
-    "platform": "darwin",
+    "id": 21,
+    "name": "My label",
+    "description": "Some hosts that I want to manually group together",
+    "query": "",
+    "platform": "",
     "label_type": "regular",
-    "label_membership_type": "dynamic",
-    "display_text": "Ubuntu hosts",
-    "count": 0,
-    "host_ids": null
+    "label_membership_type": "manual",
+    "display_text": "My label",
+    "count": 2,
+    "host_ids": [42, 43]
   }
 }
 ```
