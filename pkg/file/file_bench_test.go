@@ -106,6 +106,20 @@ import (
 // BenchmarkExtractInstallerMetadata/TeamViewer.app.pkg/file_size:_93051_kb-8                              2   586.15 ms/op      389312 B/op     6776 allocs/op
 // ok  	github.com/fleetdm/fleet/v4/pkg/file	39.536s
 
+// Results @532daf10bebe7c432a2b5e6c3822639c5937dc29 with the .msi improvements
+// - massively better memory usage (only msi benchmarks shown):
+// $ GO_TEST_EXTRA_FLAGS="--timeout 20m" FLEET_INTEGRATION_TESTS_DISABLE_LOG=1 REDIS_TEST=1 MYSQL_TEST=1 MINIO_STORAGE_TEST=1 go test ./pkg/file -run zzz -bench . -benchmem | prettybench
+// goos: linux
+// goarch: amd64
+// pkg: github.com/fleetdm/fleet/v4/pkg/file
+// cpu: Intel(R) Core(TM) i7-10510U CPU @ 1.80GHz
+// PASS
+// benchmark                                                                                            iter      time/iter    bytes alloc             allocs
+// ---------                                                                                            ----      ---------    -----------             ------
+// BenchmarkExtractInstallerMetadata/Fleet_osquery.msi/file_size:_43775_kb-8                               6   191.69 ms/op    879274 B/op     3752 allocs/op
+// BenchmarkExtractInstallerMetadata/Go_Programming_Language_amd64_go1.22.2.msi/file_size:_61680_kb-8      4   305.72 ms/op   8430244 B/op   161054 allocs/op
+// ok  	github.com/fleetdm/fleet/v4/pkg/file	32.193s
+
 func BenchmarkExtractInstallerMetadata(b *testing.B) {
 	dents, err := os.ReadDir(filepath.Join("testdata", "installers"))
 	if err != nil {
