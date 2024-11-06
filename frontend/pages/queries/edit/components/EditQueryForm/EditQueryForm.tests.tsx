@@ -157,7 +157,7 @@ describe("EditQueryForm - component", () => {
     );
   });
 
-  it("shows icon when query frequency is set to 0", async () => {
+  it("shows automations warning icon when query frequency is set to 0", async () => {
     const render = createCustomRenderer({
       context: {
         query: {

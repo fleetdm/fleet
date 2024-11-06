@@ -13,7 +13,6 @@ interface IDiscardDataOptionProps {
   selectedLoggingType: QueryLoggingOption;
   discardData: boolean;
   setDiscardData: (value: boolean) => void;
-  breakHelpText?: boolean;
 }
 
 const DiscardDataOption = ({
@@ -21,7 +20,6 @@ const DiscardDataOption = ({
   selectedLoggingType,
   discardData,
   setDiscardData,
-  breakHelpText = false,
 }: IDiscardDataOptionProps) => {
   const [forceEditDiscardData, setForceEditDiscardData] = useState(false);
   const disable = queryReportsDisabled && !forceEditDiscardData;
