@@ -46,7 +46,7 @@ module.exports = {
     let tableNamesForSyntaxHighlighting = [];
     // Get all of the words that appear in both arrays
     let intersectionBetweenQueryWordsAndTableNames = _.intersection(queryWords, allTableNames);
-    // For each matched osquery table, add the keywordsForSyntaxHighlighting (names of tables and columns) to the array we'll use for this page.
+    // For each matched osquery table, add the keywordsForSyntaxHighlighting and the names of the tables used into two arrays.
     for(let tableName of intersectionBetweenQueryWordsAndTableNames) {
       let tableMentionedInThisQuery = _.find(sails.config.builtStaticContent.markdownPages, {title: tableName});
       tableNamesForSyntaxHighlighting.push(tableMentionedInThisQuery.title);

@@ -28,17 +28,18 @@ parasails.registerPage('query-detail', {
       });
     }
     let columnNamesForThisQuery = [];
+    let tableNamesForThisQuery = [];
     if(this.columnNamesForSyntaxHighlighting){
       columnNamesForThisQuery = this.columnNamesForSyntaxHighlighting;
     }
-    let tableNamesForThisQuery = [];
     if(this.tableNamesForSyntaxHighlighting){
       tableNamesForThisQuery = this.tableNamesForSyntaxHighlighting;
     }
-    columnNamesForThisQuery = columnNamesForThisQuery.sort((a,b)=>{// Sorting the array of keywords by length to match larger keywords first.
+    // Sorting the arrays of keywords by length to match larger keywords first.
+    columnNamesForThisQuery = columnNamesForThisQuery.sort((a,b)=>{
       return a.length < b.length ? 1 : -1;
     });
-    tableNamesForThisQuery = tableNamesForThisQuery.sort((a,b)=>{// Sorting the array of keywords by length to match larger keywords first.
+    tableNamesForThisQuery = tableNamesForThisQuery.sort((a,b)=>{
       return a.length < b.length ? 1 : -1;
     });
     (()=>{
@@ -49,6 +50,7 @@ parasails.registerPage('query-detail', {
             tableNamesToHighlight.push(match);
           }
         }
+        // Now iterate through the tableNamesToHighlight, replacing all matches in the elements innerHTML.
         let replacementHMTL = block.innerHTML;
         for(let keywordInExample of tableNamesToHighlight) {
           let regexForThisExample = new RegExp(keywordInExample, 'g');
@@ -61,7 +63,6 @@ parasails.registerPage('query-detail', {
             columnNamesToHighlight.push(match);
           }
         }
-        // Now iterate through the keywordsToHighlight, replacing all matches in the elements innerHTML.
 
         for(let keywordInExample of columnNamesToHighlight) {
           let regexForThisExample = new RegExp(keywordInExample, 'g');
@@ -81,9 +82,6 @@ parasails.registerPage('query-detail', {
         }
       });
     })();
-    // $('pre code').each((i, block) => {
-    //   window.hljs.highlightElement(block);
-    // });
     $('[purpose="copy-button"]').on('click', async function() {
       let code = $(this).siblings('pre').find('code').text();
       $(this).addClass('copied');
