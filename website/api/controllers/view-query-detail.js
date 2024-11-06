@@ -42,17 +42,19 @@ module.exports = {
     let allTableNames = _.pluck(allTablesInformation, 'title');
     // Create an array of words in the query.
     let queryWords = _.words(query.query, /[^ ]+/g);
-    let keywordsForSyntaxHighlighting = [];
+    let columnNamesForSyntaxHighlighting = [];
+    let tableNamesForSyntaxHighlighting = [];
     // Get all of the words that appear in both arrays
     let intersectionBetweenQueryWordsAndTableNames = _.intersection(queryWords, allTableNames);
     // For each matched osquery table, add the keywordsForSyntaxHighlighting (names of tables and columns) to the array we'll use for this page.
     for(let tableName of intersectionBetweenQueryWordsAndTableNames) {
       let tableMentionedInThisQuery = _.find(sails.config.builtStaticContent.markdownPages, {title: tableName});
+      tableNamesForSyntaxHighlighting.push(tableMentionedInThisQuery.title);
       let keyWordsForThisTable = tableMentionedInThisQuery.keywordsForSyntaxHighlighting;
-      keywordsForSyntaxHighlighting = keywordsForSyntaxHighlighting.concat(keyWordsForThisTable);
+      columnNamesForSyntaxHighlighting = columnNamesForSyntaxHighlighting.concat(keyWordsForThisTable);
     }
-
-
+    // Remove the table names from the array of column names to highlight.
+    columnNamesForSyntaxHighlighting = _.difference(columnNamesForSyntaxHighlighting, tableNamesForSyntaxHighlighting);
 
 
     // Setting the meta title and description of this page using the query object, and falling back to a generic title or description if query.name or query.description are missing.
@@ -64,7 +66,8 @@ module.exports = {
       queryLibraryYmlRepoPath: sails.config.builtStaticContent.queryLibraryYmlRepoPath,
       pageTitleForMeta,
       pageDescriptionForMeta,
-      keywordsForSyntaxHighlighting,
+      columnNamesForSyntaxHighlighting,
+      tableNamesForSyntaxHighlighting,
       algoliaPublicKey: sails.config.custom.algoliaPublicKey,
     };
 
