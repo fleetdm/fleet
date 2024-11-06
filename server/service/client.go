@@ -1735,11 +1735,9 @@ func (c *Client) doGitOpsNoTeamSoftware(
 	}
 
 	var appsPayload []fleet.VPPBatchPayload
-	vppApps := make([]fleet.TeamSpecAppStoreApp, 0, len(config.Software.AppStoreApps))
 	appsByAppID := make(map[string]fleet.TeamSpecAppStoreApp, len(config.Software.AppStoreApps))
 	for _, vppApp := range config.Software.AppStoreApps {
 		if vppApp != nil {
-			vppApps = append(vppApps, *vppApp)
 			// can be referenced by macos_setup.software
 			appsByAppID[vppApp.AppStoreID] = *vppApp
 

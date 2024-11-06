@@ -548,9 +548,15 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			require.Equal(t, swFilename, res.SoftwarePackage)
 
-			// delete installer to confirm that we can still access the install record
+			// delete installer to confirm that we can still access the install record (unless pending)
 			err = ds.DeleteSoftwareInstaller(ctx, installerID)
 			require.NoError(t, err)
+
+			if tc.expectedStatus == fleet.SoftwareInstallPending { // expect pending to be deleted
+				_, err = ds.GetSoftwareInstallResults(ctx, installUUID)
+				require.Error(t, err, notFound("HostSoftwareInstallerResult"))
+				return
+			}
 
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 				// ensure version is not changed, though we don't expose it yet
@@ -558,10 +564,6 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 				err := sqlx.GetContext(ctx, q, &version, `SELECT "version" FROM host_software_installs WHERE execution_id = ?`, installUUID)
 				require.NoError(t, err)
 				require.Equal(t, "1.11", version)
-
-				// let's also set the removed flag to ensure that the status we're pulling doesn't change
-				_, err = q.ExecContext(ctx, `UPDATE host_software_installs SET removed = 1 WHERE execution_id = ?`, installUUID)
-				require.NoError(t, err)
 
 				return nil
 			})

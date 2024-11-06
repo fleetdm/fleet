@@ -1113,7 +1113,7 @@ func expectAppleDeclarations(
 		// if an expected uploaded_at timestamp is provided for this declaration, keep
 		// its value, otherwise clear it as we don't care about asserting its
 		// value.
-		if wantD == nil || wantD.UploadedAt.IsZero() {
+		if wantD.UploadedAt.IsZero() {
 			gotD.UploadedAt = time.Time{}
 		}
 
@@ -4628,6 +4628,13 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 		Token:  uuid.New().String(),
 	}, nil)
 	require.NoError(t, err)
+
+	// host has no boostrap package command yet
+	_, err = ds.GetHostBootstrapPackageCommand(ctx, host.UUID)
+	require.Error(t, err)
+	nfe := &notFoundError{}
+	require.ErrorAs(t, err, &nfe)
+
 	err = ds.RecordHostBootstrapPackage(ctx, "command-uuid", host.UUID)
 	require.NoError(t, err)
 	// add a record of the host DEP assignment
@@ -4637,6 +4644,9 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 		ON DUPLICATE KEY UPDATE added_at = CURRENT_TIMESTAMP, deleted_at = NULL
 	`, host.ID)
 	require.NoError(t, err)
+	cmd, err := ds.GetHostBootstrapPackageCommand(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Equal(t, "command-uuid", cmd)
 	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "foo.mdm.example.com", true, "", "")
 	require.NoError(t, err)
 
@@ -7332,6 +7342,15 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 	profIncludeAll, err := ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, "prof-include-all", "prof-include-all", "prof-include-all", l4, l5))
 	require.NoError(t, err)
 	profExcludeAny, err := ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, "prof-exclude-any", "prof-exclude-any", "prof-exclude-any", l6, l7))
+	require.NoError(t, err)
+
+	// Update hosts' labels updated at timestamp so that the exclude any profile shows up
+	hostLabel.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, hostLabel)
+	require.NoError(t, err)
+
+	host1.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, host1)
 	require.NoError(t, err)
 
 	// hostLabel is a member of l1, l4, l5

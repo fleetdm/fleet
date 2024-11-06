@@ -76,13 +76,12 @@ const CustomDropdownIndicator = (
 };
 
 const CustomOption: React.FC<OptionProps<IDropdownOption, false>> = (props) => {
-  const { innerProps, innerRef, data, isDisabled } = props;
+  const { innerRef, data, isDisabled } = props;
 
   const optionContent = (
     <div
       className={`${baseClass}__option`}
       ref={innerRef}
-      {...innerProps}
       tabIndex={isDisabled ? -1 : 0} // Tabbing skipped when disabled
       aria-disabled={isDisabled}
     >
@@ -215,7 +214,6 @@ const ActionsDropdown = ({
       ...(state.isDisabled && {
         color: COLORS["ui-fleet-black-50"],
         fontStyle: "italic",
-        // pointerEvents: "none", // Prevents any mouse interaction
       }),
     }),
   };
