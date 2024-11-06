@@ -27,26 +27,45 @@ parasails.registerPage('query-detail', {
         },
       });
     }
-    let keywordsForThisTable = [];
-    if(this.keywordsForSyntaxHighlighting){
-      keywordsForThisTable = this.keywordsForSyntaxHighlighting;
+    let columnNamesForThisQuery = [];
+    if(this.columnNamesForSyntaxHighlighting){
+      columnNamesForThisQuery = this.columnNamesForSyntaxHighlighting;
     }
-    keywordsForThisTable = keywordsForThisTable.sort((a,b)=>{// Sorting the array of keywords by length to match larger keywords first.
+    let tableNamesForThisQuery = [];
+    if(this.tableNamesForSyntaxHighlighting){
+      tableNamesForThisQuery = this.tableNamesForSyntaxHighlighting;
+    }
+    columnNamesForThisQuery = columnNamesForThisQuery.sort((a,b)=>{// Sorting the array of keywords by length to match larger keywords first.
+      return a.length < b.length ? 1 : -1;
+    });
+    tableNamesForThisQuery = tableNamesForThisQuery.sort((a,b)=>{// Sorting the array of keywords by length to match larger keywords first.
       return a.length < b.length ? 1 : -1;
     });
     (()=>{
       $('pre code').each((i, block) => {
-        let keywordsToHighlight = [];// Empty array to track the keywords that we will need to highlight
-        for(let keyword of keywordsForThisTable){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
-          for(let match of block.innerHTML.match(keyword+' ')||[]){
-            keywordsToHighlight.push(match);
+        let tableNamesToHighlight = [];// Empty array to track the keywords that we will need to highlight
+        for(let tableName of tableNamesForThisQuery){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
+          for(let match of block.innerHTML.match(tableName+' ')||[]){
+            tableNamesToHighlight.push(match);
+          }
+        }
+        let replacementHMTL = block.innerHTML;
+        for(let keywordInExample of tableNamesToHighlight) {
+          let regexForThisExample = new RegExp(keywordInExample, 'g');
+          replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-attr">'+_.trim(keywordInExample)+'</span> ');
+        }
+        $(block).html(replacementHMTL);
+        let columnNamesToHighlight = [];// Empty array to track the keywords that we will need to highlight
+        for(let columnName of columnNamesForThisQuery){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
+          for(let match of block.innerHTML.match(columnName)||[]){
+            columnNamesToHighlight.push(match);
           }
         }
         // Now iterate through the keywordsToHighlight, replacing all matches in the elements innerHTML.
-        let replacementHMTL = block.innerHTML;
-        for(let keywordInExample of keywordsToHighlight) {
+
+        for(let keywordInExample of columnNamesToHighlight) {
           let regexForThisExample = new RegExp(keywordInExample, 'g');
-          replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-attr">'+_.trim(keywordInExample)+'</span> ');
+          replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-string">'+_.trim(keywordInExample)+'</span>');
         }
         $(block).html(replacementHMTL);
         window.hljs.highlightElement(block);
