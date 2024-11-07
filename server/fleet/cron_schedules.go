@@ -12,8 +12,31 @@ type CronScheduleName string
 
 // List of recognized cron schedule names.
 const (
-	CronAppleMDMDEPProfileAssigner  CronScheduleName = "apple_mdm_dep_profile_assigner"
-	CronCleanupsThenAggregation     CronScheduleName = "cleanups_then_aggregation"
+	/*
+		CronAppleMDMDEPProfileAssigner takes care of
+		- Importing devices from ABM (Apple Business Manager)
+		- Applying the currently configured ADE profile to them so that they enroll in Fleet during the ADE
+		  flow.
+		Default interval:
+	*/
+	CronAppleMDMDEPProfileAssigner CronScheduleName = "apple_mdm_dep_profile_assigner"
+
+	/*
+		CronCleanupsThenAggregation runs several sub-jobs that do data cleanup. Examples include removing unused script contents,
+		expired hosts, etc.
+		It also runs several aggregation sub-jobs. Examples include aggregating query statistics,
+		incrementing policy violation day counts, etc.
+
+		Default interval: 1hr
+	*/
+	CronCleanupsThenAggregation CronScheduleName = "cleanups_then_aggregation"
+
+	/*
+			CronFrequentCleanups also runs cleanups, but at a faster frequency than `cleanups_then_aggregation`. It's mainly
+		focused on cleaning up old live queries that are still hanging around.
+
+		Default interval: 15m
+	*/
 	CronFrequentCleanups            CronScheduleName = "frequent_cleanups"
 	CronUsageStatistics             CronScheduleName = "usage_statistics"
 	CronVulnerabilities             CronScheduleName = "vulnerabilities"
