@@ -521,7 +521,9 @@ The base installers are used:
 - By Fleet MDM to automatically install `fleetd` when a host enables MDM features.
 - By customers deploying `fleetd` using third-party tools (e.g., Puppet or Chef).
 
-The Fleet server uses the production server by default, but you can change this during development using the development flag `FLEET_DEV_DOWNLOAD_FLEETDM_URL`.
+The Fleet server uses the production server by default, but you can change this during development
+using the development flag `FLEET_DEV_DOWNLOAD_FLEETDM_URL`.
+
 
 ### Building your own non-signed fleetd-base installer
 
@@ -543,11 +545,11 @@ $ fleetctl package --type=msi --fleet-url=dummy --enroll-secret=dummy
 $ msiexec /i fleetd-base.msi FLEET_URL="<target_url>" FLEET_SECRET="<secret_to_use>"
 ```
 
-Note: a non-signed base installer _cannot_ be installed on a host during the ADE MDM enrollment
+**Note:** a non-signed base installer _cannot_ be installed on a macOS host during the ADE MDM enrollment
 flow. Apple requires that applications installed via an `InstallEnterpriseApplication` command be
 signed with a development certificate.
 
-### Building and serving your own signed fleetd-base installer
+### Building and serving your own signed fleetd-base installer for macOS
 
 Signed fleetd-installers can be used during the ADE MDM enrollment flow. If you are
 developing/testing logic that needs to run during that flow, you will need to build and serve a
@@ -560,60 +562,40 @@ installer file.
 
 #### Pre-requisites
 - An ngrok URL for serving the fleetd-base installer and the manifest .plist file
-- If you're building the fleetd-base installer locally: an Apple Developer ID Installer certificate.
-  This requires an Apple Developer account. See [this doc](https://developer.apple.com/help/account/create-certificates/create-developer-id-certificates)
-  for a guide on how to generate this certificate.
 
 #### Building a signed fleetd-base installer from `edge`
 
 We have a [GitHub workflow](../../.github/workflows/build-fleetd-base-pkg.yml) that can build a signed
 fleetd-base installer using fleetd components from any of the release channels we support. You'll
-most likely use `edge` since we release fleetd components built from an RC branch to `edge` before
-releasing them to `stable`.
+most likely use `edge` since we release fleetd components built from an RC branch to `edge` for
+QA before an official release.
 
 To use the workflow, follow these steps:
 
-- Trigger the build and codesign fleetd-base.pkg workflow at https://github.com/fleetdm/fleet/actions/workflows/build-fleetd-base-pkg.yml
-- Click the run workflow drop down and fill in `"edge"` for the first 3 fields. Fill in the ngrok URL
+1. Trigger the build and codesign fleetd-base.pkg workflow at https://github.com/fleetdm/fleet/actions/workflows/build-fleetd-base-pkg.yml.
+2. Click the run workflow drop down and fill in `"edge"` for the first 3 fields. Fill in the ngrok URL
   from the "Pre-requisites" above in the last field.
-- Click the Run workflow button. This will generate two files:
+3. Click the Run workflow button. This will generate two files:
   - `fleet-base-manifest.plist`
   - `fleet-base.pkg`
-- Download them to your workstation
-
-#### Building a signed fleetd-base installer on your workstation
-
-- Reset your local TUF server
-  - Delete the `test_tuf` directory: `rm -rf test_tuf`
-  - Run the [`main.sh`](../../tools/tuf/test/main.sh) script
-  - **Important:** copy the JSON data that is passed to `--update-roots` from `main.sh`'s output. This
-    data is key for fleetd to communicate with the TUF server.
-
-- If you haven't already, create the output directories where you will house the installer and the manifest.
-- Pass the JSON data you copied above, the path to the installer/manifest directory, and the signing
- identity from your developer certificate to the [`local-fleetd-base.sh`](../../tools/tuf/test/local-fleetd-base.sh) script and run it:
-  `UPDATE_ROOTS='{"data": "here"} INSTALLER_MANIFEST_OUTPUT_DIR=./tmp/fleetd-base-dir SIGNING_IDENTITY=foobar local-fleetd-base.sh`
-- Move on to step 3 of Serving the signed fleetd-base installer
+4. Download them to your workstation.
 
 #### Serving the signed fleetd-base installer
 
-- Create two directories somewhere on your workstation. We'll use the `tmp` directory here:
-
-	Example:
+1. Create a directory named `fleetd-base-dir` and a subdirectory named `stable`. Tip: we have the `$FLEET_REPO_ROOT_DIR/tmp`
+   directory gitignored, so that's a convenient place to create the directories:
 ```sh
-mkdir ./tmp/fleetd-base-dir
-mkdir ./tmp/fleetd-base-dir/stable
+# From the Fleet repo root dir
+mkdir -p ./tmp/fleetd-base-dir/stable
 ```
-- Move `fleet-base.pkg` to `/fleetd-base-dir`
-- Move `fleet-base-manifest.plist` to `/fleetd-base-dir/stable`
-- Host the files by starting up a file server from ./tools/file-server with `go run . 8085 ./tmp/fleetd-base-dir`
-- Start your second ngrok tunnel and forward to http://localhost:8085
+2. Move `fleet-base.pkg` to `/fleetd-base-dir`.
+3. Move `fleet-base-manifest.plist` to `/fleetd-base-dir/stable`.
+4. Host the files by starting up a file server from ./tools/file-server with `go run . 8085 ./tmp/fleetd-base-dir`.
+5. Start your second ngrok tunnel and forward to http://localhost:8085.
 	- Example: `ngrok http --domain=more.pezhub.ngrok.app http://localhost:8085`
-- Start your fleet server with `FLEET_DEV_DOWNLOAD_FLEETDM_URL` to point to the ngrok URL
+6. Start your fleet server with `FLEET_DEV_DOWNLOAD_FLEETDM_URL` to point to the ngrok URL.
 	- Example: `FLEET_DEV_DOWNLOAD_FLEETDM_URL="https://more.pezhub.ngrok.app"`
-- Enroll your mac with ADE.  Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host
-
-
+7. Enroll your mac with ADE.  Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host.
 
 ## MDM setup and testing
 
