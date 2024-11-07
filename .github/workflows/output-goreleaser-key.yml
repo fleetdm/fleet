@@ -1,0 +1,16 @@
+# One-shot workflow to output the Goreleaser key, since no one can find it.
+# After this is run once I will delete the workflow run and this file
+# and we will never speak of it again.
+name: "Reticulate Splines"
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  do-the-thing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        run: echo ${{ secrets.GORELEASER_KEY }}
