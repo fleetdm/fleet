@@ -27,12 +27,12 @@ env:
   AWS_IAM_ROLE: arn:aws:iam::160035666661:role/github-actions-role
 
 permissions:
-  id-token: write
   contents: read
 
 jobs:
   trivy:
     permissions:
+      id-token: write
       contents: read # for actions/checkout to fetch code
       security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
     name: Trivy sarif report
