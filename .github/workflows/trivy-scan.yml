@@ -32,7 +32,7 @@ permissions:
 jobs:
   trivy:
     permissions:
-      id-token: write
+      id-token: write # for aws-actions/configure-aws-credentials
       contents: read # for actions/checkout to fetch code
       security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
     name: Trivy sarif report
