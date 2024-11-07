@@ -13,13 +13,16 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
+	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
@@ -143,10 +146,17 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 
 	cronSchedulesService := fleet.NewCronSchedules()
 
-	if len(opts) > 0 && opts[0].StartCronSchedules != nil {
-		for _, fn := range opts[0].StartCronSchedules {
-			err = cronSchedulesService.StartCronSchedule(fn(ctx, ds))
-			require.NoError(t, err)
+	var eh *errorstore.Handler
+	if len(opts) > 0 {
+		if opts[0].Pool != nil {
+			eh = errorstore.NewHandler(ctx, opts[0].Pool, logger, time.Minute*10)
+			ctx = ctxerr.NewContext(ctx, eh)
+		}
+		if opts[0].StartCronSchedules != nil {
+			for _, fn := range opts[0].StartCronSchedules {
+				err = cronSchedulesService.StartCronSchedule(fn(ctx, ds))
+				require.NoError(t, err)
+			}
 		}
 	}
 
@@ -405,7 +415,12 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(1000)))
 	rootMux.Handle("/api/", apiHandler)
-	debugHandler := MakeDebugHandler(svc, cfg, logger, nil, ds)
+	var errHandler *errorstore.Handler
+	ctxErrHandler := ctxerr.FromContext(ctx)
+	if ctxErrHandler != nil {
+		errHandler = ctxErrHandler.(*errorstore.Handler)
+	}
+	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds)
 	rootMux.Handle("/debug/", debugHandler)
 
 	server := httptest.NewUnstartedServer(rootMux)
@@ -569,9 +584,7 @@ func (m *memFailingPolicySet) ListHosts(policyID uint) ([]fleet.PolicySetHost, e
 	defer m.mMu.RUnlock()
 
 	hosts := make([]fleet.PolicySetHost, len(m.m[policyID]))
-	for i := range m.m[policyID] {
-		hosts[i] = m.m[policyID][i]
-	}
+	copy(hosts, m.m[policyID])
 	return hosts, nil
 }
 

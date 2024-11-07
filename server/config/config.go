@@ -395,11 +395,11 @@ func (s S3Config) CarvesToInternalCfg() S3ConfigInternal {
 		internal.StsExternalID = s.StsExternalID
 	}
 	internal.DisableSSL = s.CarvesDisableSSL
-	if s.CarvesDisableSSL == false {
+	if !s.CarvesDisableSSL {
 		internal.DisableSSL = s.DisableSSL
 	}
 	internal.ForceS3PathStyle = s.CarvesForceS3PathStyle
-	if s.CarvesForceS3PathStyle == false {
+	if !s.CarvesForceS3PathStyle {
 		internal.ForceS3PathStyle = s.ForceS3PathStyle
 	}
 

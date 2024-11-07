@@ -10197,7 +10197,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 	require.NoError(t, err)
 	logs1, err := io.ReadAll(&w1)
 	require.NoError(t, err)
-	require.Contains(t, string(logs1), "host reported software with empty name", fmt.Sprintf("%s", logs1))
+	require.Contains(t, string(logs1), "host reported software with empty name", string(logs1))
 	require.Contains(t, string(logs1), "debug")
 
 	// Check that the software was not ingested.
@@ -11531,7 +11531,7 @@ func (s *integrationTestSuite) TestHostPastActivities() {
 	require.Equal(t, user.Email, *listResp.Activities[0].ActorEmail)
 	require.Equal(t, user.Name, *listResp.Activities[0].ActorFullName)
 	require.Equal(t, user.GravatarURL, *listResp.Activities[0].ActorGravatar)
-	require.Equal(t, "ran_script", *&listResp.Activities[0].Type)
+	require.Equal(t, "ran_script", listResp.Activities[0].Type)
 	d := getDetails(listResp.Activities[0])
 	require.Equal(t, execID1, d.ScriptExecutionID)
 	require.Equal(t, savedScript.Name, d.ScriptName)

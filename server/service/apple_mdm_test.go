@@ -2893,9 +2893,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	updatedProfile = nil
 	populateTargets()
 	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
-		for _, p := range payload {
-			assert.NotEqual(t, cmdUUID, p.CommandUUID)
-		}
+		assert.Empty(t, payload) // no profiles to update since FLEET VAR could not be populated
 		return nil
 	}
 	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents, hostProfilesToInstallMap)
@@ -2941,6 +2939,12 @@ func TestPreprocessProfileContents(t *testing.T) {
 		return challenge, nil
 	}
 	updatedProfile = nil
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+		for _, p := range payload {
+			assert.NotEqual(t, cmdUUID, p.CommandUUID)
+		}
+		return nil
+	}
 	populateTargets()
 	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMBulkUpsertManagedCertificatePayload) error {
 		require.Len(t, payload, 1)

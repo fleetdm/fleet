@@ -4087,7 +4087,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		},
 	}
 	for _, c := range cases {
-		t.Run(fmt.Sprintf("%s", c.name), func(t *testing.T) {
+		t.Run(c.name, func(t *testing.T) {
 			// always include metadata
 			c.opts.ListOptions.IncludeMetadata = true
 			c.opts.ListOptions.OrderKey = "name"

@@ -3638,7 +3638,6 @@ func preprocessProfileContents(
 					return ctxerr.Wrap(ctx, err, "updating host MDM Apple profiles for unknown variable")
 				}
 				valid = false
-				break
 			}
 		}
 		if !valid {
@@ -3667,7 +3666,6 @@ func preprocessProfileContents(
 				continue
 			}
 			profile.CommandUUID = tempCmdUUID
-			profilesToUpdate = append(profilesToUpdate, profile)
 
 			hostContents := contentsStr
 
@@ -3768,6 +3766,7 @@ func preprocessProfileContents(
 					hostUUIDs: []string{hostUUID},
 				}
 				profileContents[tempProfUUID] = mobileconfig.Mobileconfig(hostContents)
+				profilesToUpdate = append(profilesToUpdate, profile)
 			}
 		}
 		// Update profiles with the new command UUID

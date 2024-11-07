@@ -73,6 +73,13 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 
 - If the story has a requester and the title and/or description change during drafting (scope change), notify the requester. The customer DRI should confirm that the updated scope still meets the requester's needs.
 
+- Each [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) stops drafting once they reach engineering capacity for the upcoming engineering sprint. This way, we avoid creating a backlog which causes us to spend time updating soon-to-be stale designs. It's up to the product group's Product Designer to stop drafting and shift their focus to the following tasks:
+  - Run back through the unestimated user stories and do extra iterations to make sure they're as good as we think they are
+  - Go through the Fleet UI and look for bad/inconsistent text
+  - Go through bugs to see if there’s Product Design input needed
+  - File stories and draft changes for making form fields in the Fleet UI consistent (fixing conventions, moving out the tooltips, etc.)
+  - File stories and draft changes for bringing the screen width down to 375px. (one screen at a time, in which we can squeeze it into engineering sprints as front-end only work, small stories, doesn't compete with other stuff)
+
 >**Questions, missing information, and notes:** Take a screenshot of the area in Figma and add a comment in the story's GitHub issue. Figma does have a commenting system, but it is not easy to search for outstanding concerns and is therefore not preferred. Also, commenting in Figma, sends all contributors email notifications.
 >
 >For external contributors: please consider opening an issue with reference screenshots if you have a Figma related question you need to resolve.

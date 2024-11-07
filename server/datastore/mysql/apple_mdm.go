@@ -1527,22 +1527,35 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID ui
 	}
 
 	selectStmt, selectArgs, err := sqlx.In(`
-		SELECT h.id
+		SELECT h.id, hmdm.enrollment_status
 		FROM hosts h
 		JOIN host_dep_assignments hdep ON h.id = hdep.host_id
+		LEFT JOIN host_mdm hmdm ON h.id = hmdm.host_id
 		WHERE hdep.abm_token_id = ? AND h.hardware_serial IN (?)`, abmTokenID, serials)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building IN statement for selecting host IDs")
 	}
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		var hostIDs []uint
-		if err = sqlx.SelectContext(ctx, tx, &hostIDs, selectStmt, selectArgs...); err != nil {
+		type hostWithEnrollmentStatus struct {
+			ID               uint    `db:"id"`
+			EnrollmentStatus *string `db:"enrollment_status"`
+		}
+		var hosts []hostWithEnrollmentStatus
+		if err = sqlx.SelectContext(ctx, tx, &hosts, selectStmt, selectArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "selecting host IDs")
 		}
-		if len(hostIDs) == 0 {
+		if len(hosts) == 0 {
 			// Nothing to delete. Hosts may have already been transferred to another ABM.
 			return nil
+		}
+		var hostIDs []uint
+		var hostIDsPending []uint
+		for _, host := range hosts {
+			hostIDs = append(hostIDs, host.ID)
+			if host.EnrollmentStatus != nil && *host.EnrollmentStatus == "Pending" {
+				hostIDsPending = append(hostIDsPending, host.ID)
+			}
 		}
 
 		stmt, args, err := sqlx.In(`
@@ -1558,17 +1571,11 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID ui
 
 		// If pending host is no longer in ABM, we should delete it because it will never enroll in Fleet.
 		// If the host is later re-added to ABM, it will be re-created.
-		deletePendingStmt, args, err := sqlx.In(`
-		DELETE h, hmdm FROM hosts h
-		JOIN host_mdm hmdm ON h.id = hmdm.host_id
-		WHERE h.id IN (?) AND hmdm.enrollment_status = 'Pending'`, hostIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building delete IN statement")
+		if len(hostIDsPending) == 0 {
+			return nil
 		}
-		if _, err := tx.ExecContext(ctx, deletePendingStmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting pending hosts by host_id")
-		}
-		return nil
+
+		return deleteHosts(ctx, tx, hostIDsPending)
 	})
 }
 
@@ -2083,7 +2090,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	executeUpsertBatch := func(valuePart string, args []any) error {
 		// Check if the update needs to be done at all.
 		selectStmt := fmt.Sprintf(`
-			SELECT 
+			SELECT
 				host_uuid,
 				profile_uuid,
 				profile_identifier,
@@ -2311,7 +2318,8 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.checksum as checksum,
 		0 as ${countEntityLabelsColumn},
 		0 as count_non_broken_labels,
-		0 as count_host_labels
+		0 as count_host_labels,
+		0 as count_host_updated_after_labels
 	FROM
 		${mdmAppleEntityTable} mae
 			JOIN hosts h
@@ -2343,7 +2351,8 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.checksum as checksum,
 		COUNT(*) as ${countEntityLabelsColumn},
 		COUNT(mel.label_id) as count_non_broken_labels,
-		COUNT(lm.label_id) as count_host_labels
+		COUNT(lm.label_id) as count_host_labels,
+		0 as count_host_updated_after_labels
 	FROM
 		${mdmAppleEntityTable} mae
 			JOIN hosts h
@@ -2367,7 +2376,10 @@ func generateDesiredStateQuery(entityType string) string {
 	UNION
 
 	-- label-based entities where the host is NOT a member of any of the labels (exclude-any).
-	-- explicitly ignore profiles with broken excluded labels so that they are never applied.
+	-- explicitly ignore profiles with broken excluded labels so that they are never applied,
+	-- and ignore profiles that depend on labels created _after_ the label_updated_at timestamp
+	-- of the host (because we don't have results for that label yet, the host may or may not be
+	-- a member).
 	SELECT
 		mae.${entityUUIDColumn},
 		h.uuid as host_uuid,
@@ -2377,7 +2389,10 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.checksum as checksum,
 		COUNT(*) as ${countEntityLabelsColumn},
 		COUNT(mel.label_id) as count_non_broken_labels,
-		COUNT(lm.label_id) as count_host_labels
+		COUNT(lm.label_id) as count_host_labels,
+		-- this helps avoid the case where the host is not a member of a label 
+		-- just because it hasn't reported results for that label yet.
+		SUM(CASE WHEN lbl.created_at IS NOT NULL AND h.label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
 	FROM
 		${mdmAppleEntityTable} mae
 			JOIN hosts h
@@ -2386,6 +2401,8 @@ func generateDesiredStateQuery(entityType string) string {
 				ON ne.device_id = h.uuid
 			JOIN ${mdmEntityLabelsTable} mel
 				ON mel.${appleEntityUUIDColumn} = mae.${entityUUIDColumn} AND mel.exclude = 1
+			LEFT OUTER JOIN labels lbl
+				ON lbl.id = mel.label_id
 			LEFT OUTER JOIN label_membership lm
 				ON lm.label_id = mel.label_id AND lm.host_id = h.id
 	WHERE
@@ -2396,8 +2413,8 @@ func generateDesiredStateQuery(entityType string) string {
 	GROUP BY
 		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.checksum
 	HAVING
-		-- considers only the profiles with labels, without any broken label, and with the host not in any label
-		${countEntityLabelsColumn} > 0 AND ${countEntityLabelsColumn} = count_non_broken_labels AND count_host_labels = 0
+		-- considers only the profiles with labels, without any broken label, with results reported after all labels were created and with the host not in any label
+		${countEntityLabelsColumn} > 0 AND ${countEntityLabelsColumn} = count_non_broken_labels AND ${countEntityLabelsColumn} = count_host_updated_after_labels AND count_host_labels = 0
 	`, func(s string) string { return dynamicNames[s] })
 }
 
@@ -3299,6 +3316,18 @@ func (ds *Datastore) RecordHostBootstrapPackage(ctx context.Context, commandUUID
         ON DUPLICATE KEY UPDATE command_uuid = command_uuid`
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, commandUUID, hostUUID)
 	return ctxerr.Wrap(ctx, err, "record bootstrap package command")
+}
+
+func (ds *Datastore) GetHostBootstrapPackageCommand(ctx context.Context, hostUUID string) (string, error) {
+	var cmdUUID string
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &cmdUUID, `SELECT command_uuid FROM host_mdm_apple_bootstrap_packages WHERE host_uuid = ?`, hostUUID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", ctxerr.Wrap(ctx, notFound("HostMDMBootstrapPackage").WithName(hostUUID))
+		}
+		return "", ctxerr.Wrap(ctx, err, "get bootstrap package command")
+	}
+	return cmdUUID, nil
 }
 
 func (ds *Datastore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
@@ -4620,7 +4649,7 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 	executeUpsertBatch := func(valuePart string, args []any) error {
 		// Check if the update needs to be done at all.
 		selectStmt := fmt.Sprintf(`
-			SELECT 
+			SELECT
 				host_uuid,
 				declaration_uuid,
 				status,
@@ -5069,14 +5098,14 @@ func (ds *Datastore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.
 func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval time.Duration) (devices []fleet.AppleDevicesToRefetch,
 	err error,
 ) {
-	hostsStmt := fmt.Sprintf(`
+	hostsStmt := `
 SELECT h.id as host_id, h.uuid as uuid, JSON_ARRAYAGG(hmc.command_type) as commands_already_sent FROM hosts h
 INNER JOIN host_mdm hmdm ON hmdm.host_id = h.id
 LEFT JOIN host_mdm_commands hmc ON hmc.host_id = h.id
 WHERE (h.platform = 'ios' OR h.platform = 'ipados')
 AND TRIM(h.uuid) != ''
 AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?
-GROUP BY h.id`)
+GROUP BY h.id`
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &devices, hostsStmt, interval.Seconds()); err != nil {
 		return nil, err
 	}
@@ -5533,14 +5562,14 @@ func (ds *Datastore) CleanupHostMDMCommands(ctx context.Context) error {
 
 func (ds *Datastore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, serial string) (*fleet.AppleOSUpdateSettings, error) {
 	stmt := `
-SELECT 
-	team_id, platform 
-FROM 
-	hosts h 
-JOIN 
-	host_dep_assignments hdep ON h.id = host_id 
-WHERE 
-	hardware_serial = ? AND deleted_at IS NULL 
+SELECT
+	team_id, platform
+FROM
+	hosts h
+JOIN
+	host_dep_assignments hdep ON h.id = host_id
+WHERE
+	hardware_serial = ? AND deleted_at IS NULL
 LIMIT 1`
 
 	var dest struct {

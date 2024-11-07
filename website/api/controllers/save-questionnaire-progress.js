@@ -217,7 +217,7 @@ module.exports = {
       sails.log.warn(`When converting a user's (email: ${this.req.me.emailAddress}) getStartedQuestionnaireAnswers to a formatted string to send to the CRM, and error occurred`, err);
     }
     // Prepend the user's reported organization to the questionnaireProgressAsAFormattedString
-    questionnaireProgressAsAFormattedString = `organization-acording-to-fleetdm.com: ${this.req.me.organization}\n` + questionnaireProgressAsAFormattedString;
+    questionnaireProgressAsAFormattedString = `organization-according-to-fleetdm.com: ${this.req.me.organization}\n` + questionnaireProgressAsAFormattedString;
 
     // Create a dictionary of values to send to the CRM for this user.
     let contactInformation = {
@@ -234,9 +234,9 @@ module.exports = {
     if(psychologicalStage !== userRecord.psychologicalStage) {
       let psychologicalStageChangeReason = 'Website - Organic start flow'; // Default psystageChangeReason to "Website - Organic start flow"
       if(this.req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
-        let thirtyMinutesAgoAt = Date.now() - (1000 * 60 * 30);
+        let sevenDaysAgoAt = Date.now() - (1000 * 60 * 60 * 24 * 7);
         // If this user visited the website from an ad, set the psychologicalStageChangeReason to be the adCampaignId stored in their session.
-        if(this.req.session.visitedSiteFromAdAt > thirtyMinutesAgoAt) {
+        if(this.req.session.visitedSiteFromAdAt > sevenDaysAgoAt) {
           psychologicalStageChangeReason = this.req.session.adAttributionString;
         }
       }

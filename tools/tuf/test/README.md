@@ -71,10 +71,10 @@ GOARCH=arm64 # defaults to amd64
 To generate a TUF repository with shorter expiration time for roles you can set the following environment variables:
 ```shell
 [...]
-KEY_EXPIRATION_DURATION=5m
-TARGETS_EXPIRATION_DURATION=5m
-SNAPSHOT_EXPIRATION_DURATION=5m
-TIMESTAMP_EXPIRATION_DURATION=5m
+KEY_EXPIRATION_DURATION=5m \
+TARGETS_EXPIRATION_DURATION=5m \
+SNAPSHOT_EXPIRATION_DURATION=5m \
+TIMESTAMP_EXPIRATION_DURATION=5m \
 [...]
 ./tools/tuf/test/main.sh
 ```

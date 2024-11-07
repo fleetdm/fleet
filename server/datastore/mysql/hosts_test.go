@@ -748,6 +748,43 @@ func testHostsDelete(t *testing.T, ds *Datastore) {
 
 	_, err = ds.Host(context.Background(), host.ID)
 	assert.NotNil(t, err)
+
+	originalHostDeleteBatchSize := hostsDeleteBatchSize
+	hostsDeleteBatchSize = 2
+	t.Cleanup(func() {
+		hostsDeleteBatchSize = originalHostDeleteBatchSize
+	})
+
+	// Delete nothing -- no-op
+	require.NoError(t, ds.DeleteHosts(context.Background(), nil))
+
+	numHosts := 5
+	hosts := make([]*fleet.Host, numHosts)
+	for i := 0; i < numHosts; i++ {
+		hosts[i], err = ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String(fmt.Sprint(i)),
+			UUID:            fmt.Sprint(i),
+			Hostname:        fmt.Sprintf("foo.local.%d", i),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, hosts[i])
+	}
+	var hostIDs []uint
+	for _, h := range hosts {
+		hostIDs = append(hostIDs, h.ID)
+	}
+
+	// Delete all hosts
+	require.NoError(t, ds.DeleteHosts(context.Background(), hostIDs))
+	// Make sure each host is deleted
+	for _, h := range hosts {
+		_, err = ds.Host(context.Background(), h.ID)
+		assert.NotNil(t, err)
+	}
 }
 
 func listHostsCheckCount(t *testing.T, ds *Datastore, filter fleet.TeamFilter, opt fleet.HostListOptions, expectedCount int) []*fleet.Host {
@@ -1118,7 +1155,7 @@ func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
 		SeenTime:        time.Now(),
 		OsqueryHostID:   ptr.String("foo"),
 		NodeKey:         ptr.String("foo"),
-		UUID:            fmt.Sprintf("foo"),
+		UUID:            "foo",
 		Hostname:        "foo.local",
 	})
 	require.NoError(t, err)
@@ -1130,7 +1167,7 @@ func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
 		SeenTime:        time.Now(),
 		OsqueryHostID:   ptr.String("foo2"),
 		NodeKey:         ptr.String("foo2"),
-		UUID:            fmt.Sprintf("foo2"),
+		UUID:            "foo2",
 		Hostname:        "foo2.local",
 	})
 	require.NoError(t, err)
@@ -1205,7 +1242,7 @@ func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// host_mdm entry should not exist anymore.
-	hmdm, err = ds.GetHostMDM(ctx, h2.ID)
+	_, err = ds.GetHostMDM(ctx, h2.ID)
 	require.NoError(t, err)
 
 	// host_mdm entry should still exist with empty values.
@@ -3491,7 +3528,7 @@ func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
 	checkHostIssues(t, ds, hosts, filter, h1.ID, 1)
 
-	checkHostIssuesWithOpts(t, ds, hosts, filter, h1.ID, fleet.HostListOptions{DisableIssues: true}, 0)
+	checkHostIssuesWithOpts(t, ds, filter, h1.ID, fleet.HostListOptions{DisableIssues: true}, 0)
 }
 
 // This doesn't work when running the whole test suite, but helps inspect individual tests
@@ -3582,13 +3619,13 @@ func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
 }
 
 func checkHostIssues(t *testing.T, ds *Datastore, hosts []*fleet.Host, filter fleet.TeamFilter, hid uint, expected uint64) {
-	checkHostIssuesWithOpts(t, ds, hosts, filter, hid, fleet.HostListOptions{}, expected)
+	checkHostIssuesWithOpts(t, ds, filter, hid, fleet.HostListOptions{}, expected)
 }
 
 func checkHostIssuesWithOpts(
-	t *testing.T, ds *Datastore, hosts []*fleet.Host, filter fleet.TeamFilter, hid uint, opts fleet.HostListOptions, expected uint64,
+	t *testing.T, ds *Datastore, filter fleet.TeamFilter, hid uint, opts fleet.HostListOptions, expected uint64,
 ) {
-	hosts = listHostsCheckCount(t, ds, filter, opts, 10)
+	hosts := listHostsCheckCount(t, ds, filter, opts, 10)
 	foundH2 := false
 	var foundHost *fleet.Host
 	for _, host := range hosts {
@@ -4736,9 +4773,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 	// Plus we set schedule query stats for a query that does not apply (globalSQuery1)
 	// (This could happen if the target platform of a schedule query is changed after creation.)
 	stats := make([]fleet.ScheduledQueryStats, len(globalStats))
-	for i := range globalStats {
-		stats[i] = globalStats[i]
-	}
+	copy(stats, globalStats)
 	stats = append(stats, fleet.ScheduledQueryStats{
 		ScheduledQueryName: userSQuery1.Name,
 		ScheduledQueryID:   userSQuery1.ID,
@@ -7751,7 +7786,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	// simulate the device being assigned to Fleet in ABM
 	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hFleet}, abmToken.ID)
 	require.NoError(t, err)
-	loadFleet, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
+	_, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
 	require.NoError(t, err)
 
 	// simulate a failed JSON profile assignment
@@ -7760,7 +7795,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		"foo", []string{hFleet.HardwareSerial}, string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
 	)
 	require.NoError(t, err)
-	loadFleet, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
+	_, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
 	require.NoError(t, err)
 }
 

@@ -57,10 +57,7 @@ func (rule CPEMatchingRule) CPEMatches(cpeMeta *wfn.Attributes) bool {
 	}
 
 	if rule.IgnoreIf != nil {
-		if rule.IgnoreIf(cpeMeta) {
-			return false
-		}
-		return true
+		return !rule.IgnoreIf(cpeMeta)
 	}
 
 	ver, err := semver.NewVersion(wfn.StripSlashes(cpeMeta.Version))
