@@ -6368,25 +6368,17 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `One of 'script_id', 'script_contents', or 'script_name' is required.`)
 
-	// deleting the saved script does not impact the pending script
+	// deleting the saved script should delete the pending script
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", savedNoTmScript.ID), nil, http.StatusNoContent)
-
-	// script id is now nil, but otherwise execution request is the same
 	scriptResultResp = getScriptResultResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runSyncResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
-	require.Equal(t, host.ID, scriptResultResp.HostID)
-	require.Equal(t, "echo 'no team'", scriptResultResp.ScriptContents)
-	require.Nil(t, scriptResultResp.ExitCode)
-	require.False(t, scriptResultResp.HostTimeout)
-	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAlreadyRunningErrMsg)
-	require.Nil(t, scriptResultResp.ScriptID)
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runSyncResp.ExecutionID, nil, http.StatusNotFound, &scriptResultResp)
 
 	// Verify that we can't enqueue more than 1k scripts
 
 	// Make the host offline so that scripts enqueue
 	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now().Add(-time.Hour))
 	require.NoError(t, err)
-	for i := 0; i < 1000; i++ {
+	for i := 1; i <= 1000; i++ {
 		script, err := s.ds.NewScript(ctx, &fleet.Script{
 			TeamID:         nil,
 			Name:           fmt.Sprintf("script_1k_%d.sh", i),
@@ -6400,8 +6392,8 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 
 	script, err := s.ds.NewScript(ctx, &fleet.Script{
 		TeamID:         nil,
-		Name:           "script_1k_1000.sh",
-		ScriptContents: "echo 1000",
+		Name:           "script_1k_1001.sh",
+		ScriptContents: "echo 1001",
 	})
 	require.NoError(t, err)
 
