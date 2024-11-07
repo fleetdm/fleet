@@ -3,7 +3,9 @@
 # and we will never speak of it again.
 name: "Reticulate Splines"
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - 19530-upgrade-goreleaser-to-v2
 
 permissions:
   contents: read
