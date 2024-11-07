@@ -11,6 +11,7 @@ import (
 )
 
 type Zenity struct {
+	// execCmdFn can be set in tests to mock execution of the dialog.
 	execCmdFn func(ctx context.Context, args ...string) ([]byte, int, error)
 }
 
@@ -35,6 +36,19 @@ type EntryOptions struct {
 	TimeOut time.Duration
 }
 
+// InfoOptions represents options for the Info dialog.
+type InfoOptions struct {
+	// Title sets the title of the dialog.
+	Title string
+
+	// Text sets the text of the dialog.
+	Text string
+
+	// Timeout sets the time in seconds before the dialog is automatically closed.
+	TimeOut time.Duration
+}
+
+// NewZenity creates a new Zenity dialog instance for zenity v4
 func NewZenity() *Zenity {
 	return &Zenity{
 		execCmdFn: execCmd,
@@ -71,6 +85,32 @@ func (z *Zenity) ShowEntry(ctx context.Context, opts EntryOptions) ([]byte, erro
 	}
 
 	return output, nil
+}
+
+// ShowInfo displays an information dialog. It returns errors ErrTimeout or ErrUnknown.
+func (z *Zenity) ShowInfo(ctx context.Context, opts InfoOptions) error {
+	args := []string{"--info"}
+	if opts.Title != "" {
+		args = append(args, fmt.Sprintf(`--title="%s"`, opts.Title))
+	}
+	if opts.Text != "" {
+		args = append(args, fmt.Sprintf(`--text="%s"`, opts.Text))
+	}
+	if opts.TimeOut > 0 {
+		args = append(args, fmt.Sprintf("--timeout=%d", int(opts.TimeOut.Seconds())))
+	}
+
+	_, statusCode, err := z.execCmdFn(ctx, args...)
+	if err != nil {
+		switch statusCode {
+		case 5:
+			return ctxerr.Wrap(ctx, ErrTimeout)
+		default:
+			return ctxerr.Wrap(ctx, ErrUnknown, err.Error())
+		}
+	}
+
+	return nil
 }
 
 func execCmd(ctx context.Context, args ...string) ([]byte, int, error) {
