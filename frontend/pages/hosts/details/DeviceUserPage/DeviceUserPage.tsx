@@ -429,6 +429,10 @@ const DeviceUserPage = ({
                       platform={host.platform}
                       hostTeamId={host.team_id || 0}
                       isSoftwareEnabled={isSoftwareEnabled}
+                      // TODO(JVE): should we check this on the device? I think so because if a
+                      // VPP app is uploaded as self-service, but MDM is off on the host, we
+                      // shouldn't allow installation
+                      hostMDMEnrolled={false}
                     />
                   </TabPanel>
                 )}
