@@ -11,7 +11,7 @@ import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import Spinner from "components/Spinner/Spinner";
 
-const baseClass = "script-details-modal";
+const baseClass = "run-script-details-modal";
 
 interface IScriptContentProps {
   content: string;
@@ -144,52 +144,34 @@ const ScriptOutput = ({ output, hostname }: IScriptOutputProps) => {
 
 interface IScriptResultProps {
   hostname: string;
-  hostTimeout: boolean;
-  exitCode: number | null;
-  message: string;
   output: string;
 }
 
-const ScriptResult = ({
-  hostname,
-  hostTimeout,
-  exitCode,
-  message,
-  output,
-}: IScriptResultProps) => {
-  const hostTimedOut = exitCode === null && hostTimeout === true;
-  const scriptsDisabledForHost = exitCode === -2;
-  const scriptStillRunning = exitCode === null && hostTimeout === false;
-  const showOutputText =
-    !hostTimedOut && !scriptsDisabledForHost && !scriptStillRunning;
-
+const ScriptResult = ({ hostname, output }: IScriptResultProps) => {
   return (
     <div className={`${baseClass}__script-result`}>
-      <StatusMessage
-        hostTimeout={hostTimeout}
-        exitCode={exitCode}
-        message={message}
-      />
-      {showOutputText && <ScriptOutput output={output} hostname={hostname} />}
+      <ScriptOutput output={output} hostname={hostname} />
     </div>
   );
 };
 
-interface IScriptDetailsModalProps {
+interface IRunScriptDetailsModalProps {
   scriptExecutionId: string;
   onCancel: () => void;
+  isHidden?: boolean;
 }
 
-const ScriptDetailsModal = ({
+const RunScriptDetailsModal = ({
   scriptExecutionId,
   onCancel,
-}: IScriptDetailsModalProps) => {
+  isHidden = false,
+}: IRunScriptDetailsModalProps) => {
   const { data, isLoading, isError } = useQuery<IScriptResultResponse>(
-    ["scriptDetailsModal", scriptExecutionId],
+    ["runScriptDetailsModal", scriptExecutionId],
     () => {
       return scriptsAPI.getScriptResult(scriptExecutionId);
     },
-    { refetchOnWindowFocus: false }
+    { refetchOnWindowFocus: false, enabled: !!scriptExecutionId }
   );
 
   const renderContent = () => {
@@ -200,16 +182,25 @@ const ScriptDetailsModal = ({
     } else if (isError) {
       content = <DataError description="Close this modal and try again." />;
     } else if (data) {
+      const hostTimedOut =
+        data.exit_code === null && data.host_timeout === true;
+      const scriptsDisabledForHost = data.exit_code === -2;
+      const scriptStillRunning =
+        data.exit_code === null && data.host_timeout === false;
+      const showOutputText =
+        !hostTimedOut && !scriptsDisabledForHost && !scriptStillRunning;
+
       content = (
         <>
-          <ScriptContent content={data.script_contents} />
-          <ScriptResult
-            hostname={data.hostname}
+          <StatusMessage
             hostTimeout={data.host_timeout}
             exitCode={data.exit_code}
-            message={data.message}
-            output={data.output}
+            message={data.output}
           />
+          <ScriptContent content={data.script_contents} />
+          {showOutputText && (
+            <ScriptResult hostname={data.hostname} output={data.output} />
+          )}
         </>
       );
     }
@@ -217,25 +208,29 @@ const ScriptDetailsModal = ({
     return (
       <>
         <div className={`${baseClass}__modal-content`}>{content}</div>
-        <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="brand">
-            Done
-          </Button>
-        </div>
       </>
     );
   };
 
+  const renderFooter = () => (
+    <div className={`primary-actions ${baseClass}__host-script-actions`}>
+      <Button onClick={onCancel} variant="brand">
+        Done
+      </Button>
+    </div>
+  );
   return (
     <Modal
       title="Script details"
       onExit={onCancel}
       onEnter={onCancel}
       className={baseClass}
+      isHidden={isHidden}
+      actionsFooter={renderFooter()}
     >
       {renderContent()}
     </Modal>
   );
 };
 
-export default ScriptDetailsModal;
+export default RunScriptDetailsModal;

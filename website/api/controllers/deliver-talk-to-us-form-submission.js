@@ -82,7 +82,7 @@ module.exports = {
         organization: organization,
         primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
         contactSource: 'Website - Contact forms',
-        description: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event.`,
+        description: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event. Number of hosts: ${numberOfHosts}`,
         psychologicalStage: '4 - Has use case',
         psychologicalStageChangeReason: 'Website - Contact forms'
       }).exec((err)=>{
@@ -98,7 +98,7 @@ module.exports = {
         organization: organization,
         primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
         contactSource: 'Website - Contact forms',
-        description: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Let\'s get you set up!" event.`,
+        description: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Let\'s get you set up!" event. Number of hosts: ${numberOfHosts}`,
       }).exec((err)=>{
         if(err) {
           sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);

@@ -211,6 +211,67 @@ func TestParseRealDistributionFiles(t *testing.T) {
 	}
 }
 
+func TestParsePackageInfoFiles(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		file               string
+		expectedName       string
+		expectedVersion    string
+		expectedBundleID   string
+		expectedPackageIDs []string
+	}{
+		{
+			file:               "packageInfo-oktaVerify.xml",
+			expectedName:       "Okta Verify.app",
+			expectedVersion:    "9.27.0",
+			expectedBundleID:   "com.okta.mobile",
+			expectedPackageIDs: []string{"com.okta.mobile"},
+		},
+		{
+			file:             "packageInfo-iriunWebcam.xml",
+			expectedName:     "IriunWebcam.app",
+			expectedVersion:  "2.8.10",
+			expectedBundleID: "com.iriun.macwebcam",
+			expectedPackageIDs: []string{"com.iriun.macwebcam", "com.iriun.macwebcam.extension4", "com.iriun.macwebcam.extension",
+				"com.iriun.mic"},
+		},
+		{
+			file:               "packageInfo-scriptOnly.xml",
+			expectedName:       "HelloWorld",
+			expectedVersion:    "1.2.3",
+			expectedBundleID:   "com.mygreatcompany.pkg.HelloWorld",
+			expectedPackageIDs: []string{"com.mygreatcompany.pkg.HelloWorld"},
+		},
+		{
+			file:               "packageInfo-empty.xml",
+			expectedName:       "",
+			expectedVersion:    "",
+			expectedBundleID:   "",
+			expectedPackageIDs: []string{},
+		},
+		{
+			file:               "packageInfo-versionOnly.xml",
+			expectedName:       "",
+			expectedVersion:    "test-version",
+			expectedBundleID:   "",
+			expectedPackageIDs: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.file, func(t *testing.T) {
+			rawXML, err := os.ReadFile(filepath.Join("testdata", "packageInfo", tt.file))
+			require.NoError(t, err)
+			metadata, err := parsePackageInfoFile(rawXML)
+			require.NoError(t, err)
+			assert.ElementsMatch(t, tt.expectedPackageIDs, metadata.PackageIDs)
+			assert.Equal(t, tt.expectedName, metadata.Name)
+			assert.Equal(t, tt.expectedVersion, metadata.Version)
+			assert.Equal(t, tt.expectedBundleID, metadata.BundleIdentifier)
+		})
+	}
+}
+
 func TestIsValidAppFilePath(t *testing.T) {
 	tests := []struct {
 		input    string

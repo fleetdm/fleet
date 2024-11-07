@@ -1,0 +1,121 @@
+# This workflow can be used to build a fleetd-base.pkg package
+# that can be hosted on a local server to test ADE workflows.
+#
+# Output is the fleetd-base.pkg itself and the corresponding fleetd-base-manifest.plist.
+name: Build and codesign fleetd-base.pkg
+
+on:
+  workflow_dispatch: # allow manual action
+    inputs:
+      orbit-channel:
+        description: "TUF channel for the orbit component"
+        required: false
+        default: "stable"
+        type: string
+      osqueryd-channel:
+        description: "TUF channel for the osqueryd component"
+        required: false
+        default: "stable"
+        type: string
+      desktop-channel:
+        description: "TUF channel for the Fleet Desktop component"
+        required: false
+        default: "stable"
+        type: string
+      base-url:
+        description: "URL that will host the generated fleetd-base.pkg"
+        required: true
+        type: string
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Import package signing keys
+        env:
+          APPLE_INSTALLER_CERTIFICATE: ${{ secrets.APPLE_INSTALLER_CERTIFICATE }}
+          APPLE_INSTALLER_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_INSTALLER_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "$APPLE_INSTALLER_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p $KEYCHAIN_PASSWORD build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p $KEYCHAIN_PASSWORD build.keychain
+          security import certificate.p12 -k build.keychain -P $APPLE_INSTALLER_CERTIFICATE_PASSWORD -T /usr/bin/productsign
+          security set-key-partition-list -S apple-tool:,apple:,productsign: -s -k $KEYCHAIN_PASSWORD build.keychain
+          security find-identity -vv
+          rm certificate.p12
+
+      - name: Install fleetctl
+        run: npm install -g fleetctl
+
+      - name: Build PKG, sign, and notarize
+        id: build-sign-notarize
+        env:
+          AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
+          AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          PACKAGE_SIGNING_IDENTITY_SHA1: D52080FD1F0941DE31346F06DA0F08AED6FACBBF
+        run: |
+          fleetctl package --type pkg --fleet-desktop \
+            --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize \
+            --orbit-channel ${{ github.event.inputs.orbit-channel }} \
+            --osqueryd-channel ${{ github.event.inputs.osqueryd-channel }} \
+            --desktop-channel ${{ github.event.inputs.desktop-channel }}
+          mv fleet-osquery*.pkg fleetd-base.pkg
+          : # Calculate the SHA256 checksum of the package
+          echo "fleetd_base_pkg_sha256=$(shasum -a 256 fleetd-base.pkg | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
+
+      - name: Create plist
+        run: |
+          echo '<plist version="1.0">
+            <dict>
+              <key>items</key>
+              <array>
+                <dict>
+                  <key>assets</key>
+                  <array>
+                    <dict>
+                      <key>kind</key>
+                      <string>software-package</string>
+                      <key>sha256-size</key>
+                      <integer>32</integer>
+                      <key>sha256s</key>
+                      <array>
+                        <string>${{ steps.build-sign-notarize.outputs.fleetd_base_pkg_sha256 }}</string>
+                      </array>
+                      <key>url</key>
+                      <string>${{ github.event.inputs.base-url }}/fleetd-base.pkg</string>
+                    </dict>
+                  </array>
+                </dict>
+              </array>
+            </dict>
+          </plist>' > fleetd-base-manifest.plist
+
+      - name: Upload fleetd-base.pkg
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        with:
+          name: fleetd-base.pkg
+          path: |
+            fleetd-base.pkg
+
+      - name: Upload fleetd-base-manifest.plist
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        with:
+          name: fleetd-base-manifest.plist
+          path: |
+            fleetd-base-manifest.plist

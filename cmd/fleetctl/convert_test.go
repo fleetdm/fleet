@@ -24,8 +24,8 @@ func TestConvertFileOutput(t *testing.T) {
 
 	// setup a file for the convert command to write to
 	file, err := os.CreateTemp(t.TempDir(), "convert_output.yml")
-	defer file.Close()
 	require.NoError(t, err)
+	defer file.Close()
 
 	// get the program name
 	args := os.Args[0:1]
