@@ -14,7 +14,7 @@ func Up_20241016155452(tx *sql.Tx) error {
 CREATE TABLE yara_rules (
 	id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
 	name VARCHAR(255) NOT NULL,
-	contents TEXT NOT NULL,
+	contents MEDIUMTEXT NOT NULL,
 	PRIMARY KEY (id),
 	UNIQUE KEY idx_yara_rules_name (name) 
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;`)
