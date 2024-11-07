@@ -124,3 +124,74 @@ func TestShowEntrySuccess(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("some output"), output)
 }
+
+func TestShowInfoArgs(t *testing.T) {
+	ctx := context.Background()
+
+	testCases := []struct {
+		name         string
+		opts         InfoOptions
+		expectedArgs []string
+	}{
+		{
+			name:         "Basic Entry",
+			opts:         InfoOptions{},
+			expectedArgs: []string{"--info"},
+		},
+		{
+			name: "All Options",
+			opts: InfoOptions{
+				Title:   "Another Title",
+				Text:    "Some more text",
+				TimeOut: 1 * time.Minute,
+			},
+			expectedArgs: []string{"--info", `--title="Another Title"`, `--text="Some more text"`, "--timeout=60"},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := &mockExecCmd{}
+			z := &Zenity{
+				execCmdFn: mock.run,
+			}
+			err := z.ShowInfo(ctx, tt.opts)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expectedArgs, mock.capturedArgs)
+		})
+	}
+}
+
+func TestShowInfoError(t *testing.T) {
+	ctx := context.Background()
+
+	testcases := []struct {
+		name        string
+		exitCode    int
+		expectedErr error
+	}{
+		{
+			name:        "Dialog Timed Out",
+			exitCode:    5,
+			expectedErr: ErrTimeout,
+		},
+		{
+			name:        "Unknown Error",
+			exitCode:    99,
+			expectedErr: ErrUnknown,
+		},
+	}
+
+	for _, tt := range testcases {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := &mockExecCmd{
+				exitCode: tt.exitCode,
+			}
+			z := &Zenity{
+				execCmdFn: mock.run,
+			}
+			err := z.ShowInfo(ctx, InfoOptions{})
+			require.ErrorIs(t, err, tt.expectedErr)
+		})
+	}
+}
