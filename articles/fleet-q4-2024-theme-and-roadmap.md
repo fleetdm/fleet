@@ -19,4 +19,4 @@ What else is Fleet working on in Q4? In addition to built-ins, Fleet is adding..
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2024-11-07">
 <meta name="articleTitle" value="Fleet's Q4 2024 roadmap and theme: built-ins">
-<meta name="description" value="Learn what Fleet is working on in Q4 2024">
+<meta name="description" value="What Fleet is working on in Q4 2024">
