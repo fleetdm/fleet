@@ -1,3 +1,5 @@
+//go:build linux
+
 package zenity
 
 import (
@@ -48,7 +50,7 @@ type InfoOptions struct {
 	TimeOut time.Duration
 }
 
-// NewZenity creates a new Zenity dialog instance for zenity v4
+// NewZenity creates a new Zenity dialog instance for zenity v4 on Linux.
 func NewZenity() *Zenity {
 	return &Zenity{
 		execCmdFn: execCmd,
