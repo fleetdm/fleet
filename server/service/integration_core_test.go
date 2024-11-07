@@ -4765,6 +4765,25 @@ func (s *integrationTestSuite) TestActivitiesWebhookConfig() {
 			`{
 		"webhook_settings": {
 			"activities_webhook": {
+				"enable_activities_webhook": true,
+				"destination_url": "invalid-url"
+    		}
+  		}
+	}`,
+		), http.StatusUnprocessableEntity,
+	)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEditedActivityAutomations{}.ActivityName(),
+		`{"webhook_url": "http://some/other/url"}`,
+		0,
+	)
+
+	s.DoRaw(
+		"PATCH", "/api/latest/fleet/config", []byte(
+			`{
+		"webhook_settings": {
+			"activities_webhook": {
 				"enable_activities_webhook": false
     		}
   		}
@@ -4775,6 +4794,25 @@ func (s *integrationTestSuite) TestActivitiesWebhookConfig() {
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDisabledActivityAutomations{}.ActivityName(),
 		``,
+		0,
+	)
+
+	s.DoRaw(
+		"PATCH", "/api/latest/fleet/config", []byte(
+			`{
+		"webhook_settings": {
+			"activities_webhook": {
+				"enable_activities_webhook": true,
+				"destination_url": "foo.baz"
+    		}
+  		}
+	}`,
+		), http.StatusUnprocessableEntity,
+	)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEnabledActivityAutomations{}.ActivityName(),
+		`{"webhook_url": "http://some/url"}`,
 		0,
 	)
 }
