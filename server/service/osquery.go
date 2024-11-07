@@ -2513,7 +2513,7 @@ func (r getYaraResponse) error() error { return r.Err }
 
 func (r getYaraResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Write([]byte(r.Content))
+	_, _ = w.Write([]byte(r.Content))
 }
 
 func getYaraEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
