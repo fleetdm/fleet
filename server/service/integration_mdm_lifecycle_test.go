@@ -590,8 +590,13 @@ func (s *integrationMDMTestSuite) setupLifecycleSettings() {
 // Host is renewing SCEP certificates
 func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	t := s.T()
-	t.Skip("flaky test, see https://github.com/fleetdm/fleet/issues/20936")
 	ctx := context.Background()
+
+	// Skip worker jobs to avoid running into timing issues with this test.
+	// We can manually run the jobs if needed with s.runWorker().
+	s.skipWorkerJobs = true
+	t.Cleanup(func() { s.skipWorkerJobs = false })
+
 	// ensure there's a token for automatic enrollments
 	s.enableABM(t.Name())
 	s.runDEPSchedule()

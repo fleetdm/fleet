@@ -1,11 +1,11 @@
-.script-details-modal {
+.run-script-details-modal {
   box-sizing: border-box;
   width: 811px;
 
   &__modal-content {
     display: flex;
     flex-direction: column;
-    gap: $pad-xlarge;
+    gap: $pad-medium;
   }
 
   &__script-content {
@@ -16,7 +16,7 @@
 
   &__script-content-textarea {
     box-sizing: border-box;
-    height: 300px;
+    max-height: 300px;
     overflow-y: auto;
     font-family: "SourceCodePro";
   }
