@@ -5803,7 +5803,7 @@ Get aggregate status counts of profiles for to macOS and Windows hosts that are 
 - [Delete a bootstrap package](#delete-a-bootstrap-package)
 - [Download a bootstrap package](#download-a-bootstrap-package)
 - [Get a summary of bootstrap package status](#get-a-summary-of-bootstrap-package-status)
-- [Turn on end user authentication for macOS setup](#turn-on-end-user-authentication-for-macos-setup)
+- [Configure setup experience](#configure-setup-experience)
 - [Upload an EULA file](#upload-an-eula-file)
 - [Get metadata about an EULA file](#get-metadata-about-an-eula-file)
 - [Delete an EULA file](#delete-an-eula-file)
@@ -6172,7 +6172,7 @@ The summary can optionally be filtered by team ID.
 }
 ```
 
-### Turn on end user authentication for macOS setup
+### Configure setup experience
 
 _Available in Fleet Premium_
 
@@ -6195,7 +6195,8 @@ _Available in Fleet Premium_
 ```json
 {
   "team_id": 1,
-  "enabled_end_user_authentication": true
+  "enable_end_user_authentication": true,
+  "enable_release_device_manually": true
 }
 ```
 
