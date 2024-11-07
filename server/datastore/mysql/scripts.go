@@ -11,7 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/fleetdm/fleet/v4/pkg/scripts"
+	constants "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
@@ -223,7 +223,7 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
     created_at ASC`
 
 	var results []*fleet.HostScriptResult
-	seconds := int(scripts.MaxServerWaitTime.Seconds())
+	seconds := int(constants.MaxServerWaitTime.Seconds())
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, hostID, seconds); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list pending host script executions")
 	}
@@ -441,21 +441,32 @@ WHERE
 var errDeleteScriptWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this script. Please remove this script from associated policy automations and try again."}
 
 func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM scripts WHERE id = ?`, id)
-	if err != nil {
-		if isMySQLForeignKey(err) {
-			// Check if the script is referenced by a policy automation.
-			var count int
-			if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM policies WHERE script_id = ?`, id); err != nil {
-				return ctxerr.Wrapf(ctx, err, "getting reference from policies")
-			}
-			if count > 0 {
-				return ctxerr.Wrap(ctx, errDeleteScriptWithAssociatedPolicy, "delete script")
-			}
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `DELETE FROM host_script_results WHERE script_id = ?
+       		  AND exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)`,
+			id, int(constants.MaxServerWaitTime.Seconds()),
+		)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "cancel pending script executions")
 		}
-		return ctxerr.Wrap(ctx, err, "delete script")
-	}
-	return nil
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM scripts WHERE id = ?`, id)
+		if err != nil {
+			if isMySQLForeignKey(err) {
+				// Check if the script is referenced by a policy automation.
+				var count int
+				if err := sqlx.GetContext(ctx, tx, &count, `SELECT COUNT(*) FROM policies WHERE script_id = ?`, id); err != nil {
+					return ctxerr.Wrapf(ctx, err, "getting reference from policies")
+				}
+				if count > 0 {
+					return ctxerr.Wrap(ctx, errDeleteScriptWithAssociatedPolicy, "delete script")
+				}
+			}
+			return ctxerr.Wrap(ctx, err, "delete script")
+		}
+
+		return nil
+	})
 }
 
 func (ds *Datastore) ListScripts(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
@@ -637,6 +648,10 @@ WHERE
 `
 	const unsetAllScriptsFromPolicies = `UPDATE policies SET script_id = NULL WHERE team_id = ?`
 
+	const clearAllPendingExecutions = `DELETE FROM host_script_results WHERE
+       		  exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
+       		  AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
+
 	const unsetScriptsNotInListFromPolicies = `
 UPDATE policies SET script_id = NULL
 WHERE script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))
@@ -650,6 +665,10 @@ WHERE
   name NOT IN (?)
 `
 
+	const clearPendingExecutionsNotInList = `DELETE FROM host_script_results WHERE
+       		  exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
+       		  AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))`
+
 	const insertNewOrEditedScript = `
 INSERT INTO
   scripts (
@@ -658,8 +677,12 @@ INSERT INTO
 VALUES
   (?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
-  script_content_id = VALUES(script_content_id)
+  script_content_id = VALUES(script_content_id), id=LAST_INSERT_ID(id)
 `
+
+	const clearPendingExecutionsWithObsoleteScript = `DELETE FROM host_script_results WHERE
+       		  exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
+       		  AND script_id = ? AND script_content_id != ?`
 
 	const loadInsertedScripts = `SELECT id, team_id, name FROM scripts WHERE global_or_team_id = ?`
 
@@ -704,11 +727,13 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		var (
-			scriptsStmt  string
-			scriptsArgs  []any
-			policiesStmt string
-			policiesArgs []any
-			err          error
+			scriptsStmt    string
+			scriptsArgs    []any
+			policiesStmt   string
+			policiesArgs   []any
+			executionsStmt string
+			executionsArgs []any
+			err            error
 		)
 		if len(keepNames) > 0 {
 			// delete the obsolete scripts
@@ -721,15 +746,26 @@ ON DUPLICATE KEY UPDATE
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build statement to unset obsolete scripts from policies")
 			}
+
+			executionsStmt, executionsArgs, err = sqlx.In(clearPendingExecutionsNotInList, int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID, keepNames)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to clear pending script executions from obsolete scripts")
+			}
 		} else {
 			scriptsStmt = deleteAllScriptsInTeam
 			scriptsArgs = []any{globalOrTeamID}
 
 			policiesStmt = unsetAllScriptsFromPolicies
 			policiesArgs = []any{globalOrTeamID}
+
+			executionsStmt = clearAllPendingExecutions
+			executionsArgs = []any{int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID}
 		}
 		if _, err := tx.ExecContext(ctx, policiesStmt, policiesArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "unset obsolete scripts from policies")
+		}
+		if _, err := tx.ExecContext(ctx, executionsStmt, executionsArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear obsolete script pending executions")
 		}
 		if _, err := tx.ExecContext(ctx, scriptsStmt, scriptsArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete scripts")
@@ -741,10 +777,14 @@ ON DUPLICATE KEY UPDATE
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "inserting script contents for script with name %q", s.Name)
 			}
-			id, _ := scRes.LastInsertId()
-			if _, err := tx.ExecContext(ctx, insertNewOrEditedScript, tmID, globalOrTeamID, s.Name,
-				uint(id)); err != nil { //nolint:gosec // dismiss G115
+			contentID, _ := scRes.LastInsertId()
+			insertRes, err := tx.ExecContext(ctx, insertNewOrEditedScript, tmID, globalOrTeamID, s.Name, uint(contentID)) //nolint:gosec // dismiss G115
+			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "insert new/edited script with name %q", s.Name)
+			}
+			scriptID, _ := insertRes.LastInsertId()
+			if _, err := tx.ExecContext(ctx, clearPendingExecutionsWithObsoleteScript, int(constants.MaxServerWaitTime.Seconds()), scriptID, contentID); err != nil {
+				return ctxerr.Wrapf(ctx, err, "clear obsolete pending script executions with name %q", s.Name)
 			}
 		}
 

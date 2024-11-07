@@ -146,13 +146,13 @@ func main() {
 		myDeviceItem := systray.AddMenuItem("Connecting...", "")
 		myDeviceItem.Disable()
 
-		transparencyItem := systray.AddMenuItem("Transparency", "")
-		transparencyItem.Disable()
-		systray.AddSeparator()
-
 		selfServiceItem := systray.AddMenuItem("Self-service", "")
 		selfServiceItem.Disable()
 		selfServiceItem.Hide()
+		systray.AddSeparator()
+
+		transparencyItem := systray.AddMenuItem("About Fleet", "")
+		transparencyItem.Disable()
 
 		tokenReader := token.Reader{Path: identifierPath}
 		if _, err := tokenReader.Read(); err != nil {

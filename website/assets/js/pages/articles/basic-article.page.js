@@ -6,6 +6,8 @@ parasails.registerPage('basic-article', {
     articleHasSubtitle: false,
     articleSubtitle: undefined,
     subtopics: [],
+    lastScrollTop: 0,
+    scrollDistance: 0,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -81,8 +83,10 @@ parasails.registerPage('basic-article', {
       if (rightNavBar) {
         if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
           rightNavBar.classList.add('header-hidden');
-        } else {
+          this.lastScrollTop = scrollTop;
+        } else if(scrollTop < this.lastScrollTop - 60) {
           rightNavBar.classList.remove('header-hidden');
+          this.lastScrollTop = scrollTop;
         }
       }
       this.scrollDistance = scrollTop;
