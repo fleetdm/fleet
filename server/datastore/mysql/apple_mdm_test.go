@@ -1112,7 +1112,7 @@ func expectAppleDeclarations(
 		// if an expected uploaded_at timestamp is provided for this declaration, keep
 		// its value, otherwise clear it as we don't care about asserting its
 		// value.
-		if wantD == nil || wantD.UploadedAt.IsZero() {
+		if wantD.UploadedAt.IsZero() {
 			gotD.UploadedAt = time.Time{}
 		}
 

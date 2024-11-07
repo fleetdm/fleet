@@ -1,5 +1,98 @@
 ---
 apiVersion: v1
+kind: policy
+spec:
+  name: Ensure a password is required to wake the computer from sleep or screen saver is enabled
+  platforms: macOS
+  platform: darwin
+  description: Checks that password is required to wake the computer from sleep or screen saver is enabled.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that ensures a password is required to wake the computer from sleep or screen saver is enabled.
+    Graphical method:
+      Perform the following steps to ensure a password is required to wake the computer from sleep or screen saver is enabled:
+        1. Open System Settings
+        2. Select Lock Screen
+        3. Verify that "Require password after screensaver begins or display is turned
+        off" is set with "After 0 seconds" or "After 5 seconds"
+  query: |-
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.screensaver' AND 
+            name='askForPassword' AND 
+            (value = 1 OR value = 'true') AND 
+            username = ''
+        )
+      AND EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.screensaver' AND 
+            name='askForPasswordDelay' AND 
+            value <= 5 AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.screensaver' AND 
+            name='askForPassword' AND 
+            (value != 1 AND value != 'true')
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.screensaver' AND 
+            name='askForPasswordDelay' AND 
+            value > 5
+        );  
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, premium,
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Ensure auto-update is enabled
+  platforms: macOS
+  platform: darwin
+  description: Checks that the system is configured via MDM to automatically install updates.
+  resolution: "Ask your system administrator to deploy an MDM profile that enables automatic updates."
+  query: |
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.SoftwareUpdate' AND 
+            name='AutomaticCheckEnabled' AND 
+            (value = 1 OR value = 'true') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.SoftwareUpdate' AND 
+            name='AutomaticCheckEnabled' AND 
+            (value != 1 AND value != 'true')
+        );  
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, premium
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Ensure 'Minimum password length' is set to '14 or more characters'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines the least number of characters that make up a password for a user account.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 14 or more characters
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Minimum password length'
+  query: |
+    SELECT 1 FROM security_profile_info WHERE minimum_password_length >= 14;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, premium
+  contributors: marcosd4h
+---
+apiVersion: v1
 kind: query
 spec:
   name: Get OpenSSL versions
@@ -1006,12 +1099,11 @@ spec:
   contributors: defensivedepth
 ---
 apiVersion: v1
-kind: policy
+kind: query
 spec:
   name: Identify Apple development secrets (macOS)
   query: SELECT * FROM keychain_items WHERE label LIKE '%ABCDEFG%';
   description: "Identifies certificates associated with Apple development signing and notarization. Replace ABCDEFG with your company's identifier."
-  resolution: "Ensure your official Apple builds, signing and notarization happen on a centralized system, and remove these certificates from workstations."
   tags: compliance, inventory, built-in
   platform: darwin
   contributors: GuillaumeRoss

@@ -49,6 +49,5 @@ func (s slowReader) Read(p []byte) (n int, err error) {
 
 	time.Sleep(200 * time.Millisecond)
 	n = copy(p, s.b[:len(s.b)/2])
-	s.b = s.b[n:]
 	return n, nil
 }

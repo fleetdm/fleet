@@ -84,6 +84,7 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.14.1 +", value: "5.14.1" },
   { label: "5.13.1 +", value: "5.13.1" },
   { label: "5.12.2 +", value: "5.12.2" },
   { label: "5.12.1 +", value: "5.12.1" },

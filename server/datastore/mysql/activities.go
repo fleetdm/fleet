@@ -261,12 +261,12 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		`SELECT
 			COUNT(*) c
 			FROM host_software_installs hsi
-			WHERE hsi.host_id = :host_id AND
+			WHERE hsi.host_id = :host_id AND hsi.software_installer_id IS NOT NULL AND
 				hsi.status = :software_status_install_pending`,
 		`SELECT
 			COUNT(*) c
 			FROM host_software_installs hsi
-			WHERE hsi.host_id = :host_id AND
+			WHERE hsi.host_id = :host_id AND hsi.software_installer_id IS NOT NULL AND
 				hsi.status = :software_status_uninstall_pending`,
 		`
 		SELECT
