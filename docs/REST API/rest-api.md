@@ -9175,8 +9175,8 @@ Returns information about the specified software. By default, `versions` are sor
       "self_service": true,
       "automatic_install_policies": [
         {
-          "policy_id": 345,
-          "policy_name": "[Install software] Logic Pro",
+          "id": 345,
+          "name": "[Install software] Logic Pro",
         } 
       ], 
       "status": {
