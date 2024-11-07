@@ -15,7 +15,7 @@ describe("generateActions", () => {
     software_package: null,
     app_store_app: null,
     already_installed: false,
-    is_mdm_enrolled: false,
+    hostMDMEnrolled: false,
   };
 
   it("returns default actions when user has write permission and scripts are enabled", () => {

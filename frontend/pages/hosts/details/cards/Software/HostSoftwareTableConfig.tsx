@@ -62,7 +62,7 @@ export interface generateActionsProps {
   software_package: IHostSoftwarePackage | null;
   app_store_app: IHostAppStoreApp | null;
   already_installed: boolean;
-  is_mdm_enrolled: boolean;
+  hostMDMEnrolled?: boolean;
 }
 
 export const generateActions = ({
@@ -73,7 +73,7 @@ export const generateActions = ({
   status,
   app_store_app,
   already_installed,
-  is_mdm_enrolled,
+  hostMDMEnrolled,
 }: generateActionsProps) => {
   // this gives us a clean slate of the default actions so we can modify
   // the options.
@@ -136,7 +136,7 @@ export const generateActions = ({
       actions[indexInstallAction].disabled = true;
     }
 
-    if (!is_mdm_enrolled) {
+    if (!hostMDMEnrolled) {
       actions[indexInstallAction].disabled = true;
       actions[indexInstallAction].tooltipContent = (
         <>To install, turn on MDM for this host.</>
@@ -154,7 +154,7 @@ interface ISoftwareTableHeadersProps {
   router: InjectedRouter;
   teamId: number;
   onSelectAction: (software: IHostSoftware, action: string) => void;
-  hostMDMEnrolled: boolean;
+  hostMDMEnrolled?: boolean;
 }
 
 // NOTE: cellProps come from react-table
@@ -258,8 +258,6 @@ export const generateSoftwareTableHeaders = ({
         const already_installed =
           installed_versions !== null && installed_versions.length >= 0;
 
-        const is_mdm_enrolled = hostMDMEnrolled;
-
         return (
           <ActionsDropdown
             placeholder="Actions"
@@ -273,7 +271,7 @@ export const generateSoftwareTableHeaders = ({
               software_package,
               app_store_app,
               already_installed,
-              is_mdm_enrolled,
+              hostMDMEnrolled,
             })}
             onChange={(action) => onSelectAction(original, action)}
           />

@@ -46,7 +46,7 @@ interface IHostSoftwareProps {
   isSoftwareEnabled?: boolean;
   hostScriptsEnabled?: boolean;
   isMyDevicePage?: boolean;
-  hostMDMEnrolled: boolean;
+  hostMDMEnrolled?: boolean;
 }
 
 const DEFAULT_SEARCH_QUERY = "";
