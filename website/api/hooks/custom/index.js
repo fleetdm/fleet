@@ -73,7 +73,7 @@ will be disabled and/or hidden in the UI.
 
       // Override the default sails.LOOKS_LIKE_ASSET_RX with a regex that does not match paths starting with '/release/'.
       // Otherwise, our release blog posts are treated as assets because they contain periods in their URL (e.g., fleetdm.com/releases/fleet-4.29.0)
-      sails.LOOKS_LIKE_ASSET_RX = /^(?![\/releases\/|\/announcements\/|\/success-stories\/|\/securing\/|\/engineering\/|\/podcasts\/].*$)[^?]*\/[^?\/]+\.[^?\/]+(\?.*)?$/;
+      sails.LOOKS_LIKE_ASSET_RX = /^(?!\/releases\/.*$)[^?]*\/[^?\/]+\.[^?\/]+(\?.*)?$/;
 
       // After "sails-hook-organics" finishes initializing, configure Stripe
       // and Sendgrid packs with any available credentials.
@@ -294,6 +294,7 @@ will be disabled and/or hidden in the UI.
                 if(res.statusCode === 200 && sanitizedUser.createdAt < thirtySecondsAgoAt){
                   sails.helpers.flow.build(async ()=>{
                     if(sails.config.environment !== 'production') {
+                      console.log(req.url);
                       sails.log.verbose('Skipping Salesforce integration...');
                       return;
                     }
