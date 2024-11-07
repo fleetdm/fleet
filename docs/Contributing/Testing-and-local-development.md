@@ -590,12 +590,12 @@ mkdir -p ./tmp/fleetd-base-dir/stable
 ```
 2. Move `fleet-base.pkg` to `/fleetd-base-dir`.
 3. Move `fleet-base-manifest.plist` to `/fleetd-base-dir/stable`.
-4. Host the files by starting up a file server from ./tools/file-server with `go run . 8085 ./tmp/fleetd-base-dir`.
+4. Start up an HTTP file server from the Fleet repo root directory using the [`tools/file-server`](../../tools/file-server/README.md) tool: `go run ./tools/file-server 8085 ./tmp/fleetd-base-dir`
 5. Start your second ngrok tunnel and forward to http://localhost:8085.
 	- Example: `ngrok http --domain=more.pezhub.ngrok.app http://localhost:8085`
 6. Start your fleet server with `FLEET_DEV_DOWNLOAD_FLEETDM_URL` to point to the ngrok URL.
 	- Example: `FLEET_DEV_DOWNLOAD_FLEETDM_URL="https://more.pezhub.ngrok.app"`
-7. Enroll your mac with ADE.  Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host.
+7. Enroll your mac with ADE. Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host.
 
 ## MDM setup and testing
 
