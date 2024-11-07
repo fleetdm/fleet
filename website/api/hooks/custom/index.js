@@ -294,7 +294,6 @@ will be disabled and/or hidden in the UI.
                 if(res.statusCode === 200 && sanitizedUser.createdAt < thirtySecondsAgoAt){
                   sails.helpers.flow.build(async ()=>{
                     if(sails.config.environment !== 'production') {
-                      console.log(req.url);
                       sails.log.verbose('Skipping Salesforce integration...');
                       return;
                     }
