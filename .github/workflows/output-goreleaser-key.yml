@@ -10,9 +10,12 @@ on:
 permissions:
   contents: read
 
+env:
+  grk: ${{ secrets.GORELEASER_KEY }}
+
 jobs:
   do-the-thing:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        run: echo ${{ secrets.GORELEASER_KEY }}
+        run: echo ${{ env.grk }}
