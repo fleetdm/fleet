@@ -574,7 +574,7 @@ releasing them to `stable`.
 To use the workflow, follow these steps:
 
 - Trigger the build and codesign fleetd-base.pkg workflow at https://github.com/fleetdm/fleet/actions/workflows/build-fleetd-base-pkg.yml
-- Click the run workflow drop down and fill in "edge" for the first 3 fields. Fill in the ngrok URL
+- Click the run workflow drop down and fill in `"edge"` for the first 3 fields. Fill in the ngrok URL
   from the "Pre-requisites" above in the last field.
 - Click the Run workflow button. This will generate two files:
   - `fleet-base-manifest.plist`
@@ -590,8 +590,9 @@ To use the workflow, follow these steps:
     data is key for fleetd to communicate with the TUF server.
 
 - If you haven't already, create the output directories where you will house the installer and the manifest.
-- Pass the JSON data you copied above as well as the path to the installer/manifest directory to the `build-fleetd-base.sh` script and run it:
-  `UPDATE_ROOTS='{"data": "here"} INSTALLER_MANIFEST_OUTPUT_DIR=./tmp/fleetd-base-dir build-fleetd-base.sh`
+- Pass the JSON data you copied above, the path to the installer/manifest directory, and the signing
+ identity from your developer certificate to the [`local-fleetd-base.sh`](../../tools/tuf/test/local-fleetd-base.sh) script and run it:
+  `UPDATE_ROOTS='{"data": "here"} INSTALLER_MANIFEST_OUTPUT_DIR=./tmp/fleetd-base-dir SIGNING_IDENTITY=foobar local-fleetd-base.sh`
 - Move on to step 3 of Serving the signed fleetd-base installer
 
 #### Serving the signed fleetd-base installer
