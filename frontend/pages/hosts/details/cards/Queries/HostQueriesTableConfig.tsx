@@ -12,6 +12,7 @@ import Icon from "components/Icon";
 interface IHostQueriesTableData extends Partial<IQueryStats> {
   performance: { indicator: string; id: number };
   should_link_to_hqr: boolean;
+  id: number;
 }
 interface IHeaderProps {
   column: {
@@ -56,6 +57,7 @@ interface IDataColumn {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateColumnConfigs = (
+  hostId: number,
   queryReportsDisabled?: boolean
 ): IDataColumn[] => {
   const cols: IDataColumn[] = [
@@ -115,9 +117,16 @@ const generateColumnConfigs = (
       Header: "Report updated",
       disableSortBy: true,
       accessor: "last_fetched", // tbd - may change
-      Cell: (cellProps: ICellProps) => (
-        <ReportUpdatedCell {...cellProps.row.original} />
-      ),
+      Cell: (cellProps: ICellProps) => {
+        console.log("cellprops.row.original", cellProps.row.original);
+        return (
+          <ReportUpdatedCell
+            {...cellProps.row.original}
+            hostId={hostId}
+            queryId={cellProps.row.original.id}
+          />
+        );
+      },
     });
   }
   return cols;
