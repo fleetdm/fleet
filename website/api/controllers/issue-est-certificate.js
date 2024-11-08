@@ -64,27 +64,26 @@ module.exports = {
       throw new Error('sails.config.custom.certIssueEstClientKey is required');
     }
 
-
     // Ask the IdP to introspect the auth token (ensure it's valid and extract the values).
-    // TODO can this be done with sails.helpers.http? Couldn't figure out how to send form data.
-    const urlencoded = new URLSearchParams();
-    urlencoded.append('client_id', IDP_CLIENT_ID);
-    urlencoded.append('token', authToken);
     const introspectResponse = await sails.helpers.http.sendHttpRequest.with({
       url: INTROSPECT_ENDPOINT,
       method: 'POST',
       enctype: 'application/x-www-form-urlencoded',
-      data: {
-        client_id: IDP_CLIENT_ID,
-        token: authToken
+      body: {
+        'client_id': IDP_CLIENT_ID,
+        'token': authToken,
       },
     });
 
-    if (!introspectResponse.data.active) {
+    if (!introspectResponse.body) {
       throw 'invalidToken';
     }
 
-    const introspectUsername = introspectResponse.data.username;
+    if (!introspectResponse.body.active) {
+      throw 'invalidToken';
+    }
+
+    const introspectUsername = introspectResponse.body.username;
 
     // Extract the email and username from the CSR. Ensure they match.
     let jsrsasign = require('jsrsasign');
@@ -120,17 +119,18 @@ module.exports = {
     }
 
     // Ask the PKI provider for a certificate
-    const estResponse = await axios({
+    const estResponse = await sails.helpers.http.sendHttpRequest.with({
       url: EST_ENDPOINT,
       method: 'POST',
-      data: csrData.replace(/(-----(BEGIN|END) CERTIFICATE REQUEST-----|\n)/g, ''),
+      body: csrData.replace(/(-----(BEGIN|END) CERTIFICATE REQUEST-----|\n)/g, ''),
+      enctype: 'text/plain',
       headers: {
         'Content-Type': 'application/pkcs10',
 		    'Authorization': `Basic ${Buffer.from(`${EST_CLIENT_ID}:${EST_CLIENT_KEY}`).toString('base64')}`,
       },
     });
 
-    return estResponse.data;
+    return estResponse.body;
   }
 
 };
