@@ -74,9 +74,9 @@ OPTIONS:
    --help, -h        show help (default: false)
 ```
 
-## 
+## Authentication
 
-This section walks you through , assuming you already have a running Fleet instance. To learn how to set up new Fleet instance, check out the [Deploy](https://fleetdm.com/docs/deploy/introduction) section or [Building Fleet locally](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Building-Fleet.md) docs. 
+This section walks you through authentication, assuming you already have a running Fleet instance. To learn how to set up new Fleet instance, check out the [Deploy](https://fleetdm.com/docs/deploy/introduction) section or [Building Fleet locally](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Building-Fleet.md) docs. 
 
 ### Login
 
@@ -101,7 +101,7 @@ Password:
 
 Once your local context is configured, you can use fleetctl normally.
 
-### Log in with SAML (SSO) 
+### Log in with SAML (SSO) authentication
 
 Users that authenticate to Fleet via SSO should retrieve their API token from the UI and manually set it in their fleetctl configuration (instead of logging in via `fleetctl login`).
 
@@ -128,7 +128,7 @@ An API-only user does not have access to the Fleet UI. Instead, it's only purpos
 
 ### Create API-only user
 
-Before creating the API-only user, log in to fleetctl as an admin.  See [authentication](https://#authentication) above for details. <<< This link is broken...
+Before creating the API-only user, log in to fleetctl as an admin.  See [authentication](#authentication) above for details.
 
 To create your new API-only user, use `fleetctl user create`:
 
