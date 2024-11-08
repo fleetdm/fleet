@@ -1049,11 +1049,11 @@ func (f *Features) Copy() *Features {
 
 // FleetDesktopSettings contains settings used to configure Fleet Desktop.
 type FleetDesktopSettings struct {
-	// TransparencyURL is the URL used for the “Transparency” link in the Fleet Desktop menu.
+	// TransparencyURL is the URL used for the “About Fleet” link in the Fleet Desktop menu.
 	TransparencyURL string `json:"transparency_url"`
 }
 
-// DefaultTransparencyURL is the default URL used for the “Transparency” link in the Fleet Desktop menu.
+// DefaultTransparencyURL is the default URL used for the “About Fleet” link in the Fleet Desktop menu.
 const DefaultTransparencyURL = "https://fleetdm.com/transparency"
 
 type OrderDirection int

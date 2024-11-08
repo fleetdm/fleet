@@ -639,7 +639,7 @@ func (c *Client) ApplyGroup(
 		tmSoftwarePackageByPath := make(map[string]map[string]fleet.SoftwarePackageSpec, len(tmSoftwarePackages))
 		for tmName, software := range tmSoftwarePackages {
 			installDuringSetupKeys := tmSoftwareMacOSSetup[tmName]
-			softwarePayloads, err := buildSoftwarePackagesPayload(baseDir, software, installDuringSetupKeys)
+			softwarePayloads, err := buildSoftwarePackagesPayload(software, installDuringSetupKeys)
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
 			}
@@ -885,13 +885,13 @@ func validateTeamOrNoTeamMacOSSetupSoftware(teamName string, macOSSetupSoftware 
 	return nil
 }
 
-func buildSoftwarePackagesPayload(baseDir string, specs []fleet.SoftwarePackageSpec, installDuringSetupKeys map[fleet.MacOSSetupSoftware]struct{}) ([]fleet.SoftwareInstallerPayload, error) {
+func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuringSetupKeys map[fleet.MacOSSetupSoftware]struct{}) ([]fleet.SoftwareInstallerPayload, error) {
 	softwarePayloads := make([]fleet.SoftwareInstallerPayload, len(specs))
 	for i, si := range specs {
 		var qc string
 		var err error
 		if si.PreInstallQuery.Path != "" {
-			queryFile := resolveApplyRelativePath(baseDir, si.PreInstallQuery.Path)
+			queryFile := si.PreInstallQuery.Path
 			rawSpec, err := os.ReadFile(queryFile)
 			if err != nil {
 				return nil, fmt.Errorf("reading pre-install query: %w", err)
@@ -945,7 +945,7 @@ func buildSoftwarePackagesPayload(baseDir string, specs []fleet.SoftwarePackageS
 
 		var ic []byte
 		if si.InstallScript.Path != "" {
-			installScriptFile := resolveApplyRelativePath(baseDir, si.InstallScript.Path)
+			installScriptFile := si.InstallScript.Path
 			ic, err = os.ReadFile(installScriptFile)
 			if err != nil {
 				return nil, fmt.Errorf("Couldn't edit software (%s). Unable to read install script file %s: %w", si.URL, si.InstallScript.Path, err)
@@ -954,7 +954,7 @@ func buildSoftwarePackagesPayload(baseDir string, specs []fleet.SoftwarePackageS
 
 		var pc []byte
 		if si.PostInstallScript.Path != "" {
-			postInstallScriptFile := resolveApplyRelativePath(baseDir, si.PostInstallScript.Path)
+			postInstallScriptFile := si.PostInstallScript.Path
 			pc, err = os.ReadFile(postInstallScriptFile)
 			if err != nil {
 				return nil, fmt.Errorf("Couldn't edit software (%s). Unable to read post-install script file %s: %w", si.URL, si.PostInstallScript.Path, err)
@@ -963,7 +963,7 @@ func buildSoftwarePackagesPayload(baseDir string, specs []fleet.SoftwarePackageS
 
 		var us []byte
 		if si.UninstallScript.Path != "" {
-			uninstallScriptFile := resolveApplyRelativePath(baseDir, si.UninstallScript.Path)
+			uninstallScriptFile := si.UninstallScript.Path
 			us, err = os.ReadFile(uninstallScriptFile)
 			if err != nil {
 				return nil, fmt.Errorf("Couldn't edit software (%s). Unable to read uninstall script file %s: %w", si.URL,
@@ -1751,7 +1751,7 @@ func (c *Client) doGitOpsNoTeamSoftware(
 	if err := validateTeamOrNoTeamMacOSSetupSoftware(*config.TeamName, macOSSetup.Software.Value, packagesByPath, appsByAppID); err != nil {
 		return nil, err
 	}
-	swPkgPayload, err := buildSoftwarePackagesPayload(baseDir, packages, noTeamSoftwareMacOSSetup)
+	swPkgPayload, err := buildSoftwarePackagesPayload(packages, noTeamSoftwareMacOSSetup)
 	if err != nil {
 		return nil, fmt.Errorf("applying software installers: %w", err)
 	}

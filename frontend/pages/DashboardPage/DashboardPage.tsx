@@ -479,6 +479,13 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       );
   };
 
+  let refetchActivities = () => {
+    /* noop */
+  };
+  const setRefetchActivities = (refetch: () => void) => {
+    refetchActivities = refetch;
+  };
+
   const onSubmitActivityFeedAutomationsModal = useCallback(
     async (formData: IAFAMFormData) => {
       setUpdatingActivityFeedAutomations(true);
@@ -512,6 +519,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       } finally {
         setUpdatingActivityFeedAutomations(false);
         refetchConfig();
+        refetchActivities();
       }
     },
     [
@@ -616,6 +624,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       <ActivityFeed
         setShowActivityFeedTitle={setShowActivityFeedTitle}
         isPremiumTier={isPremiumTier || false}
+        setRefetchActivities={setRefetchActivities}
       />
     ),
   });

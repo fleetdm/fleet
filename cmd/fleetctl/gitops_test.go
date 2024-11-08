@@ -1885,6 +1885,8 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 		// commenting out, results in the process getting killed on CI and on some machines
 		// {"testdata/gitops/team_software_installer_too_large.yml", "The maximum file size is 3 GB"},
 		{"testdata/gitops/team_software_installer_valid.yml", ""},
+		{"testdata/gitops/team_software_installer_subdir.yml", ""},
+		{"testdata/gitops/subdir/team_software_installer_valid.yml", ""},
 		{"testdata/gitops/team_software_installer_valid_apply.yml", ""},
 		{"testdata/gitops/team_software_installer_pre_condition_multiple_queries.yml", "should have only one query."},
 		{"testdata/gitops/team_software_installer_pre_condition_multiple_queries_apply.yml", "should have only one query."},
@@ -1967,6 +1969,8 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		// commenting out, results in the process getting killed on CI and on some machines
 		// {"testdata/gitops/no_team_software_installer_too_large.yml", "The maximum file size is 3 GB"},
 		{"testdata/gitops/no_team_software_installer_valid.yml", ""},
+		{"testdata/gitops/no_team_software_installer_subdir.yml", ""},
+		{"testdata/gitops/subdir/no_team_software_installer_valid.yml", ""},
 		{"testdata/gitops/no_team_software_installer_pre_condition_multiple_queries.yml", "should have only one query."},
 		{"testdata/gitops/no_team_software_installer_pre_condition_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_install_not_found.yml", "no such file or directory"},
