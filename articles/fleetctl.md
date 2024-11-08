@@ -128,7 +128,7 @@ An API-only user does not have access to the Fleet UI. Instead, it's only purpos
 
 ### Create API-only user
 
-Before creating the API-only user, log in to fleetctl as an admin.  See [authentication](https://#authentication) above for details.
+Before creating the API-only user, log in to fleetctl as an admin.  See [authentication](#authentication) above for details.
 
 To create your new API-only user, use `fleetctl user create`:
 
