@@ -658,7 +658,7 @@ This activity contains the following fields:
 ```json
 {
   "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
+  "host_display_name": "Anna's MacBook Pro"
 }
 ```
 
@@ -1389,6 +1389,42 @@ This activity does not contain any detail fields.
 ## edited_ndes_scep_proxy
 
 Generated when NDES SCEP proxy configuration is edited in Fleet.
+
+This activity does not contain any detail fields.
+
+## enabled_activity_automations
+
+Generated when activity automations are enabled
+
+This activity contains the following field:
+- "webhook_url": the URL to broadcast activities to.
+
+#### Example
+
+```json
+{
+	"webhook_url": "https://example.com/notify"
+}
+```
+
+## edited_activity_automations
+
+Generated when activity automations are edited while enabled
+
+This activity contains the following field:
+- "webhook_url": the URL to broadcast activities to, post-edit.
+
+#### Example
+
+```json
+{
+	"webhook_url": "https://example.com/notify"
+}
+```
+
+## disabled_activity_automations
+
+Generated when activity automations are disabled
 
 This activity does not contain any detail fields.
 
