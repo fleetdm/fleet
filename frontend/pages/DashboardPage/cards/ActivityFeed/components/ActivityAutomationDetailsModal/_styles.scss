@@ -1,0 +1,19 @@
+.activity-automation-details-modal {
+  box-sizing: border-box;
+  width: 811px;
+
+  &__modal-content {
+    display: flex;
+    flex-direction: column;
+
+    p {
+      gap: 0;
+    }
+  }
+
+  &__webhook-url-textarea {
+    box-sizing: border-box;
+    font-family: "SourceCodePro";
+    word-break: break-all;
+  }
+}

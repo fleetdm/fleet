@@ -1057,6 +1057,57 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  enabledActivityAutomations: (
+    activity: IActivity,
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
+  ) => {
+    const { webhook_url } = activity.details || {};
+    return (
+      <>
+        {" "}
+        enabled activity automations.{" "}
+        <Button
+          className={`${baseClass}__show-query-link`}
+          variant="text-link"
+          onClick={() =>
+            onDetailsClick?.(ActivityType.EnabledActivityAutomations, {
+              webhook_url,
+            })
+          }
+        >
+          Show details{" "}
+          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+        </Button>
+      </>
+    );
+  },
+  editedActivityAutomations: (
+    activity: IActivity,
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
+  ) => {
+    const { webhook_url } = activity.details || {};
+    return (
+      <>
+        {" "}
+        edited activity automations.{" "}
+        <Button
+          className={`${baseClass}__show-query-link`}
+          variant="text-link"
+          onClick={() =>
+            onDetailsClick?.(ActivityType.EditedActivityAutomations, {
+              webhook_url,
+            })
+          }
+        >
+          Show details{" "}
+          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+        </Button>
+      </>
+    );
+  },
+  disabledActivityAutomations: () => {
+    return <> disabled activity automations.</>;
+  },
 };
 
 const getDetail = (
@@ -1274,6 +1325,21 @@ const getDetail = (
     }
     case ActivityType.DisabledVpp: {
       return TAGGED_TEMPLATES.disabledVpp(activity);
+    }
+    case ActivityType.EnabledActivityAutomations: {
+      return TAGGED_TEMPLATES.enabledActivityAutomations(
+        activity,
+        onDetailsClick
+      );
+    }
+    case ActivityType.EditedActivityAutomations: {
+      return TAGGED_TEMPLATES.editedActivityAutomations(
+        activity,
+        onDetailsClick
+      );
+    }
+    case ActivityType.DisabledActivityAutomations: {
+      return TAGGED_TEMPLATES.disabledActivityAutomations();
     }
 
     default: {
