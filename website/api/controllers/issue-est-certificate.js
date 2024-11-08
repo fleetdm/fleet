@@ -70,11 +70,14 @@ module.exports = {
     const urlencoded = new URLSearchParams();
     urlencoded.append('client_id', IDP_CLIENT_ID);
     urlencoded.append('token', authToken);
-    let axios = require('axios');
-    const introspectResponse = await axios({
+    const introspectResponse = await sails.helpers.http.sendHttpRequest.with({
       url: INTROSPECT_ENDPOINT,
       method: 'POST',
-      data: urlencoded,
+      enctype: 'application/x-www-form-urlencoded',
+      data: {
+        client_id: IDP_CLIENT_ID,
+        token: authToken
+      },
     });
 
     if (!introspectResponse.data.active) {
