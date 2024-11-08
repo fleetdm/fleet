@@ -77,8 +77,14 @@ func uninstallScriptForApp(cask *brewCask) string {
 			}
 		case len(artifact.Uninstall) > 0:
 			sortUninstall(artifact.Uninstall)
+			if len(cask.PreUninstallScripts) > 0 {
+				sb.Write(strings.Join(cask.PreUninstallScripts, "\n"))
+			}
 			for _, u := range artifact.Uninstall {
 				processUninstallArtifact(u, sb)
+			}
+			if len(cask.PostUninstallScripts) > 0 {
+				sb.Write(strings.Join(cask.PostUninstallScripts, "\n"))
 			}
 		case len(artifact.Zap) > 0:
 			sortUninstall(artifact.Zap)
