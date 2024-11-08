@@ -9309,7 +9309,7 @@ Returns information about the specified software. By default, `versions` are sor
 
 #### Example
 
-`GET /api/v1/fleet/software/titles/12`
+`GET /api/v1/fleet/software/titles/12?team_id=3`
 
 ##### Default response
 
@@ -9319,8 +9319,8 @@ Returns information about the specified software. By default, `versions` are sor
 {
   "software_title": {
     "id": 12,
-    "name": "Firefox.app",
-    "bundle_identifier": "org.mozilla.firefox",
+    "name": "Falcon.app",
+    "bundle_identifier": "crowdstrike.falcon.Agent",
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
@@ -9332,6 +9332,12 @@ Returns information about the specified software. By default, `versions` are sor
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
       "uninstall_script": "/Library/CS/falconctl uninstall",
       "self_service": true,
+      "automatic_install_policies": [
+        {
+          "id": 343,
+          "name": "[Install software] Crowdstrike Agent",
+        }
+      ],
       "status": {
         "installed": 3,
         "pending_install": 1,
