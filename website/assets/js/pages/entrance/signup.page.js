@@ -64,19 +64,22 @@ parasails.registerPage('signup', {
       }
     },
 
-    submittedSignUpForm: async function() {
-      // redirect to the /start page.
-      // > (Note that we re-enable the syncing state here.  This is on purpose--
-      // > to make sure the spinner stays there until the page navigation finishes.)
-      //
-      // Naming convention:  (like sails config)
-      // "Website - Sign up" becomes "fleet_website__sign_up"  (double-underscore representing hierarchy)
-      if(typeof gtag !== 'undefined'){
-        gtag('event','fleet_website__sign_up');
+    submittedSignUpForm: async function() {// When the server says everything worked…
+      // Track a "key event" in Google Analytics.
+      // > Naming convention:  (like sails config)
+      // > "Website - Sign up" becomes "fleet_website__sign_up"  (double-underscore representing hierarchy)
+      if(window.gtag !== undefined){
+        window.gtag('event','fleet_website__sign_up');
       }
-      if(typeof window.lintrk !== 'undefined') {
+
+      // Track a "conversion" in LinkedIn Campaign Manager.
+      if(window.lintrk !== undefined) {
         window.lintrk('track', { conversion_id: 18587097 });// eslint-disable-line camelcase
       }
+
+      // Redirect to the /start page.
+      // > (Note that we re-enable the syncing state here.  This is on purpose--
+      // > to make sure the spinner stays there until the page navigation finishes.)
       this.syncing = true;
       this.goto(this.pageToRedirectToAfterRegistration);// « / start if the user came here from the start now button, or customers/new-license if the user came here from the "Get your license" link.
     }
