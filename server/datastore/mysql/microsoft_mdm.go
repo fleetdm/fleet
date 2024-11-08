@@ -745,9 +745,19 @@ WHERE
 		return nil, err
 	}
 	for _, lbl := range labels {
-		if lbl.Exclude {
+		switch {
+		case lbl.Exclude && lbl.RequireAll:
+			// this should never happen so log it for debugging
+			level.Debug(ds.logger).Log("msg", "unsupported profile label: cannot be both exclude and require all",
+				"profile_uuid", lbl.ProfileUUID,
+				"label_name", lbl.LabelName,
+			)
+		case lbl.Exclude && !lbl.RequireAll:
 			res.LabelsExcludeAny = append(res.LabelsExcludeAny, lbl)
-		} else {
+		case !lbl.Exclude && !lbl.RequireAll:
+			res.LabelsIncludeAny = append(res.LabelsIncludeAny, lbl)
+		default:
+			// default include all
 			res.LabelsIncludeAll = append(res.LabelsIncludeAll, lbl)
 		}
 	}
@@ -1872,11 +1882,20 @@ ON DUPLICATE KEY UPDATE
 
 			for _, label := range incomingProf.LabelsIncludeAll {
 				label.ProfileUUID = newlyInsertedProf.ProfileUUID
+				label.Exclude = false
+				label.RequireAll = true
+				incomingLabels = append(incomingLabels, label)
+			}
+			for _, label := range incomingProf.LabelsIncludeAny {
+				label.ProfileUUID = newlyInsertedProf.ProfileUUID
+				label.Exclude = false
+				label.RequireAll = false
 				incomingLabels = append(incomingLabels, label)
 			}
 			for _, label := range incomingProf.LabelsExcludeAny {
 				label.ProfileUUID = newlyInsertedProf.ProfileUUID
 				label.Exclude = true
+				label.RequireAll = false
 				incomingLabels = append(incomingLabels, label)
 			}
 		}

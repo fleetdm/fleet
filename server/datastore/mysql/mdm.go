@@ -274,9 +274,19 @@ FROM (
 	}
 	for _, label := range labels {
 		if prof, ok := profMap[label.ProfileUUID]; ok {
-			if label.Exclude {
+			switch {
+			case label.Exclude && label.RequireAll:
+				// this should never happen so log it for debugging
+				level.Debug(ds.logger).Log("msg", "unsupported profile label: cannot be both exclude and require all",
+					"profile_uuid", label.ProfileUUID,
+					"label_name", label.LabelName,
+				)
+			case label.Exclude && !label.RequireAll:
 				prof.LabelsExcludeAny = append(prof.LabelsExcludeAny, label)
-			} else {
+			case !label.Exclude && !label.RequireAll:
+				prof.LabelsIncludeAny = append(prof.LabelsIncludeAny, label)
+			default:
+				// default include all
 				prof.LabelsIncludeAll = append(prof.LabelsIncludeAll, label)
 			}
 		}
@@ -293,7 +303,8 @@ SELECT
 	label_name,
 	COALESCE(label_id, 0) as label_id,
 	IF(label_id IS NULL, 1, 0) as broken,
-	exclude
+	exclude,
+	require_all
 FROM
 	mdm_configuration_profile_labels mcpl
 WHERE
@@ -305,7 +316,8 @@ SELECT
 	label_name,
 	COALESCE(label_id, 0) as label_id,
 	IF(label_id IS NULL, 1, 0) as broken,
-	exclude
+	exclude,
+	require_all
 FROM
 	mdm_declaration_labels mdl
 WHERE

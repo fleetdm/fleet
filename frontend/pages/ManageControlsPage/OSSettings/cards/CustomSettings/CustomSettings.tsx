@@ -171,6 +171,7 @@ const CustomSettings = ({
 
   const hasLabels =
     !!profileLabelsModalData?.labels_include_all?.length ||
+    !!profileLabelsModalData?.labels_include_any?.length ||
     !!profileLabelsModalData?.labels_exclude_any?.length;
 
   return (
