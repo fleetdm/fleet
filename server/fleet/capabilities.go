@@ -80,6 +80,9 @@ const (
 	CapabilityEndUserEmail Capability = "end_user_email"
 	// CapabilityEscrowBuddy allows to use Escrow Buddy to rotate FileVault keys
 	CapabilityEscrowBuddy Capability = "escrow_buddy"
+	// CapabilityLinuxKeyEscrow denotes the ability of the server to escrow Ubuntu and Fedora disk
+	// encryption keys
+	CapabilityLinuxKeyEscrow Capability = "linux_key_escrow"
 	// CapabilitySetupExperience denotes the ability of the server to support
 	// installing software and running a script during macOS ADE enrollment, and
 	// the ability of the client to show the corresponding UI to support that
@@ -93,6 +96,7 @@ func GetServerOrbitCapabilities() CapabilityMap {
 		CapabilityTokenRotation:   {},
 		CapabilityEndUserEmail:    {},
 		CapabilityEscrowBuddy:     {},
+		CapabilityLinuxKeyEscrow:  {},
 		CapabilitySetupExperience: {},
 	}
 }
