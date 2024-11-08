@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-22.04
     environment: Docker Hub
     permissions:
-      contents: write # for aws-actions/configure-aws-credentials
+      id-token: write # for aws-actions/configure-aws-credentials
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
