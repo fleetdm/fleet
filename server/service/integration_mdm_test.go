@@ -11607,6 +11607,29 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	require.NoError(t, err)
 	assert.Contains(t, string(errBody), "Could not do PKIOperation on SCEP server")
 
+	// Test timeout error
+	ndesTimeoutServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		time.Sleep(1 * time.Second)
+		w.WriteHeader(http.StatusOK)
+	}))
+	origNDESTimeout := eeservice.NDESTimeout
+	eeservice.NDESTimeout = ptr.Duration(1 * time.Microsecond)
+	t.Cleanup(func() {
+		eeservice.NDESTimeout = origNDESTimeout
+		ndesTimeoutServer.Close()
+	})
+	appConf.Integrations.NDESSCEPProxy.Value.URL = ndesTimeoutServer.URL
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(t, err)
+	// GetCACaps
+	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusRequestTimeout, nil, "operation", "GetCACaps")
+	// GetCACert
+	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusRequestTimeout, nil, "operation", "GetCACert")
+	// PKIOperation
+	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusRequestTimeout, nil, "operation",
+		"PKIOperation", "message", message)
+	eeservice.NDESTimeout = origNDESTimeout
+
 	// Spin up an "external" SCEP server, which Fleet server will proxy
 	newSCEPServer := func(t *testing.T, opts ...scepserver.ServiceOption) *httptest.Server {
 		var server *httptest.Server

@@ -185,7 +185,7 @@ func MakeSCEPEndpointWithIdentifier(svc ServiceWithIdentifier) endpoint.Endpoint
 		default:
 			return nil, &BadRequestError{Message: "operation not implemented"}
 		}
-		if errors.As(resp.Err, &context.DeadlineExceeded) {
+		if errors.Is(resp.Err, context.DeadlineExceeded) {
 			return nil, &TimeoutError{Message: resp.Err.Error()}
 		}
 		return resp, resp.Err
