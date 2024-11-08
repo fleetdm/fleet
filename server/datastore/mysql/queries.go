@@ -557,6 +557,8 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	var meta *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
 		meta = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
+		// `appendListOptionsWithCursorToSQL` used above to build the query statement will cause this
+		// discrepancy
 		if len(queries) > int(opt.ListOptions.PerPage) { //nolint:gosec // dismiss G115
 			meta.HasNextResults = true
 			queries = queries[:len(queries)-1]

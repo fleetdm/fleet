@@ -109,7 +109,7 @@ const QueriesTable = ({
 
   // Source of truth is state held within TableContainer. That state is initialized using URL
   // params, then subsequent updates to that state are pushed to the URL.
-  // TODO - remove extaneous defintions around these values
+  // TODO - remove extraneous defintions around these values
   const searchQuery = initialSearchQuery;
   const page = initialPage;
   const sortDirection = initialSortDirection;

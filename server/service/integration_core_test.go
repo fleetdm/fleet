@@ -3281,6 +3281,7 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	require.Len(t, listQryResp.Queries, 0)
 	require.Equal(t, listQryResp.Count, 1)
 	require.True(t, listQryResp.Meta.HasPreviousResults)
+	require.False(t, listQryResp.Meta.HasNextResults)
 
 	// getting that query works
 	var getQryResp getQueryResponse
