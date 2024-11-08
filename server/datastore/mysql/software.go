@@ -2155,15 +2155,13 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 }
 
 func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
-	// var onlySelfServiceClause string
-	var onlySelfServiceAvailClause string
+	var onlySelfServiceClause string
 	if opts.SelfServiceOnly {
-		// onlySelfServiceClause = ` AND ( si.self_service = 1 OR vat.self_service = 1 ) `
-		onlySelfServiceAvailClause = ` AND ( si.self_service = 1 OR ( vat.self_service = 1 AND hm.enrolled = 1 ) ) `
+		onlySelfServiceClause = ` AND ( si.self_service = 1 OR ( vat.self_service = 1 AND :is_mdm_enrolled ) ) `
 	}
 
 	var excludeVPPAppsClause string
-	if opts.ExcludeVPPApps {
+	if !opts.IsMDMEnrolled {
 		excludeVPPAppsClause = ` AND vat.id IS NULL `
 	}
 
@@ -2273,8 +2271,6 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			host_vpp_software_installs hvsi ON vat.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id AND hvsi.removed = 0
 		LEFT OUTER JOIN
 			nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
-		LEFT OUTER JOIN
-			host_mdm hm ON hm.host_id = :host_id
 		WHERE
 			-- use the latest VPP install attempt only
 			( hvsi.id IS NULL OR hvsi.id = (
@@ -2289,7 +2285,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			-- requested, then the software installed on host clause is empty.
 			( %s hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
 			%s
-`, status, softwareIsInstalledOnHostClause, onlySelfServiceAvailClause)
+`, status, softwareIsInstalledOnHostClause, onlySelfServiceClause)
 
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be
@@ -2322,8 +2318,6 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			vpp_apps vap ON st.id = vap.title_id AND :host_platform IN (:vpp_apps_platforms)
 		LEFT OUTER JOIN
 			vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vap.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
-		LEFT OUTER JOIN
-			host_mdm hm ON hm.host_id = :host_id
 		WHERE
 			-- software is not installed on host (but is available in host's team)
 			NOT EXISTS (
@@ -2358,7 +2352,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			-- either the software installer or the vpp app exists for the host's team
 			( si.id IS NOT NULL OR vat.platform = :host_platform )
 			%s %s
-`, onlySelfServiceAvailClause, excludeVPPAppsClause)
+`, onlySelfServiceClause, excludeVPPAppsClause)
 
 	// this is the top-level SELECT of fields from the UNION of the sub-selects
 	// (stmtAvailable and stmtInstalled).
@@ -2395,6 +2389,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
 		"global_or_team_id":         globalOrTeamID,
+		"is_mdm_enrolled":           opts.IsMDMEnrolled,
 	}
 
 	stmt := stmtInstalled
