@@ -116,9 +116,9 @@ func (s *SwiftDialog) Start(ctx context.Context, opts *SwiftDialogOptions) error
 				s.exitErr = fmt.Errorf("waiting for swiftDialog: %w", err)
 			}
 		}
-		sd.closed = true
-		close(sd.done)
-		cancel(ErrWindowClosed)
+		s.closed = true
+		close(s.done)
+		s.cancel(ErrWindowClosed)
 	}()
 
 	// This sleep makes sure that SD is fully up and running and has access to the command file.
