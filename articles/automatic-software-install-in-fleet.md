@@ -4,7 +4,7 @@ Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) int
 
 Fleet allows its users to upload trusted software installation files to be installed and used on hosts. This installation could be conditioned on a failure of a specific Fleet Policy.
 
-> Currently, custom packages can be automatically installed on macOS, Windows, and Linux hosts. Fleet-maintained apps can be automatically installed on macOS. (macOS App Store apps [coming soon](https://github.com/fleetdm/fleet/issues/23115))
+> Currently, Fleet-maintained apps can be automatically installed on macOS hosts and custom packages can be automatically installed on macOS, Windows, and Linux hosts. (macOS App Store apps [coming soon](https://github.com/fleetdm/fleet/issues/23115))
 
 ## Prerequisites
 
