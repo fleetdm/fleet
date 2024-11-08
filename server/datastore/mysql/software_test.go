@@ -3873,8 +3873,6 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	vpp1TmCmdUUID := createVPPAppInstallRequest(t, ds, tmHost, vpp1, user.ID)
 	require.NotEmpty(t, vpp1TmCmdUUID)
 
-	// expectedWithoutVPP := maps.Clone(expected)
-
 	expected["vpp1apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp1",
 		Source:      "apps",
