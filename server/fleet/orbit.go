@@ -40,6 +40,8 @@ type OrbitConfigNotifications struct {
 	// RunSetupExperience indicates whether or not Orbit should run the Fleet setup experience
 	// during macOS Setup Assistant.
 	RunSetupExperience bool `json:"run_setup_experience,omitempty"`
+
+	// TODO - RunLinuxKeyEscrow
 }
 
 type OrbitConfig struct {

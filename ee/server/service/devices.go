@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 )
 
@@ -18,6 +20,10 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 }
 
 const refetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
+
+var LUKSSupportedPlatforms = []string{"ubuntu", "fedora", "kubuntu"} // TODO - confirm names
+
+var minOrbitLUKSVersion = "1.0.0" // TODO! - change to orbit version this functionality is released with
 
 // TriggerMigrateMDMDevice triggers the webhook associated with the MDM
 // migration to Fleet configuration. It is located in the ee package instead of
@@ -165,4 +171,74 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	sum.Config.MDM.MacOSMigration.Mode = appCfg.MDM.MacOSMigration.Mode
 
 	return sum, nil
+}
+
+func (svc *Service) TriggerLinuxKeyEscrow(ctx context.Context, host *fleet.Host) error {
+	level.Debug(svc.logger).Log("msg", "trigger linux key escrow", "host_id", host.ID)
+
+	if !slices.Contains(LUKSSupportedPlatforms, host.Platform) {
+		return &fleet.BadRequestError{Message: "Host platform does not support key escrow"}
+	}
+
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	if !ac.MDM.EnabledAndConfigured {
+		return fleet.ErrMDMNotConfigured
+	}
+
+	// Is AppConfig.MDM.EnableDiskEncryption the disk encryption setting for “No team”, while
+	// TeamMDM.EnableDiskEncryption is for all other teams?
+	// confirm No team taemId
+	if host.TeamID == nil {
+		// No team
+		if !ac.MDM.EnableDiskEncryption.Value {
+			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for this host"}
+		}
+	} else {
+		// Team
+		tc, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+		if err != nil {
+			return err
+		}
+		if !tc.EnableDiskEncryption {
+			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for this host's team"}
+		}
+	}
+
+	_, err = svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "Host is not connected to Fleet MDM")
+	}
+
+	if !*host.DiskEncryptionEnabled {
+		return &fleet.BadRequestError{Message: "Host's disk is not encrypted. Please enable disk encryption for this host."}
+	}
+
+	if fleet.CompareVersions(*host.OrbitVersion, minOrbitLUKSVersion) == -1 {
+		return &fleet.BadRequestError{Message: "Host's Orbit version does not support this feature. Please upgrade Orbit to the latest version."}
+	}
+
+	// TODO (confirm details): put all of these errors into the
+	// `host_disk_encryption_keys.client_error` column
+	// Use ds.SetOrUpdateHostDiskEncryptionKey ?
+
+	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+	if err != nil {
+		return err
+	}
+	// TODO - confirm 0-value of empty key
+	if key.Base64Encrypted != "" {
+		// we already have a key escrowed
+		return &fleet.BadRequestError{Message: "Key already escrowed for this host"}
+	}
+
+	if *key.ResetRequested {
+		return &fleet.BadRequestError{Message: "Key reset already requested for this host"}
+	}
+
+	// TODO - clears client_error - okay?
+	svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, key.Base64Encrypted, "", key.Decryptable, ptr.Bool(true))
+	return nil
 }

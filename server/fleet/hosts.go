@@ -318,7 +318,9 @@ type Host struct {
 
 	// DiskEncryptionEnabled is only returned by GET /host/{id} and so is not
 	// exportable as CSV (which is the result of List Hosts endpoint). It is
-	// a *bool because for Linux we set it to NULL and omit it from the JSON
+	// a *bool because for Linux
+	//  TODO - how are this field and `host_disk_encryption_keys` supposed to relate for Ubuntu and Fedora now?
+	// we set it to NULL and omit it from the JSON
 	// response if the host does not have disk encryption enabled. It is also
 	// omitted if we don't have encryption information yet.
 	DiskEncryptionEnabled *bool `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled" csv:"-"`
@@ -1168,6 +1170,7 @@ type HostDiskEncryptionKey struct {
 	Base64Encrypted string    `json:"-" db:"base64_encrypted"`
 	Decryptable     *bool     `json:"-" db:"decryptable"`
 	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
+	ResetRequested  *bool     `json:"-" db:"reset_requested"`
 	DecryptedValue  string    `json:"key" db:"-"`
 }
 
