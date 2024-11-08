@@ -249,11 +249,11 @@
       position: absolute;
       top: 11px;
       right: 10px;
-      // padding: 9px;
       border-radius: 8px;
       height: 32px;
       width: 32px;
       background: url('/images/icon-copy-16x16@2x.png');
+      background-color: #F9FAFC;
       background-size: 14px 14px;
       background-position: center;
       background-repeat: no-repeat;
@@ -273,7 +273,7 @@
   pre {
     width: 100%;
     max-width: 100%;
-    padding: 16px 24px;
+    padding: 16px 44px 16px 24px;
     border: 1px solid #E2E4EA;
     background: #F9FAFC;
     border-radius: 4px;
@@ -281,6 +281,12 @@
     margin-bottom: 24px;
     code {
       color: #515774;
+      &.has-linebreaks {
+        white-space: pre;
+      }
+      &.no-linebreaks {
+        white-space: normal;
+      }
       font-family: 'Source Code Pro';
       font-size: 14px;
       font-weight: 400;
@@ -288,8 +294,33 @@
       .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
         color: #AE6DDF;
       }
+      [purpose='line-break']:not(:first-of-type)::before {
+        content: '\a';
+      }
+      .hljs-attr { // For table and column names
+        .hljs-keyword {
+          color: #FFF;
+        }
+        .hljs-string { // For words wrapped in quotation marks
+          color: #FFF;
+        }
+        color: #FFF;
+        background-color: #AE6DDF;
+        border-radius: 3px;
+        white-space: pre;
+        vertical-align: baseline;
+        span {
+          padding: 0;
+        }
+      }
+      .hljs-number {
+        color: #f5871f;
+      }
       .hljs-string { // For words wrapped in quotation marks
-        color: #3DB67B;
+        color: #4fd061;
+        .hljs-keyword {
+          color: #4fd061;
+        }
       }
       background-color: @ui-off-white;
       border: none;

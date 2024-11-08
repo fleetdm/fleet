@@ -407,11 +407,16 @@
   <parallax-city></parallax-city>
   <div purpose="homepage-content" class="container py-4 my-0 my-md-2">
     <div purpose="newsletter-banner">
-       <div class="d-flex flex-md-row flex-column justify-content-between">
+       <div class="d-flex flex-md-row flex-column justify-content-between align-items-md-center">
          <div purpose="newletter-form-text" class="d-flex flex-row align-items-center">
-           <p v-if="formErrors.emailAddress || cloudError" class="text-danger" focus-first>Please enter a valid work email</p>
-           <p v-else-if="cloudSuccess">Thanks for subscribing!</p>
-           <p v-else><strong>Curious?</strong> Get product updates and news</p>
+            <p v-if="formErrors.emailAddress || cloudError" class="text-danger" focus-first>
+              Please enter a valid work email
+            </p>
+            <p v-else-if="cloudSuccess">
+              Thanks for subscribing!</p>
+            <p v-else>
+              <strong>Curious?</strong> Get product updates and news
+            </p>
          </div>
          <ajax-form class="d-flex flex-md-row flex-column" action="createOrUpdateOneNewsletterSubscription" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedNewsletterForm()">
            <div class="d-flex flex-column w-100">
