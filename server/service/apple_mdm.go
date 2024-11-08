@@ -3700,6 +3700,11 @@ func preprocessProfileContents(
 								"Fleet couldn't populate $FLEET_VAR_%s. "+
 								"Please increase the number of cached passwords in NDES and try again.",
 								FleetVarNDESSCEPChallenge)
+						case errors.As(err, &eeservice.NDESInsufficientPermissionsError{}):
+							detail = fmt.Sprintf("This account does not have sufficient permissions to enroll with SCEP. "+
+								"Fleet couldn't populate $FLEET_VAR_%s. "+
+								"Please upade the account with NDES SCEP enroll permissions and try again.",
+								FleetVarNDESSCEPChallenge)
 						default:
 							detail = fmt.Sprintf("Fleet couldn't populate $FLEET_VAR_%s. %s", FleetVarNDESSCEPChallenge, err.Error())
 						}

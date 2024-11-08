@@ -66,6 +66,13 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	err = ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.ErrorContains(t, err, "the password cache is full")
 
+	// Catch ths issue when account has insufficient permissions
+	returnPage = func() []byte {
+		return returnPageFromFile("./testdata/mscep_admin_insufficient_permissions.html")
+	}
+	err = ValidateNDESSCEPAdminURL(context.Background(), proxy)
+	assert.ErrorContains(t, err, "does not have sufficient permissions")
+
 	// Nothing returned
 	returnPage = func() []byte {
 		return []byte{}

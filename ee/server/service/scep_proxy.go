@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Azure/go-ntlmssp"
+	"github.com/aws/smithy-go/ptr"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -27,9 +28,12 @@ var challengeRegex = regexp.MustCompile(`(?i)The enrollment challenge password i
 
 const (
 	fullPasswordCache             = "The password cache is full."
+	ndesInsufficientPermissions   = "You do not have sufficient permission to enroll with SCEP."
 	MessageSCEPProxyNotConfigured = "SCEP proxy is not configured"
 	NDESChallengeInvalidAfter     = 57 * time.Minute
 )
+
+var ndesTimeout = ptr.Duration(30 * time.Second)
 
 type scepProxyService struct {
 	ds fleet.Datastore
@@ -48,7 +52,7 @@ func (svc *scepProxyService) GetCACaps(ctx context.Context) ([]byte, error) {
 		// Return error that implements kithttp.StatusCoder interface
 		return nil, &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 	}
-	client, err := scepclient.New(appConfig.Integrations.NDESSCEPProxy.Value.URL, svc.debugLogger)
+	client, err := scepclient.New(appConfig.Integrations.NDESSCEPProxy.Value.URL, svc.debugLogger, ndesTimeout)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating SCEP client")
 	}
@@ -70,7 +74,7 @@ func (svc *scepProxyService) GetCACert(ctx context.Context, message string) ([]b
 		// Return error that implements kithttp.StatusCoder interface
 		return nil, 0, &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 	}
-	client, err := scepclient.New(appConfig.Integrations.NDESSCEPProxy.Value.URL, svc.debugLogger)
+	client, err := scepclient.New(appConfig.Integrations.NDESSCEPProxy.Value.URL, svc.debugLogger, ndesTimeout)
 	if err != nil {
 		return nil, 0, ctxerr.Wrap(ctx, err, "creating SCEP client")
 	}
@@ -136,7 +140,7 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 		return nil, &scepserver.BadRequestError{Message: "challenge password has expired"}
 	}
 
-	client, err := scepclient.New(appConfig.Integrations.NDESSCEPProxy.Value.URL, svc.debugLogger)
+	client, err := scepclient.New(appConfig.Integrations.NDESSCEPProxy.Value.URL, svc.debugLogger, ndesTimeout)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating SCEP client")
 	}
@@ -169,7 +173,7 @@ func ValidateNDESSCEPAdminURL(ctx context.Context, proxy fleet.NDESSCEPProxyInte
 func GetNDESSCEPChallenge(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
 	adminURL, username, password := proxy.AdminURL, proxy.Username, proxy.Password
 	// Get the challenge from NDES
-	client := fleethttp.NewClient()
+	client := fleethttp.NewClient(fleethttp.WithTimeout(*ndesTimeout))
 	client.Transport = ntlmssp.Negotiator{
 		RoundTripper: fleethttp.NewTransport(),
 	}
@@ -206,18 +210,22 @@ func GetNDESSCEPChallenge(ctx context.Context, proxy fleet.NDESSCEPProxyIntegrat
 		challenge = matches[challengeRegex.SubexpIndex("password")]
 	}
 	if challenge == "" {
-		if strings.Contains(htmlString, fullPasswordCache) {
+		switch {
+		case strings.Contains(htmlString, fullPasswordCache):
 			return "", ctxerr.Wrap(ctx,
-				NDESPasswordCacheFullError{msg: "the password cache is full; please increase the number of cached passwords in NDES; by default, NDES caches 5 passwords and they expire 60 minutes after they are created"})
+				NewNDESPasswordCacheFullError("the password cache is full; please increase the number of cached passwords in NDES; by default, NDES caches 5 passwords and they expire 60 minutes after they are created"))
+		case strings.Contains(htmlString, ndesInsufficientPermissions):
+			return "", ctxerr.Wrap(ctx,
+				NewNDESInsufficientPermissionsError("this account does not have sufficient permissions to enroll with SCEP. Please use a different account with NDES SCEP enroll permissions."))
 		}
 		return "", ctxerr.Wrap(ctx,
-			NDESInvalidError{msg: "could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again"})
+			NewNDESInvalidError("could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again"))
 	}
 	return challenge, nil
 }
 
 func ValidateNDESSCEPURL(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration, logger log.Logger) error {
-	client, err := scepclient.New(proxy.URL, logger)
+	client, err := scepclient.New(proxy.URL, logger, ndesTimeout)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "creating SCEP client; invalid SCEP URL; please correct and try again")
 	}
