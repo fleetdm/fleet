@@ -14,7 +14,6 @@ describe("generateActions", () => {
     status: null,
     software_package: null,
     app_store_app: null,
-    already_installed: false,
     hostMDMEnrolled: false,
   };
 

@@ -61,7 +61,6 @@ export interface generateActionsProps {
   status: SoftwareInstallStatus | null;
   software_package: IHostSoftwarePackage | null;
   app_store_app: IHostAppStoreApp | null;
-  already_installed: boolean;
   hostMDMEnrolled?: boolean;
 }
 
@@ -72,7 +71,6 @@ export const generateActions = ({
   softwareId,
   status,
   app_store_app,
-  already_installed,
   hostMDMEnrolled,
 }: generateActionsProps) => {
   // this gives us a clean slate of the default actions so we can modify
@@ -130,11 +128,6 @@ export const generateActions = ({
   if (app_store_app) {
     // remove uninstall for VPP apps
     actions.splice(indexUninstallAction, 1);
-    // If the app is already installed on the host, then disable the "install" action.
-    // Also disable if the host is not MDM enrolled in Fleet.
-    if (already_installed) {
-      actions[indexInstallAction].disabled = true;
-    }
 
     if (!hostMDMEnrolled) {
       actions[indexInstallAction].disabled = true;
@@ -252,11 +245,7 @@ export const generateSoftwareTableHeaders = ({
           status,
           software_package,
           app_store_app,
-          installed_versions,
         } = original;
-
-        const already_installed =
-          installed_versions !== null && installed_versions.length >= 0;
 
         return (
           <ActionsDropdown
@@ -270,7 +259,6 @@ export const generateSoftwareTableHeaders = ({
               status,
               software_package,
               app_store_app,
-              already_installed,
               hostMDMEnrolled,
             })}
             onChange={(action) => onSelectAction(original, action)}
