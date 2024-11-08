@@ -4412,6 +4412,7 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 	expectedAvailableOnly["vpp3ios_apps"] = expected["vpp3ios_apps"]
 	expectedAvailableOnly["vpp4ios_apps"] = expected["vpp4ios_apps"]
 	opts.IncludeAvailableForInstall = true
+	opts.IsMDMEnrolled = true
 	opts.ListOptions.PerPage = 20
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
