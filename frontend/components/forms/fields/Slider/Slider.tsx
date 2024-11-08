@@ -12,12 +12,13 @@ interface ISliderProps {
   activeText: JSX.Element | string;
   className?: string;
   helpText?: JSX.Element | string;
+  autoFocus?: boolean;
 }
 
 const baseClass = "fleet-slider";
 
 const Slider = (props: ISliderProps): JSX.Element => {
-  const { onChange, value, inactiveText, activeText } = props;
+  const { onChange, value, inactiveText, activeText, autoFocus } = props;
 
   const sliderBtnClass = classnames(baseClass, {
     [`${baseClass}--active`]: value,
@@ -47,6 +48,7 @@ const Slider = (props: ISliderProps): JSX.Element => {
         <button
           className={`button button--unstyled ${sliderBtnClass}`}
           onClick={handleClick}
+          autoFocus={autoFocus}
         >
           <div className={sliderDotClass} />
         </button>

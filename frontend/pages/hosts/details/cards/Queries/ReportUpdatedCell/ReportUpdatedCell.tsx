@@ -118,7 +118,7 @@ const ReportUpdatedCell = ({
     <span className={baseClass}>
       {renderCellValue()}
       {should_link_to_hqr && hostId && queryId && (
-        // link functionality for keyboard accessibility
+        // parent row has same onClick functionality but link here is required for keyboard accessibility
         <Link
           className={`${baseClass}__link`}
           title="link to host query report"

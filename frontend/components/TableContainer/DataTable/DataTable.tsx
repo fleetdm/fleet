@@ -574,6 +574,7 @@ const DataTable = ({
                       }
                     },
                   })}
+                  // Can tab onto an entire row if a child element does not have the same onClick functionality as clicking the whole row
                   tabIndex={keyboardSelectableRow ? 0 : -1}
                 >
                   {row.cells.map((cell: any) => {

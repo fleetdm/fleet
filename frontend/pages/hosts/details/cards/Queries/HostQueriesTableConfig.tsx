@@ -118,7 +118,6 @@ const generateColumnConfigs = (
       disableSortBy: true,
       accessor: "last_fetched", // tbd - may change
       Cell: (cellProps: ICellProps) => {
-        console.log("cellprops.row.original", cellProps.row.original);
         return (
           <ReportUpdatedCell
             {...cellProps.row.original}
