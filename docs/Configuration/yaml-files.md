@@ -249,7 +249,6 @@ controls:
     enable: true
     mode: voluntary
     webhook_url: https://example.org/webhook_handler
-  windows_migration_enabled: true # Available in Fleet Premium
 # paths are relative to default.yml or teams/team-name.yml 
 ```
 
