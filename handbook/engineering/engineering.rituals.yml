@@ -6,7 +6,7 @@
   moreInfoUrl: https://fleetdm.com/handbook/engineering#renew-mdm-certificate-signing-request-csr
   dri: "lukeheath"
   autoIssue: 
-    labels: [ ":help-dogfooding" ]
+    labels: [ "~engineering-initiated" ]
 - 
   task: "Oncall handoff"
   startedOn: "2023-08-09" 
