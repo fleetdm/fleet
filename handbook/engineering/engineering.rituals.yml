@@ -1,7 +1,7 @@
 -
   task: "Renew Apple certificate signing request (CSR)"
   startedOn: "2024-09-01" 
-  frequency: "Annual"
+  frequency: "Annually"
   description: https://fleetdm.com/handbook/engineering#renew-mdm-certificate-signing-request-csr
   moreInfoUrl: https://fleetdm.com/handbook/engineering#renew-mdm-certificate-signing-request-csr
   dri: "lukeheath"
