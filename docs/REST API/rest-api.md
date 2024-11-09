@@ -941,7 +941,6 @@ None.
       "mode": "voluntary",
       "webhook_url": "https://webhook.example.com"
     },
-    "windows_migration_enabled": false,
     "macos_setup": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
@@ -1236,7 +1235,6 @@ Modifies the Fleet's configuration with the supplied information.
       "mode": "voluntary",
       "webhook_url": "https://webhook.example.com"
     },
-    "windows_migration_enabled": false,
     "macos_setup": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
@@ -1715,7 +1713,6 @@ _Available in Fleet Premium._
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
 | windows_updates         | object  | See [`mdm.window_updates`](#mdm-windows-updates). |
 | macos_migration         | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
-| windows_migration_enabled | boolean  | Whether to enable automatic migration via fleetd for devices migrating from your old MDM solution. |
 | macos_setup         | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
@@ -1870,7 +1867,6 @@ _Available in Fleet Premium._
       "mode": "voluntary",
       "webhook_url": "https://webhook.example.com"
     },
-    "windows_migration_enabled": false,
     "macos_setup": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
