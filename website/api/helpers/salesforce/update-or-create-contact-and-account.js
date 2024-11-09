@@ -110,17 +110,11 @@ module.exports = {
     if(primaryBuyingSituation) {
       valuesToSet.Primary_buying_situation__c = primaryBuyingSituation;// eslint-disable-line camelcase
     }
-    if(psychologicalStage) {
-      valuesToSet.Stage__c = psychologicalStage;// eslint-disable-line camelcase
-    }
     if(getStartedResponses) {
       valuesToSet.Website_questionnaire_answers__c = getStartedResponses;// eslint-disable-line camelcase
     }
     if(description) {
       valuesToSet.Description = description;
-    }
-    if(psychologicalStageChangeReason) {
-      valuesToSet.Psystage_change_reason__c = psychologicalStageChangeReason;// eslint-disable-line camelcase
     }
     if(intentSignal) {
       valuesToSet.Intent_signals__c = intentSignal;// eslint-disable-line camelcase
@@ -144,6 +138,13 @@ module.exports = {
       // If a description was provided and the contact has a description, append the new description to it.
       if(description && existingContactRecord.Description) {
         valuesToSet.Description = existingContactRecord.Description + '\n' + description;
+      }
+      // If we're updating a contact, add psychologicalStage and psychologicalStageChangeReason to the dictionary of valuesToSet.
+      if(psychologicalStage) {
+        valuesToSet.Stage__c = psychologicalStage;// eslint-disable-line camelcase
+      }
+      if(psychologicalStageChangeReason) {
+        valuesToSet.Psystage_change_reason__c = psychologicalStageChangeReason;// eslint-disable-line camelcase
       }
       // If an intent signal was specified, add it to the list of intent signals on the exisitng contact.
       // Note: intent signals values are stored as a single string in salesforce, separated by a semicolon.
@@ -267,11 +268,11 @@ module.exports = {
         OwnerId: salesforceAccountOwnerId,
         FirstName: firstName ? firstName : '?',
         LastName: lastName ? lastName : '?',
-        ...(_.omit(valuesToSet, ['Stage__c', 'Psystage_change_reason__c'])),
+        ...valuesToSet,
       });
       salesforceContactId = newContactRecord.id;
 
-      // If no psychological stage was set, and since we're creating a new contact, we'll update the new contact to be psy stage 2.
+      // Since we've created a new contact, we'll update the psychological stage to be either '2 - Aware', or whatever psystage was provided.
       // This causes it to appear as an edit in our CRM and helps reporting.
       await salesforceConnection.sobject('Contact')
       .update({
