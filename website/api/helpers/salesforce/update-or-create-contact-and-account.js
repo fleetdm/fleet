@@ -260,16 +260,26 @@ module.exports = {
       }
       // console.log(`creating new Contact record.`)
       // Create a new Contact record for this person.
+
       let newContactRecord = await salesforceConnection.sobject('Contact')
       .create({
         AccountId: salesforceAccountId,
         OwnerId: salesforceAccountOwnerId,
         FirstName: firstName ? firstName : '?',
         LastName: lastName ? lastName : '?',
-        ...valuesToSet,
+        ...(_.omit(valuesToSet, ['Stage__c', 'Psystage_change_reason__c'])),
+      });
+      salesforceContactId = newContactRecord.id;
+
+      // If no psychological stage was set, and since we're creating a new contact, we'll update the new contact to be psy stage 2.
+      // This causes it to appear as an edit in our CRM and helps reporting.
+      await salesforceConnection.sobject('Contact')
+      .update({
+        Id: salesforceContactId,
+        Stage__c: psychologicalStage ? psychologicalStage : '2 - Aware',// eslint-disable-line camelcase
+        Psystage_change_reason__c: psychologicalStageChangeReason ? psychologicalStageChangeReason : null,// eslint-disable-line camelcase
       });
       // console.log(`Created ${newContactRecord.id}`);
-      salesforceContactId = newContactRecord.id;
     }//ﬁ
 
     return {
