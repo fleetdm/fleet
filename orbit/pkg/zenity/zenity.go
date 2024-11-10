@@ -1,5 +1,3 @@
-//go:build linux
-
 package zenity
 
 import (
@@ -51,7 +49,7 @@ type InfoOptions struct {
 }
 
 // NewZenity creates a new Zenity dialog instance for zenity v4 on Linux.
-func NewZenity() *Zenity {
+func New() *Zenity {
 	return &Zenity{
 		execCmdFn: execCmd,
 	}
@@ -119,7 +117,11 @@ func execCmd(ctx context.Context, args ...string) ([]byte, int, error) {
 	cmd := exec.CommandContext(ctx, "zenity", args...)
 	err := cmd.Run()
 	if err != nil {
-		return nil, cmd.ProcessState.ExitCode(), err
+		var exitCode int // exit 0 ok here if zenity returns an error
+		if cmd.ProcessState != nil {
+			exitCode = cmd.ProcessState.ExitCode()
+		}
+		return nil, exitCode, err
 	}
 
 	return nil, cmd.ProcessState.ExitCode(), nil
