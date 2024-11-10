@@ -16,7 +16,7 @@ func main() {
 		Title:    "Zenity Test Entry Title",
 		Text:     "Zenity Test Entry Text",
 		HideText: true,
-		TimeOut:  5 * time.Second,
+		TimeOut:  10 * time.Second,
 	})
 	if err != nil {
 		fmt.Println("Err ShowEntry")
@@ -26,7 +26,7 @@ func main() {
 	err = prompt.ShowInfo(ctx, zenity.InfoOptions{
 		Title:   "Zenity Test Info Title",
 		Text:    "Result: " + string(output),
-		TimeOut: 5 * time.Second,
+		TimeOut: 10 * time.Second,
 	})
 	if err != nil {
 		fmt.Println("Err ShowInfo")
