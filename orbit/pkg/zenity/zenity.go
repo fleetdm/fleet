@@ -60,16 +60,16 @@ func New() *Zenity {
 func (z *Zenity) ShowEntry(ctx context.Context, opts EntryOptions) ([]byte, error) {
 	args := []string{"--entry"}
 	if opts.Title != "" {
-		args = append(args, fmt.Sprintf(`--title="%s"`, opts.Title))
+		args = append(args, "--title=", opts.Title)
 	}
 	if opts.Text != "" {
-		args = append(args, fmt.Sprintf(`--text="%s"`, opts.Text))
+		args = append(args, "--text=", opts.Text)
 	}
 	if opts.HideText {
 		args = append(args, "--hide-text")
 	}
 	if opts.TimeOut > 0 {
-		args = append(args, fmt.Sprintf("--timeout=%d", int(opts.TimeOut.Seconds())))
+		args = append(args, "--timeout=", fmt.Sprintf("%d", int(opts.TimeOut.Seconds())))
 	}
 
 	output, statusCode, err := z.execCmdFn(ctx, args...)
@@ -91,13 +91,13 @@ func (z *Zenity) ShowEntry(ctx context.Context, opts EntryOptions) ([]byte, erro
 func (z *Zenity) ShowInfo(ctx context.Context, opts InfoOptions) error {
 	args := []string{"--info"}
 	if opts.Title != "" {
-		args = append(args, fmt.Sprintf(`--title="%s"`, opts.Title))
+		args = append(args, "--title=", opts.Title)
 	}
 	if opts.Text != "" {
-		args = append(args, fmt.Sprintf(`--text="%s"`, opts.Text))
+		args = append(args, "--text=", opts.Text)
 	}
 	if opts.TimeOut > 0 {
-		args = append(args, fmt.Sprintf("--timeout=%d", int(opts.TimeOut.Seconds())))
+		args = append(args, "--timeout=", fmt.Sprintf("%d", int(opts.TimeOut.Seconds())))
 	}
 
 	_, statusCode, err := z.execCmdFn(ctx, args...)
