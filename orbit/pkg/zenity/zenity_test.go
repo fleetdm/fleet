@@ -41,7 +41,7 @@ func TestShowEntryArgs(t *testing.T) {
 				Title: "A Title",
 				Text:  "Some text",
 			},
-			expectedArgs: []string{"--entry", "--title=", "A Title", "--text=", "Some text"},
+			expectedArgs: []string{"--entry", "--title=A Title", "--text=Some text"},
 		},
 		{
 			name: "All Options",
@@ -51,7 +51,7 @@ func TestShowEntryArgs(t *testing.T) {
 				HideText: true,
 				TimeOut:  1 * time.Minute,
 			},
-			expectedArgs: []string{"--entry", "--title=", "Another Title", "--text=", "Some more text", "--hide-text", "--timeout=", "60"},
+			expectedArgs: []string{"--entry", "--title=Another Title", "--text=Some more text", "--hide-text", "--timeout=60"},
 		},
 	}
 
@@ -145,7 +145,7 @@ func TestShowInfoArgs(t *testing.T) {
 				Text:    "Some more text",
 				TimeOut: 1 * time.Minute,
 			},
-			expectedArgs: []string{"--info", "--title=", "Another Title", "--text=", "Some more text", "--timeout=", "60"},
+			expectedArgs: []string{"--info", "--title=Another Title", "--text=Some more text", "--timeout=60"},
 		},
 	}
 
