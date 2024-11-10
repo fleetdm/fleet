@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/zenity"
@@ -18,6 +19,7 @@ func main() {
 		TimeOut:  5 * time.Second,
 	})
 	if err != nil {
+		fmt.Println("Err ShowEntry")
 		panic(err)
 	}
 
@@ -27,6 +29,7 @@ func main() {
 		TimeOut: 5 * time.Second,
 	})
 	if err != nil {
+		fmt.Println("Err ShowInfo")
 		panic(err)
 	}
 }

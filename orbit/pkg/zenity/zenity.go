@@ -115,6 +115,7 @@ func (z *Zenity) ShowInfo(ctx context.Context, opts InfoOptions) error {
 
 func execCmd(ctx context.Context, args ...string) ([]byte, int, error) {
 	cmd := exec.CommandContext(ctx, "zenity", args...)
+	fmt.Println(cmd.String())
 	err := cmd.Run()
 	if err != nil {
 		var exitCode int // exit 0 ok here if zenity returns an error
