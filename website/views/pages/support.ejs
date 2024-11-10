@@ -7,27 +7,26 @@
       <%primaryBuyingSituation%>
     </div>
     <div purpose="community-cards" class="d-flex justify-content-center flex-sm-row flex-column">
-      <a href="https://chat.osquery.io/c/fleet" target="_blank" class="<%= primaryBuyingSituation === 'mdm' ? 'd-none' : 'd-flex'%>">
-        <div purpose="support-card" class="card d-flex justify-content-center">
-          <div class="d-flex flex-row align-items-center">
-            <img alt="Osquery logo" src="/images/logo-osquery-48x48@2x.png">
-            <h3>Osquery Slack</h3>
-          </div>
-          <p><%= primaryBuyingSituation === 'eo-it' ? 'Chat about IT visibility, scripting, access, and identity.' :
-                primaryBuyingSituation === 'eo-security' ? 'Chat about securing servers, laptops, and more.' :
-                primaryBuyingSituation === 'vm' ? 'Chat about the future of vulnerability management, OT/ICS, cybersecurity, and more.' :
-                'Chat about using Fleet to secure servers, laptops, and more.'
-              %>
-          </p>
-        </div>
-      </a>
       <a href="https://macadmins.org" target="_blank" class="<%= primaryBuyingSituation === 'mdm' || !primaryBuyingSituation ? 'd-flex' : 'd-none' %>">
         <div purpose="support-card" class="card d-flex justify-content-center" >
           <div class="d-flex flex-row align-items-center">
             <img alt="Macadmins logo" src="/images/logo-macadmins-48x48@2x.png">
-            <h3>MacAdmins Slack</h3>
+            <h3>macadmins // #fleet</h3>
           </div>
-          <p>Chat about using Fleet to manage devices.</p>
+          <p>Chat about next-gen MDM, packaging, Apple, Windows, desktop Linux, apps, scripting. (And all things IT.)</p>
+        </div>
+      </a>
+      <a href="https://chat.osquery.io/c/fleet" target="_blank" class="<%= primaryBuyingSituation === 'mdm' || primaryBuyingSituation === 'eo-it' ? 'd-none' : 'd-flex'%>">
+        <div purpose="support-card" class="card d-flex justify-content-center">
+          <div class="d-flex flex-row align-items-center">
+            <img alt="Osquery logo" src="/images/logo-osquery-48x48@2x.png">
+            <h3>osquery // #fleet</h3>
+          </div>
+          <p><%= primaryBuyingSituation === 'eo-security' ? 'Chat about securing servers, laptops, and more.' :
+                primaryBuyingSituation === 'vm' ? 'Chat about the future of security engineering, vulnerability management, OT/ICS, cybersecurity, and more.' :
+                'Chat about posture, detection, vulns, reporting.  (And all things cybersecurity.)'
+              %>
+          </p>
         </div>
       </a>
     </div>
