@@ -6,6 +6,7 @@
 - [Live query](#live-query)
 - [Trigger cron schedule](#trigger-cron-schedule)
 - [Device-authenticated routes](#device-authenticated-routes)
+- [Orbit-authenticated routes](#orbit-authenticated-routes)
 - [Downloadable installers](#downloadable-installers)
 - [Setup](#setup)
 - [Scripts](#scripts)
@@ -3190,6 +3191,82 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 ---
 
+## Orbit-authenticated routes
+
+- [Get the status of a device in the setup experience](#get-the-status-of-a-device-in-the-setup-experience)
+
+
+### Get the status of a device in the setup experience
+
+`POST /api/fleet/orbit/setup_experience/status`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| orbit_node_key | string | body | The Orbit's node key for authentication. |
+| force_release | boolean | body | Force a host release from ADE flow, in case the setup is taking too long. |
+
+
+##### Example
+
+`POST /api/v1/fleet/device/8b49859b-1ffa-483d-ad27-85b30aa3c55f/setup_experience/status`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "force_release":false
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+    "setup_experience_results": {
+        "script": {
+            "name": "setup_script.sh",
+            "status": "success",
+            "execution_id": "b16fdd31-71cc-4258-ab27-744490809ebd"
+        },
+        "software": [
+            {
+                "name": "Zoom Workplace",
+                "status": "success",
+                "software_title_id": 957
+            },
+            {
+                "name": "Bear: Markdown Notes",
+                "status": "success",
+                "software_title_id": 287
+            },
+            {
+                "name": "Evernote",
+                "status": "success",
+                "software_title_id": 1313
+            }
+        ],
+        "configuration_profiles": [
+            {
+                "profile_uuid": "ae6a9efd5-9166-11ef-83af-0242ac12000b",
+                "name": "Fleetd configuration",
+                "status": "verified"
+            },
+            {
+                "profile_uuid": "ae6aa8108-9166-11ef-83af-0242ac12000b",
+                "name": "Fleet root certificate authority (CA)",
+                "status": "verified"
+            }
+        ],
+        "org_logo_url": ""
+    }
+}
+
+```
 
 ## Downloadable installers
 
