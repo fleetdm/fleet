@@ -58,5 +58,76 @@ You now have a functional, secure TUF repo. You can now configure and use the [F
 
 If you need to run TUF commands that are not available using the `fleetctl` binary, additional functionality is available using the `tuf` binary [documented by go-tuf](https://pkg.go.dev/github.com/theupdateframework/go-tuf#section-readme).
 
+## Read and write to TUF repo on Cloudflare R2
 
+Fleet hosts our TUF repo in Cloudflare R2 buckets for production and staging, updates.fleetdm.com and updates-staging.fleetdm.com. Read and write operations aare performed used the [AWS CLI](https://developers.cloudflare.com/r2/examples/aws/aws-cli/) tool configured to communicate with R2.
 
+Once configured, use the [Fleet TUF repo release script](https://github.com/fleetdm/fleet/tree/main/tools/tuf) to add new file targets. 
+
+## Add new TUF keys for authorized team members
+
+The CTO is responsible for determining who has access to push agent updates. Timestamp and Snapshot keys can be held online, so their use can be automated, but Targets and Root keys must always be held offline. The root keys are held by the CTO and CEO in secure locations. Root keys are retrieved once per year to rotate them before their annual expiration, or to sign for new Targets keys as needed. Targets keys may be generated to provide approved team members the ability to push agent updates to the TUF repo. 
+
+This process requires running TUF commands that are not available using the `fleetctl` binary, so the `tuf` CLI binary [documented by go-tuf](https://pkg.go.dev/github.com/theupdateframework/go-tuf#section-readme) needs to be downloaded and compiled for local use.
+
+There are two roles required to complete these steps, the "Root" role who holds the root keys, and the "Releaser" role, who is gaining access to push updates. 
+
+1. The Releaser creates a new local directory to store the TUF repo. The Releaser creates a sub-directory called `repository`.
+
+2. The Realeaser pulls down the contents of the TUF repo into the `repository` sub-directory. 
+
+3. From the root of their TUF directory, the Releaser run `tuf gen-key targets`. This will create a `keys` sub-directory and `staged` sub-directory. 
+
+4. The Releaser copies the `keys` directory to a USB drive, and deletes the `keys` directory from their local hard drive. 
+
+5. The Releaser send the `staged/root.json` to the Root role for signing. Note this file is safe to share and is publically available. 
+
+6. The Root role receives the `staged/root.json` file and copies it to a USB drive. 
+
+7. The Root role boots into the secure Ubuntu boot drive created during TUF repo creation. 
+
+8. The Root role connects the USB drive containing the `staged/root.json` file for signing. 
+
+9. The Root role connects the USB drive containing the root keys. 
+
+10. The Root role copies the `staged/root.json` onto the root keys USB at `staged/root.json`. 
+
+11. The root keys USB contains the `tuf` binary. Run `./tuf sign root.json` to sign the staged root metadata. 
+
+12. The Root role copies the signed `staged/root.json` back to the original USB drive they copied it from. 
+
+13. The Root role turns off the Ubuntu boot drive and accesses an online computer. 
+
+14. The Root role connects the USB drive containing the signed `staged/root.json` file and copies it to their local hard drive's TUF location in the same `staged/root.json`. 
+
+15. From the root of their local TUF repo, the Root role runs `tuf commit` to commit the staged root metadata to the `repository` directory. 
+
+16. The Root role pushes the updated contents of the `repository` directory to the remote TUF server. 
+
+17. The Releser role can now run `tuf sign` to sign agent updates using their offline Targets key.
+
+## Root the root keys 
+
+The root keys expire every year and must be manually rotated at least 30 days prior to expiration. 
+
+1. The root keys are retrieved from their secure location. 
+
+2. The offline Ubuntu bootable USB drive is turned on. 
+
+3. The root keys USB drive is connected to the Ubuntu bootable instance. 
+
+4. Add three new root keys using the steps documented in creating a new TUF repo. 
+
+5. Run `tuf sign root.json` to sign the newly added root keys with an existing root key. 
+
+6. Run `tuf commit` to commit the staged metadata with new root keys. 
+
+7. Using one of the new root keys, run `tuf revoke-key <role> <id>`. Run this command for each of the old, expiring root keys. 
+
+8. Using one of the new root keys, run `tuf sign root.json` to sign the root metadata removing the old root keys. 
+
+9. Using one of the nw root keys, run `tuf commit` to commit the staged root metadata. 
+
+10. Confirm the file in `repository/root.json` contains the new root key ids, and removes the old root key ids. 
+
+11. Copy the `repository` directory to the local drive of an online device and push to the remote TUF repo. 
