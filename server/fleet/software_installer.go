@@ -535,11 +535,17 @@ type SoftwareInstallerTokenMetadata struct {
 
 const SoftwareInstallerURLMaxLength = 255
 
+// TempFileReader is an io.Reader with all extra io interfaces supported by a
+// file on disk reader (e.g. io.ReaderAt, io.Seeker, etc.). When created with
+// NewTempFileReader, it is backed by a temporary file on disk, and that file
+// is deleted when Close is called.
 type TempFileReader struct {
 	*os.File
 	keepFile bool
 }
 
+// Rewind seeks to the beginning of the file so the next read will read from
+// the start of the bytes.
 func (r *TempFileReader) Rewind() error {
 	if _, err := r.Seek(0, io.SeekStart); err != nil {
 		return err
