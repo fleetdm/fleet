@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"text/template"
+	"time"
 
 	"github.com/Masterminds/semver"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -19,7 +20,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
+func buildNFPM(opt Options, pkger nfpm.Packager, packagerName string) (string, error) {
 	// Initialize directories
 	tmpDir, err := initializeTempDir()
 	if err != nil {
@@ -192,7 +193,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		contents = append(contents, (&files.Content{
 			Destination: emptyFolder,
 			Type:        "dir",
-		}).WithFileInfoDefaults())
+		}).WithFileInfoDefaults(0o0, time.Now()))
 	}
 
 	if varLibSymlink {
@@ -208,7 +209,8 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 			})
 	}
 
-	contents, err = files.ExpandContentGlobs(contents, false)
+	files.PrepareForPackager(contents, 0o0, packagerName, false, time.Now())
+
 	if err != nil {
 		return "", fmt.Errorf("glob contents: %w", err)
 	}
