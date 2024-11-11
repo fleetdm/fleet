@@ -11183,7 +11183,6 @@ None.
       "force_password_reset": false,
       "gravatar_url": "",
       "sso_enabled": false,
-      "two_factor_authentication_enabled": false,
       "global_role": null,
       "api_only": false,
       "teams": [
@@ -11276,7 +11275,6 @@ Creates a user account after an invited user provides registration information a
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "two_factor_authentication_enabled": false,
     "global_role": "admin",
     "teams": []
   }
@@ -11348,7 +11346,6 @@ By default, the user will be forced to reset its password upon first login.
 | name        | string  | body | **Required**. The user's full name or nickname.                                                                                                                                                                                                                                                                                                          |
 | password    | string  | body | The user's password (required for non-SSO users).                                                                                                                                                                                                                                                                                                        |
 | sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
-| two_factor_authentication_enabled | boolean | body | _Available in Fleet Premium_. Whether or not email two-factor authentication is enabled for the user.                                                                                                                                                                                                                                                                                                              |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
 | global_role | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access).                                                                                                                                                                        |
 | admin_forced_password_reset    | boolean | body | Sets whether the user will be forced to reset its password upon first login (default=true) |
@@ -11395,7 +11392,6 @@ By default, the user will be forced to reset its password upon first login.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "two_factor_authentication_enabled": false,
     "api_only": true,
     "global_role": null,
     "teams": [
@@ -11470,7 +11466,6 @@ Returns all information about a specific user.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "two_factor_authentication_enabled": false,
     "global_role": "admin",
     "api_only": false,
     "teams": []
@@ -11507,7 +11502,6 @@ Returns all information about a specific user.
 | position    | string  | body | The user's position.                                                                                                                                                                                                                                                                                                                                     |
 | email       | string  | body | The user's email.                                                                                                                                                                                                                                                                                                                                        |
 | sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
-| two_factor_authentication_enabled | boolean | body | Whether or not email two-factor authentication is enabled for the user.                                                                                                                                                                                                                                                                                                              |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
 | password    | string  | body | The user's current password, required to change the user's own email or password (not required for an admin to modify another user).                                                                                                                                                                                                                     |
 | new_password| string  | body | The user's new password. |
@@ -11543,7 +11537,6 @@ Returns all information about a specific user.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "two_factor_authentication_enabled": false,
     "api_only": false,
     "teams": []
   }
@@ -11587,7 +11580,6 @@ Returns all information about a specific user.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "two_factor_authentication_enabled": false,
     "global_role": "admin",
     "teams": [
       {
@@ -11664,7 +11656,6 @@ The selected user is logged out of Fleet and required to reset their password du
     "force_password_reset": true,
     "gravatar_url": "",
     "sso_enabled": false,
-    "two_factor_authentication_enabled": false,
     "global_role": "observer",
     "teams": []
   }
