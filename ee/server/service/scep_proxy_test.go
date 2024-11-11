@@ -9,12 +9,14 @@ import (
 	"os"
 	"syscall"
 	"testing"
+	"time"
 	"unicode/utf16"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -22,11 +24,15 @@ import (
 )
 
 func TestValidateNDESSCEPAdminURL(t *testing.T) {
-	t.Parallel()
+	// t.Parallel() // This test is not parallel because it changes the global NDESTimeout
 
 	var returnPage func() []byte
 	returnStatus := http.StatusOK
+	wait := false
 	ndesAdminServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if wait {
+			time.Sleep(1 * time.Second)
+		}
 		w.WriteHeader(returnStatus)
 		if returnStatus == http.StatusOK {
 			_, err := w.Write(returnPage())
@@ -44,6 +50,19 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	returnStatus = http.StatusNotFound
 	err := ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.ErrorContains(t, err, "unexpected status code")
+	returnStatus = http.StatusOK
+
+	// Catch timeout issue
+	origNDESTimeout := NDESTimeout
+	NDESTimeout = ptr.Duration(1 * time.Microsecond)
+	t.Cleanup(func() {
+		NDESTimeout = origNDESTimeout
+	})
+	wait = true
+	err = ValidateNDESSCEPAdminURL(context.Background(), proxy)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	wait = false
+	NDESTimeout = origNDESTimeout
 
 	// We need to convert the HTML page to UTF-16 encoding, which is used by Windows servers
 	returnPageFromFile := func(path string) []byte {
@@ -59,12 +78,18 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	}
 
 	// Catch ths issue when NDES password cache is full
-	returnStatus = http.StatusOK
 	returnPage = func() []byte {
 		return returnPageFromFile("./testdata/mscep_admin_cache_full.html")
 	}
 	err = ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.ErrorContains(t, err, "the password cache is full")
+
+	// Catch ths issue when account has insufficient permissions
+	returnPage = func() []byte {
+		return returnPageFromFile("./testdata/mscep_admin_insufficient_permissions.html")
+	}
+	err = ValidateNDESSCEPAdminURL(context.Background(), proxy)
+	assert.ErrorContains(t, err, "does not have sufficient permissions")
 
 	// Nothing returned
 	returnPage = func() []byte {
