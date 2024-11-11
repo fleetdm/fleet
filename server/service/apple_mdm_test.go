@@ -2917,6 +2917,20 @@ func TestPreprocessProfileContents(t *testing.T) {
 	assert.Contains(t, updatedProfile.Detail, "cached passwords")
 	assert.Empty(t, targets)
 
+	// Insufficient permissions
+	getNDESSCEPChallenge = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+		assert.Equal(t, ndesPassword, proxy.Password)
+		return "", eeservice.NewNDESInsufficientPermissionsError("NDES error")
+	}
+	updatedProfile = nil
+	populateTargets()
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents, hostProfilesToInstallMap)
+	require.NoError(t, err)
+	require.NotNil(t, updatedProfile)
+	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+FleetVarNDESSCEPChallenge)
+	assert.Contains(t, updatedProfile.Detail, "does not have sufficient permissions")
+	assert.Empty(t, targets)
+
 	// Other NDES challenge error
 	getNDESSCEPChallenge = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
 		assert.Equal(t, ndesPassword, proxy.Password)

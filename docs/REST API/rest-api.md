@@ -7426,84 +7426,85 @@ Returns a list of global queries or team queries.
 
 ```json
 {
-"queries": [
-  {
-    "created_at": "2021-01-04T21:19:57Z",
-    "updated_at": "2021-01-04T21:19:57Z",
-    "id": 1,
-    "name": "query1",
-    "description": "query",
-    "query": "SELECT * FROM osquery_info",
-    "team_id": null,
-    "interval": 3600,
-    "platform": "darwin,windows,linux",
-    "min_osquery_version": "",
-    "automations_enabled": true,
-    "logging": "snapshot",
-    "saved": true,
-    "observer_can_run": true,
-    "discard_data": false,
-    "author_id": 1,
-    "author_name": "noah",
-    "author_email": "noah@example.com",
-    "packs": [
-      {
-        "created_at": "2021-01-05T21:13:04Z",
-        "updated_at": "2021-01-07T19:12:54Z",
-        "id": 1,
-        "name": "Pack",
-        "description": "Pack",
-        "platform": "",
-        "disabled": true
+  "queries": [
+    {
+      "created_at": "2021-01-04T21:19:57Z",
+      "updated_at": "2021-01-04T21:19:57Z",
+      "id": 1,
+      "name": "query1",
+      "description": "query",
+      "query": "SELECT * FROM osquery_info",
+      "team_id": null,
+      "interval": 3600,
+      "platform": "darwin,windows,linux",
+      "min_osquery_version": "",
+      "automations_enabled": true,
+      "logging": "snapshot",
+      "saved": true,
+      "observer_can_run": true,
+      "discard_data": false,
+      "author_id": 1,
+      "author_name": "noah",
+      "author_email": "noah@example.com",
+      "packs": [
+        {
+          "created_at": "2021-01-05T21:13:04Z",
+          "updated_at": "2021-01-07T19:12:54Z",
+          "id": 1,
+          "name": "Pack",
+          "description": "Pack",
+          "platform": "",
+          "disabled": true
+        }
+      ],
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p95": 3.00,
+        "total_executions": 3920
       }
-    ],
-    "stats": {
-      "system_time_p50": 1.32,
-      "system_time_p95": 4.02,
-      "user_time_p50": 3.55,
-      "user_time_p95": 3.00,
-      "total_executions": 3920
-    }
-  },
-  {
-    "created_at": "2021-01-19T17:08:24Z",
-    "updated_at": "2021-01-19T17:08:24Z",
-    "id": 3,
-    "name": "osquery_schedule",
-    "description": "Report performance stats for each file in the query schedule.",
-    "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;",
-    "team_id": null,
-    "interval": 3600,
-    "platform": "",
-    "version": "",
-    "automations_enabled": true,
-    "logging": "differential",
-    "saved": true,
-    "observer_can_run": true,
-    "discard_data": true,
-    "author_id": 1,
-    "author_name": "noah",
-    "author_email": "noah@example.com",
-    "packs": [
-      {
-        "created_at": "2021-01-19T17:08:31Z",
-        "updated_at": "2021-01-19T17:08:31Z",
-        "id": 14,
-        "name": "test_pack",
-        "description": "",
-        "platform": "",
-        "disabled": false
+    },
+    {
+      "created_at": "2021-01-19T17:08:24Z",
+      "updated_at": "2021-01-19T17:08:24Z",
+      "id": 3,
+      "name": "osquery_schedule",
+      "description": "Report performance stats for each file in the query schedule.",
+      "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;",
+      "team_id": null,
+      "interval": 3600,
+      "platform": "",
+      "version": "",
+      "automations_enabled": true,
+      "logging": "differential",
+      "saved": true,
+      "observer_can_run": true,
+      "discard_data": true,
+      "author_id": 1,
+      "author_name": "noah",
+      "author_email": "noah@example.com",
+      "packs": [
+        {
+          "created_at": "2021-01-19T17:08:31Z",
+          "updated_at": "2021-01-19T17:08:31Z",
+          "id": 14,
+          "name": "test_pack",
+          "description": "",
+          "platform": "",
+          "disabled": false
+        }
+      ],
+      "stats": {
+        "system_time_p50": null,
+        "system_time_p95": null,
+        "user_time_p50": null,
+        "user_time_p95": null,
+        "total_executions": null
       }
-    ],
-    "stats": {
-      "system_time_p50": null,
-      "system_time_p95": null,
-      "user_time_p50": null,
-      "user_time_p95": null,
-      "total_executions": null
     }
-  }
-]}
+  ]
+}
 ```
 
 ### Get query
