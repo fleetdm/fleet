@@ -87,6 +87,86 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 	return "", nil
 }
 
+// run uses sudo to run the given path as login user and waits for the process to finish.
+func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
+	user, err := getLoginUID()
+	if err != nil {
+		return output, exitCode, fmt.Errorf("get user: %w", err)
+	}
+
+	// TODO(lucas): Default to display :0 if user DISPLAY environment variable
+	// could not be found, revisit when working on multi-user/multi-session support.
+	// This assumes there's only one desktop session and belongs to the
+	// user returned in `getLoginUID'.
+	defaultDisplay := ":0"
+
+	log.Info().
+		Str("user", user.name).
+		Int64("id", user.id).
+		Msg("attempting to get user's DISPLAY")
+
+	display, err := getUserDisplay(user.name, opts)
+	if err != nil {
+		log.Error().
+			Str("user", user.name).
+			Int64("id", user.id).
+			Err(err).
+			Msgf("failed to get user's DISPLAY, using default %s", defaultDisplay)
+		display = defaultDisplay
+	} else if display == "" {
+		log.Warn().
+			Str("user", user.name).
+			Int64("id", user.id).
+			Msgf("user's DISPLAY not found, using default %s", defaultDisplay)
+		display = defaultDisplay
+	}
+
+	log.Info().
+		Str("path", path).
+		Str("user", user.name).
+		Int64("id", user.id).
+		Str("display", display).
+		Msg("running sudo")
+
+	args := argsForSudo(user, opts)
+
+	args = append(args,
+		"DISPLAY="+display,
+		// DBUS_SESSION_BUS_ADDRESS sets the location of the user login session bus.
+		// Required by the libayatana-appindicator3 library to display a tray icon
+		// on the desktop session.
+		//
+		// This is required for Ubuntu 18, and not required for Ubuntu 21/22
+		// (because it's already part of the user).
+		fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%d/bus", user.id),
+		// Append the packaged libayatana-appindicator3 libraries path to LD_LIBRARY_PATH.
+		//
+		// Fleet Desktop doesn't use libayatana-appindicator3 since 1.18.3, but we need to
+		// keep this to support older versions of Fleet Desktop.
+		fmt.Sprintf("LD_LIBRARY_PATH=%s:%s", filepath.Dir(path), os.ExpandEnv("$LD_LIBRARY_PATH")),
+		path,
+	)
+
+	if len(opts.args) > 0 {
+		for _, arg := range opts.args {
+			args = append(args, arg[0], arg[1])
+		}
+	}
+
+	cmd := exec.Command("sudo", args...)
+	log.Printf("cmd=%s", cmd.String())
+
+	output, err = cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+		}
+		return output, exitCode, fmt.Errorf("%q error: %w", path, err)
+	}
+
+	return output, exitCode, nil
+}
+
 type user struct {
 	name string
 	id   int64
