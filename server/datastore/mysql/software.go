@@ -2157,11 +2157,11 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
 	var onlySelfServiceClause string
 	if opts.SelfServiceOnly {
-		onlySelfServiceClause = ` AND ( si.self_service = 1 OR vat.self_service = 1 ) `
+		onlySelfServiceClause = ` AND ( si.self_service = 1 OR ( vat.self_service = 1 AND :is_mdm_enrolled ) ) `
 	}
 
 	var excludeVPPAppsClause string
-	if opts.ExcludeVPPApps {
+	if !opts.IsMDMEnrolled {
 		excludeVPPAppsClause = ` AND vat.id IS NULL `
 	}
 
@@ -2284,12 +2284,13 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			-- on host (via installer or VPP app). If only available for install is
 			-- requested, then the software installed on host clause is empty.
 			( %s hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
-			%s %s
-`, status, softwareIsInstalledOnHostClause, onlySelfServiceClause, excludeVPPAppsClause)
+			%s
+`, status, softwareIsInstalledOnHostClause, onlySelfServiceClause)
 
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be
 	// installed on the host's platform.
+
 	stmtAvailable := fmt.Sprintf(`
 		SELECT
 			st.id,
@@ -2388,6 +2389,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
 		"global_or_team_id":         globalOrTeamID,
+		"is_mdm_enrolled":           opts.IsMDMEnrolled,
 	}
 
 	stmt := stmtInstalled

@@ -2639,7 +2639,7 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	// always include metadata
 	opts.ListOptions.IncludeMetadata = true
 	opts.IncludeAvailableForInstall = includeAvailableForInstall || opts.SelfServiceOnly
-	opts.ExcludeVPPApps = !mdmEnrolled
+	opts.IsMDMEnrolled = mdmEnrolled
 
 	software, meta, err := svc.ds.ListHostSoftware(ctx, host, opts)
 	return software, meta, ctxerr.Wrap(ctx, err, "list host software")
