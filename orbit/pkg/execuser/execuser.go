@@ -40,3 +40,11 @@ func Run(path string, opts ...Option) (lastLogs string, err error) {
 	}
 	return run(path, o)
 }
+
+func RunWithOutput(path string, opts ...Option) (output []byte, exitCode int, err error) {
+	var o eopts
+	for _, fn := range opts {
+		fn(&o)
+	}
+	return runWithOutput(path, o)
+}
