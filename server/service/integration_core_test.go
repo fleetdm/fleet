@@ -12292,3 +12292,51 @@ func (s *integrationTestSuite) TestHostWithNoPoliciesClearsPolicyCounts() {
 	require.Len(t, listHostsResp.Hosts, 1)
 	require.Equal(t, uint64(0), listHostsResp.Hosts[0].FailingPoliciesCount)
 }
+
+func (s *integrationTestSuite) TestListSoftwareVersionsTeamIdentifier() {
+	t := s.T()
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		NodeKey:       ptr.String(t.Name()),
+		OsqueryHostID: ptr.String(t.Name()),
+		UUID:          t.Name(),
+		Hostname:      t.Name() + "foo.local",
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	safariApp := fleet.Software{
+		Name:             "Safari.app",
+		BundleIdentifier: "com.apple.safari",
+		Version:          "18.1",
+		Source:           "apps",
+	}
+	googleChromeApp := fleet.Software{
+		Name:             "Google Chrome.app",
+		BundleIdentifier: "com.google.Chrome",
+		Version:          "130.0.6723.117",
+		Source:           "apps",
+		TeamIdentifier:   "EQHXZ8M8AV",
+	}
+
+	software := []fleet.Software{
+		safariApp, googleChromeApp,
+	}
+	hostSoftware, err := s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	require.NoError(t, err)
+	require.Len(t, hostSoftware.CurrInstalled(), 2)
+
+	hostsCountTs := time.Now().UTC()
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
+
+	versionsResp := listSoftwareVersionsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/versions",
+		nil, http.StatusOK, &versionsResp,
+		"per_page", "5", "page", "0",
+	)
+	require.Len(t, versionsResp.Software, 2)
+	require.Equal(t, "Safari.app", versionsResp.Software[0].Name)
+	require.Equal(t, "", versionsResp.Software[0].TeamIdentifier)
+	require.Equal(t, "Google Chrome.app", versionsResp.Software[1].Name)
+	require.Equal(t, "EQHXZ8M8AV", versionsResp.Software[1].TeamIdentifier)
+}

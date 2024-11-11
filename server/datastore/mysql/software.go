@@ -305,6 +305,7 @@ SELECT
     s.vendor,
     s.arch,
     s.extension_id,
+    s.team_identifier,
     hs.last_opened_at
 FROM
     software s
@@ -583,6 +584,10 @@ func deleteUninstalledHostSoftwareDB(
 func computeRawChecksum(sw fleet.Software) ([]byte, error) {
 	h := md5.New() //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
 	cols := []string{sw.Name, sw.Version, sw.Source, sw.BundleIdentifier, sw.Release, sw.Arch, sw.Vendor, sw.Browser, sw.ExtensionID}
+	// TeamIdentifier was added after the migration that added the checksum.
+	if sw.TeamIdentifier != "" {
+		cols = append(cols, sw.TeamIdentifier)
+	}
 	_, err := fmt.Fprint(h, strings.Join(cols, "\x00"))
 	if err != nil {
 		return nil, err
@@ -633,13 +638,26 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 			totalToProcess := end - start
 
 			// Insert into software
-			const numberOfArgsPerSoftware = 11 // number of ? in each VALUES clause
+			const numberOfArgsPerSoftware = 12 // number of ? in each VALUES clause
 			values := strings.TrimSuffix(
-				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?),", totalToProcess), ",",
+				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?,?),", totalToProcess), ",",
 			)
 			// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
 			stmt := fmt.Sprintf(
-				"INSERT IGNORE INTO software (name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser, title_id, checksum) VALUES %s",
+				`INSERT IGNORE INTO software (
+					name,
+					version,
+					source,
+					`+"`release`"+`,
+					vendor,
+					arch,
+					bundle_identifier,
+					extension_id,
+					browser,
+					title_id,
+					team_identifier,
+					checksum
+				) VALUES %s`,
 				values,
 			)
 			args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftware)
@@ -666,7 +684,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				}
 				args = append(
 					args, sw.Name, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch, sw.BundleIdentifier, sw.ExtensionID, sw.Browser,
-					titleID, checksum,
+					titleID, sw.TeamIdentifier, checksum,
 				)
 			}
 			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
@@ -959,6 +977,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.source",
 			"s.bundle_identifier",
 			"s.extension_id",
+			"s.team_identifier",
 			"s.browser",
 			"s.release",
 			"s.vendor",
@@ -1119,6 +1138,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 		"s.source",
 		"s.bundle_identifier",
 		"s.extension_id",
+		"s.team_identifier",
 		"s.browser",
 		"s.release",
 		"s.vendor",
@@ -1139,6 +1159,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.source",
 			"s.bundle_identifier",
 			"s.extension_id",
+			"s.team_identifier",
 			"s.browser",
 			"s.release",
 			"s.vendor",
@@ -1283,7 +1304,7 @@ func (ds *Datastore) AllSoftwareIterator(
 	var args []interface{}
 
 	stmt := `SELECT
-		s.id, s.name, s.version, s.source, s.bundle_identifier, s.release, s.arch, s.vendor, s.browser, s.extension_id, s.title_id ,
+		s.id, s.name, s.version, s.source, s.bundle_identifier, s.release, s.arch, s.vendor, s.browser, s.extension_id, s.team_identifier, s.title_id ,
 		COALESCE(sc.cpe, '') AS generated_cpe
 	FROM software s
 	LEFT JOIN software_cpe sc ON (s.id=sc.software_id)`
@@ -1470,6 +1491,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 			"s.vendor",
 			"s.arch",
 			"s.extension_id",
+			"s.team_identifier",
 			"scv.cve",
 			"scv.created_at",
 			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),

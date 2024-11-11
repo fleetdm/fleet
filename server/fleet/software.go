@@ -28,6 +28,10 @@ const (
 	SoftwareReleaseMaxLength = 64
 	SoftwareVendorMaxLength  = 114
 	SoftwareArchMaxLength    = 16
+
+	// SoftwareTeamIdentifierMaxLength is the max length for Apple's Team ID,
+	// see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id
+	SoftwareTeamIdentifierMaxLength = 10
 )
 
 type Vulnerabilities []CVE
@@ -78,6 +82,10 @@ type Software struct {
 	// a specific host (host_id is provided).
 	LastOpenedAt *time.Time `json:"last_opened_at,omitempty" db:"last_opened_at"`
 
+	// TeamIdentifier (not to be confused with Fleet's team IDs) is the Apple's "Team ID" (aka "Developer ID"
+	// or "Signing ID") of signed applications, see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id.
+	TeamIdentifier string `json:"team_identifier,omitempty" db:"team_identifier"`
+
 	// TitleID is the ID of the associated software title, representing a unique combination of name
 	// and source.
 	TitleID *uint `json:"-" db:"title_id"`
@@ -99,6 +107,11 @@ func (s Software) ToUniqueStr() string {
 	// This way a blank ExtensionID/Browser matches the pre-migration unique string.
 	if s.ExtensionID != "" || s.Browser != "" {
 		ss = append(ss, s.ExtensionID, s.Browser)
+	}
+	// TeamIdentifier was added in a single migration, so it is only included if it exists.
+	// This way a blank TeamIdentifier matches the pre-migration unique string.
+	if s.TeamIdentifier != "" {
+		ss = append(ss, s.TeamIdentifier)
 	}
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
@@ -383,9 +396,10 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 //
 // All fields are trimmed to fit on Fleet's database.
 // The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
-func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, release, arch, bundleIdentifier, extensionId, browser, lastOpenedAt string) (
-	*Software, error,
-) {
+func SoftwareFromOsqueryRow(
+	name, version, source, vendor, installedPath, release, arch,
+	bundleIdentifier, extensionId, browser, lastOpenedAt, teamIdentifier string,
+) (*Software, error) {
 	if name == "" {
 		return nil, errors.New("host reported software with empty name")
 	}
@@ -417,9 +431,10 @@ func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, releas
 		ExtensionID:      truncateString(extensionId, SoftwareExtensionIDMaxLength),
 		Browser:          truncateString(browser, SoftwareBrowserMaxLength),
 
-		Release: truncateString(release, SoftwareReleaseMaxLength),
-		Vendor:  vendor,
-		Arch:    truncateString(arch, SoftwareArchMaxLength),
+		Release:        truncateString(release, SoftwareReleaseMaxLength),
+		Vendor:         vendor,
+		Arch:           truncateString(arch, SoftwareArchMaxLength),
+		TeamIdentifier: truncateString(teamIdentifier, SoftwareTeamIdentifierMaxLength),
 	}
 	if !lastOpenedAtTime.IsZero() {
 		software.LastOpenedAt = &lastOpenedAtTime
