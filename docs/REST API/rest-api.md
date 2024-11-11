@@ -2429,6 +2429,7 @@ None.
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
 - [Get host's scripts](#get-hosts-scripts)
 - [Get host's software](#get-hosts-software)
+- [Get host's certificates](#get-hosts-certificates)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
 - [Lock host](#lock-host)
@@ -4326,6 +4327,43 @@ Resends a configuration profile for the specified host.
   }
 }
 ```
+
+### Get host's certificates
+
+`GET /api/v1/fleet/hosts/:id/certificates`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's ID. |
+| query   | string | query | Search query keywords. Searchable fields include `name`. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/certificates`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 297,
+  "certificates": [
+    {
+      "TODO": "TODO"
+    },
+  ],
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  }
+}
+```
+
 
 ### Get hosts report in CSV
 
