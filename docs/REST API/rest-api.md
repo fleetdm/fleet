@@ -5808,6 +5808,11 @@ Get aggregate status counts of profiles for to macOS and Windows hosts that are 
 - [Get metadata about an EULA file](#get-metadata-about-an-eula-file)
 - [Delete an EULA file](#delete-an-eula-file)
 - [Download an EULA file](#download-an-eula-file)
+- [List software (setup experience)](#list-software-setup-experience)
+- [Update software (setup experience)](#update-software-setup-experience)
+- [Add script (setup experience)](#add-script-setup-experience)
+- [Get or download script (setup experience)](#get-or-download-script-setup-experience)
+- [Delete script (setup experience)](#delete-script-setup-experience)
 
 
 
@@ -6326,6 +6331,219 @@ Content-Disposition: attachment
 Content-Length: <length>
 Body: <blob>
 ```
+
+### List software (setup experience)
+
+_Available in Fleet Premium_
+
+List software that can or will be automatically installed during macOS setup. If `install_during_setup` is `true` it will be installed during setup.
+
+`GET /api/v1/fleet/setup_experience/software`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to filter software by. If not specified, it will filter only software that's available to hosts with no team. |
+| page | integer | query | Page number of the results to fetch. |
+| per_page | integer | query | Results per page. |
+
+
+#### Example
+
+`GET /api/v1/fleet/setup_experience/software?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_titles": [
+    {
+      "id": 12,
+      "name": "Firefox.app",
+      "software_package": {
+        "name": "FirefoxInsall.pkg",
+        "version": "125.6",
+        "self_service": true,
+        "install_during_setup": true
+      },
+      "app_store_app": null,
+      "versions_count": 3,
+      "source": "apps",
+      "browser": "",
+      "hosts_count": 48,
+      "versions": [
+        {
+          "id": 123,
+          "version": "1.12",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+        },
+        {
+          "id": 124,
+          "version": "3.4",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+        },
+        {
+          "id": 12
+          "version": "1.13",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+        }
+      ]
+    }
+  ],
+  {
+    "count": 2,
+    "counts_updated_at": "2024-10-04T10:00:00Z",
+    "meta": {
+      "has_next_results": false,
+      "has_previous_results": false
+    }
+  },
+}
+```
+
+### Update software (setup experience)
+
+_Available in Fleet Premium_
+
+Set software that will be automatically installed during macOS setup. Software that isn't included in the request will be unset.
+
+`PUT /api/v1/fleet/setup_experience/software`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to set the software for. If not specified, it will set the software for hosts with no team. |
+| software_title_ids | array | body | The ID of software titles to install during macOS setup. |
+
+#### Example
+
+`PUT /api/v1/fleet/setup_experience/software?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title_ids": [23,3411,5032]
+}
+```
+
+### Add script (setup experience)
+
+_Available in Fleet Premium_
+
+Add a script that will automatically run during macOS setup.
+
+`POST /api/v1/fleet/setup_experience/script`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | form | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
+| script | file | form | The ID of software titles to install during macOS setup. |
+
+#### Example
+
+`POST /api/v1/fleet/setup_experience/script`
+
+##### Default response
+
+`Status: 200`
+
+##### Request headers
+
+```http
+Content-Length: 306
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="team_id"
+
+1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="script"; filename="myscript.sh"
+Content-Type: application/octet-stream
+
+echo "hello"
+--------------------------f02md47480und42y--
+
+```
+
+### Get or download script (setup experience)
+
+_Available in Fleet Premium_
+
+Get a script that will automatically run during macOS setup.
+
+`GET /api/v1/fleet/setup_experience/script`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to get the script for. If not specified, script will be returned for hosts with no team. |
+| alt  | string | query | If specified and set to "media", downloads the script's contents. |
+
+
+#### Example (get script)
+
+`GET /api/v1/fleet/setup_experience/script?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 1,
+  "team_id": 3,
+  "name": "setup-experience-script.sh",
+  "created_at": "2023-07-30T13:41:07Z",
+  "updated_at": "2023-07-30T13:41:07Z"
+}
+```
+
+#### Example (download script)
+
+`GET /api/v1/fleet/setup_experience/script?team_id=3?alt=media`
+
+##### Example response headers
+
+```http
+Content-Length: 13
+Content-Type: application/octet-stream
+Content-Disposition: attachment;filename="2023-09-27 script_1.sh"
+```
+
+###### Example response body
+
+`Status: 200`
+
+```
+echo "hello"
+```
+
+### Delete script (setup experience)
+
+_Available in Fleet Premium_
+
+Delete a script that will automatically run during macOS setup.
+
+`DELETE /api/v1/fleet/setup_experience/script`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to get the script for. If not specified, script will be returned for hosts with no team. |
+
+#### Example
+
+`DELETE /api/v1/fleet/setup_experience/script?team_id=3`
+
+##### Default response
+
+`Status: 200`
 
 ---
 
