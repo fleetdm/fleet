@@ -154,7 +154,7 @@
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
   waysToUse:
-    - description: Enforce two-factor authentication (2FA) when logging in to Fleet for added security.
+    - description: Enforce two-factor authentication when logging in to Fleet for added security.
   comingSoonOn: 2024-12-31 #customer-rosner
 #  
 #  ╦═╗╔═╗╦  ╔═╗  ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ╔═╗╔═╗╔╗╔╔╦╗╦═╗╔═╗╦  
