@@ -24,7 +24,7 @@ import (
 )
 
 func TestValidateNDESSCEPAdminURL(t *testing.T) {
-	t.Parallel()
+	// t.Parallel() // This test is not parallel because it changes the global NDESTimeout
 
 	var returnPage func() []byte
 	returnStatus := http.StatusOK
