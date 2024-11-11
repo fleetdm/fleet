@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 	"github.com/stretchr/testify/require"
 	"github.com/tj/assert"
 )
@@ -32,12 +33,12 @@ func TestShowEntryArgs(t *testing.T) {
 
 	testCases := []struct {
 		name         string
-		opts         EntryOptions
+		opts         dialog.EntryOptions
 		expectedArgs []string
 	}{
 		{
 			name: "Basic Entry",
-			opts: EntryOptions{
+			opts: dialog.EntryOptions{
 				Title: "A Title",
 				Text:  "Some text",
 			},
@@ -45,7 +46,7 @@ func TestShowEntryArgs(t *testing.T) {
 		},
 		{
 			name: "All Options",
-			opts: EntryOptions{
+			opts: dialog.EntryOptions{
 				Title:    "Another Title",
 				Text:     "Some more text",
 				HideText: true,
@@ -82,17 +83,17 @@ func TestShowEntryError(t *testing.T) {
 		{
 			name:        "Dialog Cancelled",
 			exitCode:    1,
-			expectedErr: ErrCanceled,
+			expectedErr: dialog.ErrCanceled,
 		},
 		{
 			name:        "Dialog Timed Out",
 			exitCode:    5,
-			expectedErr: ErrTimeout,
+			expectedErr: dialog.ErrTimeout,
 		},
 		{
 			name:        "Unknown Error",
 			exitCode:    99,
-			expectedErr: ErrUnknown,
+			expectedErr: dialog.ErrUnknown,
 		},
 	}
 
@@ -104,7 +105,7 @@ func TestShowEntryError(t *testing.T) {
 			z := &Zenity{
 				execCmdFn: mock.run,
 			}
-			output, err := z.ShowEntry(ctx, EntryOptions{})
+			output, err := z.ShowEntry(ctx, dialog.EntryOptions{})
 			require.ErrorIs(t, err, tt.expectedErr)
 			assert.Nil(t, output)
 		})
@@ -120,7 +121,7 @@ func TestShowEntrySuccess(t *testing.T) {
 	z := &Zenity{
 		execCmdFn: mock.run,
 	}
-	output, err := z.ShowEntry(ctx, EntryOptions{})
+	output, err := z.ShowEntry(ctx, dialog.EntryOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("some output"), output)
 }
@@ -130,17 +131,17 @@ func TestShowInfoArgs(t *testing.T) {
 
 	testCases := []struct {
 		name         string
-		opts         InfoOptions
+		opts         dialog.InfoOptions
 		expectedArgs []string
 	}{
 		{
 			name:         "Basic Entry",
-			opts:         InfoOptions{},
+			opts:         dialog.InfoOptions{},
 			expectedArgs: []string{"--info"},
 		},
 		{
 			name: "All Options",
-			opts: InfoOptions{
+			opts: dialog.InfoOptions{
 				Title:   "Another Title",
 				Text:    "Some more text",
 				TimeOut: 1 * time.Minute,
@@ -173,12 +174,12 @@ func TestShowInfoError(t *testing.T) {
 		{
 			name:        "Dialog Timed Out",
 			exitCode:    5,
-			expectedErr: ErrTimeout,
+			expectedErr: dialog.ErrTimeout,
 		},
 		{
 			name:        "Unknown Error",
 			exitCode:    99,
-			expectedErr: ErrUnknown,
+			expectedErr: dialog.ErrUnknown,
 		},
 	}
 
@@ -190,7 +191,7 @@ func TestShowInfoError(t *testing.T) {
 			z := &Zenity{
 				execCmdFn: mock.run,
 			}
-			err := z.ShowInfo(ctx, InfoOptions{})
+			err := z.ShowInfo(ctx, dialog.InfoOptions{})
 			require.ErrorIs(t, err, tt.expectedErr)
 		})
 	}

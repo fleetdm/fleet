@@ -2,10 +2,9 @@ package zenity
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
@@ -15,40 +14,8 @@ type Zenity struct {
 	execCmdFn func(ctx context.Context, args ...string) ([]byte, int, error)
 }
 
-var (
-	ErrCanceled = errors.New("dialog canceled")
-	ErrTimeout  = errors.New("dialog timed out")
-	ErrUnknown  = errors.New("unknown error")
-)
-
-// EntryOptions represents options for the Entry dialog.
-type EntryOptions struct {
-	// Title sets the title of the dialog.
-	Title string
-
-	// Text sets the text of the dialog.
-	Text string
-
-	// HideText hides the text entered by the user.
-	HideText bool
-
-	// TimeOut sets the time in seconds before the dialog is automatically closed.
-	TimeOut time.Duration
-}
-
-// InfoOptions represents options for the Info dialog.
-type InfoOptions struct {
-	// Title sets the title of the dialog.
-	Title string
-
-	// Text sets the text of the dialog.
-	Text string
-
-	// Timeout sets the time in seconds before the dialog is automatically closed.
-	TimeOut time.Duration
-}
-
 // NewZenity creates a new Zenity dialog instance for zenity v4 on Linux.
+// Zenity implements the Dialog interface.
 func New() *Zenity {
 	return &Zenity{
 		execCmdFn: execCmd,
@@ -57,7 +24,7 @@ func New() *Zenity {
 
 // ShowEntry displays an dialog that accepts end user input. It returns the entered
 // text or errors ErrCanceled, ErrTimeout, or ErrUnknown.
-func (z *Zenity) ShowEntry(ctx context.Context, opts EntryOptions) ([]byte, error) {
+func (z *Zenity) ShowEntry(ctx context.Context, opts dialog.EntryOptions) ([]byte, error) {
 	args := []string{"--entry"}
 	if opts.Title != "" {
 		args = append(args, fmt.Sprintf("--title=%s", opts.Title))
@@ -76,11 +43,11 @@ func (z *Zenity) ShowEntry(ctx context.Context, opts EntryOptions) ([]byte, erro
 	if err != nil {
 		switch statusCode {
 		case 1:
-			return nil, ctxerr.Wrap(ctx, ErrCanceled)
+			return nil, ctxerr.Wrap(ctx, dialog.ErrCanceled)
 		case 5:
-			return nil, ctxerr.Wrap(ctx, ErrTimeout)
+			return nil, ctxerr.Wrap(ctx, dialog.ErrTimeout)
 		default:
-			return nil, ctxerr.Wrap(ctx, ErrUnknown, err.Error())
+			return nil, ctxerr.Wrap(ctx, dialog.ErrUnknown, err.Error())
 		}
 	}
 
@@ -88,7 +55,7 @@ func (z *Zenity) ShowEntry(ctx context.Context, opts EntryOptions) ([]byte, erro
 }
 
 // ShowInfo displays an information dialog. It returns errors ErrTimeout or ErrUnknown.
-func (z *Zenity) ShowInfo(ctx context.Context, opts InfoOptions) error {
+func (z *Zenity) ShowInfo(ctx context.Context, opts dialog.InfoOptions) error {
 	args := []string{"--info"}
 	if opts.Title != "" {
 		args = append(args, fmt.Sprintf("--title=%s", opts.Title))
@@ -104,9 +71,9 @@ func (z *Zenity) ShowInfo(ctx context.Context, opts InfoOptions) error {
 	if err != nil {
 		switch statusCode {
 		case 5:
-			return ctxerr.Wrap(ctx, ErrTimeout)
+			return ctxerr.Wrap(ctx, dialog.ErrTimeout)
 		default:
-			return ctxerr.Wrap(ctx, ErrUnknown, err.Error())
+			return ctxerr.Wrap(ctx, dialog.ErrUnknown, err.Error())
 		}
 	}
 
