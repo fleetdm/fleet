@@ -302,6 +302,7 @@ will be disabled and/or hidden in the UI.
                       firstName: sanitizedUser.firstName,
                       lastName: sanitizedUser.lastName,
                       organization: sanitizedUser.organization,
+                      contactSource: 'Website - Sign up',// Note: this is only set on new contacts.
                     });
                     let jsforce = require('jsforce');
                     // login to Salesforce
