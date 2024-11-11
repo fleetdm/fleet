@@ -719,9 +719,12 @@ func main() {
 					return fmt.Errorf("removing old osquery.db: %w", err)
 				}
 
-				// We can remove this because we want it to be regenerated during the re-enrollment.
+				// We can remove these because we want them to be regenerated during the re-enrollment.
 				if err := os.RemoveAll(filepath.Join(c.String("root-dir"), constant.OrbitNodeKeyFileName)); err != nil {
 					return fmt.Errorf("removing old orbit node key file: %w", err)
+				}
+				if err := os.RemoveAll(filepath.Join(c.String("root-dir"), constant.DesktopTokenFileName)); err != nil {
+					return fmt.Errorf("removing old Fleet Desktop identifier file: %w", err)
 				}
 
 				return errors.New("found a new hardware uuid, restarting")
@@ -1017,7 +1020,7 @@ func main() {
 		var trw *token.ReadWriter
 		var deviceClient *service.DeviceClient
 		if c.Bool("fleet-desktop") {
-			trw = token.NewReadWriter(filepath.Join(c.String("root-dir"), "identifier"))
+			trw = token.NewReadWriter(filepath.Join(c.String("root-dir"), constant.DesktopTokenFileName))
 			if err := trw.LoadOrGenerate(); err != nil {
 				return fmt.Errorf("initializing token read writer: %w", err)
 			}

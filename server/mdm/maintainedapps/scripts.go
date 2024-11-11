@@ -77,8 +77,14 @@ func uninstallScriptForApp(cask *brewCask) string {
 			}
 		case len(artifact.Uninstall) > 0:
 			sortUninstall(artifact.Uninstall)
+			if len(cask.PreUninstallScripts) > 0 {
+				sb.Write(strings.Join(cask.PreUninstallScripts, "\n"))
+			}
 			for _, u := range artifact.Uninstall {
 				processUninstallArtifact(u, sb)
+			}
+			if len(cask.PostUninstallScripts) > 0 {
+				sb.Write(strings.Join(cask.PostUninstallScripts, "\n"))
 			}
 		case len(artifact.Zap) > 0:
 			sortUninstall(artifact.Zap)
@@ -179,11 +185,11 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	if u.Script.IsOther {
 		addUserVar()
 		for _, path := range u.Script.Other {
-			sb.Writef(`sudo -u "$LOGGED_IN_USER" '%s'`, path)
+			sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo -u "$LOGGED_IN_USER" '%s')`, path)
 		}
 	} else if len(u.Script.String) > 0 {
 		addUserVar()
-		sb.Writef(`sudo -u "$LOGGED_IN_USER" '%s'`, u.Script.String)
+		sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo -u "$LOGGED_IN_USER" '%s')`, u.Script.String)
 	}
 
 	process(u.PkgUtil, func(pkgID string) {
@@ -365,15 +371,15 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
   local booleans=("true" "false")
   local plist_status
   local paths
-  local sudo
+  local should_sudo
 
   echo "Removing launchctl service ${service}"
 
-  for sudo in "${booleans[@]}"; do
+  for should_sudo in "${booleans[@]}"; do
     plist_status=$(launchctl list "${service}" 2>/dev/null)
 
     if [[ $plist_status == \{* ]]; then
-      if [[ $sudo == "true" ]]; then
+      if [[ $should_sudo == "true" ]]; then
         sudo launchctl remove "${service}"
       else
         launchctl remove "${service}"
@@ -387,7 +393,7 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
     )
 
     # if not using sudo, prepend the home directory to the paths
-    if [[ $sudo == "false" ]]; then
+    if [[ $should_sudo == "false" ]]; then
       for i in "${!paths[@]}"; do
         paths[i]="${HOME}${paths[i]}"
       done
@@ -395,7 +401,7 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
 
     for path in "${paths[@]}"; do
       if [[ -e "$path" ]]; then
-        if [[ $sudo == "true" ]]; then
+        if [[ $should_sudo == "true" ]]; then
           sudo rm -f -- "$path"
         else
           rm -f -- "$path"
@@ -450,6 +456,7 @@ const trashFunc = `trash() {
   local logged_in_user="$1"
   local target_file="$2"
   local timestamp="$(date +%Y-%m-%d-%s)"
+  local rand="$(jot -r 1 0 99999)"
 
   # replace ~ with /Users/$logged_in_user
   if [[ "$target_file" == ~* ]]; then
@@ -461,7 +468,7 @@ const trashFunc = `trash() {
 
   if [[ -e "$target_file" ]]; then
     echo "removing $target_file."
-    mv -f "$target_file" "$trash/${file_name}_${timestamp}"
+    mv -f "$target_file" "$trash/${file_name}_${timestamp}_${rand}"
   else
     echo "$target_file doesn't exist."
   fi
