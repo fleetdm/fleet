@@ -60,11 +60,11 @@ func TestSavedLiveQuery(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		if opt.MatchQuery == queryName {
-			return []*fleet.Query{&query}, nil
+			return []*fleet.Query{&query}, 1, nil, nil
 		}
-		return []*fleet.Query{}, nil
+		return []*fleet.Query{}, 0, nil, nil
 	}
 	ds.NewDistributedQueryCampaignFunc = func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 		camp.ID = 321

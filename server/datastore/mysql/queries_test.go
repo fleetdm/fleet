@@ -79,9 +79,10 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 	err := ds.ApplyQueries(context.Background(), zwass.ID, expectedQueries, nil)
 	require.NoError(t, err)
 
-	queries, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
+	queries, count, _, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.NoError(t, err)
 	require.Len(t, queries, len(expectedQueries))
+	require.Equal(t, count, len(expectedQueries))
 
 	test.QueryElementsMatch(t, expectedQueries, queries)
 
@@ -99,9 +100,10 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 	err = ds.ApplyQueries(context.Background(), groob.ID, expectedQueries, nil)
 	require.NoError(t, err)
 
-	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
+	queries, count, _, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.NoError(t, err)
 	require.Len(t, queries, len(expectedQueries))
+	require.Equal(t, count, len(expectedQueries))
 
 	test.QueryElementsMatch(t, expectedQueries, queries)
 
@@ -126,9 +128,10 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 	err = ds.ApplyQueries(context.Background(), zwass.ID, []*fleet.Query{expectedQueries[2]}, nil)
 	require.NoError(t, err)
 
-	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
+	queries, count, _, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.NoError(t, err)
 	require.Len(t, queries, len(expectedQueries))
+	require.Equal(t, count, len(expectedQueries))
 
 	test.QueryElementsMatch(t, expectedQueries, queries)
 
@@ -275,9 +278,10 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	q3 := test.NewQuery(t, ds, nil, "q3", "select 1", user.ID, true)
 	q4 := test.NewQuery(t, ds, nil, "q4", "select * from osquery_info", user.ID, true)
 
-	queries, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
+	queries, count, _, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.Nil(t, err)
 	assert.Len(t, queries, 4)
+	require.Equal(t, count, 4)
 
 	// Add query stats
 	hostIDs := []uint{10, 20}
@@ -312,9 +316,11 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 	assert.Equal(t, uint(2), deleted)
 
-	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
+	queries, count, _, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.Nil(t, err)
 	assert.Len(t, queries, 2)
+	assert.Equal(t, count, 2)
+
 	// Ensure stats were deleted.
 	// The actual delete occurs asynchronously, so we for-loop.
 	statsGone := make(chan bool)
@@ -346,17 +352,19 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 	assert.Equal(t, uint(1), deleted)
 
-	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
+	queries, count, _, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.Nil(t, err)
 	assert.Len(t, queries, 1)
+	assert.Equal(t, count, 1)
 
 	deleted, err = ds.DeleteQueries(context.Background(), []uint{q2.ID, q4.ID})
 	require.Nil(t, err)
 	assert.Equal(t, uint(1), deleted)
 
-	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
+	queries, count, _, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.Nil(t, err)
 	assert.Len(t, queries, 0)
+	assert.Equal(t, count, 0)
 }
 
 func testQueriesSave(t *testing.T, ds *Datastore) {
@@ -474,12 +482,65 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	opts := fleet.ListQueryOptions{}
-	results, err := ds.ListQueries(context.Background(), opts)
+	opts.IncludeMetadata = true
+
+	// paginated - beginning
+	opts.PerPage = 3
+	opts.Page = 0
+	results, count, meta, err := ds.ListQueries(context.Background(), opts)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(results))
+	require.Equal(t, "Zach", results[0].AuthorName)
+	require.Equal(t, "zwass@fleet.co", results[0].AuthorEmail)
+	require.True(t, results[0].DiscardData)
+	assert.Equal(t, count, 10)
+	assert.False(t, meta.HasPreviousResults)
+	assert.True(t, meta.HasNextResults)
+
+	// paginated - middle
+	opts.Page = 1
+	results, count, meta, err = ds.ListQueries(context.Background(), opts)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(results))
+	require.Equal(t, "Zach", results[0].AuthorName)
+	require.Equal(t, "zwass@fleet.co", results[0].AuthorEmail)
+	require.True(t, results[0].DiscardData)
+	assert.Equal(t, count, 10)
+	assert.True(t, meta.HasPreviousResults)
+	assert.True(t, meta.HasNextResults)
+
+	// paginated - end
+	opts.Page = 3
+	results, count, meta, err = ds.ListQueries(context.Background(), opts)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(results))
+	require.Equal(t, "Zach", results[0].AuthorName)
+	require.Equal(t, "zwass@fleet.co", results[0].AuthorEmail)
+	require.True(t, results[0].DiscardData)
+	assert.Equal(t, count, 10)
+	assert.True(t, meta.HasPreviousResults)
+	assert.False(t, meta.HasNextResults)
+
+	// paginated - past end
+	opts.Page = 4
+	results, count, meta, err = ds.ListQueries(context.Background(), opts)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(results))
+	assert.Equal(t, count, 10)
+	assert.True(t, meta.HasPreviousResults)
+	assert.False(t, meta.HasNextResults)
+
+	opts.PerPage = 0
+	opts.Page = 0
+	results, count, meta, err = ds.ListQueries(context.Background(), opts)
 	require.NoError(t, err)
 	require.Equal(t, 10, len(results))
 	require.Equal(t, "Zach", results[0].AuthorName)
 	require.Equal(t, "zwass@fleet.co", results[0].AuthorEmail)
 	require.True(t, results[0].DiscardData)
+	assert.Equal(t, count, 10)
+	assert.False(t, meta.HasPreviousResults)
+	assert.False(t, meta.HasNextResults)
 
 	idWithAgg := results[0].ID
 
@@ -490,7 +551,7 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 
-	results, err = ds.ListQueries(context.Background(), opts)
+	results, _, _, err = ds.ListQueries(context.Background(), opts)
 	require.NoError(t, err)
 	require.Equal(t, 10, len(results))
 
@@ -698,7 +759,7 @@ func testObserverCanRunQuery(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	queries, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
+	queries, _, _, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.NoError(t, err)
 
 	for _, q := range queries {
@@ -731,9 +792,10 @@ func testListQueriesFiltersByTeamID(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	queries, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
+	queries, count, _, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.NoError(t, err)
 	test.QueryElementsMatch(t, queries, []*fleet.Query{globalQ1, globalQ2, globalQ3})
+	assert.Equal(t, count, 3)
 
 	team, err := ds.NewTeam(context.Background(), &fleet.Team{
 		Name:        "some kind of nature",
@@ -766,7 +828,7 @@ func testListQueriesFiltersByTeamID(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	queries, err = ds.ListQueries(
+	queries, count, _, err = ds.ListQueries(
 		context.Background(),
 		fleet.ListQueryOptions{
 			TeamID: &team.ID,
@@ -774,9 +836,10 @@ func testListQueriesFiltersByTeamID(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	test.QueryElementsMatch(t, queries, []*fleet.Query{teamQ1, teamQ2, teamQ3})
+	assert.Equal(t, count, 3)
 
 	// test merge inherited
-	queries, err = ds.ListQueries(
+	queries, count, _, err = ds.ListQueries(
 		context.Background(),
 		fleet.ListQueryOptions{
 			TeamID:         &team.ID,
@@ -785,9 +848,10 @@ func testListQueriesFiltersByTeamID(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	test.QueryElementsMatch(t, queries, []*fleet.Query{globalQ1, globalQ2, globalQ3, teamQ1, teamQ2, teamQ3})
+	assert.Equal(t, count, 6)
 
 	// merge inherited ignored for global queries
-	queries, err = ds.ListQueries(
+	queries, count, _, err = ds.ListQueries(
 		context.Background(),
 		fleet.ListQueryOptions{
 			MergeInherited: true,
@@ -795,6 +859,7 @@ func testListQueriesFiltersByTeamID(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	test.QueryElementsMatch(t, queries, []*fleet.Query{globalQ1, globalQ2, globalQ3})
+	assert.Equal(t, count, 3)
 }
 
 func testListQueriesFiltersByIsScheduled(t *testing.T, ds *Datastore) {
@@ -844,12 +909,14 @@ func testListQueriesFiltersByIsScheduled(t *testing.T, ds *Datastore) {
 	}
 
 	for i, tCase := range testCases {
-		queries, err := ds.ListQueries(
+		queries, count, _, err := ds.ListQueries(
 			context.Background(),
 			tCase.opts,
 		)
 		require.NoError(t, err)
 		test.QueryElementsMatch(t, queries, tCase.expected, i)
+		assert.Equal(t, count, len(tCase.expected))
+
 	}
 }
 

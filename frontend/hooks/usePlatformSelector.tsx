@@ -3,7 +3,7 @@ import { forEach } from "lodash";
 
 import {
   SelectedPlatformString,
-  SUPPORTED_PLATFORMS,
+  QUERYABLE_PLATFORMS,
   QueryablePlatform,
 } from "interfaces/platform";
 
@@ -48,7 +48,7 @@ const usePlatformSelector = (
   };
 
   const getSelectedPlatforms = useCallback(() => {
-    return SUPPORTED_PLATFORMS.filter((p) => checksByPlatform[p]);
+    return QUERYABLE_PLATFORMS.filter((p) => checksByPlatform[p]);
   }, [checksByPlatform]);
 
   const isAnyPlatformSelected = Object.values(checksByPlatform).includes(true);

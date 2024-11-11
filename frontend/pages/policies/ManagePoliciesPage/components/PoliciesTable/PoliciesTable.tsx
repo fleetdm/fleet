@@ -55,12 +55,6 @@ const PoliciesTable = ({
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
-  const onTableQueryChange = (newTableQuery: ITableQueryData) => {
-    onQueryChange({
-      ...newTableQuery,
-    });
-  };
-
   const emptyState = () => {
     const emptyPolicies: IEmptyTableProps = {
       graphicName: "empty-policies",
@@ -135,7 +129,7 @@ const PoliciesTable = ({
           })
         }
         renderCount={renderPoliciesCount}
-        onQueryChange={onTableQueryChange}
+        onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"
         searchable={searchable}
         resetPageIndex={resetPageIndex}

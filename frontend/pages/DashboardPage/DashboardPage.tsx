@@ -460,7 +460,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     setShowAddHostsModal(!showAddHostsModal);
   };
 
-  // NOTE: this is called once on the initial rendering. The initial render of
+  // This is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
   const onSoftwareQueryChange = async ({
     pageIndex: newPageIndex,

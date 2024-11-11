@@ -14,6 +14,25 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
+func getCompatiblePlatformsFromSQL(query string) ([]string, error) {
+	// TODO!
+	return []string{"macos", "linux", "windows"}, nil
+}
+
+func filterQueriesByCompatiblePlatform(queries []*fleet.Query, compatiblePlatform *string) ([]*fleet.Query, error) {
+	var filteredQueries []*fleet.Query
+	for _, query := range queries {
+		compatiblePlatforms, err := getCompatiblePlatformsFromSQL(query.Query)
+		if err != nil {
+			return nil, err
+		}
+		if slices.Contains(compatiblePlatforms, *compatiblePlatform) {
+			filteredQueries = append(filteredQueries, query)
+		}
+	}
+	return filteredQueries, nil
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Get Query
 ////////////////////////////////////////////////////////////////////////////////
@@ -58,13 +77,16 @@ func (svc *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error)
 type listQueriesRequest struct {
 	ListOptions fleet.ListOptions `url:"list_options"`
 	// TeamID url argument set to 0 means global.
-	TeamID         uint `query:"team_id,optional"`
-	MergeInherited bool `query:"merge_inherited,optional"`
+	TeamID             uint   `query:"team_id,optional"`
+	MergeInherited     bool   `query:"merge_inherited,optional"`
+	CompatiblePlatform string `query:"compatible_platform,optional"`
 }
 
 type listQueriesResponse struct {
-	Queries []fleet.Query `json:"queries"`
-	Err     error         `json:"error,omitempty"`
+	Queries []fleet.Query             `json:"queries"`
+	Count   int                       `json:"count"`
+	Meta    *fleet.PaginationMetadata `json:"meta"`
+	Err     error                     `json:"error,omitempty"`
 }
 
 func (r listQueriesResponse) error() error { return r.Err }
@@ -77,7 +99,12 @@ func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		teamID = &req.TeamID
 	}
 
-	queries, err := svc.ListQueries(ctx, req.ListOptions, teamID, nil, req.MergeInherited)
+	var compatiblePlaform *string
+	if req.CompatiblePlatform != "" {
+		compatiblePlaform = &req.CompatiblePlatform
+	}
+
+	queries, count, meta, err := svc.ListQueries(ctx, req.ListOptions, teamID, nil, req.MergeInherited, compatiblePlaform)
 	if err != nil {
 		return listQueriesResponse{Err: err}, nil
 	}
@@ -86,30 +113,47 @@ func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	for _, query := range queries {
 		respQueries = append(respQueries, *query)
 	}
+
 	return listQueriesResponse{
 		Queries: respQueries,
+		Count:   count,
+		Meta:    meta,
 	}, nil
 }
 
-func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool, mergeInherited bool) ([]*fleet.Query, error) {
+func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, compatiblePlatform *string) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 	// Check the user is allowed to list queries on the given team.
 	if err := svc.authz.Authorize(ctx, &fleet.Query{
 		TeamID: teamID,
 	}, fleet.ActionRead); err != nil {
-		return nil, err
+		return nil, 0, nil, err
 	}
 
-	queries, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
+	// always include metadata for queries
+	opt.IncludeMetadata = true
+
+	queries, count, meta, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
 		ListOptions:    opt,
 		TeamID:         teamID,
 		IsScheduled:    scheduled,
 		MergeInherited: mergeInherited,
 	})
 	if err != nil {
-		return nil, err
+		return nil, 0, nil, err
 	}
 
-	return queries, nil
+	if compatiblePlatform != nil {
+		// TODO on future iteration - instead of filtering per call like this, calculate each query's compatible platform
+		// and store it in the db on save/edit (query.compatible_platform, different from
+		// query.platform), then update svc.ds.ListQueries to filter by compatible platform.
+		// This avoids overhead of a migration for now
+		queries, err = filterQueriesByCompatiblePlatform(queries, compatiblePlatform)
+		if err != nil {
+			return nil, 0, nil, err
+		}
+	}
+
+	return queries, count, meta, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -745,7 +789,7 @@ func getQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) GetQuerySpecs(ctx context.Context, teamID *uint) ([]*fleet.QuerySpec, error) {
-	queries, err := svc.ListQueries(ctx, fleet.ListOptions{}, teamID, nil, false)
+	queries, _, _, err := svc.ListQueries(ctx, fleet.ListOptions{}, teamID, nil, false, nil)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting queries")
 	}
