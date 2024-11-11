@@ -54,7 +54,7 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-macos.yml # v1.20.0
+        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --snapshot --skip=publish -f orbit/goreleaser-macos.yml # v1.20.0
         env:
           GITHUB_TOKEN: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
@@ -87,7 +87,7 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-linux.yml # v1.20.0
+        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --snapshot --skip=publish -f orbit/goreleaser-linux.yml # v1.20.0
 
   goreleaser-linux-arm64:
     runs-on: ubuntu-20.04
@@ -114,7 +114,7 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-linux-arm64.yml # v1.20.0
+        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --snapshot --skip=publish -f orbit/goreleaser-linux-arm64.yml # v1.20.0
 
   goreleaser-windows:
     runs-on: windows-2022
@@ -141,4 +141,4 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-windows.yml # v1.20.0
+        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --snapshot --skip=publish -f orbit/goreleaser-windows.yml # v1.20.0
