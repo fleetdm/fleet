@@ -3846,6 +3846,12 @@ func RenewSCEPCertificates(
 	config *config.FleetConfig,
 	commander *apple_mdm.MDMAppleCommander,
 ) error {
+	renewalDisable, exists := os.LookupEnv("FLEET_MDM_APPLE_SCEP_RENEWAL_DISABLE")
+	if exists && (strings.EqualFold(renewalDisable, "true") || renewalDisable == "1") {
+		level.Info(logger).Log("msg", "skipping renewal of macOS SCEP certificates as FLEET_MDM_APPLE_SCEP_RENEWAL_DISABLE is set to true")
+		return nil
+	}
+
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("reading app config: %w", err)
