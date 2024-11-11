@@ -10903,9 +10903,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	}
 
 	// attempt to install a VPP app on the non-MDM enrolled host
-	installResp := installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", orbitHost.ID, macOSTitleID), &installSoftwareRequest{},
-		http.StatusBadRequest, &installResp)
+	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", orbitHost.ID, macOSTitleID), &installSoftwareRequest{}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(r.Body), "Error: Couldn't install. To install App Store app, turn on MDM for this host.")
 
 	// Disable all teams token
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", validToken.Token.ID), patchVPPTokensTeamsRequest{}, http.StatusOK, &resPatchVPP)
@@ -10927,7 +10926,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", validToken.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
 
 	// Attempt to install non-existent app
-	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, 99999), &installSoftwareRequest{},
+	r = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, 99999), &installSoftwareRequest{},
 		http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(r.Body), "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.")
 
@@ -10946,7 +10945,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	}
 
 	// Trigger install to the host
-	installResp = installSoftwareResponse{}
+	installResp := installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, errTitleID), &installSoftwareRequest{},
 		http.StatusAccepted, &installResp)
 

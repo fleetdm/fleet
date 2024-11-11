@@ -252,7 +252,7 @@ type HostSoftwareTitleListOptions struct {
 	VulnerableOnly bool `query:"vulnerable,optional"`
 
 	// Non-MDM-enabled hosts cannot install VPP apps
-	ExcludeVPPApps bool
+	IsMDMEnrolled bool
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.

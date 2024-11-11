@@ -1915,18 +1915,18 @@ None.
 
 ```json
 {
-    "spec": {
-        "secrets": [
-            {
-                "secret": "vhPzPOnCMOMoqSrLxKxzSADyqncayacB",
-                "created_at": "2021-11-12T20:24:57Z"
-            },
-            {
-                "secret": "jZpexWGiXmXaFAKdrdttFHdJBqEnqlVF",
-                "created_at": "2021-11-12T20:24:57Z"
-            }
-        ]
-    }
+  "spec": {
+    "secrets": [
+      {
+        "secret": "vhPzPOnCMOMoqSrLxKxzSADyqncayacB",
+        "created_at": "2021-11-12T20:24:57Z"
+      },
+      {
+        "secret": "jZpexWGiXmXaFAKdrdttFHdJBqEnqlVF",
+        "created_at": "2021-11-12T20:24:57Z"
+      }
+    ]
+  }
 }
 ```
 
@@ -1952,13 +1952,13 @@ Replace all global enroll secrets with a new enroll secret.
 
 ```json
 {
-    "spec": {
-        "secrets": [
-            {
-                "secret": "KuSkYFsHBQVlaFtqOLwoUIWniHhpvEhP"
-            }
-        ]
-    }
+  "spec": {
+    "secrets": [
+      {
+        "secret": "KuSkYFsHBQVlaFtqOLwoUIWniHhpvEhP"
+      }
+    ]
+  }
 }
 ```
 
@@ -1980,9 +1980,9 @@ Delete all global enroll secrets.
 
 ```json
 {
-    "spec": {
-        "secrets": []
-    }
+  "spec": {
+    "secrets": []
+  }
 }
 ```
 
@@ -2266,16 +2266,16 @@ Verify the specified invite.
 
 ```json
 {
-    "invite": {
-        "created_at": "2021-01-15T00:58:33Z",
-        "updated_at": "2021-01-15T00:58:33Z",
-        "id": 4,
-        "email": "steve@example.com",
-        "name": "Steve",
-        "sso_enabled": false,
-        "global_role": "admin",
-        "teams": []
-    }
+  "invite": {
+    "created_at": "2021-01-15T00:58:33Z",
+    "updated_at": "2021-01-15T00:58:33Z",
+    "id": 4,
+    "email": "steve@example.com",
+    "name": "Steve",
+    "sso_enabled": false,
+    "global_role": "admin",
+    "teams": []
+  }
 }
 ```
 
@@ -2285,13 +2285,13 @@ Verify the specified invite.
 
 ```json
 {
-    "message": "Resource Not Found",
-    "errors": [
-        {
-            "name": "base",
-            "reason": "Invite with token <token> was not found in the datastore"
-        }
-    ]
+  "message": "Resource Not Found",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Invite with token <token> was not found in the datastore"
+    }
+  ]
 }
 ```
 
@@ -4265,7 +4265,7 @@ Resends a configuration profile for the specified host.
           "installed_at": "2024-05-15T15:23:57Z"
         }
       },
-      "app_store_app": null
+      "app_store_app": null,
       "source": "apps",
       "status": "failed",
       "installed_versions": [
@@ -4281,28 +4281,26 @@ Resends a configuration profile for the specified host.
       "id": 134,
       "name": "Falcon.app",
       "software_package": {
-        "name": "FalconSensor-6.44.pkg"
+        "name": "FalconSensor-6.44.pkg",
         "self_service": false,
-        "last_install": null
         "last_install": null,
         "last_uninstall": {
           "script_execution_id": "ed579e73-0f41-46c8-aaf4-3c1e5880ed27",
           "uninstalled_at": "2024-05-15T15:23:57Z"
         }
       },
-      "app_store_app": null    
+      "app_store_app": null,    
       "source": "",
-      "status": null,
       "status": "pending_uninstall",
       "installed_versions": [],
     },
     {
       "id": 147,
       "name": "Logic Pro",
-      "software_package": null
+      "software_package": null,
       "app_store_app": {
         "app_store_id": "1091189122",
-        "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f4/25/1f/f4251f60-e27a-6f05-daa7-9f3a63aac929/AppIcon-0-0-85-220-0-0-4-0-0-2x-0-0-0-0-0.png/512x512bb.png"
+        "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f4/25/1f/f4251f60-e27a-6f05-daa7-9f3a63aac929/AppIcon-0-0-85-220-0-0-4-0-0-2x-0-0-0-0-0.png/512x512bb.png",
         "version": "2.04",
         "self_service": false,
         "last_install": {
@@ -5549,7 +5547,7 @@ If one or more assigned labels are deleted the profile is considered broken (`br
   "labels_include_all": [
     {
       "name": "Label name 1",
-      "id": 1
+      "id": 1,
       "broken": true
     },
     {
@@ -6465,7 +6463,7 @@ None.
     "terms_expired": false,
     "macos_team": {
       "name": "💻 Workstations",
-      "id" 1
+      "id": 1
     },
     "ios_team": {
       "name": "📱🏢 Company-owned iPhones",
@@ -6519,7 +6517,7 @@ None.
       },
       {
         "name": "🔳🏢 Company-owned iPads",
-        "id" 4
+        "id": 4
       }
     ],
   }
@@ -8833,7 +8831,7 @@ Get a list of all software.
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         },
         {
-          "id": 12
+          "id": 12,
           "version": "1.13",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         }
@@ -8999,7 +8997,7 @@ Returns a list of all operating systems.
 
 ```json
 {
-  "count": 1
+  "count": 1,
   "counts_updated_at": "2023-12-06T22:17:30Z",
   "os_versions": [
     {
@@ -9505,7 +9503,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 {
   "app_store_id": "497799835",
   "team_id": 2,
-  "platform": "ipados"
+  "platform": "ipados",
   "self_service": true
 }
 ```
