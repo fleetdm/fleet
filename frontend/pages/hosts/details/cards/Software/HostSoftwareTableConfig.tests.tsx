@@ -14,6 +14,7 @@ describe("generateActions", () => {
     status: null,
     software_package: null,
     app_store_app: null,
+    hostMDMEnrolled: false,
   };
 
   it("returns default actions when user has write permission and scripts are enabled", () => {
@@ -84,6 +85,7 @@ describe("generateActions", () => {
   it("allows to install VPP apps even if scripts are disabled", () => {
     const props: generateActionsProps = {
       ...defaultProps,
+      hostMDMEnrolled: true,
       hostScriptsEnabled: false,
       app_store_app: {
         app_store_id: "1",
@@ -95,6 +97,23 @@ describe("generateActions", () => {
     };
     const actions = generateActions(props);
     expect(actions.find((a) => a.value === "install")?.disabled).toBe(false);
+    expect(actions.find((a) => a.value === "uninstall")).toBeUndefined();
+  });
+
+  it("disables installing VPP app if host is not MDM enrolled", () => {
+    const props: generateActionsProps = {
+      ...defaultProps,
+      hostScriptsEnabled: false,
+      app_store_app: {
+        app_store_id: "1",
+        self_service: false,
+        icon_url: "",
+        version: "",
+        last_install: { command_uuid: "", installed_at: "" },
+      },
+    };
+    const actions = generateActions(props);
+    expect(actions.find((a) => a.value === "install")?.disabled).toBe(true);
     expect(actions.find((a) => a.value === "uninstall")).toBeUndefined();
   });
 });
