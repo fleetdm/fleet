@@ -485,6 +485,7 @@ const DeviceUserPage = ({
         fullWidth
         notification={notification}
         onRemoveFlash={hideFlash}
+        pathname={location.pathname}
       />
       <nav className="site-nav-container">
         <div className="site-nav-content">
