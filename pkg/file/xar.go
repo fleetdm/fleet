@@ -159,7 +159,7 @@ type distributionApp struct {
 
 // ExtractXARMetadata extracts the name and version metadata from a .pkg file
 // in the XAR format.
-func ExtractXARMetadata(tfr *TempFileReader) (*InstallerMetadata, error) {
+func ExtractXARMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 	var hdr xarHeader
 
 	h := sha256.New()

@@ -6,12 +6,13 @@ import (
 	"io"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/saferwall/pe"
 )
 
 // ExtractPEMetadata extracts the name and version metadata from a .exe file in
 // the Portable Executable (PE) format.
-func ExtractPEMetadata(tfr *TempFileReader) (*InstallerMetadata, error) {
+func ExtractPEMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 	// compute its hash
 	h := sha256.New()
 	_, _ = io.Copy(h, tfr) // writes to a hash cannot fail

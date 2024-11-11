@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 )
 
@@ -51,7 +52,7 @@ func populateMetadata(orbitClient *service.OrbitClient, installerID uint) (*file
 		return nil, err
 	}
 	// Figure out what we're actually installing here and add it to software inventory
-	tfr, err := file.NewKeepFileReader(path)
+	tfr, err := fleet.NewKeepFileReader(path)
 	if err != nil {
 		log.Println("open installer:", err)
 		return nil, err

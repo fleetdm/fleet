@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/secure"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 var ErrUnsupportedType = errors.New("unsupported file type")
@@ -28,71 +29,10 @@ type InstallerMetadata struct {
 	PackageIDs       []string
 }
 
-type TempFileReader struct {
-	*os.File
-	keepFile bool
-}
-
-func (r *TempFileReader) Rewind() error {
-	if _, err := r.Seek(0, io.SeekStart); err != nil {
-		return err
-	}
-	return nil
-}
-
-// Close closes the TempFileReader and deletes the underlying temp file unless
-// it was instructed not to do so at creation time.
-func (r *TempFileReader) Close() error {
-	cerr := r.File.Close()
-	var rerr error
-	if !r.keepFile {
-		rerr = os.Remove(r.File.Name())
-	}
-	if cerr != nil {
-		return cerr
-	}
-	return rerr
-}
-
-// NewKeepFileReader creates a TempFileReader from a file path and keeps the
-// file on Close, instead of deleting it.
-func NewKeepFileReader(filename string) (*TempFileReader, error) {
-	f, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	return &TempFileReader{File: f, keepFile: true}, nil
-}
-
-// NewTempFileReader creates a temp file to store the data from the provided
-// reader and returns a TempFileReader that reads from that temp file, deleting
-// it on close.
-func NewTempFileReader(from io.Reader, tempDirFn func() string) (*TempFileReader, error) {
-	if tempDirFn == nil {
-		tempDirFn = os.TempDir
-	}
-
-	tempFile, err := os.CreateTemp(tempDirFn(), "fleet-temp-file-*")
-	if err != nil {
-		return nil, err
-	}
-	tfr := &TempFileReader{File: tempFile}
-
-	if _, err := io.Copy(tempFile, from); err != nil {
-		_ = tfr.Close() // best-effort close/delete
-		return nil, err
-	}
-	if err := tfr.Rewind(); err != nil {
-		_ = tfr.Close() // best-effort close/delete
-		return nil, err
-	}
-	return tfr, nil
-}
-
 // ExtractInstallerMetadata extracts the software name and version from the
 // installer file and returns them along with the sha256 hash of the bytes. The
 // format of the installer is determined based on the magic bytes of the content.
-func ExtractInstallerMetadata(tfr *TempFileReader) (*InstallerMetadata, error) {
+func ExtractInstallerMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 	br := bufio.NewReader(tfr)
 	extension, err := typeFromBytes(br)
 	if err != nil {

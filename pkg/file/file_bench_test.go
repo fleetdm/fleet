@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -149,7 +150,7 @@ func BenchmarkExtractInstallerMetadata(b *testing.B) {
 				// memory usage, so it doesn't matter that the file is read from disk on each
 				// iteration.
 				for i := 0; i < b.N; i++ {
-					tfr, err := file.NewKeepFileReader(filepath.Join("testdata", "installers", dent.Name()))
+					tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "installers", dent.Name()))
 					require.NoError(b, err)
 
 					meta, err := file.ExtractInstallerMetadata(tfr)

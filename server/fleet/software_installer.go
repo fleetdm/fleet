@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -312,7 +313,7 @@ type UploadSoftwareInstallerPayload struct {
 	InstallScript      string
 	PreInstallQuery    string
 	PostInstallScript  string
-	InstallerFile      io.ReadSeeker // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
+	InstallerFile      *TempFileReader // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
 	StorageID          string
 	Filename           string
 	Title              string
@@ -338,7 +339,7 @@ type UpdateSoftwareInstallerPayload struct {
 	// used for authorization and persisted as author
 	UserID uint
 	// optional; used for pulling metadata + persisting new installer package to file system
-	InstallerFile io.ReadSeeker
+	InstallerFile *TempFileReader
 	// update the installer with these fields (*not* PATCH semantics at that point; while the
 	// associated endpoint is a PATCH, the entire row will be updated to these values, including
 	// blanks, so make sure they're set from either user input or the existing installer row
@@ -533,3 +534,64 @@ type SoftwareInstallerTokenMetadata struct {
 }
 
 const SoftwareInstallerURLMaxLength = 255
+
+type TempFileReader struct {
+	*os.File
+	keepFile bool
+}
+
+func (r *TempFileReader) Rewind() error {
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Close closes the TempFileReader and deletes the underlying temp file unless
+// it was instructed not to do so at creation time.
+func (r *TempFileReader) Close() error {
+	cerr := r.File.Close()
+	var rerr error
+	if !r.keepFile {
+		rerr = os.Remove(r.File.Name())
+	}
+	if cerr != nil {
+		return cerr
+	}
+	return rerr
+}
+
+// NewKeepFileReader creates a TempFileReader from a file path and keeps the
+// file on Close, instead of deleting it.
+func NewKeepFileReader(filename string) (*TempFileReader, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	return &TempFileReader{File: f, keepFile: true}, nil
+}
+
+// NewTempFileReader creates a temp file to store the data from the provided
+// reader and returns a TempFileReader that reads from that temp file, deleting
+// it on close.
+func NewTempFileReader(from io.Reader, tempDirFn func() string) (*TempFileReader, error) {
+	if tempDirFn == nil {
+		tempDirFn = os.TempDir
+	}
+
+	tempFile, err := os.CreateTemp(tempDirFn(), "fleet-temp-file-*")
+	if err != nil {
+		return nil, err
+	}
+	tfr := &TempFileReader{File: tempFile}
+
+	if _, err := io.Copy(tempFile, from); err != nil {
+		_ = tfr.Close() // best-effort close/delete
+		return nil, err
+	}
+	if err := tfr.Rewind(); err != nil {
+		_ = tfr.Close() // best-effort close/delete
+		return nil, err
+	}
+	return tfr, nil
+}

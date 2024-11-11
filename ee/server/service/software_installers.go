@@ -1,13 +1,11 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"mime"
 	"net/http"
 	"net/url"
@@ -1090,7 +1088,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	payload.Extension = meta.Extension
 
 	// reset the reader (it was consumed to extract metadata)
-	if _, err := payload.InstallerFile.Seek(0, 0); err != nil {
+	if err := payload.InstallerFile.Rewind(); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "resetting installer file reader")
 	}
 
@@ -1230,7 +1228,7 @@ func (svc *Service) softwareBatchUpload(
 		}
 	}(time.Now())
 
-	downloadURLFn := func(ctx context.Context, url string) (http.Header, []byte, error) {
+	downloadURLFn := func(ctx context.Context, url string) (http.Header, *fleet.TempFileReader, error) {
 		client := fleethttp.NewClient()
 		client.Transport = fleethttp.NewSizeLimitTransport(fleet.MaxSoftwareInstallerSize)
 
@@ -1268,8 +1266,7 @@ func (svc *Service) softwareBatchUpload(
 			)
 		}
 
-		// TODO(mna): prevent that, store in temp file and pass along the reference
-		bodyBytes, err := io.ReadAll(resp.Body)
+		tfr, err := fleet.NewTempFileReader(resp.Body, nil)
 		if err != nil {
 			// the max size error can be received either at client.Do or here when
 			// reading the body if it's caught via a limited body reader.
@@ -1283,7 +1280,7 @@ func (svc *Service) softwareBatchUpload(
 			return nil, nil, fmt.Errorf("reading installer %q contents: %w", url, err)
 		}
 
-		return resp.Header, bodyBytes, nil
+		return resp.Header, tfr, nil
 	}
 
 	var g errgroup.Group
@@ -1296,18 +1293,22 @@ func (svc *Service) softwareBatchUpload(
 		i, p := i, p
 
 		g.Go(func() error {
-			headers, bodyBytes, err := downloadURLFn(ctx, p.URL)
+			headers, tfr, err := downloadURLFn(ctx, p.URL)
 			if err != nil {
 				return err
 			}
 
+			// NOTE: cannot defer tfr.Close() here because the reader needs to be
+			// available after the goroutine completes. Instead, all temp file
+			// readers will have their Close deferred after the join/wait of
+			// goroutines.
 			installer := &fleet.UploadSoftwareInstallerPayload{
 				TeamID:             teamID,
 				InstallScript:      p.InstallScript,
 				PreInstallQuery:    p.PreInstallQuery,
 				PostInstallScript:  p.PostInstallScript,
 				UninstallScript:    p.UninstallScript,
-				InstallerFile:      bytes.NewReader(bodyBytes),
+				InstallerFile:      tfr,
 				SelfService:        p.SelfService,
 				UserID:             userID,
 				URL:                p.URL,
@@ -1327,6 +1328,7 @@ func (svc *Service) softwareBatchUpload(
 
 			ext, err := svc.addMetadataToSoftwarePayload(ctx, installer)
 			if err != nil {
+				_ = tfr.Close() // closing the temp file here since it will not be available after the goroutine completes
 				return err
 			}
 
@@ -1353,9 +1355,18 @@ func (svc *Service) softwareBatchUpload(
 		})
 	}
 
-	if err := g.Wait(); err != nil {
+	waitErr := g.Wait()
+
+	// defer close for any valid temp file reader
+	for _, payload := range installers {
+		if payload != nil && payload.InstallerFile != nil {
+			defer payload.InstallerFile.Close()
+		}
+	}
+
+	if waitErr != nil {
 		// NOTE: intentionally not wrapping to avoid polluting user errors.
-		batchErr = err
+		batchErr = waitErr
 		return
 	}
 
@@ -1564,7 +1575,7 @@ func UninstallSoftwareMigration(
 			return ctxerr.Wrap(ctx, err, "getting installer from store")
 		}
 
-		tfr, err := file.NewTempFileReader(installer, nil)
+		tfr, err := fleet.NewTempFileReader(installer, nil)
 		_ = installer.Close()
 		if err != nil {
 			level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",

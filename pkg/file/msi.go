@@ -9,10 +9,11 @@ import (
 	"io"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/sassoftware/relic/v8/lib/comdoc"
 )
 
-func ExtractMSIMetadata(tfr *TempFileReader) (*InstallerMetadata, error) {
+func ExtractMSIMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 	// compute its hash
 	h := sha256.New()
 	_, _ = io.Copy(h, tfr) // writes to a hash cannot fail
