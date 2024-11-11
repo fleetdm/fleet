@@ -148,8 +148,6 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 	)
 
 	cmd := exec.Command("sudo", args...)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
 	log.Printf("cmd=%s", cmd.String())
 
 	output, err = cmd.CombinedOutput()
