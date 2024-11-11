@@ -279,7 +279,7 @@ controls:
 
 Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format.
 
-Use `labels_include_all` or `labels_include_any` to only apply (scope) profiles to hosts that have all those labels, `labels_exclude_any` to apply profiles to hosts that have any of those labels, or `labels_exclude_any` to apply profiles to hosts that don't have any of those labels.
+Use `labels_include_all` to only apply (scope) profiles to hosts that have all those labels, `labels_include_any` to apply profiles to hosts that have any of those labels, or `labels_exclude_any` to apply profiles to hosts that don't have any of those labels.
 
 ### macos_setup
 
