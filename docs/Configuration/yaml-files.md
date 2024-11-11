@@ -71,7 +71,7 @@ policies:
     package_path: "../lib/linux-firefox.deb.package.yml"
 ```
 
-`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
+`default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
 
 ```yaml
 policies:
