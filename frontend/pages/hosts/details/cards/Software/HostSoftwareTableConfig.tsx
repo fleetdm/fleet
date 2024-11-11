@@ -131,9 +131,8 @@ export const generateActions = ({
 
     if (!hostMDMEnrolled) {
       actions[indexInstallAction].disabled = true;
-      actions[indexInstallAction].tooltipContent = (
-        <>To install, turn on MDM for this host.</>
-      );
+      actions[indexInstallAction].tooltipContent =
+        "To install, turn on MDM for this host.";
     }
   }
   return actions;
