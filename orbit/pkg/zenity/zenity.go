@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os/exec"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
@@ -114,15 +114,10 @@ func (z *Zenity) ShowInfo(ctx context.Context, opts InfoOptions) error {
 }
 
 func execCmd(ctx context.Context, args ...string) ([]byte, int, error) {
-	cmd := exec.CommandContext(ctx, "zenity", args...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		var exitCode int // exit 0 ok here if zenity returns an error
-		if cmd.ProcessState != nil {
-			exitCode = cmd.ProcessState.ExitCode()
-		}
-		return nil, exitCode, err
+	var opts []execuser.Option
+	for _, arg := range args {
+		opts = append(opts, execuser.WithArg(arg, "")) // Using empty value for positional args
 	}
 
-	return output, cmd.ProcessState.ExitCode(), nil
+	return execuser.RunWithOutput("zenity", opts...)
 }

@@ -147,6 +147,12 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 		path,
 	)
 
+	if len(opts.args) > 0 {
+		for _, arg := range opts.args {
+			args = append(args, arg[0], arg[1])
+		}
+	}
+
 	cmd := exec.Command("sudo", args...)
 	log.Printf("cmd=%s", cmd.String())
 
@@ -155,7 +161,7 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode = exitErr.ExitCode()
 		}
-		return output, exitCode, fmt.Errorf("open path %q: %w", path, err)
+		return output, exitCode, fmt.Errorf("%q errored with: %w", path, err)
 	}
 
 	return output, exitCode, nil
