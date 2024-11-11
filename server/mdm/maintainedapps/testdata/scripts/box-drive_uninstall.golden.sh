@@ -109,6 +109,11 @@ trash() {
   fi
 }
 
+(cd /Users/$LOGGED_IN_USER; sudo -u $LOGGED_IN_USER fileproviderctl domain remove -A com.box.desktop.boxfileprovider)
+(cd /Users/$LOGGED_IN_USER; sudo -u $LOGGED_IN_USER /Applications/Box.app/Contents/MacOS/fpe/streem --remove-fpe-domain-and-archive-unsynced-content Box)
+(cd /Users/$LOGGED_IN_USER; sudo -u $LOGGED_IN_USER /Applications/Box.app/Contents/MacOS/fpe/streem --remove-fpe-domain-and-preserve-unsynced-content Box)
+(cd /Users/$LOGGED_IN_USER; defaults delete com.box.desktop)
+echo "${LOGGED_IN_USER} ALL = (root) NOPASSWD: /Library/Application\ Support/Box/uninstall_box_drive_r" >> /etc/sudoers.d/box_uninstall
 remove_launchctl_service 'com.box.desktop.helper'
 quit_application 'com.box.Box-Local-Com-Server'
 quit_application 'com.box.desktop'
@@ -117,6 +122,7 @@ quit_application 'com.box.desktop.helper'
 quit_application 'com.box.desktop.ui'
 (cd /Users/$LOGGED_IN_USER && sudo -u "$LOGGED_IN_USER" '/Library/Application Support/Box/uninstall_box_drive')
 sudo pkgutil --forget 'com.box.desktop.installer.*'
+rm /etc/sudoers.d/box_uninstall
 trash $LOGGED_IN_USER '~/.Box_*'
 trash $LOGGED_IN_USER '~/Library/Application Support/Box/Box'
 trash $LOGGED_IN_USER '~/Library/Application Support/FileProvider/com.box.desktop.boxfileprovider'
