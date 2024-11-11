@@ -941,7 +941,6 @@ None.
       "mode": "voluntary",
       "webhook_url": "https://webhook.example.com"
     },
-    "windows_migration_enabled": false,
     "macos_setup": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
@@ -1236,7 +1235,6 @@ Modifies the Fleet's configuration with the supplied information.
       "mode": "voluntary",
       "webhook_url": "https://webhook.example.com"
     },
-    "windows_migration_enabled": false,
     "macos_setup": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
@@ -1715,7 +1713,6 @@ _Available in Fleet Premium._
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
 | windows_updates         | object  | See [`mdm.window_updates`](#mdm-windows-updates). |
 | macos_migration         | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
-| windows_migration_enabled | boolean  | Whether to enable automatic migration via fleetd for devices migrating from your old MDM solution. |
 | macos_setup         | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
@@ -1870,7 +1867,6 @@ _Available in Fleet Premium._
       "mode": "voluntary",
       "webhook_url": "https://webhook.example.com"
     },
-    "windows_migration_enabled": false,
     "macos_setup": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
@@ -4213,7 +4209,7 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 
 Resends a configuration profile for the specified host.
 
-`POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend`
+`POST /api/v1/fleet/hosts/:id/configuration_profiles/resend/:profile_uuid`
 
 #### Parameters
 
@@ -4224,7 +4220,7 @@ Resends a configuration profile for the specified host.
 
 #### Example
 
-`POST /api/v1/fleet/hosts/233/configuration_profiles/fc14a20-84a2-42d8-9257-a425f62bb54d/resend`
+`POST /api/v1/fleet/hosts/233/configuration_profiles/resend/fc14a20-84a2-42d8-9257-a425f62bb54d`
 
 ##### Default response
 
@@ -4298,12 +4294,8 @@ Resends a configuration profile for the specified host.
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required**. The host's ID. |
-| query   | string | query | Search query keywords. Searchable fields include `name` and `vulnerabilities`. |
+| query   | string | query | Search query keywords. Searchable fields include `name`. |
 | available_for_install | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`. |
-| vulnerable              | boolean | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
-| min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
-| max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
-| exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
 
@@ -4334,7 +4326,6 @@ Resends a configuration profile for the specified host.
       "app_store_app": null
       "source": "apps",
       "status": "failed",
-      "vulnerabilities": ["CVE-2023-9876", "CVE-2023-2367"],
       "installed_versions": [
         {
           "version": "121.0",
@@ -7670,9 +7661,6 @@ Returns a list of global queries or team queries.
 | team_id         | integer | query | _Available in Fleet Premium_. The ID of the parent team for the queries to be listed. When omitted, returns global queries.                  |
 | query           | string  | query | Search query keywords. Searchable fields include `name`.                                                                      |
 | merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global queries in addition to team queries when filtering by `team_id`. (If no `team_id` is provided, this parameter is ignored.) |
-| page                    | integer | query | Page number of the results to fetch. |
-| per_page                | integer | query | Results per page. |
-| compatible_platform     | string | query | Return queries that only reference tables compatible with this platform (not a strict compatibility check). One of: `"macos"`, `"windows"`, `"linux"`, `"chrome"` (case-insensitive). |
 
 #### Example
 
@@ -7761,12 +7749,7 @@ Returns a list of global queries or team queries.
         "total_executions": null
       }
     }
-  ],
-  "meta": {
-    "has_next_results": true,
-    "has_previous_results": false
-  },
-  "count": 200
+  ]
 }
 ```
 
@@ -11200,7 +11183,6 @@ None.
       "force_password_reset": false,
       "gravatar_url": "",
       "sso_enabled": false,
-      "two_factor_authentication_enabled": false,
       "global_role": null,
       "api_only": false,
       "teams": [
@@ -11293,7 +11275,6 @@ Creates a user account after an invited user provides registration information a
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "two_factor_authentication_enabled": false,
     "global_role": "admin",
     "teams": []
   }
@@ -11365,7 +11346,6 @@ By default, the user will be forced to reset its password upon first login.
 | name        | string  | body | **Required**. The user's full name or nickname.                                                                                                                                                                                                                                                                                                          |
 | password    | string  | body | The user's password (required for non-SSO users).                                                                                                                                                                                                                                                                                                        |
 | sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
-| two_factor_authentication_enabled | boolean | body | _Available in Fleet Premium_. Whether or not email two-factor authentication is enabled for the user.                                                                                                                                                                                                                                                                                                              |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
 | global_role | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access).                                                                                                                                                                        |
 | admin_forced_password_reset    | boolean | body | Sets whether the user will be forced to reset its password upon first login (default=true) |
@@ -11412,7 +11392,6 @@ By default, the user will be forced to reset its password upon first login.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "two_factor_authentication_enabled": false,
     "api_only": true,
     "global_role": null,
     "teams": [
@@ -11487,7 +11466,6 @@ Returns all information about a specific user.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "two_factor_authentication_enabled": false,
     "global_role": "admin",
     "api_only": false,
     "teams": []
@@ -11524,7 +11502,6 @@ Returns all information about a specific user.
 | position    | string  | body | The user's position.                                                                                                                                                                                                                                                                                                                                     |
 | email       | string  | body | The user's email.                                                                                                                                                                                                                                                                                                                                        |
 | sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
-| two_factor_authentication_enabled | boolean | body | Whether or not email two-factor authentication is enabled for the user.                                                                                                                                                                                                                                                                                                              |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
 | password    | string  | body | The user's current password, required to change the user's own email or password (not required for an admin to modify another user).                                                                                                                                                                                                                     |
 | new_password| string  | body | The user's new password. |
@@ -11560,7 +11537,6 @@ Returns all information about a specific user.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "two_factor_authentication_enabled": false,
     "api_only": false,
     "teams": []
   }
@@ -11604,7 +11580,6 @@ Returns all information about a specific user.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "two_factor_authentication_enabled": false,
     "global_role": "admin",
     "teams": [
       {
@@ -11681,7 +11656,6 @@ The selected user is logged out of Fleet and required to reset their password du
     "force_password_reset": true,
     "gravatar_url": "",
     "sso_enabled": false,
-    "two_factor_authentication_enabled": false,
     "global_role": "observer",
     "teams": []
   }

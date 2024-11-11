@@ -149,12 +149,12 @@
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/5478
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Configuration]
-  usualDepartment: Security
-  tier: Premium
+  usualDepartment: IT
+  tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
   waysToUse:
-    - description: Enforce email two-factor authentication (2FA) when logging in to Fleet for added security.
+    - description: Enforce two-factor authentication when logging in to Fleet for added security.
   comingSoonOn: 2024-12-31 #customer-rosner
 #  
 #  ╦═╗╔═╗╦  ╔═╗  ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ╔═╗╔═╗╔╗╔╔╦╗╦═╗╔═╗╦  
@@ -377,7 +377,7 @@
 #  ║╣ ║║║╠╣ ║ ║╠╦╝║  ║╣    ║║║╚═╗╠╩╗  ║╣ ║║║║  ╠╦╝╚╦╝╠═╝ ║ ║║ ║║║║
 #  ╚═╝╝╚╝╚  ╚═╝╩╚═╚═╝╚═╝  ═╩╝╩╚═╝╩ ╩  ╚═╝╝╚╝╚═╝╩╚═ ╩ ╩   ╩ ╩╚═╝╝╚╝
 - industryName: Enforce disk encryption
-  description: Encrypt system drives on macOS, Windows, Ubuntu Linux and Fedora Linux computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker, LUKS).
+  description: Encrypt system drives on macOS, Windows, and Linux (coming soon) computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker, LUKS).
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
   friendlyName: Ensure hard disks are encrypted
   productCategories: [Device management]
