@@ -209,8 +209,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager, packagerName string) (string, e
 			})
 	}
 
-	files.PrepareForPackager(contents, 0o0, packagerName, false, time.Now())
-
+	contents, err = files.PrepareForPackager(contents, 0o0, packagerName, false, time.Now())
 	if err != nil {
 		return "", fmt.Errorf("glob contents: %w", err)
 	}
