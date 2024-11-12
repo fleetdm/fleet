@@ -166,7 +166,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager, packagerName string) (string, e
 	contents := files.Contents{
 		&files.Content{
 			Source:      filepath.Join(rootDir, "**"),
-			Destination: "/",
+			Destination: "",
 		},
 		// Symlink current into /opt/orbit/bin/orbit/orbit
 		&files.Content{
