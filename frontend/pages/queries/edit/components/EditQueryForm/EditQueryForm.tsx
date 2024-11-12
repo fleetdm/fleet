@@ -129,7 +129,7 @@ const EditQueryForm = ({
     lastEditedQueryBody,
     lastEditedQueryObserverCanRun,
     lastEditedQueryFrequency,
-    lastEditedQueryAutomation,
+    lastEditedQueryAutomationsEnabled,
     lastEditedQueryPlatforms,
     lastEditedQueryMinOsqueryVersion,
     lastEditedQueryLoggingType,
@@ -139,7 +139,7 @@ const EditQueryForm = ({
     setLastEditedQueryBody,
     setLastEditedQueryObserverCanRun,
     setLastEditedQueryFrequency,
-    setLastEditedQueryAutomation,
+    setLastEditedQueryAutomationsEnabled,
     setLastEditedQueryPlatforms,
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryLoggingType,
@@ -322,7 +322,7 @@ const EditQueryForm = ({
           team_id: apiTeamIdForQuery,
           observer_can_run: lastEditedQueryObserverCanRun,
           interval: lastEditedQueryFrequency,
-          automations_enabled: lastEditedQueryAutomation,
+          automations_enabled: lastEditedQueryAutomationsEnabled,
           platform: lastEditedQueryPlatforms,
           min_osquery_version: lastEditedQueryMinOsqueryVersion,
           logging: lastEditedQueryLoggingType,
@@ -348,7 +348,7 @@ const EditQueryForm = ({
                 team_id: apiTeamIdForQuery,
                 observer_can_run: lastEditedQueryObserverCanRun,
                 interval: lastEditedQueryFrequency,
-                automations_enabled: lastEditedQueryAutomation,
+                automations_enabled: lastEditedQueryAutomationsEnabled,
                 platform: lastEditedQueryPlatforms,
                 min_osquery_version: lastEditedQueryMinOsqueryVersion,
                 logging: lastEditedQueryLoggingType,
@@ -420,7 +420,7 @@ const EditQueryForm = ({
           query: lastEditedQueryBody,
           observer_can_run: lastEditedQueryObserverCanRun,
           interval: lastEditedQueryFrequency,
-          automations_enabled: lastEditedQueryAutomation,
+          automations_enabled: lastEditedQueryAutomationsEnabled,
           platform: lastEditedQueryPlatforms,
           min_osquery_version: lastEditedQueryMinOsqueryVersion,
           logging: lastEditedQueryLoggingType,
@@ -735,9 +735,11 @@ const EditQueryForm = ({
               />
               <Slider
                 onChange={() =>
-                  setLastEditedQueryAutomation(!lastEditedQueryAutomation)
+                  setLastEditedQueryAutomationsEnabled(
+                    !lastEditedQueryAutomationsEnabled
+                  )
                 }
-                value={lastEditedQueryAutomation}
+                value={lastEditedQueryAutomationsEnabled}
                 activeText={
                   <>
                     Automations on
@@ -763,8 +765,8 @@ const EditQueryForm = ({
                 helpText={
                   <>
                     Historical results will
-                    {!lastEditedQueryAutomation ? " not " : " "}be sent to your
-                    log destination: <b>{logDestination}</b>.
+                    {!lastEditedQueryAutomationsEnabled ? " not " : " "}be sent
+                    to your log destination: <b>{logDestination}</b>.
                   </>
                 }
               />

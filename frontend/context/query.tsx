@@ -25,7 +25,7 @@ type InitialStateType = {
   lastEditedQueryBody: string;
   lastEditedQueryObserverCanRun: boolean;
   lastEditedQueryFrequency: number;
-  lastEditedQueryAutomation: boolean;
+  lastEditedQueryAutomationsEnabled: boolean;
   lastEditedQueryPlatforms: SelectedPlatformString;
   lastEditedQueryMinOsqueryVersion: string;
   lastEditedQueryLoggingType: QueryLoggingOption;
@@ -39,7 +39,7 @@ type InitialStateType = {
   setLastEditedQueryBody: (value: string) => void;
   setLastEditedQueryObserverCanRun: (value: boolean) => void;
   setLastEditedQueryFrequency: (value: number) => void;
-  setLastEditedQueryAutomation: (value: boolean) => void;
+  setLastEditedQueryAutomationsEnabled: (value: boolean) => void;
   setLastEditedQueryPlatforms: (value: SelectedPlatformString) => void;
   setLastEditedQueryMinOsqueryVersion: (value: string) => void;
   setLastEditedQueryLoggingType: (value: string) => void;
@@ -61,7 +61,7 @@ const initialState = {
   lastEditedQueryBody: DEFAULT_QUERY.query,
   lastEditedQueryObserverCanRun: DEFAULT_QUERY.observer_can_run,
   lastEditedQueryFrequency: DEFAULT_QUERY.interval,
-  lastEditedQueryAutomation: DEFAULT_QUERY.automations_enabled,
+  lastEditedQueryAutomationsEnabled: DEFAULT_QUERY.automations_enabled,
   lastEditedQueryPlatforms: DEFAULT_QUERY.platform,
   lastEditedQueryMinOsqueryVersion: DEFAULT_QUERY.min_osquery_version,
   lastEditedQueryLoggingType: DEFAULT_QUERY.logging,
@@ -75,7 +75,7 @@ const initialState = {
   setLastEditedQueryBody: () => null,
   setLastEditedQueryObserverCanRun: () => null,
   setLastEditedQueryFrequency: () => null,
-  setLastEditedQueryAutomation: () => null,
+  setLastEditedQueryAutomationsEnabled: () => null,
   setLastEditedQueryPlatforms: () => null,
   setLastEditedQueryMinOsqueryVersion: () => null,
   setLastEditedQueryLoggingType: () => null,
@@ -129,10 +129,10 @@ const reducer = (state: InitialStateType, action: any) => {
           typeof action.lastEditedQueryFrequency === "undefined"
             ? state.lastEditedQueryFrequency
             : action.lastEditedQueryFrequency,
-        lastEditedQueryAutomation:
-          typeof action.lastEditedQueryAutomation === "undefined"
-            ? state.lastEditedQueryAutomation
-            : action.lastEditedQueryAutomation,
+        lastEditedQueryAutomationsEnabled:
+          typeof action.lastEditedQueryAutomationsEnabled === "undefined"
+            ? state.lastEditedQueryAutomationsEnabled
+            : action.lastEditedQueryAutomationsEnabled,
         lastEditedQueryPlatforms:
           typeof action.lastEditedQueryPlatforms === "undefined"
             ? state.lastEditedQueryPlatforms
@@ -188,7 +188,7 @@ const QueryProvider = ({ children }: Props) => {
     lastEditedQueryBody: state.lastEditedQueryBody,
     lastEditedQueryObserverCanRun: state.lastEditedQueryObserverCanRun,
     lastEditedQueryFrequency: state.lastEditedQueryFrequency,
-    lastEditedQueryAutomation: state.lastEditedQueryAutomation,
+    lastEditedQueryAutomationsEnabled: state.lastEditedQueryAutomationsEnabled,
     lastEditedQueryPlatforms: state.lastEditedQueryPlatforms,
     lastEditedQueryMinOsqueryVersion: state.lastEditedQueryMinOsqueryVersion,
     lastEditedQueryLoggingType: state.lastEditedQueryLoggingType,
@@ -234,10 +234,12 @@ const QueryProvider = ({ children }: Props) => {
         lastEditedQueryFrequency,
       });
     },
-    setLastEditedQueryAutomation: (lastEditedQueryAutomation: boolean) => {
+    setLastEditedQueryAutomationsEnabled: (
+      lastEditedQueryAutomationsEnabled: boolean
+    ) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
-        lastEditedQueryAutomation,
+        lastEditedQueryAutomationsEnabled,
       });
     },
     setLastEditedQueryPlatforms: (lastEditedQueryPlatforms: string) => {
