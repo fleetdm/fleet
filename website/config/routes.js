@@ -511,7 +511,7 @@ module.exports.routes = {
   'GET /legal':                      '/legal/terms',
   'GET /terms':                      '/legal/terms',
   'GET /handbook/security/github':   '/handbook/security#git-hub-security',
-  'GET /slack':                      'https://join.slack.com/t/osquery/shared_invite/zt-2op37v6qp-aVPivU5xB_FwuYElN0Z1lw',// Note: This redirect is used on error pages and email templates in the Fleet UI.
+  'GET /slack':                      '/support',// Note: This redirect is used on error pages and email templates in the Fleet UI.
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',
