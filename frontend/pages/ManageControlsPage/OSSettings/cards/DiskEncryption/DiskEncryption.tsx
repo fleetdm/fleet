@@ -5,6 +5,7 @@ import { InjectedRouter } from "react-router";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { ITeamConfig } from "interfaces/team";
+import { getErrorReason } from "interfaces/errors";
 
 import mdmAPI from "services/entities/mdm";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
@@ -93,11 +94,24 @@ const DiskEncryption = ({
       if (currentTeamId === 0) {
         getUpdatedAppConfig();
       }
-    } catch {
-      renderFlash(
-        "error",
-        "Could not update the disk encryption enforcement. Please try again."
-      );
+    } catch (e) {
+      if (getErrorReason(e).includes("Missing required private key")) {
+        const link =
+          "https://fleetdm.com/learn-more-about/fleet-server-private-key";
+        renderFlash(
+          "error",
+          <>
+            Could&apos;t enable disk encryption. Missing required private key.
+            Learn how to configure the private key here:{" "}
+            <a href={link}>{link}</a>
+          </>
+        );
+      } else {
+        renderFlash(
+          "error",
+          "Could not update the disk encryption enforcement. Please try again."
+        );
+      }
     }
   };
 
