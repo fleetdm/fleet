@@ -643,7 +643,6 @@ func (d *DEPService) processDeviceResponse(
 
 	// find out if we already have entries in the `hosts` table with
 	// matching serial numbers for any devices with op_type = "modified"
-	// TODO(JVE): add a similar
 	existingSerials, err := d.ds.GetMatchingHostSerials(ctx, modifiedSerials)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get matching host serials")
@@ -658,12 +657,6 @@ func (d *DEPService) processDeviceResponse(
 	// these cases, the device is new ("added") to us, but it comes with
 	// the wrong op_type.
 	for _, d := range modifiedDevices {
-		// TODO(JVE): how can we be smarter here? Removing from Fleet in ABM and then adding back
-		// leads to ABM sending "modified", but us not trying to re-assign because we think that the
-		// device already has the profile. What's wrong with trying to assign it twice?
-		// Something might be off with the timestamps; we track if the device was changed recently,
-		// I think that was the attempt at being smarter. if the timestamps aren't working, then we
-		// could be thinking that this is a real "modified" when it's not
 		if _, ok := existingSerials[d.SerialNumber]; !ok {
 			addedDevicesSlice = append(addedDevicesSlice, d)
 		}
@@ -674,7 +667,13 @@ func (d *DEPService) processDeviceResponse(
 		addedSerials = append(addedSerials, device.SerialNumber)
 	}
 
-	existingDeletedSerials, err := d.ds.GetMatchingHostSerialsMarkedDeleted(ctx, append(addedSerials, modifiedSerials...))
+	// Check if any of the "added" or "modified" hosts are hosts that we've recently removed from
+	// Fleet in ABM. A host in this state will have a row in `host_dep_assignments` where the
+	// `deleted_at ` col is NOT NULL. Down below we skip assigning the profile to devices that we
+	// think are still enrolled; doing this check here allows us to avoid skipping devices that
+	// _seem_ like they're still enrolled but were actually removed and should get the profile.
+	// See https://github.com/fleetdm/fleet/issues/23200 for more context.
+	existingDeletedSerials, err := d.ds.GetMatchingHostSerialsMarkedDeleted(ctx, addedSerials)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get matching deleted host serials")
 	}

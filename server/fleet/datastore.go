@@ -1295,8 +1295,8 @@ type Datastore interface {
 
 	// GetMatchingHostSerialsMarkedDeleted takes a list of device serial numbers and returns a map
 	// of only the ones that were found in the `hosts` table AND have a row in
-	// `host_dep_assignments` that is marked as deleted
-	GetMatchingHostSerialsMarkedDeleted(ctx context.Context, serials []string) (map[string]*Host, error)
+	// `host_dep_assignments` that is marked as deleted.
+	GetMatchingHostSerialsMarkedDeleted(ctx context.Context, serials []string) (map[string]struct{}, error)
 
 	// DeleteHostDEPAssignmentsFromAnotherABM makes as deleted any DEP entry that matches one of the provided serials only if the entry is NOT associated to the provided ABM token.
 	DeleteHostDEPAssignmentsFromAnotherABM(ctx context.Context, abmTokenID uint, serials []string) error
