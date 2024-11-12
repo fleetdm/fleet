@@ -58,7 +58,7 @@ func main() {
 			code := err.(*cryptsetup.Error).Code()
 			fmt.Println("KeyslotAddByPassphrase err", "code", code)
 			if code == int(ErrBadPassphrase) {
-				passphrase, err = entryPrompt(context.Background())
+				passphrase, err = reEntryPrompt(context.Background())
 				if err != nil {
 					fmt.Errorf("entryPrompt err: %w", err)
 					break
@@ -84,6 +84,29 @@ func entryPrompt(ctx context.Context) (string, error) {
 	passphrase, err := prompt.ShowEntry(context.Background(), dialog.EntryOptions{
 		Title:    "Enter Passphrase",
 		Text:     "Enter the passphrase for the encrypted device",
+		HideText: true,
+		TimeOut:  1 * time.Minute,
+	})
+	if err != nil {
+		switch err {
+		case dialog.ErrCanceled:
+			fmt.Println("canceled")
+		case dialog.ErrTimeout:
+			fmt.Println("timeout")
+		case dialog.ErrUnknown:
+			fmt.Println("unknown error", err)
+		}
+		return "", err
+	}
+
+	return string(passphrase), nil
+}
+
+func reEntryPrompt(ctx context.Context) (string, error) {
+	prompt := zenity.New()
+	passphrase, err := prompt.ShowEntry(context.Background(), dialog.EntryOptions{
+		Title:    "Re-enter Passphrase",
+		Text:     "Invalid passphrase.  Enter the passphrase for the encrypted device",
 		HideText: true,
 		TimeOut:  1 * time.Minute,
 	})
