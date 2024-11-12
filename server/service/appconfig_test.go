@@ -30,6 +30,65 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestMDMCustomSettingsUnmarshal(t *testing.T) {
+	// When updating AppConfig, we unmarshal the incoming JSON into the existing AppConfig struct.
+	// See
+	// https://github.com/fleetdm/fleet/blob/d1144df1318b50482cbd9eb996b863443975f138/server/service/appconfig.go#L334-L335
+	//
+	// But there are issues unmarshaling the slice of profile specs. If a key is present in an old
+	// element but not in the new element (e.g. element[0] of the old slice and element[0] of the
+	// new slice), both keys are preserved. This is problematic for mutually exclusive options like
+	// `labels_include_any`, `labels_exclude_any`, `labels_include_all` as illustrated below.
+
+	storedConfig := fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{
+			OrgName: "Test",
+		},
+		MDM: fleet.MDM{
+			MacOSSettings: fleet.MacOSSettings{
+				CustomSettings: []fleet.MDMProfileSpec{
+					{
+						Path:             "some-profile-2",
+						LabelsExcludeAny: []string{"bar"},
+					},
+					{
+						Path:             "some-profile-1",
+						LabelsIncludeAll: []string{"foo"},
+					},
+				},
+			},
+		},
+	}
+
+	incomingConfig := fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{
+			OrgName: "Test",
+		},
+		MDM: fleet.MDM{
+			MacOSSettings: fleet.MacOSSettings{
+				CustomSettings: []fleet.MDMProfileSpec{
+					{
+						Path:             "some-profile-1",
+						LabelsIncludeAll: []string{"foo"},
+					},
+					{
+						Path:             "some-profile-2",
+						LabelsIncludeAny: []string{"bar"},
+					},
+				},
+			},
+		},
+	}
+	b, err := json.Marshal(incomingConfig)
+	require.NoError(t, err)
+
+	err = json.Unmarshal(b, &storedConfig)
+	require.NoError(t, err)
+	for _, profile := range storedConfig.MDM.MacOSSettings.CustomSettings {
+		fmt.Println(fmt.Sprintf("%+v", profile))
+	}
+}
+
 func TestAppConfigAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -1511,7 +1570,8 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	svc, ctx = newTestServiceWithConfig(t, ds, fleetConfig, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
-		createdAt time.Time) error {
+		createdAt time.Time,
+	) error {
 		assert.IsType(t, fleet.ActivityAddedNDESSCEPProxy{}, activity)
 		return nil
 	}
@@ -1560,7 +1620,8 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	scepURL = "https://new.com/mscep/mscep.dll"
 	jsonPayload = fmt.Sprintf(jsonPayloadBase, scepURL, adminURL, username, "")
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
-		createdAt time.Time) error {
+		createdAt time.Time,
+	) error {
 		assert.IsType(t, fleet.ActivityEditedNDESSCEPProxy{}, activity)
 		return nil
 	}
@@ -1644,7 +1705,8 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	// Second, real run.
 	appConfig.Integrations.NDESSCEPProxy.Valid = true
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
-		createdAt time.Time) error {
+		createdAt time.Time,
+	) error {
 		assert.IsType(t, fleet.ActivityDeletedNDESSCEPProxy{}, activity)
 		return nil
 	}
@@ -1682,5 +1744,4 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 	_, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
 	assert.ErrorContains(t, err, "private key")
-
 }
