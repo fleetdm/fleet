@@ -553,6 +553,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Get FileVault statistics](#get-filevault-statistics)
 - [Upload VPP content token](#upload-vpp-content-token)
 - [Disable VPP](#disable-vpp)
+- [SCEP proxy](#scep-proxy)
 
 
 ### Generate Apple Business Manager public key (ADE)
@@ -1229,6 +1230,11 @@ Content-Type: application/octet-stream
 
 `Status: 204`
 
+### SCEP proxy
+
+`/mdm/scep/proxy/{identifier}`
+
+This endpoint is used to proxy SCEP requests to the configured SCEP server. It uses the [SCEP protocol](https://datatracker.ietf.org/doc/html/rfc8894). The `identifier` is in the format `hostUUID,profileUUID`.
 
 ## Get or apply configuration files
 
