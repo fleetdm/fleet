@@ -663,4 +663,5 @@ module.exports.routes = {
   'POST /api/v1/account/update-start-cta-visibility': { action: 'account/update-start-cta-visibility' },
   'POST /api/v1/deliver-deal-registration-submission': { action: 'deliver-deal-registration-submission' },
   '/api/v1/unsubscribe-from-marketing-emails': { action: 'unsubscribe-from-marketing-emails' },
+  'POST /api/v1/customers/create-stripe-checkout-session': { action: 'customers/create-stripe-checkout-session' },
 };
