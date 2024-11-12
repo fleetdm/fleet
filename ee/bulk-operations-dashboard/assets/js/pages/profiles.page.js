@@ -61,6 +61,7 @@ parasails.registerPage('profiles', {
       } else {
         this.profilesToDisplay = this.profiles;
       }
+      await this.forceRender();
     },
     clickChangeTeamFilter: async function(teamApid) {// Used by the tooltip links.
       this.teamFilter = teamApid;
@@ -79,13 +80,15 @@ parasails.registerPage('profiles', {
     },
     clickOpenEditModal: async function(profile) {
       this.profileToEdit = _.cloneDeep(profile);
+      console.log(this.profileToEdit);
       this.formData = {
-        profile: _.clone(profile),
+        profile: _.clone(this.profileToEdit),
         newTeamIds: _.pluck(this.profileToEdit.teams, 'fleetApid'),
-        profileTarget: profile.target === 'custom' ? 'custom' : 'all',
-        labelTargetBehavior: profile.labelTargetBehavior ? profile.labelTargetBehavior : 'include',
-        labels: profile.labels ? profile.labels : [],
+        profileTarget: this.profileToEdit.profileTarget === 'custom' ? 'custom' : 'all',
+        labelTargetBehavior: this.profileToEdit.labelTargetBehavior ? this.profileToEdit.labelTargetBehavior : 'include',
+        labels: this.profileToEdit.labels ? this.profileToEdit.labels : [],
       };
+      console.log(this.formData);
       this.modal = 'edit-profile';
       await this._getLabels();
     },
@@ -122,8 +125,8 @@ parasails.registerPage('profiles', {
         newProfile: argins.newProfile,
         teams: argins.teams,
         profileTarget: argins.profileTarget,
-        labels: argins.labels,
-        labelTargetBehavior: argins.labelTargetBehavior,
+        labels: argins.profileTarget !== 'all' ? argins.labels : [],
+        labelTargetBehavior: argins.profileTarget !== 'all' ? argins.labelTargetBehavior : undefined,
       });
       await this._getProfiles();
     },
