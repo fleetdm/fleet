@@ -103,6 +103,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="2024-10-31">
+<meta name="publishedOn" value="2024-11-12">
 <meta name="articleTitle" value="Fleet 4.59.0 | Install apps during new Mac boot, connect end users to Wi-Fi">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.59.0-1600x900@2x.png">
