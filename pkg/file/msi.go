@@ -9,19 +9,20 @@ import (
 	"io"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/sassoftware/relic/v8/lib/comdoc"
 )
 
-func ExtractMSIMetadata(r io.Reader) (*InstallerMetadata, error) {
+func ExtractMSIMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
+	// compute its hash
 	h := sha256.New()
-	r = io.TeeReader(r, h)
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read all content: %w", err)
+	_, _ = io.Copy(h, tfr) // writes to a hash cannot fail
+
+	if err := tfr.Rewind(); err != nil {
+		return nil, err
 	}
 
-	rr := bytes.NewReader(b)
-	c, err := comdoc.ReadFile(rr)
+	c, err := comdoc.ReadFile(tfr)
 	if err != nil {
 		return nil, fmt.Errorf("reading msi file: %w", err)
 	}
@@ -232,6 +233,7 @@ func decodeStrings(dataReader, poolReader io.Reader) ([]string, error) {
 	}
 	var stringEntry entry
 	var stringTable []string
+	var buf bytes.Buffer
 	for {
 		err := binary.Read(poolReader, binary.LittleEndian, &stringEntry)
 		if err != nil {
@@ -240,11 +242,13 @@ func decodeStrings(dataReader, poolReader io.Reader) ([]string, error) {
 			}
 			return nil, fmt.Errorf("failed to read pool entry: %w", err)
 		}
-		buf := make([]byte, stringEntry.Size)
-		if _, err := io.ReadFull(dataReader, buf); err != nil {
+		buf.Reset()
+		buf.Grow(int(stringEntry.Size))
+		_, err = io.CopyN(&buf, dataReader, int64(stringEntry.Size))
+		if err != nil {
 			return nil, fmt.Errorf("failed to read string data: %w", err)
 		}
-		stringTable = append(stringTable, string(buf))
+		stringTable = append(stringTable, buf.String())
 	}
 	return stringTable, nil
 }
