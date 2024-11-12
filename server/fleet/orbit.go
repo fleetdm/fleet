@@ -41,7 +41,9 @@ type OrbitConfigNotifications struct {
 	// during macOS Setup Assistant.
 	RunSetupExperience bool `json:"run_setup_experience,omitempty"`
 
-	// TODO - RunLinuxKeyEscrow
+	// RunLinuxKeyEscrow tells Orbit to prompt the end user to add a new disk encryption key
+	// for Fleet to escrow
+	RunLinuxKeyEscrow bool `json:"run_linux_key_escrow,omitempty"`
 }
 
 type OrbitConfig struct {

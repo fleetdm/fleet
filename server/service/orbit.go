@@ -268,6 +268,15 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
+	// set the host's orbit notification for Linux disk encryption
+	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+	if err != nil {
+		return fleet.OrbitConfig{}, err
+	}
+	if *key.ResetRequested {
+		notifs.RunLinuxKeyEscrow = true
+	}
+
 	pendingInstalls, err := svc.ds.ListPendingSoftwareInstalls(ctx, host.ID)
 	if err != nil {
 		return fleet.OrbitConfig{}, err
@@ -349,6 +358,9 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			updateChannels = &uc
 		}
 
+		// only unset this flag once we know there were no errors and these notifications have been picked up by the agent
+		svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, key.Base64Encrypted, "", key.Decryptable, ptr.Bool(false))
+
 		return fleet.OrbitConfig{
 			ScriptExeTimeout: opts.ScriptExecutionTimeout,
 			Flags:            opts.CommandLineStartUpFlags,
@@ -418,6 +430,8 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 		updateChannels = &uc
 	}
+	// only unset this flag once we know there were no errors and these notifications have been picked up by the agent
+	svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, key.Base64Encrypted, "", key.Decryptable, ptr.Bool(false))
 
 	return fleet.OrbitConfig{
 		ScriptExeTimeout: opts.ScriptExecutionTimeout,
@@ -978,7 +992,7 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 		decryptable = ptr.Bool(true)
 	}
 
-	if err := svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, encryptedEncryptionKey, clientError, decryptable); err != nil {
+	if err := svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, encryptedEncryptionKey, clientError, decryptable, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "set or update disk encryption key")
 	}
 
