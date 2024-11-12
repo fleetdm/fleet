@@ -1,0 +1,1 @@
+* Updated software batch endpoint status code from 200 (OK) to 202 (Accepted)
