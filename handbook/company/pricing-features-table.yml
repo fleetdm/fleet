@@ -252,8 +252,7 @@
     - description: Ship a macOS, iOS, or iPadOS device to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Ship a Windows workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Customize the out-of-the-box setup experience for your end users.
-    - description: Install a bootstrap package to run custom scripts during the setup experience. Store the bootstrap package outside the Fleet database coming soon (2024-09-15) #customer-faltona
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/19037
+    - description: Install a bootstrap package to run custom scripts during the setup experience.
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
 #  
 #  ╔╗ ╦ ╦╔═╗╔╦╗  ╔═╗╔╗╔╦═╗╔═╗╦  ╦  ╔╦╗╔═╗╔╗╔╔╦╗
@@ -1110,6 +1109,16 @@
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
   # System for Cross-domain Identity Management (SCIM) provisioning comingSoonOn: 2024-12-31 #customer-rosner, https://github.com/fleetdm/fleet/issues/15671
+- industryName: Grant Wi-Fi access
+  description: Help your end users connect to Wi-Fi by adding your Simple Certificate Enrollment Protocol (SCEP) server.                
+  # documentationUrl: TODO
+  isExperimental: yes
+  productCategories: [Device management]
+  pricingTableCategories: [Integrations]
+  usualDepartment: IT
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
 #
 #  ╔╦╗╦ ╦╦╦═╗╔╦╗   ╔═╗╔═╗╦═╗╔╦╗╦ ╦  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╗╔
 #   ║ ╠═╣║╠╦╝ ║║───╠═╝╠═╣╠╦╝ ║ ╚╦╝  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║ ║║║║

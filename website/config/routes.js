@@ -60,8 +60,8 @@ module.exports.routes = {
     action: 'view-query-library',
     locals: {
       currentSection: 'documentation',
-      pageTitleForMeta: 'Queries',
-      pageDescriptionForMeta: 'A growing collection of useful queries for organizations deploying Fleet and osquery.'
+      pageTitleForMeta: 'Controls and policies',
+      pageDescriptionForMeta: 'A growing collection of useful controls and policies for organizations deploying Fleet and osquery.'
     }
   },
 
@@ -352,12 +352,12 @@ module.exports.routes = {
   'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
   'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
   'GET /handbook/security': '/handbook/digital-experience/security',
-  'GET /handbook/security/security-policies':'/handbook/digital-experience/security-policies#information-security-policy-and-acceptable-use-policy',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
-  'GET /handbook/business-operations/security-policies':'/handbook/digital-experience/security-policies',
-  'GET /handbook/business-operations/application-security': '/handbook/digital-experience/application-security',
-  'GET /handbook/business-operations/security-audits': '/handbook/digital-experience/security-audits',
+  'GET /handbook/security/security-policies':'/handbook/digital-experience/security',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
+  'GET /handbook/business-operations/security-policies':'/handbook/digital-experience/security',
+  'GET /handbook/business-operations/application-security': '/handbook/digital-experience/security',
+  'GET /handbook/business-operations/security-audits': '/handbook/digital-experience/security',
   'GET /handbook/business-operations/security': '/handbook/digital-experience/security',
-  'GET /handbook/business-operations/vendor-questionnaires': '/handbook/digital-experience/vendor-questionnaires',
+  'GET /handbook/business-operations/vendor-questionnaires': '/handbook/digital-experience/security',
   'GET /handbook/handbook': '/handbook/company/handbook',
   'GET /handbook/company/development-groups': '/handbook/company/product-groups',
   'GET /docs/using-fleet/mdm-macos-settings': '/docs/using-fleet/mdm-custom-macos-settings',
@@ -499,6 +499,7 @@ module.exports.routes = {
   //
   // For example, a clever user might try to visit fleetdm.com/documentation, not knowing that Fleet's website
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
+  'GET /testimonials':               'https://github.com/fleetdm/fleet/blob/28cd420b086c23a6606ba17c4f3821ed267c6bbb/handbook/company/testimonials.yml#L190',
   'GET /admin':                      '/admin/email-preview',
   'GET /renew':                      'https://calendly.com/zayhanlon/fleet-renewal-discussion',
   'GET /documentation':              '/docs',
@@ -510,7 +511,7 @@ module.exports.routes = {
   'GET /legal':                      '/legal/terms',
   'GET /terms':                      '/legal/terms',
   'GET /handbook/security/github':   '/handbook/security#git-hub-security',
-  'GET /slack':                      'https://join.slack.com/t/osquery/shared_invite/zt-2op37v6qp-aVPivU5xB_FwuYElN0Z1lw',// Note: This redirect is used on error pages and email templates in the Fleet UI.
+  'GET /slack':                      '/support',// Note: This redirect is used on error pages and email templates in the Fleet UI.
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',

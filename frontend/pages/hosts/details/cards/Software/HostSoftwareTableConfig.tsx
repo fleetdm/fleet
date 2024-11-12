@@ -61,6 +61,7 @@ export interface generateActionsProps {
   status: SoftwareInstallStatus | null;
   software_package: IHostSoftwarePackage | null;
   app_store_app: IHostAppStoreApp | null;
+  hostMDMEnrolled?: boolean;
 }
 
 export const generateActions = ({
@@ -70,6 +71,7 @@ export const generateActions = ({
   softwareId,
   status,
   app_store_app,
+  hostMDMEnrolled,
 }: generateActionsProps) => {
   // this gives us a clean slate of the default actions so we can modify
   // the options.
@@ -126,6 +128,12 @@ export const generateActions = ({
   if (app_store_app) {
     // remove uninstall for VPP apps
     actions.splice(indexUninstallAction, 1);
+
+    if (!hostMDMEnrolled) {
+      actions[indexInstallAction].disabled = true;
+      actions[indexInstallAction].tooltipContent =
+        "To install, turn on MDM for this host.";
+    }
   }
   return actions;
 };
@@ -138,6 +146,7 @@ interface ISoftwareTableHeadersProps {
   router: InjectedRouter;
   teamId: number;
   onSelectAction: (software: IHostSoftware, action: string) => void;
+  hostMDMEnrolled?: boolean;
 }
 
 // NOTE: cellProps come from react-table
@@ -150,6 +159,7 @@ export const generateSoftwareTableHeaders = ({
   router,
   teamId,
   onSelectAction,
+  hostMDMEnrolled,
 }: ISoftwareTableHeadersProps): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
@@ -248,6 +258,7 @@ export const generateSoftwareTableHeaders = ({
               status,
               software_package,
               app_store_app,
+              hostMDMEnrolled,
             })}
             onChange={(action) => onSelectAction(original, action)}
           />

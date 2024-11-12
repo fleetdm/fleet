@@ -169,6 +169,7 @@ module.exports = {
       firstName: this.req.me.firstName,
       lastName: this.req.me.lastName,
       organization: this.req.me.organization,
+      contactSource: 'Website - Sign up',// Note: this is only set on new contacts.
       description: `Purchased a self-service Fleet Premium license on ${isoTimestampForDescription.split('T')[0]} for ${quoteRecord.numberOfHosts} host${quoteRecord.numberOfHosts > 1 ? 's' : ''}.`
     }).exec((err)=>{
       if(err){

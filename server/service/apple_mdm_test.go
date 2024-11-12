@@ -2893,9 +2893,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	updatedProfile = nil
 	populateTargets()
 	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
-		for _, p := range payload {
-			assert.NotEqual(t, cmdUUID, p.CommandUUID)
-		}
+		assert.Empty(t, payload) // no profiles to update since FLEET VAR could not be populated
 		return nil
 	}
 	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents, hostProfilesToInstallMap)
@@ -2917,6 +2915,20 @@ func TestPreprocessProfileContents(t *testing.T) {
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+FleetVarNDESSCEPChallenge)
 	assert.Contains(t, updatedProfile.Detail, "cached passwords")
+	assert.Empty(t, targets)
+
+	// Insufficient permissions
+	getNDESSCEPChallenge = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+		assert.Equal(t, ndesPassword, proxy.Password)
+		return "", eeservice.NewNDESInsufficientPermissionsError("NDES error")
+	}
+	updatedProfile = nil
+	populateTargets()
+	err = preprocessProfileContents(ctx, appCfg, ds, targets, profileContents, hostProfilesToInstallMap)
+	require.NoError(t, err)
+	require.NotNil(t, updatedProfile)
+	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+FleetVarNDESSCEPChallenge)
+	assert.Contains(t, updatedProfile.Detail, "does not have sufficient permissions")
 	assert.Empty(t, targets)
 
 	// Other NDES challenge error
@@ -2941,6 +2953,12 @@ func TestPreprocessProfileContents(t *testing.T) {
 		return challenge, nil
 	}
 	updatedProfile = nil
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+		for _, p := range payload {
+			assert.NotEqual(t, cmdUUID, p.CommandUUID)
+		}
+		return nil
+	}
 	populateTargets()
 	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMBulkUpsertManagedCertificatePayload) error {
 		require.Len(t, payload, 1)

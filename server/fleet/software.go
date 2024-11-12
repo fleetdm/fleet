@@ -162,7 +162,7 @@ type SoftwareTitle struct {
 	Versions []SoftwareVersion `json:"versions" db:"-"`
 	// CountsUpdatedAt is the timestamp when the hosts count
 	// was last updated for that software title
-	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
+	CountsUpdatedAt *time.Time `json:"counts_updated_at" db:"counts_updated_at"`
 	// SoftwareInstallersCount is 0 or 1, indicating if the software title has an
 	// installer. This is an internal field for an optimization so that the extra
 	// queries to fetch installer information is done only if necessary.
@@ -252,7 +252,7 @@ type HostSoftwareTitleListOptions struct {
 	VulnerableOnly bool `query:"vulnerable,optional"`
 
 	// Non-MDM-enabled hosts cannot install VPP apps
-	ExcludeVPPApps bool
+	IsMDMEnrolled bool
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.

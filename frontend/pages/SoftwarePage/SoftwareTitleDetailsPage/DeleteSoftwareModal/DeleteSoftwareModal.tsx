@@ -18,6 +18,7 @@ const DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG =
 interface IDeleteSoftwareModalProps {
   softwareId: number;
   teamId: number;
+  softwarePackageName?: string;
   onExit: () => void;
   onSuccess: () => void;
 }
@@ -25,6 +26,7 @@ interface IDeleteSoftwareModalProps {
 const DeleteSoftwareModal = ({
   softwareId,
   teamId,
+  softwarePackageName,
   onExit,
   onSuccess,
 }: IDeleteSoftwareModalProps) => {
@@ -51,7 +53,23 @@ const DeleteSoftwareModal = ({
   return (
     <Modal className={baseClass} title="Delete software" onExit={onExit}>
       <>
-        <p>Software won&apos;t be uninstalled from existing hosts.</p>
+        <p>
+          Software won&apos;t be uninstalled from existing hosts, but any
+          pending pending installs and uninstalls{" "}
+          {softwarePackageName ? (
+            <>
+              for <b> {softwarePackageName}</b>{" "}
+            </>
+          ) : (
+            ""
+          )}
+          will be canceled.
+        </p>
+        <p>
+          Installs or uninstalls currently running on a host will still
+          complete, but results won’t appear in Fleet.
+        </p>
+        <p>You cannot undo this action.</p>
         <div className="modal-cta-wrap">
           <Button variant="alert" onClick={onDeleteSoftware}>
             Delete

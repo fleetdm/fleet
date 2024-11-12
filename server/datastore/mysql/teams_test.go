@@ -217,13 +217,13 @@ func testTeamsList(t *testing.T, ds *Datastore) {
 		{User: user1, Role: "maintainer"},
 		{User: user2, Role: "observer"},
 	}
-	team1, err = ds.SaveTeam(context.Background(), team1)
+	_, err = ds.SaveTeam(context.Background(), team1)
 	require.NoError(t, err)
 
 	team2.Users = []fleet.TeamUser{
 		{User: user1, Role: "maintainer"},
 	}
-	team1, err = ds.SaveTeam(context.Background(), team2)
+	_, err = ds.SaveTeam(context.Background(), team2)
 	require.NoError(t, err)
 
 	teams, err = ds.ListTeams(context.Background(), fleet.TeamFilter{User: &user1}, fleet.ListOptions{})
