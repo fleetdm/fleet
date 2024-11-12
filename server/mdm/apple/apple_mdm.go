@@ -650,13 +650,6 @@ func (d *DEPService) processDeviceResponse(
 	}
 	slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: existingSerials from GetMatchingHostSerials", "existingSerials", existingSerials, "modifiedDevices", modifiedDevices)
 
-	existingDeletedSerials, err := d.ds.GetMatchingHostSerialsMarkedDeleted(ctx, append(addedSerials, modifiedSerials...))
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get matching deleted host serials")
-	}
-
-	slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: got existing deleted serials ", "existingDeletedSerials", existingDeletedSerials)
-
 	// treat devices with op_type = "modified" that doesn't exist in the
 	// `hosts` table, as an "added" device.
 	//
@@ -680,6 +673,14 @@ func (d *DEPService) processDeviceResponse(
 	for _, device := range addedDevicesSlice {
 		addedSerials = append(addedSerials, device.SerialNumber)
 	}
+
+	existingDeletedSerials, err := d.ds.GetMatchingHostSerialsMarkedDeleted(ctx, append(addedSerials, modifiedSerials...))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get matching deleted host serials")
+	}
+
+	slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: got existing deleted serials ", "existingDeletedSerials", existingDeletedSerials, "serialsToCheck", append(addedSerials, modifiedSerials...))
+
 	err = d.ds.DeleteHostDEPAssignmentsFromAnotherABM(ctx, abmTokenID, addedSerials)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting dep assignments from another abm")
