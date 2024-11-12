@@ -41,6 +41,7 @@ interface IScepCertificateContentProps {
   formData: INdesFormData;
   formErrors: INdesFormErrors;
   onInputChange: ({ name, value }: IFormField) => void;
+  onBlur: (name: string, value: string) => void;
   config: IConfig | null;
   isPremiumTier: boolean;
   isLoading: boolean;
@@ -54,6 +55,7 @@ export const ScepCertificateContent = ({
   formData,
   formErrors,
   onInputChange,
+  onBlur,
   config,
   isPremiumTier,
   isLoading,
@@ -105,7 +107,6 @@ export const ScepCertificateContent = ({
       <div>
         <ol className={`${baseClass}__steps`}>
           <li>
-            {/* TODO: confirm URL */}
             <div>
               Connect to your Network Device Enrollment Service (
               <CustomLink
@@ -144,6 +145,7 @@ export const ScepCertificateContent = ({
                   }
                   value={formData.adminUrl}
                   onChange={onInputChange}
+                  onBlur={(e: any) => onBlur("adminUrl", e.target.value)}
                   parseTarget
                   error={formErrors.adminUrl}
                   placeholder="https://example.com/certsrv/mscep_admin/"
@@ -161,6 +163,7 @@ export const ScepCertificateContent = ({
                   }
                   value={formData.username}
                   onChange={onInputChange}
+                  onBlur={(e: any) => onBlur("username", e.target.value)}
                   parseTarget
                   placeholder="username@example.microsoft.com"
                 />
@@ -181,6 +184,7 @@ export const ScepCertificateContent = ({
                   parseTarget
                   placeholder="••••••••"
                   blockAutoComplete
+                  error={formErrors.password}
                 />
                 <Button
                   type="submit"
@@ -229,6 +233,7 @@ interface INdesFormData {
 interface INdesFormErrors {
   scepUrl?: string | null;
   adminUrl?: string | null;
+  password?: string | null;
 }
 
 export interface IFormField {
@@ -266,6 +271,26 @@ const ScepPage = ({ router }: IScepPageProps) => {
   const onInputChange = ({ name, value }: IFormField) => {
     setFormErrors((prev) => ({ ...prev, [name]: null }));
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleBlur = (name: string, value: string) => {
+    // If the value of admin url or username has changed and
+    // it was not originally empty, prompt user to re-enter password
+    if (
+      (name === "adminUrl" &&
+        value !== config?.integrations.ndes_scep_proxy?.admin_url &&
+        config?.integrations.ndes_scep_proxy?.admin_url !== "") ||
+      (name === "username" &&
+        value !== config?.integrations.ndes_scep_proxy?.username &&
+        config?.integrations.ndes_scep_proxy?.username !== "")
+    ) {
+      setFormErrors((prev: INdesFormErrors) => ({
+        ...prev,
+        password:
+          "Please re-enter your password due to changes in admin URL or username",
+      }));
+      setFormData((prev: INdesFormData) => ({ ...prev, password: "" }));
+    }
   };
 
   const onFormSubmit = async (evt: React.MouseEvent<HTMLFormElement>) => {
@@ -354,6 +379,7 @@ const ScepPage = ({ router }: IScepPageProps) => {
             formData={formData}
             formErrors={formErrors}
             onInputChange={onInputChange}
+            onBlur={handleBlur}
             config={appConfig || null}
             isPremiumTier={isPremiumTier || false}
             isLoading={isLoadingAppConfig}
