@@ -29,6 +29,7 @@ import (
 var (
 	hostIssuesInsertBatchSize                = 10000
 	hostIssuesUpdateFailingPoliciesBatchSize = 10000
+	hostsDeleteBatchSize                     = 5000
 )
 
 // A large number of hosts could be changing teams at once, so we need to batch this operation to prevent excessive locks
@@ -548,10 +549,12 @@ var hostRefs = []string{
 // the host.uuid is not always named the same, so the map key is the table name
 // and the map value is the column name to match to the host.uuid.
 var additionalHostRefsByUUID = map[string]string{
-	"host_mdm_apple_profiles":           "host_uuid",
-	"host_mdm_apple_bootstrap_packages": "host_uuid",
-	"host_mdm_windows_profiles":         "host_uuid",
-	"host_mdm_apple_declarations":       "host_uuid",
+	"host_mdm_apple_profiles":               "host_uuid",
+	"host_mdm_apple_bootstrap_packages":     "host_uuid",
+	"host_mdm_windows_profiles":             "host_uuid",
+	"host_mdm_apple_declarations":           "host_uuid",
+	"host_mdm_apple_awaiting_configuration": "host_uuid",
+	"setup_experience_status_results":       "host_uuid",
 }
 
 // additionalHostRefsSoftDelete are tables that reference a host but for which
@@ -563,56 +566,87 @@ var additionalHostRefsSoftDelete = map[string]string{
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return deleteHosts(ctx, tx, []uint{hid})
+	})
+}
+
+func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
 	delHostRef := func(tx sqlx.ExtContext, table string) error {
-		_, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s WHERE host_id=?`, table), hid)
+		stmt, args, err := sqlx.In(fmt.Sprintf("DELETE FROM %s WHERE host_id IN (?)", table), hostIDs)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "deleting %s for host %d", table, hid)
+			return ctxerr.Wrapf(ctx, err, "building delete statement for %s", table)
+		}
+		_, err = tx.ExecContext(ctx, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting %s for hosts %v", table, hostIDs)
 		}
 		return nil
 	}
 
 	// load just the host uuid for the MDM tables that rely on this to be cleared.
-	var hostUUID string
-	if err := ds.writer(ctx).GetContext(ctx, &hostUUID, `SELECT uuid FROM hosts WHERE id = ?`, hid); err != nil {
-		return ctxerr.Wrapf(ctx, err, "get uuid for host %d", hid)
+	var hostUUIDs []string
+	stmt, args, err := sqlx.In(`SELECT uuid FROM hosts WHERE id IN (?)`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "building select statement for host uuids")
+	}
+	if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, stmt, args...); err != nil {
+		return ctxerr.Wrapf(ctx, err, "get uuid for hosts %v", hostIDs)
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, `DELETE FROM hosts WHERE id = ?`, hid)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "delete host")
-		}
+	stmt, args, err = sqlx.In(`DELETE FROM hosts WHERE id IN (?)`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "building delete statement for hosts %v", hostIDs)
+	}
+	_, err = tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "delete hosts")
+	}
 
-		for _, table := range hostRefs {
-			err := delHostRef(tx, table)
+	for _, table := range hostRefs {
+		err := delHostRef(tx, table)
+		if err != nil {
+			return err
+		}
+	}
+
+	stmt, args, err = sqlx.In(`DELETE FROM pack_targets WHERE type = ? AND target_id IN (?)`, fleet.TargetHost, hostIDs)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "building delete statement for pack_targets for hosts %v", hostIDs)
+	}
+	_, err = tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "deleting pack_targets for hosts %v", hostIDs)
+	}
+
+	// no point trying the uuid-based tables if the host's uuid is missing
+	if len(hostUUIDs) != 0 {
+		for table, col := range additionalHostRefsByUUID {
+			stmt, args, err := sqlx.In(fmt.Sprintf("DELETE FROM `%s` WHERE `%s` IN (?)", table, col), hostUUIDs)
 			if err != nil {
-				return err
+				return ctxerr.Wrapf(ctx, err, "building delete statement for %s for hosts %v", table, hostUUIDs)
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrapf(ctx, err, "deleting %s for host uuids %v", table, hostUUIDs)
 			}
 		}
+	}
 
-		_, err = tx.ExecContext(ctx, `DELETE FROM pack_targets WHERE type = ? AND target_id = ?`, fleet.TargetHost, hid)
+	// perform the soft-deletion of host-referencing tables
+	for table, col := range additionalHostRefsSoftDelete {
+		stmt, args, err := sqlx.In(fmt.Sprintf("UPDATE `%s` SET `%s` = NOW() WHERE host_id IN (?)", table, col), hostIDs)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for host %d", hid)
+			return ctxerr.Wrapf(ctx, err, "building update statement for %s for hosts %v", table, hostIDs)
 		}
-
-		// no point trying the uuid-based tables if the host's uuid is missing
-		if hostUUID != "" {
-			for table, col := range additionalHostRefsByUUID {
-				if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM `%s` WHERE `%s`=?", table, col), hostUUID); err != nil {
-					return ctxerr.Wrapf(ctx, err, "deleting %s for host uuid %s", table, hostUUID)
-				}
-			}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrapf(ctx, err, "soft-deleting %s for host ids %v", table, hostIDs)
 		}
+	}
 
-		// perform the soft-deletion of host-referencing tables
-		for table, col := range additionalHostRefsSoftDelete {
-			if _, err := tx.ExecContext(ctx, fmt.Sprintf("UPDATE `%s` SET `%s` = NOW() WHERE host_id=?", table, col), hid); err != nil {
-				return ctxerr.Wrapf(ctx, err, "soft-deleting %s for host id %d", table, hid)
-			}
-		}
-
-		return nil
-	})
+	return nil
 }
 
 func (ds *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
@@ -790,15 +824,7 @@ func queryStatsToScheduledQueryStats(queriesStats []fleet.QueryStats, packName s
 // of MDM host data. It assumes that hostMDMJoin is included in the query.
 const hostMDMSelect = `,
 	JSON_OBJECT(
-		'enrollment_status',
-		CASE
-			WHEN hmdm.is_server = 1 THEN NULL
-			WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 THEN 'On (manual)'
-			WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 1 THEN 'On (automatic)'
-			WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 1 THEN 'Pending'
-			WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 0 THEN 'Off'
-			ELSE NULL
-		END,
+		'enrollment_status', hmdm.enrollment_status,
 		'dep_profile_error',
 		CASE
 			WHEN hdep.assign_profile_response = '` + string(fleet.DEPAssignProfileResponseFailed) + `' THEN CAST(TRUE AS JSON)
@@ -870,6 +896,7 @@ const hostMDMJoin = `
 	  hm.is_server,
 	  hm.enrolled,
 	  hm.installed_from_dep,
+	  hm.enrollment_status,
 	  hm.server_url,
 	  hm.mdm_id,
 	  hm.host_id,
@@ -1216,7 +1243,8 @@ func (ds *Datastore) applyHostFilters(
 	sqlStmt, whereParams, _ = hostSearchLike(sqlStmt, whereParams, opt.MatchQuery, append(hostSearchColumns, "display_name")...)
 	sqlStmt, whereParams = appendListOptionsWithCursorToSQL(sqlStmt, whereParams, &opt.ListOptions)
 
-	params := append(selectParams, joinParams...)
+	params := selectParams
+	params = append(params, joinParams...)
 	params = append(params, whereParams...)
 
 	return sqlStmt, params, nil
@@ -1278,7 +1306,7 @@ func filterHostsByConnectedToFleet(sql string, opt fleet.HostListOptions, params
 }
 
 func filterHostsByOS(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
-	if opt.OSIDFilter != nil {
+	if opt.OSIDFilter != nil { //nolint:gocritic // ignore ifElseChain
 		sql += ` AND hos.os_id = ?`
 		params = append(params, *opt.OSIDFilter)
 	} else if opt.OSNameFilter != nil && opt.OSVersionFilter != nil {
@@ -2945,9 +2973,18 @@ func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, teamID *uint,
 }
 
 func (ds *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
-	for _, id := range ids {
-		if err := ds.DeleteHost(ctx, id); err != nil {
-			return ctxerr.Wrapf(ctx, err, "delete host %d", id)
+	for i := 0; i < len(ids); i += hostsDeleteBatchSize {
+		start := i
+		end := i + hostsDeleteBatchSize
+		if end > len(ids) {
+			end = len(ids)
+		}
+		idsBatch := ids[start:end]
+		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			return deleteHosts(ctx, tx, idsBatch)
+		})
+		if err != nil {
+			return err
 		}
 	}
 	return nil
