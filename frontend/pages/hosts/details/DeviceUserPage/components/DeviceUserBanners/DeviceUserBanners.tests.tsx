@@ -45,8 +45,7 @@ describe("Device User Banners", () => {
   it("renders the reset linux disk encryption banner correctly", () => {
     render(
       <DeviceUserBanners
-        // TODO! How to indicate Ubuntu/Fedora?
-        hostPlatform="?"
+        hostPlatform="ubuntu"
         mdmEnrollmentStatus="On (automatic)"
         mdmEnabledAndConfigured
         connectedToFleetMdm

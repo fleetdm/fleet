@@ -5,6 +5,7 @@ import Button from "components/buttons/Button";
 import { MacDiskEncryptionActionRequired } from "interfaces/host";
 import { IHostBannersBaseProps } from "pages/hosts/details/HostDetailsPage/components/HostDetailsBanners/HostDetailsBanners";
 import CustomLink from "components/CustomLink";
+import { DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS } from "interfaces/platform";
 
 const baseClass = "device-user-banners";
 
@@ -34,10 +35,10 @@ const DeviceUserBanners = ({
   const diskEncryptionBannersEnabled =
     mdmEnabledAndConfigured && connectedToFleetMdm;
 
-  const showTurnOnMdmBanner =
+  const showTurnOnAppleMdmBanner =
     hostPlatform === "darwin" && isMdmUnenrolled && mdmEnabledAndConfigured;
 
-  const showDiskEncryptionKeyResetRequired =
+  const showMacDiskEncryptionKeyResetRequired =
     diskEncryptionBannersEnabled &&
     macDiskEncryptionStatus === "action_required" &&
     diskEncryptionActionRequired === "rotate_key";
@@ -49,26 +50,26 @@ const DeviceUserBanners = ({
   );
 
   const renderBanner = () => {
-    // TODO - undo
-    return (
-      <InfoBanner
-        cta={
-          <Button
-            variant="unstyled"
-            onClick={onTriggerEscrowLinuxKey}
-            className="create-key-button"
-          >
-            Create key
-          </Button>
-        }
-        color="yellow"
-      >
-        Disk encryption: Create a new disk encryption key. This lets your
-        organization help you unlock your device if you forget your passphrase.
-      </InfoBanner>
-    );
+    // // TODO - undo
+    // return (
+    //   <InfoBanner
+    //     cta={
+    //       <Button
+    //         variant="unstyled"
+    //         onClick={onTriggerEscrowLinuxKey}
+    //         className="create-key-button"
+    //       >
+    //         Create key
+    //       </Button>
+    //     }
+    //     color="yellow"
+    //   >
+    //     Disk encryption: Create a new disk encryption key. This lets your
+    //     organization help you unlock your device if you forget your passphrase.
+    //   </InfoBanner>
+    // );
 
-    if (showTurnOnMdmBanner) {
+    if (showTurnOnAppleMdmBanner) {
       return (
         <InfoBanner color="yellow" cta={turnOnMdmButton}>
           Mobile device management (MDM) is off. MDM allows your organization to
@@ -79,7 +80,7 @@ const DeviceUserBanners = ({
       );
     }
 
-    if (showDiskEncryptionKeyResetRequired) {
+    if (showMacDiskEncryptionKeyResetRequired) {
       return (
         <InfoBanner color="yellow">
           Disk encryption: Log out of your device or restart it to safeguard
@@ -89,9 +90,11 @@ const DeviceUserBanners = ({
       );
     }
 
-    // TODO - should these banners only be shown for linux?
-    // setting applies
-    if (diskEncryptionOSSetting?.status) {
+    // setting applies to a supported Linux host
+    if (
+      DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS.includes(hostPlatform ?? "") &&
+      diskEncryptionOSSetting?.status
+    ) {
       // host not in compliance with setting
       if (!diskIsEncrypted) {
         // banner 1

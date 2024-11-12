@@ -65,6 +65,8 @@ export const MACADMINS_EXTENSION_TABLES: Record<string, QueryablePlatform[]> = {
 export const HOST_LINUX_PLATFORMS = [
   "linux",
   "ubuntu",
+  "kubuntu", // confirm
+  "fedora", // confirm
   "debian",
   "rhel",
   "centos",
@@ -111,3 +113,30 @@ export const isAppleDevice = (platform: string) => {
 
 export const isIPadOrIPhone = (platform: string | HostPlatform) =>
   ["ios", "ipados"].includes(platform);
+
+export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
+  "ubuntu",
+  "fedora", // confirm
+  "kubuntu", // confirm
+];
+
+const DISK_ENCRYPTION_SUPPORTED_PLATFORMS = [
+  "darwin",
+  "windows",
+  "chrome",
+  "ubuntu",
+  "fedora", // confirm
+  "kubuntu", // confirm
+];
+
+export const platformSupportsDiskEncryption = (platform: HostPlatform) =>
+  DISK_ENCRYPTION_SUPPORTED_PLATFORMS.includes(platform);
+
+const OS_SETTINGS_DISPLAY_PLATFORMS = [
+  ...DISK_ENCRYPTION_SUPPORTED_PLATFORMS,
+  "ios",
+  "ipados",
+];
+
+export const isOsSettingsDisplayPlatform = (platform: HostPlatform) =>
+  OS_SETTINGS_DISPLAY_PLATFORMS.includes(platform);

@@ -9,6 +9,11 @@ import {
 } from "interfaces/mdm";
 import { IOSSettings, IHostMaintenanceWindow } from "interfaces/host";
 import { IAppleDeviceUpdates } from "interfaces/config";
+import {
+  isOsSettingsDisplayPlatform,
+  platformSupportsDiskEncryption,
+} from "interfaces/platform";
+
 import getHostStatusTooltipText from "pages/hosts/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
@@ -282,8 +287,7 @@ const HostSummary = ({
   };
   const renderDiskEncryptionSummary = () => {
     // TODO: improve this typing, platforms!
-    // TODO - add platform for Ubuntu/Fedora here
-    if (!["darwin", "windows", "chrome"].includes(platform)) {
+    if (!platformSupportsDiskEncryption(platform)) {
       return <></>;
     }
     const tooltipMessage = getHostDiskEncryptionTooltipMessage(
@@ -489,7 +493,7 @@ const HostSummary = ({
           platform === "windows" ||
           platform === "ios" ||
           platform === "ipados") &&
-          // TODO - include Ubuntu + Fedora here – ongoing discussions of how to identify those
+          isOsSettingsDisplayPlatform(platform) &&
           isPremiumTier &&
           isConnectedToFleetMdm && // show if 1 - host is enrolled in Fleet MDM, and
           hostMdmProfiles &&

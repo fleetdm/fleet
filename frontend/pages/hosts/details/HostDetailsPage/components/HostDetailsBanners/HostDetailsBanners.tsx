@@ -5,6 +5,7 @@ import { DiskEncryptionStatus, MdmEnrollmentStatus } from "interfaces/mdm";
 import { hasLicenseExpired } from "utilities/helpers";
 import InfoBanner from "components/InfoBanner";
 import { IOSSettings } from "interfaces/host";
+import { DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS } from "interfaces/platform";
 
 const baseClass = "host-details-banners";
 
@@ -97,11 +98,14 @@ const HostDetailsBanners = ({
       </div>
     );
   }
-  // TODO - should these banners only be shown for linux?
   // setting applies
-  if (diskEncryptionOSSetting?.status) {
-    // host not in compliance with setting
-    if (!diskIsEncrypted) {
+  if (
+    DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS.includes(hostPlatform ?? "") &&
+    diskEncryptionOSSetting?.status
+  ) {
+    // host either not in compliance with setting, or is but Fleet doesn't yet have a disk
+    // encryption key escrowed for the host (possible for Linux hosts)
+    if (!diskIsEncrypted || !diskEncryptionKeyAvailable) {
       // banner 2
       return (
         <div className={baseClass}>
@@ -110,16 +114,6 @@ const HostDetailsBanners = ({
             follow <b>Disk encryption</b> instructions on their <b>My device</b>{" "}
             page.
           </InfoBanner>
-        </div>
-      );
-    }
-    // host disk is encrypted, so in compliance with the setting
-    if (!diskEncryptionKeyAvailable) {
-      // TODO - banner 4
-      console.warn("Implement Banner 4!");
-      return (
-        <div className={baseClass}>
-          <InfoBanner color="yellow">IMPLEMENT BANNER 4</InfoBanner>
         </div>
       );
     }
