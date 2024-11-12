@@ -1166,14 +1166,13 @@ func extractAppCfgYaraRules(appCfg interface{}) ([]fleet.YaraRuleSpec, error) {
 
 	rules, ok := asMap["yara_rules"]
 	if !ok {
-		// yara_rules is not present
-		return nil, nil
+		// yara_rules is not present. Return an empty slice so that the value is cleared.
+		return []fleet.YaraRuleSpec{}, nil
 	}
 
 	rulesAny, ok := rules.([]interface{})
 	if !ok || rulesAny == nil {
-		// return a non-nil, empty slice instead, so the caller knows that the
-		// rules key was actually provided.
+		// If nil, return an empty slice so the value will be cleared.
 		return []fleet.YaraRuleSpec{}, nil
 	}
 
