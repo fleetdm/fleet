@@ -1,1 +1,0 @@
-Allow FLEET_REDIS_ADDRESS to include a `redis://` prefix. Allowed formats are: `redis://host:port` or `host:port`
