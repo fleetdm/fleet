@@ -8892,6 +8892,18 @@ Get a list of all software versions.
         "generated_cpe": "cpe:2.3:a:1password:1password:2.19.0:*:*:*:*:chrome:*:*",
         "hosts_count": 345,
         "vulnerabilities": null
+      },
+      {
+        "id": 3,
+        "name": "1Password.app",
+        "version": "8.10.50",
+        "bundle_identifier": "com.1password.1password",
+        "source": "apps",
+        "browser": "",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "hosts_count": 1,
+        "team_identifier": "2BUA8C4S2C"
       }
     ],
     "meta": {
