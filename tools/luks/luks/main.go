@@ -3,12 +3,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"syscall"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/lvm"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/zenity"
 	"github.com/martinjungblut/go-cryptsetup"
-	"golang.org/x/term"
 )
 
 type ErrCode int
@@ -41,19 +42,30 @@ func main() {
 	}
 
 	// Prompt existing passphrase from the user.
-	fmt.Printf("Enter passphrase: ")
-	password, err := term.ReadPassword(int(syscall.Stdin))
+	prompt := zenity.New()
+	passphrase, err := prompt.ShowEntry(context.Background(), dialog.EntryOptions{
+		Title:    "Enter Passphrase",
+		Text:     "Enter the passphrase for the encrypted device",
+		HideText: true,
+		TimeOut:  10,
+	})
 	if err != nil {
+		switch err {
+		case dialog.ErrCanceled:
+			fmt.Println("canceled")
+		case dialog.ErrTimeout:
+			fmt.Println("timeout")
+		case dialog.ErrUnknown:
+			fmt.Println("unknown error", err)
+		}
 		panic(err)
 	}
-	fmt.Println()
-	currentPassphrase := string(password)
 
 	// Create a new slot with an "escrow key".
 	keySlot := 1
 	for {
 		const escrowPassphrase = "fleet123"
-		if err := device.KeyslotAddByPassphrase(keySlot, currentPassphrase, escrowPassphrase); err != nil {
+		if err := device.KeyslotAddByPassphrase(keySlot, string(passphrase), escrowPassphrase); err != nil {
 			code := err.(*cryptsetup.Error).Code()
 			fmt.Println("KeyslotAddByPassphrase err", "code", code)
 			if code == int(ErrBadPassphrase) {
