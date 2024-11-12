@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -102,7 +103,10 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 	}
 
 	started := make(chan struct{})
+	frequencyMu := sync.Mutex{}
 	go func() {
+		frequencyMu.Lock()
+		defer frequencyMu.Unlock()
 		close(started)
 
 		// the first call will block in runCmdFn
@@ -111,8 +115,9 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 	}()
 
 	<-started
-	// this call will happen while the first call is blocked in runCmdFn, so it
-	// won't call the command (won't be able to lock the mutex). However it will
+	t.Logf("%v started", time.Now())
+	// this call will happen while the first call is blocked in checkEnrollmentFn, so it
+	// won't call the command (won't be able to lock the mutex). However, it will
 	// still complete successfully without being blocked by the other call in
 	// progress.
 	err := renewReceiver.Run(testConfig)
@@ -120,12 +125,17 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 
 	// unblock the first call
 	close(chProceed)
+	t.Logf("%v unblock the first call", time.Now())
 
 	// this next call won't execute the command because of the frequency
 	// restriction (it got called less than N seconds ago)
 	err = renewReceiver.Run(testConfig)
 	require.NoError(t, err)
+	t.Logf("%v frequency restriction check done", time.Now())
 
+	frequencyMu.Lock()
+	renewReceiver.Frequency = 200 * time.Millisecond
+	frequencyMu.Unlock()
 	// wait for the receiver's frequency to pass
 	time.Sleep(renewReceiver.Frequency)
 
