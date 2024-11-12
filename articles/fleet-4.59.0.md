@@ -1,4 +1,4 @@
-# Fleet 4.59.0 | Install apps during new Mac boot, connect end users to Wi-Fi
+# Fleet 4.59.0 | Install apps during new Mac boot, connect end users to Wi-Fi, custom URL for Apple MDM
 
 ![Fleet 4.59.0](../website/assets/images/articles/fleet-4.59.0-1600x900@2x.png)
 
