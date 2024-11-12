@@ -5,6 +5,7 @@ import { InjectedRouter } from "react-router";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { ITeamConfig } from "interfaces/team";
+
 import mdmAPI from "services/entities/mdm";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import configAPI from "services/entities/config";

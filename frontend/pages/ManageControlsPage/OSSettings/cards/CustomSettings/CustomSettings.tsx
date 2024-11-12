@@ -14,6 +14,7 @@ import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 
 import Pagination from "pages/ManageControlsPage/components/Pagination";
 
@@ -46,7 +47,11 @@ const CustomSettings = ({
   onMutation,
 }: ICustomSettingsProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier } = useContext(AppContext);
+  const { config, isPremiumTier } = useContext(AppContext);
+
+  const mdmEnabled =
+    config?.mdm.enabled_and_configured ||
+    config?.mdm.windows_enabled_and_configured;
 
   const [showAddProfileModal, setShowAddProfileModal] = useState(false);
   const [
@@ -78,6 +83,7 @@ const CustomSettings = ({
         per_page: PROFILES_PER_PAGE,
       }),
     {
+      enabled: mdmEnabled,
       refetchOnWindowFocus: false,
     }
   );
@@ -184,35 +190,44 @@ const CustomSettings = ({
           url="https://fleetdm.com/learn-more-about/custom-os-settings"
         />
       </p>
-      {renderProfileList()}
-      {!isLoadingProfiles && !isErrorProfiles && !profiles?.length && (
-        <AddProfileCard
-          baseClass="add-profile"
-          setShowModal={setShowAddProfileModal}
+      {!mdmEnabled ? (
+        <TurnOnMdmMessage
+          router={router}
+          info="MDM must be turned on to apply custom settings."
         />
-      )}
-      {showAddProfileModal && (
-        <AddProfileModal
-          currentTeamId={currentTeamId}
-          isPremiumTier={!!isPremiumTier}
-          onUpload={onUploadProfile}
-          setShowModal={setShowAddProfileModal}
-        />
-      )}
-      {showDeleteProfileModal && selectedProfile.current && (
-        <DeleteProfileModal
-          profileName={selectedProfile.current?.name}
-          profileId={selectedProfile.current?.profile_uuid}
-          onCancel={onCancelDelete}
-          onDelete={onDeleteProfile}
-        />
-      )}
-      {isPremiumTier && hasLabels && (
-        <ProfileLabelsModal
-          baseClass={baseClass}
-          profile={profileLabelsModalData}
-          setModalData={setProfileLabelsModalData}
-        />
+      ) : (
+        <>
+          {renderProfileList()}
+          {!isLoadingProfiles && !isErrorProfiles && !profiles?.length && (
+            <AddProfileCard
+              baseClass="add-profile"
+              setShowModal={setShowAddProfileModal}
+            />
+          )}
+          {showAddProfileModal && (
+            <AddProfileModal
+              currentTeamId={currentTeamId}
+              isPremiumTier={!!isPremiumTier}
+              onUpload={onUploadProfile}
+              setShowModal={setShowAddProfileModal}
+            />
+          )}
+          {showDeleteProfileModal && selectedProfile.current && (
+            <DeleteProfileModal
+              profileName={selectedProfile.current?.name}
+              profileId={selectedProfile.current?.profile_uuid}
+              onCancel={onCancelDelete}
+              onDelete={onDeleteProfile}
+            />
+          )}
+          {isPremiumTier && hasLabels && (
+            <ProfileLabelsModal
+              baseClass={baseClass}
+              profile={profileLabelsModalData}
+              setModalData={setProfileLabelsModalData}
+            />
+          )}
+        </>
       )}
     </div>
   );
