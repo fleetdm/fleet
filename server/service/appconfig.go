@@ -416,6 +416,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// 1. To get the JSON value from the database
 	// 2. To update fields with the incoming values
 	if newAppConfig.MDM.EnableDiskEncryption.Valid {
+		if len(svc.config.Server.PrivateKey) == 0 {
+			return nil, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		}
 		appConfig.MDM.EnableDiskEncryption = newAppConfig.MDM.EnableDiskEncryption
 	} else if appConfig.MDM.EnableDiskEncryption.Set && !appConfig.MDM.EnableDiskEncryption.Valid {
 		appConfig.MDM.EnableDiskEncryption = oldAppConfig.MDM.EnableDiskEncryption
