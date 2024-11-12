@@ -199,9 +199,7 @@ const mdmService = {
     if (teamId === 0) {
       return sendRequest("PATCH", noTeamsEndpoint, {
         mdm: {
-          // TODO: API INTEGRATION: remove macos_settings when API change is merged in.
-          macos_settings: { enable_disk_encryption: enableDiskEncryption },
-          // enable_disk_encryption: enableDiskEncryption,
+          enable_disk_encryption: enableDiskEncryption,
         },
       });
     }
