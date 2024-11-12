@@ -71,7 +71,7 @@ policies:
     package_path: "../lib/linux-firefox.deb.package.yml"
 ```
 
-`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
+`default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
 
 ```yaml
 policies:
@@ -241,6 +241,10 @@ controls:
     bootstrap_package: https://example.org/bootstrap_package.pkg
     enable_end_user_authentication: true
     macos_setup_assistant: ../lib/dep-profile.json
+    script: ../lib/macos-setup-script.sh
+    software:
+      - app_store_id: '1091189122'
+      - package_path: ../lib/software/adobe-acrobat.software.yml
   macos_migration: # Available in Fleet Premium
     enable: true
     mode: voluntary
@@ -284,6 +288,8 @@ The `macos_setup` section lets you control the out-of-the-box macOS [setup exper
 - `bootstrap_package` is the URL to a bootstap package. Fleet will download the bootstrap package (default: `""`).
 - `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host. 
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
+- `script` is the path to a custom setup script to run after the host is first set up.
+- `software` is a list of references to either a `package_path` matching a package in the `software` section below or an `app_store_id` to install when the host is first set up.
 
 ### macos_migration
 
@@ -293,7 +299,7 @@ The `macos_migration` section lets you control the [end user migration workflow]
 - `mode` specifies whether the end user initiates migration (`voluntary`) or they're nudged every 15-20 minutes to migrate (`forced`) (default: `""`).
 - `webhook_url` is the URL that Fleet sends a webhook to when the end user selects **Start**. Receive this webhook using your automation tool (ex. Tines) to unenroll your end users from your old MDM solution.
 
-Can only be configure for all teams (`default.yml`).
+Can only be configured for all teams (`default.yml`).
 
 ## software
 
@@ -432,8 +438,9 @@ org_settings:
 - `live_query_disabled` disables the ability to run live queries (ad hoc queries executed via the UI or fleetctl) (default: `false`).
 - `query_reports_disabled` disables query reports and deletes existing repors (default: `false`).
 - `query_report_cap` sets the maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at time and monitoring your infrastructure. (Default: `1000`)
-- `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI (default: `false`).
-- `server_url` is the base URL of the Fleet instance (default: provided during Fleet setup)
+- `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI (defaul: `false`).
+- `server_url` is the base URL of the Fleet instance. If this URL changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features. (default: provided during Fleet setup)
+
 
 Can only be configured for all teams (`org_settings`).
 
@@ -666,6 +673,22 @@ Once the IdP settings are configured, you can use the [`controls.macos_setup.ena
 - `entity_id` is the entity ID: a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: `""`).
 - `metadata` is the metadata (in XML format) provided by the identity provider. (default: `""`)
 - `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
+
+Can only be configured for all teams (`org_settings`).
+
+##### apple_server_url
+
+Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)
+
+If this URL changes and hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
+
+##### Example
+
+```yaml
+org_settings:
+  mdm:
+    apple_server_url: https://instance.fleet.com
+```
 
 Can only be configured for all teams (`org_settings`).
 

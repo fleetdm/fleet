@@ -848,7 +848,7 @@ None.
     "contact_url": "https://fleetdm.com/company/contact"
   },
   "server_settings": {
-    "server_url": "https://localhost:8080",
+    "server_url": "https://instance.fleet.com",
     "enable_analytics": true,
     "live_query_disabled": false,
     "query_reports_disabled": false,
@@ -946,7 +946,8 @@ None.
       "enable_end_user_authentication": false,
       "macos_setup_assistant": "path/to/config.json",
       "enable_release_device_manually": true
-    }
+    },
+    "client_url": "https://instance.fleet.com"
   },
   "agent_options": {
     "spec": {
@@ -1140,7 +1141,7 @@ Modifies the Fleet's configuration with the supplied information.
     "contact_url": "https://fleetdm.com/company/contact"
   },
   "server_settings": {
-    "server_url": "https://localhost:8080",
+    "server_url": "https://instance.fleet.com",
     "enable_analytics": true,
     "live_query_disabled": false,
     "query_reports_disabled": false,
@@ -1245,7 +1246,8 @@ Modifies the Fleet's configuration with the supplied information.
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
       "macos_setup_assistant": "path/to/config.json"
-    }
+    },
+    "apple_server_url": "https://instance.fleet.com"
   },
   "agent_options": {
     "config": {
@@ -1748,6 +1750,9 @@ Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. N
 | macos_setup         | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
+| apple_server_url         | string  | Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)  |
+
+> Note: If `apple_server_url` changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
 
 <br/>
 
@@ -2540,6 +2545,8 @@ the `software` table.
 | os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. (Note that software lists can be large, so this may cause significant CPU and RAM usage depending on page size and request concurrency.) |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host. |
+| populate_users     | boolean | query | If `true`, the response will include user data for each host. |
+| populate_labels     | boolean | query | If `true`, the response will include labels for each host. |
 
 > `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
 
@@ -2559,7 +2566,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
 
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true&populate_users=true&populate_labels=true`
 
 ##### Request query parameters
 
@@ -2704,6 +2711,57 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
           "platform": "darwin",
           "response": "fail",
           "critical": false
+        }
+      ],
+      "users": [
+        {
+          "uid": 0,
+          "username": "root",
+          "type": "",
+          "groupname": "root",
+          "shell": "/bin/bash"
+        },
+        {
+          "uid": 1,
+          "username": "bin",
+          "type": "",
+          "groupname": "bin",
+          "shell": "/sbin/nologin"
+        }
+      ],
+      "labels": [
+        {
+          "created_at": "2021-08-19T02:02:17Z",
+          "updated_at": "2021-08-19T02:02:17Z",
+          "id": 6,
+          "name": "All Hosts",
+          "description": "All hosts which have enrolled in Fleet",
+          "query": "SELECT 1;",
+          "platform": "",
+          "label_type": "builtin",
+          "label_membership_type": "dynamic"
+        },
+        {
+          "created_at": "2021-08-19T02:02:17Z",
+          "updated_at": "2021-08-19T02:02:17Z",
+          "id": 9,
+          "name": "CentOS Linux",
+          "description": "All CentOS hosts",
+          "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
+          "platform": "",
+          "label_type": "builtin",
+          "label_membership_type": "dynamic"
+        },
+        {
+          "created_at": "2021-08-19T02:02:17Z",
+          "updated_at": "2021-08-19T02:02:17Z",
+          "id": 12,
+          "name": "All Linux",
+          "description": "All Linux distributions",
+          "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+          "platform": "",
+          "label_type": "builtin",
+          "label_membership_type": "dynamic"
         }
       ]
     }
@@ -4271,7 +4329,7 @@ Resends a configuration profile for the specified host.
 | ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required**. The host's ID. |
 | query   | string | query | Search query keywords. Searchable fields include `name`. |
-| available_for_install | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.  
+| available_for_install | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
 
@@ -5773,6 +5831,11 @@ Get aggregate status counts of profiles for to macOS and Windows hosts that are 
 - [Get metadata about an EULA file](#get-metadata-about-an-eula-file)
 - [Delete an EULA file](#delete-an-eula-file)
 - [Download an EULA file](#download-an-eula-file)
+- [List software (setup experience)](#list-software-setup-experience)
+- [Update software (setup experience)](#update-software-setup-experience)
+- [Add script (setup experience)](#add-script-setup-experience)
+- [Get or download script (setup experience)](#get-or-download-script-setup-experience)
+- [Delete script (setup experience)](#delete-script-setup-experience)
 
 
 
@@ -6291,6 +6354,219 @@ Content-Disposition: attachment
 Content-Length: <length>
 Body: <blob>
 ```
+
+### List software (setup experience)
+
+_Available in Fleet Premium_
+
+List software that can or will be automatically installed during macOS setup. If `install_during_setup` is `true` it will be installed during setup.
+
+`GET /api/v1/fleet/setup_experience/software`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to filter software by. If not specified, it will filter only software that's available to hosts with no team. |
+| page | integer | query | Page number of the results to fetch. |
+| per_page | integer | query | Results per page. |
+
+
+#### Example
+
+`GET /api/v1/fleet/setup_experience/software?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_titles": [
+    {
+      "id": 12,
+      "name": "Firefox.app",
+      "software_package": {
+        "name": "FirefoxInsall.pkg",
+        "version": "125.6",
+        "self_service": true,
+        "install_during_setup": true
+      },
+      "app_store_app": null,
+      "versions_count": 3,
+      "source": "apps",
+      "browser": "",
+      "hosts_count": 48,
+      "versions": [
+        {
+          "id": 123,
+          "version": "1.12",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+        },
+        {
+          "id": 124,
+          "version": "3.4",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+        },
+        {
+          "id": 12
+          "version": "1.13",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+        }
+      ]
+    }
+  ],
+  {
+    "count": 2,
+    "counts_updated_at": "2024-10-04T10:00:00Z",
+    "meta": {
+      "has_next_results": false,
+      "has_previous_results": false
+    }
+  },
+}
+```
+
+### Update software (setup experience)
+
+_Available in Fleet Premium_
+
+Set software that will be automatically installed during macOS setup. Software that isn't included in the request will be unset.
+
+`PUT /api/v1/fleet/setup_experience/software`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to set the software for. If not specified, it will set the software for hosts with no team. |
+| software_title_ids | array | body | The ID of software titles to install during macOS setup. |
+
+#### Example
+
+`PUT /api/v1/fleet/setup_experience/software?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title_ids": [23,3411,5032]
+}
+```
+
+### Add script (setup experience)
+
+_Available in Fleet Premium_
+
+Add a script that will automatically run during macOS setup.
+
+`POST /api/v1/fleet/setup_experience/script`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | form | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
+| script | file | form | The ID of software titles to install during macOS setup. |
+
+#### Example
+
+`POST /api/v1/fleet/setup_experience/script`
+
+##### Default response
+
+`Status: 200`
+
+##### Request headers
+
+```http
+Content-Length: 306
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="team_id"
+
+1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="script"; filename="myscript.sh"
+Content-Type: application/octet-stream
+
+echo "hello"
+--------------------------f02md47480und42y--
+
+```
+
+### Get or download script (setup experience)
+
+_Available in Fleet Premium_
+
+Get a script that will automatically run during macOS setup.
+
+`GET /api/v1/fleet/setup_experience/script`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to get the script for. If not specified, script will be returned for hosts with no team. |
+| alt  | string | query | If specified and set to "media", downloads the script's contents. |
+
+
+#### Example (get script)
+
+`GET /api/v1/fleet/setup_experience/script?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 1,
+  "team_id": 3,
+  "name": "setup-experience-script.sh",
+  "created_at": "2023-07-30T13:41:07Z",
+  "updated_at": "2023-07-30T13:41:07Z"
+}
+```
+
+#### Example (download script)
+
+`GET /api/v1/fleet/setup_experience/script?team_id=3?alt=media`
+
+##### Example response headers
+
+```http
+Content-Length: 13
+Content-Type: application/octet-stream
+Content-Disposition: attachment;filename="2023-09-27 script_1.sh"
+```
+
+###### Example response body
+
+`Status: 200`
+
+```
+echo "hello"
+```
+
+### Delete script (setup experience)
+
+_Available in Fleet Premium_
+
+Delete a script that will automatically run during macOS setup.
+
+`DELETE /api/v1/fleet/setup_experience/script`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to get the script for. If not specified, script will be returned for hosts with no team. |
+
+#### Example
+
+`DELETE /api/v1/fleet/setup_experience/script?team_id=3`
+
+##### Default response
+
+`Status: 200`
 
 ---
 
@@ -7416,7 +7692,7 @@ Returns a list of global queries or team queries.
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 | team_id         | integer | query | _Available in Fleet Premium_. The ID of the parent team for the queries to be listed. When omitted, returns global queries.                  |
 | query           | string  | query | Search query keywords. Searchable fields include `name`.                                                                      |
-| merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global queries in addition to team queries when filtering by `team_id`. (If no `team_id` is provided, this parameter is ignored.)
+| merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global queries in addition to team queries when filtering by `team_id`. (If no `team_id` is provided, this parameter is ignored.) |
 
 #### Example
 
@@ -8827,6 +9103,7 @@ Get a list of all software.
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
+| platform | string | query | Filter software by platform. Supported values are `darwin`, `windows`, and `linux`.  |
 
 #### Example
 
@@ -9335,6 +9612,7 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Li
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
+
 
 #### Example
 
