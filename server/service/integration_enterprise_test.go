@@ -3991,6 +3991,29 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	}
 
 	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_software", "without_vulnerability_details")
+	require.Len(t, resp.Hosts, 3)
+	for _, h := range resp.Hosts {
+		if h.ID == host1.ID {
+			require.NotEmpty(t, h.Software)
+			require.Len(t, h.Software, 1)
+			require.NotEmpty(t, h.Software[0].Vulnerabilities)
+
+			require.Nil(t, h.Software[0].Vulnerabilities[0].CVSSScore)
+			require.Nil(t, h.Software[0].Vulnerabilities[0].EPSSProbability)
+			require.Nil(t, h.Software[0].Vulnerabilities[0].CISAKnownExploit)
+			require.Nil(t, h.Software[0].Vulnerabilities[0].Description)
+			assert.Equal(t, uint64(1), h.HostIssues.FailingPoliciesCount)
+			assert.Equal(t, uint64(1), *h.HostIssues.CriticalVulnerabilitiesCount)
+			assert.Equal(t, uint64(2), h.HostIssues.TotalIssuesCount)
+		} else {
+			assert.Zero(t, h.HostIssues.FailingPoliciesCount)
+			assert.Zero(t, *h.HostIssues.CriticalVulnerabilitiesCount)
+			assert.Zero(t, h.HostIssues.TotalIssuesCount)
+		}
+	}
+
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_software", "false")
 	require.Len(t, resp.Hosts, 3)
 	for _, h := range resp.Hosts {

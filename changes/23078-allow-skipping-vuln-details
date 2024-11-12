@@ -1,0 +1,1 @@
+* Allowed skipping computationally heavy population of vulnerability details when populating host software on hosts list endpoint when using Fleet Premium
