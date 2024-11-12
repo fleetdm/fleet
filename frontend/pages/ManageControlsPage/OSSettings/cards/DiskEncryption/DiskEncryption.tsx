@@ -15,6 +15,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import DiskEncryptionTable from "./components/DiskEncryptionTable";
 
@@ -103,20 +104,40 @@ const DiskEncryption = ({
     setIsLoadingTeam(false);
   }
 
-  const createDescriptionText = () => {
-    // table is showing disk encryption status.
-    if (showAggregate) {
-      return "If turned on, hosts' disk encryption keys will be stored in Fleet. ";
-    }
-
-    return `Also known as “FileVault” on macOS and “BitLocker” on Windows. If turned on, hosts' disk encryption keys will be stored in Fleet. `;
+  const getTipContent = (platform: "windows" | "macOS") => {
+    const [AppleOrWindows, DEMethod] =
+      platform === "windows"
+        ? ["Windows", "BitLocker"]
+        : ["Apple", "FileVault"];
+    return (
+      <>
+        {AppleOrWindows} MDM must be turned on in{" "}
+        <a href="/settings/integrations/mdm">
+          <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
+          <b>Mobile Device Management (MDM)</b>
+        </a>{" "}
+        to enforce disk encryption via {DEMethod}.
+      </>
+    );
   };
+
+  const subTitle = (
+    <>
+      Disk encryption is available on{" "}
+      <TooltipWrapper tipContent={getTipContent("macOS")}>macOS</TooltipWrapper>
+      ,{" "}
+      <TooltipWrapper tipContent={getTipContent("windows")}>
+        Windows
+      </TooltipWrapper>
+      , Ubuntu Linux, Kubuntu Linux, and Fedora Linux hosts.
+    </>
+  );
 
   return (
     <div className={baseClass}>
       <SectionHeader
         title="Disk encryption"
-        subTitle="Disk encryption is available on macOS, Windows, Ubuntu Linux, and Fedora Linux hosts."
+        subTitle={subTitle}
         alignLeftHeaderVertically
         greySubtitle
       />
@@ -144,7 +165,8 @@ const DiskEncryption = ({
                 Turn on disk encryption
               </Checkbox>
               <p>
-                {createDescriptionText()}
+                If turned on, hosts&apos; disk encryption keys will be stored in
+                Fleet{" "}
                 <CustomLink
                   text="Learn more"
                   url="https://fleetdm.com/docs/using-fleet/mdm-disk-encryption"
