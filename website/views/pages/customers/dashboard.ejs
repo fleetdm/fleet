@@ -52,7 +52,7 @@
     <div class="row pb-4">
       <div class="col-12 col-lg-6 pb-4 pb-lg-0">
       <h3 class="pt-2 pt-sm-3">Your details</h3>
-        <div purpose="details-card" class="card card-body justify-content-top">
+        <div purpose="details-card" class="card card-body justify-content-start">
           <div class="row">
             <div class="col-sm-4 col-12 pb-2 pb-sm-0">Organization:</div>
             <div class="col-sm-8 col-12 text-left text-sm-right">
@@ -85,19 +85,14 @@
 
       <div class="col-12 col-lg-6">
         <h3 class="pt-2 pt-sm-3">Billing and payment</h3>
-        <div purpose="billing-card" class="card card-body justify-content-center" v-if="me.hasBillingCard">
-          <div class="row pb-3 mx-0">
-            <div style="max-width: 16px;" class="col-1 px-0"><img style="margin-top: 5px; height: 12px; width: 16px;" src="/images/icon-card-32x24@2x.png" alt="A credit card Icon"></div>
-            <div class="col pl-3">
-              <p>{{me.billingCardBrand}} ending in <strong>{{me.billingCardLast4}}</strong><img purpose="edit-button" src="/images/icon-pencil-12x12@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickUpdateBillingCardButton()"></p>
-            </div>
-          </div>
+        <div purpose="billing-card" class="card card-body justify-content-start" v-if="!subscriptionIsExpired">
           <div class="row pb-3 mx-0">
             <div style="max-width: 16px;" class="col-1 px-0"><img style="margin-top: 5px; height: 16px; width: 16px;" src="/images/icon-calendar-32x32@2x.png" alt="A calendar icon"></div>
             <div class="col pl-3">
               <p>{{thisSubscription.numberOfHosts}} devices @ ${{thisSubscription.subscriptionPrice / thisSubscription.numberOfHosts / 12}}.00/device/month</p>
               <p>Billed annually at ${{thisSubscription.subscriptionPrice}}.00/yr</p>
-              <p>Next payment on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
+              <p v-if="willSubscriptionRenew">Next payment on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
+              <p v-else>Your subscription will expire on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
             </div>
           </div>
             <div purpose="contact">
@@ -106,7 +101,7 @@
                 <img style="display: inline-block; height: 16px; width: 16px; margin-top: -3px;" src="/images/info-16x16@2x.png" alt="An icon indicating that this section has important information">
               </div>
               <div class="col ml-1 pl-1 small">
-                <p class="small"><a href="/contact" target="_blank">Contact us</a> to change your number of devices, or to cancel your subscription.</p>
+                <p class="small"><a href="/customers/update-subscription">Click here</a> to change your number of devices, or to cancel your subscription.</p>
               </div>
             </div>
           </div>
@@ -117,7 +112,7 @@
               <img style="display: inline-block; height: 16px; width: 16px; " src="/images/icon-info-grey-16x16@2x.png" alt="An icon indicating that this section has important information">
             </div>
             <div class="col ml-1 pl-1 small">
-              <p class="small">Your subscription will expire on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
+              <p class="small">Your subscription ended on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
             </div>
           </div>
         </div>
