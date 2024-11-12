@@ -270,6 +270,7 @@ func (s *MySQLStorage) updateLastSeen(r *mdm.Request) (err error) {
 		r.ID,
 	)
 	if err != nil {
+		fmt.Println(">>>> update last seen error: ", err)
 		err = fmt.Errorf("updating last seen: %w", err)
 	}
 	return
