@@ -489,11 +489,7 @@ const HostSummary = ({
           renderIssues()}
         {isPremiumTier && renderHostTeam()}
         {/* Rendering of OS Settings data */}
-        {(platform === "darwin" ||
-          platform === "windows" ||
-          platform === "ios" ||
-          platform === "ipados") &&
-          isOsSettingsDisplayPlatform(platform) &&
+        {isOsSettingsDisplayPlatform(platform) &&
           isPremiumTier &&
           isConnectedToFleetMdm && // show if 1 - host is enrolled in Fleet MDM, and
           hostMdmProfiles &&
