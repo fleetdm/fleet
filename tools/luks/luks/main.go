@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/lvm"
@@ -41,24 +42,12 @@ func main() {
 		panic(err)
 	}
 
+	var passphrase string
+
 	// Prompt existing passphrase from the user.
-	prompt := zenity.New()
-	passphrase, err := prompt.ShowEntry(context.Background(), dialog.EntryOptions{
-		Title:    "Enter Passphrase",
-		Text:     "Enter the passphrase for the encrypted device",
-		HideText: true,
-		TimeOut:  10,
-	})
+	passphrase, err = entryPrompt(context.Background())
 	if err != nil {
-		switch err {
-		case dialog.ErrCanceled:
-			fmt.Println("canceled")
-		case dialog.ErrTimeout:
-			fmt.Println("timeout")
-		case dialog.ErrUnknown:
-			fmt.Println("unknown error", err)
-		}
-		panic(err)
+		fmt.Errorf("entryPrompt err: %w", err)
 	}
 
 	// Create a new slot with an "escrow key".
@@ -69,8 +58,12 @@ func main() {
 			code := err.(*cryptsetup.Error).Code()
 			fmt.Println("KeyslotAddByPassphrase err", "code", code)
 			if code == int(ErrBadPassphrase) {
-				fmt.Println("bad passphrase")
-				panic(err)
+				passphrase, err = entryPrompt(context.Background())
+				if err != nil {
+					fmt.Errorf("entryPrompt err: %w", err)
+					break
+				}
+				continue
 			}
 			if keySlot == 8 {
 				panic("all key slots full")
@@ -78,7 +71,53 @@ func main() {
 			keySlot++
 			continue
 		}
-		fmt.Println("Key slot added in slot", keySlot)
+		err = successPrompt(context.Background())
+		if err != nil {
+			fmt.Errorf("successPrompt err: %w", err)
+		}
 		break
 	}
+}
+
+func entryPrompt(ctx context.Context) (string, error) {
+	prompt := zenity.New()
+	passphrase, err := prompt.ShowEntry(context.Background(), dialog.EntryOptions{
+		Title:    "Enter Passphrase",
+		Text:     "Enter the passphrase for the encrypted device",
+		HideText: true,
+		TimeOut:  1 * time.Minute,
+	})
+	if err != nil {
+		switch err {
+		case dialog.ErrCanceled:
+			fmt.Println("canceled")
+		case dialog.ErrTimeout:
+			fmt.Println("timeout")
+		case dialog.ErrUnknown:
+			fmt.Println("unknown error", err)
+		}
+		return "", err
+	}
+
+	return string(passphrase), nil
+}
+
+func successPrompt(ctx context.Context) error {
+	prompt := zenity.New()
+	err := prompt.ShowInfo(ctx, dialog.InfoOptions{
+		Title:   "Success",
+		Text:    "The passphrase was successfully added to the key slot",
+		TimeOut: 10 * time.Second,
+	})
+	if err != nil {
+		switch err {
+		case dialog.ErrTimeout:
+			fmt.Println("timeout")
+		case dialog.ErrUnknown:
+			fmt.Println("unknown error", err)
+		}
+		return err
+	}
+
+	return nil
 }
