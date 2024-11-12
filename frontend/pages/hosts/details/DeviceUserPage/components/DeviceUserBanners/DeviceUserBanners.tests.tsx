@@ -7,7 +7,7 @@ import DeviceUserBanners from "./DeviceUserBanners";
 describe("Device User Banners", () => {
   const turnOnMdmExpcetedText = /Mobile device management \(MDM\) is off\./;
   const resetNonLinuxDiskEncryptKeyExpectedText = /Disk encryption: Log out of your device or restart it to safeguard your data in case your device is lost or stolen\./;
-  const resetLinuxDiskEncryptKeyExpectedText = /Disk encryption: Reset your disk encryption key. This lets your organization help you unlock your device if you forget your password\./;
+  const createNewLinuxDiskEncryptKeyExpectedText = /Disk encryption: Create a new disk encryption key\. This lets your organization help you unlock your device if you forget your passphrase\./;
 
   it("renders the turn on mdm banner correctly", () => {
     render(
@@ -42,10 +42,14 @@ describe("Device User Banners", () => {
       screen.getByText(resetNonLinuxDiskEncryptKeyExpectedText)
     ).toBeInTheDocument();
   });
-  it("renders the reset linux disk encryption banner correctly", () => {
+  it("renders the create new linux disk encryption key banner correctly", () => {
     render(
       <DeviceUserBanners
         hostPlatform="ubuntu"
+        diskEncryptionOSSetting={{ status: "action_required", detail: "" }}
+        diskIsEncrypted
+        // explicit for testing purposes
+        diskEncryptionKeyAvailable={false}
         mdmEnrollmentStatus="On (automatic)"
         mdmEnabledAndConfigured
         connectedToFleetMdm
@@ -56,7 +60,7 @@ describe("Device User Banners", () => {
       />
     );
     expect(
-      screen.getByText(resetLinuxDiskEncryptKeyExpectedText)
+      screen.getByText(createNewLinuxDiskEncryptKeyExpectedText)
     ).toBeInTheDocument();
   });
 
