@@ -85,7 +85,7 @@ To log in to your Fleet instance, run the following commands:
 1. Set the Fleet instance address
 
 ```sh
-> fleetctl config set --address https://fleet.example.com
+> fleetctl config set --address 'https://fleet.example.com'
 [+] Set the address config key to "https://fleet.example.com" in the "default" context
 ```
 
@@ -128,12 +128,12 @@ An API-only user does not have access to the Fleet UI. Instead, it's only purpos
 
 ### Create API-only user
 
-Before creating the API-only user, log in to fleetctl as an admin.  See [authentication](https://#authentication) above for details.
+Before creating the API-only user, log in to fleetctl as an admin.  See [authentication](#authentication) above for details.
 
 To create your new API-only user, use `fleetctl user create`:
 
 ```sh
-fleetctl user create --name "API User" --email api@example.com --password temp@pass123 --api-only
+fleetctl user create --name 'API User' --email 'api@example.com' --password 'temp@pass123' --api-only
 ```
 
 You'll then receive an API token:
@@ -149,13 +149,13 @@ Success! The API token for your new user is: <TOKEN>
 An API-only user can be given the same permissions as a regular user. The default access level is **Observer**. You can specify what level of access the new user should have using the `--global-role` flag:
 
 ```sh
-fleetctl user create --name "API User" --email api@example.com --password temp@pass123 --api-only --global-role admin
+fleetctl user create --name 'API User' --email 'api@example.com' --password 'temp@pass123' --api-only --global-role 'admin'
 ```
 
 On Fleet Premium, use the `--team <team_id>:<role>` to create an API-only user on a team:
 
 ```sh
-fleetctl user create --name "API User" --email api@example.com --password temp@pass123 --api-only --team 4: gitops
+fleetctl user create --name 'API User' --email 'api@example.com' --password 'temp@pass123' --api-only --team 4: gitops
 ```
 
 #### Changing permissions
@@ -168,7 +168,7 @@ To change the role of a current user, log into the Fleet UI as an admin and navi
 To use fleetctl with your regular user account but occasionally use your API-only user for specific cases, you can set up your fleetctl config with a new `context` to hold the credentials of your API-only user:
 
 ```sh
-fleetctl config set --address https://dogfood.fleetdm.com --context api
+fleetctl config set --address 'https://dogfood.fleetdm.com' --context api
 [+] Context "api" not found, creating it with default values
 [+] Set the address config key to "https://dogfood.fleetdm.com" in the "api" context
 ```
@@ -176,7 +176,7 @@ fleetctl config set --address https://dogfood.fleetdm.com --context api
 From there on, you can use  the `--context api` flag whenever you need to use the API-only user's identity, rather than logging in and out to switch accounts:
 
 ```sh
-fleetctl login --context admin
+fleetctl login --context 'admin'
 Log in using the admin Fleet credentials.
 Email: admin@example.com
 Password:

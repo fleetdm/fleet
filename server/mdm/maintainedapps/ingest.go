@@ -25,9 +25,11 @@ import (
 var appsJSON []byte
 
 type maintainedApp struct {
-	Identifier       string `json:"identifier"`
-	BundleIdentifier string `json:"bundle_identifier"`
-	InstallerFormat  string `json:"installer_format"`
+	Identifier           string   `json:"identifier"`
+	BundleIdentifier     string   `json:"bundle_identifier"`
+	InstallerFormat      string   `json:"installer_format"`
+	PreUninstallScripts  []string `json:"pre_uninstall_scripts"`
+	PostUninstallScripts []string `json:"post_uninstall_scripts"`
 }
 
 const baseBrewAPIURL = "https://formulae.brew.sh/api/"
@@ -164,6 +166,9 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "create install script for cask %s", app.Identifier)
 	}
+
+	cask.PreUninstallScripts = app.PreUninstallScripts
+	cask.PostUninstallScripts = app.PostUninstallScripts
 	uninstallScript := uninstallScriptForApp(&cask)
 
 	_, err = i.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
@@ -182,15 +187,17 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 }
 
 type brewCask struct {
-	Token     string          `json:"token"`
-	FullToken string          `json:"full_token"`
-	Tap       string          `json:"tap"`
-	Name      []string        `json:"name"`
-	Desc      string          `json:"desc"`
-	URL       string          `json:"url"`
-	Version   string          `json:"version"`
-	SHA256    string          `json:"sha256"`
-	Artifacts []*brewArtifact `json:"artifacts"`
+	Token                string          `json:"token"`
+	FullToken            string          `json:"full_token"`
+	Tap                  string          `json:"tap"`
+	Name                 []string        `json:"name"`
+	Desc                 string          `json:"desc"`
+	URL                  string          `json:"url"`
+	Version              string          `json:"version"`
+	SHA256               string          `json:"sha256"`
+	Artifacts            []*brewArtifact `json:"artifacts"`
+	PreUninstallScripts  []string        `json:"-"`
+	PostUninstallScripts []string        `json:"-"`
 }
 
 // brew artifacts are objects that have one and only one of their fields set.

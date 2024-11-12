@@ -546,7 +546,7 @@ An example of a link that lives outside of `/docs` is:
 If the link lives outside `/docs`, head to the file's location (in this case, [https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)](https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)), and copy the full URL  into its canonical form (a version of the link that will always point to the same location) ([https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml](https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml)). Replace the relative link with full URL.
 
 
-### Meta tags
+### Documentation meta tags
 
 - **Page order:** The order we display documentation pages on fleetdm.com is determined by `pageOrderInSection` meta tags. These pages are sorted in their respective sections in **ascending** order by the `pageOrderInSection` value. Every Markdown file (except readme and faq pages) in the `docs/` folder must have a meta tag with a positive 'pageOrderInSection' value.
 
@@ -554,8 +554,42 @@ We leave large gaps between values to make future changes easier. For example, t
 
 When adding or reordering a page, try to leave as much room between values as possible. If you were adding a new page that would go between the two pages from the example above, you would add `<meta name="pageOrderInSection" value="150">` to the page.
 
-- **Page description:** TODO: Document.
+- 
 
+### Article meta tags:
+
+We use `<meta>` tags in Markdown articles to set metadata information about the article on the Fleet website. The values of these tags determine where the article will live, and how the article will be displayed on the website.
+
+- Required `<meta>` tags - If any of these tags are missing, the website's build script will fail with an error.
+    - `articleTitle`: The title of the article.
+    - `authorFullName`:  The full name of the author of the article.
+    - `authorGithubUsername`: The Github username of the author.
+    - `category`: The category of the article. determines the article category page the article will be shown on. 
+      > Note: All markdown articles can be found at fleetdm.com/articles
+        - Supported values: 
+            - `releases` - For Fleet release notes. Articles in this category are available at fleetdm.com/releases
+            - `security` - For security-related articles. Articles in this category are available at fleetdm.com/securing
+            - `engineering` - For engineering-related articles. Articles in this category are available at fleetdm.com/engineering
+            - `success stories` - Articles about how/why Fleet is being used by our customers. Articles in this category are available at fleetdm.com/success-stories
+            - `announcements` - News and announcements about new features and changes to Fleet. Articles in this category are available at fleeetdm.com/announcements
+            - `guides` - Non-reference documentation and how-to guides. Articles in this category are available at fleetdm.com/guides
+            - `podcasts` - Episodes of Fleet's podcast. Articles in this category are available at fleetdm.com/podcasts
+    - `publishedOn`:  A ISO 8601 formatted date (YYYY-MM-DD) of the articles publish date. If the article is a guide, this value should be updated whenever a change to the guide is made.
+- Optional meta tags:
+    - `articleImageUrl`: A relative link to a cover image for the article. If provided, the image needs to live in the /website/assets/images/articles folder. The image will be added to the card for this article on it's category page, as well as a cover image on the article page. If this value is not provided, the card for the article will display the Fleet logo and the article will have no cover image.
+    - `description`: A description of the article that will be visible in search results and social share previews. If provided, this value will override the generated meta description for this article. otherwise, the description will default to `[articleTitle] by [authorFullName]`.
+
+**Example meta tag section:**
+
+```html
+<meta name="articleTitle" value="Building an effective dashboard with Fleet's REST API, Flask, and Plotly: A step-by-step guide">
+<meta name="authorFullName" value="Dave Herder">
+<meta name="authorGitHubUsername" value="dherder">
+<meta name="category" value="guides">
+<meta name="publishedOn" value="2023-05-22">
+<meta name="articleImageUrl" value="../website/assets/images/articles/building-an-effective-dashboard-with-fleet-rest-api-flask-and-plotly@2x.jpg">
+<meta name="description" value="Step-by-step guide on building a dynamic dashboard with Fleet's REST API, Flask, and Plotly. Master data visualization with open-source tools!">
+```
 
 ### Images
 
