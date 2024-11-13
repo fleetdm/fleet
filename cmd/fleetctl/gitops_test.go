@@ -2848,7 +2848,6 @@ software:
 
 			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 				if len(tt.tokens) > 0 {
-					t.Logf("returning tokens from DS method: %+v", tt.tokens)
 					return tt.tokens, nil
 				}
 				return []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}, {OrganizationName: "Foo Inc."}}, nil
