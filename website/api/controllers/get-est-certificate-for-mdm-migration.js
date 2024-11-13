@@ -124,14 +124,22 @@ module.exports = {
 
     // Ask the PKI provider for a certificate
     const request = require('@sailshq/request');
-    const estResponse = await request({
-      url: EST_ENDPOINT,
-      method: 'POST',
-      body: csrData.replace(/(-----(BEGIN|END) CERTIFICATE REQUEST-----|\n)/g, ''),
-      headers: {
-        'Content-Type': 'application/pkcs10',
-		    'Authorization': `Basic ${Buffer.from(`${EST_CLIENT_ID}:${EST_CLIENT_KEY}`).toString('base64')}`,
-      },
+    const estResponse = await new Promise((resolve, reject) => {
+      request({
+        url: EST_ENDPOINT,
+        method: 'POST',
+        body: csrData.replace(/(-----(BEGIN|END) CERTIFICATE REQUEST-----|\n)/g, ''),
+        headers: {
+          'Content-Type': 'application/pkcs10',
+          'Authorization': `Basic ${Buffer.from(`${EST_CLIENT_ID}:${EST_CLIENT_KEY}`).toString('base64')}`,
+        },
+      }, (err, response)=>{
+        if (err) {
+          reject(err);
+        } else {
+          resolve(response);
+        }
+      });
     });
 
     return estResponse.body;
