@@ -1,4 +1,4 @@
-package luks
+package luks_runner
 
 import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
@@ -21,7 +21,7 @@ const (
 )
 
 type KeyEscrower interface {
-	EscrowLinuxKey([]byte) error
+	SendLinuxKeyEscrowResponse(LuksResponse) error
 }
 
 type LuksRunner struct {
@@ -29,7 +29,12 @@ type LuksRunner struct {
 	notifier dialog.Dialog
 }
 
-func NewLuksRunner(escrower KeyEscrower, notifier dialog.Dialog) *LuksRunner {
+type LuksResponse struct {
+	Key []byte `json:"key"`
+	Err string `json:"err"`
+}
+
+func New(escrower KeyEscrower, notifier dialog.Dialog) *LuksRunner {
 	return &LuksRunner{
 		escrower: escrower,
 		notifier: notifier,

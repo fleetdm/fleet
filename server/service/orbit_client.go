@@ -22,6 +22,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
+	luks_runner "github.com/fleetdm/fleet/v4/orbit/pkg/luks"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -669,7 +670,7 @@ func (oc *OrbitClient) GetSetupExperienceStatus() (*fleet.SetupExperienceStatusP
 	return resp.Results, nil
 }
 
-func (oc *OrbitClient) EscrowLinuxKey(key []byte) error {
-	log.Debug().Msg(fmt.Sprintf("Escrowing key: %s", string(key)))
+func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks_runner.LuksResponse) error {
+	log.Debug().Msg(fmt.Sprintf("Escrowing key: %s", string(lr.Key)))
 	return nil
 }

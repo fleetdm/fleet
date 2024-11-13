@@ -1,6 +1,6 @@
 //go:build linux
 
-package luks
+package luks_runner
 
 import (
 	"context"
@@ -26,59 +26,29 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 		return nil
 	}
 
-	devicePath, err := lvm.FindRootDisk()
-	if err != nil {
-		return fmt.Errorf("devicepath err: %w", err)
+	key, err := lr.getEscrowKey(ctx)
+	if len(key) == 0 {
+		// Dialog was canceled or timed out
+		return nil
 	}
 
-	device := luks.New(luks.AESXTSPlain64Cipher)
-
-	// Prompt user for existing LUKS passphrase
-	passphrase, err := lr.entryPrompt(ctx, entryDialogTitle, entryDialogText)
-	if err != nil {
-		return fmt.Errorf("entryPrompt err: %w", err)
+	response := LuksResponse{
+		Err: err.Error(),
+		Key: key,
 	}
 
-	escrowPassphrase, err := generateRandomPassphrase(randPassphraseLength)
-	if err != nil {
-		return fmt.Errorf("generateRandomPassphrase err: %w", err)
-	}
-
-	// Create a new key slot, error if all key slots are full
-	// keySlot 0 is assumed to be the user's passphrase
-	// so we start at 1
-	keySlot := 1
-	for {
-		if keySlot == maxKeySlots {
-			return errors.New("all LUKS key slots are full")
-		}
-
-		userKey := encryption.NewKey(0, passphrase)
-		escrowKey := encryption.NewKey(keySlot, escrowPassphrase)
-
-		if err := device.AddKey(ctx, devicePath, userKey, escrowKey); err != nil {
-			if errors.Is(err, encryption.ErrEncryptionKeyRejected) {
-				passphrase, err = lr.entryPrompt(ctx, entryDialogTitle, retryEntryDialogText)
-				if err != nil {
-					return fmt.Errorf("reEntryPrompt err: %w", err)
-				}
-				continue
-			}
-
-			keySlot++
-			continue
-		}
-
-		break
-	}
-
-	// Escrow the escrow passphrase
-	// TODO(tim): add retry or key removal
-	if err := lr.escrower.EscrowLinuxKey(escrowPassphrase); err != nil {
+	if err := lr.escrower.SendLinuxKeyEscrowResponse(response); err != nil {
 		if err := lr.infoPrompt(ctx, infoFailedTitle, infoFailedText); err != nil {
 			log.Debug().Err(err).Msg("failed to show failed escrow key dialog")
 		}
 		return fmt.Errorf("escrower escrowKey err: %w", err)
+	}
+
+	if response.Err != "" {
+		if err := lr.infoPrompt(ctx, infoFailedTitle, response.Err); err != nil {
+			log.Debug().Err(err).Msg("failed to show failed escrow key dialog")
+		}
+		return fmt.Errorf("error getting linux escrow key: %s", response.Err)
 	}
 
 	// Show success dialog
@@ -87,6 +57,84 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	}
 
 	return nil
+}
+
+func (lr *LuksRunner) getEscrowKey(ctx context.Context) ([]byte, error) {
+	devicePath, err := lvm.FindRootDisk()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to find LUKS Root Partition: %w", err)
+	}
+
+	device := luks.New(luks.AESXTSPlain64Cipher)
+
+	// Prompt user for existing LUKS passphrase
+	passphrase, err := lr.entryPrompt(ctx, entryDialogTitle, entryDialogText)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to show passphrase entry prompt: %w", err)
+	}
+
+	// Validate the passphrase
+	for {
+		valid, err := lr.passphraseIsValid(ctx, device, devicePath, passphrase)
+		if err != nil {
+			return nil, fmt.Errorf("Failed validating passphrase: %w", err)
+		}
+
+		if !valid {
+			passphrase, err = lr.entryPrompt(ctx, entryDialogTitle, retryEntryDialogText)
+			if err != nil {
+				return nil, fmt.Errorf("Failed re-prompting for passphrase: %w", err)
+			}
+			continue
+		}
+
+		break
+	}
+
+	if passphrase == nil {
+		log.Debug().Msg("Passphrase is nil, dialog was canceled or timed out")
+		return nil, nil
+	}
+
+	escrowPassphrase, err := generateRandomPassphrase(randPassphraseLength)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to generate random passphrase: %w", err)
+	}
+
+	// Create a new key slot, error if all key slots are full
+	// keySlot 0 is assumed to be the user's passphrase
+	// so we start at 1
+	keySlot := 1
+	for {
+		if keySlot == maxKeySlots {
+			return nil, errors.New("all LUKS key slots are full")
+		}
+
+		userKey := encryption.NewKey(0, passphrase)
+		escrowKey := encryption.NewKey(keySlot, escrowPassphrase)
+
+		if err := device.AddKey(ctx, devicePath, userKey, escrowKey); err != nil {
+			if errors.Is(err, encryption.ErrEncryptionKeyRejected) {
+				keySlot++
+				continue
+			} else {
+				return nil, fmt.Errorf("Failed to add key: %w", err)
+			}
+		}
+
+		break
+	}
+
+	return escrowPassphrase, nil
+}
+
+func (lr *LuksRunner) passphraseIsValid(ctx context.Context, device *luks.LUKS, devicePath string, passphrase []byte) (bool, error) {
+	valid, err := device.CheckKey(ctx, devicePath, encryption.NewKey(0, passphrase))
+	if err != nil {
+		return false, fmt.Errorf("Error validating passphrase: %w", err)
+	}
+
+	return valid, nil
 }
 
 func generateRandomPassphrase(length int) ([]byte, error) {
