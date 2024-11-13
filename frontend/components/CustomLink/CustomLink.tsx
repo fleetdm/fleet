@@ -13,6 +13,8 @@ interface ICustomLinkProps {
   multiline?: boolean;
   iconColor?: Colors;
   color?: "core-fleet-blue" | "core-fleet-black";
+  /** Restricts access via keyboard when CustomLink is part of disabled UI */
+  disableKeyboardNavigation?: boolean;
 }
 
 const baseClass = "custom-link";
@@ -25,6 +27,7 @@ const CustomLink = ({
   multiline = false,
   iconColor = "core-fleet-blue",
   color = "core-fleet-blue",
+  disableKeyboardNavigation = false,
 }: ICustomLinkProps): JSX.Element => {
   const customLinkClass = classnames(baseClass, className, {
     [`${baseClass}--black`]: color === "core-fleet-black",
@@ -68,6 +71,7 @@ const CustomLink = ({
       target={target}
       rel="noopener noreferrer"
       className={customLinkClass}
+      tabIndex={disableKeyboardNavigation ? -1 : 0}
     >
       {content}
     </a>
