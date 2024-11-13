@@ -5,7 +5,6 @@ package luks
 import (
 	"context"
 	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
@@ -13,8 +12,9 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/lvm"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	cryptsetup "github.com/martinjungblut/go-cryptsetup"
 	"github.com/rs/zerolog/log"
+	"github.com/siderolabs/go-blockdevice/v2/encryption"
+	"github.com/siderolabs/go-blockdevice/v2/encryption/luks"
 )
 
 func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
@@ -31,16 +31,7 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 		return fmt.Errorf("devicepath err: %w", err)
 	}
 
-	device, err := cryptsetup.Init(devicePath)
-	if err != nil {
-		return fmt.Errorf("cryptsetup init err: %w", err)
-	}
-	defer device.Free()
-
-	luks2 := cryptsetup.LUKS2{}
-	if err := device.Load(luks2); err != nil {
-		return fmt.Errorf("cryptsetup load err: %w", err)
-	}
+	device := luks.New(luks.AESXTSPlain64Cipher)
 
 	// Prompt user for existing LUKS passphrase
 	passphrase, err := lr.entryPrompt(ctx, entryDialogTitle, entryDialogText)
@@ -62,9 +53,11 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 			return errors.New("all LUKS key slots are full")
 		}
 
-		if err := device.KeyslotAddByPassphrase(keySlot, string(passphrase), escrowPassphrase); err != nil {
-			code := err.(*cryptsetup.Error).Code()
-			if code == int(ErrBadPassphrase) {
+		userKey := encryption.NewKey(0, passphrase)
+		escrowKey := encryption.NewKey(keySlot, escrowPassphrase)
+
+		if err := device.AddKey(ctx, devicePath, userKey, escrowKey); err != nil {
+			if errors.Is(err, encryption.ErrEncryptionKeyRejected) {
 				passphrase, err = lr.entryPrompt(ctx, entryDialogTitle, retryEntryDialogText)
 				if err != nil {
 					return fmt.Errorf("reEntryPrompt err: %w", err)
@@ -96,16 +89,13 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	return nil
 }
 
-func generateRandomPassphrase(length int) (string, error) {
+func generateRandomPassphrase(length int) ([]byte, error) {
 	bytes := make([]byte, length)
 	if _, err := rand.Read(bytes); err != nil {
-		return "", err
+		return nil, err
 	}
 
-	passphrase := base64.URLEncoding.EncodeToString(bytes)
-
-	// Truncate to desired length if necessary
-	return passphrase[:length], nil
+	return bytes, nil
 }
 
 func (lr *LuksRunner) entryPrompt(ctx context.Context, title, text string) ([]byte, error) {

@@ -256,6 +256,10 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
+	if appConfig.MDM.EnableDiskEncryption.Value {
+		notifs.EscrowLinuxKey = true
+	}
+
 	// set the host's orbit notifications for Windows MDM
 	if appConfig.MDM.WindowsEnabledAndConfigured {
 		if IsEligibleForWindowsMDMEnrollment(host, mdmInfo) {
