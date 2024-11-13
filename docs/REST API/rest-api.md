@@ -9156,7 +9156,8 @@ Returns information about the specified software version.
         "cve_published": "2023-09-27T15:19:00Z", // Available in Fleet Premium
         "resolved_in_version": "118" // Available in Fleet Premium
       }
-    ]
+    ],
+    "team_identifier": "43AQ936H96"
   }
 }
 ```
