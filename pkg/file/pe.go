@@ -74,11 +74,13 @@ func ExtractPEMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 			version = productVersion
 		}
 	}
-	if name == "" && version == "" {
-		// If we didn't find a ProductName and ProductVersion, we may be
+	if name == "" && sfxName != "" {
+		// If we didn't find a ProductName, we may be
 		// dealing with an archive executable.
 		name = sfxName
-		version = sfxVersion
+		if sfxVersion != "" {
+			version = sfxVersion
+		}
 	}
 
 	return applySpecialCases(&InstallerMetadata{
