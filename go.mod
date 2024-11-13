@@ -93,7 +93,7 @@ require (
 	github.com/quasilyte/go-ruleguard/dsl v0.3.22
 	github.com/rs/zerolog v1.32.0
 	github.com/russellhaering/goxmldsig v1.2.0
-	github.com/saferwall/pe v1.5.2
+	github.com/saferwall/pe v1.5.5
 	github.com/sassoftware/relic/v8 v8.0.1
 	github.com/scjalliance/comshim v0.0.0-20230315213746-5e51f40bd3b9
 	github.com/sethvargo/go-password v0.3.0
@@ -337,5 +337,3 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/saferwall/pe => github.com/getvictor/pe v0.0.0-20241112215302-d2d9082e9bf6
