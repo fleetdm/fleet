@@ -21,7 +21,7 @@ where a host might have been lost or stolen, or to remotely prepare a device to 
 1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the device you want to lock. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.
 2. Click the host to open the **Host Overview** page.
 3. Click the **Actions** dropdown, then click  **Wipe**.
-4. Confirm that you want to wipe the device in the dialog. The host will now be marked with a "Wipe pending" badge. Once the lock command is acknowledged by the host, the badge will update to "Wiped".
+4. Confirm that you want to wipe the device in the dialog. The host will now be marked with a "Wipe pending" badge. Once the wipe command is acknowledged by the host, the badge will update to "Wiped".
 
 ## Unlocking a host
 
