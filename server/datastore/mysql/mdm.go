@@ -502,7 +502,7 @@ WHERE
 		}
 	}
 
-	updates.AppleConfigProfile, err = ds.bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, appleHosts)
+	updates.AppleConfigProfile, err = ds.bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, appleHosts, profileUUIDs)
 	if err != nil {
 		return updates, ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
 	}
@@ -821,7 +821,7 @@ FROM
 		GROUP BY checksum
 	) cs ON macp.checksum = cs.checksum
 WHERE
-	macp.team_id = ? AND 
+	macp.team_id = ? AND
 	NOT EXISTS (
 		SELECT
 			1
@@ -852,16 +852,16 @@ FROM
 			mdm_apple_configuration_profiles
 		GROUP BY checksum
 	) cs ON macp.checksum = cs.checksum
-	JOIN mdm_configuration_profile_labels mcpl 
+	JOIN mdm_configuration_profile_labels mcpl
 		ON mcpl.apple_profile_uuid = macp.profile_uuid AND mcpl.exclude = 0
-	LEFT OUTER JOIN label_membership lm 
+	LEFT OUTER JOIN label_membership lm
 		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
 WHERE
 	macp.team_id = ?
 GROUP BY
 	identifier
 HAVING
-	count_profile_labels > 0 AND 
+	count_profile_labels > 0 AND
 	count_host_labels = count_profile_labels
 
 UNION
@@ -884,9 +884,9 @@ FROM
 			mdm_apple_configuration_profiles
 		GROUP BY checksum
 	) cs ON macp.checksum = cs.checksum
-	JOIN mdm_configuration_profile_labels mcpl 
+	JOIN mdm_configuration_profile_labels mcpl
 		ON mcpl.apple_profile_uuid = macp.profile_uuid AND mcpl.exclude = 1
-	LEFT OUTER JOIN label_membership lm 
+	LEFT OUTER JOIN label_membership lm
 		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
 WHERE
 	macp.team_id = ?
@@ -894,7 +894,7 @@ GROUP BY
 	identifier
 HAVING
 	-- considers only the profiles with labels, without any broken label, and with the host not in any label
-	count_profile_labels > 0 AND 
+	count_profile_labels > 0 AND
 	count_profile_labels = count_non_broken_labels AND
 	count_host_labels = 0
 `

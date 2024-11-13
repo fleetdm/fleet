@@ -1899,12 +1899,16 @@ func (ds *Datastore) bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context
 	return nil
 }
 
+// NOTE If onlyProfileUUIDs is provided (not nil), only profiles with
+// those UUIDs will be update instead of rebuilding all pending
+// profiles for hosts
 func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
-	uuids []string,
+	hostUUIDs []string,
+	onlyProfileUUIDs []string,
 ) (updatedDB bool, err error) {
-	if len(uuids) == 0 {
+	if len(hostUUIDs) == 0 {
 		return false, nil
 	}
 
@@ -1931,6 +1935,11 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	// considers "remove" operations that have NULL status, which it would
 	// update to make its status to NULL).
 
+	profileHostIn := "h.uuid IN (?)"
+	if len(onlyProfileUUIDs) > 0 {
+		profileHostIn = "mae.identifier IN (?) AND " + profileHostIn
+	}
+
 	toInstallStmt := fmt.Sprintf(`
 	SELECT
 		ds.profile_uuid as profile_uuid,
@@ -1949,7 +1958,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		( hmap.profile_uuid IS NULL AND hmap.host_uuid IS NULL ) OR
 		-- profiles in A and B but with operation type "remove"
 		( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) )
-`, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
+`, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, profileHostIn, profileHostIn, profileHostIn))
 
 	// batches of 10K hosts because h.uuid appears three times in the
 	// query, and the max number of prepared statements is 65K, this was
@@ -1959,19 +1968,34 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	if ds.testSelectMDMProfilesBatchSize > 0 {
 		selectProfilesBatchSize = ds.testSelectMDMProfilesBatchSize
 	}
-	selectProfilesTotalBatches := int(math.Ceil(float64(len(uuids)) / float64(selectProfilesBatchSize)))
+	selectProfilesTotalBatches := int(math.Ceil(float64(len(hostUUIDs)) / float64(selectProfilesBatchSize)))
 
 	var wantedProfiles []*fleet.MDMAppleProfilePayload
 	for i := 0; i < selectProfilesTotalBatches; i++ {
 		start := i * selectProfilesBatchSize
 		end := start + selectProfilesBatchSize
-		if end > len(uuids) {
-			end = len(uuids)
+		if end > len(hostUUIDs) {
+			end = len(hostUUIDs)
 		}
 
-		batchUUIDs := uuids[start:end]
+		batchUUIDs := hostUUIDs[start:end]
 
-		stmt, args, err := sqlx.In(toInstallStmt, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
+		var stmt string
+		var args []any
+		var err error
+
+		if len(onlyProfileUUIDs) > 0 {
+			stmt, args, err = sqlx.In(
+				toInstallStmt,
+				onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
+				fleet.MDMOperationTypeRemove,
+			)
+		} else {
+			stmt, args, err = sqlx.In(toInstallStmt, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
+		}
+
 		if err != nil {
 			return false, ctxerr.Wrapf(ctx, err, "building statement to select profiles to install, batch %d of %d", i,
 				selectProfilesTotalBatches)
@@ -2018,19 +2042,35 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 			mcpl.apple_profile_uuid = hmap.profile_uuid AND
 			mcpl.label_id IS NULL
 		)
-`, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
+`, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, profileHostIn, profileHostIn, profileHostIn))
 
 	var currentProfiles []*fleet.MDMAppleProfilePayload
 	for i := 0; i < selectProfilesTotalBatches; i++ {
 		start := i * selectProfilesBatchSize
 		end := start + selectProfilesBatchSize
-		if end > len(uuids) {
-			end = len(uuids)
+		if end > len(hostUUIDs) {
+			end = len(hostUUIDs)
 		}
 
-		batchUUIDs := uuids[start:end]
+		batchUUIDs := hostUUIDs[start:end]
 
-		stmt, args, err := sqlx.In(toRemoveStmt, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
+		var stmt string
+		var args []any
+		var err error
+
+		if len(onlyProfileUUIDs) > 0 {
+			stmt, args, err = sqlx.In(
+				toRemoveStmt,
+				onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
+				batchUUIDs,
+				fleet.MDMOperationTypeRemove,
+			)
+		} else {
+			stmt, args, err = sqlx.In(toRemoveStmt, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
+		}
+
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "building profiles to remove statement")
 		}
@@ -2390,7 +2430,7 @@ func generateDesiredStateQuery(entityType string) string {
 		COUNT(*) as ${countEntityLabelsColumn},
 		COUNT(mel.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels,
-		-- this helps avoid the case where the host is not a member of a label 
+		-- this helps avoid the case where the host is not a member of a label
 		-- just because it hasn't reported results for that label yet.
 		SUM(CASE WHEN lbl.created_at IS NOT NULL AND h.label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
 	FROM
