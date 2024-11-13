@@ -17,12 +17,12 @@ A collection of guides to help you with Fleet.
 <!--Controls-->
 - [Enforce OS updates](https://fleetdm.com/guides/enforce-os-updates)
 - [Enforce disk encryption](https://fleetdm.com/guides/enforce-disk-encryption)
-- [Certificates in fleetd](https://fleetdm.com/guides/certificates-in-fleetd)
+- [Custom OS settings](https://fleetdm.com/guides/custom-os-settings)
 - [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script)
 <!--Installing software-->
 - [Fleet-maintained apps](https://fleetdm.com/guides/install-fleet-maintained-apps-on-macos-hosts)
-- [Deploy software packages](https://fleetdm.com/guides/deploy-software-packages)
-- [Automatic installation of software](https://fleetdm.com/guides/automatic-software-install-in-fleet)
+- [Deploy software](https://fleetdm.com/guides/deploy-software-packages)
+- [Automatically install software](https://fleetdm.com/guides/automatic-software-install-in-fleet)
 - [Install App Store (VPP) apps](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet)
 <!--Admin-->
 - [Fleetctl](https://fleetdm.com/guides/fleetctl)
