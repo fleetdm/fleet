@@ -3516,7 +3516,7 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 
 ##### Default response
 
-`Status: 200`
+`Status: 202`
 ```json
 {
   "request_uuid": "ec23c7b6-c336-4109-b89d-6afd859659b4",
