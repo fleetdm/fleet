@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Issue certificate via EST',
+  friendlyName: 'Get EST certificate for MDM migration',
 
 
   description: 'Take a certificate signing request and authentication token, then use the EST protocol to request a certificate to be issued.',

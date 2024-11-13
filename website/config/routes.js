@@ -628,6 +628,7 @@ module.exports.routes = {
   'POST /api/v1/webhooks/receive-usage-analytics': { action: 'webhooks/receive-usage-analytics', csrf: false },
   '/api/v1/webhooks/github': { action: 'webhooks/receive-from-github', csrf: false },
   'POST /api/v1/webhooks/receive-from-stripe': { action: 'webhooks/receive-from-stripe', csrf: false },
+  'POST /api/v1/get-est-certificate-for-mdm-migration': { action: 'get-est-certificate-for-mdm-migration', csrf: false},
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ╠═╣╠═╝║  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
@@ -662,5 +663,4 @@ module.exports.routes = {
   'POST /api/v1/account/update-start-cta-visibility': { action: 'account/update-start-cta-visibility' },
   'POST /api/v1/deliver-deal-registration-submission': { action: 'deliver-deal-registration-submission' },
   '/api/v1/unsubscribe-from-marketing-emails': { action: 'unsubscribe-from-marketing-emails' },
-  'POST /api/v1/issue-est-certificate': { action: 'issue-est-certificate', csrf: false},
 };
