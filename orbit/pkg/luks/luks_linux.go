@@ -74,7 +74,7 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 
 	// Escrow the escrow passphrase
 	// TODO(tim): add retry or key removal
-	if err := lr.escrower.EscrowLinuxKey(passphrase); err != nil {
+	if err := lr.escrower.EscrowLinuxKey(escrowPassphrase); err != nil {
 		if err := lr.infoPrompt(ctx, infoFailedTitle, infoFailedText); err != nil {
 			log.Debug().Err(err).Msg("failed to show failed escrow key dialog")
 		}
