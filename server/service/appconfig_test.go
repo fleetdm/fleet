@@ -30,65 +30,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMDMCustomSettingsUnmarshal(t *testing.T) {
-	// When updating AppConfig, we unmarshal the incoming JSON into the existing AppConfig struct.
-	// See
-	// https://github.com/fleetdm/fleet/blob/d1144df1318b50482cbd9eb996b863443975f138/server/service/appconfig.go#L334-L335
-	//
-	// But there are issues unmarshaling the slice of profile specs. If a key is present in an old
-	// element but not in the new element (e.g. element[0] of the old slice and element[0] of the
-	// new slice), both keys are preserved. This is problematic for mutually exclusive options like
-	// `labels_include_any`, `labels_exclude_any`, `labels_include_all` as illustrated below.
-
-	storedConfig := fleet.AppConfig{
-		OrgInfo: fleet.OrgInfo{
-			OrgName: "Test",
-		},
-		MDM: fleet.MDM{
-			MacOSSettings: fleet.MacOSSettings{
-				CustomSettings: []fleet.MDMProfileSpec{
-					{
-						Path:             "some-profile-2",
-						LabelsExcludeAny: []string{"bar"},
-					},
-					{
-						Path:             "some-profile-1",
-						LabelsIncludeAll: []string{"foo"},
-					},
-				},
-			},
-		},
-	}
-
-	incomingConfig := fleet.AppConfig{
-		OrgInfo: fleet.OrgInfo{
-			OrgName: "Test",
-		},
-		MDM: fleet.MDM{
-			MacOSSettings: fleet.MacOSSettings{
-				CustomSettings: []fleet.MDMProfileSpec{
-					{
-						Path:             "some-profile-1",
-						LabelsIncludeAll: []string{"foo"},
-					},
-					{
-						Path:             "some-profile-2",
-						LabelsIncludeAny: []string{"bar"},
-					},
-				},
-			},
-		},
-	}
-	b, err := json.Marshal(incomingConfig)
-	require.NoError(t, err)
-
-	err = json.Unmarshal(b, &storedConfig)
-	require.NoError(t, err)
-	for _, profile := range storedConfig.MDM.MacOSSettings.CustomSettings {
-		fmt.Println(fmt.Sprintf("%+v", profile))
-	}
-}
-
 func TestAppConfigAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)

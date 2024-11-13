@@ -1867,6 +1867,9 @@ ON DUPLICATE KEY UPDATE
 		}
 	}
 
+	// FIXME: At what point are we deleting label associations for existing profiles (e.g. if the user
+	// removes all labels from a profile in gitops, shouldn't we remove the old associations)?
+
 	// insert label associations
 	var updatedLabels bool
 	if updatedLabels, err = batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels,

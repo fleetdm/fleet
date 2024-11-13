@@ -1592,7 +1592,7 @@ func (svc *Service) BatchSetMDMProfiles(
 
 	labels := []string{}
 	for i := range profiles {
-		// from this point on (after this condition), only LabelsIncludeAll or
+		// from this point on (after this condition), only LabelsIncludeAll, LabelsIncludeAny or
 		// LabelsExcludeAny need to be checked.
 		if len(profiles[i].Labels) > 0 {
 			// must update the struct in the slice directly, because we don't have a

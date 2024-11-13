@@ -1009,6 +1009,8 @@ func batchSetProfileLabelAssociationsDB(
 	platform string,
 ) (updatedDB bool, err error) {
 	if len(profileLabels) == 0 {
+		// FIXME: At what point are we deleting all labels for a profile (e.g., the user might
+		// remove all labels from an existing profile)?
 		return false, nil
 	}
 
