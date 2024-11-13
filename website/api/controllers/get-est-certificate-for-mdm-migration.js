@@ -29,6 +29,7 @@ module.exports = {
 
     success: {
       description: 'Successfully generated certificate',
+      extendedDescription: 'This action is the result of a hackathon where we were relying on this datashape.',
       outputType: {certificate:'string'},
       outputFriendlyName: 'Certificate',
     },
