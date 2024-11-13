@@ -518,6 +518,8 @@ type AppConfig struct {
 	// (The source of truth for scripts is in MySQL.)
 	Scripts optjson.Slice[string] `json:"scripts"`
 
+	YaraRules []YaraRule `json:"yara_rules,omitempty"`
+
 	// when true, strictDecoding causes the UnmarshalJSON method to return an
 	// error if there are unknown fields in the raw JSON.
 	strictDecoding bool
@@ -681,6 +683,12 @@ func (c *AppConfig) Copy() *AppConfig {
 			sw[i] = &s
 		}
 		clone.MDM.MacOSSetup.Software = optjson.SetSlice(sw)
+	}
+
+	if c.YaraRules != nil {
+		rules := make([]YaraRule, len(c.YaraRules))
+		copy(rules, c.YaraRules)
+		clone.YaraRules = rules
 	}
 
 	return &clone
@@ -1376,4 +1384,13 @@ type WindowsSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
 	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings"`
+}
+
+type YaraRuleSpec struct {
+	Path string `json:"path"`
+}
+
+type YaraRule struct {
+	Name     string `json:"name"`
+	Contents string `json:"contents"`
 }
