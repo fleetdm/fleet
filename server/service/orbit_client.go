@@ -668,3 +668,8 @@ func (oc *OrbitClient) GetSetupExperienceStatus() (*fleet.SetupExperienceStatusP
 
 	return resp.Results, nil
 }
+
+func (oc *OrbitClient) EscrowLinuxKey(key []byte) error {
+	log.Debug().Msg(fmt.Sprintf("Escrowing key: %s", string(key)))
+	return nil
+}
