@@ -6,7 +6,9 @@ module.exports = {
 
   description: 'Take a certificate signing request and authentication token, then use the EST protocol to request a certificate to be issued.',
 
-  extendedDescription: '',
+  extendedDescription: 'This action is the result of a customer hackathon relating to a Linux MDM migration from a different Linux MDM Vendor',
+
+  morInfoUrl: 'https://github.com/fleetdm/confidential/issues/8785',
 
 
   inputs: {
