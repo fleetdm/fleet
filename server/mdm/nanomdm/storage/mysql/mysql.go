@@ -7,11 +7,13 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/ctxlog"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/jmoiron/sqlx"
 )
 
 // Schema holds the schema for the NanoMDM MySQL storage.
@@ -25,6 +27,7 @@ type MySQLStorage struct {
 	logger log.Logger
 	db     *sql.DB
 	rm     bool
+	als    *asyncLastSeen
 }
 
 type config struct {
@@ -82,7 +85,19 @@ func New(opts ...Option) (*MySQLStorage, error) {
 	if err = cfg.db.Ping(); err != nil {
 		return nil, err
 	}
-	return &MySQLStorage{db: cfg.db, logger: cfg.logger, rm: cfg.rm}, nil
+
+	const (
+		asyncLastSeenFlushInterval = 2 * time.Second
+		asyncLastSeenCap           = 1000
+	)
+
+	mysqlStore := &MySQLStorage{db: cfg.db, logger: cfg.logger, rm: cfg.rm}
+	als := newAsyncLastSeen(asyncLastSeenFlushInterval, asyncLastSeenCap, mysqlStore.updateLastSeenBatch)
+	mysqlStore.als = als
+
+	go als.runFlushLoop(context.Background())
+
+	return mysqlStore, nil
 }
 
 // nullEmptyString returns a NULL string if s is empty.
@@ -273,4 +288,24 @@ func (s *MySQLStorage) updateLastSeen(r *mdm.Request) (err error) {
 		err = fmt.Errorf("updating last seen: %w", err)
 	}
 	return
+}
+
+func (s *MySQLStorage) updateLastSeenBatch(ctx context.Context, ids []string) {
+	if len(ids) == 0 {
+		return
+	}
+
+	args := make([]any, 0, len(ids))
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	stmt, args, err := sqlx.In(`UPDATE nano_enrollments SET last_seen_at = CURRENT_TIMESTAMP WHERE id IN (?)`, args...)
+	if err != nil {
+		s.logger.Info("msg", "error building nano_enrollments.last_seen_at sql", "err", err)
+		return
+	}
+
+	if _, err = s.db.ExecContext(ctx, stmt, args...); err != nil {
+		s.logger.Info("msg", "error batch updating nano_enrollments.last_seen_at", "err", err)
+	}
 }
