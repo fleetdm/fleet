@@ -31,6 +31,7 @@ type SwiftDialog struct {
 	exitCode    ExitCode
 	exitErr     error
 	done        chan struct{}
+	closed      bool
 	binPath     string
 }
 
@@ -115,6 +116,7 @@ func (s *SwiftDialog) Start(ctx context.Context, opts *SwiftDialogOptions) error
 				s.exitErr = fmt.Errorf("waiting for swiftDialog: %w", err)
 			}
 		}
+		s.closed = true
 		close(s.done)
 		s.cancel(ErrWindowClosed)
 	}()
@@ -174,6 +176,10 @@ func (s *SwiftDialog) Wait() (*SwiftDialogExit, error) {
 		ExitCode: s.exitCode,
 		Output:   parsed,
 	}, s.exitErr
+}
+
+func (s *SwiftDialog) Closed() bool {
+	return s.closed
 }
 
 func (s *SwiftDialog) sendCommand(command, arg string) error {
