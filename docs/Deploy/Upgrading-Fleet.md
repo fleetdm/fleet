@@ -60,7 +60,7 @@ fleet serve
 
 ## AWS with Terraform
 
-If you are using Fleet's Terraform Modules to manage your Fleet deployment to AWS, update the version in `main.tf`:
+If you are using Fleet's Terraform modules to manage your Fleet deployment to AWS, update the version in `main.tf`:
 
 ```tf
   fleet_config = {
