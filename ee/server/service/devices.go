@@ -174,8 +174,6 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 }
 
 func (svc *Service) TriggerLinuxKeyEscrow(ctx context.Context, host *fleet.Host) error {
-	level.Debug(svc.logger).Log("msg", "trigger linux key escrow", "host_id", host.ID)
-
 	if !slices.Contains(LUKSSupportedPlatforms, host.Platform) {
 		return &fleet.BadRequestError{Message: "Host platform does not support key escrow"}
 	}
@@ -184,20 +182,15 @@ func (svc *Service) TriggerLinuxKeyEscrow(ctx context.Context, host *fleet.Host)
 	if err != nil {
 		return err
 	}
-	if !ac.MDM.EnabledAndConfigured {
-		return fleet.ErrMDMNotConfigured
-	}
 
 	// Is AppConfig.MDM.EnableDiskEncryption the disk encryption setting for “No team”, while
 	// TeamMDM.EnableDiskEncryption is for all other teams?
 	// confirm No team taemId
-	if host.TeamID == nil {
-		// No team
+	if host.TeamID == nil { // No team
 		if !ac.MDM.EnableDiskEncryption.Value {
-			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for this host"}
+			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for this host's team"}
 		}
-	} else {
-		// Team
+	} else { // Team
 		tc, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
 		if err != nil {
 			return err
@@ -205,11 +198,6 @@ func (svc *Service) TriggerLinuxKeyEscrow(ctx context.Context, host *fleet.Host)
 		if !tc.EnableDiskEncryption {
 			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for this host's team"}
 		}
-	}
-
-	_, err = svc.ds.IsHostConnectedToFleetMDM(ctx, host)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "Host is not connected to Fleet MDM")
 	}
 
 	if !*host.DiskEncryptionEnabled {
@@ -234,8 +222,8 @@ func (svc *Service) TriggerLinuxKeyEscrow(ctx context.Context, host *fleet.Host)
 		return &fleet.BadRequestError{Message: "Key already escrowed for this host"}
 	}
 
-	if *key.ResetRequested {
-		return &fleet.BadRequestError{Message: "Key reset already requested for this host"}
+	if *key.ResetRequested { // reset has already been requested, so no-op
+		return nil
 	}
 
 	// TODO - clears client_error - okay?
