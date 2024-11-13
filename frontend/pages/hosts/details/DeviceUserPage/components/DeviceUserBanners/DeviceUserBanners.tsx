@@ -32,14 +32,13 @@ const DeviceUserBanners = ({
   const isMdmUnenrolled =
     mdmEnrollmentStatus === "Off" || mdmEnrollmentStatus === null;
 
-  const diskEncryptionBannersEnabled =
-    mdmEnabledAndConfigured && connectedToFleetMdm;
+  const mdmEnabledAndConnected = mdmEnabledAndConfigured && connectedToFleetMdm;
 
   const showTurnOnAppleMdmBanner =
     hostPlatform === "darwin" && isMdmUnenrolled && mdmEnabledAndConfigured;
 
   const showMacDiskEncryptionKeyResetRequired =
-    diskEncryptionBannersEnabled &&
+    mdmEnabledAndConnected &&
     macDiskEncryptionStatus === "action_required" &&
     diskEncryptionActionRequired === "rotate_key";
 
