@@ -1,21 +1,21 @@
 module.exports = {
 
 
-  friendlyName: 'Get EST certificate for MDM migration',
+  friendlyName: 'Get a device certificate via EST protocol',
 
 
   description: 'Take a certificate signing request and authentication token, then use the EST protocol to request a certificate to be issued.',
 
-  extendedDescription: 'This action is the result of a customer hackathon relating to a Linux MDM migration from a different Linux MDM Vendor',
+  extendedDescription: 'This action is the result of a customer hackathon working on issuing device certificates to Linux devices.',
 
-  morInfoUrl: 'https://github.com/fleetdm/confidential/issues/8785',
+  moreInfoUrl: 'https://github.com/fleetdm/confidential/issues/8785',
 
 
   inputs: {
     csrData: {
       required: true,
       type: 'string',
-      description: 'CSR'
+      description: 'Certificate Signing Request (CSR) data'
     },
     authToken: {
       required: true,

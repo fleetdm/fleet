@@ -56,5 +56,5 @@ module.exports.policies = {
   'redirect-vanta-authorization-request': true,
   'view-deals': true,
   'deliver-deal-registration-submission': true,
-  'get-est-certificate-for-mdm-migration': true,
+  'get-est-device-certificate': true,
 };
