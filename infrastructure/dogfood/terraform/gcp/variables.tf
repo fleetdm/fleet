@@ -68,7 +68,7 @@ variable "redis_mem" {
 }
 
 variable "image" {
-  default = "fleetdm/fleet:v4.58.0"
+  default = "fleetdm/fleet:v4.59.0"
 }
 
 variable "software_installers_bucket_name" {
@@ -76,7 +76,7 @@ variable "software_installers_bucket_name" {
 }
 
 variable "license_key" {
-  default = ""
+  default     = ""
   description = "Fleet license key"
 }
 
