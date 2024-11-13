@@ -4,6 +4,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import RevealButton from "components/buttons/RevealButton";
 import Button from "components/buttons/Button";
+import Radio from "components/forms/fields/Radio";
 
 import AdvancedOptionsFields from "pages/SoftwarePage/components/AdvancedOptionsFields";
 
@@ -96,6 +97,36 @@ const FleetAppDetailsForm = ({
 
   return (
     <form className={baseClass} onSubmit={onSubmitForm}>
+      <fieldset>
+        <legend>Install</legend>
+        <div className={`${baseClass}__radio-inputs`}>
+          <Radio
+            id="manual"
+            value="manual"
+            name="install-type"
+            label="Manual"
+            onChange={() => {}}
+            helpText="Manually install on Host details page for each host."
+          />
+          <Radio
+            id="automatic"
+            value="automatic"
+            name="install-type"
+            label="Automatic"
+            onChange={() => {}}
+            helpText={
+              <>
+                Automatically install on each host that&apos;s{" "}
+                <TooltipWrapper tipContent="If the host already has any version of this software, it won't be installed.">
+                  missing this software.
+                </TooltipWrapper>{" "}
+                Policy that triggers install can be customized after software is
+                added.
+              </>
+            }
+          />
+        </div>
+      </fieldset>
       <Checkbox
         value={formData.selfService}
         onChange={onToggleSelfServiceCheckbox}
