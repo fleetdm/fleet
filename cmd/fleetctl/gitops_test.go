@@ -2605,26 +2605,27 @@ software:
 				assert.Contains(t, out, "[!] gitops succeeded")
 			},
 		},
-		//	{
-		//		name: "deprecated config with two tokens in the db fails",
-		//		cfgs: []string{
-		//			global("apple_bm_default_team: 💻 Workstations"),
-		//			workstations,
-		//		},
-		//		tokens: []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}, {OrganizationName: "Second Token LLC"}},
-		//		dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-		//			require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
-		//			assert.Empty(t, appCfg.MDM.AppleBussinessManager.Value)
-		//			assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
-		//			assert.NotContains(t, out, "[!] gitops dry run succeeded")
-		//		},
-		//		realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-		//			require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
-		//			assert.Empty(t, appCfg.MDM.AppleBussinessManager.Value)
-		//			assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
-		//			assert.NotContains(t, out, "[!] gitops dry run succeeded")
-		//		},
-		//	},
+		{
+			name: "deprecated config with two tokens in the db fails",
+			cfgs: []string{
+				global("apple_bm_default_team: 💻 Workstations"),
+				workstations,
+			},
+			tokens: []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}, {OrganizationName: "Second Token LLC"}},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				t.Logf("got: %s", out)
+				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
+				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
+				assert.NotContains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
+				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
+				assert.NotContains(t, out, "[!] gitops dry run succeeded")
+			},
+		},
 		{
 			name: "new key all valid",
 			cfgs: []string{
@@ -2847,6 +2848,7 @@ software:
 
 			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 				if len(tt.tokens) > 0 {
+					t.Logf("returning tokens from DS method: %+v", tt.tokens)
 					return tt.tokens, nil
 				}
 				return []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}, {OrganizationName: "Foo Inc."}}, nil
