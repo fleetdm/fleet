@@ -52,9 +52,7 @@ After enrollment, the "osquery node key" will be used to authenticate osquery re
 
 On macOS and Windows, once the `orbit` and `osquery` enrollment process is completes, the enroll secret is removed from the file system and stored in the Apple keychain and Windows credentials manager respectively.
 
-After starting osquery, `orbit` will also start the `Fleet desktop` tray application. Such application runs as the Desktop GUI user (it does not run as `root`/`SYSTEM`). Before starting `Fleet desktop`, `orbit` will set a random "Fleet desktop token" and send it to Fleetthe `orbit` authenticated communication channel. `orbit` stores such token on a file accessible to the GUI user and `Fleet desktop` will use such token to authenticate requests to Fleet.
-
-When the user clicks on "My device" on the tray icon menu, Fleet Desktop will open the default browser on a URL that contains the "Fleet desktop token". For this very reason, the "Fleet desktop token" is rotated every hour (by `orbit`).
+After starting osquery, `orbit` will also start the `Fleet desktop` tray application. Such application runs as the Desktop GUI user (it does not run as `root`/`SYSTEM`). Before starting `Fleet desktop`, `orbit` will set a random "Fleet desktop token" and send it to Fleet server via the `orbit` authenticated communication channel. `orbit` stores such token on a file accessible to the GUI user and `Fleet desktop` will use the token to authenticate requests to Fleet. When the user clicks on "My device" on the tray icon menu, `Fleet desktop` will open the default browser on a URL that contains the "Fleet desktop token" on its URL path. For this very reason, the "Fleet desktop token" is rotated every hour (by `orbit`).
 
 Here's a diagram to summarize fleetd communication channels after enrollment (more on "tuf.fleetctl.com" below):
 ```mermaid
