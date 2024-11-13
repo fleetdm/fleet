@@ -54,7 +54,7 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-macos.yml # v1.20.0
+        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-macos.yml # v2.4.4
         env:
           GITHUB_TOKEN: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
@@ -93,7 +93,7 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-linux.yml # v1.20.0
+        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-linux.yml # v2.4.4
 
       - name: Upload
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
@@ -126,7 +126,7 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-linux-arm64.yml # v1.20.0
+        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-linux-arm64.yml # v2.4.4
 
       - name: Upload
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
@@ -159,7 +159,7 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-windows.yml # v1.20.0
+        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-windows.yml # v2.4.4
 
       - name: Upload
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
