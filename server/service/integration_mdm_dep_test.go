@@ -2512,8 +2512,6 @@ func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingtFromABM(
 	// make sure the host gets post enrollment requests
 	checkPostEnrollmentCommands(mdmDevice, true)
 
-	a := checkHostDEPAssignProfileResponses([]string{mdmDevice.SerialNumber}, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
-
 	var hostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", h.ID), getHostRequest{}, http.StatusOK, &hostResp)
 	// 1 profile with fleetd configuration + 1 root CA config
@@ -2539,7 +2537,7 @@ func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingtFromABM(
 	t.Log("RUN AFTER DELETED")
 	s.runDEPSchedule()
 
-	a = checkHostDEPAssignProfileResponses([]string{mdmDevice.SerialNumber}, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
+	a := checkHostDEPAssignProfileResponses([]string{mdmDevice.SerialNumber}, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
 	require.NotZero(t, a[mdmDevice.SerialNumber].DeletedAt)
 
 	// Now we add the device back into ABM
@@ -2558,7 +2556,8 @@ func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingtFromABM(
 	a = checkHostDEPAssignProfileResponses([]string{mdmDevice.SerialNumber}, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
 	require.Nil(t, a[mdmDevice.SerialNumber].DeletedAt)
 
-	mdmDevice.Enroll()
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
 
 	// make sure the host gets post enrollment requests
 	checkPostEnrollmentCommands(mdmDevice, true)
