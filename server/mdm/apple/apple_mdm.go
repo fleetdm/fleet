@@ -6,9 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/url"
-	"runtime"
 	"slices"
 	"strings"
 	"text/template"
@@ -560,8 +558,6 @@ func (d *DEPService) processDeviceResponse(
 		return nil
 	}
 
-	slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: at top of processDeviceResponse ", "resp.Devices", resp.Devices)
-
 	var addedDevicesSlice []godep.Device
 	var addedSerials []string
 	var deletedSerials []string
@@ -576,7 +572,6 @@ func (d *DEPService) processDeviceResponse(
 	// Reference: https://developer.apple.com/documentation/devicemanagement/sync_the_list_of_devices#discussion
 	keepRecent := func(device godep.Device, existing map[string]godep.Device) {
 		existingDevice, ok := existing[device.SerialNumber]
-		slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: keepRecent check ", "device.OpDate", device.OpDate, "existingDevice.OpDate", existingDevice.OpDate, "ok", ok)
 		if !ok || device.OpDate.After(existingDevice.OpDate) {
 			existing[device.SerialNumber] = device
 		}
@@ -647,7 +642,6 @@ func (d *DEPService) processDeviceResponse(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get matching host serials")
 	}
-	slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: existingSerials from GetMatchingHostSerials", "existingSerials", existingSerials, "modifiedDevices", modifiedDevices)
 
 	// treat devices with op_type = "modified" that doesn't exist in the
 	// `hosts` table, as an "added" device.
@@ -677,8 +671,6 @@ func (d *DEPService) processDeviceResponse(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get matching deleted host serials")
 	}
-
-	slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: got existing deleted serials ", "existingDeletedSerials", existingDeletedSerials, "serialsToCheck", append(addedSerials, modifiedSerials...))
 
 	err = d.ds.DeleteHostDEPAssignmentsFromAnotherABM(ctx, abmTokenID, addedSerials)
 	if err != nil {
@@ -750,7 +742,6 @@ func (d *DEPService) processDeviceResponse(
 		}
 		existingHosts = append(existingHosts, *existingHost)
 		devicesByTeam[existingHost.TeamID] = append(devicesByTeam[existingHost.TeamID], dd)
-		slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: added to devicesByTeam ", "devicesByTeam", devicesByTeam)
 	}
 
 	// assign the profile to each device
@@ -778,7 +769,6 @@ func (d *DEPService) processDeviceResponse(
 			_, ok := existingDeletedSerials[device.SerialNumber]
 			if device.ProfileUUID == profUUID && !ok {
 				skippedSerials = append(skippedSerials, device.SerialNumber)
-				slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: skipping a device ", "serial", device.SerialNumber)
 				continue
 			}
 			serials = append(serials, device.SerialNumber)
@@ -854,7 +844,6 @@ func (d *DEPService) getProfileUUIDForTeam(ctx context.Context, tmID *uint, abmT
 	}
 	if profUUID == "" {
 		profUUID, _, err = d.EnsureDefaultSetupAssistant(ctx, appleBMTeam, abmTokenOrgName)
-		slog.With("filename", "server/mdm/apple/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: getting default setup assistant ", "profUUID", profUUID)
 		if err != nil {
 			return "", fmt.Errorf("ensure default setup assistant: %w", err)
 		}
