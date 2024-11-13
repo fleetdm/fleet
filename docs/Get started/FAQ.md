@@ -78,7 +78,7 @@ Fleet supports the following operating system versions on hosts.
 | macOS      | 13+ (Ventura)                           |
 | iOS/iPadOS | 17+                                     |
 | Windows    | Pro and Enterprise 10+, Server 2012+    |
-| Linux      | CentOS 7.1+,  Ubuntu 20.04+, Fedora 38+ |
+| Linux      | CentOS 7.1+,  Ubuntu 20.04+, Fedora 38+, Debian 11+ |
 | ChromeOS   | 112.0.5615.134+                        |
 
 While Fleet may still function partially or fully with OS versions older than those above, Fleet does not actively test against unsupported versions and does not pursue bugs on them.
