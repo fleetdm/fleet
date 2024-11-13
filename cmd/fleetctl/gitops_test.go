@@ -2623,7 +2623,7 @@ software:
 				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
 				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
 				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
-				assert.NotContains(t, out, "[!] gitops dry run succeeded")
+				assert.NotContains(t, out, "[!] gitops succeeded")
 			},
 		},
 		{
