@@ -287,6 +287,7 @@ const HostSummary = ({
   };
   const renderDiskEncryptionSummary = () => {
     // TODO: improve this typing, platforms!
+    // TODO - check os_version for fedora, kubuntu ?
     if (!platformSupportsDiskEncryption(platform)) {
       return <></>;
     }
@@ -490,6 +491,7 @@ const HostSummary = ({
         {isPremiumTier && renderHostTeam()}
         {/* Rendering of OS Settings data */}
         {isOsSettingsDisplayPlatform(platform) &&
+          // TODO - for Kubuntu? Fedora? cross-check os_version
           isPremiumTier &&
           isConnectedToFleetMdm && // show if 1 - host is enrolled in Fleet MDM, and
           hostMdmProfiles &&

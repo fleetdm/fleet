@@ -333,8 +333,6 @@ const DeviceUserPage = ({
     setShowCreateLinuxKeyModal(true);
     try {
       await mdmAPI.triggerLinuxDiskEncryptionKeyEscrow(deviceAuthToken);
-      // TODO - actual api call
-      await setTimeout(() => null, 1000);
       renderFlash("success", "Successfully triggered key creation.");
     } catch (e) {
       renderFlash("error", "Failed to trigger key creation.");

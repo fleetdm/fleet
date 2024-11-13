@@ -50,25 +50,6 @@ const DeviceUserBanners = ({
   );
 
   const renderBanner = () => {
-    // // TODO - undo
-    // return (
-    //   <InfoBanner
-    //     cta={
-    //       <Button
-    //         variant="unstyled"
-    //         onClick={onTriggerEscrowLinuxKey}
-    //         className="create-key-button"
-    //       >
-    //         Create key
-    //       </Button>
-    //     }
-    //     color="yellow"
-    //   >
-    //     Disk encryption: Create a new disk encryption key. This lets your
-    //     organization help you unlock your device if you forget your passphrase.
-    //   </InfoBanner>
-    // );
-
     if (showTurnOnAppleMdmBanner) {
       return (
         <InfoBanner color="yellow" cta={turnOnMdmButton}>
@@ -92,6 +73,7 @@ const DeviceUserBanners = ({
 
     // setting applies to a supported Linux host
     if (
+      // TODO: cross-check with os_version
       DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS.includes(hostPlatform ?? "") &&
       diskEncryptionOSSetting?.status
     ) {
