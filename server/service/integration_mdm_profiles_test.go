@@ -3174,6 +3174,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 			{LabelID: lblBaz.ID, LabelName: lblBaz.Name},
 		},
 	})
+	require.NoError(t, err)
 
 	// break lblFoo by deleting it
 	require.NoError(t, s.ds.DeleteLabel(ctx, lblFoo.Name))
