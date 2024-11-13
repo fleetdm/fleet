@@ -110,4 +110,38 @@ func TestAsyncLastSeen(t *testing.T) {
 		defer mu.Unlock()
 		require.Equal(t, "12|34|56", strings.Join(gotIDs, ""))
 	})
+
+	t.Run("cap and timed flush", func(t *testing.T) {
+		t.Parallel()
+
+		var mu sync.Mutex
+		var gotIDs []string
+		als := newAsyncLastSeen(10*time.Millisecond, 3, func(ctx context.Context, ids []string) {
+			mu.Lock()
+			defer mu.Unlock()
+
+			// always add a "|" between calls
+			if len(gotIDs) > 0 {
+				gotIDs = append(gotIDs, "|")
+			}
+			gotIDs = append(gotIDs, ids...)
+		})
+		ctx, stop := runLoopAndWait(t, als)
+
+		als.markHostSeen(ctx, "1")
+		als.markHostSeen(ctx, "2")
+		als.markHostSeen(ctx, "3")
+		als.markHostSeen(ctx, "4")
+		time.Sleep(100 * time.Millisecond) // oversleep to avoid slow timers issues on CI
+		als.markHostSeen(ctx, "5")
+		time.Sleep(100 * time.Millisecond) // oversleep to avoid slow timers issues on CI
+		als.markHostSeen(ctx, "6")
+		time.Sleep(100 * time.Millisecond) // oversleep to avoid slow timers issues on CI
+
+		stop()
+
+		mu.Lock()
+		defer mu.Unlock()
+		require.Equal(t, "123|4|5|6", strings.Join(gotIDs, ""))
+	})
 }
