@@ -53,7 +53,7 @@ fleetctl mdm unlock --host $HOST_IDENTIFIER
 fleetctl mdm wipe --host $HOST_IDENTIFIER
 ```
 
-`$HOST_IDENTIFIER` can be any of the host ide
+`$HOST_IDENTIFIER` can be any of the host identifiers: hostname, UUID, or serial number.
 
 Add the `--help` flag to any command to learn more about how to use it.
 
