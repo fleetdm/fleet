@@ -394,10 +394,11 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create a couple of software installers
-	installer := strings.NewReader("echo")
+	installer1, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
+	require.NoError(t, err)
 	sw1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install foo",
-		InstallerFile: installer,
+		InstallerFile: installer1,
 		StorageID:     uuid.NewString(),
 		Filename:      "foo.pkg",
 		Title:         "foo",
@@ -406,9 +407,11 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		UserID:        u.ID,
 	})
 	require.NoError(t, err)
+	installer2, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
+	require.NoError(t, err)
 	sw2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install bar",
-		InstallerFile: installer,
+		InstallerFile: installer2,
 		StorageID:     uuid.NewString(),
 		Filename:      "bar.pkg",
 		Title:         "bar",
@@ -417,9 +420,11 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		UserID:        u.ID,
 	})
 	require.NoError(t, err)
+	installer3, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
+	require.NoError(t, err)
 	sw3, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install to delete",
-		InstallerFile: installer,
+		InstallerFile: installer3,
 		StorageID:     uuid.NewString(),
 		Filename:      "todelete.pkg",
 		Title:         "todelete",
