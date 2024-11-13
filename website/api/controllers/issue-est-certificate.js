@@ -119,11 +119,11 @@ module.exports = {
     }
 
     // Ask the PKI provider for a certificate
-    const estResponse = await sails.helpers.http.sendHttpRequest.with({
+    const request = require('@sailshq/request');
+    const estResponse = await request({
       url: EST_ENDPOINT,
       method: 'POST',
       body: csrData.replace(/(-----(BEGIN|END) CERTIFICATE REQUEST-----|\n)/g, ''),
-      enctype: 'text/plain',
       headers: {
         'Content-Type': 'application/pkcs10',
 		    'Authorization': `Basic ${Buffer.from(`${EST_CLIENT_ID}:${EST_CLIENT_KEY}`).toString('base64')}`,
