@@ -38,7 +38,8 @@ module.exports = {
       statusCode: 403,
     },
 
-    badRequest: {
+    invalidCsr: {
+      description: 'The provided CSR data was invalid.',
       responseType: 'badRequest'
     }
 
@@ -108,10 +109,10 @@ module.exports = {
       }
     }
     if (csrEmail === '') {
-      throw 'badRequest';
+      throw 'invalidCsr';
     }
     if (!csrEmail.startsWith(csrUsername)) {
-      throw 'badRequest';
+      throw 'invalidCsr';
     }
 
     // Ensure username from IdP auth matches username in CSR. If they don't match, perhaps the user
