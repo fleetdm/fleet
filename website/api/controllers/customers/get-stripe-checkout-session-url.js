@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Create Stripe checkout session',
+  friendlyName: 'Get Stripe checkout session url',
 
 
   description: 'Creates a Stripe checkout session for a new Fleet Premium subscription and returns the URL',
