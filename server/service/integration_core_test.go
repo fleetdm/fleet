@@ -12332,7 +12332,7 @@ func (s *integrationTestSuite) TestListSoftwareVersionsTeamIdentifier() {
 	versionsResp := listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions",
 		nil, http.StatusOK, &versionsResp,
-		"per_page", "5", "page", "0",
+		"per_page", "5", "page", "0", "order_key", "name", "order_direction", "desc",
 	)
 	require.Len(t, versionsResp.Software, 2)
 	require.Equal(t, "Safari.app", versionsResp.Software[0].Name)
