@@ -1,6 +1,7 @@
 package zenity
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
@@ -86,5 +87,10 @@ func execCmd(ctx context.Context, args ...string) ([]byte, int, error) {
 		opts = append(opts, execuser.WithArg(arg, "")) // Using empty value for positional args
 	}
 
-	return execuser.RunWithOutput("zenity", opts...)
+	output, exitCode, err := execuser.RunWithOutput("zenity", opts...)
+
+	// Trim the newline from zenity output
+	output = bytes.TrimSuffix(output, []byte("\n"))
+
+	return output, exitCode, err
 }
