@@ -86,7 +86,7 @@ const TeamsDropdown = ({
     (option) => selectedTeamId === option.value
   )
     ? selectedTeamId
-    : teamOptions[0]?.value || 0; // Fallback to 0 or another default value
+    : teamOptions[0]?.value;
 
   const dropdownWrapperClasses = classnames(`${baseClass}-wrapper`, {
     disabled: isDisabled || undefined,
@@ -137,6 +137,7 @@ const TeamsDropdown = ({
         },
       },
       // When tabbing
+      // Relies on --is-focused for styling as &:focus-visible cannot be applied
       "&.team-dropdown__control--is-focused": {
         ".team-dropdown__single-value": {
           color: COLORS["core-vibrant-blue-over"],
@@ -145,8 +146,6 @@ const TeamsDropdown = ({
           stroke: COLORS["core-vibrant-blue-over"],
         },
       },
-      // TODO: Figure out a way to apply separate &:focus-visible styling
-      // Currently only relying on --is-focused styling for tabbing through app
       ...(state.isDisabled && {
         ".team-dropdown__single-value": {
           color: COLORS["ui-fleet-black-50"],
@@ -241,6 +240,7 @@ const TeamsDropdown = ({
           options={teamOptions}
           placeholder="All teams"
           onChange={(newValue) => {
+            console.log("newValue", newValue);
             if (newValue) {
               onChange(newValue.value);
             }
