@@ -6,12 +6,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"syscall"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/lvm"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/zenity"
 	"github.com/siderolabs/go-blockdevice/v2/encryption"
 	"github.com/siderolabs/go-blockdevice/v2/encryption/luks"
-	"golang.org/x/term"
 )
 
 func main() {
@@ -21,13 +21,18 @@ func main() {
 		panic(err)
 	}
 
+	prompt := zenity.New()
+
 	// Prompt existing passphrase from the user.
-	fmt.Printf("Enter passphrase: ")
-	currentPassphrase, err := term.ReadPassword(int(syscall.Stdin))
+	currentPassphrase, err := prompt.ShowEntry(context.Background(), dialog.EntryOptions{
+		Title:    "Enter Existing LUKS Passphrase",
+		Text:     "Enter your existing LUKS passphrase:",
+		HideText: true,
+	})
 	if err != nil {
+		fmt.Println("Err ShowEntry")
 		panic(err)
 	}
-	fmt.Println()
 
 	const escrowPassPhrase = "fleet123"
 
@@ -44,8 +49,13 @@ func main() {
 
 		if err := device.AddKey(context.Background(), devicePath, userKey, escrowKey); err != nil {
 			if errors.Is(err, encryption.ErrEncryptionKeyRejected) {
-				currentPassphrase, err = term.ReadPassword(int(syscall.Stdin))
+				currentPassphrase, err = prompt.ShowEntry(context.Background(), dialog.EntryOptions{
+					Title:    "Enter Existing LUKS Passphrase",
+					Text:     "Bad password. Enter your existing LUKS passphrase:",
+					HideText: true,
+				})
 				if err != nil {
+					fmt.Println("Err Retry ShowEntry")
 					panic(err)
 				}
 				continue
