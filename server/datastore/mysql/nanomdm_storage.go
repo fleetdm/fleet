@@ -13,9 +13,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	nanodep_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage/mysql"
+	nanomdm_log "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
 	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -28,10 +30,30 @@ type NanoMDMStorage struct {
 	ds     fleet.Datastore
 }
 
+type nanoMDMLogAdapter struct {
+	logger log.Logger
+}
+
+func (l nanoMDMLogAdapter) Info(args ...interface{}) {
+	level.Info(l.logger).Log(args...)
+}
+
+func (l nanoMDMLogAdapter) Debug(args ...interface{}) {
+	level.Debug(l.logger).Log(args...)
+}
+
+func (l nanoMDMLogAdapter) With(args ...interface{}) nanomdm_log.Logger {
+	wl := log.With(l.logger, args...)
+	return nanoMDMLogAdapter{logger: wl}
+}
+
 // NewMDMAppleMDMStorage returns a MySQL nanomdm storage that uses the Datastore
 // underlying MySQL writer *sql.DB.
 func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
-	s, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
+	s, err := nanomdm_mysql.New(
+		nanomdm_mysql.WithDB(ds.primary.DB),
+		nanomdm_mysql.WithLogger(nanoMDMLogAdapter{logger: ds.logger}),
+	)
 	if err != nil {
 		return nil, err
 	}
