@@ -141,6 +141,9 @@ export default {
 
   ME: `/${API_VERSION}/fleet/me`,
 
+  // Disk encryption endpoints
+  UPDATE_DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,
+
   // Setup experiece endpoints
   MDM_SETUP_EXPERIENCE: `/${API_VERSION}/fleet/setup_experience`,
   MDM_SETUP_EXPERIENCE_SOFTWARE: `/${API_VERSION}/fleet/setup_experience/software`,

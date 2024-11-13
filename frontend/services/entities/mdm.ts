@@ -193,7 +193,7 @@ const mdmService = {
   // disk encryption too.
   updateAppleMdmSettings: (enableDiskEncryption: boolean, teamId?: number) => {
     const {
-      MDM_UPDATE_APPLE_SETTINGS: teamsEndpoint,
+      UPDATE_DISK_ENCRYPTION: teamsEndpoint,
       CONFIG: noTeamsEndpoint,
     } = endpoints;
     if (teamId === 0) {
@@ -203,7 +203,7 @@ const mdmService = {
         },
       });
     }
-    return sendRequest("PATCH", teamsEndpoint, {
+    return sendRequest("POST", teamsEndpoint, {
       enable_disk_encryption: enableDiskEncryption,
       team_id: teamId,
     });
