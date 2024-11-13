@@ -209,7 +209,7 @@ module.exports = {
         throw new Error(`Consistency violation! The stripe webhook received a "${type}" event for a new subscription being created, but a subscription with the stripe ID ${subscriptionForThisEvent.stripeSubscriptionId} already exists.`);
       }
       // Retrieve the subscription details from Stripe.
-      let newSubscriptionDetails = await stripe.checkout.subscription.retrieve(stripeEventData.id);
+      let newSubscriptionDetails = await stripe.subscriptions.retrieve(stripeEventData.subscription);
       // Convert the timestamp of the next time this subscription will be billed into a JS timestamp (Epoch MS)
       let nextBillingAt = newSubscriptionDetails.current_period_end * 1000;
       // Get the number of Hosts.
