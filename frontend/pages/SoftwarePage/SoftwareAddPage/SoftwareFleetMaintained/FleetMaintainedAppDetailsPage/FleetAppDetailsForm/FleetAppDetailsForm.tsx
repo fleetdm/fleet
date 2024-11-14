@@ -18,6 +18,7 @@ export interface IFleetMaintainedAppFormData {
   preInstallQuery?: string;
   postInstallScript?: string;
   uninstallScript?: string;
+  installType: string;
 }
 
 export interface IFormValidation {
@@ -52,6 +53,7 @@ const FleetAppDetailsForm = ({
     installScript: defaultInstallScript,
     postInstallScript: defaultPostInstallScript,
     uninstallScript: defaultUninstallScript,
+    installType: "manual",
   });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: true,
@@ -88,6 +90,11 @@ const FleetAppDetailsForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
+  const onChangeInstallType = (value: string) => {
+    const newData = { ...formData, installType: value };
+    setFormData(newData);
+  };
+
   const onSubmitForm = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
     onSubmit(formData);
@@ -101,19 +108,21 @@ const FleetAppDetailsForm = ({
         <legend>Install</legend>
         <div className={`${baseClass}__radio-inputs`}>
           <Radio
+            checked={formData.installType === "manual"}
             id="manual"
             value="manual"
             name="install-type"
             label="Manual"
-            onChange={() => {}}
+            onChange={onChangeInstallType}
             helpText="Manually install on Host details page for each host."
           />
           <Radio
+            checked={formData.installType === "automatic"}
             id="automatic"
             value="automatic"
             name="install-type"
             label="Automatic"
-            onChange={() => {}}
+            onChange={onChangeInstallType}
             helpText={
               <>
                 Automatically install on each host that&apos;s{" "}
