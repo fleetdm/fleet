@@ -649,7 +649,7 @@ type HostIsPendingEscrowFunc func(ctx context.Context, hostID uint) bool
 
 type ClearPendingEscrowFunc func(ctx context.Context, hostID uint) error
 
-type ReportEscrowErrorFunc func(ctx context.Context, hostID uint, err error) error
+type ReportEscrowErrorFunc func(ctx context.Context, hostID uint, err string) error
 
 type QueueEscrowFunc func(ctx context.Context, hostID uint) error
 
@@ -5068,7 +5068,7 @@ func (s *DataStore) ClearPendingEscrow(ctx context.Context, hostID uint) error {
 	return s.ClearPendingEscrowFunc(ctx, hostID)
 }
 
-func (s *DataStore) ReportEscrowError(ctx context.Context, hostID uint, err error) error {
+func (s *DataStore) ReportEscrowError(ctx context.Context, hostID uint, err string) error {
 	s.mu.Lock()
 	s.ReportEscrowErrorFuncInvoked = true
 	s.mu.Unlock()

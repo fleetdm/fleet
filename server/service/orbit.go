@@ -2,10 +2,15 @@ package service
 
 import (
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -991,6 +996,97 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	}
 
 	return nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit LUKS (Linux disk encryption) data
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitPostLUKSRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	Passphrase   string `json:"passphrase"`
+	SlotKey      string `json:"slot_key"`
+	ClientError  string `json:"client_error"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitPostLUKSRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by orbit authentication
+func (r *orbitPostLUKSRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitPostLUKSResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r orbitPostLUKSResponse) error() error { return r.Err }
+func (r orbitPostLUKSResponse) Status() int  { return http.StatusNoContent }
+
+func postOrbitLUKSEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*orbitPostLUKSRequest)
+	if err := svc.EscrowLUKSData(ctx, req.Passphrase, req.SlotKey, req.ClientError); err != nil {
+		return orbitPostLUKSResponse{Err: err}, nil
+	}
+	return orbitPostLUKSResponse{}, nil
+}
+
+func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, slotKey string, clientError string) error {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return newOsqueryError("internal error: missing host from request context")
+	}
+
+	switch {
+	case clientError != "":
+		return svc.ds.ReportEscrowError(ctx, host.ID, clientError)
+	case passphrase == "":
+		_ = svc.ds.ReportEscrowError(ctx, host.ID, "Blank passphrase provided")
+		return newOsqueryError("internal error: blank passphrase provided")
+	case svc.config.Server.PrivateKey == "":
+		_ = svc.ds.ReportEscrowError(ctx, host.ID, "Missing server private key")
+		return newOsqueryError("internal error: could not save LUKS data")
+	}
+
+	// TODO move to datastore, persist both passphrase and slot key
+	enc, err := encrypt([]byte(passphrase), svc.config.Server.PrivateKey)
+	if err != nil {
+		_ = svc.ds.ReportEscrowError(ctx, host.ID, err.Error())
+		return ctxerr.Wrap(ctx, err, "encrypt LUKS data")
+	}
+	encodedEncrypted := base64.StdEncoding.EncodeToString(enc)
+
+	if err := svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, encodedEncrypted, clientError, ptr.Bool(true)); err != nil {
+		return ctxerr.Wrap(ctx, err, "set or update disk encryption key")
+	}
+
+	return nil
+}
+
+// TODO pull to utils
+func encrypt(plainText []byte, privateKey string) ([]byte, error) {
+	block, err := aes.NewCipher([]byte(privateKey))
+	if err != nil {
+		return nil, fmt.Errorf("create new cipher: %w", err)
+	}
+
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, fmt.Errorf("create new gcm: %w", err)
+	}
+
+	nonce := make([]byte, aesGCM.NonceSize())
+	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, fmt.Errorf("generate nonce: %w", err)
+	}
+
+	return aesGCM.Seal(nonce, nonce, plainText, nil), nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////

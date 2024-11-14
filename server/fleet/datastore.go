@@ -911,7 +911,7 @@ type Datastore interface {
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
 	HostIsPendingEscrow(ctx context.Context, hostID uint) bool
 	ClearPendingEscrow(ctx context.Context, hostID uint) error
-	ReportEscrowError(ctx context.Context, hostID uint, err error) error
+	ReportEscrowError(ctx context.Context, hostID uint, err string) error
 	QueueEscrow(ctx context.Context, hostID uint) error
 	AssertHasNoEncryptionKeyStored(ctx context.Context, hostID uint) error
 

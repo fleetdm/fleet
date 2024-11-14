@@ -3810,12 +3810,12 @@ func (ds *Datastore) ClearPendingEscrow(ctx context.Context, hostID uint) error 
 	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE host_disk_encryption_keys SET reset_requested = FALSE WHERE host_id = ?`, hostID)
 	return err
 }
-func (ds *Datastore) ReportEscrowError(ctx context.Context, hostID uint, err error) error {
-	_, sqlError := ds.writer(ctx).ExecContext(ctx, `
+func (ds *Datastore) ReportEscrowError(ctx context.Context, hostID uint, errorMessage string) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
 INSERT INTO host_disk_encryption_keys
   (host_id, base64_encrypted, client_error) VALUES (?, '', ?) ON DUPLICATE KEY UPDATE client_error = VALUES(client_error)
-`, hostID, err.Error())
-	return sqlError
+`, hostID, errorMessage)
+	return err
 }
 func (ds *Datastore) QueueEscrow(ctx context.Context, hostID uint) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
