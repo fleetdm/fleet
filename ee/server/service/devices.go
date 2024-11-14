@@ -20,7 +20,7 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 
 const refetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
 
-var LUKSSupportedPlatforms = []string{"ubuntu", "fedora"}
+var LUKSSupportedPlatforms = []string{"ubuntu", "rhel"}
 var minOrbitLUKSVersion = "1.36.0"
 
 // TriggerMigrateMDMDevice triggers the webhook associated with the MDM
@@ -177,7 +177,7 @@ func (svc *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *
 	}
 
 	if err := svc.validateReadyForLinuxEscrow(ctx, host); err != nil {
-		_ = svc.ds.ReportEscrowError(ctx, host.ID, err)
+		_ = svc.ds.ReportEscrowError(ctx, host.ID, err.Error())
 		return err
 	}
 
