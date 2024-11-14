@@ -1,4 +1,4 @@
-# Fleet Reimagines Observability With DevOps Teams at Roblox, Atlassian, Dropbox
+# Fleet reimagines observability with DevOps teams at Roblox, Atlassian, Dropbox
 
 _Open-source project delivers new Arm64+ support for high-performance servers and Kubernetes clusters, speeding up compliance audits and enabling next-gen intrusion detection in the production infrastructures of industry giants including Atlassian, Dropbox, Roblox, Nubank, Fastly, and some of the world's most powerful HPC clusters (high-performance supercomputers)._
 
