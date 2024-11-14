@@ -240,7 +240,6 @@ const TeamsDropdown = ({
           options={teamOptions}
           placeholder="All teams"
           onChange={(newValue) => {
-            console.log("newValue", newValue);
             if (newValue) {
               onChange(newValue.value);
             }
