@@ -14,7 +14,7 @@ import {
 
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
-import { generateWinDiskEncryptionProfile } from "../../helpers";
+import { generateWinDiskEncryptionSetting } from "../../helpers";
 import OSSettingsErrorCell from "./OSSettingsErrorCell";
 
 export const isMdmProfileStatus = (
@@ -101,7 +101,7 @@ const makeWindowsRows = ({ profiles, os_settings }: IHostMdmData) => {
     isWindowsDiskEncryptionStatus(os_settings.disk_encryption.status)
   ) {
     rows.push(
-      generateWinDiskEncryptionProfile(
+      generateWinDiskEncryptionSetting(
         os_settings.disk_encryption.status,
         os_settings.disk_encryption.detail
       )

@@ -6,11 +6,13 @@ import {
   IHostMdmProfile,
   BootstrapPackageStatus,
   isWindowsDiskEncryptionStatus,
+  isLinuxDiskEncryptionStatus,
 } from "interfaces/mdm";
 import { IOSSettings, IHostMaintenanceWindow } from "interfaces/host";
 import { IAppleDeviceUpdates } from "interfaces/config";
 import {
   DiskEncryptionSupportedPlatform,
+  isDiskEncryptionSupportedLinuxPlatform,
   isOsSettingsDisplayPlatform,
   platformSupportsDiskEncryption,
 } from "interfaces/platform";
@@ -43,7 +45,8 @@ import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPack
 
 import {
   HostMdmDeviceStatusUIState,
-  generateWinDiskEncryptionProfile,
+  generateLinuxDiskEncryptionSetting,
+  generateWinDiskEncryptionSetting,
 } from "../../helpers";
 import { DEVICE_STATUS_TAGS, REFETCH_TOOLTIP_MESSAGES } from "./helpers";
 
@@ -458,21 +461,35 @@ const HostSummary = ({
   };
 
   const renderSummary = () => {
-    // for windows hosts we have to manually add a profile for disk encryption
+    // for windows and linux hosts we have to manually add a profile for disk encryption
     // as this is not currently included in the `profiles` value from the API
-    // response for windows hosts.
+    // response for windows and linux hosts.
     if (
       platform === "windows" &&
       osSettings?.disk_encryption?.status &&
       isWindowsDiskEncryptionStatus(osSettings.disk_encryption.status)
     ) {
-      const winDiskEncryptionProfile: IHostMdmProfile = generateWinDiskEncryptionProfile(
+      const winDiskEncryptionSetting: IHostMdmProfile = generateWinDiskEncryptionSetting(
         osSettings.disk_encryption.status,
         osSettings.disk_encryption.detail
       );
       hostSettings = hostSettings
-        ? [...hostSettings, winDiskEncryptionProfile]
-        : [winDiskEncryptionProfile];
+        ? [...hostSettings, winDiskEncryptionSetting]
+        : [winDiskEncryptionSetting];
+    }
+
+    if (
+      isDiskEncryptionSupportedLinuxPlatform(platform, os_version) &&
+      osSettings?.disk_encryption?.status &&
+      isLinuxDiskEncryptionStatus(osSettings.disk_encryption.status)
+    ) {
+      const linuxDiskEncryptionSetting: IHostMdmProfile = generateLinuxDiskEncryptionSetting(
+        osSettings.disk_encryption.status,
+        osSettings.disk_encryption.detail
+      );
+      hostSettings = hostSettings
+        ? [...hostSettings, linuxDiskEncryptionSetting]
+        : [linuxDiskEncryptionSetting];
     }
 
     return (

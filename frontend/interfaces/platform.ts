@@ -117,6 +117,15 @@ export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
   "rhel", // *included here to support Fedora systems. Necessary to cross-check with `os_versions` as well to confrim host is Fedora and not another, non-support rhel-like platform.
 ] as const;
 
+export const isDiskEncryptionSupportedLinuxPlatform = (
+  platform: HostPlatform,
+  os_version: string
+) => {
+  const isFedora =
+    platform === "rhel" && os_version.toLowerCase().includes("fedora");
+  return isFedora || platform === "ubuntu";
+};
+
 const DISK_ENCRYPTION_SUPPORTED_PLATFORMS = [
   "darwin",
   "windows",
