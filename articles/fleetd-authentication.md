@@ -115,3 +115,9 @@ The fleetd agent does provide basic support for mTLS. See the [Using mTLS](https
 
 When your macOS/Windows endpoints enroll to Fleet via MDM protocols, Fleet will send a command to automatically install fleetd on the enrolled endpoints.
 Fleet will also send a configuration profile to automatically configure the "enroll secret" and "Fleet URL" so that the enrollment process documented above can take place.
+
+<meta name="authorGitHubUsername" value="lucasmrod">
+<meta name="authorFullName" value="Lucas Rodriguez">
+<meta name="publishedOn" value="2024-11-14">
+<meta name="articleTitle" value="Fleetd authentication">
+<meta name="category" value="guides">
