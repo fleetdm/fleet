@@ -336,7 +336,8 @@ const ManagePolicyPage = ({
 
   const canAddOrDeletePolicy =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
-  const canManageAutomations = isGlobalAdmin || isTeamAdmin;
+  const canManageAutomations =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   const {
     data: config,
@@ -899,7 +900,9 @@ const ManagePolicyPage = ({
       tooltipContent: disabledRunScriptTooltipContent,
     };
 
-    if (!configPresent) {
+    // Maintainers do not have access to automate calendar events or other workflows
+    // Config must be present to update calendar events or other workflows
+    if (!configPresent || isGlobalMaintainer || isTeamMaintainer) {
       return [installSWOption, runScriptOption];
     }
 
