@@ -110,6 +110,7 @@ export interface IMdmProfile {
   updated_at: string;
   checksum: string | null; // null for windows profiles
   labels_include_all?: IProfileLabel[];
+  labels_include_any?: IProfileLabel[];
   labels_exclude_any?: IProfileLabel[];
 }
 

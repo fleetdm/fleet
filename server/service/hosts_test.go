@@ -803,7 +803,8 @@ func TestListHosts(t *testing.T) {
 		}, nil
 	}
 
-	hosts, err := svc.ListHosts(test.UserContext(ctx, test.UserAdmin), fleet.HostListOptions{})
+	userContext := test.UserContext(ctx, test.UserAdmin)
+	hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{})
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 
@@ -811,6 +812,34 @@ func TestListHosts(t *testing.T) {
 	_, err = svc.ListHosts(ctx, fleet.HostListOptions{})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+
+	var shouldIncludeCVEScores bool
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		require.Equal(t, shouldIncludeCVEScores, includeCVEScores)
+		return nil
+	}
+
+	// free license disallows getting vuln details
+	hosts, err = svc.ListHosts(userContext, fleet.HostListOptions{PopulateSoftware: true, PopulateSoftwareVulnerabilityDetails: true})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.True(t, ds.LoadHostSoftwareFuncInvoked)
+	ds.LoadHostSoftwareFuncInvoked = false
+
+	// you're allowed to skip vuln details on Premium
+	userContext = license.NewContext(userContext, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	hosts, err = svc.ListHosts(userContext, fleet.HostListOptions{PopulateSoftware: true, PopulateSoftwareVulnerabilityDetails: false})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.True(t, ds.LoadHostSoftwareFuncInvoked)
+	ds.LoadHostSoftwareFuncInvoked = false
+
+	// you're allowed to retrieve vuln details on Premium
+	shouldIncludeCVEScores = true
+	hosts, err = svc.ListHosts(userContext, fleet.HostListOptions{PopulateSoftware: true, PopulateSoftwareVulnerabilityDetails: true})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.True(t, ds.LoadHostSoftwareFuncInvoked)
 }
 
 func TestGetHostSummary(t *testing.T) {

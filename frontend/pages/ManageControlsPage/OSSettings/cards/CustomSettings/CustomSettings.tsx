@@ -21,7 +21,7 @@ import Pagination from "pages/ManageControlsPage/components/Pagination";
 import UploadList from "../../../components/UploadList";
 
 import AddProfileCard from "./components/ProfileUploader/components/AddProfileCard";
-import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal/AddProfileModal";
+import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
 import ProfileLabelsModal from "./components/ProfileLabelsModal/ProfileLabelsModal";
 import ProfileListItem from "./components/ProfileListItem";
@@ -142,7 +142,12 @@ const CustomSettings = ({
     }
 
     if (!profiles?.length) {
-      return null;
+      return (
+        <AddProfileCard
+          baseClass={baseClass}
+          setShowModal={setShowAddProfileModal}
+        />
+      );
     }
 
     return (
@@ -150,11 +155,11 @@ const CustomSettings = ({
         <UploadList
           keyAttribute="profile_uuid"
           listItems={profiles}
-          HeadingComponent={() =>
-            ProfileListHeading({
-              onClickAddProfile: () => setShowAddProfileModal(true),
-            })
-          }
+          HeadingComponent={() => (
+            <ProfileListHeading
+              onClickAddProfile={() => setShowAddProfileModal(true)}
+            />
+          )}
           ListItemComponent={({ listItem }) => (
             <ProfileListItem
               isPremium={!!isPremiumTier}
@@ -177,6 +182,7 @@ const CustomSettings = ({
 
   const hasLabels =
     !!profileLabelsModalData?.labels_include_all?.length ||
+    !!profileLabelsModalData?.labels_include_any?.length ||
     !!profileLabelsModalData?.labels_exclude_any?.length;
 
   return (
@@ -196,38 +202,29 @@ const CustomSettings = ({
           info="MDM must be turned on to apply custom settings."
         />
       ) : (
-        <>
-          {renderProfileList()}
-          {!isLoadingProfiles && !isErrorProfiles && !profiles?.length && (
-            <AddProfileCard
-              baseClass="add-profile"
-              setShowModal={setShowAddProfileModal}
-            />
-          )}
-          {showAddProfileModal && (
-            <AddProfileModal
-              currentTeamId={currentTeamId}
-              isPremiumTier={!!isPremiumTier}
-              onUpload={onUploadProfile}
-              setShowModal={setShowAddProfileModal}
-            />
-          )}
-          {showDeleteProfileModal && selectedProfile.current && (
-            <DeleteProfileModal
-              profileName={selectedProfile.current?.name}
-              profileId={selectedProfile.current?.profile_uuid}
-              onCancel={onCancelDelete}
-              onDelete={onDeleteProfile}
-            />
-          )}
-          {isPremiumTier && hasLabels && (
-            <ProfileLabelsModal
-              baseClass={baseClass}
-              profile={profileLabelsModalData}
-              setModalData={setProfileLabelsModalData}
-            />
-          )}
-        </>
+        renderProfileList()
+      )}
+      {showAddProfileModal && (
+        <AddProfileModal
+          currentTeamId={currentTeamId}
+          isPremiumTier={!!isPremiumTier}
+          onUpload={onUploadProfile}
+          setShowModal={setShowAddProfileModal}
+        />
+      )}
+      {showDeleteProfileModal && selectedProfile.current && (
+        <DeleteProfileModal
+          profileName={selectedProfile.current?.name}
+          profileId={selectedProfile.current?.profile_uuid}
+          onCancel={onCancelDelete}
+          onDelete={onDeleteProfile}
+        />
+      )}
+      {isPremiumTier && hasLabels && (
+        <ProfileLabelsModal
+          profile={profileLabelsModalData}
+          setModalData={setProfileLabelsModalData}
+        />
       )}
     </div>
   );
