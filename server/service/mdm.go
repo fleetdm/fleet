@@ -1304,7 +1304,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		labels = req.LabelsExcludeAny
 		labelsMode = fleet.LabelsExcludeAny
 	default:
-		// TODO: should this be the default?
+		// default include all
 		labels = req.LabelsIncludeAll
 		labelsMode = fleet.LabelsIncludeAll
 	}
@@ -1407,14 +1407,13 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err, "validating labels")
 	}
 	switch labelsMembershipMode {
-	case fleet.LabelsIncludeAll:
-		cp.LabelsIncludeAll = labelMap
 	case fleet.LabelsIncludeAny:
 		cp.LabelsIncludeAny = labelMap
 	case fleet.LabelsExcludeAny:
 		cp.LabelsExcludeAny = labelMap
 	default:
-		// TODO what happens if mode is not set?s
+		// default include all
+		cp.LabelsIncludeAll = labelMap
 	}
 
 	err = validateWindowsProfileFleetVariables(string(cp.SyncML))
@@ -1593,7 +1592,7 @@ func (svc *Service) BatchSetMDMProfiles(
 
 	labels := []string{}
 	for i := range profiles {
-		// from this point on (after this condition), only LabelsIncludeAll or
+		// from this point on (after this condition), only LabelsIncludeAll, LabelsIncludeAny or
 		// LabelsExcludeAny need to be checked.
 		if len(profiles[i].Labels) > 0 {
 			// must update the struct in the slice directly, because we don't have a

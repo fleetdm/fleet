@@ -525,26 +525,30 @@ func (p *MDMProfileSpec) UnmarshalJSON(data []byte) error {
 	if len(data) == 0 {
 		return nil
 	}
-
 	if lookAhead := bytes.TrimSpace(data); len(lookAhead) > 0 && lookAhead[0] == '"' {
 		var backwardsCompat string
 		if err := json.Unmarshal(data, &backwardsCompat); err != nil {
 			return fmt.Errorf("unmarshal profile spec. Error using old format: %w", err)
 		}
 		p.Path = backwardsCompat
+
+		// FIXME: equivalent of no label condition, should clear all labels slice?
+		// p.Labels = nil
+		// p.LabelsIncludeAll = nil
+		// p.LabelsIncludeAny = nil
+		// p.LabelsExcludeAny = nil
 		return nil
 	}
 
 	// use an alias type to avoid recursively calling this function forever.
 	type Alias MDMProfileSpec
-	aliasData := struct {
-		*Alias
-	}{
-		Alias: (*Alias)(p),
-	}
+	var aliasData Alias
 	if err := json.Unmarshal(data, &aliasData); err != nil {
 		return fmt.Errorf("unmarshal profile spec. Error using new format: %w", err)
 	}
+	// NOTE: we always want the newly unmarshaled profile spec to completely replace the old one
+	// (rather than merging the new data into the old one).
+	*p = MDMProfileSpec(aliasData)
 	return nil
 }
 

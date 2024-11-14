@@ -70,7 +70,7 @@ const ProfileLabelsModal = ({
     if (labels_include_all) {
       targetTypeText = <b>have all</b>;
     } else if (labels_include_any) {
-      targetTypeText = <b>have all</b>;
+      targetTypeText = <b>have any</b>;
     } else {
       targetTypeText = <b>don&apos;t have any</b>;
     }
