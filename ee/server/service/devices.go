@@ -172,19 +172,19 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 }
 
 func (svc *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fleet.Host) error {
-	if svc.ds.HostIsPendingEscrow(host.ID) {
+	if svc.ds.HostIsPendingEscrow(ctx, host.ID) {
 		return nil
 	}
 
-	if err := validateReadyForLinuxEscrow(ctx, host); err != nil {
-		svc.ds.ReportEscrowError(host, err)
+	if err := svc.validateReadyForLinuxEscrow(ctx, host); err != nil {
+		_ = svc.ds.ReportEscrowError(ctx, host.ID, err)
 		return err
 	}
 
-	return svc.ds.QueueEscrow(host)
+	return svc.ds.QueueEscrow(ctx, host.ID)
 }
 
-func validateReadyForLinuxEscrow(ctx context.Context, host *fleet.Host) error {
+func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet.Host) error {
 	if !slices.Contains(LUKSSupportedPlatforms, host.Platform) {
 		return &fleet.BadRequestError{Message: "Host platform does not support key escrow"}
 	}
@@ -216,17 +216,5 @@ func validateReadyForLinuxEscrow(ctx context.Context, host *fleet.Host) error {
 		return &fleet.BadRequestError{Message: "Host's Orbit version does not support this feature. Please upgrade Orbit to the latest version."}
 	}
 
-	// TODO (confirm details): put all of these errors into the
-	// `host_disk_encryption_keys.client_error` column
-	// Use ds.SetOrUpdateHostDiskEncryptionKey ?
-
-	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, host.ID)
-	if err != nil {
-		return err
-	}
-	// TODO - confirm 0-value of empty key
-	if key.Base64Encrypted != "" {
-		// we already have a key escrowed
-		return &fleet.BadRequestError{Message: "Key already escrowed for this host"}
-	}
+	return svc.ds.AssertHasNoEncryptionKeyStored(ctx, host.ID)
 }

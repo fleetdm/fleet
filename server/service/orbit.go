@@ -268,11 +268,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
-	pendingEscrow, err := svc.ds.HostIsPendingEscrow(ctx, host.ID)
-	if err != nil {
-		return fleet.OrbitConfig{}, err
-	}
-	notifs.RunDiskEncryptionEscrow = pendingEscrow
+	notifs.RunDiskEncryptionEscrow = svc.ds.HostIsPendingEscrow(ctx, host.ID)
 
 	pendingInstalls, err := svc.ds.ListPendingSoftwareInstalls(ctx, host.ID)
 	if err != nil {
@@ -356,7 +352,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 
 		// only unset this flag once we know there were no errors so this notification will be picked up by the agent
-		svc.ds.ClearPendingEscrow(ctx, host.ID)
+		_ = svc.ds.ClearPendingEscrow(ctx, host.ID)
 
 		return fleet.OrbitConfig{
 			ScriptExeTimeout: opts.ScriptExecutionTimeout,
@@ -429,7 +425,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	// only unset this flag once we know there were no errors so this notification will be picked up by the agent
-	svc.ds.ClearPendingEscrow(ctx, host.ID)
+	_ = svc.ds.ClearPendingEscrow(ctx, host.ID)
 
 	return fleet.OrbitConfig{
 		ScriptExeTimeout: opts.ScriptExecutionTimeout,
