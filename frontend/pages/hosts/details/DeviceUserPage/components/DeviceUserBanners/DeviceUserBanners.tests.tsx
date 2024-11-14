@@ -42,10 +42,32 @@ describe("Device User Banners", () => {
       screen.getByText(resetNonLinuxDiskEncryptKeyExpectedText)
     ).toBeInTheDocument();
   });
-  it("renders the create new linux disk encryption key banner correctly", () => {
+  it("renders the create new linux disk encryption key banner correctly for Ubuntu", () => {
     render(
       <DeviceUserBanners
         hostPlatform="ubuntu"
+        diskEncryptionOSSetting={{ status: "action_required", detail: "" }}
+        diskIsEncrypted
+        // explicit for testing purposes
+        diskEncryptionKeyAvailable={false}
+        mdmEnrollmentStatus="On (automatic)"
+        mdmEnabledAndConfigured
+        connectedToFleetMdm
+        macDiskEncryptionStatus={null}
+        diskEncryptionActionRequired={null}
+        onTurnOnMdm={noop}
+        onTriggerEscrowLinuxKey={noop}
+      />
+    );
+    expect(
+      screen.getByText(createNewLinuxDiskEncryptKeyExpectedText)
+    ).toBeInTheDocument();
+  });
+  it("renders the create new linux disk encryption key banner correctly for Fedora", () => {
+    render(
+      <DeviceUserBanners
+        hostPlatform="rhel"
+        hostOsVersion="somethingsomethingfedorasomething"
         diskEncryptionOSSetting={{ status: "action_required", detail: "" }}
         diskIsEncrypted
         // explicit for testing purposes

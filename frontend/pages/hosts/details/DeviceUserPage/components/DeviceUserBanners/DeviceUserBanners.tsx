@@ -5,7 +5,7 @@ import Button from "components/buttons/Button";
 import { MacDiskEncryptionActionRequired } from "interfaces/host";
 import { IHostBannersBaseProps } from "pages/hosts/details/HostDetailsPage/components/HostDetailsBanners/HostDetailsBanners";
 import CustomLink from "components/CustomLink";
-import { DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS } from "interfaces/platform";
+import { platformSupportsDiskEncryption } from "interfaces/platform";
 
 const baseClass = "device-user-banners";
 
@@ -18,6 +18,7 @@ interface IDeviceUserBannersProps extends IHostBannersBaseProps {
 
 const DeviceUserBanners = ({
   hostPlatform,
+  hostOsVersion,
   mdmEnrollmentStatus,
   mdmEnabledAndConfigured,
   connectedToFleetMdm,
@@ -72,8 +73,9 @@ const DeviceUserBanners = ({
 
     // setting applies to a supported Linux host
     if (
-      // TODO: cross-check with os_version
-      DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS.includes(hostPlatform ?? "") &&
+      hostPlatform &&
+      hostPlatform !== "windows" &&
+      platformSupportsDiskEncryption(hostPlatform, hostOsVersion) &&
       diskEncryptionOSSetting?.status
     ) {
       // host not in compliance with setting

@@ -197,6 +197,7 @@ const HostSummary = ({
   const {
     status,
     platform,
+    os_version,
     disk_encryption_enabled: diskEncryptionEnabled,
   } = summaryData;
 
@@ -286,9 +287,7 @@ const HostSummary = ({
     );
   };
   const renderDiskEncryptionSummary = () => {
-    // TODO: improve this typing, platforms!
-    // TODO - check os_version for fedora, kubuntu ?
-    if (!platformSupportsDiskEncryption(platform)) {
+    if (!platformSupportsDiskEncryption(platform, os_version)) {
       return <></>;
     }
     const tooltipMessage = getHostDiskEncryptionTooltipMessage(
@@ -490,8 +489,7 @@ const HostSummary = ({
           renderIssues()}
         {isPremiumTier && renderHostTeam()}
         {/* Rendering of OS Settings data */}
-        {isOsSettingsDisplayPlatform(platform) &&
-          // TODO - for Kubuntu? Fedora? cross-check os_version
+        {isOsSettingsDisplayPlatform(platform, os_version) &&
           isPremiumTier &&
           isConnectedToFleetMdm && // show if 1 - host is enrolled in Fleet MDM, and
           hostMdmProfiles &&

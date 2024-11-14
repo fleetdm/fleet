@@ -64,9 +64,9 @@ export const MACADMINS_EXTENSION_TABLES: Record<string, QueryablePlatform[]> = {
  */
 export const HOST_LINUX_PLATFORMS = [
   "linux",
-  "ubuntu", // confirm covers Kubuntu systems as well
+  "ubuntu", // covers Kubuntu
   "debian",
-  "rhel", // confirm covers Fedora systems as well
+  "rhel", // covers Fedora
   "centos",
   "sles",
   "kali",
@@ -113,8 +113,8 @@ export const isIPadOrIPhone = (platform: string | HostPlatform) =>
   ["ios", "ipados"].includes(platform);
 
 export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
-  "ubuntu", // confirm covers Kubuntu
-  "rhel", // confirm covers Fedora
+  "ubuntu", // covers Kubuntu
+  "rhel", // *included here to support Fedora systems. Necessary to cross-check with `os_versions` as well to confrim host is Fedora and not another, non-support rhel-like platform.
 ];
 
 const DISK_ENCRYPTION_SUPPORTED_PLATFORMS = [
@@ -124,8 +124,16 @@ const DISK_ENCRYPTION_SUPPORTED_PLATFORMS = [
   ...DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS,
 ];
 
-export const platformSupportsDiskEncryption = (platform: HostPlatform) =>
-  DISK_ENCRYPTION_SUPPORTED_PLATFORMS.includes(platform);
+export const platformSupportsDiskEncryption = (
+  platform: HostPlatform,
+  /** os_version necessary to differentiate Fedora from other rhel-like platforms */
+  os_version?: string
+) => {
+  if (platform === "rhel") {
+    return !!os_version && os_version.toLowerCase().includes("fedora");
+  }
+  return DISK_ENCRYPTION_SUPPORTED_PLATFORMS.includes(platform);
+};
 
 const OS_SETTINGS_DISPLAY_PLATFORMS = [
   ...DISK_ENCRYPTION_SUPPORTED_PLATFORMS,
@@ -133,5 +141,12 @@ const OS_SETTINGS_DISPLAY_PLATFORMS = [
   "ipados",
 ];
 
-export const isOsSettingsDisplayPlatform = (platform: HostPlatform) =>
-  OS_SETTINGS_DISPLAY_PLATFORMS.includes(platform);
+export const isOsSettingsDisplayPlatform = (
+  platform: HostPlatform,
+  os_version: string
+) => {
+  if (platform === "rhel") {
+    return !!os_version && os_version.toLowerCase().includes("fedora");
+  }
+  return OS_SETTINGS_DISPLAY_PLATFORMS.includes(platform);
+};

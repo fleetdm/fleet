@@ -5,7 +5,10 @@ import { DiskEncryptionStatus, MdmEnrollmentStatus } from "interfaces/mdm";
 import { hasLicenseExpired } from "utilities/helpers";
 import InfoBanner from "components/InfoBanner";
 import { IOSSettings } from "interfaces/host";
-import { DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS } from "interfaces/platform";
+import {
+  HostPlatform,
+  platformSupportsDiskEncryption,
+} from "interfaces/platform";
 
 const baseClass = "host-details-banners";
 
@@ -13,7 +16,9 @@ export interface IHostBannersBaseProps {
   macDiskEncryptionStatus: DiskEncryptionStatus | null | undefined;
   mdmEnrollmentStatus: MdmEnrollmentStatus | null;
   connectedToFleetMdm?: boolean;
-  hostPlatform?: string;
+  hostPlatform?: HostPlatform;
+  // used to identify Fedora hosts, whose platform is "rhel"
+  hostOsVersion?: string;
   /** Disk encryption setting status and detail, if any, that apply to this host (via a team or the "no team" team) */
   diskEncryptionOSSetting?: IOSSettings["disk_encryption"];
   /** Whether or not this host's disk is encrypted */
@@ -27,6 +32,7 @@ export interface IHostBannersBaseProps {
 const HostDetailsBanners = ({
   mdmEnrollmentStatus,
   hostPlatform,
+  hostOsVersion,
   connectedToFleetMdm,
   macDiskEncryptionStatus,
   diskEncryptionOSSetting,
@@ -100,13 +106,13 @@ const HostDetailsBanners = ({
   }
   // setting applies
   if (
-    DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS.includes(hostPlatform ?? "") &&
+    hostPlatform &&
+    platformSupportsDiskEncryption(hostPlatform, hostOsVersion) &&
     diskEncryptionOSSetting?.status
   ) {
     // host either not in compliance with setting, or is but Fleet doesn't yet have a disk
     // encryption key escrowed for the host (possible for Linux hosts)
     if (!diskIsEncrypted || !diskEncryptionKeyAvailable) {
-      // banner 2
       return (
         <div className={baseClass}>
           <InfoBanner color="yellow">
