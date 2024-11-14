@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"bytes"
 	"context"
 	_ "embed"
 	"fmt"
@@ -1284,12 +1283,14 @@ func testCleanupUnusedScriptContents(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create a software install that references scripts
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	swi, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "install-script",
 		UninstallScript:   "uninstall-script",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "post-install-script",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     tfr1,
 		StorageID:         "storage1",
 		Filename:          "file1",
 		Title:             "file1",
@@ -1343,11 +1344,13 @@ func testCleanupUnusedScriptContents(t *testing.T, ds *Datastore) {
 	require.Equal(t, md5ChecksumScriptContent(res.ScriptContents), sc[0].Checksum)
 
 	// create a software install without a post-install script
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	swi, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		PreInstallQuery: "SELECT 1",
 		InstallScript:   "install-script",
 		UninstallScript: "uninstall-script",
-		InstallerFile:   bytes.NewReader([]byte("hello")),
+		InstallerFile:   tfr2,
 		StorageID:       "storage1",
 		Filename:        "file1",
 		Title:           "file1",

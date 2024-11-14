@@ -124,7 +124,8 @@ func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, c
 
 func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
 	winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) (updates fleet.MDMProfilesUpdates,
-	err error) {
+	err error,
+) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 		if updates.WindowsConfigProfile, err = ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles); err != nil {
@@ -273,9 +274,19 @@ FROM (
 	}
 	for _, label := range labels {
 		if prof, ok := profMap[label.ProfileUUID]; ok {
-			if label.Exclude {
+			switch {
+			case label.Exclude && label.RequireAll:
+				// this should never happen so log it for debugging
+				level.Debug(ds.logger).Log("msg", "unsupported profile label: cannot be both exclude and require all",
+					"profile_uuid", label.ProfileUUID,
+					"label_name", label.LabelName,
+				)
+			case label.Exclude && !label.RequireAll:
 				prof.LabelsExcludeAny = append(prof.LabelsExcludeAny, label)
-			} else {
+			case !label.Exclude && !label.RequireAll:
+				prof.LabelsIncludeAny = append(prof.LabelsIncludeAny, label)
+			default:
+				// default include all
 				prof.LabelsIncludeAll = append(prof.LabelsIncludeAll, label)
 			}
 		}
@@ -292,7 +303,8 @@ SELECT
 	label_name,
 	COALESCE(label_id, 0) as label_id,
 	IF(label_id IS NULL, 1, 0) as broken,
-	exclude
+	exclude,
+	require_all
 FROM
 	mdm_configuration_profile_labels mcpl
 WHERE
@@ -304,7 +316,8 @@ SELECT
 	label_name,
 	COALESCE(label_id, 0) as label_id,
 	IF(label_id IS NULL, 1, 0) as broken,
-	exclude
+	exclude,
+	require_all
 FROM
 	mdm_declaration_labels mdl
 WHERE
@@ -996,6 +1009,8 @@ func batchSetProfileLabelAssociationsDB(
 	platform string,
 ) (updatedDB bool, err error) {
 	if len(profileLabels) == 0 {
+		// FIXME: At what point are we deleting all labels for a profile (e.g., the user might
+		// remove all labels from an existing profile)?
 		return false, nil
 	}
 
@@ -1025,16 +1040,17 @@ func batchSetProfileLabelAssociationsDB(
 
 	upsertStmt := `
 	  INSERT INTO mdm_configuration_profile_labels
-              (%s_profile_uuid, label_id, label_name, exclude)
+              (%s_profile_uuid, label_id, label_name, exclude, require_all)
           VALUES
               %s
           ON DUPLICATE KEY UPDATE
               label_id = VALUES(label_id),
-              exclude = VALUES(exclude)
+              exclude = VALUES(exclude),
+			  require_all = VALUES(require_all)
 	`
 
 	selectStmt := `
-		SELECT %s_profile_uuid as profile_uuid, label_id, label_name, exclude FROM mdm_configuration_profile_labels
+		SELECT %s_profile_uuid as profile_uuid, label_id, label_name, exclude, require_all FROM mdm_configuration_profile_labels
 		WHERE (%s_profile_uuid, label_name) IN (%s)
 	`
 
@@ -1054,10 +1070,10 @@ func batchSetProfileLabelAssociationsDB(
 			insertBuilder.WriteString(",")
 			selectOrDeleteBuilder.WriteString(",")
 		}
-		insertBuilder.WriteString("(?, ?, ?, ?)")
+		insertBuilder.WriteString("(?, ?, ?, ?, ?)")
 		selectOrDeleteBuilder.WriteString("(?, ?)")
 		selectParams = append(selectParams, pl.ProfileUUID, pl.LabelName)
-		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName, pl.Exclude)
+		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName, pl.Exclude, pl.RequireAll)
 		deleteParams = append(deleteParams, pl.ProfileUUID, pl.LabelID)
 
 		setProfileUUIDs[pl.ProfileUUID] = struct{}{}

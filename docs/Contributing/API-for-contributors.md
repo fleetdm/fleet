@@ -6,6 +6,7 @@
 - [Live query](#live-query)
 - [Trigger cron schedule](#trigger-cron-schedule)
 - [Device-authenticated routes](#device-authenticated-routes)
+- [Orbit-authenticated routes](#orbit-authenticated-routes)
 - [Downloadable installers](#downloadable-installers)
 - [Setup](#setup)
 - [Scripts](#scripts)
@@ -553,6 +554,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Get FileVault statistics](#get-filevault-statistics)
 - [Upload VPP content token](#upload-vpp-content-token)
 - [Disable VPP](#disable-vpp)
+- [SCEP proxy](#scep-proxy)
 
 
 ### Generate Apple Business Manager public key (ADE)
@@ -1229,6 +1231,11 @@ Content-Type: application/octet-stream
 
 `Status: 204`
 
+### SCEP proxy
+
+`/mdm/scep/proxy/{identifier}`
+
+This endpoint is used to proxy SCEP requests to the configured SCEP server. It uses the [SCEP protocol](https://datatracker.ietf.org/doc/html/rfc8894). The `identifier` is in the format `hostUUID,profileUUID`.
 
 ## Get or apply configuration files
 
@@ -3168,28 +3175,104 @@ Signals the Fleet server to send a webbook request with the device UUID and seri
 Notifies the server about an agent error, resulting in two outcomes:
 
 - The error gets saved in Redis and can later be accessed using `fleetctl debug archive`.
-- The server consistently replies with a `500` status code, which can serve as a signal to activate an alarm through a monitoring tool.
 
-> Note: to allow `fleetd` agents to use this endpoint, you need to set a [custom environment variable](./Configuration-for-contributors.md#fleet_enable_post_client_debug_errors)
+> Note: to allow `fleetd` agents to use this endpoint, you need to set a [custom environment variable](./Configuration-for-contributors.md#fleet_enable_post_client_debug_errors). `fleetd` agents will always report vital errors to Fleet.
 
 `POST /api/v1/fleet/device/{token}/debug/errors`
 
 #### Parameters
 
-| Name                  | Type     | Description                                                      |
-| --------------------- | -------- | ---------------------------------------------------------------- |
-| error_source          | string   | Process name that error originated from ex. orbit, fleet-desktop |
-| error_source_version  | string   | version of error_source                                          |
-| error_timestamp       | datetime | Time in UTC that error occured                                   |
-| error_message         | string   | error message                                                    |
-| error_additional_info | obj      | Any additional identifiers to assist debugging                   |
+| Name                  | Type     | Description                                                                                                                               |
+|-----------------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| error_source          | string   | Process name that error originated from ex. orbit, fleet-desktop                                                                          |
+| error_source_version  | string   | version of error_source                                                                                                                   |
+| error_timestamp       | datetime | Time in UTC that error occured                                                                                                            |
+| error_message         | string   | error message                                                                                                                             |
+| error_additional_info | obj      | Any additional identifiers to assist debugging                                                                                            |
+| vital                 | boolean  | Whether the error is vital and should also be reported to Fleet via usage statistics. Do not put sensitive information into vital errors. |
 
 ##### Default response
 
-`Status: 500`
+`Status: 200`
 
 ---
 
+## Orbit-authenticated routes
+
+- [Get the status of a device in the setup experience](#get-the-status-of-a-device-in-the-setup-experience)
+
+
+### Get the status of a device in the setup experience
+
+`POST /api/fleet/orbit/setup_experience/status`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| orbit_node_key | string | body | The Orbit's node key for authentication. |
+| force_release | boolean | body | Force a host release from ADE flow, in case the setup is taking too long. |
+
+
+##### Example
+
+`POST /api/v1/fleet/device/8b49859b-1ffa-483d-ad27-85b30aa3c55f/setup_experience/status`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "force_release":false
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+    "setup_experience_results": {
+        "script": {
+            "name": "setup_script.sh",
+            "status": "success",
+            "execution_id": "b16fdd31-71cc-4258-ab27-744490809ebd"
+        },
+        "software": [
+            {
+                "name": "Zoom Workplace",
+                "status": "success",
+                "software_title_id": 957
+            },
+            {
+                "name": "Bear: Markdown Notes",
+                "status": "success",
+                "software_title_id": 287
+            },
+            {
+                "name": "Evernote",
+                "status": "success",
+                "software_title_id": 1313
+            }
+        ],
+        "configuration_profiles": [
+            {
+                "profile_uuid": "ae6a9efd5-9166-11ef-83af-0242ac12000b",
+                "name": "Fleetd configuration",
+                "status": "verified"
+            },
+            {
+                "profile_uuid": "ae6aa8108-9166-11ef-83af-0242ac12000b",
+                "name": "Fleet root certificate authority (CA)",
+                "status": "verified"
+            }
+        ],
+        "org_logo_url": ""
+    }
+}
+
+```
 
 ## Downloadable installers
 
@@ -3433,7 +3516,7 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 
 ##### Default response
 
-`Status: 200`
+`Status: 202`
 ```json
 {
   "request_uuid": "ec23c7b6-c336-4109-b89d-6afd859659b4",
