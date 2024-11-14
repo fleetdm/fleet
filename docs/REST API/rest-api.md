@@ -487,42 +487,80 @@ for pagination. For a comprehensive list of activity types and detailed informat
     {
       "created_at": "2023-07-27T14:35:08Z",
       "id": 25,
-      "actor_full_name": "Fleet",
+      "actor_full_name": "Anna Chao",
       "actor_id": 3,
       "actor_gravatar": "",
       "actor_email": "",
-      "fleet_initiated": true,
-      "type": "installed_software",
+      "type": "uninstalled_software",
       "details": {
         "host_id": 1,
         "host_display_name": "Marko's MacBook Pro",
         "software_title": "Adobe Acrobat.app",
-        "install_uuid": "eeeddb94-52d3-4071-8b18-7322cd382abb",
+        "script_execution_id": "eeeddb94-52d3-4071-8b18-7322cd382abb",
         "status": "failed"
       }
     },
     {
       "created_at": "2021-07-29T14:40:27Z",
       "id": 21,
-      "actor_full_name": "Anna",
+      "actor_full_name": "name",
       "actor_id": 1,
       "actor_gravatar": "",
-      "actor_email": "anna@example.com",
-      "fleet_initiated": false,
+      "actor_email": "name@example.com",
       "type": "created_team",
       "details": {
         "team_id": 2,
         "team_name": "Apples"
       }
     },
+        {
+      "created_at": "2021-07-30T13:41:07Z",
+      "id": 24,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "live_query",
+      "details": {
+        "targets_count": 231
+      }
+    },
+    {
+      "created_at": "2021-07-29T15:35:33Z",
+      "id": 23,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "deleted_multiple_saved_query",
+      "details": {
+        "query_ids": [
+          2,
+          24,
+          25
+        ]
+      }
+    },
+    {
+      "created_at": "2021-07-29T14:40:30Z",
+      "id": 22,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "created_team",
+      "details": {
+        "team_id": 3,
+        "team_name": "Oranges"
+      }
+    },
     {
       "created_at": "2021-07-26T17:27:08Z",
       "id": 15,
-      "actor_full_name": "Anna",
+      "actor_full_name": "name",
       "actor_id": 1,
       "actor_gravatar": "",
-      "actor_email": "anna@example.com",
-      "fleet_initiated": false,
+      "actor_email": "name@example.com",
       "type": "live_query",
       "details": {
         "target_counts": 14
@@ -530,7 +568,7 @@ for pagination. For a comprehensive list of activity types and detailed informat
     }
   ],
   "meta": {
-    "has_next_results": false,
+    "has_next_results": true,
     "has_previous_results": false
   }
 }
