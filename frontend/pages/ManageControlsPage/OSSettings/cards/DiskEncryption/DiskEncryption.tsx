@@ -7,7 +7,7 @@ import { NotificationContext } from "context/notification";
 import { ITeamConfig } from "interfaces/team";
 import { getErrorReason } from "interfaces/errors";
 
-import mdmAPI from "services/entities/mdm";
+import diskEncryptionAPI from "services/entities/disk_encryption";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import configAPI from "services/entities/config";
 
@@ -84,7 +84,10 @@ const DiskEncryption = ({
 
   const onUpdateDiskEncryption = async () => {
     try {
-      await mdmAPI.updateAppleMdmSettings(diskEncryptionEnabled, currentTeamId);
+      await diskEncryptionAPI.updateDiskEncryption(
+        diskEncryptionEnabled,
+        currentTeamId
+      );
       renderFlash(
         "success",
         "Successfully updated disk encryption enforcement!"

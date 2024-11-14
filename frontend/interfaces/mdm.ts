@@ -1,5 +1,4 @@
 import { IConfigServerSettings } from "./config";
-import { ITeamSummary } from "./team";
 
 export interface IMdmApple {
   common_name: string;
@@ -132,6 +131,7 @@ export interface IHostMdmProfile {
   detail: string;
 }
 
+// TODO - move disk encryption related types to dedicated file
 export type DiskEncryptionStatus =
   | "verified"
   | "verifying"

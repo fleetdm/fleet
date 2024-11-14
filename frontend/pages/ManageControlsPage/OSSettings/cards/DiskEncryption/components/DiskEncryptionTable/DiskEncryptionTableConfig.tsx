@@ -4,7 +4,7 @@ import { DiskEncryptionStatus } from "interfaces/mdm";
 import {
   IDiskEncryptionStatusAggregate,
   IDiskEncryptionSummaryResponse,
-} from "services/entities/mdm";
+} from "services/entities/disk_encryption";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";

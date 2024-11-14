@@ -7,7 +7,7 @@ import { pick, findIndex } from "lodash";
 
 import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
-import mdmAPI from "services/entities/mdm";
+import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
   IDeviceMappingResponse,
   IMacadminsResponse,
@@ -332,7 +332,9 @@ const DeviceUserPage = ({
     // modal opens in loading state
     setShowCreateLinuxKeyModal(true);
     try {
-      await mdmAPI.triggerLinuxDiskEncryptionKeyEscrow(deviceAuthToken);
+      await diskEncryptionAPI.triggerLinuxDiskEncryptionKeyEscrow(
+        deviceAuthToken
+      );
       renderFlash("success", "Successfully triggered key creation.");
     } catch (e) {
       renderFlash("error", "Failed to trigger key creation.");
