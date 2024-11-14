@@ -671,6 +671,6 @@ func (oc *OrbitClient) GetSetupExperienceStatus() (*fleet.SetupExperienceStatusP
 }
 
 func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks_runner.LuksResponse) error {
-	log.Debug().Msg(fmt.Sprintf("Escrowing key: %s", string(lr.Key)))
+	log.Debug().Msg(fmt.Sprintf("Escrowing key: %s", lr.Key))
 	return nil
 }

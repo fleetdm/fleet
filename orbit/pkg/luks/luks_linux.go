@@ -7,6 +7,8 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"math/big"
+	"regexp"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
@@ -17,25 +19,34 @@ import (
 	"github.com/siderolabs/go-blockdevice/v2/encryption/luks"
 )
 
+const (
+	entryDialogTitle     = "Enter disk encryption passphrase"
+	entryDialogText      = "Passphrase:"
+	retryEntryDialogText = "Passphrase incorrect. Please try again."
+	infoFailedTitle      = "Encryption key escrow"
+	infoFailedText       = "Failed to escrow key. Please try again later."
+	infoSuccessTitle     = "Encryption key escrow"
+	infoSuccessText      = "Key escrowed successfully."
+	maxKeySlots          = 8
+)
+
+var ErrKeySlotFull = regexp.MustCompile(`Key slot \d+ is full`)
+
 func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	if !oc.Notifications.EscrowLinuxKey {
-		log.Debug().Msg("EscrowLinuxKey is false, skipping")
 		return nil
 	}
 
+	var response LuksResponse
 	key, err := lr.getEscrowKey(ctx)
-	if len(key) == 0 {
-		// Dialog was canceled or timed out
-		return nil
+	if err != nil {
+		response.Err = err.Error()
 	}
 
-	response := LuksResponse{
-		Err: err.Error(),
-		Key: key,
-	}
+	response.Key = string(key)
 
 	if err := lr.escrower.SendLinuxKeyEscrowResponse(response); err != nil {
 		if err := lr.infoPrompt(ctx, infoFailedTitle, infoFailedText); err != nil {
@@ -91,12 +102,12 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context) ([]byte, error) {
 		break
 	}
 
-	if passphrase == nil {
-		log.Debug().Msg("Passphrase is nil, dialog was canceled or timed out")
+	if len(passphrase) == 0 {
+		log.Debug().Msg("Passphrase is empty, no password supplied, dialog was canceled, or timed out")
 		return nil, nil
 	}
 
-	escrowPassphrase, err := generateRandomPassphrase(randPassphraseLength)
+	escrowPassphrase, err := generateRandomPassphrase()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to generate random passphrase: %w", err)
 	}
@@ -114,7 +125,7 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context) ([]byte, error) {
 		escrowKey := encryption.NewKey(keySlot, escrowPassphrase)
 
 		if err := device.AddKey(ctx, devicePath, userKey, escrowKey); err != nil {
-			if errors.Is(err, encryption.ErrEncryptionKeyRejected) {
+			if ErrKeySlotFull.MatchString(err.Error()) {
 				keySlot++
 				continue
 			} else {
@@ -129,6 +140,10 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context) ([]byte, error) {
 }
 
 func (lr *LuksRunner) passphraseIsValid(ctx context.Context, device *luks.LUKS, devicePath string, passphrase []byte) (bool, error) {
+	if len(passphrase) == 0 {
+		return false, nil
+	}
+
 	valid, err := device.CheckKey(ctx, devicePath, encryption.NewKey(0, passphrase))
 	if err != nil {
 		return false, fmt.Errorf("Error validating passphrase: %w", err)
@@ -137,13 +152,29 @@ func (lr *LuksRunner) passphraseIsValid(ctx context.Context, device *luks.LUKS, 
 	return valid, nil
 }
 
-func generateRandomPassphrase(length int) ([]byte, error) {
-	bytes := make([]byte, length)
-	if _, err := rand.Read(bytes); err != nil {
-		return nil, err
+// generateRandomPassphrase generates a random passphrase with 32 characters
+// in the format XXXX-XXXX-XXXX-XXXX where X is a random character from the
+// set [0-9A-Za-z].
+func generateRandomPassphrase() ([]byte, error) {
+	const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+	const length = 35 // 32 characters + 3 dashes
+	passphrase := make([]byte, length)
+
+	for i := 0; i < length; i++ {
+		// Insert dashes at positions 8, 17, and 26
+		if i == 8 || i == 17 || i == 26 {
+			passphrase[i] = '-'
+			continue
+		}
+
+		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		if err != nil {
+			return nil, err
+		}
+		passphrase[i] = chars[num.Int64()]
 	}
 
-	return bytes, nil
+	return passphrase, nil
 }
 
 func (lr *LuksRunner) entryPrompt(ctx context.Context, title, text string) ([]byte, error) {
@@ -156,10 +187,10 @@ func (lr *LuksRunner) entryPrompt(ctx context.Context, title, text string) ([]by
 	if err != nil {
 		switch err {
 		case dialog.ErrCanceled:
-			log.Info().Msg("end user canceled key escrow dialog")
+			log.Debug().Msg("end user canceled key escrow dialog")
 			return nil, nil
 		case dialog.ErrTimeout:
-			log.Info().Msg("key escrow dialog timed out")
+			log.Debug().Msg("key escrow dialog timed out")
 			return nil, nil
 		case dialog.ErrUnknown:
 			return nil, err
