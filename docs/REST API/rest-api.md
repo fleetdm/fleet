@@ -8892,18 +8892,6 @@ Get a list of all software versions.
         "generated_cpe": "cpe:2.3:a:1password:1password:2.19.0:*:*:*:*:chrome:*:*",
         "hosts_count": 345,
         "vulnerabilities": null
-      },
-      {
-        "id": 3,
-        "name": "1Password.app",
-        "version": "8.10.50",
-        "bundle_identifier": "com.1password.1password",
-        "source": "apps",
-        "browser": "",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "hosts_count": 1,
-        "team_identifier": "2BUA8C4S2C"
       }
     ],
     "meta": {
@@ -9156,8 +9144,7 @@ Returns information about the specified software version.
         "cve_published": "2023-09-27T15:19:00Z", // Available in Fleet Premium
         "resolved_in_version": "118" // Available in Fleet Premium
       }
-    ],
-    "team_identifier": "43AQ936H96"
+    ]
   }
 }
 ```
