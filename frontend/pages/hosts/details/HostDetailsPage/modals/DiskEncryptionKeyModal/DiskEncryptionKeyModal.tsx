@@ -37,7 +37,7 @@ const DiskEncryptionKeyModal = ({
   hostId,
   onCancel,
 }: IDiskEncryptionKeyModal) => {
-  const { data: encrpytionKey, error: encryptionKeyError } = useQuery<
+  const { data: encryptionKey, error: encryptionKeyError } = useQuery<
     IHostEncrpytionKeyResponse,
     unknown,
     string
@@ -49,14 +49,17 @@ const DiskEncryptionKeyModal = ({
     select: (data) => data.encryption_key.key,
   });
 
-  const isMacOS = platform === "darwin";
-  const descriptionText = isMacOS
-    ? "The disk encryption key refers to the FileVault recovery key for macOS."
-    : "The disk encryption key refers to the BitLocker recovery key for Windows.";
-
-  const recoveryText = isMacOS
-    ? "Use this key to log in to the host if you forgot the password."
-    : "Use this key to unlock the encrypted drive.";
+  let descriptionText = null;
+  let recoveryText = "Use this key to unlock the encrypted drive.";
+  if (platform === "darwin") {
+    [descriptionText, recoveryText] = [
+      "The disk encryption key refers to the FileVault recovery key for macOS.",
+      "Use this key to log in to the host if you forgot the password.",
+    ];
+  } else if (platform === "windows") {
+    recoveryText =
+      "The disk encryption key refers to the BitLocker recovery key for Windows.";
+  }
 
   return (
     <Modal
@@ -69,7 +72,7 @@ const DiskEncryptionKeyModal = ({
         <DataError />
       ) : (
         <>
-          <InputFieldHiddenContent value={encrpytionKey ?? ""} />
+          <InputFieldHiddenContent value={encryptionKey ?? ""} />
           <p>{descriptionText}</p>
           <p>{recoveryText} </p>
           <div className="modal-cta-wrap">
