@@ -44,6 +44,8 @@ module.exports = {
     let allSoftwareWithPackages = [];
     let teamsinformationForSoftware = [];
     let teamApids = _.pluck(teams, 'fleetApid');
+    let softwareDeployedToAllTeams = await AllTeamsSoftware.find();
+    let allTeamsSoftwareApids = _.pluck(softwareDeployedToAllTeams, 'fleetApid');
     // Get all of the software packages on the Fleet instance.
     for(let teamApid of teamApids){
       let configurationProfilesResponseData = await sails.helpers.http.get.with({
@@ -97,7 +99,9 @@ module.exports = {
     // console.log(teamsinformationForSoftware);
     for(let software of allSoftwareWithPackages) {
       software.teams = _.where(teamsinformationForSoftware, {'softwareFleetApid': software.fleetApid});
-      // console.log(software)
+      if(allTeamsSoftwareApids.includes(software.fleetApid)){
+        software.isDeployedToAllTeams = true;
+      }
       allSoftware.push(software);
     }
     allSoftware = _.uniq(allSoftware, 'fleetApid');

@@ -44,6 +44,9 @@ module.exports = {
 
     let allSoftwareWithPackages = [];
     let teamsinformationForSoftware = [];
+
+    let softwareDeployedToAllTeams = await AllTeamsSoftware.find();
+    let allTeamsSoftwareApids = _.pluck(softwareDeployedToAllTeams, 'fleetApid');
     let teamApids = _.pluck(teams, 'fleetApid');
     // Get all of the software packages on the Fleet instance.
     for(let teamApid of teamApids){
@@ -82,6 +85,7 @@ module.exports = {
           postInstallScript: packageInformation.post_install_script,
           uninstallScript: packageInformation.uninstall_script,
           teams: [],
+          isDeployedToAllTeams: false,
         };
         let teamInfo = {
           softwareFleetApid: softwareWithInstaller.id,
@@ -96,6 +100,9 @@ module.exports = {
     }
     for(let software of allSoftwareWithPackages) {
       software.teams = _.where(teamsinformationForSoftware, {'softwareFleetApid': software.fleetApid});
+      if(allTeamsSoftwareApids.includes(software.fleetApid)){
+        software.isDeployedToAllTeams = true;
+      }
       allSoftware.push(software);
     }
     allSoftware = _.uniq(allSoftware, 'fleetApid');
