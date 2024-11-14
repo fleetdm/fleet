@@ -570,7 +570,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	} else if populateSoftware != "" {
 		ps, err := strconv.ParseBool(populateSoftware)
 		if err != nil {
-			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid populate_software: %s", populateSoftware)))
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(`Invalid value for populate_software. Should be one of "true", "false", or "without_vulnerability_details".`))
 		}
 		hopt.PopulateSoftware = ps
 		hopt.PopulateSoftwareVulnerabilityDetails = ps
