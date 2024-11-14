@@ -448,28 +448,36 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 		}
 
 	case len(macProfUUIDs) > 0:
-		// TODO: if a very large number (~65K) of profile UUIDs was provided, could
+		// TODO: if a very large number (~65K/2) of profile UUIDs was provided, could
 		// result in too many placeholders (not an immediate concern).
 		uuidStmt = `
 SELECT DISTINCT h.uuid, h.platform
 FROM hosts h
 JOIN mdm_apple_configuration_profiles macp
 	ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+JOIN host_mdm_apple_profiles hmap
+	ON h.uuid = hmap.host_uuid
 WHERE
-	macp.profile_uuid IN (?) AND (h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')`
-		args = append(args, macProfUUIDs)
+	macp.profile_uuid IN (?) AND (h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')
+OR
+	hmap.profile_uuid IN (?) AND (h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')`
+		args = append(args, macProfUUIDs, macProfUUIDs)
 
 	case len(winProfUUIDs) > 0:
-		// TODO: if a very large number (~65K) of profile IDs was provided, could
+		// TODO: if a very large number (~65K/2) of profile IDs was provided, could
 		// result in too many placeholders (not an immediate concern).
 		uuidStmt = `
 SELECT DISTINCT h.uuid, h.platform
 FROM hosts h
 JOIN mdm_windows_configuration_profiles mawp
 	ON h.team_id = mawp.team_id OR (h.team_id IS NULL AND mawp.team_id = 0)
+JOIN host_mdm_windows_profiles hmwp
+	ON h.uuid = hmwp.host_uuid
 WHERE
-	mawp.profile_uuid IN (?) AND h.platform = 'windows'`
-		args = append(args, winProfUUIDs)
+	mawp.profile_uuid IN (?) AND h.platform = 'windows'
+OR
+	hmwp.profile_uuid IN (?) AND h.platform = 'windows'`
+		args = append(args, winProfUUIDs, winProfUUIDs)
 
 	}
 
