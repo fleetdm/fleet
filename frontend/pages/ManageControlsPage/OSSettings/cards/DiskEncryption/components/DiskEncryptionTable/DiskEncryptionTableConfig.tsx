@@ -215,6 +215,7 @@ export const generateTableData = (
     status: STATUS_CELL_VALUES[status],
     macosHosts: statusAggregate.macos,
     windowsHosts: statusAggregate.windows,
+    linuxHosts: statusAggregate.linux,
     teamId: currentTeamId,
   });
 
