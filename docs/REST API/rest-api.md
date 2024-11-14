@@ -2414,7 +2414,6 @@ None.
 - [Wipe host](#wipe-host)
 - [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
-- [Cancel host's upcoming activity](#cancel-hosts-upcoming-activity)
 - [Add labels to host](#add-labels-to-host)
 - [Remove labels from host](#remove-labels-from-host)
 - [Live query one host (ad-hoc)](#live-query-one-host-ad-hoc)
@@ -4758,25 +4757,6 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
   }
 }
 ```
-
-### Cancel host's upcoming activity
-
-`DELETE /api/v1/fleet/hosts/:id/activities/upcoming/:activity_id`
-
-#### Parameters
-
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required**. The host's ID. |
-| activity_id   | string | path | **Required**. The ID of host's upcoming activity. |
-
-#### Example
-
-`DELETE /api/v1/fleet/hosts/12/activities/upcoming/81e10a70-730b-4c45-9b40-b14373e04757`
-
-##### Default response
-
-`Status: 204`
 
 ### Add labels to host
 
