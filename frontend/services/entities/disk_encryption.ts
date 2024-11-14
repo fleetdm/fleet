@@ -5,6 +5,7 @@ import { buildQueryStringFromParams } from "utilities/url";
 
 // TODO - move disk encryption types like this to dedicated file
 import { DiskEncryptionStatus } from "interfaces/mdm";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
 export interface IDiskEncryptionStatusAggregate {
   macos: number;
@@ -27,10 +28,24 @@ const diskEncryptionService = {
     return sendRequest("GET", path);
   },
   updateDiskEncryption: (enableDiskEncryption: boolean, teamId?: number) => {
-    const { UPDATE_DISK_ENCRYPTION } = endpoints;
-    return sendRequest("POST", UPDATE_DISK_ENCRYPTION, {
+    // TODO - use same endpoint for both once issue with new endpoint for no team is resolved
+    const {
+      UPDATE_DISK_ENCRYPTION: teamsEndpoint,
+      CONFIG: noTeamsEndpoint,
+    } = endpoints;
+    if (teamId === 0) {
+      return sendRequest("PATCH", noTeamsEndpoint, {
+        mdm: {
+          enable_disk_encryption: enableDiskEncryption,
+        },
+      });
+    }
+    return sendRequest("POST", teamsEndpoint, {
       enable_disk_encryption: enableDiskEncryption,
-      team_id: teamId,
+      // TODO - it would be good to be able to use an API_CONTEXT_NO_TEAM_ID here, but that is
+      // currently set to 0, which should actually be undefined since the server expects teamId ==
+      // nil for no teams, not 0.
+      team_id: teamId === APP_CONTEXT_NO_TEAM_ID ? undefined : teamId,
     });
   },
   triggerLinuxDiskEncryptionKeyEscrow: (token: string) => {

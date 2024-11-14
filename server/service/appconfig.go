@@ -1128,15 +1128,6 @@ func (svc *Service) validateMDM(
 			return nil
 		}
 	}
-
-	// if either macOS or Windows MDM is enabled, this setting can be set.
-	if !mdm.AtLeastOnePlatformEnabledAndConfigured() {
-		if mdm.EnableDiskEncryption.Valid && mdm.EnableDiskEncryption.Value && mdm.EnableDiskEncryption.Value != oldMdm.EnableDiskEncryption.Value {
-			invalid.Append("mdm.enable_disk_encryption",
-				`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
-		}
-	}
-
 	return nil
 }
 
