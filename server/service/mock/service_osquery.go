@@ -26,6 +26,8 @@ type SubmitStatusLogsFunc func(ctx context.Context, logs []json.RawMessage) (err
 
 type SubmitResultLogsFunc func(ctx context.Context, logs []json.RawMessage) (err error)
 
+type YaraRuleByNameFunc func(ctx context.Context, name string) (*fleet.YaraRule, error)
+
 type TLSService struct {
 	EnrollAgentFunc        EnrollAgentFunc
 	EnrollAgentFuncInvoked bool
@@ -47,6 +49,9 @@ type TLSService struct {
 
 	SubmitResultLogsFunc        SubmitResultLogsFunc
 	SubmitResultLogsFuncInvoked bool
+
+	YaraRuleByNameFunc        YaraRuleByNameFunc
+	YaraRuleByNameFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -98,4 +103,11 @@ func (s *TLSService) SubmitResultLogs(ctx context.Context, logs []json.RawMessag
 	s.SubmitResultLogsFuncInvoked = true
 	s.mu.Unlock()
 	return s.SubmitResultLogsFunc(ctx, logs)
+}
+
+func (s *TLSService) YaraRuleByName(ctx context.Context, name string) (*fleet.YaraRule, error) {
+	s.mu.Lock()
+	s.YaraRuleByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.YaraRuleByNameFunc(ctx, name)
 }

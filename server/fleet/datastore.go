@@ -439,6 +439,11 @@ type Datastore interface {
 	// value.
 	AggregateEnrollSecretPerTeam(ctx context.Context) ([]*EnrollSecret, error)
 
+	// Methods for getting and applying the stored yara rules.
+	GetYaraRules(ctx context.Context) ([]YaraRule, error)
+	ApplyYaraRules(ctx context.Context, rules []YaraRule) error
+	YaraRuleByName(ctx context.Context, name string) (*YaraRule, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// InviteStore contains the methods for managing user invites in a datastore.
 

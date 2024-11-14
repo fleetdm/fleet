@@ -1,0 +1,1 @@
+* Added capability for Fleet to serve yara rules to agents over HTTPS authenticated via node key (requires osquery 5.14+).

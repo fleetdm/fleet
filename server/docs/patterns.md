@@ -23,6 +23,8 @@ Inputs corresponding to sortable or indexed DB fields should be preprocessed (tr
 
 ## MySQL
 
+### Timestamps
+
 Use high precision for all time fields. Precise timestamps make sure that we can accurately track when records were created and updated,
 keep records in order with a reliable sort, and speed up testing by not having to wait for the time to
 update. [MySQL reference](https://dev.mysql.com/doc/refman/8.4/en/date-and-time-type-syntax.html). [Backend sync where discussed](https://us-65885.app.gong.io/call?id=8041045095900447703).
@@ -36,6 +38,16 @@ CREATE TABLE `sample` (
   PRIMARY KEY (`id`)
 );
 ```
+
+### UUIDs
+
+Use `binary` (or `varbinary`) data type for UUIDs. [MySQL 8 has good support for UUIDs](https://dev.mysql.com/blog-archive/mysql-8-0-uuid-support/) with `UUID_TO_BIN` and `BIN_TO_UUID` functions. If needed, add a virtual table to display UUID as string. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=5477893933055484926&highlights=%5B%7B%22type%22%3A%22SHARE%22%2C%22from%22%3A440%2C%22to%22%3A612%7D%5D).
+
+Benefits of binary UUIDs include:
+- Smaller storage size
+- Faster indexing/lookup
+
+### Say no to `goqu`
 
 Do not use [goqu](https://github.com/doug-martin/goqu); use MySQL queries directly. Searching for, understanding, and debugging direct MySQL
 queries is easier. If needing to modify an existing `goqu` query, try to rewrite it in
