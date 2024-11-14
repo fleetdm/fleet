@@ -31,7 +31,7 @@ Here are some of the reasons we build in the open:
 - **More timeless.** You are not doomed to disappear forever when you change jobs.  Why should your code?  In most jobs, most of the work you do becomes inaccessible when you quit.  But [open source is forever](https://twitter.com/mikermcneil/status/1476799587423772674).
 
 
-## Why handbook-first strategy?
+## Why a handbook-first strategy?
 
 The Fleet handbook provides team members with up-to-date information about how to do things in the company. 
 
