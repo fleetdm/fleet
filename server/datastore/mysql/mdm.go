@@ -528,7 +528,7 @@ OR
 		return updates, ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
 	}
 
-	updates.WindowsConfigProfile, err = ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, tx, winHosts)
+	updates.WindowsConfigProfile, err = ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, tx, winHosts, profileUUIDs)
 	if err != nil {
 		return updates, ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
 	}
