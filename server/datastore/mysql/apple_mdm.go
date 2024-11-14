@@ -1937,7 +1937,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 
 	profileHostIn := "h.uuid IN (?)"
 	if len(onlyProfileUUIDs) > 0 {
-		profileHostIn = "mae.identifier IN (?) AND " + profileHostIn
+		profileHostIn = "mae.profile_uuid IN (?) AND " + profileHostIn
 	}
 
 	toInstallStmt := fmt.Sprintf(`
