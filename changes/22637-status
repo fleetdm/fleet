@@ -1,2 +1,0 @@
-- Adds an Orbit endpoint (`POST /orbit/setup_experience/status`) for checking the status of a macOS
-host's setup experience steps.

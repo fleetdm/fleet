@@ -419,6 +419,7 @@ type MDMConfigProfilePayload struct {
 	CreatedAt        time.Time                   `json:"created_at" db:"created_at"`
 	UploadedAt       time.Time                   `json:"updated_at" db:"uploaded_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 	LabelsIncludeAll []ConfigurationProfileLabel `json:"labels_include_all,omitempty" db:"-"`
+	LabelsIncludeAny []ConfigurationProfileLabel `json:"labels_include_any,omitempty" db:"-"`
 	LabelsExcludeAny []ConfigurationProfileLabel `json:"labels_exclude_any,omitempty" db:"-"`
 }
 
@@ -432,6 +433,7 @@ type MDMProfileBatchPayload struct {
 	// LabelsIncludeAll.
 	Labels           []string `json:"labels,omitempty"`
 	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
+	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
 }
 
@@ -448,6 +450,7 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
 		LabelsIncludeAll: cp.LabelsIncludeAll,
+		LabelsIncludeAny: cp.LabelsIncludeAny,
 		LabelsExcludeAny: cp.LabelsExcludeAny,
 	}
 }
@@ -467,6 +470,7 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
 		LabelsIncludeAll: cp.LabelsIncludeAll,
+		LabelsIncludeAny: cp.LabelsIncludeAny,
 		LabelsExcludeAny: cp.LabelsExcludeAny,
 	}
 }
@@ -486,6 +490,7 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 		CreatedAt:        decl.CreatedAt,
 		UploadedAt:       decl.UploadedAt,
 		LabelsIncludeAll: decl.LabelsIncludeAll,
+		LabelsIncludeAny: decl.LabelsIncludeAny,
 		LabelsExcludeAny: decl.LabelsExcludeAny,
 	}
 }
@@ -504,6 +509,10 @@ type MDMProfileSpec struct {
 	// of in order to receive the profile. It must be a member of all listed
 	// labels.
 	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
+	// LabelsIncludeAny is a list of label names that the host must be a member
+	// of in order to receive the profile. It may be a member of
+	// any listed labels.
+	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
 	// LabelsExcludeAll is a list of label names that the host must not be a
 	// member of in order to receive the profile. It must not be a member of any
 	// of the listed labels.
@@ -516,26 +525,30 @@ func (p *MDMProfileSpec) UnmarshalJSON(data []byte) error {
 	if len(data) == 0 {
 		return nil
 	}
-
 	if lookAhead := bytes.TrimSpace(data); len(lookAhead) > 0 && lookAhead[0] == '"' {
 		var backwardsCompat string
 		if err := json.Unmarshal(data, &backwardsCompat); err != nil {
 			return fmt.Errorf("unmarshal profile spec. Error using old format: %w", err)
 		}
 		p.Path = backwardsCompat
+
+		// FIXME: equivalent of no label condition, should clear all labels slice?
+		// p.Labels = nil
+		// p.LabelsIncludeAll = nil
+		// p.LabelsIncludeAny = nil
+		// p.LabelsExcludeAny = nil
 		return nil
 	}
 
 	// use an alias type to avoid recursively calling this function forever.
 	type Alias MDMProfileSpec
-	aliasData := struct {
-		*Alias
-	}{
-		Alias: (*Alias)(p),
-	}
+	var aliasData Alias
 	if err := json.Unmarshal(data, &aliasData); err != nil {
 		return fmt.Errorf("unmarshal profile spec. Error using new format: %w", err)
 	}
+	// NOTE: we always want the newly unmarshaled profile spec to completely replace the old one
+	// (rather than merging the new data into the old one).
+	*p = MDMProfileSpec(aliasData)
 	return nil
 }
 
@@ -557,6 +570,10 @@ func (p *MDMProfileSpec) Copy() *MDMProfileSpec {
 	if len(p.LabelsIncludeAll) > 0 {
 		clone.LabelsIncludeAll = make([]string, len(p.LabelsIncludeAll))
 		copy(clone.LabelsIncludeAll, p.LabelsIncludeAll)
+	}
+	if len(p.LabelsIncludeAny) > 0 {
+		clone.LabelsIncludeAny = make([]string, len(p.LabelsIncludeAny))
+		copy(clone.LabelsIncludeAny, p.LabelsIncludeAny)
 	}
 	if len(p.LabelsExcludeAny) > 0 {
 		clone.LabelsExcludeAny = make([]string, len(p.LabelsExcludeAny))
@@ -591,6 +608,10 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 			pathLabelIncludeCounts[v.Path] = labelCountMap(v.Labels)
 		}
 	}
+	pathLabelsIncludeAnyCounts := make(map[string]map[string]int)
+	for _, v := range a {
+		pathLabelsIncludeAnyCounts[v.Path] = labelCountMap(v.LabelsIncludeAny)
+	}
 	pathLabelExcludeCounts := make(map[string]map[string]int)
 	for _, v := range a {
 		pathLabelExcludeCounts[v.Path] = labelCountMap(v.LabelsExcludeAny)
@@ -598,8 +619,9 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 
 	for _, v := range b {
 		includeLabels, okIncl := pathLabelIncludeCounts[v.Path]
+		includeAnyLabels, okInclAny := pathLabelsIncludeAnyCounts[v.Path]
 		excludeLabels, okExcl := pathLabelExcludeCounts[v.Path]
-		if !okIncl || !okExcl {
+		if !okIncl || !okExcl || !okInclAny {
 			return false
 		}
 
@@ -621,6 +643,19 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 			}
 		}
 
+		bLabelIncludeAnyCounts := labelCountMap(v.LabelsIncludeAny)
+		for label, count := range bLabelIncludeAnyCounts {
+			if includeAnyLabels[label] != count {
+				return false
+			}
+			includeAnyLabels[label] -= count
+		}
+		for _, count := range includeAnyLabels {
+			if count != 0 {
+				return false
+			}
+		}
+
 		bLabelExcludeCounts := labelCountMap(v.LabelsExcludeAny)
 		for label, count := range bLabelExcludeCounts {
 			if excludeLabels[label] != count {
@@ -635,11 +670,20 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 		}
 
 		delete(pathLabelIncludeCounts, v.Path)
+		delete(pathLabelsIncludeAnyCounts, v.Path)
 		delete(pathLabelExcludeCounts, v.Path)
 	}
 
-	return len(pathLabelIncludeCounts) == 0 && len(pathLabelExcludeCounts) == 0
+	return len(pathLabelIncludeCounts) == 0 && len(pathLabelsIncludeAnyCounts) == 0 && len(pathLabelExcludeCounts) == 0
 }
+
+type MDMLabelsMode string
+
+const (
+	LabelsIncludeAll MDMLabelsMode = "labels_include_all"
+	LabelsIncludeAny MDMLabelsMode = "labels_include_any"
+	LabelsExcludeAny MDMLabelsMode = "labels_exclude_any"
+)
 
 type MDMAssetName string
 
@@ -741,9 +785,11 @@ func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []
 }
 
 // RefetchBaseCommandUUIDPrefix and below command prefixes are the prefixes used for MDM commands used to refetch information from iOS/iPadOS devices.
-const RefetchBaseCommandUUIDPrefix = "REFETCH-"
-const RefetchDeviceCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "DEVICE-"
-const RefetchAppsCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "APPS-"
+const (
+	RefetchBaseCommandUUIDPrefix   = "REFETCH-"
+	RefetchDeviceCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "DEVICE-"
+	RefetchAppsCommandUUIDPrefix   = RefetchBaseCommandUUIDPrefix + "APPS-"
+)
 
 // VPPTokenInfo is the representation of the VPP token that we send out via API.
 type VPPTokenInfo struct {

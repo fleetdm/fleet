@@ -47,6 +47,7 @@ trash() {
   local logged_in_user="$1"
   local target_file="$2"
   local timestamp="$(date +%Y-%m-%d-%s)"
+  local rand="$(jot -r 1 0 99999)"
 
   # replace ~ with /Users/$logged_in_user
   if [[ "$target_file" == ~* ]]; then
@@ -58,7 +59,7 @@ trash() {
 
   if [[ -e "$target_file" ]]; then
     echo "removing $target_file."
-    mv -f "$target_file" "$trash/${file_name}_${timestamp}"
+    mv -f "$target_file" "$trash/${file_name}_${timestamp}_${rand}"
   else
     echo "$target_file doesn't exist."
   fi
