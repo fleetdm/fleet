@@ -3800,6 +3800,41 @@ ON DUPLICATE KEY UPDATE
 	return err
 }
 
+func (ds *Datastore) HostIsPendingEscrow(ctx context.Context, hostID uint) bool {
+	var pendingEscrowCount uint
+	_ = sqlx.GetContext(ctx, ds.reader(ctx), &pendingEscrowCount, `
+          SELECT COUNT(*) FROM host_disk_encryption_keys WHERE host_id = ? AND reset_requested = TRUE`, hostID)
+	return pendingEscrowCount > 0
+}
+func (ds *Datastore) ClearPendingEscrow(ctx context.Context, hostID uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE host_disk_encryption_keys SET reset_requested = FALSE WHERE host_id = ?`, hostID)
+	return err
+}
+func (ds *Datastore) ReportEscrowError(ctx context.Context, hostID uint, err error) error {
+	_, sqlError := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO host_disk_encryption_keys
+  (host_id, base64_encrypted, client_error) VALUES (?, '', ?) ON DUPLICATE KEY UPDATE client_error = VALUES(client_error)
+`, hostID, err.Error())
+	return sqlError
+}
+func (ds *Datastore) QueueEscrow(ctx context.Context, hostID uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO host_disk_encryption_keys
+  (host_id, base64_encrypted, reset_requested) VALUES (?, '', TRUE) ON DUPLICATE KEY UPDATE reset_requested = TRUE
+`, hostID)
+	return err
+}
+func (ds *Datastore) AssertHasNoEncryptionKeyStored(ctx context.Context, hostID uint) error {
+	var hasKeyCount uint
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasKeyCount, `
+          SELECT COUNT(*) FROM host_disk_encryption_keys WHERE host_id = ? AND base64_encrypted != ''`, hostID)
+	if hasKeyCount > 0 {
+		return &fleet.BadRequestError{Message: "Key has already been escrowed for this host"}
+	}
+
+	return err
+}
+
 func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
 	// NOTE(mna): currently we only verify encryption keys for macOS,
 	// Windows/bitlocker uses a different approach where orbit sends the

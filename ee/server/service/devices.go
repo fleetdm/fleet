@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -18,6 +19,9 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 }
 
 const refetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
+
+var LUKSSupportedPlatforms = []string{"ubuntu", "fedora"}
+var minOrbitLUKSVersion = "1.36.0"
 
 // TriggerMigrateMDMDevice triggers the webhook associated with the MDM
 // migration to Fleet configuration. It is located in the ee package instead of
@@ -165,4 +169,52 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	sum.Config.MDM.MacOSMigration.Mode = appCfg.MDM.MacOSMigration.Mode
 
 	return sum, nil
+}
+
+func (svc *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fleet.Host) error {
+	if svc.ds.HostIsPendingEscrow(ctx, host.ID) {
+		return nil
+	}
+
+	if err := svc.validateReadyForLinuxEscrow(ctx, host); err != nil {
+		_ = svc.ds.ReportEscrowError(ctx, host.ID, err)
+		return err
+	}
+
+	return svc.ds.QueueEscrow(ctx, host.ID)
+}
+
+func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet.Host) error {
+	if !slices.Contains(LUKSSupportedPlatforms, host.Platform) {
+		return &fleet.BadRequestError{Message: "Host platform does not support key escrow"}
+	}
+
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+
+	if host.TeamID == nil {
+		if !ac.MDM.EnableDiskEncryption.Value {
+			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for hosts not assigned to a team"}
+		}
+	} else {
+		tc, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+		if err != nil {
+			return err
+		}
+		if !tc.EnableDiskEncryption {
+			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for this host's team"}
+		}
+	}
+
+	if !*host.DiskEncryptionEnabled {
+		return &fleet.BadRequestError{Message: "Host's disk is not encrypted. Please enable disk encryption for this host."}
+	}
+
+	if fleet.CompareVersions(*host.OrbitVersion, minOrbitLUKSVersion) == -1 {
+		return &fleet.BadRequestError{Message: "Host's Orbit version does not support this feature. Please upgrade Orbit to the latest version."}
+	}
+
+	return svc.ds.AssertHasNoEncryptionKeyStored(ctx, host.ID)
 }

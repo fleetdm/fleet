@@ -895,6 +895,7 @@ type Datastore interface {
 	// GetHostEmails returns the emails associated with the provided host for a given source, such as "google_chrome_profiles"
 	GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error)
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error
+
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
 	// a host
@@ -905,9 +906,14 @@ type Datastore interface {
 	GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]HostDiskEncryptionKey, error)
 	// SetHostsDiskEncryptionKeyStatus sets the encryptable status for the set
 	// of encription keys provided
-	SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error
+	SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, decryptable bool, threshold time.Time) error
 	// GetHostDiskEncryptionKey returns the encryption key information for a given host
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
+	HostIsPendingEscrow(ctx context.Context, hostID uint) bool
+	ClearPendingEscrow(ctx context.Context, hostID uint) error
+	ReportEscrowError(ctx context.Context, hostID uint, err error) error
+	QueueEscrow(ctx context.Context, hostID uint) error
+	AssertHasNoEncryptionKeyStored(ctx context.Context, hostID uint) error
 
 	// GetHostCertAssociationsToExpire retrieves host certificate
 	// associations that are close to expire and don't have a renewal in
