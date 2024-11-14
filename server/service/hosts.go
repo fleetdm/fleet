@@ -1240,6 +1240,14 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 	host.MDM.Profiles = &profiles
 
+	if host.IsLUKSSupported() {
+		status, err := svc.LinuxHostDiskEncryptionStatus(ctx, *host)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host disk encryption status")
+		}
+		host.MDM.OSSettings.DiskEncryption = status
+	}
+
 	var macOSSetup *fleet.HostMDMMacOSSetup
 	if ac.MDM.EnabledAndConfigured && license.IsPremium(ctx) {
 		macOSSetup, err = svc.ds.GetHostMDMMacOSSetup(ctx, host.ID)

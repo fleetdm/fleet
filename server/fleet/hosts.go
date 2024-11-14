@@ -678,6 +678,12 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 	return h.DEPAssignedToFleet != nil && *h.DEPAssignedToFleet
 }
 
+// IsLUKSSupported returns true if the host's platform is Linux and running
+// one of the supported OS versions.
+func (h *Host) IsLUKSSupported() bool {
+	return h.Platform == "ubuntu" || strings.Contains(h.OSVersion, "Fedora") // fedora h.Platform reports as "rhel"
+}
+
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be
 // unenrolled from Fleet's Windows MDM (if it MDM was disabled).
 func (h *Host) IsEligibleForWindowsMDMUnenrollment(isConnectedToFleetMDM bool) bool {
@@ -1169,6 +1175,7 @@ type HostDiskEncryptionKey struct {
 	Decryptable     *bool     `json:"-" db:"decryptable"`
 	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
 	DecryptedValue  string    `json:"key" db:"-"`
+	ClientError     string    `json:"-" db:"client_error"`
 }
 
 // HostSoftwareInstalledPath represents where in the file system a software on a host was installed
