@@ -35,7 +35,7 @@ export default {
     return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
   },
   DEVICE_TRIGGER_LINUX_DISK_ENCRYPTION_KEY_ESCROW: (token: string): string => {
-    return `/${API_VERSION}/fleet/device/${token}/mdm/linux/trigger_key_escrow`;
+    return `/${API_VERSION}/fleet/device/${token}/mdm/linux/trigger_escrow`;
   },
 
   // Host endpoints
