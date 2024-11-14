@@ -1,0 +1,64 @@
+.run-script-details-modal {
+  box-sizing: border-box;
+  width: 811px;
+
+  &__modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__script-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__script-content-textarea {
+    box-sizing: border-box;
+    max-height: 300px;
+    overflow-y: auto;
+    font-family: "SourceCodePro";
+  }
+
+  &__status-message {
+    p {
+      display: flex;
+      align-items: center;
+      gap: $pad-small;
+      margin: 0;
+
+      .component__tooltip-wrapper {
+        margin-left: -$pad-xsmall;
+        margin-right: -$pad-xsmall;
+        margin-top: -1px;
+      }
+    }
+  }
+
+  &__script-result {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xlarge;
+  }
+
+  &__script-output {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  &__output-tooltip {
+    width: 300px;
+  }
+
+  &__output-textarea {
+    font-family: "SourceCodePro";
+    max-height: 150px;
+    overflow: auto;
+  }
+}

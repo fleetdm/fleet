@@ -301,6 +301,7 @@ const OtherWorkflowsModal = ({
           helpText='For each policy, Fleet will send a JSON payload to this URL with a list of the hosts that updated their answer to "No."'
           placeholder="https://server.com/example"
           tooltip="Provide a URL to deliver a webhook request to."
+          disabled={!isPolicyAutomationsEnabled}
         />
         <RevealButton
           isShowing={showExamplePayload}
@@ -309,6 +310,7 @@ const OtherWorkflowsModal = ({
           showText="Show example payload"
           caretPosition="after"
           onClick={() => setShowExamplePayload(!showExamplePayload)}
+          disabled={!isPolicyAutomationsEnabled}
         />
         {showExamplePayload && <ExamplePayload />}
       </>
@@ -394,6 +396,7 @@ const OtherWorkflowsModal = ({
               value="ticket"
               name="workflow-type"
               onChange={onChangeRadio}
+              disabled={!isPolicyAutomationsEnabled}
             />
             <Radio
               className={`${baseClass}__radio-input`}
@@ -403,6 +406,7 @@ const OtherWorkflowsModal = ({
               value="webhook"
               name="workflow-type"
               onChange={onChangeRadio}
+              disabled={!isPolicyAutomationsEnabled}
             />
           </div>
           {isWebhookEnabled ? renderWebhook() : renderIntegrations()}
@@ -428,6 +432,7 @@ const OtherWorkflowsModal = ({
                               !isChecked &&
                                 setErrors((errs) => omit(errs, "policyItems"));
                             }}
+                            disabled={!isPolicyAutomationsEnabled}
                           >
                             <TooltipTruncatedText value={name} />
                           </Checkbox>
@@ -449,6 +454,7 @@ const OtherWorkflowsModal = ({
               url="https://www.fleetdm.com/learn-more-about/policy-automations"
               text="Learn more"
               newTab
+              disableKeyboardNavigation={!isPolicyAutomationsEnabled}
             />
           </p>
         </div>

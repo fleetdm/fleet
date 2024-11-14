@@ -72,7 +72,7 @@ const FleetDesktop = ({
         <SectionHeader title="Fleet Desktop" />
         <form onSubmit={onFormSubmit} autoComplete="off">
           <p className={`${baseClass}__section-description`}>
-            When an end user clicks “Transparency” in the Fleet Desktop menu, by
+            When an end user clicks “About Fleet” in the Fleet Desktop menu, by
             default they are taken to{" "}
             <CustomLink
               url="https://fleetdm.com/transparency"

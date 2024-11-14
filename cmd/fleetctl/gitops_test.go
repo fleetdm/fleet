@@ -1875,6 +1875,8 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 		// commenting out, results in the process getting killed on CI and on some machines
 		// {"testdata/gitops/team_software_installer_too_large.yml", "The maximum file size is 3 GB"},
 		{"testdata/gitops/team_software_installer_valid.yml", ""},
+		{"testdata/gitops/team_software_installer_subdir.yml", ""},
+		{"testdata/gitops/subdir/team_software_installer_valid.yml", ""},
 		{"testdata/gitops/team_software_installer_valid_apply.yml", ""},
 		{"testdata/gitops/team_software_installer_pre_condition_multiple_queries.yml", "should have only one query."},
 		{"testdata/gitops/team_software_installer_pre_condition_multiple_queries_apply.yml", "should have only one query."},
@@ -1957,6 +1959,8 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		// commenting out, results in the process getting killed on CI and on some machines
 		// {"testdata/gitops/no_team_software_installer_too_large.yml", "The maximum file size is 3 GB"},
 		{"testdata/gitops/no_team_software_installer_valid.yml", ""},
+		{"testdata/gitops/no_team_software_installer_subdir.yml", ""},
+		{"testdata/gitops/subdir/no_team_software_installer_valid.yml", ""},
 		{"testdata/gitops/no_team_software_installer_pre_condition_multiple_queries.yml", "should have only one query."},
 		{"testdata/gitops/no_team_software_installer_pre_condition_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_install_not_found.yml", "no such file or directory"},
@@ -2603,26 +2607,27 @@ software:
 				assert.Contains(t, out, "[!] gitops succeeded")
 			},
 		},
-		//	{
-		//		name: "deprecated config with two tokens in the db fails",
-		//		cfgs: []string{
-		//			global("apple_bm_default_team: 💻 Workstations"),
-		//			workstations,
-		//		},
-		//		tokens: []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}, {OrganizationName: "Second Token LLC"}},
-		//		dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-		//			require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
-		//			assert.Empty(t, appCfg.MDM.AppleBussinessManager.Value)
-		//			assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
-		//			assert.NotContains(t, out, "[!] gitops dry run succeeded")
-		//		},
-		//		realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-		//			require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
-		//			assert.Empty(t, appCfg.MDM.AppleBussinessManager.Value)
-		//			assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
-		//			assert.NotContains(t, out, "[!] gitops dry run succeeded")
-		//		},
-		//	},
+		{
+			name: "deprecated config with two tokens in the db fails",
+			cfgs: []string{
+				global("apple_bm_default_team: 💻 Workstations"),
+				workstations,
+			},
+			tokens: []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}, {OrganizationName: "Second Token LLC"}},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				t.Logf("got: %s", out)
+				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
+				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
+				assert.NotContains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
+				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
+				assert.NotContains(t, out, "[!] gitops succeeded")
+			},
+		},
 		{
 			name: "new key all valid",
 			cfgs: []string{

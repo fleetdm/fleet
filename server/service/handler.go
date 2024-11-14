@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
+	"strings"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -855,6 +857,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		POST("/api/osquery/carve/begin", carveBeginEndpoint, carveBeginRequest{})
 	he.WithAltPaths("/api/v1/osquery/log").
 		POST("/api/osquery/log", submitLogsEndpoint, submitLogsRequest{})
+	he.WithAltPaths("/api/v1/osquery/yara/{name}").
+		POST("/api/osquery/yara/{name}", getYaraEndpoint, getYaraRequest{})
 
 	// orbit authenticated endpoints
 	oe := newOrbitAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
@@ -1210,7 +1214,13 @@ func registerMDM(
 
 	mdmService = certauth.New(mdmService, mdmStorage)
 	var mdmHandler http.Handler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
-	mdmHandler = httpmdm.CertVerifyMiddleware(mdmHandler, certVerifier, mdmLogger.With("handler", "cert-verify"))
+	verifyDisable, exists := os.LookupEnv("FLEET_MDM_APPLE_SCEP_VERIFY_DISABLE")
+	if exists && (strings.EqualFold(verifyDisable, "true") || verifyDisable == "1") {
+		level.Info(logger).Log("msg",
+			"disabling verification of macOS SCEP certificates as FLEET_MDM_APPLE_SCEP_VERIFY_DISABLE is set to true")
+	} else {
+		mdmHandler = httpmdm.CertVerifyMiddleware(mdmHandler, certVerifier, mdmLogger.With("handler", "cert-verify"))
+	}
 	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, mdmLogger.With("handler", "cert-extract"))
 	mux.Handle(apple_mdm.MDMPath, mdmHandler)
 	return nil

@@ -4731,9 +4731,90 @@ func (s *integrationTestSuite) TestActivitiesWebhookConfig() {
 		), http.StatusOK,
 	)
 
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEnabledActivityAutomations{}.ActivityName(),
+		`{"webhook_url": "http://some/url"}`,
+		0,
+	)
+
 	appConfig := s.getConfig()
 	require.True(t, appConfig.WebhookSettings.ActivitiesWebhook.Enable)
 	require.Equal(t, "http://some/url", appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL)
+
+	s.DoRaw(
+		"PATCH", "/api/latest/fleet/config", []byte(
+			`{
+		"webhook_settings": {
+			"activities_webhook": {
+				"enable_activities_webhook": true,
+				"destination_url": "http://some/other/url"
+    		}
+  		}
+	}`,
+		), http.StatusOK,
+	)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEditedActivityAutomations{}.ActivityName(),
+		`{"webhook_url": "http://some/other/url"}`,
+		0,
+	)
+
+	s.DoRaw(
+		"PATCH", "/api/latest/fleet/config", []byte(
+			`{
+		"webhook_settings": {
+			"activities_webhook": {
+				"enable_activities_webhook": true,
+				"destination_url": "invalid-url"
+    		}
+  		}
+	}`,
+		), http.StatusUnprocessableEntity,
+	)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEditedActivityAutomations{}.ActivityName(),
+		`{"webhook_url": "http://some/other/url"}`,
+		0,
+	)
+
+	s.DoRaw(
+		"PATCH", "/api/latest/fleet/config", []byte(
+			`{
+		"webhook_settings": {
+			"activities_webhook": {
+				"enable_activities_webhook": false
+    		}
+  		}
+	}`,
+		), http.StatusOK,
+	)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledActivityAutomations{}.ActivityName(),
+		``,
+		0,
+	)
+
+	s.DoRaw(
+		"PATCH", "/api/latest/fleet/config", []byte(
+			`{
+		"webhook_settings": {
+			"activities_webhook": {
+				"enable_activities_webhook": true,
+				"destination_url": "foo.baz"
+    		}
+  		}
+	}`,
+		), http.StatusUnprocessableEntity,
+	)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEnabledActivityAutomations{}.ActivityName(),
+		`{"webhook_url": "http://some/url"}`,
+		0,
+	)
 }
 
 func (s *integrationTestSuite) TestHostStatusWebhookConfig() {
@@ -11616,9 +11697,11 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	h1E := hsr.ExecutionID
 
 	// create a software installation request
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
+	require.NoError(t, err)
 	sw1, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install foo",
-		InstallerFile: strings.NewReader("echo"),
+		InstallerFile: tfr1,
 		StorageID:     uuid.NewString(),
 		Filename:      "foo.pkg",
 		Title:         "foo",

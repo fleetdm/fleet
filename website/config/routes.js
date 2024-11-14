@@ -499,6 +499,7 @@ module.exports.routes = {
   //
   // For example, a clever user might try to visit fleetdm.com/documentation, not knowing that Fleet's website
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
+  'GET /testimonials':               'https://github.com/fleetdm/fleet/blob/28cd420b086c23a6606ba17c4f3821ed267c6bbb/handbook/company/testimonials.yml#L190',
   'GET /admin':                      '/admin/email-preview',
   'GET /renew':                      'https://calendly.com/zayhanlon/fleet-renewal-discussion',
   'GET /documentation':              '/docs',
@@ -510,7 +511,7 @@ module.exports.routes = {
   'GET /legal':                      '/legal/terms',
   'GET /terms':                      '/legal/terms',
   'GET /handbook/security/github':   '/handbook/security#git-hub-security',
-  'GET /slack':                      'https://join.slack.com/t/osquery/shared_invite/zt-2op37v6qp-aVPivU5xB_FwuYElN0Z1lw',// Note: This redirect is used on error pages and email templates in the Fleet UI.
+  'GET /slack':                      '/support',// Note: This redirect is used on error pages and email templates in the Fleet UI.
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',

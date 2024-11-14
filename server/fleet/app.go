@@ -519,6 +519,8 @@ type AppConfig struct {
 	// (The source of truth for scripts is in MySQL.)
 	Scripts optjson.Slice[string] `json:"scripts"`
 
+	YaraRules []YaraRule `json:"yara_rules,omitempty"`
+
 	// when true, strictDecoding causes the UnmarshalJSON method to return an
 	// error if there are unknown fields in the raw JSON.
 	strictDecoding bool
@@ -682,6 +684,12 @@ func (c *AppConfig) Copy() *AppConfig {
 			sw[i] = &s
 		}
 		clone.MDM.MacOSSetup.Software = optjson.SetSlice(sw)
+	}
+
+	if c.YaraRules != nil {
+		rules := make([]YaraRule, len(c.YaraRules))
+		copy(rules, c.YaraRules)
+		clone.YaraRules = rules
 	}
 
 	return &clone
@@ -1050,11 +1058,11 @@ func (f *Features) Copy() *Features {
 
 // FleetDesktopSettings contains settings used to configure Fleet Desktop.
 type FleetDesktopSettings struct {
-	// TransparencyURL is the URL used for the “Transparency” link in the Fleet Desktop menu.
+	// TransparencyURL is the URL used for the “About Fleet” link in the Fleet Desktop menu.
 	TransparencyURL string `json:"transparency_url"`
 }
 
-// DefaultTransparencyURL is the default URL used for the “Transparency” link in the Fleet Desktop menu.
+// DefaultTransparencyURL is the default URL used for the “About Fleet” link in the Fleet Desktop menu.
 const DefaultTransparencyURL = "https://fleetdm.com/transparency"
 
 type OrderDirection int
@@ -1377,4 +1385,13 @@ type WindowsSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
 	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings"`
+}
+
+type YaraRuleSpec struct {
+	Path string `json:"path"`
+}
+
+type YaraRule struct {
+	Name     string `json:"name"`
+	Contents string `json:"contents"`
 }

@@ -484,6 +484,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
 	fleet.ValidateEnabledActivitiesWebhook(appConfig.WebhookSettings.ActivitiesWebhook, invalid)
+
 	if err := svc.validateMDM(ctx, license, &oldAppConfig.MDM, &appConfig.MDM, invalid); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")
 	}
@@ -599,6 +600,29 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
+	}
+
+	// only create activities when config change has been persisted
+
+	switch {
+	case appConfig.WebhookSettings.ActivitiesWebhook.Enable && !oldAppConfig.WebhookSettings.ActivitiesWebhook.Enable:
+		act := fleet.ActivityTypeEnabledActivityAutomations{WebhookUrl: appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for enabled activity automations")
+		}
+	case !appConfig.WebhookSettings.ActivitiesWebhook.Enable && oldAppConfig.WebhookSettings.ActivitiesWebhook.Enable:
+		act := fleet.ActivityTypeDisabledActivityAutomations{}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for disabled activity automations")
+		}
+	case appConfig.WebhookSettings.ActivitiesWebhook.Enable &&
+		appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL != oldAppConfig.WebhookSettings.ActivitiesWebhook.DestinationURL:
+		act := fleet.ActivityTypeEditedActivityAutomations{
+			WebhookUrl: appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL,
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for edited activity automations")
+		}
 	}
 
 	switch ndesStatus {
@@ -747,6 +771,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.IPadOSUpdates,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "process iPadOS OS updates config change")
+	}
+
+	if appConfig.YaraRules != nil {
+		if err := svc.ds.ApplyYaraRules(ctx, appConfig.YaraRules); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "save yara rules for app config")
+		}
 	}
 
 	// if the Windows updates requirements changed, create the corresponding

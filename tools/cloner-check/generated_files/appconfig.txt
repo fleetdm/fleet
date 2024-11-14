@@ -177,5 +177,8 @@ github.com/fleetdm/fleet/v4/server/fleet/AppConfig	Scripts	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Value	[]string
+github.com/fleetdm/fleet/v4/server/fleet/AppConfig	YaraRules	[]fleet.YaraRule
+github.com/fleetdm/fleet/v4/server/fleet/YaraRule	Name	string
+github.com/fleetdm/fleet/v4/server/fleet/YaraRule	Contents	string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	strictDecoding	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	didUnmarshalLegacySettings	[]string
