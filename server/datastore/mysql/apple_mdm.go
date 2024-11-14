@@ -3424,7 +3424,7 @@ func cleanupDiskEncryptionKeysOnTeamChangeDB(ctx context.Context, tx sqlx.ExtCon
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			// the new team does not have a filevault profile so we need to delete the existing ones
-			if err := bulkDeleteHostDiskEncryptionKeysDB(ctx, tx, hostIDs); err != nil {
+			if err := bulkDeleteMacosHostDiskEncryptionKeysDB(ctx, tx, hostIDs); err != nil {
 				return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change bulk delete host disk encryption keys")
 			}
 		} else {
@@ -3465,15 +3465,17 @@ WHERE
 	return &profile, nil
 }
 
-func bulkDeleteHostDiskEncryptionKeysDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+func bulkDeleteMacosHostDiskEncryptionKeysDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
 	if len(hostIDs) == 0 {
 		return nil
 	}
 
-	query, args, err := sqlx.In(
-		"DELETE FROM host_disk_encryption_keys WHERE host_id IN (?)",
-		hostIDs,
-	)
+	query, args, err := sqlx.In(`
+		DELETE hdek 
+		FROM host_disk_encryption_keys hdek
+		INNER JOIN hosts h ON hdek.host_id = h.id 
+		WHERE h.platform = 'darwin' AND hdek.host_id IN (?)`,
+		hostIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building query")
 	}
