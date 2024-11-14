@@ -874,6 +874,11 @@ func TestGetMDMDiskEncryptionSummary(t *testing.T) {
 		return res, nil
 	}
 
+	ds.GetLinuxDiskEncryptionSummaryFunc = func(ctx context.Context, teamID *uint) (fleet.MDMLinuxDiskEncryptionSummary, error) {
+		require.Nil(t, teamID)
+		return fleet.MDMLinuxDiskEncryptionSummary{Verified: 1, ActionRequired: 2, Failed: 3}, nil
+	}
+
 	// Test that the summary properly combines the results of the two methods
 	des, err := svc.GetMDMDiskEncryptionSummary(ctx, nil)
 	require.NoError(t, err)
@@ -882,6 +887,7 @@ func TestGetMDMDiskEncryptionSummary(t *testing.T) {
 		Verified: fleet.MDMPlatformsCounts{
 			MacOS:   1,
 			Windows: 7,
+			Linux:   1,
 		},
 		Verifying: fleet.MDMPlatformsCounts{
 			MacOS:   2,
@@ -890,10 +896,12 @@ func TestGetMDMDiskEncryptionSummary(t *testing.T) {
 		ActionRequired: fleet.MDMPlatformsCounts{
 			MacOS:   3,
 			Windows: 0,
+			Linux:   2,
 		},
 		Failed: fleet.MDMPlatformsCounts{
 			MacOS:   4,
 			Windows: 8,
+			Linux:   3,
 		},
 		Enforcing: fleet.MDMPlatformsCounts{
 			MacOS:   5,
