@@ -50,7 +50,8 @@ When installing a fleetd package the `orbit` binary is executed.
 During installation, the enroll secret is placed as a text file only accessible to `root`/`SYSTEM`.
 When `orbit` starts for the first time, it will attempt to enroll to Fleet using the enroll secret.
 If the enroll secret is valid, then the Fleet server will generate a random "orbit node key" and return it to `orbit`.
-The `orbit` process will store such "node key" on a text file only accessible to `root`/`SYSTEM`. After enrollment, the "orbit node key" will be used to authenticate orbit related requests to Fleet.
+The `orbit` process will store such "node key" on a text file only accessible to `root`/`SYSTEM`.
+After enrollment, the "orbit node key" will be used to authenticate orbit related requests to Fleet.
 
 The `orbit` process will start the `osquery` daemon (that also runs as `root`/`SYSTEM`).
 The `osquery` daemon will enroll to Fleet using the same enroll secret used by `orbit`.
