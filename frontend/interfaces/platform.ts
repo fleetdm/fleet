@@ -115,14 +115,16 @@ export const isIPadOrIPhone = (platform: string | HostPlatform) =>
 export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
   "ubuntu", // covers Kubuntu
   "rhel", // *included here to support Fedora systems. Necessary to cross-check with `os_versions` as well to confrim host is Fedora and not another, non-support rhel-like platform.
-];
+] as const;
 
 const DISK_ENCRYPTION_SUPPORTED_PLATFORMS = [
   "darwin",
   "windows",
   "chrome",
   ...DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS,
-];
+] as const;
+
+export type DiskEncryptionSupportedPlatform = typeof DISK_ENCRYPTION_SUPPORTED_PLATFORMS[number];
 
 export const platformSupportsDiskEncryption = (
   platform: HostPlatform,
@@ -132,7 +134,9 @@ export const platformSupportsDiskEncryption = (
   if (platform === "rhel") {
     return !!os_version && os_version.toLowerCase().includes("fedora");
   }
-  return DISK_ENCRYPTION_SUPPORTED_PLATFORMS.includes(platform);
+  return DISK_ENCRYPTION_SUPPORTED_PLATFORMS.includes(
+    platform as DiskEncryptionSupportedPlatform
+  );
 };
 
 const OS_SETTINGS_DISPLAY_PLATFORMS = [

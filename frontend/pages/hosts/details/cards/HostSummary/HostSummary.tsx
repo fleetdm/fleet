@@ -10,6 +10,7 @@ import {
 import { IOSSettings, IHostMaintenanceWindow } from "interfaces/host";
 import { IAppleDeviceUpdates } from "interfaces/config";
 import {
+  DiskEncryptionSupportedPlatform,
   isOsSettingsDisplayPlatform,
   platformSupportsDiskEncryption,
 } from "interfaces/platform";
@@ -123,8 +124,7 @@ interface IHostSummaryProps {
   isPremiumTier?: boolean;
   toggleOSSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
-  hostMdmProfiles?: IHostMdmProfile[];
-  isConnectedToFleetMdm?: boolean;
+  hostSettings?: IHostMdmProfile[];
   showRefetchSpinner: boolean;
   onRefetchHost: (
     evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>
@@ -136,7 +136,7 @@ interface IHostSummaryProps {
   hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
 }
 
-const MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES = {
+const DISK_ENCRYPTION_MESSAGES = {
   darwin: {
     enabled: (
       <>
@@ -160,20 +160,28 @@ const MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES = {
     ),
     disabled: "The disk is unencrypted.",
   },
+  linux: {
+    enabled: "The disk is encrypted.",
+    unknown: "The disk may be encrypted.",
+  },
 };
 
 const getHostDiskEncryptionTooltipMessage = (
-  platform: "darwin" | "windows" | "chrome", // TODO: improve this type
+  platform: DiskEncryptionSupportedPlatform, // TODO: improve this type
   diskEncryptionEnabled = false
 ) => {
   if (platform === "chrome") {
     return "Fleet does not check for disk encryption on Chromebooks, as they are encrypted by default.";
   }
 
-  if (!["windows", "darwin"].includes(platform)) {
-    return "Disk encryption is enabled.";
+  if (platform === "rhel" || platform === "ubuntu") {
+    return DISK_ENCRYPTION_MESSAGES.linux[
+      diskEncryptionEnabled ? "enabled" : "unknown"
+    ];
   }
-  return MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES[platform][
+
+  // mac or windows
+  return DISK_ENCRYPTION_MESSAGES[platform][
     diskEncryptionEnabled ? "enabled" : "disabled"
   ];
 };
@@ -184,8 +192,7 @@ const HostSummary = ({
   isPremiumTier,
   toggleOSSettingsModal,
   toggleBootstrapPackageModal,
-  hostMdmProfiles,
-  isConnectedToFleetMdm,
+  hostSettings,
   showRefetchSpinner,
   onRefetchHost,
   renderActionDropdown,
@@ -305,6 +312,11 @@ const HostSummary = ({
         break;
       case diskEncryptionEnabled === false:
         statusText = "Off";
+        break;
+      case (diskEncryptionEnabled === null ||
+        diskEncryptionEnabled === undefined) &&
+        platformSupportsDiskEncryption(platform, os_version):
+        statusText = "Unknown";
         break;
       default:
         // something unexpected happened on the way to this component, display whatever we got or
@@ -458,8 +470,8 @@ const HostSummary = ({
         osSettings.disk_encryption.status,
         osSettings.disk_encryption.detail
       );
-      hostMdmProfiles = hostMdmProfiles
-        ? [...hostMdmProfiles, winDiskEncryptionProfile]
+      hostSettings = hostSettings
+        ? [...hostSettings, winDiskEncryptionProfile]
         : [winDiskEncryptionProfile];
     }
 
@@ -491,14 +503,13 @@ const HostSummary = ({
         {/* Rendering of OS Settings data */}
         {isOsSettingsDisplayPlatform(platform, os_version) &&
           isPremiumTier &&
-          isConnectedToFleetMdm && // show if 1 - host is enrolled in Fleet MDM, and
-          hostMdmProfiles &&
-          hostMdmProfiles.length > 0 && ( // 2 - host has at least one setting (profile) enforced
+          hostSettings &&
+          hostSettings.length > 0 && (
             <DataSet
               title="OS settings"
               value={
                 <OSSettingsIndicator
-                  profiles={hostMdmProfiles}
+                  profiles={hostSettings}
                   onClick={toggleOSSettingsModal}
                 />
               }
