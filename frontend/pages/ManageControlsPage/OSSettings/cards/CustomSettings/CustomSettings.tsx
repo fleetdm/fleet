@@ -142,12 +142,7 @@ const CustomSettings = ({
     }
 
     if (!profiles?.length) {
-      return (
-        <AddProfileCard
-          baseClass={baseClass}
-          setShowModal={setShowAddProfileModal}
-        />
-      );
+      return <AddProfileCard setShowModal={setShowAddProfileModal} />;
     }
 
     return (
