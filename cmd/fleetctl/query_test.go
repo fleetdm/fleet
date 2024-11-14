@@ -221,6 +221,26 @@ func TestAdHocLiveQuery(t *testing.T) {
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
 		return nil, nil
 	}
+
+	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+		return []*fleet.LabelSpec{
+			{
+				ID:          1,
+				Name:        "label1",
+				Description: "Description",
+				Query:       "select 1;",
+				Platform:    "macOS",
+			},
+			{
+				ID:          2,
+				Name:        "label2",
+				Description: "Description3",
+				Query:       "select 2;",
+				Platform:    "centOS",
+			},
+		}, nil
+	}
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
@@ -299,7 +319,17 @@ func TestAdHocLiveQuery(t *testing.T) {
 		)
 	}()
 
+	// test all labels not found
+	_, err = runAppNoChecks([]string{"query", "--labels", "iamnotalabel", "--query", "select 42, * from time"})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "The label was not found: iamnotalabel. Please remove from --labels to continue.")
+
+	// test if some labels were not found
+	_, err = runAppNoChecks([]string{"query", "--labels", "label1,mac, label2, windows", "--query", "select 42, * from time"})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "The labels were not found: mac, windows. Please remove from --labels to continue.")
+
 	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_display_name":"somehostname","host_hostname":"somehostname"}]}
 `
-	assert.Equal(t, expected, runAppForTest(t, []string{"query", "--hosts", "1234", "--query", "select 42, * from time"}))
+	assert.Equal(t, expected, runAppForTest(t, []string{"query", "--labels", "", "--hosts", "1234", "--query", "select 42, * from time"}))
 }
