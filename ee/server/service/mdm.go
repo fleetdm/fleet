@@ -1013,10 +1013,16 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 		windows = *w
 	}
 
+	linux, err := svc.ds.GetLinuxDiskEncryptionSummary(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting linux disk encryption summary")
+	}
+
 	return &fleet.MDMDiskEncryptionSummary{
 		Verified: fleet.MDMPlatformsCounts{
 			MacOS:   macOS.Verified,
 			Windows: windows.Verified,
+			Linux:   linux.Verified,
 		},
 		Verifying: fleet.MDMPlatformsCounts{
 			MacOS:   macOS.Verifying,
@@ -1025,6 +1031,7 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 		ActionRequired: fleet.MDMPlatformsCounts{
 			MacOS:   macOS.ActionRequired,
 			Windows: windows.ActionRequired,
+			Linux:   linux.ActionRequired,
 		},
 		Enforcing: fleet.MDMPlatformsCounts{
 			MacOS:   macOS.Enforcing,
@@ -1033,6 +1040,7 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 		Failed: fleet.MDMPlatformsCounts{
 			MacOS:   macOS.Failed,
 			Windows: windows.Failed,
+			Linux:   linux.Failed,
 		},
 		RemovingEnforcement: fleet.MDMPlatformsCounts{
 			MacOS:   macOS.RemovingEnforcement,

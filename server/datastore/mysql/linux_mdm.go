@@ -8,7 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) GetLinuxDiskEncryptionSummary(ctx context.Context, teamID *uint) (fleet.LinuxDiskEncryptionSummary, error) {
+func (ds *Datastore) GetLinuxDiskEncryptionSummary(ctx context.Context, teamID *uint) (fleet.MDMLinuxDiskEncryptionSummary, error) {
 	var args []interface{}
 	var teamFilter string
 	if teamID != nil {
@@ -48,7 +48,7 @@ func (ds *Datastore) GetLinuxDiskEncryptionSummary(ctx context.Context, teamID *
 	}
 
 	var counts []countRow
-	summary := fleet.LinuxDiskEncryptionSummary{}
+	summary := fleet.MDMLinuxDiskEncryptionSummary{}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &counts, stmt, args...); err != nil {
 		return summary, err
