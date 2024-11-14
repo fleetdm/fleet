@@ -21,9 +21,8 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 
 const refetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
 
-var LUKSSupportedPlatforms = []string{"ubuntu", "fedora", "kubuntu"} // TODO - confirm names
-
-var minOrbitLUKSVersion = "1.0.0" // TODO! - change to orbit version this functionality is released with
+var LUKSSupportedPlatforms = []string{"ubuntu", "fedora"}
+var minOrbitLUKSVersion = "1.36.0"
 
 // TriggerMigrateMDMDevice triggers the webhook associated with the MDM
 // migration to Fleet configuration. It is located in the ee package instead of
