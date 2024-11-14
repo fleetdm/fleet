@@ -2488,3 +2488,39 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 	// If none of the above patterns match, return error
 	return nil, "", fmt.Errorf("unknown format: %q", path)
 }
+
+// Yara rules
+
+func (svc *Service) YaraRuleByName(ctx context.Context, name string) (*fleet.YaraRule, error) {
+	return svc.ds.YaraRuleByName(ctx, name)
+}
+
+type getYaraRequest struct {
+	NodeKey string `json:"node_key"`
+	Name    string `url:"name"`
+}
+
+func (r *getYaraRequest) hostNodeKey() string {
+	return r.NodeKey
+}
+
+type getYaraResponse struct {
+	Err     error `json:"error,omitempty"`
+	Content string
+}
+
+func (r getYaraResponse) error() error { return r.Err }
+
+func (r getYaraResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = w.Write([]byte(r.Content))
+}
+
+func getYaraEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	r := request.(*getYaraRequest)
+	rule, err := svc.YaraRuleByName(ctx, r.Name)
+	if err != nil {
+		return getYaraResponse{Err: err}, nil
+	}
+	return getYaraResponse{Content: rule.Contents}, nil
+}

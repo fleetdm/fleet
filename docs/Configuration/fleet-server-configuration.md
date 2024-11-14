@@ -606,7 +606,7 @@ Setting to true will disable the origin check.
 
 ### server_private_key
 
-This key is required for enabling macOS MDM features in Fleet. If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
+This key is required for enabling macOS MDM features and/or storing sensitive configs (passwords, API keys, etc.) in Fleet. If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
 
 The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Terminal app to generate one on macOS.
 

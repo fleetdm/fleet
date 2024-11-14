@@ -773,6 +773,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err, "process iPadOS OS updates config change")
 	}
 
+	if appConfig.YaraRules != nil {
+		if err := svc.ds.ApplyYaraRules(ctx, appConfig.YaraRules); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "save yara rules for app config")
+		}
+	}
+
 	// if the Windows updates requirements changed, create the corresponding
 	// activity.
 	if !oldAppConfig.MDM.WindowsUpdates.Equal(appConfig.MDM.WindowsUpdates) {
@@ -980,14 +986,19 @@ func (svc *Service) validateMDM(
 	checkCustomSettings := func(prefix string, customSettings []fleet.MDMProfileSpec) {
 		for i, prof := range customSettings {
 			count := 0
-			for _, b := range []bool{len(prof.Labels) > 0, len(prof.LabelsIncludeAll) > 0, len(prof.LabelsExcludeAny) > 0} {
+			for _, b := range []bool{
+				len(prof.Labels) > 0,
+				len(prof.LabelsIncludeAll) > 0,
+				len(prof.LabelsIncludeAny) > 0,
+				len(prof.LabelsExcludeAny) > 0,
+			} {
 				if b {
 					count++
 				}
 			}
 			if count > 1 {
 				invalid.Append(fmt.Sprintf("%s_settings.custom_settings", prefix),
-					fmt.Sprintf(`Couldn't edit %s_settings.custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`, prefix))
+					fmt.Sprintf(`Couldn't edit %s_settings.custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
 			}
 			if len(prof.Labels) > 0 {
 				customSettings[i].LabelsIncludeAll = customSettings[i].Labels

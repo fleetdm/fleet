@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
 import { pull, size } from "lodash";
+
+import { AppContext } from "context/app";
 
 import useDeepEffect from "hooks/useDeepEffect";
 
@@ -8,6 +10,9 @@ import Checkbox from "components/forms/fields/Checkbox";
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import Slider from "components/forms/fields/Slider";
+import TooltipWrapper from "components/TooltipWrapper";
+import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import {
@@ -58,6 +63,8 @@ const SaveQueryModal = ({
   existingQuery,
   queryReportsDisabled,
 }: ISaveQueryModalProps): JSX.Element => {
+  const { config } = useContext(AppContext);
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedFrequency, setSelectedFrequency] = useState(
@@ -76,11 +83,14 @@ const SaveQueryModal = ({
     setSelectedLoggingType,
   ] = useState<QueryLoggingOption>(existingQuery?.logging ?? "snapshot");
   const [observerCanRun, setObserverCanRun] = useState(false);
+  const [automationsEnabled, setAutomationsEnabled] = useState(false);
   const [discardData, setDiscardData] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+
+  const logDestination = config?.logging.result.plugin || "";
 
   const toggleAdvancedOptions = () => {
     setShowAdvancedOptions(!showAdvancedOptions);
@@ -115,6 +125,7 @@ const SaveQueryModal = ({
         description,
         interval: selectedFrequency,
         observer_can_run: observerCanRun,
+        automations_enabled: automationsEnabled,
         discard_data: discardData,
         platform: selectedPlatformOptions,
         min_osquery_version: selectedMinOsqueryVersionOptions,
@@ -197,6 +208,38 @@ const SaveQueryModal = ({
         >
           Observers can run
         </Checkbox>
+        <Slider
+          onChange={() => setAutomationsEnabled(!automationsEnabled)}
+          value={automationsEnabled}
+          activeText={
+            <>
+              Automations on
+              {selectedFrequency === 0 && (
+                <TooltipWrapper
+                  tipContent={
+                    <>
+                      Automations and reporting will be paused <br />
+                      for this query until a frequency is set.
+                    </>
+                  }
+                  position="right"
+                  tipOffset={9}
+                  showArrow
+                  underline={false}
+                >
+                  <Icon name="warning" />
+                </TooltipWrapper>
+              )}
+            </>
+          }
+          inactiveText="Automations off"
+          helpText={
+            <>
+              Historical results will {!automationsEnabled ? "not " : ""}be sent
+              to your log destination: <b>{logDestination}</b>.
+            </>
+          }
+        />
         <RevealButton
           isShowing={showAdvancedOptions}
           className="advanced-options-toggle"

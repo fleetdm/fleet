@@ -21,7 +21,7 @@ These flaws are listed here publicly for two reasons. The first is so that peopl
   - I appreciate it when fleeties ask “What do you think of my work?” It reminds me I'm speaking in front of the sculptor, not just alone with the statue.
   - I can hurry to decisions when I think something is time-sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback" vs. “I’m not yet 70% sure I’m 100% done with this."
 3. I often need to talk to think.
-  - It is ok to set a boundary and let me marinade.  You might say: "Hold up.  What is our goal?"
+  - It is ok to set a boundary and let me marinate.  You might say: "Hold up.  What is our goal?"
   - I get grumpy when I am tired and I worry that I'll forget to follow up about things.  So I try to say them all.
   - I can talk too much.  On video calls, and especially during a screenshare session, I sometimes will keep talking longer than I otherwise would.  If you get lost, or overwhelmed, you can interrupt me or send a chat: "Hold up, I'm feeling out of phase from this conversation."
 
