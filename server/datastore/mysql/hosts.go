@@ -1911,7 +1911,13 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 		HardwareSerial: hostInfo.HardwareSerial,
 	}
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isMDMEnabled, hostInfo.OsqueryIdentifier, hostInfo.HardwareUUID, hostInfo.HardwareSerial)
+		serialToMatch := hostInfo.HardwareSerial
+		if hostInfo.Platform == "windows" {
+			// For Windows, don't match by serial number to retain legacy functionality.
+			serialToMatch = ""
+		}
+		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isMDMEnabled, hostInfo.OsqueryIdentifier,
+			hostInfo.HardwareUUID, serialToMatch)
 
 		// If the osquery identifier that osqueryd will use was not sent by Orbit, then use the hardware UUID as identifier
 		// (using the hardware UUID is Orbit's default behavior).
