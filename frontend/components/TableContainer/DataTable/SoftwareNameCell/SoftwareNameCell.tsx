@@ -1,23 +1,71 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
 import ReactTooltip from "react-tooltip";
-
 import { uniqueId } from "lodash";
 
-import { ISoftwarePackage } from "interfaces/software";
-
 import Icon from "components/Icon";
+import { IconNames } from "components/icons";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 
 import LinkCell from "../LinkCell";
 
 const baseClass = "software-name-cell";
 
+type InstallType =
+  | "manual"
+  | "selfService"
+  | "automatic"
+  | "automaticSelfService";
+
+interface installIconConfig {
+  iconName: IconNames;
+  tooltip: JSX.Element;
+}
+
+const installIconMap: Record<InstallType, installIconConfig> = {
+  manual: {
+    iconName: "install",
+    tooltip: <>Software can be installed on Host details page.</>,
+  },
+  selfService: {
+    iconName: "user",
+    tooltip: (
+      <>
+        End users can install from <b>Fleet Desktop {">"} Self-service</b>.
+      </>
+    ),
+  },
+  automatic: {
+    iconName: "refresh",
+    tooltip: <>Software will be automatically installed on each host.</>,
+  },
+  automaticSelfService: {
+    iconName: "automatic-self-service",
+    tooltip: (
+      <>
+        Software will be automatically installed on each host. End users can
+        reinstall from <b>Fleet Desktop {">"} Self-service</b>.
+      </>
+    ),
+  },
+};
+
+interface IInstallIconWithTooltipProps {
+  isSelfService: boolean;
+  installType?: "manual" | "automatic";
+}
+
 const InstallIconWithTooltip = ({
   isSelfService,
-}: {
-  isSelfService: ISoftwarePackage["self_service"];
-}) => {
+  installType,
+}: IInstallIconWithTooltipProps) => {
+  let iconType: InstallType = "manual";
+  if (installType === "automatic") {
+    iconType = isSelfService ? "automaticSelfService" : "automatic";
+  } else if (isSelfService) {
+    iconType = "selfService";
+  }
+
   const tooltipId = uniqueId();
   return (
     <div className={`${baseClass}__install-icon-with-tooltip`}>
@@ -27,8 +75,9 @@ const InstallIconWithTooltip = ({
         data-for={tooltipId}
       >
         <Icon
-          name={isSelfService ? "install-self-service" : "install"}
+          name={installIconMap[iconType].iconName}
           className={`${baseClass}__install-icon`}
+          color="ui-fleet-black-50"
         />
       </div>
       <ReactTooltip
@@ -40,17 +89,7 @@ const InstallIconWithTooltip = ({
         data-html
       >
         <span className={`${baseClass}__install-tooltip-text`}>
-          {isSelfService ? (
-            <>
-              End users can install from <b>Fleet Desktop {">"} Self-service</b>
-              .
-            </>
-          ) : (
-            <>
-              Install manually on <b>Host details</b> page or automatically with
-              policy automations.
-            </>
-          )}
+          {installIconMap[iconType].tooltip}
         </span>
       </ReactTooltip>
     </div>
@@ -65,6 +104,7 @@ interface ISoftwareNameCellProps {
   router?: InjectedRouter;
   hasPackage?: boolean;
   isSelfService?: boolean;
+  installType?: "manual" | "automatic";
   iconUrl?: string;
 }
 
@@ -75,6 +115,7 @@ const SoftwareNameCell = ({
   router,
   hasPackage = false,
   isSelfService = false,
+  installType,
   iconUrl,
 }: ISoftwareNameCellProps) => {
   // NO path or router means it's not clickable. return
@@ -104,7 +145,10 @@ const SoftwareNameCell = ({
           <SoftwareIcon name={name} source={source} url={iconUrl} />
           <span className="software-name">{name}</span>
           {hasPackage && (
-            <InstallIconWithTooltip isSelfService={isSelfService} />
+            <InstallIconWithTooltip
+              isSelfService={isSelfService}
+              installType={installType}
+            />
           )}
         </>
       }
