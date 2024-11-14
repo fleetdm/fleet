@@ -740,11 +740,6 @@ const HostDetailsPage = ({
     }
   };
 
-  // const hostDeviceStatusUIState = getHostDeviceStatusUIState(
-  //   host.mdm.device_status,
-  //   host.mdm.pending_action
-  // );
-
   const renderActionDropdown = () => {
     if (!host) {
       return null;
@@ -851,10 +846,13 @@ const HostDetailsPage = ({
     <MainContent className={baseClass}>
       <>
         <HostDetailsBanners
-          hostMdmEnrollmentStatus={host?.mdm.enrollment_status}
+          mdmEnrollmentStatus={host?.mdm.enrollment_status}
           hostPlatform={host?.platform}
-          diskEncryptionStatus={host?.mdm.macos_settings?.disk_encryption}
+          macDiskEncryptionStatus={host?.mdm.macos_settings?.disk_encryption}
           connectedToFleetMdm={host?.mdm.connected_to_fleet}
+          diskEncryptionOSSetting={host?.mdm.os_settings?.disk_encryption}
+          diskIsEncrypted={host?.disk_encryption_enabled}
+          diskEncryptionKeyAvailable={host?.mdm.encryption_key_available}
         />
         <div className={`${baseClass}__header-links`}>
           <BackLink
@@ -868,8 +866,7 @@ const HostDetailsPage = ({
           isPremiumTier={isPremiumTier}
           toggleOSSettingsModal={toggleOSSettingsModal}
           toggleBootstrapPackageModal={toggleBootstrapPackageModal}
-          hostMdmProfiles={host?.mdm.profiles ?? []}
-          isConnectedToFleetMdm={host?.mdm?.connected_to_fleet}
+          hostSettings={host?.mdm.profiles ?? []}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
           renderActionDropdown={renderActionDropdown}

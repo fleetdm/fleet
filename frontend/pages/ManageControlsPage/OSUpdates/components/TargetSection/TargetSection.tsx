@@ -194,7 +194,10 @@ const TargetSection = ({
 
   return (
     <div className={baseClass}>
-      <SectionHeader title="Target" className={`${baseClass}__header`} />
+      <SectionHeader
+        title="Target"
+        wrapperCustomClass={`${baseClass}__header`}
+      />
       {renderTargetForms()}
     </div>
   );

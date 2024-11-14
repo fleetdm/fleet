@@ -6,7 +6,8 @@ import DeviceUserBanners from "./DeviceUserBanners";
 
 describe("Device User Banners", () => {
   const turnOnMdmExpcetedText = /Mobile device management \(MDM\) is off\./;
-  const resetKeyDiskEncryptExpcetedText = /Disk encryption: Log out of your device or restart it to safeguard your data in case your device is lost or stolen\./;
+  const resetNonLinuxDiskEncryptKeyExpectedText = /Disk encryption: Log out of your device or restart it to safeguard your data in case your device is lost or stolen\./;
+  const createNewLinuxDiskEncryptKeyExpectedText = /Disk encryption: Create a new disk encryption key\. This lets your organization help you unlock your device if you forget your passphrase\./;
 
   it("renders the turn on mdm banner correctly", () => {
     render(
@@ -14,29 +15,74 @@ describe("Device User Banners", () => {
         hostPlatform="darwin"
         mdmEnrollmentStatus="Off"
         mdmEnabledAndConfigured
-        mdmConnectedToFleet
-        diskEncryptionStatus={null}
+        connectedToFleetMdm
+        macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
         onTurnOnMdm={noop}
+        onTriggerEscrowLinuxKey={noop}
       />
     );
     expect(screen.getByText(turnOnMdmExpcetedText)).toBeInTheDocument();
   });
 
-  it("renders the reset key for disk encryption banner correctly", () => {
+  it("renders the reset key for non-linux disk encryption banner correctly", () => {
     render(
       <DeviceUserBanners
         hostPlatform="darwin"
         mdmEnrollmentStatus="On (automatic)"
         mdmEnabledAndConfigured
-        mdmConnectedToFleet
-        diskEncryptionStatus="action_required"
+        connectedToFleetMdm
+        macDiskEncryptionStatus="action_required"
         diskEncryptionActionRequired="rotate_key"
         onTurnOnMdm={noop}
+        onTriggerEscrowLinuxKey={noop}
       />
     );
     expect(
-      screen.getByText(resetKeyDiskEncryptExpcetedText)
+      screen.getByText(resetNonLinuxDiskEncryptKeyExpectedText)
+    ).toBeInTheDocument();
+  });
+  it("renders the create new linux disk encryption key banner correctly for Ubuntu", () => {
+    render(
+      <DeviceUserBanners
+        hostPlatform="ubuntu"
+        diskEncryptionOSSetting={{ status: "action_required", detail: "" }}
+        diskIsEncrypted
+        // explicit for testing purposes
+        diskEncryptionKeyAvailable={false}
+        mdmEnrollmentStatus="On (automatic)"
+        mdmEnabledAndConfigured
+        connectedToFleetMdm
+        macDiskEncryptionStatus={null}
+        diskEncryptionActionRequired={null}
+        onTurnOnMdm={noop}
+        onTriggerEscrowLinuxKey={noop}
+      />
+    );
+    expect(
+      screen.getByText(createNewLinuxDiskEncryptKeyExpectedText)
+    ).toBeInTheDocument();
+  });
+  it("renders the create new linux disk encryption key banner correctly for Fedora", () => {
+    render(
+      <DeviceUserBanners
+        hostPlatform="rhel"
+        hostOsVersion="somethingsomethingfedorasomething"
+        diskEncryptionOSSetting={{ status: "action_required", detail: "" }}
+        diskIsEncrypted
+        // explicit for testing purposes
+        diskEncryptionKeyAvailable={false}
+        mdmEnrollmentStatus="On (automatic)"
+        mdmEnabledAndConfigured
+        connectedToFleetMdm
+        macDiskEncryptionStatus={null}
+        diskEncryptionActionRequired={null}
+        onTurnOnMdm={noop}
+        onTriggerEscrowLinuxKey={noop}
+      />
+    );
+    expect(
+      screen.getByText(createNewLinuxDiskEncryptKeyExpectedText)
     ).toBeInTheDocument();
   });
 
@@ -47,19 +93,20 @@ describe("Device User Banners", () => {
         hostPlatform="darwin"
         mdmEnrollmentStatus={null}
         mdmEnabledAndConfigured={false}
-        mdmConnectedToFleet={false}
-        diskEncryptionStatus={null}
+        connectedToFleetMdm={false}
+        macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
         onTurnOnMdm={noop}
+        onTriggerEscrowLinuxKey={noop}
       />
     );
 
     expect(screen.queryByText(turnOnMdmExpcetedText)).not.toBeInTheDocument();
     expect(
-      screen.queryByText(resetKeyDiskEncryptExpcetedText)
+      screen.queryByText(resetNonLinuxDiskEncryptKeyExpectedText)
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByText(resetKeyDiskEncryptExpcetedText)
+      screen.queryByText(resetNonLinuxDiskEncryptKeyExpectedText)
     ).not.toBeInTheDocument();
   });
 });

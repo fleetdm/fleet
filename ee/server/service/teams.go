@@ -1523,6 +1523,9 @@ func unmarshalWithGlobalDefaults(b *json.RawMessage) (fleet.Features, error) {
 func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.Team, enable *bool) error {
 	var didUpdate, didUpdateMacOSDiskEncryption bool
 	if enable != nil {
+		if svc.config.Server.PrivateKey == "" {
+			return ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		}
 		if tm.Config.MDM.EnableDiskEncryption != *enable {
 			tm.Config.MDM.EnableDiskEncryption = *enable
 			didUpdate = true

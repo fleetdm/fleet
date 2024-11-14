@@ -416,6 +416,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// 1. To get the JSON value from the database
 	// 2. To update fields with the incoming values
 	if newAppConfig.MDM.EnableDiskEncryption.Valid {
+		if svc.config.Server.PrivateKey == "" {
+			return nil, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		}
 		appConfig.MDM.EnableDiskEncryption = newAppConfig.MDM.EnableDiskEncryption
 	} else if appConfig.MDM.EnableDiskEncryption.Set && !appConfig.MDM.EnableDiskEncryption.Valid {
 		appConfig.MDM.EnableDiskEncryption = oldAppConfig.MDM.EnableDiskEncryption
@@ -1130,15 +1133,6 @@ func (svc *Service) validateMDM(
 			return nil
 		}
 	}
-
-	// if either macOS or Windows MDM is enabled, this setting can be set.
-	if !mdm.AtLeastOnePlatformEnabledAndConfigured() {
-		if mdm.EnableDiskEncryption.Valid && mdm.EnableDiskEncryption.Value && mdm.EnableDiskEncryption.Value != oldMdm.EnableDiskEncryption.Value {
-			invalid.Append("mdm.enable_disk_encryption",
-				`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
-		}
-	}
-
 	return nil
 }
 

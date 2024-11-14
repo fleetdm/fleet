@@ -7,7 +7,9 @@ import PATHS from "router/paths";
 
 import { buildQueryStringFromParams } from "utilities/url";
 
-import mdmAPI, { IDiskEncryptionSummaryResponse } from "services/entities/mdm";
+import diskEncryptionAPI, {
+  IDiskEncryptionSummaryResponse,
+} from "services/entities/disk_encryption";
 import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
 
 import TableContainer from "components/TableContainer";
@@ -43,7 +45,7 @@ const DiskEncryptionTable = ({
     error: diskEncryptionStatusError,
   } = useQuery<IDiskEncryptionSummaryResponse, Error>(
     ["disk-encryption-summary", currentTeamId],
-    () => mdmAPI.getDiskEncryptionSummary(currentTeamId),
+    () => diskEncryptionAPI.getDiskEncryptionSummary(currentTeamId),
     {
       refetchOnWindowFocus: false,
       retry: false,
