@@ -128,9 +128,8 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context) ([]byte, error) {
 			if ErrKeySlotFull.MatchString(err.Error()) {
 				keySlot++
 				continue
-			} else {
-				return nil, fmt.Errorf("Failed to add key: %w", err)
 			}
+			return nil, fmt.Errorf("Failed to add key: %w", err)
 		}
 
 		break
