@@ -6,7 +6,7 @@ examples: |-
   SELECT * FROM groups WHERE is_hidden='1';
   ```
   
-  Collect which users are members of `admin` group:
+  Collect the users that are members of the `admin` group:
 
   ```
   SELECT * FROM groups JOIN user_groups USING (gid) JOIN users USING (uid) WHERE groupname='admin';
