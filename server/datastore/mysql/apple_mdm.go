@@ -2031,14 +2031,14 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 				onlyProfileUUIDs, batchUUIDs,
 				onlyProfileUUIDs, batchUUIDs,
 				onlyProfileUUIDs, batchUUIDs,
-        onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
 				fleet.MDMOperationTypeRemove,
 			)
 		} else {
 			stmt, args, err = sqlx.In(toInstallStmt, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
 		}
 
-    if err != nil {
+		if err != nil {
 			return false, ctxerr.Wrapf(ctx, err, "building statement to select profiles to install, batch %d of %d", i,
 				selectProfilesTotalBatches)
 		}
@@ -2111,7 +2111,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 				onlyProfileUUIDs, batchUUIDs,
 				onlyProfileUUIDs, batchUUIDs,
 				onlyProfileUUIDs, batchUUIDs,
-        onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
 				batchUUIDs, onlyProfileUUIDs,
 				fleet.MDMOperationTypeRemove,
 			)
