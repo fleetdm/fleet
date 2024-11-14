@@ -8060,6 +8060,11 @@ func testHostsGetUnverifiedDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	const (
+		computerName  = "My computer"
+		hardwareModel = "CMP-1000"
+	)
+
 	createHost := func(osqueryID, serial string) *fleet.Host {
 		dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 		var osqueryIDPtr *string
@@ -8074,6 +8079,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			DetailUpdatedAt:  dbZeroTime,
 			OsqueryHostID:    osqueryIDPtr,
 			RefetchRequested: true,
+			ComputerName:     computerName,
+			HardwareModel:    hardwareModel,
 		})
 		require.NoError(t, err)
 		return h
@@ -8111,10 +8118,19 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	h, err = ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
 		HardwareUUID:   *hBoth.OsqueryHostID,
 		HardwareSerial: hBoth.HardwareSerial,
+		ComputerName:   hBoth.ComputerName,
+		HardwareModel:  hBoth.HardwareModel,
 	}, uuid.New().String(), nil)
 	require.NoError(t, err)
 	require.Equal(t, hBoth.ID, h.ID)
-	require.Empty(t, h.HardwareSerial) // this is just to prove that it was loaded based on osquery_host_id, the serial was not set in the lookup
+	assert.Equal(t, hBoth.HardwareSerial, h.HardwareSerial)
+	assert.Equal(t, hBoth.ComputerName, h.ComputerName)
+	assert.Equal(t, hBoth.HardwareModel, h.HardwareModel)
+	h, err = ds.Host(ctx, h.ID)
+	require.NoError(t, err)
+	assert.Equal(t, hBoth.HardwareSerial, h.HardwareSerial)
+	assert.Equal(t, hBoth.ComputerName, h.ComputerName)
+	assert.Equal(t, hBoth.HardwareModel, h.HardwareModel)
 
 	// enroll with osquery id from hBoth and serial from hSerialNoOsquery (should
 	// use the osquery match)
@@ -8124,14 +8140,17 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	}, uuid.New().String(), nil)
 	require.NoError(t, err)
 	require.Equal(t, hBoth.ID, h.ID)
-	require.Empty(t, h.HardwareSerial)
+	assert.Equal(t, hSerialNoOsquery.HardwareSerial, h.HardwareSerial)
 
 	// enroll with no match, will create a new one
+	newSerial := uuid.NewString()
 	h, err = ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
 		HardwareUUID:   uuid.New().String(),
-		HardwareSerial: uuid.New().String(),
+		HardwareSerial: newSerial,
 		Hostname:       "foo2",
 		Platform:       "darwin",
+		ComputerName:   "New computer",
+		HardwareModel:  "ABC-3000",
 	}, uuid.New().String(), nil)
 	require.NoError(t, err)
 	require.Greater(t, h.ID, hBoth.ID)
@@ -8140,6 +8159,9 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "foo2", h.Hostname)
 	require.Equal(t, "darwin", h.Platform)
+	assert.Equal(t, "New computer", h.ComputerName)
+	assert.Equal(t, "ABC-3000", h.HardwareModel)
+	assert.Equal(t, newSerial, h.HardwareSerial)
 
 	// simulate a "corrupt database" where two hosts have the same serial and
 	// enroll by serial should always use the same (the smaller ID)
