@@ -10,25 +10,16 @@ fleetctl also provides a quick way to work with all the data exposed by Fleet wi
 
 ## Installing fleetctl
 
-Download and install [Node.js](https://nodejs.org/en).
 
-Install fleetctl with npm (included in Node.js).
-
-```sh
-sudo npm install -g fleetctl
-```
-
-To install fleetctl on Windows or Linux, download the fleectl binary from [GitHub](https://github.com/fleetdm/fleet/releases).
+To install fleetctl on macOS, Windows, or Linux, download the fleectl binary from [GitHub](https://github.com/fleetdm/fleet/releases).
 
 > To generate `fleetd` packages to enroll hosts, you may need [additional dependencies](https://fleetdm.com/guides/enroll-hosts#cli), depending on both your operating system and the OS you're packaging `fleetd` for.
 
 ### Upgrading fleetctl
 
-The easiest way to update fleetctl is by rerunning the installation command.
+The easiest way to update fleetctl is by installing the latest version of the binary from [GitHub](https://github.com/fleetdm/fleet/releases).
 
-```sh
-npm install -g fleetctl@latest
-```
+
 
 ## Usage
 
