@@ -22,9 +22,7 @@ Current supported software deployment formats:
 - macOS: .pkg
 - Windows: .msi, .exe
 - Linux: .deb, .rpm
-
-Coming soon:
-- VPP for iOS and iPadOS
+- VPP for macOS, iOS, and iPadOS
 
 2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go to Policies tab --> Press the "Add policy" button --> Click "create your own policy" --> Enter your policy SQL --> Save --> Fill in details in the Save modal and Save.
 
