@@ -613,36 +613,36 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 // Trigger linux key escrow
 ////////////////////////////////////////////////////////////////////////////////
 
-type triggerLinuxKeyEscrowRequest struct {
+type triggerLinuxDiskEncryptionEscrowRequest struct {
 	Token string `url:"token"`
 }
 
-func (r *triggerLinuxKeyEscrowRequest) deviceAuthToken() string {
+func (r *triggerLinuxDiskEncryptionEscrowRequest) deviceAuthToken() string {
 	return r.Token
 }
 
-type triggerLinuxKeyEscrowResponse struct {
+type triggerLinuxDiskEncryptionEscrowResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r triggerLinuxKeyEscrowResponse) error() error { return r.Err }
+func (r triggerLinuxDiskEncryptionEscrowResponse) error() error { return r.Err }
 
-func (r triggerLinuxKeyEscrowResponse) Status() int { return http.StatusNoContent }
+func (r triggerLinuxDiskEncryptionEscrowResponse) Status() int { return http.StatusNoContent }
 
-func triggerLinuxKeyEscrowEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func triggerLinuxDiskEncryptionEscrowEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return triggerLinuxKeyEscrowResponse{Err: err}, nil
+		return triggerLinuxDiskEncryptionEscrowResponse{Err: err}, nil
 	}
 
-	if err := svc.TriggerLinuxKeyEscrow(ctx, host); err != nil {
-		return triggerLinuxKeyEscrowResponse{Err: err}, nil
+	if err := svc.TriggerLinuxDiskEncryptionEscrow(ctx, host); err != nil {
+		return triggerLinuxDiskEncryptionEscrowResponse{Err: err}, nil
 	}
-	return triggerLinuxKeyEscrowResponse{}, nil
+	return triggerLinuxDiskEncryptionEscrowResponse{}, nil
 }
 
-func (svc *Service) TriggerLinuxKeyEscrow(ctx context.Context, host *fleet.Host) error {
+func (svc *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fleet.Host) error {
 	return fleet.ErrMissingLicense
 }
 

@@ -1168,7 +1168,6 @@ type HostDiskEncryptionKey struct {
 	Base64Encrypted string    `json:"-" db:"base64_encrypted"`
 	Decryptable     *bool     `json:"-" db:"decryptable"`
 	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
-	ResetRequested  *bool     `json:"-" db:"reset_requested"`
 	DecryptedValue  string    `json:"key" db:"-"`
 }
 

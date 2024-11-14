@@ -11,7 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 )
 
@@ -172,7 +171,20 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	return sum, nil
 }
 
-func (svc *Service) TriggerLinuxKeyEscrow(ctx context.Context, host *fleet.Host) error {
+func (svc *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fleet.Host) error {
+	if svc.ds.HostIsPendingEscrow(host.ID) {
+		return nil
+	}
+
+	if err := validateReadyForLinuxEscrow(ctx, host); err != nil {
+		svc.ds.ReportEscrowError(host, err)
+		return err
+	}
+
+	return svc.ds.QueueEscrow(host)
+}
+
+func validateReadyForLinuxEscrow(ctx context.Context, host *fleet.Host) error {
 	if !slices.Contains(LUKSSupportedPlatforms, host.Platform) {
 		return &fleet.BadRequestError{Message: "Host platform does not support key escrow"}
 	}
@@ -217,12 +229,4 @@ func (svc *Service) TriggerLinuxKeyEscrow(ctx context.Context, host *fleet.Host)
 		// we already have a key escrowed
 		return &fleet.BadRequestError{Message: "Key already escrowed for this host"}
 	}
-
-	if *key.ResetRequested { // reset has already been requested, so no-op
-		return nil
-	}
-
-	// TODO - clears client_error - okay?
-	svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, key.Base64Encrypted, "", key.Decryptable, ptr.Bool(true))
-	return nil
 }
