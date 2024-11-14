@@ -283,7 +283,7 @@ const TAGGED_TEMPLATES = {
     const hostDisplayName = activity.details?.host_display_name ? (
       <b>{activity.details.host_display_name}</b>
     ) : (
-      "A new host"
+      "A host"
     );
     return <>{hostDisplayName} enrolled in Fleet.</>;
   },
