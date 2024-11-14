@@ -170,6 +170,7 @@ func TestHosts(t *testing.T) {
 		{"UpdateHostIssues", testUpdateHostIssues},
 		{"ListUpcomingHostMaintenanceWindows", testListUpcomingHostMaintenanceWindows},
 		{"GetHostEmails", testGetHostEmails},
+		{"TestGetMatchingHostSerialsMarkedDeleted", testGetMatchingHostSerialsMarkedDeleted},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -9750,4 +9751,84 @@ func testGetHostEmails(t *testing.T, ds *Datastore) {
 	emails, err = ds.GetHostEmails(ctx, host.UUID, fleet.DeviceMappingMDMIdpAccounts)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"foo@example.com", "bar@example.com"}, emails)
+}
+
+func testGetMatchingHostSerialsMarkedDeleted(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	serials := []string{"foo", "bar", "baz"}
+	team, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+	abmTok, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: t.Name(), EncryptedToken: []byte("token")})
+	require.NoError(t, err)
+	var hosts []fleet.Host
+	for i, serial := range serials {
+		var tmID *uint
+		if serial == "bar" {
+			tmID = &team.ID
+		}
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String(fmt.Sprint(i)),
+			UUID:            fmt.Sprint(i),
+			OsqueryHostID:   ptr.String(fmt.Sprint(i)),
+			Hostname:        "foo.local",
+			PrimaryIP:       "192.168.1.1",
+			PrimaryMac:      "30-65-EC-6F-C4-58",
+			HardwareSerial:  serial,
+			TeamID:          tmID,
+			ID:              uint(i),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, h)
+
+		// Only "foo" and "baz" are
+		if i%2 == 0 {
+			hosts = append(hosts, *h)
+		}
+	}
+
+	require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, hosts, abmTok.ID))
+	require.NoError(t, ds.DeleteHostDEPAssignments(ctx, abmTok.ID, serials))
+
+	cases := []struct {
+		name string
+		in   []string
+		want map[string]struct{}
+		err  string
+	}{
+		{"no serials provided", []string{}, map[string]struct{}{}, ""},
+		{"no matching serials", []string{"oof", "rab", "bar"}, map[string]struct{}{}, ""},
+		{
+			"partial matches",
+			[]string{"foo", "rab", "bar"},
+			map[string]struct{}{"foo": {}},
+			"",
+		},
+		{
+			"all matching",
+			[]string{"foo", "baz"},
+			map[string]struct{}{
+				"foo": {},
+				"baz": {},
+			},
+			"",
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ds.GetMatchingHostSerialsMarkedDeleted(ctx, tt.in)
+			if tt.err == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tt.err)
+			}
+			require.Equal(t, tt.want, got)
+		})
+	}
 }
