@@ -17,7 +17,11 @@ describe("DiscardDataOption component", () => {
     );
 
     expect(screen.getByText(/Discard data/)).toBeInTheDocument();
-    expect(screen.getByText(/Data will still be sent/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /The most recent results for each host will not be available in Fleet./
+      )
+    ).toBeInTheDocument();
   });
 
   it('Renders the "disabled" help text with tooltip when the global option is disabled', async () => {
@@ -48,7 +52,11 @@ describe("DiscardDataOption component", () => {
     await fireEvent.click(screen.getByText(/Edit anyway/));
 
     // normal text
-    expect(screen.getByText(/Data will still be sent/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /The most recent results for each host will not be available in Fleet./
+      )
+    ).toBeInTheDocument();
   });
   it('Renders the info banner when  "Differential"  logging option is selected', () => {
     render(

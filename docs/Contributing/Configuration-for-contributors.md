@@ -180,7 +180,7 @@ license:
 
 ### FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS
 
-Use this environment variable to allow `fleetd` to report errors to the server using the [endpoint to report an agent error](./API-for-contributors.md#report-an-agent-error).
+Use this environment variable to allow `fleetd` to report errors to the server using the [endpoint to report an agent error](./API-for-contributors.md#report-an-agent-error). `fleetd` agents will always report vital errors to Fleet.
 
 <meta name="pageOrderInSection" value="1100">
 <meta name="description" value="Learn about the configuration files and settings that are helpful when developing or contributing to Fleet.">

@@ -539,16 +539,12 @@ func (ts *withServer) uploadSoftwareInstaller(
 	expectedError string,
 ) {
 	t.Helper()
-	openFile := func(name string) *os.File {
-		f, err := os.Open(filepath.Join("testdata", "software-installers", name))
-		require.NoError(t, err)
-		return f
-	}
 
-	f := openFile(payload.Filename)
-	defer f.Close()
+	tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
+	require.NoError(t, err)
+	defer tfr.Close()
 
-	payload.InstallerFile = f
+	payload.InstallerFile = tfr
 
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)

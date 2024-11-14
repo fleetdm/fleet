@@ -216,7 +216,8 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 	certPEM := tokenpki.PEMCertificate(crt.Raw)
 	keyPEM := tokenpki.PEMRSAPrivateKey(key)
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 			fleet.MDMAssetAPNSCert: {Value: apnsCert},
 			fleet.MDMAssetAPNSKey:  {Value: apnsKey},
@@ -672,11 +673,11 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			// test authz create new profile (no team)
-			_, err := svc.NewMDMAppleConfigProfile(ctx, 0, bytes.NewReader(mcBytes), nil, false)
+			_, err := svc.NewMDMAppleConfigProfile(ctx, 0, bytes.NewReader(mcBytes), nil, fleet.LabelsIncludeAll)
 			checkShouldFail(err, tt.shouldFailGlobal)
 
 			// test authz create new profile (team 1)
-			_, err = svc.NewMDMAppleConfigProfile(ctx, 1, bytes.NewReader(mcBytes), nil, false)
+			_, err = svc.NewMDMAppleConfigProfile(ctx, 1, bytes.NewReader(mcBytes), nil, fleet.LabelsIncludeAll)
 			checkShouldFail(err, tt.shouldFailTeam)
 
 			// test authz list profiles (no team)
@@ -740,7 +741,7 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
 
-	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, r, nil, false)
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, r, nil, fleet.LabelsIncludeAll)
 	require.NoError(t, err)
 	require.Equal(t, "Foo", cp.Name)
 	assert.Equal(t, identifier, cp.Identifier)
@@ -749,7 +750,7 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	// Unsupported Fleet variable
 	mcBytes = mcBytesForTest("Foo", identifier, "UUID${FLEET_VAR_BOZO}")
 	r = bytes.NewReader(mcBytes)
-	_, err = svc.NewMDMAppleConfigProfile(ctx, 0, r, nil, false)
+	_, err = svc.NewMDMAppleConfigProfile(ctx, 0, r, nil, fleet.LabelsIncludeAll)
 	assert.ErrorContains(t, err, "Fleet variable")
 }
 
@@ -781,7 +782,7 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 
 	// Unsupported Fleet variable
 	b := declBytesForTest("D1", "d1content $FLEET_VAR_BOZO")
-	_, err := svc.NewMDMAppleDeclaration(ctx, 0, bytes.NewReader(b), nil, "name", false)
+	_, err := svc.NewMDMAppleDeclaration(ctx, 0, bytes.NewReader(b), nil, "name", fleet.LabelsIncludeAll)
 	assert.ErrorContains(t, err, "Fleet variable")
 
 	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
@@ -797,7 +798,7 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 
 	// Good declaration
 	b = declBytesForTest("D1", "d1content")
-	d, err := svc.NewMDMAppleDeclaration(ctx, 0, bytes.NewReader(b), nil, "name", false)
+	d, err := svc.NewMDMAppleDeclaration(ctx, 0, bytes.NewReader(b), nil, "name", fleet.LabelsIncludeAll)
 	require.NoError(t, err)
 	assert.NotNil(t, d)
 }
@@ -2236,7 +2237,8 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		AppleSCEPKey:  "./testdata/server.key",
 	}
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		_, pemCert, pemKey, err := mdmConfig.AppleSCEP()
 		require.NoError(t, err)
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
@@ -2344,7 +2346,8 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		return false, nil
 	}
 	mdmStorage.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		certPEM, err := os.ReadFile("./testdata/server.pem")
 		require.NoError(t, err)
 		keyPEM, err := os.ReadFile("./testdata/server.key")
@@ -2860,7 +2863,8 @@ func TestPreprocessProfileContents(t *testing.T) {
 
 	ndesPassword := "test-password"
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context,
-		assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 			fleet.MDMAssetNDESPassword: {Value: []byte(ndesPassword)},
 		}, nil
@@ -3051,8 +3055,10 @@ func TestPreprocessProfileContents(t *testing.T) {
 		"p3": []byte("no variables"),
 	}
 	addProfileToInstall := func(hostUUID, profileUUID, profileIdentifier string) {
-		hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID,
-			ProfileUUID: profileUUID}] = &fleet.MDMAppleBulkUpsertHostProfilePayload{
+		hostProfilesToInstallMap[hostProfileUUID{
+			HostUUID:    hostUUID,
+			ProfileUUID: profileUUID,
+		}] = &fleet.MDMAppleBulkUpsertHostProfilePayload{
 			ProfileUUID:       profileUUID,
 			ProfileIdentifier: profileIdentifier,
 			HostUUID:          hostUUID,
@@ -3060,7 +3066,6 @@ func TestPreprocessProfileContents(t *testing.T) {
 			Status:            &fleet.MDMDeliveryPending,
 			CommandUUID:       cmdUUID,
 		}
-
 	}
 	addProfileToInstall(hostUUID, "p1", "com.add.profile")
 	addProfileToInstall("host-2", "p1", "com.add.profile")
@@ -3612,7 +3617,8 @@ func setupTest(t *testing.T) (context.Context, kitlog.Logger, *mock.Store, *conf
 	_, pemCert, pemKey, err := mdmConfig.AppleSCEP()
 	require.NoError(t, err)
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 			fleet.MDMAssetCACert:   {Value: pemCert},
 			fleet.MDMAssetCAKey:    {Value: pemKey},
@@ -3621,7 +3627,8 @@ func setupTest(t *testing.T) (context.Context, kitlog.Logger, *mock.Store, *conf
 		}, nil
 	}
 	mdmStorage.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 			fleet.MDMAssetCACert:   {Value: pemCert},
 			fleet.MDMAssetCAKey:    {Value: pemKey},

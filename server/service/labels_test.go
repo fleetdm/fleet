@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -10,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -251,5 +253,62 @@ func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
 	}
 	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec})
 	assert.ErrorIs(t, err, assert.AnError)
+}
 
+func TestLabelsWithReplica(t *testing.T) {
+	opts := &mysql.DatastoreTestOptions{DummyReplica: true}
+	ds := mysql.CreateMySQLDSWithOptions(t, opts)
+	defer ds.Close()
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	// create a couple hosts
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "host1",
+		HardwareSerial:  uuid.NewString(),
+		UUID:            uuid.NewString(),
+		Platform:        "darwin",
+		LastEnrolledAt:  time.Now(),
+		DetailUpdatedAt: time.Now(),
+	})
+	require.NoError(t, err)
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "host2",
+		HardwareSerial:  uuid.NewString(),
+		UUID:            uuid.NewString(),
+		Platform:        "darwin",
+		LastEnrolledAt:  time.Now(),
+		DetailUpdatedAt: time.Now(),
+	})
+	require.NoError(t, err)
+	// make the newly-created hosts available to the reader
+	opts.RunReplication()
+
+	lbl, hostIDs, err := svc.NewLabel(ctx, fleet.LabelPayload{Name: "label1", Hosts: []string{"host1", "host2"}})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{h1.ID, h2.ID}, hostIDs)
+	require.Equal(t, 2, lbl.HostCount)
+
+	// make the newly-created label available to the reader
+	opts.RunReplication("labels", "label_membership")
+
+	lbl, hostIDs, err = svc.ModifyLabel(ctx, lbl.ID, fleet.ModifyLabelPayload{Hosts: []string{"host1"}})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{h1.ID}, hostIDs)
+	require.Equal(t, 1, lbl.HostCount)
+
+	// reading this label without replication returns the old data as it only uses the reader
+	lbl, hostIDs, err = svc.GetLabel(ctx, lbl.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{h1.ID, h2.ID}, hostIDs)
+	require.Equal(t, 2, lbl.HostCount)
+
+	// running the replication makes the updated data available
+	opts.RunReplication("labels", "label_membership")
+
+	lbl, hostIDs, err = svc.GetLabel(ctx, lbl.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{h1.ID}, hostIDs)
+	require.Equal(t, 1, lbl.HostCount)
 }
