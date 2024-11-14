@@ -182,14 +182,11 @@ func (svc *Service) TriggerLinuxKeyEscrow(ctx context.Context, host *fleet.Host)
 		return err
 	}
 
-	// Is AppConfig.MDM.EnableDiskEncryption the disk encryption setting for “No team”, while
-	// TeamMDM.EnableDiskEncryption is for all other teams?
-	// confirm No team taemId
-	if host.TeamID == nil { // No team
+	if host.TeamID == nil {
 		if !ac.MDM.EnableDiskEncryption.Value {
-			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for this host's team"}
+			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for hosts not assigned to a team"}
 		}
-	} else { // Team
+	} else {
 		tc, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
 		if err != nil {
 			return err
