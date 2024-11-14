@@ -2013,6 +2013,11 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	// Exclude macOS only profiles from iPhones/iPads.
 	wantedProfiles = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(wantedProfiles)
 
+	narrowByProfiles := ""
+	if len(onlyProfileUUIDs) > 0 {
+		narrowByProfiles = "AND hmap.profile_uuid IN (?)"
+	}
+
 	toRemoveStmt := fmt.Sprintf(`
 	SELECT
 		hmap.profile_uuid as profile_uuid,
@@ -2028,7 +2033,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		RIGHT JOIN host_mdm_apple_profiles hmap
 			ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.host_uuid
 	WHERE
-		hmap.host_uuid IN (?) AND
+		hmap.host_uuid IN (?) %s AND
 		-- profiles that are in B but not in A
 		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
 		-- except "remove" operations in any state
@@ -2042,7 +2047,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 			mcpl.apple_profile_uuid = hmap.profile_uuid AND
 			mcpl.label_id IS NULL
 		)
-`, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, profileHostIn, profileHostIn, profileHostIn))
+`, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, profileHostIn, profileHostIn, profileHostIn), narrowByProfiles)
 
 	var currentProfiles []*fleet.MDMAppleProfilePayload
 	for i := 0; i < selectProfilesTotalBatches; i++ {
@@ -2064,7 +2069,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 				onlyProfileUUIDs, batchUUIDs,
 				onlyProfileUUIDs, batchUUIDs,
 				onlyProfileUUIDs, batchUUIDs,
-				batchUUIDs,
+				batchUUIDs, onlyProfileUUIDs,
 				fleet.MDMOperationTypeRemove,
 			)
 		} else {
