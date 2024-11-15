@@ -1173,9 +1173,10 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get app config for host mdm details")
 	}
 
+	host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
+
 	var profiles []fleet.HostMDMProfile
 	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured {
-		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
 		switch host.Platform {
 		case "windows":
 			if !ac.MDM.WindowsEnabledAndConfigured {
