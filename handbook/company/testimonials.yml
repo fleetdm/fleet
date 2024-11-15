@@ -197,7 +197,7 @@
   productCategories: [Device management, Endpoint operations]
 -
   quote: Fleet helped us determine that Norton antivirus (pre-installed on some machines) was interfering with Crowdstrike's ability to detect downloaded malware.
-  quoteImageFilename: social-proof-logo-proofpoint-67x32@2x.png #TODO
+  # quoteImageFilename: social-proof-logo-proofpoint-67x32@2x.png #TODO
   quoteLinkUrl: https://www.linkedin.com/in/arsenio-figueroa-81a56198/
   quoteAuthorName: Arsenio Figueroa
   quoteAuthorProfileImageFilename: testimonial-author-arsenio-figueroa-48x48@2x.png
