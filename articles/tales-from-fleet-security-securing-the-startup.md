@@ -43,7 +43,7 @@ I thought using Apple’s Automated Device Enrollment (or Device Enrollment Prog
 
 Technically, I was not wrong, but there are non-technical challenges.
 
-1. The requirements to establish a ADE account vary by country. In the US, for example, it requires a [DUNS](https://en.wikipedia.org/wiki/Data_Universal_Numbering_System) number. Getting a DUNS number is simple for US companies, but what is not easy is to fulfill similar requirements in every country where you would like to use ADE. We could not register for ADE in Canada. We have people in many other countries with a similar situation.
+1. The requirements to establish an ADE account vary by country. In the US, for example, it requires a [DUNS](https://en.wikipedia.org/wiki/Data_Universal_Numbering_System) number. Getting a DUNS number is simple for US companies, but what is not easy is to fulfill similar requirements in every country where you would like to use ADE. We could not register for ADE in Canada. We have people in many other countries with a similar situation.
 2. The delays for obtaining hardware are very long. When planning endpoint deployment strategies, we must consider this, as supply chain issues will not disappear soon.
 3. The benchmarks made by the Center for Internet Security (CIS) are excellent but are incredibly long (700+ pages) and written for experts. We wanted to be transparent about why we configured company devices a certain way and explain it so everyone could understand without Googling for hours.
 

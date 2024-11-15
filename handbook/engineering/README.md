@@ -172,7 +172,7 @@ How to deploy a new release to dogfood:
 
 > Note that this action will not handle down migrations. Always deploy a newer version than is currently deployed.
 >
-> Note that "fleetdm/fleet:main" is not a image name, instead use the commit hash in place of "main".
+> Note that "fleetdm/fleet:main" is not an image name, instead use the commit hash in place of "main".
 
 
 ### Conclude current milestone 
@@ -357,7 +357,7 @@ We use Cloudflare to manage the DNS records of fleetdm.com and our other domains
 
 The on-call developer is responsible for: 
 - Knowing [the on-call rotation](https://fleetdm.com/handbook/company/product-groups#the-developer-on-call-rotation).
-- Preforming the [on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities).
+- Performing the [on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities).
 - [Escalating community questions and issues](https://fleetdm.com/handbook/company/product-groups#escalations).
 - Successfully [transferring the on-call persona to the next developer](https://fleetdm.com/handbook/company/product-groups#changing-of-the-guard).
 
