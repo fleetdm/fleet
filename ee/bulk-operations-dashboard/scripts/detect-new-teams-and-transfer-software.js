@@ -10,8 +10,8 @@ module.exports = {
   fn: async function () {
     sails.log('Running custom shell script... (`sails run detect-new-teams-and-transfer-software`)');
 
-    // Get teams
 
+    // Get teams
     let teamsResponseData = await sails.helpers.http.get.with({
       url: '/api/v1/fleet/teams',
       baseUrl: sails.config.custom.fleetBaseUrl,
@@ -34,14 +34,14 @@ module.exports = {
     let softwareDeployedToAllTeams = await AllTeamsSoftware.find();
     let WritableStream = require('stream').Writable;
     let axios = require('axios');
+    // Loop through the software deployed to all teams.
     for(let software of softwareDeployedToAllTeams) {
-      // console.log(allTeamApids)
       let teamsThisSoftwareIsNotDeployedOn = _.difference(allTeamApids, software.teamApids);
       if(teamsThisSoftwareIsNotDeployedOn.length > 0) {
-        sails.log(`${teamsThisSoftwareIsNotDeployedOn.length} New team(s) detected!`)
+        sails.log.info(`${teamsThisSoftwareIsNotDeployedOn.length} New team(s) detected!`)
         // Get software installer:
         let teamIdToGetInstallerFrom = software.teamApids[0];
-        sails.log(`Getting information about this installer`);
+        sails.log.info(`Getting information about this installer`);
         let softwareResponse = await sails.helpers.http.get.with({
           url: `${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/titles/${software.fleetApid}`,
           headers: {
@@ -49,26 +49,23 @@ module.exports = {
           }
         });
         let installerInformation = softwareResponse.software_title.software_package;
-        sails.log('got installer info!', installerInformation);
-        sails.log(`Downloading installer to upload into an s3 bucket.`);
+        // Get a download stream of the software installer and upload it to the s3 bucket.
         let downloadApiUrl = `${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/titles/${software.fleetApid}/package?alt=media&team_id=${teamIdToGetInstallerFrom}`;
-        console.log(downloadApiUrl);
         let softwareStream = await sails.helpers.http.getStream.with({
           url: downloadApiUrl,
           headers: {
             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
           }
         });
-        sails.log(`Uploading installer to s3 bucket.`);
+        sails.log.info(`Uploading installer to s3 bucket.`);
         let tempUploadedSoftware = await sails.uploadOne(softwareStream, {bucket: sails.config.uploads.bucketWithPostfix});
         softwareFd = tempUploadedSoftware.fd;
         softwareMime = tempUploadedSoftware.type;
-        sails.log(`Upload complete, starting transfer to Fleet instance for added teams.`);
+        sails.log.info(`Upload complete, starting transfer to Fleet instance for added teams.`);
 
         await sails.helpers.flow.simultaneouslyForEach(teamsThisSoftwareIsNotDeployedOn, async (team)=>{
-        sails.log(`Copying ${installerInformation.name} to team_id ${team}`)
-          // console.log(`transfering ${software.name} to fleet instance for team id ${team}`);
-          // Send an api request to send the file to the Fleet server for each added team.
+        sails.log.info(`Copying ${installerInformation.name} to team_id ${team}`)
+          // Send an api request to send the file to the Fleet server for each new team.
           await sails.cp(softwareFd, {bucket: sails.config.uploads.bucketWithPostfix},
             {
               adapter: ()=>{
@@ -104,7 +101,6 @@ module.exports = {
                         });
                       })()
                       .then(()=>{
-                        // console.log('ok supposedly a file is finished uploading');
                         doneWithThisFile();
                       })
                       .catch((err)=>{
@@ -125,16 +121,15 @@ module.exports = {
             }
             return new Error(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, ${require('util').inspect(error, {depth: null})}`);
           });
-          // console.timeEnd(`transfering ${software.name} to fleet instance for team id ${team}`);
-        });
-        sails.log(`software transfer complete for ${installerInformation.name}, updating database record with new teams.`)
+        });//∞ for each new team.
+        sails.log.info(`software transfer complete for ${installerInformation.name}, updating database record with new teams.`)
+        // Update the AllTeamsSoftware record's teamApids value
         await AllTeamsSoftware.updateOne({id: software.id}).set({teamApids: allTeamApids});
-      }
-    }
+        // Delete the temporary file stored in s3.
+        await sails.rm(sails.config.uploads.prefixForFileDeletion+software.uploadFd);
+      }//ﬁ
 
-
-
-
+    }//∞ for each AllTeamsSoftware record.
 
   }
 
