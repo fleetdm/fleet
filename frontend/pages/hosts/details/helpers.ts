@@ -38,8 +38,9 @@ export const generateWinDiskEncryptionSetting = (
 const convertLinuxDiskEncryptionStatusToSettingStatus = (
   diskEncryptionStatus: LinuxDiskEncryptionStatus
 ): MdmProfileStatus => {
-  // TODO!
-  return "pending";
+  return diskEncryptionStatus === "action_required"
+    ? "pending"
+    : diskEncryptionStatus;
 };
 /**
  * Manually generates a setting for the linux disk encryption status. We need
