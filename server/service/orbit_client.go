@@ -671,6 +671,14 @@ func (oc *OrbitClient) GetSetupExperienceStatus() (*fleet.SetupExperienceStatusP
 }
 
 func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks_runner.LuksResponse) error {
-	log.Debug().Msg(fmt.Sprintf("Escrowing key: %s", lr.Key))
+	verb, path := "POST", "/api/fleet/orbit/luks_data"
+	var resp orbitPostLUKSResponse
+	if err := oc.authenticatedRequest(verb, path, &orbitPostLUKSRequest{
+		Passphrase:  lr.Key,
+		SlotKey:     "1",
+		ClientError: lr.Err,
+	}, &resp); err != nil {
+		return err
+	}
 	return nil
 }

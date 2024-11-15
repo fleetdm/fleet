@@ -1120,6 +1120,34 @@ func (r *orbitGetSoftwareInstallRequest) setOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 }
 
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit LUKS (Linux disk encryption) data
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitPostLUKSRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	Passphrase   string `json:"passphrase"`
+	SlotKey      string `json:"slot_key"`
+	ClientError  string `json:"client_error"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitPostLUKSRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by orbit authentication
+func (r *orbitPostLUKSRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitPostLUKSResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r orbitPostLUKSResponse) error() error { return r.Err }
+func (r orbitPostLUKSResponse) Status() int  { return http.StatusNoContent }
+
 // interface implementation required by the OrbitClient
 func (r *orbitGetSoftwareInstallRequest) orbitHostNodeKey() string {
 	return r.OrbitNodeKey

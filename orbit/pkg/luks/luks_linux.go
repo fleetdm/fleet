@@ -36,7 +36,7 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	if !oc.Notifications.EscrowLinuxKey {
+	if !oc.Notifications.RunDiskEncryptionEscrow {
 		return nil
 	}
 
