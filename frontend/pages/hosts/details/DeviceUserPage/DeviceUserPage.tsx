@@ -335,7 +335,6 @@ const DeviceUserPage = ({
       await diskEncryptionAPI.triggerLinuxDiskEncryptionKeyEscrow(
         deviceAuthToken
       );
-      renderFlash("success", "Successfully triggered key creation.");
     } catch (e) {
       renderFlash("error", "Failed to trigger key creation.");
       setShowCreateLinuxKeyModal(false);
