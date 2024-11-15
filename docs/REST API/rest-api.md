@@ -6912,13 +6912,13 @@ _Available in Fleet Premium_
 | client_cert  | string  | body | The content of client certificate. If `client_cert` specified, `bind_dn` and `bind_password` are ignored. It's used for SASL EXTERNAL authentication. For ex. Google Secure LDAP uses this method of authentication.   |
 | client_private_key   | string  | body | The content of client private key. It's used for SASL EXTERNAL authentication.                  |
 | users_search_base_dn | string  | body | Base to start users search. All subtrees below are included.                     |
-| users_included_object_classes | string  | body | Filter LDAP users by specified object classes.            |
+| users_included_object_classes | string  | body | Filter LDAP users by specified object classes. Comma separated object classes.           |
 | user_email_mapping | string  | body | The LDAP attribute that maps to the email from human-device mapping API that is used to map host to LDAP user.                            |
 | user_full_name_mapping | string  | body | The LDAP attribute that maps to the `end.user_full_name` field in host vitals.                           |
 | user_role_mapping | string  | body | The LDAP attribute that maps to the `end.user_role` field in host vitals.                         |
 | user_department_mapping | string  | body | The LDAP attribute that maps to the `end.user_department` field in host vitals.                        |
 | groups_search_base_dn | string  | body | Base to start groups search. All subtrees below are included.                     |
-| groups_included_object_classes | string  | body | Filter LDAP groups by specified object classes.                    |
+| groups_included_object_classes | string  | body | Filter LDAP groups by specified object classes. Comma separated object classes.                    |
 | group_id_mapping | string  | body | The LDAP attribute that maps to the group ID in Fleet.                       |
 | group_name_mapping | string  | body | The LDAP attribute that maps to the groups that appear in `end_users.groups`.                    |
 | group_user_membership_mapping | string  | body | The LDAP attribute that maps member user to a group. For ex. `member` or `uniqueMember`.        |
@@ -6940,17 +6940,17 @@ _Available in Fleet Premium_
   "bind_password": "myLdapBindPassword",
   "client_cert": "-----BEGIN CERTIFICATE-----MIIDdzCCAl+gAwIBAgIEU3B+azANBgkqhkiG9w0BAQUFADCBjDELMAkGA1UEBhMC-----END CERTIFICATE-----",
   "client_private_key": "-----BEGIN PRIVATE KEY-----MIIDdzCCAl+gAwIBAgIEU3B+azANBgkqhkiG9w0BAQUFADCBjDELMAkGA1UEBhMC-----END PRIVATE KEY-----",
-  "users_search_base_dn": "",
-  "users_included_object_classes": "",
-  "user_email_mapping": "",
-  "user_full_name_mapping": "",
-  "user_role_mapping": "",
-  "user_department_mapping": "",
-  "groups_search_base_dn": "",
-  "groups_included_object_classes": "",
-  "group_id_mapping": "",
-  "group_name_mapping": "",
-  "group_user_membership_mapping": "",
+  "users_search_base_dn": "ou=users,dc=ldap,dc=acme,dc=com",
+  "users_included_object_classes": "inetOrgPerson",
+  "user_email_mapping": "uid",
+  "user_full_name_mapping": "cn",
+  "user_role_mapping": "role",
+  "user_department_mapping": "department",
+  "groups_search_base_dn": "ou=groups,dc=ldap,dc=acme,dc=com",
+  "groups_included_object_classes": "groupOfUniqueNames",
+  "group_id_mapping": "gidNumber",
+  "group_name_mapping": "cn",
+  "group_user_membership_mapping": "uniqueMember",
 }
 ```
 
