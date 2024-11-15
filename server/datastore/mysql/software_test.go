@@ -62,6 +62,7 @@ func TestSoftware(t *testing.T) {
 		{"HostSoftwareInstalledPathsDelta", testHostSoftwareInstalledPathsDelta},
 		{"DeleteHostSoftwareInstalledPaths", testDeleteHostSoftwareInstalledPaths},
 		{"InsertHostSoftwareInstalledPaths", testInsertHostSoftwareInstalledPaths},
+		{"VerifySoftwareChecksum", testVerifySoftwareChecksum},
 		{"ListHostSoftware", testListHostSoftware},
 		{"ListIOSHostSoftware", testListIOSHostSoftware},
 		{"SetHostSoftwareInstallResult", testSetHostSoftwareInstallResult},
@@ -3128,6 +3129,36 @@ func testUpdateHostSoftwareDeadlock(t *testing.T, ds *Datastore) {
 
 	err := g.Wait()
 	require.NoError(t, err)
+}
+
+func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "test"},
+		{Name: "foo", Version: "0.0.1", Source: "test", Browser: "firefox"},
+		{Name: "foo", Version: "0.0.1", Source: "test", ExtensionID: "ext"},
+		{Name: "foo", Version: "0.0.2", Source: "test"},
+	}
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	checksums := make([]string, len(software))
+	for i, sw := range software {
+		checksum, err := computeRawChecksum(sw)
+		require.NoError(t, err)
+		checksums[i] = hex.EncodeToString(checksum)
+	}
+	for i, cs := range checksums {
+		var got fleet.Software
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &got,
+				`SELECT name, version, source, bundle_identifier, `+"`release`"+`, arch, vendor, browser, extension_id FROM software WHERE checksum = UNHEX(?)`, cs)
+		})
+		require.Equal(t, software[i], got)
+	}
 }
 
 func testListHostSoftware(t *testing.T, ds *Datastore) {
