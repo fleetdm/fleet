@@ -25,26 +25,6 @@ module.exports = {
       description: 'An array of the team IDs that this software is deployed on.'
     },
 
-    // preInstallQuery: {
-    //   type: 'string',
-    //   defaultsTo: '',
-    // },
-
-    // installScript: {
-    //   type: 'string',
-    //   defaultsTo: '',
-    // },
-
-    // postInstallScript: {
-    //   type: 'string',
-    //   defaultsTo: '',
-    // },
-
-    // uninstallScript: {
-    //   type: 'string',
-    //   defaultsTo: '',
-    // },
-
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
