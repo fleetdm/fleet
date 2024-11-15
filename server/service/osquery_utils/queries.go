@@ -1564,7 +1564,14 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			// NOTE: osquery is sometimes incorrectly returning the value "null" for some install paths.
 			// Thus, we explicitly ignore such value here.
 			strings.ToLower(installedPath) != "null" {
-			teamIdentifier := row["team_identifier"]
+			truncateString := func(str string, length int) string {
+				runes := []rune(str)
+				if len(runes) > length {
+					return string(runes[:length])
+				}
+				return str
+			}
+			teamIdentifier := truncateString(row["team_identifier"], fleet.SoftwareTeamIdentifierMaxLength)
 			key := fmt.Sprintf(
 				"%s%s%s%s%s",
 				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
