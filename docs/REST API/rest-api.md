@@ -3094,6 +3094,12 @@ Returns the information of the specified host.
     "percent_disk_space_available": 74,
     "gigs_total_disk_space": 160,
     "disk_encryption_enabled": true,
+    "end_user" {
+      "full_name": "John Doe",
+      "role": "Software Engineer",
+      "department": "Engineering",
+      "idp_groups": ["Engineering", "Canary"]
+    }
     "users": [
       {
         "uid": 0,
@@ -3864,6 +3870,8 @@ Also returns the custom email that's set via the `PUT /api/v1/fleet/hosts/:id/de
 
 Note that IdP email is only supported on macOS hosts. It's collected once, during automatic enrollment (DEP), only if the end user authenticates with the IdP and the DEP profile has `await_device_configured` set to `true`.
 
+Email with `custom` data soruce is used as identifier to get data from IdP (LDAP server).`mdm_idp_accounts` is used if `custom` isn't present. Once LDAP sync is performed, these emails will be used to determine to which end user host belongs to.
+
 `GET /api/v1/fleet/hosts/:id/device_mapping`
 
 #### Parameters
@@ -3886,7 +3894,7 @@ Note that IdP email is only supported on macOS hosts. It's collected once, durin
   "device_mapping": [
     {
       "email": "user@example.com",
-      "source": "identity_provider"
+      "source": "mdm_idp_accounts"
     },
     {
       "email": "user@example.com",
@@ -3906,7 +3914,7 @@ Note that IdP email is only supported on macOS hosts. It's collected once, durin
 
 `PUT /api/v1/fleet/hosts/:id/device_mapping`
 
-Updates the email for the `custom` data source in the human-device mapping. This source can only have one email.
+Updates the email for the `custom` data source in the human-device mapping. This source can only have one email. To delete email with `custom` data source, send request with `email` as empty string.
 
 #### Parameters
 
