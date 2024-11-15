@@ -1,0 +1,2 @@
+- Fixed issue where minimum OS version enforcement was not being applied during Apple ADE if MDM
+  IdP integration was enabled.
