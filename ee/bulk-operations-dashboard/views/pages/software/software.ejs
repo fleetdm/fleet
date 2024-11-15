@@ -146,8 +146,8 @@
           <p class="mb-2"><strong>Teams</strong></p>
           <multifield :value="formData.teams" v-model="formData.newTeamIds" :disabled.sync="formData.isDeployedToAllTeams" input-type="teamSelectWithNoAllTeamsOption" :select-options="teams" add-button-text="Add team"></multifield>
           <div class="form-group mb-0 pt-2">
-            <input type="checkbox" id="deploy-to-all-teams"  v-model.trim="formData.isDeployedToAllTeams">
-            <label for="deploy-to-all-teams">Add to all existing and new teams</label>
+            <input type="checkbox" id="deploy-to-all-teams-edit"  v-model.trim="formData.isDeployedToAllTeams">
+            <label for="deploy-to-all-teams-edit">Add to all existing and new teams</label>
           </div>
         </div>
         <cloud-error v-if="cloudError && cloudError.exit === 'wrongInstallerExtension'">{{cloudError.responseInfo.body}}</cloud-error>
@@ -193,8 +193,8 @@
           </div>
           <multifield :value="formData.teams" v-model="formData.teams" :disabled="formData.isDeployedToAllTeams" input-type="teamSelectWithNoAllTeamsOption" :select-options="teams" add-button-text="Add team"></multifield>
           <div class="form-group mb-0">
-            <input type="checkbox" id="deploy-to-all-teams"  v-model.trim="formData.isDeployedToAllTeams">
-            <label for="deploy-to-all-teams">Add to all existing and new teams</label>
+            <input type="checkbox" id="deploy-to-all-teams-add"  v-model.trim="formData.isDeployedToAllTeams">
+            <label for="deploy-to-all-teams-add">Add to all existing and new teams</label>
           </div>
         </div>
         <div class="invalid-feedback text-center" v-if="formErrors.teams">Please select the teams you want to deploy this software to.</div>
