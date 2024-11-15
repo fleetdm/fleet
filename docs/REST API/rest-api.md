@@ -6901,31 +6901,62 @@ _Available in Fleet Premium_
 
 #### Parameters
 
-#### Parameters
-
 | Name              | Type    | In   | Description                                     |
 | ----------------- | ------- | ---- | ----------------------------------------------- |
-| name              | string  | body | The LDAP server display name.                   |
-| hostname          | string  | body | The hostname of LDAP server to connect to.      |
-| port              | integer | body | The port of LDAP server.                        |
-| ssl_certificate   | string  | body | The port of LDAP server.                        |
-| username          | string  | body | The port of LDAP server.                        |
-| password          | string  | body | The port of LDAP server.                        |
-| client_auth_cert  | string  | body | The port of LDAP server.                        |
-| client_auth_key   | string  | body | The port of LDAP server.                        |
-| users_search_base_dn | string  | body | The port of LDAP server.                     |
-| included_object_classes | string  | body | The port of LDAP server.                  |
-| email_mapping | string  | body | The port of LDAP server.                            |
-| role_mapping | string  | body | The port of LDAP server.                             |
-| department_mapping | string  | body | The port of LDAP server.                       |
-| groups_search_base_dn | string  | body | The port of LDAP server.                    |
-| group_id_mapping | string  | body | The port of LDAP server.                         |
-| group_name_mapping | string  | body | The port of LDAP server.                       |
-| user_group_membership_mapping | string  | body | The port of LDAP server.            |
-| user_group_membership_mapping | string  | body | The port of LDAP server.            |
-| team_ids | list  | body | The port of LDAP server.                                   |
+| server_name              | string  | body | **Required.** The LDAP server display name.                   |
+| hostname          | string  | body | **Required.** Domain name or IP address of your LDAP server.     |
+| port              | integer | body | **Required.** The port of LDAP server to connect to. For ex. 389 or 636 (for SSL).      |
+| ssl_certificate   | string  | body | The content of SSL certificate. If specified port must be 636.                        |
+| bind_dn       | string  | body | The full DN of the user you bind with.                     |
+| bind_password       | string  | body | The password of the bind user.                     |
+| client_cert  | string  | body | The content of client certificate. If `client_cert` specified, `bind_dn` and `bind_password` are ignored. It's used for SASL EXTERNAL authentication. For ex. Google Secure LDAP uses this method of authentication.   |
+| client_private_key   | string  | body | The content of client private key. It's used for SASL EXTERNAL authentication.                  |
+| users_search_base_dn | string  | body | Base to start users search. All subtrees below are included.                     |
+| users_included_object_classes | string  | body | Filter LDAP users by specified object classes.            |
+| user_email_mapping | string  | body | The LDAP attribute that maps to the email from human-device mapping API that is used to map host to LDAP user.                            |
+| user_full_name_mapping | string  | body | The LDAP attribute that maps to the `end.user_full_name` field in host vitals.                           |
+| user_role_mapping | string  | body | The LDAP attribute that maps to the `end.user_role` field in host vitals.                         |
+| user_department_mapping | string  | body | The LDAP attribute that maps to the `end.user_department` field in host vitals.                        |
+| groups_search_base_dn | string  | body | Base to start groups search. All subtrees below are included.                     |
+| groups_included_object_classes | string  | body | Filter LDAP groups by specified object classes.                    |
+| group_id_mapping | string  | body | The LDAP attribute that maps to the group ID in Fleet.                       |
+| group_name_mapping | string  | body | The LDAP attribute that maps to the groups that appear in `end_users.groups`.                    |
+| group_user_membership_mapping | string  | body | The LDAP attribute that maps member user to a group. For ex. `member` or `uniqueMember`.        |
 
 
+#### Example
+
+`POST /api/v1/fleet/ldap_servers`
+
+#### Request body
+
+```json
+{
+  "server_name": "LDAP integration",
+  "hostname": "ldap.acme.com",
+  "port": 636,
+  "ssl_certificate": "-----BEGIN CERTIFICATE-----MIIDdzCCAl+gAwIBAgIEU3B+azANBgkqhkiG9w0BAQUFADCBjDELMAkGA1UEBhMC-----END CERTIFICATE-----",
+  "bind_dn": "uid=name@acme.com,dc=ldap,dc=acme,dc=com",
+  "bind_password": "myLdapBindPassword",
+  "client_cert": "-----BEGIN CERTIFICATE-----MIIDdzCCAl+gAwIBAgIEU3B+azANBgkqhkiG9w0BAQUFADCBjDELMAkGA1UEBhMC-----END CERTIFICATE-----",
+  "client_private_key": "-----BEGIN PRIVATE KEY-----MIIDdzCCAl+gAwIBAgIEU3B+azANBgkqhkiG9w0BAQUFADCBjDELMAkGA1UEBhMC-----END PRIVATE KEY-----",
+  "users_search_base_dn": "",
+  "users_included_object_classes": "",
+  "user_email_mapping": "",
+  "user_full_name_mapping": "",
+  "user_role_mapping": "",
+  "user_department_mapping": "",
+  "groups_search_base_dn": "",
+  "groups_included_object_classes": "",
+  "group_id_mapping": "",
+  "group_name_mapping": "",
+  "group_user_membership_mapping": "",
+}
+```
+
+##### Default response
+
+`Status: 204`
 
 ---
 
