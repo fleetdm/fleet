@@ -145,6 +145,7 @@ const FleetMaintainedAppDetailsPage = ({
         appId,
       });
 
+      // for manual install we redirect only on a successful software add.
       if (installType === "manual") {
         router.push(
           `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
@@ -160,15 +161,20 @@ const FleetMaintainedAppDetailsPage = ({
         );
       }
     } catch (error) {
-      renderFlash("error", getErrorReason(error)); // TODO: handle error messages
+      // quick exit if there was an error adding the software. Skip the policy
+      // creation.
+      renderFlash("error", getErrorReason(error));
+      setShowAddFleetAppSoftwareModal(false);
+      return;
     }
 
+    // If the install type is automatic we now need to create the new policy.
     if (installType === "automatic" && fleetApp) {
       try {
         await teamPoliciesAPI.create({
           name: getFleetAppPolicyName(fleetApp.name),
           description: getFleetAppPolicyDescription(fleetApp.name),
-          query: getFleetAppPolicyQuery(fleetApp.id),
+          query: getFleetAppPolicyQuery(fleetApp.name),
           team_id: parseInt(teamId, 10),
           platform: "darwin",
         });
@@ -182,11 +188,13 @@ const FleetMaintainedAppDetailsPage = ({
       } catch (e) {
         renderFlash(
           "error",
-          "Couldn't add automatic install policy. Software is successfuly added. To try again delete software and add it again."
+          "Couldn't add automatic install policy. Software is successfuly added. To try again delete software and add it again.",
+          { persistOnPageChange: true }
         );
       }
 
-      // redirect will happen even on an error when we are creating a policy.
+      // for automatic install we redirect on both a successful and error policy
+      // add because the software was already successfuly added.
       router.push(
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
           team_id: teamId,
