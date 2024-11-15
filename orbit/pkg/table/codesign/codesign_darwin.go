@@ -20,7 +20,7 @@ import (
 // Columns is the schema of the table.
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
-		// path is the absolute path to the app folder.
+		// path is the absolute path to the app bundle.
 		// It's required and only supports the equality operator.
 		table.TextColumn("path"),
 		// team_identifier is the "Team ID", aka "Signature ID", "Developer ID".
