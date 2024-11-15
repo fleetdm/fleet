@@ -61,14 +61,22 @@ parasails.registerPage('software', {
       }
     },
     clickOpenEditModal: async function(software) {
-      this.softwareToEdit = _.cloneDeep(software);
-      this.formData.newTeamIds = _.pluck(this.softwareToEdit.teams, 'fleetApid');
-      this.formData.software = software;
-      this.formData.preInstallQuery = this.softwareToEdit.preInstallQuery;
-      this.formData.installScript = this.softwareToEdit.installScript;
-      this.formData.postInstallScript = this.softwareToEdit.postInstallScript;
-      this.formData.uninstallScript = this.softwareToEdit.uninstallScript;
+      this.softwareToEdit = software;
       this.modal = 'edit-software';
+      let thisSoftware = _.cloneDeep(software);
+      this.formData = {
+        newTeamIds: _.pluck(thisSoftware.teams, 'fleetApid'),
+        software: thisSoftware,
+        preInstallQuery: thisSoftware.preInstallQuery,
+        installScript: thisSoftware.installScript,
+        postInstallScript: thisSoftware.postInstallScript,
+        uninstallScript: thisSoftware.uninstallScript,
+      }
+      // Set isDeployedToAllTeams separately after a 100ms delay This is done to trigger a UI change to disable the teams picker if software is deployed to all future teams.
+      await setTimeout(()=>{
+        this.$set(this.formData, 'isDeployedToAllTeams', thisSoftware.isDeployedToAllTeams)
+      }, 100)
+      await this.forceRender();
     },
     clickOpenDeleteModal: async function(software) {
       this.formData.software = _.clone(software);
@@ -112,6 +120,8 @@ parasails.registerPage('software', {
       let argins = _.cloneDeep(this.formData);
       if(argins.newTeamIds[0] === undefined){
         argins.newTeamIds = undefined;
+      } else if(argins.isDeployedToAllTeams) {
+        argins.newTeamIds = _.pluck(this.teams, 'fleetApid');
       } else {
         argins.newTeamIds = _.uniq(argins.newTeamIds);
       }
@@ -123,8 +133,13 @@ parasails.registerPage('software', {
       }
     },
     handleSubmittingAddSoftwareForm: async function() {
-      let argins = _.clone(this.formData);
-      await Cloud.uploadSoftware.with({newSoftware: argins.newSoftware, teams: argins.teams});
+      let argins = _.cloneDeep(this.formData);
+      if(argins.isDeployedToAllTeams) {
+        argins.teams = _.pluck(this.teams, 'fleetApid');
+      } else {
+        argins.teams = _.uniq(argins.teams);
+      }
+      await Cloud.uploadSoftware.with(argins);
       await this._getSoftware();
     },
     handleSubmittingDeleteSoftwareForm: async function() {

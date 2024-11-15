@@ -54,7 +54,8 @@
             <td v-if="teamFilter === undefined">
               <a class="affected-teams-link" v-if="software.teams && software.teams.length > 0">
                 <span class="truncated-affected-teams" v-if="software.teams.length > 1">
-                  {{software.teams.length}} teams
+                  <span v-if="software.isDeployedToAllTeams">All teams</span>
+                  <span v-else>{{software.teams.length}} teams</span>
                   <div class="teams-tooltip">
                     <p v-for="team in software.teams" @click="clickChangeTeamFilter(team.fleetApid)">{{team.teamName}}</p>
                   </div>
@@ -143,7 +144,11 @@
         </div>
         <div purpose="teams-picker" class="mt-4">
           <p class="mb-2"><strong>Teams</strong></p>
-          <multifield :value="formData.teams" v-model="formData.newTeamIds" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
+          <multifield :value="formData.teams" v-model="formData.newTeamIds" :disabled.sync="formData.isDeployedToAllTeams" input-type="teamSelectWithNoAllTeamsOption" :select-options="teams" add-button-text="Add team"></multifield>
+          <div class="form-group mb-0 pt-2">
+            <input type="checkbox" id="deploy-to-all-teams"  v-model.trim="formData.isDeployedToAllTeams">
+            <label for="deploy-to-all-teams">Add to all existing and new teams</label>
+          </div>
         </div>
         <cloud-error v-if="cloudError && cloudError.exit === 'wrongInstallerExtension'">{{cloudError.responseInfo.body}}</cloud-error>
         <cloud-error v-else-if="cloudError"></cloud-error>
@@ -183,8 +188,14 @@
         <file-upload id="file-upload" :class="[formErrors.newSoftware ? 'is-invalid' : '']"  mode="software" :disabled="syncing" v-model="formData.newSoftware"></file-upload>
         <div class="invalid-feedback text-center" v-if="formErrors.newSoftware">Please upload a new software.</div>
         <div purpose="teams-picker" class="mt-4">
-          <p class="mb-2"><strong>Teams</strong></p>
-          <multifield :value="formData.teams" v-model="formData.teams" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
+          <div class="d-flex flex-row align-items-center justify-content-between">
+            <p class="mb-2"><strong>Teams</strong></p>
+          </div>
+          <multifield :value="formData.teams" v-model="formData.teams" :disabled="formData.isDeployedToAllTeams" input-type="teamSelectWithNoAllTeamsOption" :select-options="teams" add-button-text="Add team"></multifield>
+          <div class="form-group mb-0">
+            <input type="checkbox" id="deploy-to-all-teams"  v-model.trim="formData.isDeployedToAllTeams">
+            <label for="deploy-to-all-teams">Add to all existing and new teams</label>
+          </div>
         </div>
         <div class="invalid-feedback text-center" v-if="formErrors.teams">Please select the teams you want to deploy this software to.</div>
         <cloud-error v-if="cloudError && cloudError === 'softwareAlreadyExistsOnThisTeam'">A software with the same name as the uploaded software already exists on one or more of the selected teams.</cloud-error>

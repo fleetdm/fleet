@@ -34,6 +34,7 @@ parasails.registerComponent('multifield', {
     'nameAndHostCountSelectOptions',// For nameAndHostCountSelect support. An array of objects that have a name, id, and hostCount. ex: [{"name": "Microsoft office for macOS 16.76","id": 289874,"hostCount": 1}]
     'cloudError',// For highlighting fields, for this to work, the error response needs to return the value of the invalid fields, see api/controllers/update-priority-vulnerabilities to see an example of this.
     'placeholder',// an optional placeholder value for text type inputs
+    'disabled',//« for disabling from the outside (e.g. while syncing)
   ],
 
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
@@ -42,8 +43,10 @@ parasails.registerComponent('multifield', {
   data: function () {
     return {
       currentFieldValues: undefined, //« will be initialized to a single-item array in beforeMount
+      isCurrentlyDisabled: false, //« controlled by watching `disabled` prop
       optionsForSelect: [],
       inputPlaceholder: '',
+      showAddButton: true,
     };
   },
   //  ╦ ╦╔╦╗╔╦╗╦
@@ -68,13 +71,17 @@ parasails.registerComponent('multifield', {
           <option value="allTeams">All teams</option>
           <option v-for="option in optionsForSelect" :value="option.fleetApid">{{option.teamName}}</option>
         </select>
+        <select class="custom-select" :disabled="isCurrentlyDisabled" :value.sync="currentFieldValues[idx]" :class="[isCurrentlyDisabled ? 'disabled' : '']" @input="inputTeamSelectItemField($event, idx)" role="focusable" v-else-if="inputType && inputType === 'teamSelectWithNoAllTeamsOption'">
+          <option :value="undefined" selected>---</option>
+          <option v-for="option in optionsForSelect" :value="option.fleetApid">{{option.teamName}}</option>
+        </select>
         <input :type="inputType" :placeholder="inputPlaceholder" :value.sync="currentFieldValues[idx]" @input="inputDefaultItemField($event, idx)" role="focusable" v-else-if="inputType">
       </slot>
-      <button class="multifield-item-remove-button" type="button" v-if="currentFieldValues.length >= 2" @click="clickRemoveItem(idx)"></button>
-      <button class="multifield-item-remove-button" type="button" v-else-if="currentFieldValues.length === 1 && currentFieldValues[0] !== undefined" @click="clickResetSingleItem()"></button>
+      <button class="multifield-item-remove-button" :disabled="isCurrentlyDisabled" type="button" v-if="currentFieldValues.length >= 2" @click="clickRemoveItem(idx)"></button>
+      <button class="multifield-item-remove-button" :disabled="isCurrentlyDisabled" type="button" v-else-if="currentFieldValues.length === 1 && currentFieldValues[0] !== undefined" @click="clickResetSingleItem()"></button>
     </div>
     <div class="add-button-wrapper d-flex flex-row justify-content-start" :class="_.all(currentFieldValues, (item)=> item !== undefined) ? '' : 'empty'">
-      <a class="add-button" @click="clickAddItem()" v-if="_.all(currentFieldValues, (item)=> item !== undefined)"><strong>+</strong>&nbsp;&nbsp;{{addButtonText || 'Add another'}}</a>
+      <a class="add-button" @click="clickAddItem()" v-if="_.all(currentFieldValues, (item)=> item !== undefined) && !isCurrentlyDisabled"><strong>+</strong>&nbsp;&nbsp;{{addButtonText || 'Add another'}}</a>
       <span v-else>&nbsp;</span>
     </div>
   </div>
@@ -114,7 +121,7 @@ parasails.registerComponent('multifield', {
         this.optionsForSelect = _.clone(this.selectOptions);
       }
     }
-    if(this.inputType === 'teamSelect') {
+    if(this.inputType === 'teamSelect' || this.inputType === 'teamSelectWithNoAllTeamsOption') {
       if(!_.isArray(this.selectOptions)){
         throw new Error('Missing selectOptions. When using inputType="teamSelect", an array of selectOptions is required.');
       } else {
@@ -167,7 +174,10 @@ parasails.registerComponent('multifield', {
         throw new Error('Cannot programmatically set value for <multifield>: the given value must be an array or `undefined`, but instead got: '+those);
       }
       this.currentFieldValues = those;
-    }
+    },
+    disabled: function(newVal, unusedOldVal) {
+      this.isCurrentlyDisabled = !!newVal;
+    },
 
   },
 
@@ -191,6 +201,18 @@ parasails.registerComponent('multifield', {
       this.currentFieldValues[idx] = parsedValue;
       if(parsedValue === 'allTeams') {
         this.currentFieldValues = _.pluck(this.optionsForSelect, 'fleetApid');
+      }
+      await this.forceRender();
+      this._handleChangingFieldValues();
+    },
+
+    inputTeamSelectWithAllTeamsItemField: async function($event, idx) {
+      var parsedValue = $event.target.value || undefined;
+      this.currentFieldValues[idx] = parsedValue;
+      if(parsedValue === '9999') {
+        this.showAddButton = false;
+      } else {
+        this.showAddButton = true;
       }
       await this.forceRender();
       this._handleChangingFieldValues();
