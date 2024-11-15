@@ -1030,7 +1030,7 @@ const HostDetailsPage = ({
         )}
         {showOSSettingsModal && (
           <OSSettingsModal
-            canResendProfiles
+            canResendProfiles={host.platform === "darwin"}
             hostId={host.id}
             platform={host.platform}
             hostMDMData={host.mdm}
