@@ -1042,15 +1042,13 @@ const HostDetailsPage = ({
         {showUnenrollMdmModal && !!host && (
           <UnenrollMdmModal hostId={host.id} onClose={toggleUnenrollMdmModal} />
         )}
-        {showDiskEncryptionModal &&
-          host &&
-          isSupportedPlatform(host.platform) && (
-            <DiskEncryptionKeyModal
-              platform={host.platform}
-              hostId={host.id}
-              onCancel={() => setShowDiskEncryptionModal(false)}
-            />
-          )}
+        {showDiskEncryptionModal && host && (
+          <DiskEncryptionKeyModal
+            platform={host.platform}
+            hostId={host.id}
+            onCancel={() => setShowDiskEncryptionModal(false)}
+          />
+        )}
         {showBootstrapPackageModal &&
           bootstrapPackageData.details &&
           bootstrapPackageData.name && (
