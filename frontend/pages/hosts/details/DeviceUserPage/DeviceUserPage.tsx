@@ -385,6 +385,9 @@ const DeviceUserPage = ({
               }
               onTurnOnMdm={toggleEnrollMdmModal}
               onTriggerEscrowLinuxKey={onTriggerEscrowLinuxKey}
+              diskEncryptionOSSetting={host.mdm.os_settings?.disk_encryption}
+              diskIsEncrypted={host.disk_encryption_enabled}
+              diskEncryptionKeyAvailable={host.mdm.encryption_key_available}
             />
             <HostSummaryCard
               summaryData={summaryData}
