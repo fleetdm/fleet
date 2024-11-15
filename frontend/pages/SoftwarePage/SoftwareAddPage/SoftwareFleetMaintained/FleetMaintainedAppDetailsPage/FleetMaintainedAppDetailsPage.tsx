@@ -7,6 +7,7 @@ import PATHS from "router/paths";
 import { buildQueryStringFromParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import softwareAPI from "services/entities/software";
+import teamPoliciesAPI from "services/entities/team_policies";
 import { QueryContext } from "context/query";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -28,6 +29,12 @@ import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import FleetAppDetailsForm from "./FleetAppDetailsForm";
 import { IFleetMaintainedAppFormData } from "./FleetAppDetailsForm/FleetAppDetailsForm";
 import AddFleetAppSoftwareModal from "./AddFleetAppSoftwareModal";
+
+import {
+  getFleetAppPolicyDescription,
+  getFleetAppPolicyName,
+  getFleetAppPolicyQuery,
+} from "./helpers";
 
 const baseClass = "fleet-maintained-app-details-page";
 
@@ -103,7 +110,7 @@ const FleetMaintainedAppDetailsPage = ({
     setShowAddFleetAppSoftwareModal,
   ] = useState(false);
 
-  const { data, isLoading, isError } = useQuery(
+  const { data: fleetApp, isLoading, isError } = useQuery(
     ["fleet-maintained-app", appId],
     () => softwareAPI.getFleetMainainedApp(appId),
     {
@@ -131,25 +138,61 @@ const FleetMaintainedAppDetailsPage = ({
 
     setShowAddFleetAppSoftwareModal(true);
 
+    const { installType } = formData;
     try {
       await softwareAPI.addFleetMaintainedApp(parseInt(teamId, 10), {
         ...formData,
         appId,
       });
+
+      if (installType === "manual") {
+        router.push(
+          `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
+            team_id: teamId,
+            available_for_install: true,
+          })}`
+        );
+        renderFlash(
+          "success",
+          <>
+            <b>{fleetApp?.name}</b> successfully added.
+          </>
+        );
+      }
+    } catch (error) {
+      renderFlash("error", getErrorReason(error)); // TODO: handle error messages
+    }
+
+    if (installType === "automatic" && fleetApp) {
+      try {
+        await teamPoliciesAPI.create({
+          name: getFleetAppPolicyName(fleetApp.name),
+          description: getFleetAppPolicyDescription(fleetApp.name),
+          query: getFleetAppPolicyQuery(fleetApp.id),
+          team_id: parseInt(teamId, 10),
+          platform: "darwin",
+        });
+
+        renderFlash(
+          "success",
+          <>
+            <b>{fleetApp?.name}</b> successfully added.
+          </>
+        );
+      } catch (e) {
+        renderFlash(
+          "error",
+          "Couldn't add automatic install policy. Software is successfuly added. To try again delete software and add it again."
+        );
+      }
+
+      // redirect will happen even on an error when we are creating a policy.
       router.push(
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
           team_id: teamId,
           available_for_install: true,
         })}`
       );
-      renderFlash(
-        "success",
-        <>
-          <b>{data?.name}</b> successfully added.
-        </>
-      );
-    } catch (error) {
-      renderFlash("error", getErrorReason(error)); // TODO: handle error messages
     }
 
     setShowAddFleetAppSoftwareModal(false);
@@ -168,7 +211,7 @@ const FleetMaintainedAppDetailsPage = ({
       return <DataError />;
     }
 
-    if (data) {
+    if (fleetApp) {
       return (
         <>
           <BackLink
@@ -176,18 +219,18 @@ const FleetMaintainedAppDetailsPage = ({
             path={backToAddSoftwareUrl}
             className={`${baseClass}__back-to-add-software`}
           />
-          <h1>{data.name}</h1>
+          <h1>{fleetApp.name}</h1>
           <div className={`${baseClass}__page-content`}>
             <FleetAppSummary
-              name={data.name}
-              platform={data.platform}
-              version={data.version}
+              name={fleetApp.name}
+              platform={fleetApp.platform}
+              version={fleetApp.version}
             />
             <FleetAppDetailsForm
               showSchemaButton={!isSidePanelOpen}
-              defaultInstallScript={data.install_script}
-              defaultPostInstallScript={data.post_install_script}
-              defaultUninstallScript={data.uninstall_script}
+              defaultInstallScript={fleetApp.install_script}
+              defaultPostInstallScript={fleetApp.post_install_script}
+              defaultUninstallScript={fleetApp.uninstall_script}
               onClickShowSchema={() => setSidePanelOpen(true)}
               onCancel={onCancel}
               onSubmit={onSubmit}
@@ -205,7 +248,7 @@ const FleetMaintainedAppDetailsPage = ({
       <MainContent className={baseClass}>
         <>{renderContent()}</>
       </MainContent>
-      {isPremiumTier && data && isSidePanelOpen && (
+      {isPremiumTier && fleetApp && isSidePanelOpen && (
         <SidePanelContent className={`${baseClass}__side-panel`}>
           <QuerySidePanel
             key="query-side-panel"
