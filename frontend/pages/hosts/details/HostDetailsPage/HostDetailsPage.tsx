@@ -93,7 +93,6 @@ import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 import ScriptModalGroup from "./modals/ScriptModalGroup";
 import SelectQueryModal from "./modals/SelectQueryModal";
-import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncryptionKeyModal";
 import HostDetailsBanners from "./components/HostDetailsBanners";
 import { IShowActivityDetailsData } from "../cards/Activity/Activity";
 import LockModal from "./modals/LockModal";
