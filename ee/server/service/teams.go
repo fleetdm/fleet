@@ -1435,14 +1435,14 @@ func (svc *Service) editTeamFromSpec(
 func validateTeamCustomSettings(invalid *fleet.InvalidArgumentError, prefix string, customSettings []fleet.MDMProfileSpec) {
 	for i, prof := range customSettings {
 		count := 0
-		for _, b := range []bool{len(prof.Labels) > 0, len(prof.LabelsIncludeAll) > 0, len(prof.LabelsExcludeAny) > 0} {
+		for _, b := range []bool{len(prof.Labels) > 0, len(prof.LabelsIncludeAll) > 0, len(prof.LabelsIncludeAny) > 0, len(prof.LabelsExcludeAny) > 0} {
 			if b {
 				count++
 			}
 		}
 		if count > 1 {
 			invalid.Append(fmt.Sprintf("%s_settings.custom_settings", prefix),
-				fmt.Sprintf(`Couldn't edit %s_settings.custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`, prefix))
+				fmt.Sprintf(`Couldn't edit %s_settings.custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
 		}
 		if len(prof.Labels) > 0 {
 			customSettings[i].LabelsIncludeAll = customSettings[i].Labels

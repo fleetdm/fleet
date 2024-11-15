@@ -32,6 +32,7 @@ import {
   CUSTOM_TARGET_OPTIONS,
   CustomTargetOption,
   generateLabelKey,
+  getDescriptionText,
   listNamesFromSelectedLabels,
 } from "./helpers";
 
@@ -152,18 +153,6 @@ const LabelChooser = ({
     [setSelectedLabels]
   );
 
-  const descriptionText =
-    customTargetOption === "labelsIncludeAll" ? (
-      <>
-        Profile will only be applied to hosts that have <b>all</b> these labels:
-      </>
-    ) : (
-      <>
-        Profile will be applied to hosts that don&apos;t have <b>any</b> of
-        these labels:{" "}
-      </>
-    );
-
   const renderLabels = () => {
     if (isLoading) {
       return <Spinner centered={false} />;
@@ -206,7 +195,9 @@ const LabelChooser = ({
         searchable={false}
         onChange={onSelectCustomTargetOption}
       />
-      <div className={`${baseClass}__description`}>{descriptionText}</div>
+      <div className={`${baseClass}__description`}>
+        {getDescriptionText(customTargetOption)}
+      </div>
       <div className={`${baseClass}__checkboxes`}>{renderLabels()}</div>
     </div>
   );

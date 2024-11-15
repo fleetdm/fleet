@@ -3175,25 +3175,25 @@ Signals the Fleet server to send a webbook request with the device UUID and seri
 Notifies the server about an agent error, resulting in two outcomes:
 
 - The error gets saved in Redis and can later be accessed using `fleetctl debug archive`.
-- The server consistently replies with a `500` status code, which can serve as a signal to activate an alarm through a monitoring tool.
 
-> Note: to allow `fleetd` agents to use this endpoint, you need to set a [custom environment variable](./Configuration-for-contributors.md#fleet_enable_post_client_debug_errors)
+> Note: to allow `fleetd` agents to use this endpoint, you need to set a [custom environment variable](./Configuration-for-contributors.md#fleet_enable_post_client_debug_errors). `fleetd` agents will always report vital errors to Fleet.
 
 `POST /api/v1/fleet/device/{token}/debug/errors`
 
 #### Parameters
 
-| Name                  | Type     | Description                                                      |
-| --------------------- | -------- | ---------------------------------------------------------------- |
-| error_source          | string   | Process name that error originated from ex. orbit, fleet-desktop |
-| error_source_version  | string   | version of error_source                                          |
-| error_timestamp       | datetime | Time in UTC that error occured                                   |
-| error_message         | string   | error message                                                    |
-| error_additional_info | obj      | Any additional identifiers to assist debugging                   |
+| Name                  | Type     | Description                                                                                                                               |
+|-----------------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| error_source          | string   | Process name that error originated from ex. orbit, fleet-desktop                                                                          |
+| error_source_version  | string   | version of error_source                                                                                                                   |
+| error_timestamp       | datetime | Time in UTC that error occured                                                                                                            |
+| error_message         | string   | error message                                                                                                                             |
+| error_additional_info | obj      | Any additional identifiers to assist debugging                                                                                            |
+| vital                 | boolean  | Whether the error is vital and should also be reported to Fleet via usage statistics. Do not put sensitive information into vital errors. |
 
 ##### Default response
 
-`Status: 500`
+`Status: 200`
 
 ---
 

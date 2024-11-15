@@ -859,6 +859,8 @@ type GetMDMAppleDefaultSetupAssistantFunc func(ctx context.Context, teamID *uint
 
 type GetMatchingHostSerialsFunc func(ctx context.Context, serials []string) (map[string]*fleet.Host, error)
 
+type GetMatchingHostSerialsMarkedDeletedFunc func(ctx context.Context, serials []string) (map[string]struct{}, error)
+
 type DeleteHostDEPAssignmentsFromAnotherABMFunc func(ctx context.Context, abmTokenID uint, serials []string) error
 
 type DeleteHostDEPAssignmentsFunc func(ctx context.Context, abmTokenID uint, serials []string) error
@@ -2404,6 +2406,9 @@ type DataStore struct {
 
 	GetMatchingHostSerialsFunc        GetMatchingHostSerialsFunc
 	GetMatchingHostSerialsFuncInvoked bool
+
+	GetMatchingHostSerialsMarkedDeletedFunc        GetMatchingHostSerialsMarkedDeletedFunc
+	GetMatchingHostSerialsMarkedDeletedFuncInvoked bool
 
 	DeleteHostDEPAssignmentsFromAnotherABMFunc        DeleteHostDEPAssignmentsFromAnotherABMFunc
 	DeleteHostDEPAssignmentsFromAnotherABMFuncInvoked bool
@@ -5771,6 +5776,13 @@ func (s *DataStore) GetMatchingHostSerials(ctx context.Context, serials []string
 	s.GetMatchingHostSerialsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMatchingHostSerialsFunc(ctx, serials)
+}
+
+func (s *DataStore) GetMatchingHostSerialsMarkedDeleted(ctx context.Context, serials []string) (map[string]struct{}, error) {
+	s.mu.Lock()
+	s.GetMatchingHostSerialsMarkedDeletedFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMatchingHostSerialsMarkedDeletedFunc(ctx, serials)
 }
 
 func (s *DataStore) DeleteHostDEPAssignmentsFromAnotherABM(ctx context.Context, abmTokenID uint, serials []string) error {
