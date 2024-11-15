@@ -40,6 +40,13 @@ func (c *Client) GetAppleBM() (*fleet.AppleBM, error) {
 	return responseBody.AppleBM, err
 }
 
+func (c *Client) ListABMTokens() ([]*fleet.ABMToken, error) {
+	verb, path := "GET", "/api/latest/fleet/abm_tokens"
+	var responseBody listABMTokensResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
+	return responseBody.Tokens, err
+}
+
 // RequestAppleCSR requests a signed CSR from the Fleet server and returns the
 // CSR bytes
 func (c *Client) RequestAppleCSR() ([]byte, error) {

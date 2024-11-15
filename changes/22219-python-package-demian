@@ -1,1 +1,0 @@
-- Addressed Debian python package false positive vulnerabilities by removing duplicate entries for Debian python packages installed by dpkg and renaming remaining pip installed packages to match OVAL definitions.

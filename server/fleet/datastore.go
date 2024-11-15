@@ -439,6 +439,11 @@ type Datastore interface {
 	// value.
 	AggregateEnrollSecretPerTeam(ctx context.Context) ([]*EnrollSecret, error)
 
+	// Methods for getting and applying the stored yara rules.
+	GetYaraRules(ctx context.Context) ([]YaraRule, error)
+	ApplyYaraRules(ctx context.Context, rules []YaraRule) error
+	YaraRuleByName(ctx context.Context, name string) (*YaraRule, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// InviteStore contains the methods for managing user invites in a datastore.
 
@@ -1292,6 +1297,11 @@ type Datastore interface {
 	// GetMatchingHostSerials receives a list of serial numbers and returns
 	// a map that only contains the serials that have a matching row in the `hosts` table.
 	GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*Host, error)
+
+	// GetMatchingHostSerialsMarkedDeleted takes a list of device serial numbers and returns a map
+	// of only the ones that were found in the `hosts` table AND have a row in
+	// `host_dep_assignments` that is marked as deleted.
+	GetMatchingHostSerialsMarkedDeleted(ctx context.Context, serials []string) (map[string]struct{}, error)
 
 	// DeleteHostDEPAssignmentsFromAnotherABM makes as deleted any DEP entry that matches one of the provided serials only if the entry is NOT associated to the provided ABM token.
 	DeleteHostDEPAssignmentsFromAnotherABM(ctx context.Context, abmTokenID uint, serials []string) error
