@@ -497,7 +497,7 @@ for pagination. For a comprehensive list of activity types and detailed informat
         "host_display_name": "Marko's MacBook Pro",
         "software_title": "Adobe Acrobat.app",
         "script_execution_id": "eeeddb94-52d3-4071-8b18-7322cd382abb",
-        "status": "failed"
+        "status": "failed_install"
       }
     },
     {
@@ -4359,7 +4359,7 @@ Resends a configuration profile for the specified host.
       },
       "app_store_app": null,
       "source": "apps",
-      "status": "failed",
+      "status": "failed_install",
       "installed_versions": [
         {
           "version": "121.0",
@@ -4679,7 +4679,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
         "host_display_name": "Marko’s MacBook Pro",
         "software_title": "Adobe Acrobat.app",
         "script_execution_id": "ecf22dba-07dc-40a9-b122-5480e948b756",
-        "status": "failed"
+        "status": "failed_uninstall"
       }
     }, 
     {
@@ -10066,7 +10066,7 @@ To get the results of an App Store app install, use the [List MDM commands](#lis
    "software_package": "FalconSensor-6.44.pkg",
    "host_id": 123,
    "host_display_name": "Marko's MacBook Pro",
-   "status": "failed",
+   "status": "failed_install",
    "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
    "pre_install_query_output": "Query returned result\nSuccess",
    "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
