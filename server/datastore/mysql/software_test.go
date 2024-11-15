@@ -58,18 +58,16 @@ func TestSoftware(t *testing.T) {
 		{"DeleteSoftwareCPEs", testDeleteSoftwareCPEs},
 		{"SoftwareByIDNoDuplicatedVulns", testSoftwareByIDNoDuplicatedVulns},
 		{"SoftwareByIDIncludesCVEPublishedDate", testSoftwareByIDIncludesCVEPublishedDate},
-		{"getHostSoftwareInstalledPaths", testGetHostSoftwareInstalledPaths},
-		{"hostSoftwareInstalledPathsDelta", testHostSoftwareInstalledPathsDelta},
-		{"deleteHostSoftwareInstalledPaths", testDeleteHostSoftwareInstalledPaths},
-		{"insertHostSoftwareInstalledPaths", testInsertHostSoftwareInstalledPaths},
-		{"VerifySoftwareChecksum", testVerifySoftwareChecksum},
+		{"GetHostSoftwareInstalledPaths", testGetHostSoftwareInstalledPaths},
+		{"HostSoftwareInstalledPathsDelta", testHostSoftwareInstalledPathsDelta},
+		{"DeleteHostSoftwareInstalledPaths", testDeleteHostSoftwareInstalledPaths},
+		{"InsertHostSoftwareInstalledPaths", testInsertHostSoftwareInstalledPaths},
 		{"ListHostSoftware", testListHostSoftware},
 		{"ListIOSHostSoftware", testListIOSHostSoftware},
 		{"SetHostSoftwareInstallResult", testSetHostSoftwareInstallResult},
 		{"ListHostSoftwareInstallThenTransferTeam", testListHostSoftwareInstallThenTransferTeam},
 		{"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
 		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
-		{"AddTeamIdentifier", testAddTeamIdentifier},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -227,7 +225,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 	longName := strings.Repeat("a", fleet.SoftwareNameMaxLength+5)
 
 	incoming := make(map[string]fleet.Software)
-	sw, err := fleet.SoftwareFromOsqueryRow(longName+"b", "0.0.1", "chrome_extension", "", "", "", "", "", "", "", "", "")
+	sw, err := fleet.SoftwareFromOsqueryRow(longName+"b", "0.0.1", "chrome_extension", "", "", "", "", "", "", "", "")
 	require.NoError(t, err)
 	soft2Key := sw.ToUniqueStr()
 	incoming[soft2Key] = *sw
@@ -256,7 +254,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 	require.Equal(t, strings.Repeat("a", fleet.SoftwareNameMaxLength), software[0].Name)
 
 	incoming = make(map[string]fleet.Software)
-	sw, err = fleet.SoftwareFromOsqueryRow(longName+"c", "0.0.1", "chrome_extension", "", "", "", "", "", "", "", "", "")
+	sw, err = fleet.SoftwareFromOsqueryRow(longName+"c", "0.0.1", "chrome_extension", "", "", "", "", "", "", "", "")
 	require.NoError(t, err)
 	soft3Key := sw.ToUniqueStr()
 	incoming[soft3Key] = *sw
@@ -1275,8 +1273,7 @@ func softwareChecksumComputedColumn(tableAlias string) string {
 				%[1]sarch,
 				%[1]svendor,
 				%[1]sbrowser,
-				%[1]sextension_id,
-				NULLIF(%[1]steam_identifier, '')
+				%[1]sextension_id
 			)
 		)
 	) `, tableAlias,
@@ -1344,7 +1341,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	// Insert paths for software1
 	s1Paths := map[string]struct{}{}
 	for _, s := range software1 {
-		key := fmt.Sprintf("%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		s1Paths[key] = struct{}{}
 	}
 	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host1.ID, s1Paths, mutationResults))
@@ -1355,7 +1352,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	// Insert paths for software2
 	s2Paths := map[string]struct{}{}
 	for _, s := range software2 {
-		key := fmt.Sprintf("%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		s2Paths[key] = struct{}{}
 	}
 	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host2.ID, s2Paths, mutationResults))
@@ -2735,9 +2732,9 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 
 	t.Run("host has no software but some paths were reported", func(t *testing.T) {
 		reported := make(map[string]struct{})
-		reported[fmt.Sprintf("/some/path/%d%s%s", software[0].ID, fleet.SoftwareFieldSeparator, software[0].ToUniqueStr())] = struct{}{}
-		reported[fmt.Sprintf("/some/path/%d%s%s", software[1].ID+1, fleet.SoftwareFieldSeparator, software[1].ToUniqueStr())] = struct{}{}
-		reported[fmt.Sprintf("/some/path/%d%s%s", software[2].ID, fleet.SoftwareFieldSeparator, software[2].ToUniqueStr())] = struct{}{}
+		reported[fmt.Sprintf("/some/path/%d%s%s%s%s", software[0].ID, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, software[0].ToUniqueStr())] = struct{}{}
+		reported[fmt.Sprintf("/some/path/%d%s%s%s%s", software[1].ID+1, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, software[1].ToUniqueStr())] = struct{}{}
+		reported[fmt.Sprintf("/some/path/%d%s%s%s%s", software[2].ID, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, software[2].ToUniqueStr())] = struct{}{}
 
 		var stored []fleet.HostSoftwareInstalledPath
 		_, _, err := hostSoftwareInstalledPathsDelta(host.ID, reported, stored, nil)
@@ -2746,7 +2743,7 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 
 	t.Run("we have some deltas", func(t *testing.T) {
 		getKey := func(s fleet.Software, change uint) string {
-			return fmt.Sprintf("/some/path/%d%s%s", s.ID+change, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+			return fmt.Sprintf("/some/path/%d%s%s%s%s", s.ID+change, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		}
 		reported := make(map[string]struct{})
 		reported[getKey(software[0], 0)] = struct{}{}
@@ -3133,37 +3130,6 @@ func testUpdateHostSoftwareDeadlock(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 }
 
-func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
-
-	software := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "test"},
-		{Name: "foo", Version: "0.0.1", Source: "test", Browser: "firefox"},
-		{Name: "foo", Version: "0.0.1", Source: "test", ExtensionID: "ext"},
-		{Name: "foo", Version: "0.0.2", Source: "test"},
-		{Name: "foo", Version: "0.0.2", Source: "test", TeamIdentifier: "bar"},
-	}
-
-	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
-	require.NoError(t, err)
-
-	checksums := make([]string, len(software))
-	for i, sw := range software {
-		checksum, err := computeRawChecksum(sw)
-		require.NoError(t, err)
-		checksums[i] = hex.EncodeToString(checksum)
-	}
-	for i, cs := range checksums {
-		var got fleet.Software
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &got,
-				`SELECT name, version, source, bundle_identifier, `+"`release`"+`, arch, vendor, browser, extension_id, team_identifier FROM software WHERE checksum = UNHEX(?)`, cs)
-		})
-		require.Equal(t, software[i], got)
-	}
-}
-
 func testListHostSoftware(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
@@ -3311,7 +3277,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	installPaths := make([]string, 0, len(software))
 	for _, s := range software {
 		path := fmt.Sprintf("/some/path/%s", s.Name)
-		key := fmt.Sprintf("%s%s%s", path, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s", path, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		swPaths[key] = struct{}{}
 		installPaths = append(installPaths, path)
 	}
@@ -5235,76 +5201,4 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 			require.Equal(t, len(tt.expected), count)
 		})
 	}
-}
-
-func testAddTeamIdentifier(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
-
-	insertSoftware := func(s fleet.Software) uint {
-		appChecksum, err := computeRawChecksum(s)
-		require.NoError(t, err)
-		res, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(
-			`INSERT INTO software (name, version, bundle_identifier, source, checksum) VALUES ('%s', '%s', '%s', 'apps', '%s')`,
-			s.Name, s.Version, s.BundleIdentifier, appChecksum,
-		))
-		require.NoError(t, err)
-		id, err := res.LastInsertId()
-		require.NoError(t, err)
-		return uint(id)
-	}
-
-	safariApp := fleet.Software{
-		Name:             "Safari.app",
-		BundleIdentifier: "com.apple.safari",
-		Version:          "18.1",
-		Source:           "apps",
-	}
-	googleChromeApp := fleet.Software{
-		Name:             "Google Chrome.app",
-		BundleIdentifier: "com.google.Chrome",
-		Version:          "130.0.6723.117",
-		Source:           "apps",
-	}
-	safariAppSoftwareID := insertSoftware(safariApp)
-	googleChromeSoftwareID := insertSoftware(googleChromeApp)
-	_, _ = safariAppSoftwareID, googleChromeSoftwareID
-
-	software := []fleet.Software{
-		safariApp, googleChromeApp,
-	}
-	hostSoftware, err := ds.UpdateHostSoftware(ctx, host.ID, software)
-	require.NoError(t, err)
-	require.Len(t, hostSoftware.CurrInstalled(), 2)
-
-	googleChromeApp.TeamIdentifier = "EQHXZ8M8AV"
-	software2 := []fleet.Software{
-		safariApp, googleChromeApp,
-	}
-	hostSoftware, err = ds.UpdateHostSoftware(ctx, host.ID, software2)
-	require.NoError(t, err)
-	require.Len(t, hostSoftware.CurrInstalled(), 2)
-
-	checkSoftware := func() {
-		var software3 []fleet.Software
-		err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()),
-			&software3, `SELECT id, name, bundle_identifier, version, source, team_identifier FROM software`,
-		)
-		require.NoError(t, err)
-		require.Len(t, software3, 3)
-		require.Equal(t, safariAppSoftwareID, software3[0].ID)
-		require.Equal(t, googleChromeSoftwareID, software3[1].ID)
-		require.Equal(t, googleChromeSoftwareID+1, software3[2].ID) // new entry for the Google Chrome.app with team_identifier.
-	}
-	checkSoftware()
-
-	require.Equal(t, safariAppSoftwareID, hostSoftware.CurrInstalled()[0].ID)
-	require.Equal(t, googleChromeSoftwareID+1, hostSoftware.CurrInstalled()[1].ID)
-
-	// Inserting again should change nothing.
-	hostSoftware, err = ds.UpdateHostSoftware(ctx, host.ID, software2)
-	require.NoError(t, err)
-	require.Len(t, hostSoftware.Inserted, 0)
-
-	checkSoftware()
 }

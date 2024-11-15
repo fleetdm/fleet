@@ -1540,7 +1540,6 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			row["extension_id"],
 			row["browser"],
 			row["last_opened_at"],
-			row["team_identifier"],
 		)
 		if err != nil {
 			level.Debug(logger).Log(
@@ -1565,7 +1564,11 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			// NOTE: osquery is sometimes incorrectly returning the value "null" for some install paths.
 			// Thus, we explicitly ignore such value here.
 			strings.ToLower(installedPath) != "null" {
-			key := fmt.Sprintf("%s%s%s", installedPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+			teamIdentifier := row["team_identifier"]
+			key := fmt.Sprintf(
+				"%s%s%s%s%s",
+				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+			)
 			sPaths[key] = struct{}{}
 		}
 	}

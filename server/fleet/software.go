@@ -82,10 +82,6 @@ type Software struct {
 	// a specific host (host_id is provided).
 	LastOpenedAt *time.Time `json:"last_opened_at,omitempty" db:"last_opened_at"`
 
-	// TeamIdentifier (not to be confused with Fleet's team IDs) is the Apple's "Team ID" (aka "Developer ID"
-	// or "Signing ID") of signed applications, see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id.
-	TeamIdentifier string `json:"team_identifier,omitempty" db:"team_identifier"`
-
 	// TitleID is the ID of the associated software title, representing a unique combination of name
 	// and source.
 	TitleID *uint `json:"-" db:"title_id"`
@@ -107,11 +103,6 @@ func (s Software) ToUniqueStr() string {
 	// This way a blank ExtensionID/Browser matches the pre-migration unique string.
 	if s.ExtensionID != "" || s.Browser != "" {
 		ss = append(ss, s.ExtensionID, s.Browser)
-	}
-	// TeamIdentifier was added in a single migration, so it is only included if it exists.
-	// This way a blank TeamIdentifier matches the pre-migration unique string.
-	if s.TeamIdentifier != "" {
-		ss = append(ss, s.TeamIdentifier)
 	}
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
@@ -284,7 +275,13 @@ type HostSoftwareEntry struct {
 	Software
 	// Where this software was installed on the host, value is derived from the
 	// host_software_installed_paths table.
-	InstalledPaths []string `json:"installed_paths"`
+	InstalledPaths           []string                   `json:"installed_paths"`
+	PathSignatureInformation []PathSignatureInformation `json:"signature_information"`
+}
+
+type PathSignatureInformation struct {
+	InstalledPath  string `json:"installed_path"`
+	TeamIdentifier string `json:"team_identifier"`
 }
 
 // HostSoftware is the set of software installed on a specific host
@@ -398,7 +395,7 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 // The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
 func SoftwareFromOsqueryRow(
 	name, version, source, vendor, installedPath, release, arch,
-	bundleIdentifier, extensionId, browser, lastOpenedAt, teamIdentifier string,
+	bundleIdentifier, extensionId, browser, lastOpenedAt string,
 ) (*Software, error) {
 	if name == "" {
 		return nil, errors.New("host reported software with empty name")
@@ -431,10 +428,9 @@ func SoftwareFromOsqueryRow(
 		ExtensionID:      truncateString(extensionId, SoftwareExtensionIDMaxLength),
 		Browser:          truncateString(browser, SoftwareBrowserMaxLength),
 
-		Release:        truncateString(release, SoftwareReleaseMaxLength),
-		Vendor:         vendor,
-		Arch:           truncateString(arch, SoftwareArchMaxLength),
-		TeamIdentifier: truncateString(teamIdentifier, SoftwareTeamIdentifierMaxLength),
+		Release: truncateString(release, SoftwareReleaseMaxLength),
+		Vendor:  vendor,
+		Arch:    truncateString(arch, SoftwareArchMaxLength),
 	}
 	if !lastOpenedAtTime.IsZero() {
 		software.LastOpenedAt = &lastOpenedAtTime
