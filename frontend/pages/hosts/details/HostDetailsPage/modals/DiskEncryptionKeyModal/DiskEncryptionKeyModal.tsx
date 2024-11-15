@@ -8,26 +8,11 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import DataError from "components/DataError";
-import { QueryablePlatform } from "interfaces/platform";
 
 const baseClass = "disk-encryption-key-modal";
 
-// currently these are the only supported platforms for the disk encryption
-// key modal.
-export type ModalSupportedPlatform = Extract<
-  QueryablePlatform,
-  "darwin" | "windows"
->;
-
-// Checks to see if the platform is supported by the modal.
-export const isSupportedPlatform = (
-  platform: string
-): platform is ModalSupportedPlatform => {
-  return ["darwin", "windows"].includes(platform);
-};
-
 interface IDiskEncryptionKeyModal {
-  platform: ModalSupportedPlatform;
+  platform: string;
   hostId: number;
   onCancel: () => void;
 }
