@@ -12333,7 +12333,7 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 
 	// Update the host's software installed paths for the software above.
 	// Google Chrome.app will have two installed paths one with team identifier set
-	// the other one set to emtpy.
+	// the other one set to empty.
 	swPaths := map[string]struct{}{}
 	for _, s := range software {
 		pathItems := [][2]string{{fmt.Sprintf("/some/path/%s", s.Name), ""}}
