@@ -35,7 +35,6 @@ module.exports = {
     let WritableStream = require('stream').Writable;
     let axios = require('axios');
     for(let software of softwareDeployedToAllTeams) {
-      console.log(software)
       // console.log(allTeamApids)
       let teamsThisSoftwareIsNotDeployedOn = _.difference(allTeamApids, software.teamApids);
       if(teamsThisSoftwareIsNotDeployedOn.length > 0) {
