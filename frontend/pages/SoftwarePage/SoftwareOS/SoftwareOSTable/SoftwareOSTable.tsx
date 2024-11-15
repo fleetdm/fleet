@@ -173,7 +173,7 @@ const SoftwareOSTable = ({
     router.push(path);
   };
 
-  // Determines if a user should be able to filter or search in the table
+  // Determines if a user should be able to filter the table
   const hasData = data?.os_versions && data?.os_versions.length > 0;
   const hasPlatformFilter = platform !== "all";
 
