@@ -36,6 +36,7 @@ module.exports = {
           }
         });
       }
+      // Delete the AllTeamsSoftware records for this software (if it exists)
       await AllTeamsSoftware.destroyOne({fleetApid: software.fleetApid})
     }
     // All done.
