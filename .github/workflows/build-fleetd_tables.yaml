@@ -31,11 +31,6 @@ jobs:
       - name: Install Go Dependencies
         run: make deps-go
 
-      - name: Generate static files
-        run: |
-          export PATH=$PATH:~/go/bin
-          make generate
-
       - name: Build binaries
         run: make fleetd-tables-all
 
