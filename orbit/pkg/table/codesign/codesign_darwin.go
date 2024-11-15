@@ -82,7 +82,7 @@ type parsedInfo struct {
 }
 
 func parseCodesignOutput(output []byte) parsedInfo {
-	const teamIdentifier = "TeamIdentifier="
+	const teamIdentifierPrefix = "TeamIdentifier="
 
 	scanner := bufio.NewScanner(bytes.NewReader(output))
 	var info parsedInfo
