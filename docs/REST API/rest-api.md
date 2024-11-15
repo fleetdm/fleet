@@ -4175,6 +4175,7 @@ Resends a configuration profile for the specified host.
       "installed_versions": [
         {
           "version": "121.0",
+          "bundle_identifier": "com.google.Chrome",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
           "installed_paths": ["/Applications/Google Chrome.app"],
@@ -4223,6 +4224,7 @@ Resends a configuration profile for the specified host.
       "installed_versions": [
         {
           "version": "118.0",
+          "bundle_identifier": "com.apple.logic10",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-1234"],
           "installed_paths": ["/Applications/Logic Pro.app"],
