@@ -118,6 +118,9 @@ module.exports = {
         });
       }
       if(isDeployedToAllTeams) {
+        // IF the software is deployed to all teams, we'll send a request to the Fleet API to get information about the uploaded software.
+        // This way, we can create an AllTeamsSoftware record for the newly uploaded installer.
+        // Get all software for a team that the new software was uploaded to.
         let softwareResponse = await sails.helpers.http.get.with({
           url: `/api/latest/fleet/software/titles?team_id=${teams[0]}`,
           baseUrl: sails.config.custom.fleetBaseUrl,
@@ -127,18 +130,20 @@ module.exports = {
         })
         .timeout(120000)
         .retry(['requestFailed', {name: 'TimeoutError'}]);
+        // Filter out software without installer packages.
         let softwareForThisTeam = _.filter(softwareResponse.software_titles, (software)=>{
           return !_.isEmpty(software.software_package);
         });
+        // Find the software with an installer package that matches the uploaded installer's filename
         let softwareThatWasJustUploaded = _.find(softwareForThisTeam, (softwareWithInstaller)=>{
           return softwareWithInstaller.software_package.name === uploadedSoftware.filename;
         });
+        // Create a new DB record for this software.
         await AllTeamsSoftware.create({
           fleetApid: softwareThatWasJustUploaded.id,
           teamApids: teams,
-        })
+        });
       }
-
 
       // Remove the file from the s3 bucket after it has been sent to the Fleet server.
       await sails.rm(sails.config.uploads.prefixForFileDeletion+uploadedSoftware.fd);

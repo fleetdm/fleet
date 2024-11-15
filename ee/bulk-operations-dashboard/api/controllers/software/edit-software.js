@@ -70,9 +70,11 @@ module.exports = {
     // Cast the strings in the newTeamIds array to numbers.
     if(newTeamIds){
       if(isDeployedToAllTeams){
+        // Create an AllTeamsSoftware record for this software, this software will be automaticaly transfered to all new teams via a scheduled run of the detect-new-teams-and-transfer-software script.
         await AllTeamsSoftware.create({ fleetApid: software.fleetApid, teamApids: newTeamIds});
       } else {
-        await AllTeamsSoftware.destroyOne({fleetApid: software.fleetApid})
+        // Destory a AllTeamsSoftware record (if it exists)
+        await AllTeamsSoftware.destroyOne({fleetApid: software.fleetApid});
       }
       newTeamIds = newTeamIds.map(Number);
     } else {

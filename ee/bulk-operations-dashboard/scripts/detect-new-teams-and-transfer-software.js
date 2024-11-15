@@ -38,7 +38,7 @@ module.exports = {
     for(let software of softwareDeployedToAllTeams) {
       let teamsThisSoftwareIsNotDeployedOn = _.difference(allTeamApids, software.teamApids);
       if(teamsThisSoftwareIsNotDeployedOn.length > 0) {
-        sails.log.info(`${teamsThisSoftwareIsNotDeployedOn.length} New team(s) detected!`)
+        sails.log.info(`${teamsThisSoftwareIsNotDeployedOn.length} New team(s) detected!`);
         // Get software installer:
         let teamIdToGetInstallerFrom = software.teamApids[0];
         sails.log.info(`Getting information about this installer`);
@@ -59,12 +59,11 @@ module.exports = {
         });
         sails.log.info(`Uploading installer to s3 bucket.`);
         let tempUploadedSoftware = await sails.uploadOne(softwareStream, {bucket: sails.config.uploads.bucketWithPostfix});
-        softwareFd = tempUploadedSoftware.fd;
-        softwareMime = tempUploadedSoftware.type;
+        let softwareFd = tempUploadedSoftware.fd;
         sails.log.info(`Upload complete, starting transfer to Fleet instance for added teams.`);
 
         await sails.helpers.flow.simultaneouslyForEach(teamsThisSoftwareIsNotDeployedOn, async (team)=>{
-        sails.log.info(`Copying ${installerInformation.name} to team_id ${team}`)
+          sails.log.info(`Copying ${installerInformation.name} to team_id ${team}`);
           // Send an api request to send the file to the Fleet server for each new team.
           await sails.cp(softwareFd, {bucket: sails.config.uploads.bucketWithPostfix},
             {
@@ -122,7 +121,7 @@ module.exports = {
             return new Error(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, ${require('util').inspect(error, {depth: null})}`);
           });
         });//∞ for each new team.
-        sails.log.info(`software transfer complete for ${installerInformation.name}, updating database record with new teams.`)
+        sails.log.info(`software transfer complete for ${installerInformation.name}, updating database record with new teams.`);
         // Update the AllTeamsSoftware record's teamApids value
         await AllTeamsSoftware.updateOne({id: software.id}).set({teamApids: allTeamApids});
         // Delete the temporary file stored in s3.

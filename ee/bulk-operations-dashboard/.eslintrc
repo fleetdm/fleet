@@ -42,7 +42,8 @@
     "User": true,
     "UndeployedProfile": true,
     "UndeployedScript": true,
-    "UndeployedSoftware": true
+    "UndeployedSoftware": true,
+    "AllTeamsSoftware": true
     
     // …and any others.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

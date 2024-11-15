@@ -56,7 +56,9 @@
     "sails": false,
     "User": false,
     "UndeployedProfile": false,
-    "UndeployedScript": false
+    "UndeployedScript": false,
+    "UndeployedSoftware": false,
+    "AllTeamsSoftware": false
     // ...and any other backend globals (e.g. `"Organization": false`)
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   }

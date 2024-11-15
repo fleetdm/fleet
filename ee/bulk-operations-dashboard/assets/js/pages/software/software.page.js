@@ -71,11 +71,11 @@ parasails.registerPage('software', {
         installScript: thisSoftware.installScript,
         postInstallScript: thisSoftware.postInstallScript,
         uninstallScript: thisSoftware.uninstallScript,
-      }
+      };
       // Set isDeployedToAllTeams separately after a 100ms delay This is done to trigger a UI change to disable the teams picker if software is deployed to all future teams.
       await setTimeout(()=>{
-        this.$set(this.formData, 'isDeployedToAllTeams', thisSoftware.isDeployedToAllTeams)
-      }, 100)
+        this.$set(this.formData, 'isDeployedToAllTeams', thisSoftware.isDeployedToAllTeams);
+      }, 100);
       await this.forceRender();
     },
     clickOpenDeleteModal: async function(software) {
