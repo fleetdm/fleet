@@ -327,6 +327,12 @@ type ApplyEnrollSecretsFunc func(ctx context.Context, teamID *uint, secrets []*f
 
 type AggregateEnrollSecretPerTeamFunc func(ctx context.Context) ([]*fleet.EnrollSecret, error)
 
+type GetYaraRulesFunc func(ctx context.Context) ([]fleet.YaraRule, error)
+
+type ApplyYaraRulesFunc func(ctx context.Context, rules []fleet.YaraRule) error
+
+type YaraRuleByNameFunc func(ctx context.Context, name string) (*fleet.YaraRule, error)
+
 type NewInviteFunc func(ctx context.Context, i *fleet.Invite) (*fleet.Invite, error)
 
 type ListInvitesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, error)
@@ -852,6 +858,8 @@ type SetMDMAppleDefaultSetupAssistantProfileUUIDFunc func(ctx context.Context, t
 type GetMDMAppleDefaultSetupAssistantFunc func(ctx context.Context, teamID *uint, abmTokenOrgName string) (profileUUID string, updatedAt time.Time, err error)
 
 type GetMatchingHostSerialsFunc func(ctx context.Context, serials []string) (map[string]*fleet.Host, error)
+
+type GetMatchingHostSerialsMarkedDeletedFunc func(ctx context.Context, serials []string) (map[string]struct{}, error)
 
 type DeleteHostDEPAssignmentsFromAnotherABMFunc func(ctx context.Context, abmTokenID uint, serials []string) error
 
@@ -1600,6 +1608,15 @@ type DataStore struct {
 
 	AggregateEnrollSecretPerTeamFunc        AggregateEnrollSecretPerTeamFunc
 	AggregateEnrollSecretPerTeamFuncInvoked bool
+
+	GetYaraRulesFunc        GetYaraRulesFunc
+	GetYaraRulesFuncInvoked bool
+
+	ApplyYaraRulesFunc        ApplyYaraRulesFunc
+	ApplyYaraRulesFuncInvoked bool
+
+	YaraRuleByNameFunc        YaraRuleByNameFunc
+	YaraRuleByNameFuncInvoked bool
 
 	NewInviteFunc        NewInviteFunc
 	NewInviteFuncInvoked bool
@@ -2389,6 +2406,9 @@ type DataStore struct {
 
 	GetMatchingHostSerialsFunc        GetMatchingHostSerialsFunc
 	GetMatchingHostSerialsFuncInvoked bool
+
+	GetMatchingHostSerialsMarkedDeletedFunc        GetMatchingHostSerialsMarkedDeletedFunc
+	GetMatchingHostSerialsMarkedDeletedFuncInvoked bool
 
 	DeleteHostDEPAssignmentsFromAnotherABMFunc        DeleteHostDEPAssignmentsFromAnotherABMFunc
 	DeleteHostDEPAssignmentsFromAnotherABMFuncInvoked bool
@@ -3894,6 +3914,27 @@ func (s *DataStore) AggregateEnrollSecretPerTeam(ctx context.Context) ([]*fleet.
 	s.AggregateEnrollSecretPerTeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.AggregateEnrollSecretPerTeamFunc(ctx)
+}
+
+func (s *DataStore) GetYaraRules(ctx context.Context) ([]fleet.YaraRule, error) {
+	s.mu.Lock()
+	s.GetYaraRulesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetYaraRulesFunc(ctx)
+}
+
+func (s *DataStore) ApplyYaraRules(ctx context.Context, rules []fleet.YaraRule) error {
+	s.mu.Lock()
+	s.ApplyYaraRulesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ApplyYaraRulesFunc(ctx, rules)
+}
+
+func (s *DataStore) YaraRuleByName(ctx context.Context, name string) (*fleet.YaraRule, error) {
+	s.mu.Lock()
+	s.YaraRuleByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.YaraRuleByNameFunc(ctx, name)
 }
 
 func (s *DataStore) NewInvite(ctx context.Context, i *fleet.Invite) (*fleet.Invite, error) {
@@ -5735,6 +5776,13 @@ func (s *DataStore) GetMatchingHostSerials(ctx context.Context, serials []string
 	s.GetMatchingHostSerialsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMatchingHostSerialsFunc(ctx, serials)
+}
+
+func (s *DataStore) GetMatchingHostSerialsMarkedDeleted(ctx context.Context, serials []string) (map[string]struct{}, error) {
+	s.mu.Lock()
+	s.GetMatchingHostSerialsMarkedDeletedFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMatchingHostSerialsMarkedDeletedFunc(ctx, serials)
 }
 
 func (s *DataStore) DeleteHostDEPAssignmentsFromAnotherABM(ctx context.Context, abmTokenID uint, serials []string) error {

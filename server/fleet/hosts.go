@@ -200,6 +200,10 @@ type HostListOptions struct {
 	// PopulateSoftware adds the `Software` field to all Hosts returned.
 	PopulateSoftware bool
 
+	// PopulateSoftwareVulnerabilityDetails adds description, fix version, etc. fields to software vulnerabilities
+	// (this is a Premium feature that gets forced to false on Fleet Free)
+	PopulateSoftwareVulnerabilityDetails bool
+
 	// PopulatePolicies adds the `Policies` array field to all Hosts returned.
 	PopulatePolicies bool
 

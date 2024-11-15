@@ -279,6 +279,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		"cpe:2.3:a:microsoft:python_extension:2020.9.1:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2020-17163", resolvedInVersion: "2020.9.2"},
+				{ID: "CVE-2024-49050", resolvedInVersion: "2024.18.2"},
 			},
 			continuesToUpdate: false,
 		},
@@ -303,6 +304,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				{ID: "CVE-2020-1171", resolvedInVersion: "2020.5.0"},
 				{ID: "CVE-2020-1192", resolvedInVersion: "2020.5.0"},
 				{ID: "CVE-2020-17163", resolvedInVersion: "2020.9.2"},
+				{ID: "CVE-2024-49050", resolvedInVersion: "2024.18.2"},
 			},
 			continuesToUpdate: false,
 		},
