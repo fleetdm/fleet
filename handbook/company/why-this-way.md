@@ -244,7 +244,7 @@ Why bother with all that?  And why do it in this particular order?
 
 ## Why fix small inconsistencies quickly?
 
-It's critical because it keeps the product polished and functional for everyone. When small details are overlooked, they add up over time, creating problems for both users and employees. By bringing up these issues immediately, you avoid the minor problems piling up and becoming major obstacles. It can also create a perception of disorder, much like the "Broken Windows Theory" which uses the metaphor of how having an unrepaired broken window can result in having all the windows broken over time. 
+Fixing small inconsistencies quickly keeps the product polished and functional. When small details are overlooked, they add up over time, creating problems for both users and contributors. Raising issues immediately prevents minor problems from piling up and becoming major blockers. Even the smallest of inconsistencies perpetuates disorder (i.e., adds to the "[Broken Windows](https://en.wikipedia.org/wiki/Broken_windows_theory)"). 
 
 At Fleet, prioritizing swift action on the small inconsistencies reinforces the idea that clarity and precision build trust and improve the user experience, fostering a culture where the team strives for excellence in every detail.
 
