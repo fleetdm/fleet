@@ -1246,6 +1246,10 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 			return nil, ctxerr.Wrap(ctx, err, "get host disk encryption status")
 		}
 		host.MDM.OSSettings.DiskEncryption = status
+
+		if status.Status != nil && *status.Status == fleet.DiskEncryptionVerified {
+			host.MDM.EncryptionKeyAvailable = true
+		}
 	}
 
 	var macOSSetup *fleet.HostMDMMacOSSetup
