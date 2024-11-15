@@ -36,6 +36,7 @@ module.exports = {
           }
         });
       }
+      await AllTeamsSoftware.destroyOne({fleetApid: software.fleetApid})
     }
     // All done.
     return;
