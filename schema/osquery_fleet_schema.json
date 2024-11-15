@@ -11308,7 +11308,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "* On Windows, `gid` and `gid_signed` are always the same",
-    "examples": "See all groups with the IsHidden OpenDirectory attribute\n\n```\nSELECT * FROM groups WHERE is_hidden='1';\n```",
+    "examples": "See all groups with the `IsHidden` OpenDirectory attribute:\n\n```\nSELECT * FROM groups WHERE is_hidden='1';\n```\n\nCollect the users that are members of the `admin` group:\n\n```\nSELECT * FROM groups JOIN user_groups USING (gid) JOIN users USING (uid) WHERE groupname='admin';\n```",
     "columns": [
       {
         "name": "gid",
