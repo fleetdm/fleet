@@ -6891,6 +6891,42 @@ _Available in Fleet Premium_
 }
 ```
 
+### Add LDAP server
+
+Add Lightweight Directory Access Protocol (LDAP) server to add end user information to your hosts.
+
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/ldap_servers`
+
+#### Parameters
+
+#### Parameters
+
+| Name              | Type    | In   | Description                                     |
+| ----------------- | ------- | ---- | ----------------------------------------------- |
+| name              | string  | body | The LDAP server display name.                   |
+| hostname          | string  | body | The hostname of LDAP server to connect to.      |
+| port              | integer | body | The port of LDAP server.                        |
+| ssl_certificate   | string  | body | The port of LDAP server.                        |
+| username          | string  | body | The port of LDAP server.                        |
+| password          | string  | body | The port of LDAP server.                        |
+| client_auth_cert  | string  | body | The port of LDAP server.                        |
+| client_auth_key   | string  | body | The port of LDAP server.                        |
+| users_search_base_dn | string  | body | The port of LDAP server.                     |
+| included_object_classes | string  | body | The port of LDAP server.                  |
+| email_mapping | string  | body | The port of LDAP server.                            |
+| role_mapping | string  | body | The port of LDAP server.                             |
+| department_mapping | string  | body | The port of LDAP server.                       |
+| groups_search_base_dn | string  | body | The port of LDAP server.                    |
+| group_id_mapping | string  | body | The port of LDAP server.                         |
+| group_name_mapping | string  | body | The port of LDAP server.                       |
+| user_group_membership_mapping | string  | body | The port of LDAP server.            |
+| user_group_membership_mapping | string  | body | The port of LDAP server.            |
+| team_ids | list  | body | The port of LDAP server.                                   |
+
+
+
 ---
 
 ## Policies
