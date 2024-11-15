@@ -38,6 +38,13 @@ module.exports = {
       type: 'string',
     },
 
+    isDeployedToAllTeams: {
+      type: 'boolean',
+      description: 'Whether or not this software will be deployed to all teams.',
+      extendedDescription: 'This determines whether or not the software will have a AllTeamsSoftware record created for it in the database and has no impact on the teams the software is transfered to in this action.',
+      defaultsTo: false,
+    }
+
   },
 
 
@@ -52,7 +59,7 @@ module.exports = {
   },
 
 
-  fn: async function ({newSoftware, newTeamIds, software, preInstallQuery, installScript, postInstallScript, uninstallScript}) {
+  fn: async function ({newSoftware, newTeamIds, software, preInstallQuery, installScript, postInstallScript, uninstallScript, isDeployedToAllTeams}) {
     if(newSoftware.isNoop) {
       newSoftware.noMoreFiles();
       newSoftware = undefined;
@@ -62,6 +69,11 @@ module.exports = {
     let axios = require('axios');
     // Cast the strings in the newTeamIds array to numbers.
     if(newTeamIds){
+      if(isDeployedToAllTeams){
+        await AllTeamsSoftware.create({ fleetApid: software.fleetApid, teamApids: newTeamIds});
+      } else {
+        await AllTeamsSoftware.destroyOne({fleetApid: software.fleetApid})
+      }
       newTeamIds = newTeamIds.map(Number);
     } else {
       newTeamIds = [];

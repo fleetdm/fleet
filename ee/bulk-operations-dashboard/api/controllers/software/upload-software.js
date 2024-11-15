@@ -18,6 +18,13 @@ module.exports = {
     teams: {
       type: ['string'],
       description: 'An array of team IDs that this profile will be added to'
+    },
+
+    isDeployedToAllTeams: {
+      type: 'boolean',
+      description: 'Whether or not this software will be deployed to all teams.',
+      extendedDescription: 'This determines whether or not the software will have a AllTeamsSoftware record created for it in the database and has no impact on the teams the software is transfered to in this action.',
+      defaultsTo: false,
     }
   },
 
@@ -40,7 +47,7 @@ module.exports = {
   },
 
 
-  fn: async function ({newSoftware, teams}) {
+  fn: async function ({newSoftware, teams, isDeployedToAllTeams}) {
     let uploadedSoftware;
     if(!teams) {
       uploadedSoftware = await sails.uploadOne(newSoftware, {bucket: sails.config.uploads.bucketWithPostfix});
@@ -110,6 +117,29 @@ module.exports = {
           return {'softwareUploadFailed': error};
         });
       }
+      if(isDeployedToAllTeams) {
+        let softwareResponse = await sails.helpers.http.get.with({
+          url: `/api/latest/fleet/software/titles?team_id=${teams[0]}`,
+          baseUrl: sails.config.custom.fleetBaseUrl,
+          headers: {
+            Authorization: `Bearer ${sails.config.custom.fleetApiToken}`
+          }
+        })
+        .timeout(120000)
+        .retry(['requestFailed', {name: 'TimeoutError'}]);
+        let softwareForThisTeam = _.filter(softwareResponse.software_titles, (software)=>{
+          return !_.isEmpty(software.software_package);
+        });
+        let softwareThatWasJustUploaded = _.find(softwareForThisTeam, (softwareWithInstaller)=>{
+          return softwareWithInstaller.software_package.name === uploadedSoftware.filename;
+        });
+        await AllTeamsSoftware.create({
+          fleetApid: softwareThatWasJustUploaded.id,
+          teamApids: teams,
+        })
+      }
+
+
       // Remove the file from the s3 bucket after it has been sent to the Fleet server.
       await sails.rm(sails.config.uploads.prefixForFileDeletion+uploadedSoftware.fd);
     }
