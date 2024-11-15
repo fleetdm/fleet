@@ -1110,7 +1110,7 @@
   jamfProtectHasFeature: no
 - industryName: Grant Wi-Fi access
   description: Help your end users connect to Wi-Fi by adding your Simple Certificate Enrollment Protocol (SCEP) server.                
-  # documentationUrl: TODO
+  documentationUrl: https://fleetdm.com/guides/ndes-scep-proxy
   isExperimental: yes
   productCategories: [Device management]
   pricingTableCategories: [Integrations]
