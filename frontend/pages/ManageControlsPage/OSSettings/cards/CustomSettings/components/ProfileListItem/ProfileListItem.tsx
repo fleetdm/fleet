@@ -87,6 +87,7 @@ const ProfileListItem = ({
   const {
     created_at,
     labels_include_all,
+    labels_include_any,
     labels_exclude_any,
     name,
     platform,
@@ -102,7 +103,7 @@ const ProfileListItem = ({
     FileSaver.saveAs(file);
   };
 
-  const labels = labels_include_all || labels_exclude_any;
+  const labels = labels_include_all || labels_include_any || labels_exclude_any;
 
   const renderLabelInfo = () => {
     if (!isPremium || labels === undefined || labels.length === 0) {

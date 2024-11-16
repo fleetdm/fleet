@@ -480,15 +480,18 @@ type HostSoftwareUninstall struct {
 	UninstalledAt time.Time `json:"uninstalled_at"`
 }
 
-// HostSoftwareInstalledVersion represents a version of software installed on a
-// host.
+// HostSoftwareInstalledVersion represents a version of software installed on a host.
 type HostSoftwareInstalledVersion struct {
-	SoftwareID      uint       `json:"-" db:"software_id"`
-	SoftwareTitleID uint       `json:"-" db:"software_title_id"`
-	Version         string     `json:"version" db:"version"`
-	LastOpenedAt    *time.Time `json:"last_opened_at" db:"last_opened_at"`
-	Vulnerabilities []string   `json:"vulnerabilities" db:"vulnerabilities"`
-	InstalledPaths  []string   `json:"installed_paths" db:"installed_paths"`
+	SoftwareID       uint       `json:"-" db:"software_id"`
+	SoftwareTitleID  uint       `json:"-" db:"software_title_id"`
+	Source           string     `json:"-" db:"source"`
+	Version          string     `json:"version" db:"version"`
+	BundleIdentifier string     `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
+	LastOpenedAt     *time.Time `json:"last_opened_at" db:"last_opened_at"`
+
+	Vulnerabilities      []string                   `json:"vulnerabilities" db:"vulnerabilities"`
+	InstalledPaths       []string                   `json:"installed_paths"`
+	SignatureInformation []PathSignatureInformation `json:"signature_information,omitempty"`
 }
 
 // HostSoftwareInstallResultPayload is the payload provided by fleetd to record

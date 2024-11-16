@@ -11914,7 +11914,7 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 	require.True(t, vppFound, "vpp app not found in status results")
 	require.True(t, softwareFound, "software installer app not found in status results")
 
-	x, err := s.ds.GetHostAwaitingConfiguration(ctx, fleetHost.UUID)
+	awaitingConfig, err := s.ds.GetHostAwaitingConfiguration(ctx, fleetHost.UUID)
 	require.NoError(t, err)
-	require.True(t, x)
+	require.True(t, awaitingConfig)
 }

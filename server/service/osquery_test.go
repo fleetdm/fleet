@@ -1062,6 +1062,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "software_vscode_extensions": {},
 		hostDetailQueryPrefix + "software_macos_firefox":     {},
 		hostDetailQueryPrefix + "battery":                    {},
+		hostDetailQueryPrefix + "software_macos_codesign":    {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])

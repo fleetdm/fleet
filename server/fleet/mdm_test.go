@@ -2,6 +2,7 @@ package fleet_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -122,72 +123,106 @@ func TestDEPClient(t *testing.T) {
 		wantToksTermsFlags  map[string]bool
 	}{
 		// use a valid token, appconfig should not be updated (already unflagged)
-		{token: validToken, orgName: "org1", wantErr: false, readInvoked: true, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false}},
+		{
+			token: validToken, orgName: "org1", wantErr: false, readInvoked: true, writeTokInvoked: false,
+			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+		},
 
 		// use a valid token without org, nothing is checked
-		{token: validToken, orgName: "", wantErr: false, readInvoked: false, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false}},
+		{
+			token: validToken, orgName: "", wantErr: false, readInvoked: false, writeTokInvoked: false,
+			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+		},
 
 		// use an invalid token without org, call fails but nothing is checked because this is an unsaved token
-		{token: invalidToken, orgName: "", wantErr: true, readInvoked: false, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false}},
+		{
+			token: invalidToken, orgName: "", wantErr: true, readInvoked: false, writeTokInvoked: false,
+			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+		},
 
 		// use an invalid token, appconfig should not even be read (not a terms error)
-		{token: invalidToken, orgName: "org1", wantErr: true, readInvoked: false, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false}},
+		{
+			token: invalidToken, orgName: "org1", wantErr: true, readInvoked: false, writeTokInvoked: false,
+			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+		},
 
 		// terms changed for org1 during the auth request
-		{token: termsChangedToken, orgName: "org1", wantErr: true, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: true, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": false}},
+		{
+			token: termsChangedToken, orgName: "org1", wantErr: true, readInvoked: true, writeTokInvoked: true,
+			writeAppCfgInvoked: true, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": false},
+		},
 
 		// use of an invalid token does not update the flag
-		{token: invalidToken, orgName: "org1", wantErr: true, readInvoked: false, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": false}},
+		{
+			token: invalidToken, orgName: "org1", wantErr: true, readInvoked: false, writeTokInvoked: false,
+			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": false},
+		},
 
 		// use of a valid token for org1 resets the flags
-		{token: validToken, orgName: "org1", wantErr: false, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: true, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false}},
+		{
+			token: validToken, orgName: "org1", wantErr: false, readInvoked: true, writeTokInvoked: true,
+			writeAppCfgInvoked: true, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+		},
 
 		// use of a valid token again with org2 does not update anything
-		{token: validToken, orgName: "org2", wantErr: false, readInvoked: true, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false}},
+		{
+			token: validToken, orgName: "org2", wantErr: false, readInvoked: true, writeTokInvoked: false,
+			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+		},
 
 		// terms changed for org2 during the actual account request, after auth
-		{token: termsChangedAfterAuthToken, orgName: "org2", wantErr: true, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: true, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true}},
+		{
+			token: termsChangedAfterAuthToken, orgName: "org2", wantErr: true, readInvoked: true, writeTokInvoked: true,
+			writeAppCfgInvoked: true, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
+		},
 
 		// again terms changed after auth for org2, doesn't update appConfig
-		{token: termsChangedAfterAuthToken, orgName: "org2", wantErr: true, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true}},
+		{
+			token: termsChangedAfterAuthToken, orgName: "org2", wantErr: true, readInvoked: true, writeTokInvoked: true,
+			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
+		},
 
 		// terms changed during auth for org2, doesn't update appConfig
-		{token: termsChangedToken, orgName: "org2", wantErr: true, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true}},
+		{
+			token: termsChangedToken, orgName: "org2", wantErr: true, readInvoked: true, writeTokInvoked: true,
+			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
+		},
 
 		// terms changed during auth for org1, now both tokens have the flag, doesn't update appConfig
-		{token: termsChangedToken, orgName: "org1", wantErr: true, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true}},
+		{
+			token: termsChangedToken, orgName: "org1", wantErr: true, readInvoked: true, writeTokInvoked: true,
+			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true},
+		},
 
 		// use a valid token without org, nothing is checked
-		{token: validToken, orgName: "", wantErr: false, readInvoked: false, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true}},
+		{
+			token: validToken, orgName: "", wantErr: false, readInvoked: false, writeTokInvoked: false,
+			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true},
+		},
 
 		// use an invalid token without org, call fails but nothing is checked because this is an unsaved token
-		{token: invalidToken, orgName: "", wantErr: true, readInvoked: false, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true}},
+		{
+			token: invalidToken, orgName: "", wantErr: true, readInvoked: false, writeTokInvoked: false,
+			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true},
+		},
 
 		// valid token for org1, resets that token's flag but not appConfig
-		{token: validToken, orgName: "org1", wantErr: false, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true}},
+		{
+			token: validToken, orgName: "org1", wantErr: false, readInvoked: true, writeTokInvoked: true,
+			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
+		},
 
 		// valid token again for org1, still no write to appConfig
-		{token: validToken, orgName: "org1", wantErr: false, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true}},
+		{
+			token: validToken, orgName: "org1", wantErr: false, readInvoked: true, writeTokInvoked: true,
+			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
+		},
 
 		// valid token again for org2, this time resets appConfig
-		{token: validToken, orgName: "org2", wantErr: false, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: true, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false}},
+		{
+			token: validToken, orgName: "org2", wantErr: false, readInvoked: true, writeTokInvoked: true,
+			writeAppCfgInvoked: true, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+		},
 	}
 
 	// order of calls is important, and test must not be parallelized as it would
@@ -332,6 +367,67 @@ func TestMDMProfileSpecUnmarshalJSON(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "oldpath", p.Path)
 		require.Empty(t, p.Labels)
+	})
+
+	t.Run("changing labels", func(t *testing.T) {
+		// When updating AppConfig, we unmarshal the incoming JSON into the existing AppConfig
+		// struct, see
+		// https://github.com/fleetdm/fleet/blob/d1144df1318b50482cbd9eb996b863443975f138/server/service/appconfig.go#L334-L335
+		//
+		// But we found there were issues unmarshaling the slice of profile specs where if a key is present in an old
+		// element but not in the new element (e.g. element[0] of the old slice and element[0] of the
+		// new slice), both keys were preserved. This test is designed to cover that issue, which
+		// was addressed in the unmarshal function, see
+		// https://github.com/fleetdm/fleet/blob/1042702def54f095335d8b42ed5fdcc90468fa0d/server/fleet/mdm.go#L551-L552
+
+		storedConfig := fleet.AppConfig{
+			OrgInfo: fleet.OrgInfo{
+				OrgName: "Test",
+			},
+			MDM: fleet.MDM{
+				MacOSSettings: fleet.MacOSSettings{
+					CustomSettings: []fleet.MDMProfileSpec{
+						{
+							Path:             "some-profile-2",
+							LabelsExcludeAny: []string{"bar"},
+						},
+						{
+							Path:             "some-profile-1",
+							LabelsIncludeAll: []string{"foo"},
+						},
+					},
+				},
+			},
+		}
+
+		incomingConfig := fleet.AppConfig{
+			OrgInfo: fleet.OrgInfo{
+				OrgName: "Test",
+			},
+			MDM: fleet.MDM{
+				MacOSSettings: fleet.MacOSSettings{
+					CustomSettings: []fleet.MDMProfileSpec{
+						{
+							Path:             "some-profile-1",
+							LabelsIncludeAll: []string{"foo"},
+						},
+						{
+							Path:             "some-profile-2",
+							LabelsIncludeAny: []string{"bar"},
+						},
+					},
+				},
+			},
+		}
+		b, err := json.Marshal(incomingConfig)
+		require.NoError(t, err)
+
+		err = json.Unmarshal(b, &storedConfig)
+		require.NoError(t, err)
+
+		require.Equal(t, storedConfig.MDM.MacOSSettings.CustomSettings, incomingConfig.MDM.MacOSSettings.CustomSettings)
+		require.Nil(t, storedConfig.MDM.MacOSSettings.CustomSettings[0].LabelsExcludeAny) // old key should be removed
+		require.Nil(t, storedConfig.MDM.MacOSSettings.CustomSettings[1].LabelsIncludeAll) // old key should be removed
 	})
 }
 
