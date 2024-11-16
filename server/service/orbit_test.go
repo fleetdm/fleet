@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -13,6 +14,88 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
 )
+
+func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
+	t.Run("pending escrow sets config flag and clears in DB", func(t *testing.T) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+		os := &fleet.OperatingSystem{
+			Platform: "ubuntu",
+			Version:  "20.04",
+		}
+		host := &fleet.Host{
+			OsqueryHostID: ptr.String("test"),
+			ID:            1,
+		}
+
+		team := fleet.Team{ID: 1}
+		teamMDM := fleet.TeamMDM{EnableDiskEncryption: true}
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			require.Equal(t, team.ID, teamID)
+			return &teamMDM, nil
+		}
+		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
+			return ptr.RawMessage(json.RawMessage(`{}`)), nil
+		}
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ListPendingSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+			return nil, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return true, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return nil, nil
+		}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return true
+		}
+		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
+			return nil
+		}
+
+		appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnableDiskEncryption: optjson.SetBool(true)}}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appCfg, nil
+		}
+		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
+			return os, nil
+		}
+
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+
+		ctx = test.HostContext(ctx, host)
+
+		// no-team
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.True(t, cfg.Notifications.RunDiskEncryptionEscrow)
+		require.True(t, ds.ClearPendingEscrowFuncInvoked)
+
+		// with team
+		ds.ClearPendingEscrowFuncInvoked = false
+		host.TeamID = ptr.Uint(team.ID)
+		cfg, err = svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.True(t, cfg.Notifications.RunDiskEncryptionEscrow)
+		require.True(t, ds.ClearPendingEscrowFuncInvoked)
+
+		// ignore clear escrow errors
+		ds.ClearPendingEscrowFuncInvoked = false
+		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
+			return errors.New("clear pending escrow")
+		}
+		cfg, err = svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.True(t, cfg.Notifications.RunDiskEncryptionEscrow)
+		require.True(t, ds.ClearPendingEscrowFuncInvoked)
+	})
+}
 
 func TestGetOrbitConfigNudge(t *testing.T) {
 	t.Run("missing values in AppConfig", func(t *testing.T) {
@@ -41,9 +124,6 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		}
 		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
 			return false
-		}
-		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
-			return nil
 		}
 
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
@@ -122,9 +202,6 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		}
 		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
 			return false
-		}
-		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
-			return nil
 		}
 
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
@@ -222,9 +299,6 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
 			return false
 		}
-		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
-			return nil
-		}
 
 		checkEmptyNudgeConfig := func(h *fleet.Host) {
 			ctx := test.HostContext(ctx, h)
@@ -304,9 +378,6 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
 			return false
 		}
-		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
-			return nil
-		}
 
 		appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}
 		appCfg.MDM.MacOSUpdates.Deadline = optjson.SetString("2022-04-01")
@@ -339,6 +410,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.GetHostOperatingSystemFuncInvoked = false
 		cfg, err = svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
+		require.False(t, cfg.Notifications.RunDiskEncryptionEscrow)
 		require.Empty(t, cfg.NudgeConfig)
 		require.True(t, ds.GetHostOperatingSystemFuncInvoked)
 
