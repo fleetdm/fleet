@@ -3800,7 +3800,7 @@ ON DUPLICATE KEY UPDATE
 	return err
 }
 
-func (ds *Datastore) HostIsPendingEscrow(ctx context.Context, hostID uint) bool {
+func (ds *Datastore) IsHostPendingEscrow(ctx context.Context, hostID uint) bool {
 	var pendingEscrowCount uint
 	_ = sqlx.GetContext(ctx, ds.reader(ctx), &pendingEscrowCount, `
           SELECT COUNT(*) FROM host_disk_encryption_keys WHERE host_id = ? AND reset_requested = TRUE`, hostID)

@@ -172,7 +172,7 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 }
 
 func (svc *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fleet.Host) error {
-	if svc.ds.HostIsPendingEscrow(ctx, host.ID) {
+	if svc.ds.IsHostPendingEscrow(ctx, host.ID) {
 		return nil
 	}
 

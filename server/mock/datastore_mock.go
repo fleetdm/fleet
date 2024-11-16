@@ -645,7 +645,7 @@ type SetHostsDiskEncryptionKeyStatusFunc func(ctx context.Context, hostIDs []uin
 
 type GetHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error)
 
-type HostIsPendingEscrowFunc func(ctx context.Context, hostID uint) bool
+type IsHostPendingEscrowFunc func(ctx context.Context, hostID uint) bool
 
 type ClearPendingEscrowFunc func(ctx context.Context, hostID uint) error
 
@@ -2096,8 +2096,8 @@ type DataStore struct {
 	GetHostDiskEncryptionKeyFunc        GetHostDiskEncryptionKeyFunc
 	GetHostDiskEncryptionKeyFuncInvoked bool
 
-	HostIsPendingEscrowFunc        HostIsPendingEscrowFunc
-	HostIsPendingEscrowFuncInvoked bool
+	IsHostPendingEscrowFunc        IsHostPendingEscrowFunc
+	IsHostPendingEscrowFuncInvoked bool
 
 	ClearPendingEscrowFunc        ClearPendingEscrowFunc
 	ClearPendingEscrowFuncInvoked bool
@@ -5054,11 +5054,11 @@ func (s *DataStore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (
 	return s.GetHostDiskEncryptionKeyFunc(ctx, hostID)
 }
 
-func (s *DataStore) HostIsPendingEscrow(ctx context.Context, hostID uint) bool {
+func (s *DataStore) IsHostPendingEscrow(ctx context.Context, hostID uint) bool {
 	s.mu.Lock()
-	s.HostIsPendingEscrowFuncInvoked = true
+	s.IsHostPendingEscrowFuncInvoked = true
 	s.mu.Unlock()
-	return s.HostIsPendingEscrowFunc(ctx, hostID)
+	return s.IsHostPendingEscrowFunc(ctx, hostID)
 }
 
 func (s *DataStore) ClearPendingEscrow(ctx context.Context, hostID uint) error {

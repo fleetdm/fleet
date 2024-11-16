@@ -39,6 +39,12 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
 			return true, nil
 		}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
+			return nil
+		}
 
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 			return &fleet.HostMDM{
@@ -114,6 +120,12 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
 			return true, nil
 		}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
+			return nil
+		}
 
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 			return &fleet.HostMDM{
@@ -161,7 +173,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.TeamMDMConfigFuncInvoked = false
 	})
 
-	t.Run("non-elegible MDM status", func(t *testing.T) {
+	t.Run("non-eligible MDM status", func(t *testing.T) {
 		ds := new(mock.Store)
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
@@ -206,6 +218,12 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 
 		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
 			return false, nil
+		}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
+			return nil
 		}
 
 		checkEmptyNudgeConfig := func(h *fleet.Host) {
@@ -282,6 +300,12 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
 			}, nil
+		}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
+			return nil
 		}
 
 		appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}
