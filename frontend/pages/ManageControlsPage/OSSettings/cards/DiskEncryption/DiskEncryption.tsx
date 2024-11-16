@@ -7,6 +7,8 @@ import { NotificationContext } from "context/notification";
 import { ITeamConfig } from "interfaces/team";
 import { getErrorReason } from "interfaces/errors";
 
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import configAPI from "services/entities/config";
@@ -187,7 +189,7 @@ const DiskEncryption = ({
                 Fleet{" "}
                 <CustomLink
                   text="Learn more"
-                  url="https://fleetdm.com/docs/using-fleet/mdm-disk-encryption"
+                  url={`${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`}
                   newTab
                 />
               </p>

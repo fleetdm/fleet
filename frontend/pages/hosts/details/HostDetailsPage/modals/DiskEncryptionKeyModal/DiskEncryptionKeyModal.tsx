@@ -8,6 +8,8 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import DataError from "components/DataError";
+import CustomLink from "components/CustomLink";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 const baseClass = "disk-encryption-key-modal";
 
@@ -34,17 +36,10 @@ const DiskEncryptionKeyModal = ({
     select: (data) => data.encryption_key.key,
   });
 
-  let descriptionText = null;
-  let recoveryText = "Use this key to unlock the encrypted drive.";
-  if (platform === "darwin") {
-    [descriptionText, recoveryText] = [
-      "The disk encryption key refers to the FileVault recovery key for macOS.",
-      "Use this key to log in to the host if you forgot the password.",
-    ];
-  } else if (platform === "windows") {
-    recoveryText =
-      "The disk encryption key refers to the BitLocker recovery key for Windows.";
-  }
+  const recoveryText =
+    platform === "darwin"
+      ? "Use this key to log in to the host if you forgot the password."
+      : "Use this key to unlock the encrypted drive.";
 
   return (
     <Modal
@@ -58,8 +53,14 @@ const DiskEncryptionKeyModal = ({
       ) : (
         <>
           <InputFieldHiddenContent value={encryptionKey ?? ""} />
-          <p>{descriptionText}</p>
-          <p>{recoveryText} </p>
+          <p>
+            {recoveryText}{" "}
+            <CustomLink
+              newTab
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`}
+              text="Learn more"
+            />
+          </p>
           <div className="modal-cta-wrap">
             <Button onClick={onCancel}>Done</Button>
           </div>
