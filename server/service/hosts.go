@@ -3,17 +3,13 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/tls"
-	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -2204,89 +2200,31 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 		return nil, err
 	}
 
-	// TODO fix platform const pull
-	if slices.Contains([]string{"ubuntu", "rhel"}, host.FleetPlatform()) {
+	var key *fleet.HostDiskEncryptionKey
+	if host.IsLUKSSupported() {
 		if svc.config.Server.PrivateKey == "" {
 			return nil, ctxerr.Wrap(ctx, errors.New("private key is unavailable"), "getting host encryption key")
 		}
 
-		key, err := svc.ds.GetHostDiskEncryptionKey(ctx, id)
+		key, err = svc.ds.GetHostDiskEncryptionKey(ctx, id)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 		}
-		if key.Decryptable == nil || !*key.Decryptable {
-			return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key is not decryptable")
+		if key.Base64Encrypted == "" {
+			return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key is not set")
 		}
 
-		// TODO deduplicate
-		enc, err := base64.StdEncoding.DecodeString(key.Base64Encrypted)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "decrypt host encryption key")
-		}
-
-		decryptedKey, err := decrypt(enc, svc.config.Server.PrivateKey)
+		decryptedKey, err := mdm.DecodeAndDecrypt(key.Base64Encrypted, svc.config.Server.PrivateKey)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "decrypt host encryption key")
 		}
 		key.DecryptedValue = string(decryptedKey)
-
-		err = svc.NewActivity(
-			ctx,
-			authz.UserFromContext(ctx),
-			fleet.ActivityTypeReadHostDiskEncryptionKey{
-				HostID:          host.ID,
-				HostDisplayName: host.DisplayName(),
-			},
-		)
+	} else {
+		key, err = svc.decryptForMDMPlatform(ctx, host)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create read host disk encryption key activity")
-		}
-
-		return key, nil
-	}
-
-	// The middleware checks that either Apple or Windows MDM are configured and
-	// enabled, but here we must check if the specific one is enabled for that
-	// particular host's platform.
-	var decryptCert *tls.Certificate
-	switch host.FleetPlatform() {
-	case "windows":
-		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
 			return nil, err
 		}
-
-		// use Microsoft's WSTEP certificate for decrypting
-		cert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting Microsoft WSTEP certificate to decrypt key")
-		}
-		decryptCert = cert
-	default:
-		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
-			return nil, err
-		}
-
-		// use Apple's SCEP certificate for decrypting
-		cert, err := assets.CAKeyPair(ctx, svc.ds)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "loading existing assets from the database")
-		}
-		decryptCert = cert
 	}
-
-	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, id)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
-	}
-	if key.Decryptable == nil || !*key.Decryptable {
-		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key is not decryptable")
-	}
-
-	decryptedKey, err := mdm.DecryptBase64CMS(key.Base64Encrypted, decryptCert.Leaf, decryptCert.PrivateKey)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "decrypt host encryption key")
-	}
-	key.DecryptedValue = string(decryptedKey)
 
 	err = svc.NewActivity(
 		ctx,
@@ -2303,30 +2241,48 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 	return key, nil
 }
 
-// TODO move to utils
-func decrypt(encrypted []byte, privateKey string) ([]byte, error) {
-	block, err := aes.NewCipher([]byte(privateKey))
-	if err != nil {
-		return nil, fmt.Errorf("create new cipher: %w", err)
+func (svc *Service) decryptForMDMPlatform(ctx context.Context, host *fleet.Host) (*fleet.HostDiskEncryptionKey, error) {
+	// Here we must check if the appropriate MDM is enabled for that particular host's platform.
+	var decryptCert *tls.Certificate
+	if host.FleetPlatform() == "windows" {
+		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+			return nil, err
+		}
+
+		// use Microsoft's WSTEP certificate for decrypting
+		cert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting Microsoft WSTEP certificate to decrypt key")
+		}
+		decryptCert = cert
+	} else {
+		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+			return nil, err
+		}
+
+		// use Apple's SCEP certificate for decrypting
+		cert, err := assets.CAKeyPair(ctx, svc.ds)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "loading existing assets from the database")
+		}
+		decryptCert = cert
 	}
 
-	aesGCM, err := cipher.NewGCM(block)
+	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, host.ID)
 	if err != nil {
-		return nil, fmt.Errorf("create new gcm: %w", err)
+		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
+	}
+	if key.Decryptable == nil || !*key.Decryptable {
+		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key is not decryptable")
 	}
 
-	// Get the nonce size
-	nonceSize := aesGCM.NonceSize()
-
-	// Extract the nonce from the encrypted data
-	nonce, ciphertext := encrypted[:nonceSize], encrypted[nonceSize:]
-
-	decrypted, err := aesGCM.Open(nil, nonce, ciphertext, nil)
+	decryptedKey, err := mdm.DecryptBase64CMS(key.Base64Encrypted, decryptCert.Leaf, decryptCert.PrivateKey)
 	if err != nil {
-		return nil, fmt.Errorf("decrypting: %w", err)
+		return nil, ctxerr.Wrap(ctx, err, "decrypt host encryption key")
 	}
 
-	return decrypted, nil
+	key.DecryptedValue = string(decryptedKey)
+	return key, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
