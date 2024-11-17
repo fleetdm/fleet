@@ -85,3 +85,9 @@ func CompareVersions(a string, b string) int {
 		return verA.Compare(verB)
 	}
 }
+
+// IsAtLeastVersion returns whether currentVersion is at least minimumVersion, using semantics
+// of CompareVersions for version validity
+func IsAtLeastVersion(currentVersion string, minimumVersion string) bool {
+	return CompareVersions(currentVersion, minimumVersion) >= 0
+}

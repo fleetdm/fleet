@@ -1172,4 +1172,6 @@ const (
 	BatchSetSoftwareInstallersStatusCompleted = "completed"
 	// BatchSetSoftwareInstallerStatusFailed is the value returned for a failed BatchSetSoftwareInstallers operation.
 	BatchSetSoftwareInstallersStatusFailed = "failed"
+	// MinOrbitLUKSVersion is the earliest version of Orbit that can escrow LUKS passphrases
+	MinOrbitLUKSVersion = "1.36.0"
 )

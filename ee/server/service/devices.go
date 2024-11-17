@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"slices"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -19,9 +18,6 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 }
 
 const refetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
-
-var LUKSSupportedPlatforms = []string{"ubuntu", "rhel"}
-var minOrbitLUKSVersion = "1.36.0"
 
 // TriggerMigrateMDMDevice triggers the webhook associated with the MDM
 // migration to Fleet configuration. It is located in the ee package instead of
@@ -185,7 +181,7 @@ func (svc *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *
 }
 
 func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet.Host) error {
-	if !slices.Contains(LUKSSupportedPlatforms, host.Platform) {
+	if !host.IsLUKSSupported() {
 		return &fleet.BadRequestError{Message: "Host platform does not support key escrow"}
 	}
 
@@ -208,11 +204,11 @@ func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet
 		}
 	}
 
-	if !*host.DiskEncryptionEnabled {
+	if host.DiskEncryptionEnabled == nil || !*host.DiskEncryptionEnabled {
 		return &fleet.BadRequestError{Message: "Host's disk is not encrypted. Please enable disk encryption for this host."}
 	}
 
-	if fleet.CompareVersions(*host.OrbitVersion, minOrbitLUKSVersion) == -1 {
+	if host.OrbitVersion == nil || !fleet.IsAtLeastVersion(*host.OrbitVersion, fleet.MinOrbitLUKSVersion) {
 		return &fleet.BadRequestError{Message: "Host's Orbit version does not support this feature. Please upgrade Orbit to the latest version."}
 	}
 
