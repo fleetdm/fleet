@@ -1046,7 +1046,7 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, slotK
 	if clientError != "" {
 		return svc.ds.ReportEscrowError(ctx, host.ID, clientError)
 	}
-	err, encryptedPassphrase, encryptedSlotKey := svc.validateAndEncrypt(ctx, passphrase, slotKey)
+	encryptedPassphrase, encryptedSlotKey, err := svc.validateAndEncrypt(ctx, passphrase, slotKey)
 	if err != nil {
 		_ = svc.ds.ReportEscrowError(ctx, host.ID, err.Error())
 		return err
@@ -1055,27 +1055,27 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, slotK
 	return svc.ds.SaveLUKSData(ctx, host.ID, encryptedPassphrase, encryptedSlotKey)
 }
 
-func (svc *Service) validateAndEncrypt(ctx context.Context, passphrase string, slotKey string) (error, string, string) {
+func (svc *Service) validateAndEncrypt(ctx context.Context, passphrase string, slotKey string) (string, string, error) {
 	if passphrase == "" {
-		return badRequest("Blank passphrase provided"), "", ""
+		return "", "", badRequest("Blank passphrase provided")
 	}
 	if svc.config.Server.PrivateKey == "" {
-		return newOsqueryError("internal error: missing server private key"), "", ""
+		return "", "", newOsqueryError("internal error: missing server private key")
 	}
 
 	encryptedPassphrase, err := mdm.EncryptAndEncode(passphrase, svc.config.Server.PrivateKey)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "internal error: could not encrypt LUKS data"), "", ""
+		return "", "", ctxerr.Wrap(ctx, err, "internal error: could not encrypt LUKS data")
 	}
 	var encryptedSlotKey string
 	if slotKey != "" {
 		encryptedSlotKey, err = mdm.EncryptAndEncode(slotKey, svc.config.Server.PrivateKey)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "internal error: could not encrypt LUKS data"), "", ""
+			return "", "", ctxerr.Wrap(ctx, err, "internal error: could not encrypt LUKS data")
 		}
 	}
 
-	return nil, encryptedPassphrase, encryptedSlotKey
+	return encryptedPassphrase, encryptedSlotKey, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////

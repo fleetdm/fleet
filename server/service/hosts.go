@@ -2218,7 +2218,7 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "decrypt host encryption key")
 		}
-		key.DecryptedValue = string(decryptedKey)
+		key.DecryptedValue = decryptedKey
 	} else {
 		key, err = svc.decryptForMDMPlatform(ctx, host)
 		if err != nil {
