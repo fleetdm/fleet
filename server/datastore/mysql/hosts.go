@@ -3801,16 +3801,20 @@ ON DUPLICATE KEY UPDATE
 }
 
 func (ds *Datastore) SaveLUKSData(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64SlotKey string) error {
+	if encryptedBase64Passphrase == "" { // should have been caught at service level
+		return errors.New("blank encrypted passphrase")
+	}
+
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 INSERT INTO host_disk_encryption_keys
   (host_id, base64_encrypted, base64_encrypted_slot_key, client_error, decryptable)
 VALUES
-  (?, ?, ?, NULL, TRUE)
+  (?, ?, ?, '', TRUE)
 ON DUPLICATE KEY UPDATE
   decryptable = TRUE,
   base64_encrypted = VALUES(base64_encrypted),
-  base64_encrypted_slot_key = VALUES(base64_encrypted_slot_key)
-  client_error = NULL
+  base64_encrypted_slot_key = VALUES(base64_encrypted_slot_key),
+  client_error = ''
 `, hostID, encryptedBase64Passphrase, encryptedBase64SlotKey)
 	return err
 }
