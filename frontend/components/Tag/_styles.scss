@@ -20,10 +20,8 @@
     box-sizing: inherit;
 
     &:focus {
-      outline-color: $ui-vibrant-blue-25;
-      outline-offset: 2px;
-      outline-style: solid;
-      outline-width: 2px;
+      // this is defined in the Button component styles
+      @include button-focus-outline;
     }
   }
 }
