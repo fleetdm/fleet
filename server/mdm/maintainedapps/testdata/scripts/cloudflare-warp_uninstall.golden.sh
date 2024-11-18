@@ -113,6 +113,7 @@ remove_launchctl_service 'com.cloudflare.1dot1dot1dot1.macos.loginlauncherapp'
 remove_launchctl_service 'com.cloudflare.1dot1dot1dot1.macos.warp.daemon'
 quit_application 'com.cloudflare.1dot1dot1dot1.macos'
 sudo pkgutil --forget 'com.cloudflare.1dot1dot1dot1.macos'
+/Applications/Cloudflare\ WARP.app/Contents/Resources/uninstall.sh
 trash $LOGGED_IN_USER '~/Library/Application Scripts/com.cloudflare.1dot1dot1dot1.macos.loginlauncherapp'
 trash $LOGGED_IN_USER '~/Library/Application Support/com.cloudflare.1dot1dot1dot1.macos'
 trash $LOGGED_IN_USER '~/Library/Caches/com.cloudflare.1dot1dot1dot1.macos'

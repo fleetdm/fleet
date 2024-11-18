@@ -41,6 +41,10 @@ type EnrollOrbitRequest struct {
 	// OsqueryIdentifier holds the identifier used by osquery.
 	// If not set, then the hardware UUID is used to match orbit and osquery.
 	OsqueryIdentifier string `json:"osquery_identifier"`
+	// ComputerName is the device's friendly name (optional).
+	ComputerName string `json:"computer_name"`
+	// HardwareModel is the device's hardware model.
+	HardwareModel string `json:"hardware_model"`
 }
 
 type EnrollOrbitResponse struct {
@@ -90,6 +94,8 @@ func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		Hostname:          req.Hostname,
 		Platform:          req.Platform,
 		OsqueryIdentifier: req.OsqueryIdentifier,
+		ComputerName:      req.ComputerName,
+		HardwareModel:     req.HardwareModel,
 	}, req.EnrollSecret)
 	if err != nil {
 		return EnrollOrbitResponse{Err: err}, nil
@@ -129,6 +135,8 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			"hostname", hostInfo.Hostname,
 			"platform", hostInfo.Platform,
 			"osquery_identifier", hostInfo.OsqueryIdentifier,
+			"computer_name", hostInfo.ComputerName,
+			"hardware_model", hostInfo.HardwareModel,
 		),
 		level.Info,
 	)
@@ -155,9 +163,20 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		return "", fleet.OrbitError{Message: "app config load failed: " + err.Error()}
 	}
 
-	_, err = svc.ds.EnrollOrbit(ctx, appConfig.MDM.EnabledAndConfigured, hostInfo, orbitNodeKey, secret.TeamID)
+	host, err := svc.ds.EnrollOrbit(ctx, appConfig.MDM.EnabledAndConfigured, hostInfo, orbitNodeKey, secret.TeamID)
 	if err != nil {
 		return "", fleet.OrbitError{Message: "failed to enroll " + err.Error()}
+	}
+
+	if err := svc.NewActivity(
+		ctx,
+		nil,
+		fleet.ActivityTypeFleetEnrolled{
+			HostSerial:      hostInfo.HardwareSerial,
+			HostDisplayName: host.DisplayName(),
+		},
+	); err != nil {
+		level.Error(svc.logger).Log("msg", "record fleet enroll activity", "err", err)
 	}
 
 	return orbitNodeKey, nil

@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20241030102721, Down_20241030102721)
+	MigrationClient.AddMigration(Up_20241110152841, Down_20241110152841)
 }
 
-func Up_20241030102721(tx *sql.Tx) error {
+func Up_20241110152841(tx *sql.Tx) error {
 	// Add columns
 	_, err := tx.Exec(`ALTER TABLE mdm_configuration_profile_labels ADD COLUMN require_all BOOL NOT NULL DEFAULT false`)
 	if err != nil {
@@ -36,6 +36,6 @@ func Up_20241030102721(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20241030102721(tx *sql.Tx) error {
+func Down_20241110152841(tx *sql.Tx) error {
 	return nil
 }
