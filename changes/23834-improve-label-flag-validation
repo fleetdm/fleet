@@ -1,1 +1,1 @@
-* Improved fleetctl query command flag validation. An explicit error message is returned if a label passed via the --label flag is not found.
+* Improved label validation when running queries. When passing label(s) that are not found, previously, the labels were ignored, now an error will be raised indicating which labels were not found. This change will affect the api and `fleetctl query` command.

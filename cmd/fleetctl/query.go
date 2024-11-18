@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -123,47 +124,6 @@ func queryCommand() *cli.Command {
 				return errors.New("Query must be specified with --query or --query-name")
 			}
 
-			labels := strings.Split(flLabels, ",")
-			if len(flLabels) > 0 {
-				labelSpecs, err := client.GetLabels()
-				if err != nil {
-					return fmt.Errorf("could not list labels: %w", err)
-				}
-
-				labelsFound := make(map[string]bool)
-				// create a map of labels to check
-				for _, label := range labels {
-					labelsFound[strings.TrimSpace(label)] = false
-				}
-				// iterate through labels available from the platform and mark the ones that are found
-				for _, label := range labelSpecs {
-					if _, ok := labelsFound[label.Name]; ok {
-						labelsFound[label.Name] = true
-					}
-				}
-				// generate list of labels that were not found
-				labelsNotFound := make([]string, 0, len(labels))
-				for label, found := range labelsFound {
-					if !found {
-						labelsNotFound = append(labelsNotFound, label)
-					}
-				}
-
-				if len(labelsNotFound) > 0 {
-					pluralizedLabel := "label"
-					if len(labelsNotFound) > 1 {
-						pluralizedLabel += string("s were")
-					} else {
-						pluralizedLabel += string(" was")
-					}
-
-					return fmt.Errorf("The %s not found: %s. Please remove from --labels to continue.",
-						pluralizedLabel,
-						strings.Join(labelsNotFound, ", "),
-					)
-				}
-			}
-
 			var output outputWriter
 			if flPretty {
 				output = newPrettyWriter()
@@ -172,11 +132,17 @@ func queryCommand() *cli.Command {
 			}
 
 			hostIdentifiers := strings.Split(flHosts, ",")
+			labels := strings.Split(flLabels, ",")
 
 			res, err := client.LiveQuery(flQuery, queryID, labels, hostIdentifiers)
 			if err != nil {
 				if strings.Contains(err.Error(), "no hosts targeted") {
 					return errors.New(fleet.NoHostsTargetedErrMsg)
+				}
+				if strings.Contains(err.Error(), fleet.InvalidLabelSpecifiedErrMsg) {
+					regex := regexp.MustCompile(`(\[.*?\])`)
+					match := regex.FindString(err.Error())
+					return errors.New(fmt.Sprintf("%s %s", match, fleet.InvalidLabelSpecifiedErrMsg))
 				}
 				return err
 			}

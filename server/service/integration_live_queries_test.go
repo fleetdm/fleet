@@ -1021,6 +1021,20 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 		},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_identifiers", req2, http.StatusOK, &createResp)
+
+	// wait to prevent duplicate name for new query
+	time.Sleep(200 * time.Millisecond)
+
+	// create with invalid label
+	req3 := createDistributedQueryCampaignByIdentifierRequest{
+		QuerySQL: "SELECT 3",
+		Selected: distributedQueryCampaignTargetsByIdentifiers{
+			Hosts:  []string{h1.Hostname},
+			Labels: []string{"label1"},
+		},
+	}
+
+	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_identifiers", req3, http.StatusBadRequest, &createResp)
 }
 
 func (s *liveQueriesTestSuite) TestOsqueryDistributedRead() {

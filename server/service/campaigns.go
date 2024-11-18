@@ -211,6 +211,16 @@ func (svc *Service) NewDistributedQueryCampaignByIdentifiers(ctx context.Context
 		return nil, ctxerr.Wrap(ctx, err, "finding label IDs")
 	}
 
+	// DetectMissingLabels will return the list of labels that are not found in the database
+	// These labels are considered invalid
+	invalidLabels := fleet.DetectMissingLabels(labelMap, labels)
+	if len(invalidLabels) > 0 {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("[%s] %s", strings.Join(invalidLabels, ", "), fleet.InvalidLabelSpecifiedErrMsg),
+		}, "invalid labels")
+	}
+
 	var labelIDs []uint
 	for _, labelID := range labelMap {
 		labelIDs = append(labelIDs, labelID)

@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -178,4 +179,18 @@ func ReservedLabelNames() map[string]struct{} {
 		BuiltinLabelIPadOS:          {},
 		BuiltinLabelFedoraLinux:     {},
 	}
+}
+
+// DetectMissingLabels returns a list of labels in the labels slice that could not be found in the labelMap.
+func DetectMissingLabels(labelMap map[string]uint, labels []string) []string {
+	missingLabels := make([]string, 0, len(labels))
+
+	for _, rawLabel := range labels {
+		label := strings.TrimSpace(rawLabel)
+		if _, ok := labelMap[label]; len(label) > 0 && !ok {
+			missingLabels = append(missingLabels, label)
+		}
+	}
+
+	return missingLabels
 }

@@ -219,26 +219,7 @@ func TestAdHocLiveQuery(t *testing.T) {
 		return []uint{1234}, nil
 	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		return nil, nil
-	}
-
-	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
-		return []*fleet.LabelSpec{
-			{
-				ID:          1,
-				Name:        "label1",
-				Description: "Description",
-				Query:       "select 1;",
-				Platform:    "macOS",
-			},
-			{
-				ID:          2,
-				Name:        "label2",
-				Description: "Description3",
-				Query:       "select 2;",
-				Platform:    "centOS",
-			},
-		}, nil
+		return map[string]uint{"label1": uint(1)}, nil
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -319,15 +300,15 @@ func TestAdHocLiveQuery(t *testing.T) {
 		)
 	}()
 
-	// test all labels not found
-	_, err = runAppNoChecks([]string{"query", "--labels", "iamnotalabel", "--query", "select 42, * from time"})
+	// test label not found
+	_, err = runAppNoChecks([]string{"query", "--hosts", "1234", "--labels", "iamnotalabel", "--query", "select 42, * from time"})
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "The label was not found: iamnotalabel. Please remove from --labels to continue.")
+	assert.Equal(t, "[iamnotalabel] are not valid label names, remove to continue.", err.Error())
 
 	// test if some labels were not found
-	_, err = runAppNoChecks([]string{"query", "--labels", "label1,mac, label2, windows", "--query", "select 42, * from time"})
+	_, err = runAppNoChecks([]string{"query", "--labels", "label1, mac, windows", "--hosts", "1234", "--query", "select 42, * from time"})
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "The labels were not found: mac, windows. Please remove from --labels to continue.")
+	assert.Equal(t, "[mac, windows] are not valid label names, remove to continue.", err.Error())
 
 	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_display_name":"somehostname","host_hostname":"somehostname"}]}
 `
