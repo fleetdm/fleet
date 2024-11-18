@@ -6,6 +6,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
+
 	"github.com/groob/plist"
 )
 

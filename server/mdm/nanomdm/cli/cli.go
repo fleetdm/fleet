@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/allmulti"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/file"
@@ -14,6 +13,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
+	"github.com/micromdm/nanolib/log"
 )
 
 type StringAccumulator []string

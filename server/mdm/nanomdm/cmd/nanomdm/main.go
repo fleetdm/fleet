@@ -17,7 +17,6 @@ import (
 	httpapi "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http/api"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http/authproxy"
 	httpmdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http/mdm"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/stdlogfmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/nanopush"
 	pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
@@ -26,6 +25,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/microwebhook"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/multi"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/nanomdm"
+
+	"github.com/micromdm/nanolib/log/stdlogfmt"
 )
 
 // overridden by -ldflags -X

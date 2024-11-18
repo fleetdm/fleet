@@ -15,11 +15,12 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	mdmhttp "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/ctxlog"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
+
+	"github.com/micromdm/nanolib/log"
+	"github.com/micromdm/nanolib/log/ctxlog"
 )
 
 // enrolledAPIResult is a per-enrollment API result.

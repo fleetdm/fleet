@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
+	"github.com/micromdm/nanolib/log"
 	"github.com/stretchr/testify/require"
 )
 
