@@ -1,10 +1,9 @@
 # NanoMDM
 
 > The contents of this directory were copied (on January 2024) from https://github.com/fleetdm/nanomdm (the `apple-mdm` branch) which was forked from https://github.com/micromdm/nanomdm.
+> They were updated in November 2024 with changes up to github.com/micromdm/nanomdm@825f2979a2dc28c6cc57bb62aff16737978bd90e
 
-[![Go](https://github.com/micromdm/nanomdm/workflows/Go/badge.svg)](https://github.com/micromdm/nanomdm/actions)
-
-NanoMDM is a minimalist [Apple MDM server](https://developer.apple.com/documentation/devicemanagement) heavily inspired by MicroMDM.
+NanoMDM is a minimalist [Apple MDM server](https://developer.apple.com/documentation/devicemanagement) heavily inspired by [MicroMDM](https://github.com/micromdm/micromdm).
 
 ## Getting started & Documentation
 
