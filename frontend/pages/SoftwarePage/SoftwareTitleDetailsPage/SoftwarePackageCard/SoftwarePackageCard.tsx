@@ -35,6 +35,7 @@ import {
   SOFTWARE_PACKAGE_DROPDOWN_OPTIONS,
   downloadFile,
 } from "./helpers";
+import AutomaticInstallModal from "../AutomaticInstallModal";
 
 const baseClass = "software-package-card";
 
@@ -268,6 +269,9 @@ const SoftwarePackageCard = ({
 
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showAutomaticInstallModal, setShowAutomaticInstallModal] = useState(
+    false
+  );
 
   const onEditSoftwareClick = () => {
     setShowEditSoftwareModal(true);
@@ -405,6 +409,12 @@ const SoftwarePackageCard = ({
           teamId={teamId}
           onExit={() => setShowDeleteModal(false)}
           onSuccess={onDeleteSuccess}
+        />
+      )}
+      {true && softwarePackage && (
+        <AutomaticInstallModal
+          policies={softwarePackage.automatic_install_policies}
+          onExit={() => setShowAutomaticInstallModal(false)}
         />
       )}
     </Card>
