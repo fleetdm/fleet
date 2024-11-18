@@ -1,0 +1,2 @@
+Added computer_name and hardware_model for fleetd enrollment.
+Added serial number for fleetd enrollment for Windows hosts (already present for macOS and Linux).
