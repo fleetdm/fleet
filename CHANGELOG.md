@@ -1,3 +1,9 @@
+## Fleet 4.59.1 (Nov 18, 2024)
+
+### Bug fixes
+
+* Added `team_identifier` signature information to Apple macOS applications to the `/api/latest/fleet/hosts/:id/software` API endpoint.
+
 ## Fleet 4.59.0 (Nov 12, 2024)
 
 ### Endpoint operations
