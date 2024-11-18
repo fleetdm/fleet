@@ -76,7 +76,7 @@ func ExtractPEMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 	}
 	if name == "" && sfxName != "" {
 		// If we didn't find a ProductName, we may be
-		// dealing with an archive executable.
+		// dealing with an archive executable (e.g., if we're dealing with the 7-Zip executable itself rather than Opera)
 		name = sfxName
 		if sfxVersion != "" {
 			version = sfxVersion
