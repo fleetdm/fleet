@@ -59,8 +59,6 @@
 	<string>Enrollment Profile</string>
 	<key>PayloadIdentifier</key>
 	<string>com.github.micromdm.nanomdm</string>
-	<key>PayloadScope</key>
-	<string>System</string>
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
