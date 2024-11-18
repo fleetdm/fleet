@@ -357,7 +357,7 @@ const SoftwarePackageCard = ({
               <Tag
                 icon="refresh"
                 text="Automatic install"
-                onClick={() => console.log("test")}
+                onClick={() => setShowAutomaticInstallModal(true)}
               />
             </TooltipWrapper>
           )}
