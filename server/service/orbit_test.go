@@ -8,7 +8,9 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -94,6 +96,101 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, cfg.Notifications.RunDiskEncryptionEscrow)
 		require.True(t, ds.ClearPendingEscrowFuncInvoked)
+	})
+}
+
+func TestOrbitLUKSDataSave(t *testing.T) {
+	t.Run("when private key is set", func(t *testing.T) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+		host := &fleet.Host{
+			OsqueryHostID: ptr.String("test"),
+			ID:            1,
+		}
+		ctx = test.HostContext(ctx, host)
+		expectedErrorMessage := "There was an error."
+		ds.ReportEscrowErrorFunc = func(ctx context.Context, hostID uint, err string) error {
+			require.Equal(t, expectedErrorMessage, err)
+			return nil
+		}
+
+		// test reporting client errors
+		err := svc.EscrowLUKSData(ctx, "foo", "bar", expectedErrorMessage)
+		require.NoError(t, err)
+		require.True(t, ds.ReportEscrowErrorFuncInvoked)
+
+		// blank passphrase
+		ds.ReportEscrowErrorFuncInvoked = false
+		expectedErrorMessage = "Blank passphrase provided"
+		err = svc.EscrowLUKSData(ctx, "", "bar", "")
+		require.Error(t, err)
+		require.True(t, ds.ReportEscrowErrorFuncInvoked)
+
+		ds.ReportEscrowErrorFuncInvoked = false
+		passphrase, slotKey := "foo", ""
+		ds.SaveLUKSDataFunc = func(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64SlotKey string) error {
+			require.Equal(t, host.ID, hostID)
+			key := config.TestConfig().Server.PrivateKey
+
+			decryptedPassphrase, err := mdm.DecodeAndDecrypt(encryptedBase64Passphrase, key)
+			require.NoError(t, err)
+			require.Equal(t, passphrase, decryptedPassphrase)
+
+			if encryptedBase64SlotKey == "" {
+				require.Equal(t, slotKey, encryptedBase64SlotKey)
+				return nil
+			}
+			decryptedSlotKey, err := mdm.DecodeAndDecrypt(encryptedBase64SlotKey, key)
+			require.NoError(t, err)
+			require.Equal(t, slotKey, decryptedSlotKey)
+
+			return nil
+		}
+
+		// with no slot key
+		err = svc.EscrowLUKSData(ctx, passphrase, slotKey, "")
+		require.NoError(t, err)
+		require.False(t, ds.ReportEscrowErrorFuncInvoked)
+		require.True(t, ds.SaveLUKSDataFuncInvoked)
+
+		// with slot key
+		slotKey = "baz"
+		ds.SaveLUKSDataFuncInvoked = false
+		err = svc.EscrowLUKSData(ctx, passphrase, slotKey, "")
+		require.NoError(t, err)
+		require.True(t, ds.SaveLUKSDataFuncInvoked)
+	})
+
+	t.Run("fail when no/invalid private key is set", func(t *testing.T) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		host := &fleet.Host{
+			OsqueryHostID: ptr.String("test"),
+			ID:            1,
+		}
+		expectedErrorMessage := "internal error: missing server private key"
+		ds.ReportEscrowErrorFunc = func(ctx context.Context, hostID uint, err string) error {
+			require.Equal(t, expectedErrorMessage, err)
+			return nil
+		}
+
+		cfg := config.TestConfig()
+		cfg.Server.PrivateKey = ""
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+		ctx = test.HostContext(ctx, host)
+		err := svc.EscrowLUKSData(ctx, "foo", "bar", "")
+		require.Error(t, err)
+		require.True(t, ds.ReportEscrowErrorFuncInvoked)
+
+		expectedErrorMessage = "internal error: could not encrypt LUKS data: create new cipher: crypto/aes: invalid key size 7"
+		ds.ReportEscrowErrorFuncInvoked = false
+		cfg.Server.PrivateKey = "invalid"
+		svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+		ctx = test.HostContext(ctx, host)
+		err = svc.EscrowLUKSData(ctx, "foo", "bar", "")
+		require.Error(t, err)
+		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 	})
 }
 
