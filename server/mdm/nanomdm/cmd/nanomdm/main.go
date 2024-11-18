@@ -154,7 +154,7 @@ func main() {
 				if *flDebug {
 					opts = append(opts, httpmdm.SigLogWithLogErrors(true))
 				}
-				h = httpmdm.CertExtractMdmSignatureMiddleware(h, cryptoutil.MdmSignatureVerifierFunc(cryptoutil.VerifyMdmSignature),
+				h = httpmdm.CertExtractMdmSignatureMiddleware(h, httpmdm.MdmSignatureVerifierFunc(cryptoutil.VerifyMdmSignature),
 					opts...)
 			}
 			return h

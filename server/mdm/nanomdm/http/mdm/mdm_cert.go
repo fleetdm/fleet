@@ -109,6 +109,14 @@ type MdmSignatureVerifier interface {
 	VerifyMdmSignature(header string, body []byte) (*x509.Certificate, error)
 }
 
+// MdmSignatureVerifierFunc is an adapter for verifying Apple MDM "Mdm-Signature" headers.
+type MdmSignatureVerifierFunc func(header string, body []byte) (*x509.Certificate, error)
+
+// VerifyMdmSignature calls v with header and body.
+func (v MdmSignatureVerifierFunc) VerifyMdmSignature(header string, body []byte) (*x509.Certificate, error) {
+	return v(header, body)
+}
+
 // CertExtractMdmSignatureMiddleware extracts the MDM enrollment
 // identity certificate from the request into the HTTP request context.
 // It tries to verify the Mdm-Signature header on the request.

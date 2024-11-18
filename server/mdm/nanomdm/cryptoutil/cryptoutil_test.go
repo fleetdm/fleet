@@ -22,13 +22,12 @@ func TestPKCS7ParseTagLengthError(t *testing.T) {
 	}
 }
 
-func TestMdmVerifierFunc(t *testing.T) {
+func TestVerifyMdmSignature(t *testing.T) {
 	body, err := base64.StdEncoding.DecodeString(mdmSignatureBody2)
 	if err != nil {
 		t.Error(err)
 	}
-	verifier := MdmSignatureVerifierFunc(VerifyMdmSignature)
-	_, err = verifier.VerifyMdmSignature(mdmSignatureHeader2, body)
+	_, err = VerifyMdmSignature(mdmSignatureHeader2, body)
 	if err != nil {
 		t.Error(err)
 	}
