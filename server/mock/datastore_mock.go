@@ -1127,6 +1127,8 @@ type EnqueueSetupExperienceItemsFunc func(ctx context.Context, hostUUID string, 
 
 type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) (*fleet.Script, error)
 
+type GetSetupExperienceScriptByIDFunc func(ctx context.Context, scriptID uint) (*fleet.Script, error)
+
 type SetSetupExperienceScriptFunc func(ctx context.Context, script *fleet.Script) error
 
 type DeleteSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) error
@@ -2808,6 +2810,9 @@ type DataStore struct {
 
 	GetSetupExperienceScriptFunc        GetSetupExperienceScriptFunc
 	GetSetupExperienceScriptFuncInvoked bool
+
+	GetSetupExperienceScriptByIDFunc        GetSetupExperienceScriptByIDFunc
+	GetSetupExperienceScriptByIDFuncInvoked bool
 
 	SetSetupExperienceScriptFunc        SetSetupExperienceScriptFunc
 	SetSetupExperienceScriptFuncInvoked bool
@@ -6714,6 +6719,13 @@ func (s *DataStore) GetSetupExperienceScript(ctx context.Context, teamID *uint) 
 	s.GetSetupExperienceScriptFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSetupExperienceScriptFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetSetupExperienceScriptByID(ctx context.Context, scriptID uint) (*fleet.Script, error) {
+	s.mu.Lock()
+	s.GetSetupExperienceScriptByIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSetupExperienceScriptByIDFunc(ctx, scriptID)
 }
 
 func (s *DataStore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) error {

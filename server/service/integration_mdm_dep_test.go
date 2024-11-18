@@ -2168,7 +2168,6 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	// release of the device, as all setup experience steps are now complete.
 	statusResp = getOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
-	// Software is now running, script is still pending
 	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
@@ -2202,6 +2201,23 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	}
 	require.Equal(t, 1, deviceConfiguredCount)
 	require.Equal(t, 0, otherCount)
+
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", enrolledHost.ID), nil, http.StatusOK, &getHostResp)
+
+	expectedJSON := fmt.Sprintf(`
+{
+	"async": true,
+	"host_id": %d,
+	"policy_id": null,
+	"policy_name": null,
+	"script_name": "%s",
+	"host_display_name": "%s",
+	"script_execution_id": "%s"
+}
+	`, enrolledHost.ID, statusResp.Results.Script.Name, getHostResp.Host.DisplayName, execID)
+
+	s.lastActivityMatches(fleet.ActivityTypeRanScript{}.ActivityName(), expectedJSON, 0)
 }
 
 func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptForceRelease() {
@@ -2360,7 +2376,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptFo
 	require.Equal(t, 0, otherCount)
 }
 
-func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingtFromABM() {
+func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingItFromABM() {
 	t := s.T()
 	s.enableABM(t.Name())
 	ctx := context.Background()
@@ -2534,7 +2550,6 @@ func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingtFromABM(
 		{SerialNumber: mdmDevice.SerialNumber, Model: "MacBook Pro", OS: "osx", OpType: "deleted", OpDate: time.Now()},
 	}
 
-	t.Log("RUN AFTER DELETED")
 	s.runDEPSchedule()
 
 	a := checkHostDEPAssignProfileResponses([]string{mdmDevice.SerialNumber}, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
@@ -2550,7 +2565,6 @@ func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingtFromABM(
 		{SerialNumber: mdmDevice.SerialNumber, Model: "MacBook Pro", OS: "osx", OpType: "added", OpDate: time.Now(), ProfileUUID: a[mdmDevice.SerialNumber].ProfileUUID},
 	}
 
-	t.Log("RUN AFTER RE-ADDED")
 	s.runDEPSchedule()
 
 	a = checkHostDEPAssignProfileResponses([]string{mdmDevice.SerialNumber}, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
