@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/certverify"
@@ -109,7 +110,11 @@ func main() {
 		nanomdm.WithUserAuthenticate(nanomdm.NewUAService(mdmStorage, *flUAZLChal)),
 	}
 	if *flDMURLPfx != "" {
-		logger.Debug("msg", "declarative management setup", "url", *flDMURLPfx)
+		var warningText string
+		if !strings.HasSuffix(*flDMURLPfx, "/") {
+			warningText = ": warning: URL has no trailing slash"
+		}
+		logger.Debug("msg", "declarative management setup"+warningText, "url", *flDMURLPfx)
 		dm, err := nanomdm.NewDeclarativeManagementHTTPCaller(*flDMURLPfx, http.DefaultClient)
 		if err != nil {
 			stdlog.Fatal(err)

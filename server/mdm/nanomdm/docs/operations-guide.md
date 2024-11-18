@@ -129,6 +129,8 @@ This switch disables MDM client capability. This effecitvely turns this running 
 
 Specifies the "base" URL to send Declarative Management requests to. The full URL is constructed from this base URL appended with the type of Declarative Management ["Endpoint" request](https://developer.apple.com/documentation/devicemanagement/declarativemanagementrequest?language=objc) such as "status" or "declaration-items". Each HTTP request includes the NanoMDM enrollment ID as the HTTP header "X-Enrollment-ID". See [this blog post](https://micromdm.io/blog/wwdc21-declarative-management/) for more details.
 
+Note that the URL should likely have a trailing slash. Otherwise path elements of the URL may to be cut off but by Golang's relative URL path resolver.
+
 ### -migration
 
 * HTTP endpoint for enrollment migrations
