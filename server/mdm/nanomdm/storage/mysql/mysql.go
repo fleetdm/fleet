@@ -7,6 +7,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
@@ -92,10 +93,13 @@ func New(opts ...Option) (*MySQLStorage, error) {
 	)
 
 	mysqlStore := &MySQLStorage{db: cfg.db, logger: cfg.logger, rm: cfg.rm}
-	als := newAsyncLastSeen(asyncLastSeenFlushInterval, asyncLastSeenCap, mysqlStore.updateLastSeenBatch)
-	mysqlStore.als = als
 
-	go als.runFlushLoop(context.Background())
+	if v := os.Getenv("FLEET_DISABLE_ASYNC_NANO_LAST_SEEN"); v != "1" {
+		als := newAsyncLastSeen(asyncLastSeenFlushInterval, asyncLastSeenCap, mysqlStore.updateLastSeenBatch)
+		mysqlStore.als = als
+
+		go als.runFlushLoop(context.Background())
+	}
 
 	return mysqlStore, nil
 }
@@ -279,6 +283,11 @@ func (s *MySQLStorage) Disable(r *mdm.Request) error {
 }
 
 func (s *MySQLStorage) updateLastSeen(r *mdm.Request) (err error) {
+	if s.als != nil {
+		s.als.markHostSeen(r.Context, r.ID)
+		return nil
+	}
+
 	_, err = s.db.ExecContext(
 		r.Context,
 		`UPDATE nano_enrollments SET last_seen_at = CURRENT_TIMESTAMP WHERE id = ?`,
