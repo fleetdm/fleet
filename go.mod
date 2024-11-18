@@ -67,6 +67,7 @@ require (
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/josephspurrier/goversioninfo v1.4.0
 	github.com/kevinburke/go-bindata v3.24.0+incompatible
+	github.com/klauspost/compress v1.17.8
 	github.com/kolide/launcher v1.0.12
 	github.com/lib/pq v1.10.9
 	github.com/macadmins/osquery-extension v1.2.1
@@ -111,9 +112,10 @@ require (
 	github.com/urfave/cli/v2 v2.23.5
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	github.com/ziutek/mymysql v1.5.4
-	go.elastic.co/apm/module/apmgorilla/v2 v2.3.0
-	go.elastic.co/apm/module/apmsql/v2 v2.4.3
-	go.elastic.co/apm/v2 v2.4.3
+	go.elastic.co/apm/module/apmgorilla/v2 v2.6.2
+	go.elastic.co/apm/module/apmhttp/v2 v2.6.2
+	go.elastic.co/apm/module/apmsql/v2 v2.6.2
+	go.elastic.co/apm/v2 v2.6.2
 	go.etcd.io/bbolt v1.3.9
 	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.56.0
@@ -266,7 +268,6 @@ require (
 	github.com/joeshaw/multierror v0.0.0-20140124173710-69b34d4ec901 // indirect
 	github.com/jonboulle/clockwork v0.2.2 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
-	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/kolide/kit v0.0.0-20221107170827-fb85e3d59eab // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
@@ -315,7 +316,6 @@ require (
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	github.com/yashtewari/glob-intersection v0.1.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	go.elastic.co/apm/module/apmhttp/v2 v2.3.0 // indirect
 	go.elastic.co/fastjson v1.1.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.49.0 // indirect
