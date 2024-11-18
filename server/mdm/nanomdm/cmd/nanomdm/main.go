@@ -70,6 +70,7 @@ func main() {
 		flRetro      = flag.Bool("retro", false, "Allow retroactive certificate-authorization association")
 		flDMURLPfx   = flag.String("dm", "", "URL to send Declarative Management requests to")
 		flAuthProxy  = flag.String("auth-proxy-url", "", "Reverse proxy URL target for MDM-authenticated HTTP requests")
+		flUAZLChal   = flag.Bool("ua-zl-dc", false, "reply with zero-length DigestChallenge for UserAuthenticate")
 	)
 	flag.Parse()
 
@@ -102,7 +103,10 @@ func main() {
 	}
 
 	// create 'core' MDM service
-	nanoOpts := []nanomdm.Option{nanomdm.WithLogger(logger.With("service", "nanomdm"))}
+	nanoOpts := []nanomdm.Option{
+		nanomdm.WithLogger(logger.With("service", "nanomdm")),
+		nanomdm.WithUserAuthenticate(nanomdm.NewUAService(mdmStorage, *flUAZLChal)),
+	}
 	if *flDMURLPfx != "" {
 		logger.Debug("msg", "declarative management setup", "url", *flDMURLPfx)
 		dm, err := nanomdm.NewDeclarativeManagementHTTPCaller(*flDMURLPfx, http.DefaultClient)

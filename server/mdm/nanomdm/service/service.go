@@ -11,6 +11,11 @@ type DeclarativeManagement interface {
 	DeclarativeManagement(*mdm.Request, *mdm.DeclarativeManagement) ([]byte, error)
 }
 
+// UserAuthenticate is an interface for processing the UserAuthenticate MDM check-in message.
+type UserAuthenticate interface {
+	UserAuthenticate(*mdm.Request, *mdm.UserAuthenticate) ([]byte, error)
+}
+
 // Checkin represents the various check-in requests.
 // See https://developer.apple.com/documentation/devicemanagement/check-in
 type Checkin interface {
@@ -19,7 +24,7 @@ type Checkin interface {
 	CheckOut(*mdm.Request, *mdm.CheckOut) error
 	SetBootstrapToken(*mdm.Request, *mdm.SetBootstrapToken) error
 	GetBootstrapToken(*mdm.Request, *mdm.GetBootstrapToken) (*mdm.BootstrapToken, error)
-	UserAuthenticate(*mdm.Request, *mdm.UserAuthenticate) ([]byte, error)
+	UserAuthenticate
 	DeclarativeManagement
 }
 

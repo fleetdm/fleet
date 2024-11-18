@@ -10,12 +10,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
+type UserAuthenticateStore interface {
+	StoreUserAuthenticate(r *mdm.Request, msg *mdm.UserAuthenticate) error
+}
+
 // CheckinStore stores MDM check-in data.
 type CheckinStore interface {
 	StoreAuthenticate(r *mdm.Request, msg *mdm.Authenticate) error
 	StoreTokenUpdate(r *mdm.Request, msg *mdm.TokenUpdate) error
-	StoreUserAuthenticate(r *mdm.Request, msg *mdm.UserAuthenticate) error
 	Disable(r *mdm.Request) error
+	UserAuthenticateStore
 }
 
 // CommandAndReportResultsStore stores and retrieves MDM command queue data.
