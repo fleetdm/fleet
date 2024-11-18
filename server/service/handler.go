@@ -837,6 +837,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		errorLimiter.Limit("post_device_migrate_mdm", desktopQuota),
 	).POST("/api/_version_/fleet/device/{token}/migrate_mdm", migrateMDMDeviceEndpoint, deviceMigrateMDMRequest{})
 
+	de.WithCustomMiddleware(
+		errorLimiter.Limit("post_device_trigger_linux_escrow", desktopQuota),
+	).POST("/api/_version_/fleet/device/{token}/mdm/linux/trigger_escrow", triggerLinuxDiskEncryptionEscrowEndpoint, triggerLinuxDiskEncryptionEscrowRequest{})
+
 	// host-authenticated endpoints
 	he := newHostAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
 
@@ -878,6 +882,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	oeWindowsMDM := oe.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
 	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_key", postOrbitDiskEncryptionKeyEndpoint, orbitPostDiskEncryptionKeyRequest{})
+
+	oe.POST("/api/fleet/orbit/luks_data", postOrbitLUKSEndpoint, orbitPostLUKSRequest{})
 
 	// unauthenticated endpoints - most of those are either login-related,
 	// invite-related or host-enrolling. So they typically do some kind of
