@@ -1,4 +1,9 @@
 .automatic-install-modal {
+
+  &__description {
+    margin: 0 0 $pad-large
+  }
+
   &__list {
     list-style: none;
     margin: 0;
