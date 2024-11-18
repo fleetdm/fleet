@@ -1267,7 +1267,7 @@ func (ds *Datastore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fl
 	// be without and use the reader replica?
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
-		result, err = listMDMWindowsProfilesToInstallDB(ctx, tx, nil)
+		result, err = listMDMWindowsProfilesToInstallDB(ctx, tx, nil, nil)
 		return err
 	})
 	return result, err
@@ -1277,6 +1277,7 @@ func listMDMWindowsProfilesToInstallDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostUUIDs []string,
+	onlyProfileUUIDs []string,
 ) ([]*fleet.MDMWindowsProfilePayload, error) {
 	// The query below is a set difference between:
 	//
@@ -1318,14 +1319,29 @@ func listMDMWindowsProfilesToInstallDB(
 
 	hostFilter := "TRUE"
 	if len(hostUUIDs) > 0 {
-		hostFilter = "h.uuid IN (?)"
+		if len(onlyProfileUUIDs) > 0 {
+			hostFilter = "mwcp.profile_uuid IN (?) AND h.uuid IN (?)"
+		} else {
+			hostFilter = "h.uuid IN (?)"
+		}
 	}
 
 	var err error
 	args := []any{fleet.MDMOperationTypeInstall}
 	query = fmt.Sprintf(query, hostFilter, hostFilter, hostFilter, hostFilter)
 	if len(hostUUIDs) > 0 {
-		query, args, err = sqlx.In(query, hostUUIDs, hostUUIDs, hostUUIDs, hostUUIDs, fleet.MDMOperationTypeInstall)
+		if len(onlyProfileUUIDs) > 0 {
+			query, args, err = sqlx.In(
+				query,
+				onlyProfileUUIDs, hostUUIDs,
+				onlyProfileUUIDs, hostUUIDs,
+				onlyProfileUUIDs, hostUUIDs,
+				onlyProfileUUIDs, hostUUIDs,
+				fleet.MDMOperationTypeInstall,
+			)
+		} else {
+			query, args, err = sqlx.In(query, hostUUIDs, hostUUIDs, hostUUIDs, hostUUIDs, fleet.MDMOperationTypeInstall)
+		}
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "building sqlx.In")
 		}
@@ -1340,7 +1356,7 @@ func (ds *Datastore) ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*fle
 	var result []*fleet.MDMWindowsProfilePayload
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
-		result, err = listMDMWindowsProfilesToRemoveDB(ctx, tx, nil)
+		result, err = listMDMWindowsProfilesToRemoveDB(ctx, tx, nil, nil)
 		return err
 	})
 
@@ -1351,6 +1367,7 @@ func listMDMWindowsProfilesToRemoveDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostUUIDs []string,
+	onlyProfileUUIDs []string,
 ) ([]*fleet.MDMWindowsProfilePayload, error) {
 	// The query below is a set difference between:
 	//
@@ -1374,7 +1391,11 @@ func listMDMWindowsProfilesToRemoveDB(
 
 	hostFilter := "TRUE"
 	if len(hostUUIDs) > 0 {
-		hostFilter = "hmwp.host_uuid IN (?)"
+		if len(onlyProfileUUIDs) > 0 {
+			hostFilter = "hmwp.profile_uuid IN (?) AND hmwp.host_uuid IN (?)"
+		} else {
+			hostFilter = "hmwp.host_uuid IN (?)"
+		}
 	}
 
 	query := fmt.Sprintf(`
@@ -1408,7 +1429,11 @@ func listMDMWindowsProfilesToRemoveDB(
 	var err error
 	var args []any
 	if len(hostUUIDs) > 0 {
-		query, args, err = sqlx.In(query, hostUUIDs)
+		if len(onlyProfileUUIDs) > 0 {
+			query, args, err = sqlx.In(query, onlyProfileUUIDs, hostUUIDs)
+		} else {
+			query, args, err = sqlx.In(query, hostUUIDs)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -1917,18 +1942,19 @@ ON DUPLICATE KEY UPDATE
 func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
-	uuids []string,
+	hostUUIDs []string,
+	onlyProfileUUIDs []string,
 ) (updatedDB bool, err error) {
-	if len(uuids) == 0 {
+	if len(hostUUIDs) == 0 {
 		return false, nil
 	}
 
-	profilesToInstall, err := listMDMWindowsProfilesToInstallDB(ctx, tx, uuids)
+	profilesToInstall, err := listMDMWindowsProfilesToInstallDB(ctx, tx, hostUUIDs, onlyProfileUUIDs)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "list profiles to install")
 	}
 
-	profilesToRemove, err := listMDMWindowsProfilesToRemoveDB(ctx, tx, uuids)
+	profilesToRemove, err := listMDMWindowsProfilesToRemoveDB(ctx, tx, hostUUIDs, onlyProfileUUIDs)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "list profiles to remove")
 	}
