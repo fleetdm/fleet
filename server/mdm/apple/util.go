@@ -124,22 +124,3 @@ func IsLessThanVersion(current string, target string) (bool, error) {
 
 	return cv.LessThan(tv), nil
 }
-
-// CompareVersions returns an integer comparing two versions according to semantic version
-// precedence. The result will be 0 if a == b, -1 if a < b, or +1 if a > b.
-// An invalid semantic version string is considered less than a valid one. All invalid semantic
-// version strings compare equal to each other.
-func CompareVersions(a string, b string) int {
-	verA, errA := semver.NewVersion(a)
-	verB, errB := semver.NewVersion(b)
-	switch {
-	case errA != nil && errB != nil:
-		return 0
-	case errA != nil:
-		return -1
-	case errB != nil:
-		return 1
-	default:
-		return verA.Compare(verB)
-	}
-}

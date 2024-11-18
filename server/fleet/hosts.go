@@ -322,7 +322,7 @@ type Host struct {
 
 	// DiskEncryptionEnabled is only returned by GET /host/{id} and so is not
 	// exportable as CSV (which is the result of List Hosts endpoint). It is
-	// a *bool because for Linux we set it to NULL and omit it from the JSON
+	// a *bool because for some Linux we set it to NULL and omit it from the JSON
 	// response if the host does not have disk encryption enabled. It is also
 	// omitted if we don't have encryption information yet.
 	DiskEncryptionEnabled *bool `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled" csv:"-"`
@@ -680,6 +680,12 @@ func (h *Host) IsOsqueryEnrolled() bool {
 // server in ABM.
 func (h *Host) IsDEPAssignedToFleet() bool {
 	return h.DEPAssignedToFleet != nil && *h.DEPAssignedToFleet
+}
+
+// IsLUKSSupported returns true if the host's platform is Linux and running
+// one of the supported OS versions.
+func (h *Host) IsLUKSSupported() bool {
+	return h.Platform == "ubuntu" || strings.Contains(h.OSVersion, "Fedora") // fedora h.Platform reports as "rhel"
 }
 
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be
