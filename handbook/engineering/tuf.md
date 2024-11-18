@@ -133,3 +133,6 @@ The root keys expire every year and must be manually rotated at least 30 days pr
 11. Copy the `repository` directory to the local drive of an online device and push to the remote TUF repo. 
 
 12. Confirm that agent updates are continuing with the new `root.json`. Once confirmed, it is safe to delete the old root keys and backup the new keys.
+
+<meta name="maintainedBy" value="lukeheath">
+<meta name="description" value="This page outlines our TUF creation and maintenance processes.">
