@@ -3244,6 +3244,8 @@ Returns the information of the specified host.
 
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
 
+> Note: `signature_information` is only set for macOS (.app) applications.
+
 > Note:
 > - `orbit_version: null` means this agent is not a fleetd agent
 > - `fleet_desktop_version: null` means this agent is not a fleetd agent, or this agent is version <=1.23.0 which is not collecting the desktop version
@@ -4363,9 +4365,16 @@ Resends a configuration profile for the specified host.
       "installed_versions": [
         {
           "version": "121.0",
+          "bundle_identifier": "com.google.Chrome",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
-          "installed_paths": ["/Applications/Google Chrome.app"]
+          "installed_paths": ["/Applications/Google Chrome.app"],
+          "signature_information": [
+            {
+              "installed_path": "/Applications/Google Chrome.app",
+              "team_identifier": "EQHXZ8M8AV"
+            }
+          ]
         }
       ]
     },
@@ -4405,9 +4414,16 @@ Resends a configuration profile for the specified host.
       "installed_versions": [
         {
           "version": "118.0",
+          "bundle_identifier": "com.apple.logic10",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-1234"],
-          "installed_paths": ["/Applications/Logic Pro.app"]
+          "installed_paths": ["/Applications/Logic Pro.app"],
+          "signature_information": [
+            {
+              "installed_path": "/Applications/Logic Pro.app",
+              "team_identifier": ""
+            }
+          ]
         }
       ]
     },
