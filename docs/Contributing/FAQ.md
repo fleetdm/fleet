@@ -97,4 +97,9 @@ If you also have Fleetd running on hosts, it will need access to these API endpo
 * `/api/fleet/orbit/device_mapping`
 * `/api/osquery/log`
 
+If you also have Fleet Desktop running on hosts, it will need access to these API endpoints:
+
+* `/api/latest/fleet/device/.+/desktop`
+* `/api/latest/fleet/device/.+/ping`
+
 <meta name="description" value="Find commonly asked questions and answers about contributing to Fleet as part of our community.">
