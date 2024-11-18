@@ -804,11 +804,20 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			}
 		}
 		var scriptName string
-		if hsr.ScriptID != nil {
+
+		switch {
+		case hsr.ScriptID != nil:
 			scr, err := svc.ds.Script(ctx, *hsr.ScriptID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "get saved script")
 			}
+			scriptName = scr.Name
+		case hsr.SetupExperienceScriptID != nil:
+			scr, err := svc.ds.GetSetupExperienceScriptByID(ctx, *hsr.SetupExperienceScriptID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get setup experience script")
+			}
+
 			scriptName = scr.Name
 		}
 

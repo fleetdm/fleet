@@ -1782,6 +1782,8 @@ type Datastore interface {
 	UpdateSetupExperienceStatusResult(ctx context.Context, status *SetupExperienceStatusResult) error
 	EnqueueSetupExperienceItems(ctx context.Context, hostUUID string, teamID uint) (bool, error)
 	GetSetupExperienceScript(ctx context.Context, teamID *uint) (*Script, error)
+	// GetSetupExperienceScriptByID gets the setup experience script by its ID.
+	GetSetupExperienceScriptByID(ctx context.Context, scriptID uint) (*Script, error)
 	SetSetupExperienceScript(ctx context.Context, script *Script) error
 	DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error
 	MaybeUpdateSetupExperienceScriptStatus(ctx context.Context, hostUUID string, executionID string, status SetupExperienceStatusResultStatus) (bool, error)
