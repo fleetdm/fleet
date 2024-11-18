@@ -22,6 +22,7 @@ import ActionsDropdown from "components/ActionsDropdown";
 import TooltipWrapper from "components/TooltipWrapper";
 import DataSet from "components/DataSet";
 import Icon from "components/Icon";
+import Tag from "components/Tag";
 
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import endpoints from "utilities/endpoints";
@@ -342,16 +343,14 @@ const SoftwarePackageCard = ({
           </div>
         </div>
         <div className={`${baseClass}__actions-wrapper`}>
-          {isSelfService && (
-            <div className={`${baseClass}__self-service-badge`}>
-              <Icon
-                name="install-self-service"
-                size="small"
-                color="ui-fleet-black-75"
-              />
-              Self-service
-            </div>
+          {softwarePackage?.automatic_install_policies && (
+            <Tag
+              icon="refresh"
+              text="Automatic install"
+              onClick={() => console.log("test")}
+            />
           )}
+          {isSelfService && <Tag icon="user" text="Self-service" />}
           {showActions && (
             <SoftwareActionsDropdown
               isSoftwarePackage={!!softwarePackage}
