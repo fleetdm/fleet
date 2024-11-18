@@ -113,10 +113,6 @@ const TeamsDropdown = ({
   };
 
   const customStyles: StylesConfig<INumberDropdownOption, false> = {
-    container: (provided) => ({
-      ...provided,
-      width: "80px",
-    }),
     control: (provided, state) => ({
       ...provided,
       display: "flex",
