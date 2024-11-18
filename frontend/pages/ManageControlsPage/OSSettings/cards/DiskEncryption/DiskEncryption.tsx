@@ -149,7 +149,7 @@ const DiskEncryption = ({
       <TooltipWrapper tipContent={getTipContent("windows")}>
         Windows
       </TooltipWrapper>
-      , Ubuntu Linux, Kubuntu Linux, and Fedora Linux hosts.
+      , Ubuntu Linux, and Fedora Linux hosts.
     </>
   );
 
