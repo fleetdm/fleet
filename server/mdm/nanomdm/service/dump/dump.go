@@ -72,11 +72,11 @@ func (svc *Dumper) GetBootstrapToken(r *mdm.Request, m *mdm.GetBootstrapToken) (
 }
 
 func (svc *Dumper) GetToken(r *mdm.Request, m *mdm.GetToken) (*mdm.GetTokenResponse, error) {
-	svc.file.Write(m.Raw)
+	svc.file.Write(m.Raw) // nolint:errcheck
 	token, err := svc.next.GetToken(r, m)
 	if token != nil && len(token.TokenData) > 0 {
 		b64 := base64.StdEncoding.EncodeToString(token.TokenData)
-		svc.file.WriteString("GetToken TokenData: " + b64 + "\n")
+		svc.file.WriteString("GetToken TokenData: " + b64 + "\n") // nolint:errcheck
 	}
 	return token, err
 }

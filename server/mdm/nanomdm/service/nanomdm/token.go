@@ -1,6 +1,7 @@
 package nanomdm
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -56,7 +57,7 @@ func (mux *TokenMux) Handle(serviceType string, handler service.GetToken) {
 // GetToken is the middleware that dispatches a GetToken handler based on service type.
 func (mux *TokenMux) GetToken(r *mdm.Request, t *mdm.GetToken) (*mdm.GetTokenResponse, error) {
 	if t == nil {
-		return nil, fmt.Errorf("nil MDM GetToken")
+		return nil, errors.New("nil MDM GetToken")
 	}
 	var next service.GetToken
 	mux.typesMu.RLock()
