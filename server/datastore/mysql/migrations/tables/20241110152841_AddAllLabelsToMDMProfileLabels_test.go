@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20241030102721(t *testing.T) {
+func TestUp_20241110152841(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// insert 2 profiles and 2 declarations

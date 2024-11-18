@@ -19,9 +19,9 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 | I want to _________________________________________
 | so that I can _________________________________________.
 
-## Objective
+## Key result
 
-<!-- What quarterly objective does this story contribute to, if any? If it doesn't contribute to an objective, explain why it's being prioritized. -->
+<!-- What quarterly key result (KR) does this story contribute to, if any? If it doesn't contribute to a KR, explain why it's being prioritized. -->
 
 ## Original requests
 

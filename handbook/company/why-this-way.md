@@ -242,6 +242,11 @@ Why bother with all that?  And why do it in this particular order?
 - **It helps us prevent future outages.** By finding outages sooner, we incentivize ourselves to fix the root cause sooner.  And by fixing bugs sooner, we prevent them from stacking and bleeding into one another, and we prevent ourselves from implementing future fixes and improvements on top of shaky foundations.  This makes contributions less risky and reduces the number of outages.
 
 
+## Why fix small inconsistencies quickly?
+
+Fixing small inconsistencies quickly is worth it. When we tolerate and overlook little things, we send contributors mixed messages, like "[broken windows](https://en.wikipedia.org/wiki/Broken_windows_theory)". (Are these things actually important?) Since new contributors join the team all the time, we also prevent learning the right way to do things through osmosis, since pattern matching from a bad pattern creates even more inconsistencies. Plus these things add up over time, creating problems for both users and contributors.
+
+
 ## Why make it obvious when stuff breaks?
 
 At Fleet, we detect and fix bugs as quickly as possible.  

@@ -1904,9 +1904,20 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 	}
 	// NOTE: allow an empty serial, currently it is empty for Windows.
 
-	var host fleet.Host
+	host := fleet.Host{
+		ComputerName:   hostInfo.ComputerName,
+		Hostname:       hostInfo.Hostname,
+		HardwareModel:  hostInfo.HardwareModel,
+		HardwareSerial: hostInfo.HardwareSerial,
+	}
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isMDMEnabled, hostInfo.OsqueryIdentifier, hostInfo.HardwareUUID, hostInfo.HardwareSerial)
+		serialToMatch := hostInfo.HardwareSerial
+		if hostInfo.Platform == "windows" {
+			// For Windows, don't match by serial number to retain legacy functionality.
+			serialToMatch = ""
+		}
+		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isMDMEnabled, hostInfo.OsqueryIdentifier,
+			hostInfo.HardwareUUID, serialToMatch)
 
 		// If the osquery identifier that osqueryd will use was not sent by Orbit, then use the hardware UUID as identifier
 		// (using the hardware UUID is Orbit's default behavior).
@@ -1936,6 +1947,8 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
         uuid = COALESCE(NULLIF(uuid, ''), ?),
         osquery_host_id = COALESCE(NULLIF(osquery_host_id, ''), ?),
         hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
+		computer_name = COALESCE(NULLIF(computer_name, ''), ?),
+		hardware_model = COALESCE(NULLIF(hardware_model, ''), ?),
         team_id = ?
       WHERE id = ?`
 			_, err := tx.ExecContext(ctx, sqlUpdate,
@@ -1943,6 +1956,8 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 				hostInfo.HardwareUUID,
 				osqueryIdentifier,
 				hostInfo.HardwareSerial,
+				hostInfo.ComputerName,
+				hostInfo.HardwareModel,
 				teamID,
 				enrolledHostInfo.ID,
 			)
@@ -1977,8 +1992,10 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 					orbit_node_key,
 					hardware_serial,
 					hostname,
+					computer_name,
+					hardware_model,
 					platform
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
 			`
 			result, err := tx.ExecContext(ctx, sqlInsert,
 				zeroTime,
@@ -1992,6 +2009,8 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 				orbitNodeKey,
 				hostInfo.HardwareSerial,
 				hostInfo.Hostname,
+				hostInfo.ComputerName,
+				hostInfo.HardwareModel,
 				hostInfo.Platform,
 			)
 			if err != nil {
@@ -1999,9 +2018,9 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 			}
 			hostID, _ := result.LastInsertId()
 			const sqlHostDisplayName = `
-				INSERT INTO host_display_names (host_id, display_name) VALUES (?, '')
+				INSERT INTO host_display_names (host_id, display_name) VALUES (?, ?)
 			`
-			_, err = tx.ExecContext(ctx, sqlHostDisplayName, hostID)
+			_, err = tx.ExecContext(ctx, sqlHostDisplayName, hostID, host.DisplayName())
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "insert host_display_names")
 			}
@@ -5150,6 +5169,42 @@ func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []strin
 
 	for _, host := range matchingHosts {
 		result[host.HardwareSerial] = host
+	}
+
+	return result, nil
+}
+
+func (ds *Datastore) GetMatchingHostSerialsMarkedDeleted(ctx context.Context, serials []string) (map[string]struct{}, error) {
+	result := map[string]struct{}{}
+	if len(serials) == 0 {
+		return result, nil
+	}
+
+	stmt := `
+SELECT
+	hardware_serial
+FROM
+	hosts h
+	JOIN host_dep_assignments hdep ON hdep.host_id = h.id
+WHERE
+	h.hardware_serial IN (?) AND hdep.deleted_at IS NOT NULL;
+	`
+
+	var args []interface{}
+	for _, serial := range serials {
+		args = append(args, serial)
+	}
+	stmt, args, err := sqlx.In(stmt, args)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building IN statement for matching hosts")
+	}
+	var matchingSerials []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &matchingSerials, stmt, args...); err != nil {
+		return nil, err
+	}
+
+	for _, serial := range matchingSerials {
+		result[serial] = struct{}{}
 	}
 
 	return result, nil

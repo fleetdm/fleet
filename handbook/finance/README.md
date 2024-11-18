@@ -4,7 +4,6 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Team
 | Role                          | Contributor(s)           |
 |:------------------------------|:-----------------------------------------------------------------------------------------------------------|
-| Head of Finance   | [Joanne Stableford](https://www.linkedin.com/in/joanne-stableford/) _([@jostableford](https://github.com/JoStableford))_
 | Finance Engineer | [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
 
 
@@ -26,11 +25,11 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 
 | Payroll type                 | What to use                  | DRI                          |
 |:-----------------------------|:-----------------------------|:-----------------------------|
-| [Commissions and ramp](https://fleetdm.com/handbook/finance#run-us-commission-payroll)         | "Off-cycle - Commission" payroll          | Head of Finance
-| Sign-on bonus                | "Bonus" payroll              | Head of Finance
-| Performance bonus            | "Bonus" payroll              | Head of Finance     
-| Accelerations (quarterly)    | "Off-cycle - Commission" payroll          | Head of Finance
-| [US contractor payroll](https://fleetdm.com/handbook/finance#run-payroll) | "Off-cycle" payroll | Head of Finance
+| [Commissions and ramp](https://fleetdm.com/handbook/finance#run-us-commission-payroll)         | "Off-cycle - Commission" payroll          | Finance Engineer
+| Sign-on bonus                | "Bonus" payroll              | Finance Engineer
+| Performance bonus            | "Bonus" payroll              | Finance Engineer    
+| Accelerations (quarterly)    | "Off-cycle - Commission" payroll          | Finance Engineer
+| [US contractor payroll](https://fleetdm.com/handbook/finance#run-payroll) | "Off-cycle" payroll | Finance Engineer
 
 To complete payroll for a salaried US employee, use the following steps:
 1. Log in to your admin [Gusto](https://app.gusto.com/login) account.
@@ -188,7 +187,7 @@ Use the following steps to update the [💸Finance department KPIs](https://docs
 
 **SaaS metrics**: 
 - For "CAC", "CAC payback", "LTV" and "LTV:CAC" columns, drag the existing formula to this week's row.
-> Note: the formula relies on inputs in other fields, so if those fields haven't received input yet, it will look odd. If formulas are still broken after inputs in the other columns are added, [create an issue on the Finance board](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-finance&projects=&template=custom-request.md) noting which columns are affected. Once created, @ mention Head of Finance in the issue to bring awareness.
+> Note: the formula relies on inputs in other fields, so if those fields haven't received input yet, it will look odd. If formulas are still broken after inputs in the other columns are added, [create an issue on the Finance board](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-finance&projects=&template=custom-request.md) noting which columns are affected. Once created, @ mention Finance Engineer in the issue to bring awareness.
   
 - For "Average customer age", pull the age in days from the [Salesforce "Account age" report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000012jwX2AQ/view), then convert to months by dividing the age in days by 30.417. Put the calculated number into the cell. This metric changes gradually up each week when no new deals close and no customer churns. Because we calculate the age of the customer based on the average lifetime deal length, expected behavior is that it will decrease when a new deal closes, but not drastically (as even a 1-year deal will still add 12 months to the average age).
 
@@ -418,5 +417,5 @@ Please see [handbook/engineering#book-an-event](https://www.fleetdm.com/handbook
 Please see [handbook/engineering#order-swag](https://www.fleetdm.com/handbook/engineering#order-swag)
 
 
-<meta name="maintainedBy" value="jostableford">
+<meta name="maintainedBy" value="ireedy">
 <meta name="title" value="💸 Finance">

@@ -23,7 +23,7 @@
   task: "Sprint kickoff review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "Review stories that made it into this sprint and stories that didn't make it into this sprint. Ensure stories/bugs have been effectively prioritized across teams. After the call, the Head of Product Designer @ mentions the API design DRI in #help-design about stories that didn't make it into the sprint so that they can update the reference docs release branches." 
+  description: "Review stories that made it into this sprint and stories that didn't make it into this sprint. Ensure stories/bugs have been effectively prioritized across teams. After the call, the Head of Product Design @ mentions the API design DRI in #help-design about stories that didn't make it into the sprint so that they can update the reference docs release branches." 
   moreInfoUrl: 
   dri: "noahtalerman"
 -

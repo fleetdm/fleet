@@ -842,9 +842,12 @@ type Datastore interface {
 	// UpdateHostSoftwareInstalledPaths looks at all software for 'hostID' and based on the contents of
 	// 'reported', either inserts or deletes the corresponding entries in the
 	// 'host_software_installed_paths' table. 'reported' is a set of
-	// 'software.ToUniqueStr()--installed_path' strings. 'mutationResults' contains the software inventory of
+	// 'installed_path\0team_identifier\0software.ToUniqueStr()' strings. 'mutationResults' contains the software inventory of
 	// the host (pre-mutations) and the mutations performed after calling 'UpdateHostSoftware',
 	// it is used as DB optimization.
+	//
+	// TODO(lucas): We should amend UpdateHostSoftwareInstalledPaths to just accept raw information
+	// otherwise the caller has to assemble the reported set the same way in all places where it's used.
 	UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, reported map[string]struct{}, mutationResults *UpdateHostSoftwareDBResult) error
 
 	// UpdateHost updates a host.
@@ -1297,6 +1300,11 @@ type Datastore interface {
 	// GetMatchingHostSerials receives a list of serial numbers and returns
 	// a map that only contains the serials that have a matching row in the `hosts` table.
 	GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*Host, error)
+
+	// GetMatchingHostSerialsMarkedDeleted takes a list of device serial numbers and returns a map
+	// of only the ones that were found in the `hosts` table AND have a row in
+	// `host_dep_assignments` that is marked as deleted.
+	GetMatchingHostSerialsMarkedDeleted(ctx context.Context, serials []string) (map[string]struct{}, error)
 
 	// DeleteHostDEPAssignmentsFromAnotherABM makes as deleted any DEP entry that matches one of the provided serials only if the entry is NOT associated to the provided ABM token.
 	DeleteHostDEPAssignmentsFromAnotherABM(ctx context.Context, abmTokenID uint, serials []string) error
