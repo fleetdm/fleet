@@ -586,7 +586,8 @@ module.exports.routes = {
   'GET /learn-more-about/policy-automation-run-script': '/guides/policy-automation-run-script',
   'GET /learn-more-about/installing-fleetctl': '/guides/fleetctl#installing-fleetctl',
   'GET /contribute-to/policies': 'https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml',
-
+  'GET /learn-more-about/add-idp-info-to-host-vitals': '/guides/fleetctl#installing-fleetctl',
+  
   // Sitemap
   // =============================================================================================================
   // This is for search engines, not humans.  Search engines know to visit fleetdm.com/sitemap.xml to download this
