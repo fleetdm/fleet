@@ -40,9 +40,15 @@ func TopicFromPEMCert(pemCert []byte) (string, error) {
 	return TopicFromCert(cert)
 }
 
-// VerifyMdmSignature verifies an Apple MDM "Mdm-Signature" header and
-// returns the signing certificate.
-//
+// MdmSignatureVerifierFunc is an adapter for verifying Apple MDM "Mdm-Signature" headers.
+type MdmSignatureVerifierFunc func(header string, body []byte) (*x509.Certificate, error)
+
+// VerifyMdmSignature calls v with header and body.
+func (v MdmSignatureVerifierFunc) VerifyMdmSignature(header string, body []byte) (*x509.Certificate, error) {
+	return v(header, body)
+}
+
+// VerifyMdmSignature verifies an Apple MDM "Mdm-Signature" header and returns the signing certificate.
 // See https://developer.apple.com/documentation/devicemanagement/implementing_device_management/managing_certificates_for_mdm_servers_and_devices
 // section "Pass an Identity Certificate Through a Proxy."
 func VerifyMdmSignature(header string, body []byte) (*x509.Certificate, error) {

@@ -101,6 +101,14 @@ func SigLogWithLogErrors(errors bool) SigLogOption {
 	}
 }
 
+// MdmSignatureVerifier verifies Apple Mdm-Signature headers and extracts certificates.
+type MdmSignatureVerifier interface {
+	// VerifyMdmSignature verifies an Apple MDM "Mdm-Signature" header and returns the signing certificate.
+	// See https://developer.apple.com/documentation/devicemanagement/implementing_device_management/managing_certificates_for_mdm_servers_and_devices
+	// section "Pass an Identity Certificate Through a Proxy."
+	VerifyMdmSignature(header string, body []byte) (*x509.Certificate, error)
+}
+
 // CertExtractMdmSignatureMiddleware extracts the MDM enrollment
 // identity certificate from the request into the HTTP request context.
 // It tries to verify the Mdm-Signature header on the request.
@@ -108,7 +116,10 @@ func SigLogWithLogErrors(errors bool) SigLogOption {
 // This middleware does not error if a certificate is not found. It
 // will, however, error with an HTTP 400 status if the signature
 // verification fails.
-func CertExtractMdmSignatureMiddleware(next http.Handler, opts ...SigLogOption) http.HandlerFunc {
+func CertExtractMdmSignatureMiddleware(next http.Handler, verifier MdmSignatureVerifier, opts ...SigLogOption) http.HandlerFunc {
+	if verifier == nil {
+		panic("nil verifier")
+	}
 	config := &sigLogConfig{logger: log.NopLogger}
 	for _, opt := range opts {
 		opt(config)
@@ -135,7 +146,7 @@ func CertExtractMdmSignatureMiddleware(next http.Handler, opts ...SigLogOption) 
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
-		cert, err := cryptoutil.VerifyMdmSignature(mdmSig, b)
+		cert, err := verifier.VerifyMdmSignature(mdmSig, b)
 		if err != nil {
 			logger.Info("msg", "verifying Mdm-Signature header", "err", err)
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)

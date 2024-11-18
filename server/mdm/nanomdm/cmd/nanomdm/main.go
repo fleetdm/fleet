@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/certverify"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cli"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	mdmhttp "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http"
 	httpapi "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http/api"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http/authproxy"
@@ -153,7 +154,8 @@ func main() {
 				if *flDebug {
 					opts = append(opts, httpmdm.SigLogWithLogErrors(true))
 				}
-				h = httpmdm.CertExtractMdmSignatureMiddleware(h, opts...)
+				h = httpmdm.CertExtractMdmSignatureMiddleware(h, cryptoutil.MdmSignatureVerifierFunc(cryptoutil.VerifyMdmSignature),
+					opts...)
 			}
 			return h
 		}
