@@ -69,6 +69,37 @@ func CertExtractTLSMiddleware(next http.Handler, logger log.Logger) http.Handler
 	}
 }
 
+// sigLogConfig is a configuration struct for CertExtractMdmSignatureMiddleware.
+type sigLogConfig struct {
+	logger log.Logger
+	always bool
+	errors bool
+}
+
+// SigLogOption sets configurations.
+type SigLogOption func(*sigLogConfig)
+
+// SigLogWithLogger sets the logger to use when logging with the MDM signature header.
+func SigLogWithLogger(logger log.Logger) SigLogOption {
+	return func(c *sigLogConfig) {
+		c.logger = logger
+	}
+}
+
+// SigLogWithLogAlways always logs the raw Mdm-Signature header.
+func SigLogWithLogAlways(always bool) SigLogOption {
+	return func(c *sigLogConfig) {
+		c.always = always
+	}
+}
+
+// SigLogWithLogErrors logs the raw Mdm-Signature header when errors occur.
+func SigLogWithLogErrors(errors bool) SigLogOption {
+	return func(c *sigLogConfig) {
+		c.errors = errors
+	}
+}
+
 // CertExtractMdmSignatureMiddleware extracts the MDM enrollment
 // identity certificate from the request into the HTTP request context.
 // It tries to verify the Mdm-Signature header on the request.
@@ -76,14 +107,21 @@ func CertExtractTLSMiddleware(next http.Handler, logger log.Logger) http.Handler
 // This middleware does not error if a certificate is not found. It
 // will, however, error with an HTTP 400 status if the signature
 // verification fails.
-func CertExtractMdmSignatureMiddleware(next http.Handler, logger log.Logger) http.HandlerFunc {
+func CertExtractMdmSignatureMiddleware(next http.Handler, opts ...SigLogOption) http.HandlerFunc {
+	config := &sigLogConfig{logger: log.NopLogger}
+	for _, opt := range opts {
+		opt(config)
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
-		logger := ctxlog.Logger(r.Context(), logger)
+		logger := ctxlog.Logger(r.Context(), config.logger)
 		mdmSig := r.Header.Get("Mdm-Signature")
 		if mdmSig == "" {
 			logger.Debug("msg", "empty Mdm-Signature header")
 			next.ServeHTTP(w, r)
 			return
+		}
+		if config.errors || config.always {
+			logger = logger.With("mdm-signature", mdmSig)
 		}
 		b, err := mdmhttp.ReadAllAndReplaceBody(r)
 		if err != nil {
@@ -101,6 +139,8 @@ func CertExtractMdmSignatureMiddleware(next http.Handler, logger log.Logger) htt
 			logger.Info("msg", "verifying Mdm-Signature header", "err", err)
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
+		} else if config.always {
+			logger.Debug("msg", "verifying Mdm-Signature header")
 		}
 		ctx := context.WithValue(r.Context(), contextKeyCert{}, cert)
 		next.ServeHTTP(w, r.WithContext(ctx))

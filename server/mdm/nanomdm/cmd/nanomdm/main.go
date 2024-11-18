@@ -136,7 +136,11 @@ func main() {
 			if *flCertHeader != "" {
 				h = httpmdm.CertExtractPEMHeaderMiddleware(h, *flCertHeader, logger.With("handler", "cert-extract"))
 			} else {
-				h = httpmdm.CertExtractMdmSignatureMiddleware(h, logger.With("handler", "cert-extract"))
+				opts := []httpmdm.SigLogOption{httpmdm.SigLogWithLogger(logger.With("handler", "cert-extract"))}
+				if *flDebug {
+					opts = append(opts, httpmdm.SigLogWithLogErrors(true))
+				}
+				h = httpmdm.CertExtractMdmSignatureMiddleware(h, opts...)
 			}
 			return h
 		}
