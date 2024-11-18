@@ -116,9 +116,7 @@ Go update osquery-slack version
 # Publish patch
 ./tools/release/publish_release.sh -u
 
-# Make sure to wait for the CLI to open NPM to publish fleetctl.
-# If that fails, manually publish by going to the `/tools/fleetctl-npm/` directory
-# and running `npm publish`
-
-# Go update osquery-slack version
+- Make sure to wait for the CLI to open NPM to publish fleetctl. 
+- If that fails, manually publish by going to the `/tools/fleetctl-npm/` directory and running `npm publish`
+- Go update osquery-slack version
 ```
