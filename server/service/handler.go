@@ -1221,7 +1221,7 @@ func registerMDM(
 	} else {
 		mdmHandler = httpmdm.CertVerifyMiddleware(mdmHandler, certVerifier, mdmLogger.With("handler", "cert-verify"))
 	}
-	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, mdmLogger.With("handler", "cert-extract"))
+	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, httpmdm.SigLogWithLogger(mdmLogger.With("handler", "cert-extract")))
 	mux.Handle(apple_mdm.MDMPath, mdmHandler)
 	return nil
 }

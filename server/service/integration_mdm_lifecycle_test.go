@@ -104,8 +104,8 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 				originalPushMock := s.pushProvider.PushFunc
 				defer func() { s.pushProvider.PushFunc = originalPushMock }()
 
-				s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
-					res, err := mockSuccessfulPush(pushes)
+				s.pushProvider.PushFunc = func(ctx context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+					res, err := mockSuccessfulPush(ctx, pushes)
 					require.NoError(t, err)
 					err = device.Checkout()
 					require.NoError(t, err)

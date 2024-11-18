@@ -4745,7 +4745,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	// otherwise we might be in the second phase, check if the signing cert
 	// was issued by Fleet, only let the enrollment through if so.
 	certVerifier := mdmcrypto.NewSCEPVerifier(svc.ds)
-	if err := certVerifier.Verify(rootSigner); err != nil {
+	if err := certVerifier.Verify(ctx, rootSigner); err != nil {
 		return nil, authz.ForbiddenWithInternal(fmt.Sprintf("payload signed with invalid certificate: %s", err), nil, nil, nil)
 	}
 

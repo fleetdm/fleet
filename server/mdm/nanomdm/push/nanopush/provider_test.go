@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPush(t *testing.T) {
@@ -47,7 +48,8 @@ func testPushDevices(t *testing.T, input [][]string) {
 			PushMagic: devicePushInfos[1],
 			Topic:     devicePushInfos[2],
 		}
-		pushInfo.SetTokenString(devicePushInfos[0])
+		err := pushInfo.SetTokenString(devicePushInfos[0])
+		require.NoError(t, err)
 		devices[devicePushInfos[0]] = pushInfo
 		pushInfos = append(pushInfos, pushInfo)
 	}

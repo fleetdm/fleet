@@ -19,9 +19,9 @@ type StoreAuthenticateFunc func(r *mdm.Request, msg *mdm.Authenticate) error
 
 type StoreTokenUpdateFunc func(r *mdm.Request, msg *mdm.TokenUpdate) error
 
-type StoreUserAuthenticateFunc func(r *mdm.Request, msg *mdm.UserAuthenticate) error
-
 type DisableFunc func(r *mdm.Request) error
+
+type StoreUserAuthenticateFunc func(r *mdm.Request, msg *mdm.UserAuthenticate) error
 
 type StoreCommandReportFunc func(r *mdm.Request, report *mdm.CommandResults) error
 
@@ -72,11 +72,11 @@ type MDMAppleStore struct {
 	StoreTokenUpdateFunc        StoreTokenUpdateFunc
 	StoreTokenUpdateFuncInvoked bool
 
-	StoreUserAuthenticateFunc        StoreUserAuthenticateFunc
-	StoreUserAuthenticateFuncInvoked bool
-
 	DisableFunc        DisableFunc
 	DisableFuncInvoked bool
+
+	StoreUserAuthenticateFunc        StoreUserAuthenticateFunc
+	StoreUserAuthenticateFuncInvoked bool
 
 	StoreCommandReportFunc        StoreCommandReportFunc
 	StoreCommandReportFuncInvoked bool
@@ -158,18 +158,18 @@ func (fs *MDMAppleStore) StoreTokenUpdate(r *mdm.Request, msg *mdm.TokenUpdate) 
 	return fs.StoreTokenUpdateFunc(r, msg)
 }
 
-func (fs *MDMAppleStore) StoreUserAuthenticate(r *mdm.Request, msg *mdm.UserAuthenticate) error {
-	fs.mu.Lock()
-	fs.StoreUserAuthenticateFuncInvoked = true
-	fs.mu.Unlock()
-	return fs.StoreUserAuthenticateFunc(r, msg)
-}
-
 func (fs *MDMAppleStore) Disable(r *mdm.Request) error {
 	fs.mu.Lock()
 	fs.DisableFuncInvoked = true
 	fs.mu.Unlock()
 	return fs.DisableFunc(r)
+}
+
+func (fs *MDMAppleStore) StoreUserAuthenticate(r *mdm.Request, msg *mdm.UserAuthenticate) error {
+	fs.mu.Lock()
+	fs.StoreUserAuthenticateFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.StoreUserAuthenticateFunc(r, msg)
 }
 
 func (fs *MDMAppleStore) StoreCommandReport(r *mdm.Request, report *mdm.CommandResults) error {

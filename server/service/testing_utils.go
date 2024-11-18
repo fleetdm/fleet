@@ -653,7 +653,7 @@ func newMockAPNSPushProviderFactory() (*mock.APNSPushProviderFactory, *mock.APNS
 	return factory, provider
 }
 
-func mockSuccessfulPush(pushes []*mdm.Push) (map[string]*push.Response, error) {
+func mockSuccessfulPush(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
 	res := make(map[string]*push.Response, len(pushes))
 	for _, p := range pushes {
 		res[p.Token.String()] = &push.Response{

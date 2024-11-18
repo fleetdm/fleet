@@ -26,9 +26,10 @@ func ClientWithCert(client *http.Client, cert *tls.Certificate) (*http.Client, e
 	}
 	config := &tls.Config{
 		Certificates: []tls.Certificate{*cert},
+		MinVersion:   tls.VersionTLS12,
 	}
 	if client.Transport == nil {
-		client.Transport = &http.Transport{}
+		client.Transport = &http.Transport{} // nolint: gocritic // allow not using fleethttp.NewClient
 	}
 	transport := client.Transport.(*http.Transport)
 	transport.TLSClientConfig = config

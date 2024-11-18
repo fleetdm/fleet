@@ -174,7 +174,6 @@ func (p *Provider) Push(ctx context.Context, pushInfos []*mdm.Push) (map[string]
 		return nil, errors.New("no push data provided")
 	} else if len(pushInfos) == 1 {
 		return p.pushSerial(ctx, pushInfos)
-	} else {
-		return p.pushConcurrent(ctx, pushInfos)
 	}
+	return p.pushConcurrent(ctx, pushInfos)
 }
