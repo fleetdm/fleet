@@ -12,6 +12,7 @@ import {
   isLinuxDiskEncryptionStatus,
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
+import { isDiskEncryptionSupportedLinuxPlatform } from "interfaces/platform";
 
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
@@ -73,6 +74,7 @@ const generateTableConfig = (
             status={cellProps.row.original.status}
             operationType={cellProps.row.original.operation_type}
             profileName={cellProps.row.original.name}
+            hostPlatform={cellProps.row.original.platform}
           />
         );
       },

@@ -128,7 +128,7 @@ export interface IHostMdmProfile {
   name: string;
   operation_type: ProfileOperationType | null;
   platform: ProfilePlatform;
-  status: MdmProfileStatus | MdmDDMProfileStatus;
+  status: MdmProfileStatus | MdmDDMProfileStatus | LinuxDiskEncryptionStatus;
   detail: string;
 }
 
