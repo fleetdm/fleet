@@ -16,7 +16,7 @@ import (
 
 type contextKeyCert struct{}
 
-var contextEnrollmentID struct{}
+type contextEnrollmentID struct{}
 
 // CertExtractPEMHeaderMiddleware extracts the MDM enrollment identity
 // certificate from the request into the HTTP request context. It looks
@@ -140,7 +140,7 @@ func CertVerifyMiddleware(next http.Handler, verifier CertVerifier, logger log.L
 
 // GetEnrollmentID retrieves the MDM enrollment ID from ctx.
 func GetEnrollmentID(ctx context.Context) string {
-	id, _ := ctx.Value(contextEnrollmentID).(string)
+	id, _ := ctx.Value(contextEnrollmentID{}).(string)
 	return id
 }
 
@@ -169,13 +169,12 @@ func CertWithEnrollmentIDMiddleware(next http.Handler, hasher HashFn, store stor
 				// i.e. the device may unenroll
 				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusBadRequest)
 				return
-			} else {
-				ctxlog.Logger(r.Context(), logger).Debug(
-					"msg", "missing certificate",
-				)
-				next.ServeHTTP(w, r)
-				return
 			}
+			ctxlog.Logger(r.Context(), logger).Debug(
+				"msg", "missing certificate",
+			)
+			next.ServeHTTP(w, r)
+			return
 		}
 		id, err := store.EnrollmentFromHash(r.Context(), hasher(cert))
 		if err != nil {
@@ -193,15 +192,14 @@ func CertWithEnrollmentIDMiddleware(next http.Handler, hasher HashFn, store stor
 				)
 				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusBadRequest)
 				return
-			} else {
-				ctxlog.Logger(r.Context(), logger).Debug(
-					"msg", "missing enrollment id",
-				)
-				next.ServeHTTP(w, r)
-				return
 			}
+			ctxlog.Logger(r.Context(), logger).Debug(
+				"msg", "missing enrollment id",
+			)
+			next.ServeHTTP(w, r)
+			return
 		}
-		ctx := context.WithValue(r.Context(), contextEnrollmentID, id)
+		ctx := context.WithValue(r.Context(), contextEnrollmentID{}, id)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 }

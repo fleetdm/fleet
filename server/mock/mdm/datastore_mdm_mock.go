@@ -51,6 +51,8 @@ type IsCertHashAssociatedFunc func(r *mdm.Request, hash string) (bool, error)
 
 type AssociateCertHashFunc func(r *mdm.Request, hash string, certNotValidAfter time.Time) error
 
+type EnrollmentFromHashFunc func(ctx context.Context, hash string) (string, error)
+
 type RetrieveMigrationCheckinsFunc func(p0 context.Context, p1 chan<- interface{}) error
 
 type RetrieveTokenUpdateTallyFunc func(ctx context.Context, id string) (int, error)
@@ -117,6 +119,9 @@ type MDMAppleStore struct {
 
 	AssociateCertHashFunc        AssociateCertHashFunc
 	AssociateCertHashFuncInvoked bool
+
+	EnrollmentFromHashFunc        EnrollmentFromHashFunc
+	EnrollmentFromHashFuncInvoked bool
 
 	RetrieveMigrationCheckinsFunc        RetrieveMigrationCheckinsFunc
 	RetrieveMigrationCheckinsFuncInvoked bool
@@ -263,6 +268,13 @@ func (fs *MDMAppleStore) AssociateCertHash(r *mdm.Request, hash string, certNotV
 	fs.AssociateCertHashFuncInvoked = true
 	fs.mu.Unlock()
 	return fs.AssociateCertHashFunc(r, hash, certNotValidAfter)
+}
+
+func (fs *MDMAppleStore) EnrollmentFromHash(ctx context.Context, hash string) (string, error) {
+	fs.mu.Lock()
+	fs.EnrollmentFromHashFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.EnrollmentFromHashFunc(ctx, hash)
 }
 
 func (fs *MDMAppleStore) RetrieveMigrationCheckins(p0 context.Context, p1 chan<- interface{}) error {

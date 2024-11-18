@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -34,7 +35,8 @@ func TestCertWithEnrollmentIDMiddleware(t *testing.T) {
 	// mock handler
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write(response)
+		_, err := w.Write(response)
+		require.NoError(t, err)
 	})
 	handler = CertWithEnrollmentIDMiddleware(handler, testHashCert, &testCertAuthRetriever{}, true, log.NopLogger)
 	req, err := http.NewRequest("GET", "/test", nil)
