@@ -344,11 +344,18 @@ const SoftwarePackageCard = ({
         </div>
         <div className={`${baseClass}__actions-wrapper`}>
           {softwarePackage?.automatic_install_policies && (
-            <Tag
-              icon="refresh"
-              text="Automatic install"
-              onClick={() => console.log("test")}
-            />
+            <TooltipWrapper
+              showArrow
+              position="top"
+              tipContent="Click to see policy that triggers automatic install."
+              underline={false}
+            >
+              <Tag
+                icon="refresh"
+                text="Automatic install"
+                onClick={() => console.log("test")}
+              />
+            </TooltipWrapper>
           )}
           {isSelfService && <Tag icon="user" text="Self-service" />}
           {showActions && (
