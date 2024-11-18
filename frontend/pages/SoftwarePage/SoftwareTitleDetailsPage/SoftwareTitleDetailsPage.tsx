@@ -97,24 +97,7 @@ const SoftwareTitleDetailsPage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       retry: false,
-      select: (data) => {
-        return createMockSoftwareTitleDetails({
-          ...data.software_title,
-          software_package: createMockSoftwarePackage({
-            ...data.software_title.software_package,
-            automatic_install_policies: [
-              {
-                id: 1,
-                name: "Test Policy",
-              },
-              {
-                id: 2,
-                name: "Test Policy 2",
-              },
-            ],
-          }),
-        });
-      },
+      select: (data) => data.software_title,
       onError: (error) => {
         if (!ignoreAxiosError(error, [403, 404])) {
           handlePageError(error);
