@@ -129,6 +129,16 @@ func (ms *MultiService) DeclarativeManagement(r *mdm.Request, m *mdm.Declarative
 	return retBytes, err
 }
 
+func (ms *MultiService) GetToken(r *mdm.Request, m *mdm.GetToken) (*mdm.GetTokenResponse, error) {
+	resp, err := ms.svcs[0].GetToken(r, m)
+	rc := ms.RequestWithContext(r)
+	ms.runOthers(r.Context, func(svc service.CheckinAndCommandService) error {
+		_, err := svc.GetToken(rc, m)
+		return err
+	})
+	return resp, err
+}
+
 func (ms *MultiService) CommandAndReportResults(r *mdm.Request, results *mdm.CommandResults) (*mdm.Command, error) {
 	cmd, err := ms.svcs[0].CommandAndReportResults(r, results)
 	rc := ms.RequestWithContext(r)

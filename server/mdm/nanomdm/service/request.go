@@ -93,6 +93,22 @@ func CheckinRequest(svc Checkin, r *mdm.Request, bodyBytes []byte) ([]byte, erro
 		if err != nil {
 			err = fmt.Errorf("declarativemanagement service: %w", err)
 		}
+	case *mdm.GetToken:
+		if err := m.Validate(); err != nil {
+			return nil, fmt.Errorf("gettoken validate: %w", err)
+		}
+		resp, err := svc.GetToken(r, m)
+		if err != nil {
+			return nil, fmt.Errorf("gettoken service: %w", err)
+		}
+		if resp == nil {
+			return nil, errors.New("gettoken service: no response")
+		}
+		respBytes, err = plist.Marshal(resp)
+		if err != nil {
+			return nil, fmt.Errorf("gettoken marshal: %w", err)
+		}
+		return respBytes, nil
 	default:
 		return nil, errors.New("unhandled check-in request type")
 	}

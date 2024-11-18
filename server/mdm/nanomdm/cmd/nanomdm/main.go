@@ -104,10 +104,13 @@ func main() {
 		stdlog.Fatal(err)
 	}
 
+	tokenMux := nanomdm.NewTokenMux()
+
 	// create 'core' MDM service
 	nanoOpts := []nanomdm.Option{
-		nanomdm.WithLogger(logger.With("service", "nanomdm")),
 		nanomdm.WithUserAuthenticate(nanomdm.NewUAService(mdmStorage, *flUAZLChal)),
+		nanomdm.WithGetToken(tokenMux),
+		nanomdm.WithLogger(logger.With("service", "nanomdm")),
 	}
 	if *flDMURLPfx != "" {
 		var warningText string

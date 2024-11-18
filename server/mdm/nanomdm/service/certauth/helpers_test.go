@@ -81,6 +81,10 @@ func (s *NopService) DeclarativeManagement(r *mdm.Request, m *mdm.DeclarativeMan
 	return nil, nil
 }
 
+func (s *NopService) GetToken(r *mdm.Request, m *mdm.GetToken) (*mdm.GetTokenResponse, error) {
+	return nil, nil
+}
+
 func (s *NopService) CommandAndReportResults(r *mdm.Request, results *mdm.CommandResults) (*mdm.Command, error) {
 	return nil, nil
 }

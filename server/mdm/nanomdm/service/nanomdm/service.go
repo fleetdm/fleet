@@ -24,6 +24,9 @@ type Service struct {
 
 	// UserAuthenticate processor
 	ua service.UserAuthenticate
+
+	// GetToken handler
+	gt service.GetToken
 }
 
 // normalize generates enrollment IDs that are used by other
@@ -71,6 +74,13 @@ func WithDeclarativeManagement(dm service.DeclarativeManagement) Option {
 func WithUserAuthenticate(ua service.UserAuthenticate) Option {
 	return func(s *Service) {
 		s.ua = ua
+	}
+}
+
+// WithGetToken configures a GetToken check-in message handler.
+func WithGetToken(gt service.GetToken) Option {
+	return func(s *Service) {
+		s.gt = gt
 	}
 }
 
@@ -187,6 +197,21 @@ func (s *Service) DeclarativeManagement(r *mdm.Request, message *mdm.Declarative
 		return nil, errors.New("no Declarative Management handler")
 	}
 	return s.dm.DeclarativeManagement(r, message)
+}
+
+// GetToken implements the GetToken Check-in message interface.
+func (s *Service) GetToken(r *mdm.Request, message *mdm.GetToken) (*mdm.GetTokenResponse, error) {
+	if err := s.setupRequest(r, &message.Enrollment); err != nil {
+		return nil, err
+	}
+	ctxlog.Logger(r.Context, s.logger).Info(
+		"msg", "GetToken",
+		"token_service_type", message.TokenServiceType,
+	)
+	if s.gt == nil {
+		return nil, errors.New("no GetToken handler")
+	}
+	return s.gt.GetToken(r, message)
 }
 
 // CommandAndReportResults command report and next-command request implementation.

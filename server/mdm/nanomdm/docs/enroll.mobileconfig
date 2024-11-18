@@ -46,6 +46,7 @@
 			<array>
 				<string>com.apple.mdm.per-user-connections</string>
 				<string>com.apple.mdm.bootstraptoken</string>
+                <string>com.apple.mdm.token</string>
 			</array>
 			<key>ServerURL</key>
 			<string>https://mdm.example.org/mdm</string>
