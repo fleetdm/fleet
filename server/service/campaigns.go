@@ -217,7 +217,7 @@ func (svc *Service) NewDistributedQueryCampaignByIdentifiers(ctx context.Context
 	if len(invalidLabels) > 0 {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message: fmt.Sprintf("[%s] %s", strings.Join(invalidLabels, ", "), fleet.InvalidLabelSpecifiedErrMsg),
+			Message: fmt.Sprintf("%s %s.", fleet.InvalidLabelSpecifiedErrMsg, strings.Join(invalidLabels, ", ")),
 		}, "invalid labels")
 	}
 

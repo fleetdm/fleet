@@ -1,9 +1,10 @@
 package fleet
 
 import (
-	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDetectMissingLabels(t *testing.T) {
@@ -44,7 +45,7 @@ func TestDetectMissingLabels(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			missing := DetectMissingLabels(labelMap, tt.labels)
-			if !reflect.DeepEqual(tt.expected, missing) {
+			if !assert.Equal(t, tt.expected, missing) {
 				t.Errorf("Expected [%s], but got [%s]", strings.Join(tt.expected, ", "), strings.Join(missing, ", "))
 			}
 		})

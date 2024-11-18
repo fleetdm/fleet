@@ -294,7 +294,7 @@ func TestLiveQueryLabelValidation(t *testing.T) {
 		{
 			name:          "invalid label",
 			labels:        []string{"iamnotalabel"},
-			expectedError: "[iamnotalabel] are not valid label names, remove to continue.",
+			expectedError: "Invalid label name(s): iamnotalabel.",
 		},
 		{
 			name:          "valid label",

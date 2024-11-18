@@ -594,7 +594,7 @@ const (
 	EndUserAuthDEPWebURLConfiguredErrMsg = `End user authentication can't be configured when the configured automatic enrollment (DEP) profile specifies a configuration_web_url.` // #nosec G101
 
 	// Labels
-	InvalidLabelSpecifiedErrMsg = "are not valid label names, remove to continue."
+	InvalidLabelSpecifiedErrMsg = "Invalid label name(s):"
 )
 
 // ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.

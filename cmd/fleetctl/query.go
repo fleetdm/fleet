@@ -140,9 +140,10 @@ func queryCommand() *cli.Command {
 					return errors.New(fleet.NoHostsTargetedErrMsg)
 				}
 				if strings.Contains(err.Error(), fleet.InvalidLabelSpecifiedErrMsg) {
-					regex := regexp.MustCompile(`(\[.*?\])`)
+					pattern := fmt.Sprintf("(%s.*)$", regexp.QuoteMeta(fleet.InvalidLabelSpecifiedErrMsg))
+					regex := regexp.MustCompile(pattern)
 					match := regex.FindString(err.Error())
-					return errors.New(fmt.Sprintf("%s %s", match, fleet.InvalidLabelSpecifiedErrMsg))
+					return errors.New(match)
 				}
 				return err
 			}

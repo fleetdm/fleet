@@ -302,13 +302,11 @@ func TestAdHocLiveQuery(t *testing.T) {
 
 	// test label not found
 	_, err = runAppNoChecks([]string{"query", "--hosts", "1234", "--labels", "iamnotalabel", "--query", "select 42, * from time"})
-	assert.Error(t, err)
-	assert.Equal(t, "[iamnotalabel] are not valid label names, remove to continue.", err.Error())
+	assert.ErrorContains(t, err, "Invalid label name(s): iamnotalabel.")
 
 	// test if some labels were not found
 	_, err = runAppNoChecks([]string{"query", "--labels", "label1, mac, windows", "--hosts", "1234", "--query", "select 42, * from time"})
-	assert.Error(t, err)
-	assert.Equal(t, "[mac, windows] are not valid label names, remove to continue.", err.Error())
+	assert.ErrorContains(t, err, "Invalid label name(s): mac, windows.")
 
 	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_display_name":"somehostname","host_hostname":"somehostname"}]}
 `
