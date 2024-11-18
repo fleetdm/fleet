@@ -24,7 +24,7 @@ This handbook page outlines the processes required to create and maintain a TUF 
 
 9. Disconnect both USB drives. 
 
-10. Connect the bootable Ubuntu USB drive and restart your computer. When the boot screen appears, press the key the manufacturuer has set to enter the boot menu. This is typically F1, F10, or ESC.
+10. Connect the bootable Ubuntu USB drive to the signing device and boot to Ubuntu. When the boot screen appears, press the key the manufacturuer has set to enter the boot menu. This is typically F1, F10, or ESC.
 
 11. On the boot menu, select the Ubuntu USB drive, then "Try or Install Ubuntu" to boot directly from the USB drive. 
 
@@ -38,9 +38,9 @@ This handbook page outlines the processes required to create and maintain a TUF 
 
 16. Run `./fleetctl updates init` to initialize a new TUF repo on the USB drive. Manually type in the passphrases for each role's key that you generated in 1Password. 
 
-17. Create multiple root keys in case one is lost. Run `mv keys/root.json keys/root1.json` to retain the first root key. Then run `./tuf gen-key root` and enter the passphrase for "root2". Repeat one more itme for "root3". When complete, you should have three root keys: `root1.json`, `root2.json`, `root3.json`. 
+17. Create multiple root keys in case one is lost. Run `mv keys/root.json keys/root1.json` to retain the first root key. Then run `./tuf gen-key root` and enter the passphrase for "root2". Repeat one more time for "root3". When complete, you should have three root keys: `root1.json`, `root2.json`, `root3.json`. 
 
-18. The last root key generated (`root3.json`) will be the only signatured on the file at `staged/root.json`. We want to sign with all root keys. Run `mv keys/root1.json keys/root.json`, then run `./tuf sign root.json` to sign with key 1. Repeat the step for key 2 so that your `staged/root.json` is signed by all three root keys. 
+18. The last root key generated (`root3.json`) will be the only signature on the metadata at `staged/root.json`. We want to sign with all root keys. Run `mv keys/root1.json keys/root.json`, then run `./tuf sign root.json` to sign with key 1. Repeat the step for key 2 so that your `staged/root.json` is signed by all three root keys. 
 
 19. Plug in additional USB drives and copy only the `keys` directory. They will serve USB root backups. 
 
@@ -50,7 +50,7 @@ This handbook page outlines the processes required to create and maintain a TUF 
 
 22. At this point, all USB drives can be removed and your offline signing device or VM turned off. 
 
-23. On your laptop connected to the internet, plug in the repo USB drive. This one should contain only the `repository` and `staged` directories. Copy the files from the USB drive to a working directory on your internet-connective device. 
+23. On your device connected to the internet, plug in the repo USB drive. This one should contain only the `repository` and `staged` directories. Copy the files from the USB drive to a working directory on your internet-connective device. 
 
 24. Upload the files to your desired file hosting location, typically AWS S3 or CloudFlare R2. 
 
@@ -60,7 +60,7 @@ If you need to run TUF commands that are not available using the `fleetctl` bina
 
 ## Read and write to TUF repo on Cloudflare R2
 
-Fleet hosts our TUF repo in Cloudflare R2 buckets for production and staging, updates.fleetdm.com and updates-staging.fleetdm.com. Read and write operations aare performed used the [AWS CLI](https://developers.cloudflare.com/r2/examples/aws/aws-cli/) tool configured to communicate with R2.
+Fleet hosts our TUF repo in Cloudflare R2 buckets for production and staging, updates.fleetdm.com and updates-staging.fleetdm.com. Read and write operations are performed used the [AWS CLI](https://developers.cloudflare.com/r2/examples/aws/aws-cli/) tool configured to communicate with R2.
 
 Once configured, use the [Fleet TUF repo release script](https://github.com/fleetdm/fleet/tree/main/tools/tuf) to add new file targets. 
 
@@ -126,8 +126,10 @@ The root keys expire every year and must be manually rotated at least 30 days pr
 
 8. Using one of the new root keys, run `tuf sign root.json` to sign the root metadata removing the old root keys. 
 
-9. Using one of the nw root keys, run `tuf commit` to commit the staged root metadata. 
+9. Using one of the new root keys, run `tuf commit` to commit the staged root metadata. 
 
-10. Confirm the file in `repository/root.json` contains the new root key ids, and removes the old root key ids. 
+10. Confirm the file in `repository/root.json` contains the new root key ids, and removes the old root key ids.
 
 11. Copy the `repository` directory to the local drive of an online device and push to the remote TUF repo. 
+
+12. Confirm that agent updates are continuing with the new `root.json`. Once confirmed, it is safe to delete the old root keys and backup the new keys.
