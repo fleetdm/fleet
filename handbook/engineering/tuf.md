@@ -106,7 +106,7 @@ There are two roles required to complete these steps, the "Root" role who holds 
 
 17. The Releser role can now run `tuf sign` to sign agent updates using their offline Targets key.
 
-## Root the root keys 
+## Rotate the root keys 
 
 The root keys expire every year and must be manually rotated at least 30 days prior to expiration. 
 
