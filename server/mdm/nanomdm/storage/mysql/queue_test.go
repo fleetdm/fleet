@@ -1,9 +1,7 @@
-//go:build integration
-// +build integration
-
 package mysql
 
 import (
+	"os"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/internal/test"
@@ -12,11 +10,12 @@ import (
 )
 
 func TestQueue(t *testing.T) {
-	if *flDSN == "" {
-		t.Fatal("MySQL DSN flag not provided to test")
+	testDSN := os.Getenv("NANOMDM_MYSQL_STORAGE_TEST_DSN")
+	if testDSN == "" {
+		t.Skip("NANOMDM_MYSQL_STORAGE_TEST_DSN not set")
 	}
 
-	storage, err := New(WithDSN(*flDSN), WithDeleteCommands())
+	storage, err := New(WithDSN(testDSN), WithDeleteCommands())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +29,7 @@ func TestQueue(t *testing.T) {
 		test.TestQueue(t, d.UDID, storage)
 	})
 
-	storage, err = New(WithDSN(*flDSN))
+	storage, err = New(WithDSN(testDSN))
 	if err != nil {
 		t.Fatal(err)
 	}

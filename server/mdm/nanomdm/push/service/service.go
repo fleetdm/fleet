@@ -86,6 +86,7 @@ func (s *PushService) getProvider(ctx context.Context, topic string) (push.PushP
 type pushFeedback struct {
 	Responses map[string]*push.Response
 	Err       error
+	Topic     string
 }
 
 var ErrIdNotFound = errors.New("push data missing for id")
@@ -101,7 +102,7 @@ func (s *PushService) pushSingle(ctx context.Context, pushInfo *mdm.Push) (map[s
 	if err != nil {
 		return nil, err
 	}
-	return prov.Push([]*mdm.Push{pushInfo})
+	return prov.Push(ctx, []*mdm.Push{pushInfo})
 }
 
 // pushMulti sends pushes to (potentially) multiple push providers
@@ -126,23 +127,24 @@ func (s *PushService) pushMulti(ctx context.Context, pushInfos []*mdm.Push) (map
 			continue
 		}
 		topicPushCt += 1
-		go func(prov push.PushProvider, pushInfos []*mdm.Push, feedback chan<- pushFeedback) {
-			resp, err := prov.Push(pushInfos)
+		go func(prov push.PushProvider, pushInfos []*mdm.Push, feedback chan<- pushFeedback, topic string) {
+			resp, err := prov.Push(ctx, pushInfos)
 			feedback <- pushFeedback{
 				Responses: resp,
 				Err:       err,
+				Topic:     topic,
 			}
-		}(prov, pushInfos, feedbackChan)
+		}(prov, pushInfos, feedbackChan, topic)
 	}
 	responses := make(map[string]*push.Response)
 	for i := 0; i < topicPushCt; i++ {
 		feedback := <-feedbackChan
 		// merge feedback responses into main responses map
 		for token, pushResp := range feedback.Responses {
-			if finalErr == nil && pushResp.Err != nil {
-				finalErr = pushResp.Err
-			}
 			responses[token] = pushResp
+		}
+		if finalErr == nil && feedback.Err != nil {
+			finalErr = fmt.Errorf("topic %s: %w", feedback.Topic, feedback.Err)
 		}
 	}
 	close(feedbackChan)
@@ -184,14 +186,8 @@ func (s *PushService) Push(ctx context.Context, ids []string) (map[string]*push.
 		// some environments may heavily utilize individual pushes.
 		// this justifies the special case and optimizes for it.
 		tokenToResponse, err = s.pushSingle(ctx, pushInfos[0]) //nolint:gosec
-		if err != nil {
-			return nil, err
-		}
 	} else if len(pushInfos) > 1 {
 		tokenToResponse, err = s.pushMulti(ctx, pushInfos)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	// re-associate token responses with ids
@@ -206,5 +202,5 @@ func (s *PushService) Push(ctx context.Context, ids []string) (map[string]*push.
 		idToResponse[id] = resp
 	}
 
-	return idToResponse, nil
+	return idToResponse, err
 }

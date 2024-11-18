@@ -3,6 +3,7 @@
 package buford
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"net/http"
@@ -125,7 +126,7 @@ func (c *bufordPushProvider) pushMulti(pushInfos []*mdm.Push) map[string]*push.R
 }
 
 // Push sends 'raw' MDM APNs push notifications to service in c.
-func (c *bufordPushProvider) Push(pushInfos []*mdm.Push) (map[string]*push.Response, error) {
+func (c *bufordPushProvider) Push(_ context.Context, pushInfos []*mdm.Push) (map[string]*push.Response, error) {
 	if len(pushInfos) < 1 {
 		return nil, errors.New("no push data provided")
 	}

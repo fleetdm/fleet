@@ -885,6 +885,8 @@ github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5
 github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b/go.mod h1:01TrycV0kFyexm33Z7vhZRXopbI8J3TDReVlkTgMUxE=
 github.com/micromdm/micromdm v1.9.0 h1:FAsIKOpnGcq21UQCrHCUxZwSW4NwBLGOoUtzbURxds8=
 github.com/micromdm/micromdm v1.9.0/go.mod h1:YsAtsEvfEIwpjYTUPpWkJXSfH0hhp9mMHW1BgIZgRt8=
+github.com/micromdm/nanomdm v0.6.0 h1:crG4WMGyHMK6YTWf5RY7pY5MkFjEs4gQjFihhyv5C0s=
+github.com/micromdm/nanomdm v0.6.0/go.mod h1:Yz2GDb5q7MtKT7rn5miQrYq+TaEtXexpGUopqyk3m5I=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 github.com/miekg/dns v1.1.43 h1:JKfpVSCB84vrAmHzyrsxB5NAr5kLoMXZArPSw7Qlgyg=
 github.com/miekg/dns v1.1.43/go.mod h1:+evo5L0630/F6ca/Z9+GAqzhjGyn8/c+TBaOyfEl0V4=

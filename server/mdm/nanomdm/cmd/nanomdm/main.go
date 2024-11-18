@@ -18,7 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http/authproxy"
 	httpmdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/stdlogfmt"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/buford"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/nanopush"
 	pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
@@ -184,7 +184,7 @@ func main() {
 		const apiUsername = "nanomdm"
 
 		// create our push provider and push service
-		pushProviderFactory := buford.NewPushProviderFactory()
+		pushProviderFactory := nanopush.NewFactory()
 		pushService := pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, logger.With("service", "push"))
 
 		// register API handler for push cert storage/upload.
