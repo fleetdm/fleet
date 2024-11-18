@@ -21,7 +21,7 @@ interface IDownloadABMKeyProps {
 }
 
 const downloadKeyFile = (data: { public_key: string }) => {
-  downloadBase64ToFile(data.public_key, "fleet-mdm-apple-bm-public-key.crt");
+  downloadBase64ToFile(data.public_key, "fleet-mdm-apple-bm-public-key.pem");
 };
 
 // TODO: why can't we use Content-Dispostion for these? We're only getting one file back now.
