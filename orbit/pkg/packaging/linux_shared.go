@@ -250,6 +250,12 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		return "", fmt.Errorf("removing existing file: %w", err)
 	}
 
+	if _, err := os.Stat("build"); errors.Is(err, os.ErrNotExist) {
+		if err := secure.MkdirAll("build", 0700); err != nil {
+			return "", fmt.Errorf("cannot create build dir: %w", err)
+		}
+	}
+
 	out, err := secure.OpenFile(filename, os.O_CREATE|os.O_RDWR, constant.DefaultFileMode)
 	if err != nil {
 		return "", fmt.Errorf("open output file: %w", err)
