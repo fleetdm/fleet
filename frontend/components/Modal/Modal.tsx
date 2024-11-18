@@ -102,6 +102,7 @@ const Modal = ({
 
   const contentWrapperClasses = classnames(`${baseClass}__content-wrapper`, {
     [`${baseClass}__content-wrapper-disabled`]: isContentDisabled,
+    [`${baseClass}__content-wrapper-scrollable`]: !!actionsFooter,
   });
 
   const contentClasses = classnames(`${baseClass}__content`, {
