@@ -244,9 +244,7 @@ Why bother with all that?  And why do it in this particular order?
 
 ## Why fix small inconsistencies quickly?
 
-Fixing small inconsistencies quickly keeps the product polished and functional. When small details are overlooked, they add up over time, creating problems for both users and contributors. Raising issues immediately prevents minor problems from piling up and becoming major blockers. Even the smallest of inconsistencies perpetuates disorder (i.e., adds to the "[Broken Windows](https://en.wikipedia.org/wiki/Broken_windows_theory)"). 
-
-Prioritizing swift action on even the "small inconsistencies" reinforces the team's culture of striving for excellence in every detail.
+Fixing small inconsistencies quickly is worth it. When we tolerate and overlook little things, we send contributors mixed messages, like "[broken windows](https://en.wikipedia.org/wiki/Broken_windows_theory)". (Are these things actually important?) Since new contributors join the team all the time, we also prevent learning the right way to do things through osmosis, since pattern matching from a bad pattern creates even more inconsistencies. Plus these things add up over time, creating problems for both users and contributors.
 
 
 ## Why make it obvious when stuff breaks?
