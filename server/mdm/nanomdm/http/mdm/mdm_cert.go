@@ -116,7 +116,7 @@ func GetCert(ctx context.Context) *x509.Certificate {
 
 // CertVerifier is a simple interface for verifying a certificate.
 type CertVerifier interface {
-	Verify(*x509.Certificate) error
+	Verify(context.Context, *x509.Certificate) error
 }
 
 // CertVerifyMiddleware checks the MDM certificate against verifier and
@@ -126,7 +126,7 @@ type CertVerifier interface {
 // MDM unenrollments in the case of bugs or something going wrong.
 func CertVerifyMiddleware(next http.Handler, verifier CertVerifier, logger log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := verifier.Verify(GetCert(r.Context())); err != nil {
+		if err := verifier.Verify(r.Context(), GetCert(r.Context())); err != nil {
 			ctxlog.Logger(r.Context(), logger).Info(
 				"msg", "error verifying MDM certificate",
 				"err", err,
