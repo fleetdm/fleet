@@ -3098,7 +3098,7 @@ Returns the information of the specified host.
       "full_name": "John Doe",
       "role": "Software Engineer",
       "department": "Engineering",
-      "idp_groups": ["Engineering", "Canary"]
+      "groups": ["Engineering", "Canary"]
     }
     "users": [
       {
@@ -6901,7 +6901,7 @@ _Available in Fleet Premium_
 
 ### Add LDAP server
 
-Add Lightweight Directory Access Protocol (LDAP) server to add end user information to your hosts.
+Add your Lightweight Directory Access Protocol (LDAP) server to add end user information to your hosts (e.g. Okta, Google Workspace, or Entra ID).
 
 _Available in Fleet Premium_
 
@@ -6911,25 +6911,25 @@ _Available in Fleet Premium_
 
 | Name              | Type    | In   | Description                                     |
 | ----------------- | ------- | ---- | ----------------------------------------------- |
-| server_name              | string  | body | **Required.** The LDAP server display name.                   |
+| display_name              | string  | body | **Required.** The LDAP server display name.                   |
 | hostname          | string  | body | **Required.** Domain name or IP address of your LDAP server.     |
-| port              | integer | body | **Required.** The port of LDAP server to connect to. For ex. 389 or 636 (for SSL).      |
+| port              | integer | body | **Required.** The port of LDAP server. E.g. 389 or 636 (for SSL).      |
 | ssl_certificate   | string  | body | The content of SSL certificate. If specified port must be 636.                        |
-| bind_dn       | string  | body | The full DN of the user you bind with.                     |
-| bind_password       | string  | body | The password of the bind user.                     |
-| client_cert  | string  | body | The content of client certificate. If `client_cert` specified, `bind_dn` and `bind_password` are ignored. It's used for SASL EXTERNAL authentication. For ex. Google Secure LDAP uses this method of authentication.   |
-| client_private_key   | string  | body | The content of client private key. It's used for SASL EXTERNAL authentication.                  |
-| users_search_base_dn | string  | body | Base to start users search. All subtrees below are included.                     |
-| users_included_object_classes | string  | body | Filter LDAP users by specified object classes. Comma separated object classes.           |
-| user_email_mapping | string  | body | The LDAP attribute that maps to the email from human-device mapping API that is used to map host to LDAP user.                            |
-| user_full_name_mapping | string  | body | The LDAP attribute that maps to the `end.user_full_name` field in host vitals.                           |
-| user_role_mapping | string  | body | The LDAP attribute that maps to the `end.user_role` field in host vitals.                         |
-| user_department_mapping | string  | body | The LDAP attribute that maps to the `end.user_department` field in host vitals.                        |
-| groups_search_base_dn | string  | body | Base to start groups search. All subtrees below are included.                     |
-| groups_included_object_classes | string  | body | Filter LDAP groups by specified object classes. Comma separated object classes.                    |
+| bind_user_dn       | string  | body | **Required.** Distinguished name (DN) of admin account that Fleet will use when connecting to LDAP server. Only one of either combinations `bind_user_dn`&`bind_password` or `client_certificate`&`client_private_key` can be included in the request.                   |
+| bind_password       | string  | body | **Required.** Password of admin account that Fleet will use when connecting to LDAP server. Only one of either combinations `bind_user_dn`&`bind_password` or `client_certificate`&`client_private_key` can be included in the request.                    |
+| client_certificate  | string  | body | **Required.** The content of client certificate. It's used for SASL EXTERNAL authentication. Only one of either combinations `bind_user_dn`&`bind_password` or `client_certificate`&`client_private_key` can be included in the request.   |
+| client_private_key   | string  | body | **Required.** The content of client private key. It's used for SASL EXTERNAL authentication. Only one of either combinations `bind_user_dn`&`bind_password` or `client_certificate`&`client_private_key` can be included in the request.                 |
+| users_base_dn | string  | body | **Required.** Distinguished name (DN) of the branch to get users from, including all subtrees below.                     |
+| users_object_classes_include_all | string  | body | Limit users search to specified object classes. Separate object classes with comma. By default, all object classes are included.           |
+| user_email_mapping | string  | body | **Required.** Email is unique identifier that is used to map end user information from IdP to host. Host’s end user email from human-device mapping API will be used to compare with LDAP value defined here to get other information from user info from LDAP.                           |
+| user_full_name_mapping | string  | body | The LDAP attribute that maps to the `end_user.full_name` field in host vitals.                           |
+| user_role_mapping | string  | body | The LDAP attribute that maps to the `end_user.role` field in host vitals.                         |
+| user_department_mapping | string  | body | The LDAP attribute that maps to the `end_user.department` field in host vitals.                        |
+| groups_base_dn | string  | body | Distinguished name (DN) of the branch to get groups from, including all subtrees below.                     |
+| groups_object_classes_include_all | string  | body | Limit groups search to specified object classes. Separate object classes with comma. By default, all object classes are included.                    |
 | group_id_mapping | string  | body | The LDAP attribute that maps to the group ID in Fleet.                       |
-| group_name_mapping | string  | body | The LDAP attribute that maps to the groups that appear in `end_users.groups`.                    |
-| group_user_membership_mapping | string  | body | The LDAP attribute that maps member user to a group. For ex. `member` or `uniqueMember`.        |
+| group_name_mapping | string  | body | The LDAP attribute that maps to the groups that appear in `end_user.groups`.                    |
+| group_user_membership_mapping | string  | body | The LDAP attribute that maps member user to a group.  |
 
 
 #### Example
@@ -6946,8 +6946,6 @@ _Available in Fleet Premium_
   "ssl_certificate": "-----BEGIN CERTIFICATE-----MIIDdzCCAl+gAwIBAgIEU3B+azANBgkqhkiG9w0BAQUFADCBjDELMAkGA1UEBhMC-----END CERTIFICATE-----",
   "bind_dn": "uid=name@acme.com,dc=ldap,dc=acme,dc=com",
   "bind_password": "myLdapBindPassword",
-  "client_cert": "-----BEGIN CERTIFICATE-----MIIDdzCCAl+gAwIBAgIEU3B+azANBgkqhkiG9w0BAQUFADCBjDELMAkGA1UEBhMC-----END CERTIFICATE-----",
-  "client_private_key": "-----BEGIN PRIVATE KEY-----MIIDdzCCAl+gAwIBAgIEU3B+azANBgkqhkiG9w0BAQUFADCBjDELMAkGA1UEBhMC-----END PRIVATE KEY-----",
   "users_search_base_dn": "ou=users,dc=ldap,dc=acme,dc=com",
   "users_included_object_classes": "inetOrgPerson",
   "user_email_mapping": "uid",
@@ -6956,7 +6954,7 @@ _Available in Fleet Premium_
   "user_department_mapping": "department",
   "groups_search_base_dn": "ou=groups,dc=ldap,dc=acme,dc=com",
   "groups_included_object_classes": "groupOfUniqueNames",
-  "group_id_mapping": "gidNumber",
+  "group_id_mapping": "cn",
   "group_name_mapping": "cn",
   "group_user_membership_mapping": "uniqueMember",
 }
