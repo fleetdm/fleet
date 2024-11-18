@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	mdmhttp "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http"
@@ -312,23 +313,31 @@ func StorePushCertHandler(storage storage.PushCertStore, logger log.Logger) http
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
-		cert, key, err := readPEMCertAndKey(b)
+		certPEM, keyPEM, err := readPEMCertAndKey(b)
 		if err == nil {
 			// sanity check the provided cert and key to make sure they're usable as a pair.
-			_, err = tls.X509KeyPair(cert, key)
+			_, err = tls.X509KeyPair(certPEM, keyPEM)
+		}
+		var cert *x509.Certificate
+		if err == nil {
+			cert, err = cryptoutil.DecodePEMCertificate(certPEM)
 		}
 		var topic string
 		if err == nil {
-			topic, err = cryptoutil.TopicFromPEMCert(cert)
+			topic, err = cryptoutil.TopicFromCert(cert)
 		}
 		if err == nil {
-			err = storage.StorePushCert(r.Context(), cert, key)
+			err = storage.StorePushCert(r.Context(), certPEM, keyPEM)
 		}
 		output := &struct {
-			Error string `json:"error,omitempty"`
-			Topic string `json:"topic,omitempty"`
+			Error    string    `json:"error,omitempty"`
+			Topic    string    `json:"topic,omitempty"`
+			NotAfter time.Time `json:"not_after,omitempty"`
 		}{
 			Topic: topic,
+		}
+		if cert != nil {
+			output.NotAfter = cert.NotAfter
 		}
 		if err != nil {
 			logger.Info("msg", "store push cert", "err", err)

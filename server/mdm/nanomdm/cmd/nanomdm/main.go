@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cli"
 	mdmhttp "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http"
 	httpapi "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http/api"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http/authproxy"
 	httpmdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/stdlogfmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/buford"
@@ -34,11 +35,18 @@ const (
 	endpointMDM     = "/mdm"
 	endpointCheckin = "/checkin"
 
+	endpointAuthProxy = "/authproxy/"
+
 	endpointAPIPushCert  = "/v1/pushcert"
 	endpointAPIPush      = "/v1/push/"
 	endpointAPIEnqueue   = "/v1/enqueue/"
 	endpointAPIMigration = "/migration"
 	endpointAPIVersion   = "/version"
+)
+
+const (
+	EnrollmentIDHeader = "X-Enrollment-ID"
+	TraceIDHeader      = "X-Trace-ID"
 )
 
 func main() {
@@ -61,6 +69,7 @@ func main() {
 		flMigration  = flag.Bool("migration", false, "HTTP endpoint for enrollment migrations")
 		flRetro      = flag.Bool("retro", false, "Allow retroactive certificate-authorization association")
 		flDMURLPfx   = flag.String("dm", "", "URL to send Declarative Management requests to")
+		flAuthProxy  = flag.String("auth-proxy-url", "", "Reverse proxy URL target for MDM-authenticated HTTP requests")
 	)
 	flag.Parse()
 
@@ -121,6 +130,17 @@ func main() {
 			mdmService = dump.New(mdmService, os.Stdout)
 		}
 
+		// helper for authorizing MDM clients requests
+		certAuthMiddleware := func(h http.Handler) http.Handler {
+			h = httpmdm.CertVerifyMiddleware(h, verifier, logger.With("handler", "cert-verify"))
+			if *flCertHeader != "" {
+				h = httpmdm.CertExtractPEMHeaderMiddleware(h, *flCertHeader, logger.With("handler", "cert-extract"))
+			} else {
+				h = httpmdm.CertExtractMdmSignatureMiddleware(h, logger.With("handler", "cert-extract"))
+			}
+			return h
+		}
+
 		// register 'core' MDM HTTP handler
 		var mdmHandler http.Handler
 		if *flCheckin {
@@ -130,25 +150,33 @@ func main() {
 			// if we don't use a check-in handler then do both
 			mdmHandler = httpmdm.CheckinAndCommandHandler(mdmService, logger.With("handler", "checkin-command"))
 		}
-		mdmHandler = httpmdm.CertVerifyMiddleware(mdmHandler, verifier, logger.With("handler", "cert-verify"))
-		if *flCertHeader != "" {
-			mdmHandler = httpmdm.CertExtractPEMHeaderMiddleware(mdmHandler, *flCertHeader, logger.With("handler", "cert-extract"))
-		} else {
-			mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, logger.With("handler", "cert-extract"))
-		}
+		mdmHandler = certAuthMiddleware(mdmHandler)
 		mux.Handle(endpointMDM, mdmHandler)
 
 		if *flCheckin {
 			// if we specified a separate check-in handler, set it up
 			var checkinHandler http.Handler
 			checkinHandler = httpmdm.CheckinHandler(mdmService, logger.With("handler", "checkin"))
-			checkinHandler = httpmdm.CertVerifyMiddleware(checkinHandler, verifier, logger.With("handler", "cert-verify"))
-			if *flCertHeader != "" {
-				checkinHandler = httpmdm.CertExtractPEMHeaderMiddleware(checkinHandler, *flCertHeader, logger.With("handler", "cert-extract"))
-			} else {
-				checkinHandler = httpmdm.CertExtractMdmSignatureMiddleware(checkinHandler, logger.With("handler", "cert-extract"))
-			}
+			checkinHandler = certAuthMiddleware(checkinHandler)
 			mux.Handle(endpointCheckin, checkinHandler)
+		}
+
+		if *flAuthProxy != "" {
+			var authProxyHandler http.Handler
+			authProxyHandler, err = authproxy.New(*flAuthProxy,
+				authproxy.WithLogger(logger.With("handler", "authproxy")),
+				authproxy.WithHeaderFunc(EnrollmentIDHeader, httpmdm.GetEnrollmentID),
+				authproxy.WithHeaderFunc(TraceIDHeader, mdmhttp.GetTraceID),
+			)
+			if err != nil {
+				stdlog.Fatal(err)
+			}
+			logger.Debug("msg", "authproxy setup", "url", *flAuthProxy)
+			authProxyHandler = http.StripPrefix(endpointAuthProxy, authProxyHandler)
+			authProxyHandler = httpmdm.CertWithEnrollmentIDMiddleware(authProxyHandler, certauth.HashCert, mdmStorage, true,
+				logger.With("handler", "with-enrollment-id"))
+			authProxyHandler = certAuthMiddleware(authProxyHandler)
+			mux.Handle(endpointAuthProxy, authProxyHandler)
 		}
 	}
 

@@ -97,6 +97,7 @@ func New(next service.CheckinAndCommandService, storage storage.CertAuthStore, o
 	return certAuth
 }
 
+// HashCert returns the string representation
 func HashCert(cert *x509.Certificate) string {
 	hashed := sha256.Sum256(cert.Raw)
 	b := make([]byte, len(hashed))

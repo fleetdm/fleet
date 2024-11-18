@@ -1,6 +1,7 @@
 package allmulti
 
 import (
+	"context"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -33,4 +34,11 @@ func (ms *MultiAllStorage) AssociateCertHash(r *mdm.Request, hash string, certNo
 		return nil, s.AssociateCertHash(r, hash, certNotValidAfter)
 	})
 	return err
+}
+
+func (ms *MultiAllStorage) EnrollmentFromHash(ctx context.Context, hash string) (string, error) {
+	val, err := ms.execStores(ctx, func(s storage.AllStorage) (interface{}, error) {
+		return s.EnrollmentFromHash(ctx, hash)
+	})
+	return val.(string), err
 }

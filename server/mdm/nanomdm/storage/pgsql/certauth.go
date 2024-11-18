@@ -2,6 +2,8 @@ package pgsql
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"strings"
 	"time"
 
@@ -50,4 +52,17 @@ ON CONFLICT ON CONSTRAINT cert_auth_associations_pkey DO UPDATE SET updated_at=n
 		strings.ToLower(hash),
 	)
 	return err
+}
+
+func (s *PgSQLStorage) EnrollmentFromHash(ctx context.Context, hash string) (string, error) {
+	var id string
+	err := s.db.QueryRowContext(
+		ctx,
+		`SELECT id FROM cert_auth_associations WHERE sha256 = $1 LIMIT 1;`,
+		hash,
+	).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return id, err
 }

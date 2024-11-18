@@ -66,6 +66,12 @@ type CertAuthStore interface {
 	AssociateCertHash(r *mdm.Request, hash string, certNotValidAfter time.Time) error
 }
 
+type CertAuthRetriever interface {
+	// EnrollmentFromHash retrieves an enrollment ID from a cert hash.
+	// Implementations should return an empty string if no result is found.
+	EnrollmentFromHash(ctx context.Context, hash string) (string, error)
+}
+
 // StoreMigrator retrieves MDM check-ins
 type StoreMigrator interface {
 	// RetrieveMigrationCheckins sends the (decoded) forms of
