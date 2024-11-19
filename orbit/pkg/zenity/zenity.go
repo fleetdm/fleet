@@ -84,8 +84,15 @@ func (z *Zenity) ShowInfo(ctx context.Context, opts dialog.InfoOptions) error {
 	return nil
 }
 
-// ShowProgress displays a progress dialog. It returns a channel that can be used to
-// end the dialog.
+// ShowProgress starts a Zenity progress dialog with the given options.
+// This function is designed to block until the provided context is canceled.
+// It is intended to be used within a separate goroutine to avoid blocking
+// the main execution flow.
+//
+// If the context is already canceled, the function will return immediately.
+//
+// Use this function for cases where a progress dialog is needed to run
+// alongside other operations, with explicit cancellation or termination.
 func (z *Zenity) ShowProgress(ctx context.Context, opts dialog.ProgressOptions) error {
 	args := []string{"--progress"}
 	if opts.Title != "" {
@@ -94,12 +101,12 @@ func (z *Zenity) ShowProgress(ctx context.Context, opts dialog.ProgressOptions) 
 	if opts.Text != "" {
 		args = append(args, fmt.Sprintf("--text=%s", opts.Text))
 	}
-	if opts.Pulsate {
-		args = append(args, "--pulsate")
-	}
-	if opts.NoCancel {
-		args = append(args, "--no-cancel")
-	}
+
+	// --pulsate shows a pulsating progress bar
+	args = append(args, "--pulsate")
+
+	// --no-cancel disables the cancel button
+	args = append(args, "--no-cancel")
 
 	err := z.cmdWithWait(ctx, args...)
 	if err != nil {
