@@ -51,13 +51,13 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 		return nil, 0, fmt.Errorf("get args: %w", err)
 	}
 
+	args = append(args, path)
+
 	if len(opts.args) > 0 {
 		for _, arg := range opts.args {
 			args = append(args, arg[0], arg[1])
 		}
 	}
-
-	args = append(args, path)
 
 	cmd := exec.Command("sudo", args...)
 	log.Printf("cmd=%s", cmd.String())
@@ -81,15 +81,24 @@ func runWithWait(ctx context.Context, path string, opts eopts) error {
 
 	args = append(args, path)
 
+	if len(opts.args) > 0 {
+		for _, arg := range opts.args {
+			args = append(args, arg[0], arg[1])
+		}
+	}
+
 	cmd := exec.CommandContext(ctx, "sudo", args...)
 	log.Printf("cmd=%s", cmd.String())
 
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("cmd %q: %w", path, err)
+		return fmt.Errorf("cmd start %q: %w", path, err)
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("cmd %q: %w", path, err)
+		if errors.Is(ctx.Err(), context.Canceled) {
+			return nil
+		}
+		return fmt.Errorf("cmd wait %q: %w", path, err)
 	}
 
 	return nil
