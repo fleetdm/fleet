@@ -304,11 +304,7 @@ func (s *MySQLStorage) updateLastSeenBatch(ctx context.Context, ids []string) {
 		return
 	}
 
-	args := make([]any, 0, len(ids))
-	for _, id := range ids {
-		args = append(args, id)
-	}
-	stmt, args, err := sqlx.In(`UPDATE nano_enrollments SET last_seen_at = CURRENT_TIMESTAMP WHERE id IN (?)`, args...)
+	stmt, args, err := sqlx.In(`UPDATE nano_enrollments SET last_seen_at = CURRENT_TIMESTAMP WHERE id IN (?)`, ids)
 	if err != nil {
 		s.logger.Info("msg", "error building nano_enrollments.last_seen_at sql", "err", err)
 		return
