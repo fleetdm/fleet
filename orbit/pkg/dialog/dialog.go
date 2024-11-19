@@ -1,8 +1,5 @@
 package dialog
 
-// Dialog represents a UI dialog that can be displayed to the end user
-// on a host
-
 import (
 	"context"
 	"errors"
@@ -18,6 +15,8 @@ var (
 	ErrUnknown = errors.New("unknown error")
 )
 
+// Dialog represents a UI dialog that can be displayed to the end user
+// on a host
 type Dialog interface {
 	// ShowEntry displays a dialog that accepts end user input. It returns the entered
 	// text or errors ErrCanceled, ErrTimeout, or ErrUnknown.
@@ -25,6 +24,9 @@ type Dialog interface {
 	// ShowInfo displays a dialog that displays information. It returns an error if the dialog
 	// could not be displayed.
 	ShowInfo(ctx context.Context, opts InfoOptions) error
+	// Progress displays a dialog that shows progress. It returns a channel that can be used to
+	// end the dialog.
+	ShowProgress(ctx context.Context, opts ProgressOptions) chan struct{}
 }
 
 // EntryOptions represents options for a dialog that accepts end user input.
@@ -52,4 +54,19 @@ type InfoOptions struct {
 
 	// Timeout sets the time in seconds before the dialog is automatically closed.
 	TimeOut time.Duration
+}
+
+// ProgressOptions represents options for a dialog that shows progress.
+type ProgressOptions struct {
+	// Title sets the title of the dialog.
+	Title string
+
+	// Text sets the text of the dialog.
+	Text string
+
+	// Pulsate sets the progress bar to pulsate.
+	Pulsate bool
+
+	// NoCancel sets the dialog to grey out the cancel button.
+	NoCancel bool
 }

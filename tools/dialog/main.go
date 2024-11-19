@@ -1,5 +1,8 @@
 package main
 
+// This is a tool to test the zenity package on Linux
+// It will show an entry dialog, a progress dialog, and an info dialog
+
 import (
 	"context"
 	"fmt"
@@ -23,6 +26,24 @@ func main() {
 		fmt.Println("Err ShowEntry")
 		panic(err)
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		err := prompt.ShowProgress(ctx, dialog.ProgressOptions{
+			Title:    "Zenity Test Progress Title",
+			Text:     "Zenity Test Progress Text",
+			Pulsate:  true,
+			NoCancel: true,
+		})
+		if err != nil {
+			fmt.Println("Err ShowProgress")
+			panic(err)
+		}
+	}()
+
+	time.Sleep(2 * time.Second)
+	cancel()
 
 	err = prompt.ShowInfo(ctx, dialog.InfoOptions{
 		Title:   "Zenity Test Info Title",
