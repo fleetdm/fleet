@@ -56,6 +56,16 @@ func TestLinuxHostDiskEncryptionStatus(t *testing.T) {
 			},
 		},
 		{
+			name:              "no key && client error",
+			host:              fleet.Host{ID: 1, Platform: "ubuntu"},
+			keyExists:         false,
+			clientErrorExists: true,
+			status: fleet.HostMDMDiskEncryption{
+				Status: &failed,
+				Detail: "client error",
+			},
+		},
+		{
 			name:              "key not found",
 			host:              fleet.Host{ID: 1, Platform: "ubuntu"},
 			keyExists:         false,
@@ -64,6 +74,11 @@ func TestLinuxHostDiskEncryptionStatus(t *testing.T) {
 				Status: &actionRequired,
 			},
 			notFound: true,
+		},
+		{
+			name:   "unsupported platform",
+			host:   fleet.Host{ID: 1, Platform: "amzn"},
+			status: fleet.HostMDMDiskEncryption{},
 		},
 	}
 
