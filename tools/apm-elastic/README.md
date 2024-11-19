@@ -5,8 +5,8 @@
 To setup a full Elastic APM stack, from this directory, run:
 
 ```
-$ docker-compose up -d
-$ docker-compose exec apm-server ./apm-server setup
+$ docker compose up -d
+$ docker compose exec apm-server ./apm-server setup
 ```
 
 Give it a few seconds to complete setup, and then you should be able to view the APM website at `http://localhost:5601`.

@@ -660,6 +660,18 @@ func (d *DEPService) processDeviceResponse(
 	for _, device := range addedDevicesSlice {
 		addedSerials = append(addedSerials, device.SerialNumber)
 	}
+
+	// Check if any of the "added" or "modified" hosts are hosts that we've recently removed from
+	// Fleet in ABM. A host in this state will have a row in `host_dep_assignments` where the
+	// `deleted_at ` col is NOT NULL. Down below we skip assigning the profile to devices that we
+	// think are still enrolled; doing this check here allows us to avoid skipping devices that
+	// _seem_ like they're still enrolled but were actually removed and should get the profile.
+	// See https://github.com/fleetdm/fleet/issues/23200 for more context.
+	existingDeletedSerials, err := d.ds.GetMatchingHostSerialsMarkedDeleted(ctx, addedSerials)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get matching deleted host serials")
+	}
+
 	err = d.ds.DeleteHostDEPAssignmentsFromAnotherABM(ctx, abmTokenID, addedSerials)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting dep assignments from another abm")
@@ -682,7 +694,7 @@ func (d *DEPService) processDeviceResponse(
 	}
 
 	level.Debug(kitlog.With(d.logger)).Log("msg", "devices to assign DEP profiles", "to_add", len(addedDevicesSlice), "to_remove",
-		deletedSerials, "to_modify", modifiedSerials)
+		strings.Join(deletedSerials, ", "), "to_modify", strings.Join(modifiedSerials, ", "))
 
 	// at this point, the hosts rows are created for the devices, with the
 	// correct team_id, so we know what team-specific profile needs to be applied.
@@ -754,7 +766,8 @@ func (d *DEPService) processDeviceResponse(
 	for profUUID, devices := range profileToDevices {
 		var serials []string
 		for _, device := range devices {
-			if device.ProfileUUID == profUUID {
+			_, ok := existingDeletedSerials[device.SerialNumber]
+			if device.ProfileUUID == profUUID && !ok {
 				skippedSerials = append(skippedSerials, device.SerialNumber)
 				continue
 			}
