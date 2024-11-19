@@ -5,7 +5,7 @@
         <h4>Software management</h4>
         <h1>Manage software consistently</h1>
         <p purpose="hero-text">Pick from a curated app library or upload your own custom packages. Configure custom installation scripts if you need or let Fleet do it for you.</p>
-        <div purpose="hero-buttons" class="d-flex flex-row justify-content-start">
+        <div purpose="button-row" class="d-flex flex-row justify-content-start">
           <a class="btn btn-primary" purpose="contact-button" href="/contact">Talk to us</a>
           <animated-arrow-button href="/register">Try it yourself</animated-arrow-button>
         </div>
@@ -105,18 +105,70 @@
           </div>
         </div>
       </div>
-      <div purpose="quote" class="d-flex flex-column justify-content-center align-items-center">
-        <img purpose="quote-image" src="/images/testimonial-author-andre-shields-48x48@2x.png">
-        <p purpose="quote-text">
+
+      <div purpose="testimonial" class="d-flex flex-column justify-content-center align-items-center">
+        <img purpose="testimonial-image" src="/images/testimonial-author-andre-shields-48x48@2x.png">
+        <p purpose="testimonial-text">
           Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced.
         </p>
-        <div purpose="quote-attribution">
+        <div purpose="testimonial-attribution">
           <p purpose="name">Andre Shields</p>
           <p purpose="job-title">Cybersecurity Security Engineer, Vulnerability Management</p>
         </div>
       </div>
 
+      <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
+        <div purpose="feature-image">
+          <img alt="Up-to-date data without scans" src="/images/software-management-feature-image-4-528x377@2x.png">
+        </div>
+        <div purpose="feature-text" class="d-flex flex-column">
+          <h3>Up-to-date data without scans</h3>
+          <p>Traditional network vulnerability scans can clog your network and even haunt your printers with pages full of wingdings. Fleet does things differently.</p>
+          <div purpose="checklist" class="flex-column d-flex">
+            <p>Eliminate the risk of side effects from scanning the network.</p>
+            <p>Lightweight enough for the most brittle environments (OT, data centers, embedded/BTS, low-latency gaming servers).</p>
+            <p>Quickly pull data about important CVEs and zero days during an incident or audit.</p>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
+        <div purpose="feature-text" class="d-flex flex-column">
+          <h3>Untangle your security stack</h3>
+          <p>Use open data and APIs to connect your vulnerability solution with osquery, the agent you might already have deployed.</p>
+          <div purpose="checklist" class="flex-column d-flex">
+            <p>Normalize asset management data and software inventories from multiple tools and operating systems.</p>
+            <p>Help teams work on vulnerabilities that have actually been exploited (CISA KEVs) or have a high probability of being exploited (EPSS), or whatever is important in your environment.</p>
+            <p>Process CVEs across cloud and non-cloud assets in a single platform and see who's responsible for what.</p>
+          </div>
+        </div>
+        <div purpose="feature-image">
+          <img alt="Untangle your security stack" src="/images/software-management-feature-image-5-528x377@2x.png">
+        </div>
+      </div>
+
     </div><%// End of [purpose="page-content"]%>
   </div><%// End of [purpose="page-container"]%>
+  <div purpose="tweets-container" class="d-flex flex-column justify-content-center">
+    <div purpose="page-container" class="py-0">
+      <div purpose="section-heading" class="mx-auto text-center">
+        <h4>Who else uses Fleet?</h4>
+        <h2>Empowering teams, globally</h2>
+      </div>
+    </div>
+    <scrollable-tweets :testimonials="testimonialsForScrollableTweets"></scrollable-tweets>
+  </div>
+  <div purpose="page-container" class="py-0">
+    <div purpose="section-heading" class="text-center">
+      <h4>Software management</h4>
+      <h2>Manage software consistently</h2>
+      <div purpose="button-row" style="margin-top: 32px;" class="d-flex flex-row justify-content-center align-items-center mx-auto">
+        <a purpose="contact-button" href="/contact">Show me</a>
+        <animated-arrow-button href="/register">See real data</animated-arrow-button>
+      </div>
+    </div>
+  </div>
+  <%/* Cloud city banner */%>
+  <parallax-city></parallax-city>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
