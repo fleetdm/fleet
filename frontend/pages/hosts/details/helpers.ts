@@ -35,13 +35,6 @@ export const generateWinDiskEncryptionSetting = (
   };
 };
 
-// const convertLinuxDiskEncryptionStatusToSettingStatus = (
-//   diskEncryptionStatus: LinuxDiskEncryptionStatus
-// ): MdmProfileStatus => {
-//   return diskEncryptionStatus === "action_required"
-//     ? "pending"
-//     : diskEncryptionStatus;
-// };
 /**
  * Manually generates a setting for the linux disk encryption status. We need
  * this as we don't have a linux disk encryption setting in the `profiles`
@@ -56,9 +49,6 @@ export const generateLinuxDiskEncryptionSetting = (
     profile_uuid: "0", // This s the only type of profile that can have this value
     platform: "linux",
     name: "Disk Encryption",
-    // status: convertLinuxDiskEncryptionStatusToSettingStatus(
-    //   diskEncryptionStatus
-    // ),
     status: diskEncryptionStatus,
     detail,
     operation_type: null,

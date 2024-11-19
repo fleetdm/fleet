@@ -10,11 +10,12 @@ import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenCon
 import DataError from "components/DataError";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { HostPlatform } from "interfaces/platform";
 
 const baseClass = "disk-encryption-key-modal";
 
 interface IDiskEncryptionKeyModal {
-  platform: string;
+  platform: HostPlatform;
   hostId: number;
   onCancel: () => void;
 }
