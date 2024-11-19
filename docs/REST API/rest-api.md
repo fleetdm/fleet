@@ -9064,8 +9064,8 @@ Get a list of all software.
         "self_service": true
 	"automatic_install_policies": [
         {
-          "policy_id": 343,
-          "policy_name": "[Install software] Firefox.app",
+          "id": 343,
+          "name": "[Install software] Firefox.app",
         } 
       ], 
       },
