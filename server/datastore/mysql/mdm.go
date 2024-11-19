@@ -124,7 +124,8 @@ func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, c
 
 func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
 	winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) (updates fleet.MDMProfilesUpdates,
-	err error) {
+	err error,
+) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 		if updates.WindowsConfigProfile, err = ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles); err != nil {
@@ -1449,4 +1450,25 @@ func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.
 		return false, ctxerr.Wrap(ctx, err, "finding if host is connected to Fleet MDM")
 	}
 	return mp[host.UUID], nil
+}
+
+func (ds *Datastore) CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		return cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDs, newTeamID)
+	})
+}
+
+func cleanupDiskEncryptionKeysOnTeamChangeDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, newTeamID *uint) error {
+	_, err := getMDMAppleConfigProfileByTeamAndIdentifierDB(ctx, tx, newTeamID, mobileconfig.FleetFileVaultPayloadIdentifier)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// the new team does not have a filevault profile so we need to delete the existing ones
+			if err := bulkDeleteMacosHostDiskEncryptionKeysDB(ctx, tx, hostIDs); err != nil {
+				return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change bulk delete host disk encryption keys")
+			}
+		} else {
+			return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change get profile")
+		}
+	}
+	return nil
 }

@@ -825,6 +825,11 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
 		return err
 	}
+
+	if err := svc.cleanupDiskEncryptionKeys(ctx, teamID, hostIDs); err != nil {
+		return ctxerr.Wrap(ctx, err, "cleanup disk encryption keys")
+	}
+
 	if !skipBulkPending {
 		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
@@ -847,6 +852,34 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	}
 
 	return svc.createTransferredHostsActivity(ctx, teamID, hostIDs, nil)
+}
+
+// removes any existing disk encryption keys for hosts that are being transferred
+// to a different team if disk encryption is NOT enabled on the new team
+func (svc *Service) cleanupDiskEncryptionKeys(ctx context.Context, teamID *uint, hostIDs []uint) error {
+	var encryptionEnabled bool
+	if teamID == nil {
+		appConfig, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get app config")
+		}
+		encryptionEnabled = appConfig.MDM.EnableDiskEncryption.Value
+	} else {
+		team, err := svc.ds.Team(ctx, *teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get team")
+		}
+		encryptionEnabled = team.Config.MDM.EnableDiskEncryption
+	}
+
+	if !encryptionEnabled {
+		err := svc.ds.CleanupDiskEncryptionKeysOnTeamChange(ctx, hostIDs, teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup disk encryption keys on team change")
+		}
+	}
+
+	return nil
 }
 
 // creates the transferred hosts activity if hosts were transferred, taking
@@ -961,6 +994,9 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 	// Apply the team to the selected hosts.
 	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
 		return err
+	}
+	if err := svc.cleanupDiskEncryptionKeys(ctx, teamID, hostIDs); err != nil {
+		return ctxerr.Wrap(ctx, err, "cleanup disk encryption keys")
 	}
 	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
