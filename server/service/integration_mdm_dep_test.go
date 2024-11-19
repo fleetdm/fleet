@@ -1,7 +1,13 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,18 +16,22 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
@@ -31,6 +41,7 @@ import (
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.mozilla.org/pkcs7"
 )
 
 type profileAssignmentReq struct {
@@ -1046,14 +1057,22 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	deletedSerial = devices[1].SerialNumber
 	devices = []godep.Device{
 		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added", OpDate: time.Now()},
-		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "modified",
-			OpDate: time.Now().Add(time.Second)},
-		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "deleted",
-			OpDate: time.Now().Add(2 * time.Second)},
-		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added",
-			OpDate: time.Now().Add(3 * time.Second)},
-		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "deleted",
-			OpDate: time.Now().Add(4 * time.Second)},
+		{
+			SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "modified",
+			OpDate: time.Now().Add(time.Second),
+		},
+		{
+			SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "deleted",
+			OpDate: time.Now().Add(2 * time.Second),
+		},
+		{
+			SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added",
+			OpDate: time.Now().Add(3 * time.Second),
+		},
+		{
+			SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "deleted",
+			OpDate: time.Now().Add(4 * time.Second),
+		},
 
 		{SerialNumber: deletedAddedSerial, Model: "MacBook Pro", OS: "osx", OpType: "deleted", OpDate: time.Now()},
 		{SerialNumber: deletedAddedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added", OpDate: time.Now().Add(time.Second)},
@@ -1436,7 +1455,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 		RetryJobID            uint      `db:"retry_job_id"`
 	}
 	checkHostDEPAssignProfileResponses := func(deviceSerials []string, expectedProfileUUID string,
-		expectedStatus fleet.DEPAssignProfileResponseStatus) map[string]hostDEPRow {
+		expectedStatus fleet.DEPAssignProfileResponseStatus,
+	) map[string]hostDEPRow {
 		bySerial := make(map[string]hostDEPRow, len(deviceSerials))
 		for _, deviceSerial := range deviceSerials {
 			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1627,14 +1647,18 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 	devices = []godep.Device{
 		{SerialNumber: devices[0].SerialNumber, Model: "MacBook Pro M1", OS: "osx", OpType: "added", OpDate: time.Now()},
 		{SerialNumber: devices[1].SerialNumber, Model: "MacBook Mini M1", OS: "osx", OpType: "deleted", OpDate: time.Now()},
-		{SerialNumber: defaultOrgDevices[1].SerialNumber, Model: "MacBook Pro M2", OS: "osx", OpType: "added",
-			OpDate: time.Now().Add(time.Microsecond)},
+		{
+			SerialNumber: defaultOrgDevices[1].SerialNumber, Model: "MacBook Pro M2", OS: "osx", OpType: "added",
+			OpDate: time.Now().Add(time.Microsecond),
+		},
 	}
 	defaultOrgDevices = []godep.Device{
 		{SerialNumber: defaultOrgDevices[0].SerialNumber, Model: "MacBook Mini M2", OS: "osx", OpType: "added", OpDate: time.Now()},
 		{SerialNumber: defaultOrgDevices[1].SerialNumber, Model: "MacBook Pro M2", OS: "osx", OpType: "deleted", OpDate: time.Now()},
-		{SerialNumber: devices[1].SerialNumber, Model: "MacBook Mini M1", OS: "osx", OpType: "added",
-			OpDate: time.Now().Add(time.Microsecond)},
+		{
+			SerialNumber: devices[1].SerialNumber, Model: "MacBook Mini M1", OS: "osx", OpType: "added",
+			OpDate: time.Now().Add(time.Microsecond),
+		},
 	}
 
 	// trigger a profile sync
@@ -1663,13 +1687,17 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 	// Delete the devices
 	devices = []godep.Device{
 		{SerialNumber: devices[0].SerialNumber, Model: "MacBook Pro M1", OS: "osx", OpType: "modified", OpDate: time.Now()},
-		{SerialNumber: devices[2].SerialNumber, Model: "MacBook Pro M2", OS: "osx", OpType: "deleted",
-			OpDate: time.Now().Add(time.Microsecond)},
+		{
+			SerialNumber: devices[2].SerialNumber, Model: "MacBook Pro M2", OS: "osx", OpType: "deleted",
+			OpDate: time.Now().Add(time.Microsecond),
+		},
 	}
 	defaultOrgDevices = []godep.Device{
 		{SerialNumber: defaultOrgDevices[0].SerialNumber, Model: "MacBook Mini M2", OS: "osx", OpType: "modified", OpDate: time.Now()},
-		{SerialNumber: defaultOrgDevices[2].SerialNumber, Model: "MacBook Mini M1", OS: "osx", OpType: "deleted",
-			OpDate: time.Now().Add(time.Microsecond)},
+		{
+			SerialNumber: defaultOrgDevices[2].SerialNumber, Model: "MacBook Mini M1", OS: "osx", OpType: "deleted",
+			OpDate: time.Now().Add(time.Microsecond),
+		},
 	}
 
 	// trigger a profile sync
@@ -1694,7 +1722,6 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 	checkHostDEPAssignProfileResponses(defaultSerials, defaultProfileUUIDs[len(defaultProfileUUIDs)-1],
 		fleet.DEPAssignProfileResponseSuccess)
 	checkHostDEPAssignProfileResponses(teamSerials, teamProfileUUIDs[len(teamProfileUUIDs)-1], fleet.DEPAssignProfileResponseSuccess)
-
 }
 
 func (s *integrationMDMTestSuite) TestDeprecatedDefaultAppleBMTeam() {
@@ -2341,4 +2368,436 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptFo
 	}
 	require.Equal(t, 1, deviceConfiguredCount)
 	require.Equal(t, 0, otherCount)
+}
+
+func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
+	t := s.T()
+	s.enableABM(t.Name())
+
+	devices := []godep.Device{
+		{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"},
+		{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"},
+	}
+	profileAssignmentReqs := []profileAssignmentReq{}
+
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
+			require.NoError(t, err)
+		case "/profile":
+			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
+			require.NoError(t, err)
+		case "/server/devices":
+			// This endpoint  is used to get an initial list of
+			// devices, return a single device
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices})
+			require.NoError(t, err)
+		case "/devices/sync":
+			// This endpoint is polled over time to sync devices from
+			// ABM, send a repeated serial and a new one
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices, Cursor: "foo"})
+			require.NoError(t, err)
+		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var prof profileAssignmentReq
+			require.NoError(t, json.Unmarshal(b, &prof))
+			profileAssignmentReqs = append(profileAssignmentReqs, prof)
+			var resp godep.ProfileResponse
+			resp.ProfileUUID = prof.ProfileUUID
+			resp.Devices = make(map[string]string, len(prof.Devices))
+			for _, device := range prof.Devices {
+				resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
+			}
+			err = encoder.Encode(resp)
+			require.NoError(t, err)
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
+	s.runDEPSchedule()
+
+	listHostsRes := listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 2)
+
+	token := loadEnrollmentProfileDEPToken(t, s.ds)
+
+	encodeDeviceInfo := func(machineInfo fleet.MDMAppleMachineInfo) string {
+		body, err := plist.Marshal(machineInfo)
+		require.NoError(t, err)
+
+		// body is expected to be a PKCS7 signed message, although we don't currently verify the signature
+		signedData, err := pkcs7.NewSignedData(body)
+		require.NoError(t, err)
+		key, err := rsa.GenerateKey(rand.Reader, 2048)
+		require.NoError(t, err)
+		crtBytes, err := depot.NewCACert().SelfSign(rand.Reader, key.Public(), key)
+		require.NoError(t, err)
+		crt, err := x509.ParseCertificate(crtBytes)
+		require.NoError(t, err)
+		require.NoError(t, signedData.AddSigner(crt, key, pkcs7.SignerInfoConfig{}))
+		sig, err := signedData.Finish()
+		require.NoError(t, err)
+
+		return base64.StdEncoding.EncodeToString(sig)
+	}
+
+	fetchEnrollProfile := func(machineInfo *fleet.MDMAppleMachineInfo, expectEnrollInfo *mdmtest.AppleEnrollInfo, expectSoftwareUpdate *fleet.MDMAppleSoftwareUpdateRequiredDetails) error {
+		request, err := http.NewRequest("GET", s.server.URL+apple_mdm.EnrollPath+"?token="+token, nil)
+		if err != nil {
+			return fmt.Errorf("create request: %w", err)
+		}
+		if machineInfo != nil {
+			request.Header.Set("x-apple-aspen-deviceinfo", encodeDeviceInfo(*machineInfo))
+		}
+
+		// #nosec (this client is used for testing only)
+		cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+			InsecureSkipVerify: true,
+		}))
+		response, err := cc.Do(request)
+		if err != nil {
+			return fmt.Errorf("send request: %w", err)
+		}
+		defer response.Body.Close()
+
+		switch {
+		case expectEnrollInfo != nil:
+			require.Equal(t, http.StatusOK, response.StatusCode)
+			body, err := io.ReadAll(response.Body)
+			if err != nil {
+				return fmt.Errorf("read body: %w", err)
+			}
+			rawProfile := body
+			if !bytes.HasPrefix(rawProfile, []byte("<?xml")) {
+				p7, err := pkcs7.Parse(body)
+				if err != nil {
+					return fmt.Errorf("enrollment profile is not XML nor PKCS7 parseable: %w", err)
+				}
+				err = p7.Verify()
+				if err != nil {
+					return err
+				}
+				rawProfile = p7.Content
+			}
+			enrollInfo, err := mdmtest.ParseEnrollmentProfile(rawProfile)
+			if err != nil {
+				return fmt.Errorf("parse enrollment profile: %w", err)
+			}
+			require.NotNil(t, enrollInfo)
+			require.Equal(t, expectEnrollInfo, enrollInfo)
+
+			return nil
+
+		case expectSoftwareUpdate != nil:
+			require.Equal(t, http.StatusForbidden, response.StatusCode)
+			body, err := io.ReadAll(response.Body)
+			if err != nil {
+				return fmt.Errorf("read body: %w", err)
+			}
+			var sur fleet.MDMAppleSoftwareUpdateRequired
+			require.NoError(t, json.Unmarshal(body, &sur))
+			require.NotNil(t, sur)
+			require.Equal(t, fleet.MDMAppleSoftwareUpdateRequiredCode, sur.Code)
+			require.Equal(t, *expectSoftwareUpdate, sur.Details)
+
+			return nil
+
+		default:
+			return fmt.Errorf("request error: %d, %s", response.StatusCode, response.Status)
+		}
+	}
+
+	fetchSSO := func(machineInfo *fleet.MDMAppleMachineInfo, expectSoftwareUpdate *fleet.MDMAppleSoftwareUpdateRequiredDetails) error {
+		request, err := http.NewRequest("GET", s.server.URL+"/mdm/sso", nil)
+		if err != nil {
+			return fmt.Errorf("create request: %w", err)
+		}
+		if machineInfo != nil {
+			request.Header.Set("x-apple-aspen-deviceinfo", encodeDeviceInfo(*machineInfo))
+		}
+
+		// #nosec (this client is used for testing only)
+		cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+			InsecureSkipVerify: true,
+		}))
+		response, err := cc.Do(request)
+		if err != nil {
+			return fmt.Errorf("send request: %w", err)
+		}
+		defer response.Body.Close()
+
+		switch {
+		case expectSoftwareUpdate != nil:
+			require.Equal(t, http.StatusForbidden, response.StatusCode)
+			body, err := io.ReadAll(response.Body)
+			if err != nil {
+				return fmt.Errorf("read body: %w", err)
+			}
+			var sur fleet.MDMAppleSoftwareUpdateRequired
+			require.NoError(t, json.Unmarshal(body, &sur))
+			require.NotNil(t, sur)
+			require.Equal(t, fleet.MDMAppleSoftwareUpdateRequiredCode, sur.Code)
+			require.Equal(t, *expectSoftwareUpdate, sur.Details)
+
+			return nil
+
+		case response.StatusCode == http.StatusOK:
+			return nil
+
+		default:
+			return fmt.Errorf("request error: %d, %s", response.StatusCode, response.Status)
+		}
+	}
+
+	setMinOSVersion := func(minVersion string, teamId *uint) {
+		if teamId == nil {
+			acResp := appConfigResponse{}
+			s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": { "macos_updates": { "minimum_version": "%s", "deadline": "2023-12-31" } }
+  }`, minVersion)), http.StatusOK, &acResp)
+			assert.NotNil(t, acResp.MDM.MacOSUpdates)
+		} else {
+
+			tcResp := teamResponse{}
+			s.DoJSON("PATCH", "/api/latest/fleet/teams/"+strconv.Itoa(int(*teamId)), json.RawMessage(fmt.Sprintf(`{ "mdm": { "macos_updates": { "minimum_version": "%s", "deadline": "2023-12-31" } } }`, minVersion)), http.StatusOK, &tcResp)
+		}
+	}
+
+	// add mock IdP info
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "end_user_authentication": { "entity_id": "https://idp.example.com", "idp_name": "foobar", "metadata_url": "https://idp.example.com/idp" } }
+}`), http.StatusOK, &acResp)
+
+	t.Cleanup(func() {
+		acResp := appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_updates": { "minimum_version": null, "deadline": null }, "macos_setup": { "enable_end_user_authentication": false } }
+}`), http.StatusOK, &acResp)
+	})
+
+	latestMacOSVersion := "14.6.1" // this is the latest version in our test data (see ../mdm/apple/gdmf/testdata/gdmf.json)
+	latestMacOSBuild := "23G93"    // this is the latest version in our test data (see ../mdm/apple/gdmf/testdata/gdmf.json)
+
+	testCases := []struct {
+		name           string
+		machineInfo    *fleet.MDMAppleMachineInfo
+		updateRequired *fleet.MDMAppleSoftwareUpdateRequiredDetails
+		err            string
+	}{
+		{
+			name: "device above latest",
+			machineInfo: &fleet.MDMAppleMachineInfo{
+				MDMCanRequestSoftwareUpdate: true,
+				Product:                     "Mac15,7",
+				OSVersion:                   "14.6.2",
+				SupplementalBuildVersion:    "IRRELEVANT",
+				SoftwareUpdateDeviceID:      "J516sAP",
+			},
+			updateRequired: nil,
+		},
+		{
+			name: "device equal to latest",
+			machineInfo: &fleet.MDMAppleMachineInfo{
+				MDMCanRequestSoftwareUpdate: true,
+				Product:                     "Mac15,7",
+				OSVersion:                   latestMacOSVersion,
+				SupplementalBuildVersion:    "IRRELEVANT",
+				SoftwareUpdateDeviceID:      "J516sAP",
+			},
+			updateRequired: nil,
+		},
+		{
+			name: "device below latest",
+			machineInfo: &fleet.MDMAppleMachineInfo{
+				MDMCanRequestSoftwareUpdate: true,
+				Product:                     "Mac15,7",
+				OSVersion:                   "14.4",
+				SupplementalBuildVersion:    "IRRELEVANT",
+				SoftwareUpdateDeviceID:      "J516sAP",
+			},
+			updateRequired: &fleet.MDMAppleSoftwareUpdateRequiredDetails{
+				OSVersion:    latestMacOSVersion,
+				BuildVersion: latestMacOSBuild,
+			},
+		},
+		{
+			name: "device below latest but MDM cannot request software update",
+			machineInfo: &fleet.MDMAppleMachineInfo{
+				MDMCanRequestSoftwareUpdate: false,
+				Product:                     "Mac15,7",
+				OSVersion:                   "14.4",
+				SupplementalBuildVersion:    "IRRELEVANT",
+				SoftwareUpdateDeviceID:      "J516sAP",
+			},
+			updateRequired: nil,
+		},
+		{
+			name: "no match for software update device ID",
+			machineInfo: &fleet.MDMAppleMachineInfo{
+				MDMCanRequestSoftwareUpdate: true,
+				Product:                     "Mac15,7",
+				OSVersion:                   "14.4",
+				SupplementalBuildVersion:    "IRRELEVANT",
+				SoftwareUpdateDeviceID:      "INVALID",
+			},
+			updateRequired: nil,
+			err:            "", // no error, allow enrollment to proceed without software update
+		},
+		{
+			name:           "no machine info",
+			machineInfo:    nil,
+			updateRequired: nil,
+			err:            "", // no error, allow enrollment to proceed without software update
+		},
+		{
+			name: "cannot parse OS version",
+			machineInfo: &fleet.MDMAppleMachineInfo{
+				MDMCanRequestSoftwareUpdate: true,
+				Product:                     "Mac15,7",
+				OSVersion:                   "INVALID",
+				SupplementalBuildVersion:    "IRRELEVANT",
+				SoftwareUpdateDeviceID:      "J516sAP",
+			},
+			updateRequired: nil,
+			err:            "", // no error, allow enrollment to proceed without software update
+		},
+	}
+
+	t.Run("no team setting equal to latest", func(t *testing.T) {
+		setMinOSVersion(latestMacOSVersion, nil)
+
+		t.Run("sso disabled", func(t *testing.T) {
+			for _, tc := range testCases {
+				t.Run(tc.name, func(t *testing.T) {
+					var mi fleet.MDMAppleMachineInfo
+					if tc.machineInfo != nil {
+						mi = *tc.machineInfo
+						mi.Serial = devices[0].SerialNumber
+					}
+					var expectEnrollInfo *mdmtest.AppleEnrollInfo
+					if tc.updateRequired == nil && tc.err == "" {
+						expectEnrollInfo = &mdmtest.AppleEnrollInfo{
+							SCEPChallenge: "scepcha/><llenge",
+							SCEPURL:       s.server.URL + "/mdm/apple/scep",
+							MDMURL:        s.server.URL + "/mdm/apple/mdm",
+						}
+					}
+
+					err := fetchEnrollProfile(&mi, expectEnrollInfo, tc.updateRequired)
+					if tc.err != "" {
+						require.Error(t, err)
+						require.Contains(t, err.Error(), tc.err)
+					} else {
+						require.NoError(t, err)
+					}
+				})
+			}
+		})
+
+		t.Run("sso enabled", func(t *testing.T) {
+			acResp := appConfigResponse{}
+			s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_setup": { "enable_end_user_authentication": true } }
+  }`), http.StatusOK, &acResp)
+
+			for _, tc := range testCases {
+				t.Run(tc.name, func(t *testing.T) {
+					var mi fleet.MDMAppleMachineInfo
+					if tc.machineInfo != nil {
+						mi = *tc.machineInfo
+						mi.Serial = devices[0].SerialNumber
+					}
+
+					err := fetchSSO(&mi, tc.updateRequired)
+					if tc.err != "" {
+						require.Error(t, err)
+						require.Contains(t, err.Error(), tc.err)
+					} else {
+						require.NoError(t, err)
+					}
+				})
+			}
+		})
+	})
+
+	t.Run("team setting equal to latest", func(t *testing.T) {
+		teamName := t.Name() + "team1"
+		team := &fleet.Team{
+			Name:        teamName,
+			Description: "desc team1",
+		}
+		var createTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+		require.NotZero(t, createTeamResp.Team.ID)
+		team = createTeamResp.Team
+		// var teamHostID uint
+		for _, h := range listHostsRes.Hosts {
+			if h.HardwareSerial == devices[1].SerialNumber {
+				err := s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{h.ID})
+				require.NoError(t, err)
+				// teamHostID = h.ID
+				break
+			}
+		}
+		setMinOSVersion(latestMacOSVersion, &team.ID)
+
+		t.Run("sso disabled", func(t *testing.T) {
+			for _, tc := range testCases {
+				t.Run(tc.name, func(t *testing.T) {
+					if tc.machineInfo != nil {
+						tc.machineInfo.Serial = devices[1].SerialNumber
+					}
+					var expectEnrollInfo *mdmtest.AppleEnrollInfo
+					if tc.updateRequired == nil && tc.err == "" {
+						expectEnrollInfo = &mdmtest.AppleEnrollInfo{
+							SCEPChallenge: "scepcha/><llenge",
+							SCEPURL:       s.server.URL + "/mdm/apple/scep",
+							MDMURL:        s.server.URL + "/mdm/apple/mdm",
+						}
+					}
+
+					err := fetchEnrollProfile(tc.machineInfo, expectEnrollInfo, tc.updateRequired)
+					if tc.err != "" {
+						require.Error(t, err)
+						require.Contains(t, err.Error(), tc.err)
+					} else {
+						require.NoError(t, err)
+					}
+				})
+			}
+		})
+
+		t.Run("sso enabled", func(t *testing.T) {
+			tcResp := teamResponse{}
+			s.DoJSON("PATCH", "/api/latest/fleet/teams/"+strconv.Itoa(int(team.ID)), json.RawMessage(fmt.Sprintf(`{ "mdm": { "macos_setup": { "enable_end_user_authentication": true } } }`)), http.StatusOK, &tcResp)
+
+			acResp := appConfigResponse{}
+			s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+				"mdm": { "end_user_authentication": { "entity_id": "https://idp.example.com", "idp_name": "foobar", "metadata_url": "https://idp.example.com/idp" }, "macos_setup": { "enable_end_user_authentication": true } }
+		  }`), http.StatusOK, &acResp)
+
+			for _, tc := range testCases {
+				t.Run(tc.name, func(t *testing.T) {
+					if tc.machineInfo != nil {
+						tc.machineInfo.Serial = devices[0].SerialNumber
+					}
+
+					err := fetchSSO(tc.machineInfo, tc.updateRequired)
+					if tc.err != "" {
+						require.Error(t, err)
+						require.Contains(t, err.Error(), tc.err)
+					} else {
+						require.NoError(t, err)
+					}
+				})
+			}
+		})
+	})
 }
