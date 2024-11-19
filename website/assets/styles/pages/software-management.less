@@ -1,5 +1,284 @@
 #software-management {
+  @heading-lineheight: 120%;
+  @text-lineheight: 150%;
 
-  //…
+  h1 {
+    color: #192147;
+    font-size: 48px;
+    font-weight: 800;
+    line-height: @heading-lineheight; /* 120% */
+  }
+  h4 {
+    color: #515774;
+    font-feature-settings: 'salt' on, 'ss01' on, 'ss02' on;
+    font-family: "Roboto Mono";
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 24px;
+    text-transform: uppercase;
+  }
+
+
+  [parasails-component='animated-arrow-button'] {
+    font-weight: 600;
+  }
+  [purpose='page-container'] {
+    padding: 64px;
+  }
+  [purpose='page-content'] {
+    max-width: 1072px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  [purpose='page-hero'] {
+    padding-bottom: 64px;
+  }
+  [purpose='hero-text'] {
+    max-width: 568px;
+    padding-top: 16px;
+    padding-bottom: 32px;
+  }
+  [purpose='hero-buttons'] {
+    [purpose='contact-button'] {
+      display: flex;
+      height: 36px;
+      padding: 16px;
+      justify-content: center;
+      align-items: center;
+      gap: 4px;
+      border-radius: 8px;
+      background: var(--Fleet-Red, #FF5C83);
+      color: var(--White, #FFF);
+      text-align: center;
+
+      /* Body MD (bold) */
+      font-family: Inter;
+      font-size: 16px;
+      font-style: normal;
+      font-weight: 700;
+      line-height: 24px; /* 150% */
+      margin-right: 24px;
+    }
+
+  }
+
+  [purpose='hero-slides'] {
+    padding-bottom: 24px;
+    [purpose='carousel-headings'] {
+      position: unset;
+      padding-top: 64px;
+      padding-bottom: 16px;
+      margin-left: unset;
+      margin-right: unset;
+    }
+    [purpose='slide-text'] {
+      width: 33%;
+      cursor: pointer;
+      h5 {
+        font-size: 16px;
+        font-weight: 800;
+        line-height: @heading-lineheight;
+      }
+      p {
+        margin-right: 16px;
+        font-size: 14px;
+        font-weight: 400;
+        line-height: @text-lineheight;
+      }
+      h5, p {
+        color: #8B8FA2;
+      }
+
+      &:not(:last-of-type){
+        margin-right: 16px;
+      }
+      &.active {
+        h5, p {
+          color: #192147;
+        }
+      }
+    }
+    [purpose='carousel-indicators'] {
+      position: relative;
+      bottom: 0px;
+      margin-top: 16px;
+      margin-bottom: 16px;
+      li {
+        width: 40px;
+        background-color: #E2E4EA;
+        &.active {
+          background-color: #8B8FA2;
+        }
+      }
+    }
+  }
+  [purpose='logo-row'] {
+    [parasails-component='logo-carousel'] {
+      margin-top: 64px;
+      margin-bottom: 32px;
+    }
+  }
+
+  [purpose='feature-switch'] {
+    padding-top: 64px;
+    margin-right: auto;
+    margin-left: auto;
+    border-bottom: 1px solid #E2E4EA;
+  }
+  [purpose='feature-option'] {
+    width: 33%;
+    padding: 16px 40px;
+    white-space: nowrap;
+    text-align: center;
+    cursor: pointer;
+    &.active {
+      font-weight: 700;
+      border-bottom: 2px solid #192147;
+    }
+  }
+  [purpose='feature-slide'] {
+    padding-top: 64px;
+    padding-bottom: 86px;
+    &.invisible {
+      height: 0;
+      padding: 0;
+    }
+    [purpose='feature-text'] {
+      margin-left: 48px;
+      width: 50%;
+    }
+  }
+  [purpose='feature-image'] {
+    width: 50%;
+    // height: 377px;
+    // display: flex;
+    // flex-direction: row;
+    // justify-content: center;
+    // align-items: center;
+    // border-radius: 13.697px;
+    // background: #F9FAFC;
+    img {
+      max-width: 100%;
+      max-height: 100%;
+      // width: 380px;
+    }
+  }
+  // [purpose='feature-text'] {
+  //   width: 468px;
+  // }
+  [purpose='checklist'] {
+    margin-top: 8px;
+    p {
+      font-size: 14px;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 21px;
+      padding-left: 37px;
+      text-indent: -37px;
+      margin-bottom: 1.5rem;
+      &:last-of-type {
+        margin-bottom: 0px;
+      }
+    }
+    p::before {
+      content: ' ';
+      background-image: url('/images/icon-checkmark-green-20x20@2x.png');
+      background-size: 20px 20px;
+      display: inline-block;
+      position: relative;
+      top: 5px;
+      margin-right: 16px;
+      width: 20px;
+      height: 20px;
+    }
+  }
+  [purpose='feature-link'] {
+    padding-top: 32px;
+  }
+
+  @media (max-width: 991px) {
+    [purpose='page-container'] {
+      padding: 64px 32px;
+    }
+    [purpose='feature-option'] {
+      width: 33%;
+      padding: 16px 24px;
+    }
+
+    // [purpose='page-content'] {
+    //   max-width: 927px;
+    // }
+  }
+  @media (max-width: 768px) {
+    [purpose='page-container'] {
+      padding: 64px 32px;
+    }
+    [purpose='hero-slides'] {
+      [purpose='carousel-headings'] {
+        position: unset;
+        padding-top: 16px;
+        padding-bottom: 16px;
+        margin-left: unset;
+        margin-right: unset;
+      }
+      [purpose='slide-text'] {
+        width: 100%;
+        p {
+          margin-right: 16px;
+          margin-bottom: 0px;
+        }
+        &:not(:last-of-type){
+          margin-right: unset;
+          margin-bottom: 32px;
+        }
+      }
+    }
+    [purpose='feature-switch'] {
+      margin-right: 0;
+      margin-left: auto;
+      border-bottom: none;
+      border-left: 1px solid #E2E4EA;
+      margin-top: 64px;
+      padding-top: 0px;
+    }
+    [purpose='feature-option'] {
+      width: 100%;
+      text-align: center;
+      &.active {
+        border-left: 2px solid #192147;
+        border-bottom: none;
+      }
+    }
+    [purpose='feature-slide'] {
+      padding-top: 64px;
+      padding-bottom: 86px;
+      &.invisible {
+        height: 0;
+        padding: 0;
+      }
+      [purpose='feature-text'] {
+        margin-left: 0px;
+        width: 100%;
+        margin-bottom: 32px;
+      }
+    }
+    [purpose='feature-image'] {
+      width: 100%;
+    }
+    // [purpose='page-content'] {
+    //   max-width: 703px;
+    // }
+  }
+  @media (max-width: 576px) {
+    [purpose='page-container'] {
+      padding: 32px 24px;
+    }
+  }
+
+  @media (max-width: 376px) {
+    [purpose='page-container'] {
+      padding: 32px 16px;
+    }
+  }
 
 }
