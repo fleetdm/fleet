@@ -142,9 +142,9 @@ If you opt not to renew Fleet Premium, you can continue using only the free capa
 
 We aren’t able to sell licenses and support separately.
 
-## Do you offer pricing for ephemeral hosts which may scale up or down?
+## Do you offer pricing for unmanaged hosts? What about ephemeral hosts which may scale up or down?
 
-For now, the number of hosts is the maximum cap of distinct agents enrolled at any given time.
+For now, the number of hosts is the maximum cap of hosts enrolled at any given time. Umanaged hosts ("Pending" MDM status in Fleet) are not included in the enrolled hosts count.
 
 ## When run locally, what resources does the Fleet app typically consume on an individual instance, and when run in HA, at high volume? And how is latency on an individual instance vs clustered deployment?
 
