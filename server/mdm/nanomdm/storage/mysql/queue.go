@@ -52,7 +52,7 @@ func (m *MySQLStorage) deleteCommand(ctx context.Context, tx *sql.Tx, id, uuid s
 	// trying to each delete it do not race
 	_, err := tx.ExecContext(
 		ctx, `
-SELECT command_uuid FROM commands WHERE command_uuid = ? FOR UPDATE;
+SELECT command_uuid FROM nano_commands WHERE command_uuid = ? FOR UPDATE;
 `,
 		uuid,
 	)
