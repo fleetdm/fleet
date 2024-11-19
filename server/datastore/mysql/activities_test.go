@@ -543,6 +543,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 
 	setupExpScript := &fleet.Script{Name: "setup_experience_script", ScriptContents: "setup_experience"}
 	err = ds.SetSetupExperienceScript(ctx, setupExpScript)
+	require.NoError(t, err)
 	ses, err := ds.GetSetupExperienceScript(ctx, h2.TeamID)
 	require.NoError(t, err)
 	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h2.ID, ScriptContents: "setup_experience", SetupExperienceScriptID: &ses.ID})
