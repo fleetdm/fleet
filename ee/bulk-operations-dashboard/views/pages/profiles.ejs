@@ -191,7 +191,7 @@
             <p class="mb-2"><strong>Teams</strong></p>
             <multifield :value="formData.teams" v-model="formData.teams" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
           </div>
-          <div>
+          <div class="form-group">
             <p><strong>Target</strong></p>
             <label purpose="form-option" class="form-control border-0 mb-2 p-0 h-auto">
               <input type="radio" :class="[formErrors.profileTarget ? 'is-invalid' : '']" v-model.trim="formData.profileTarget" value="all">
