@@ -46,6 +46,11 @@ type mdmLifecycleAssertion[T any] func(t *testing.T, host *fleet.Host, device T)
 
 func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 	t := s.T()
+	// Skip worker jobs to avoid running into timing issues with this test.
+	// We can manually run the jobs if needed with s.runWorker().
+	s.skipWorkerJobs = true
+	t.Cleanup(func() { s.skipWorkerJobs = false })
+
 	s.setupLifecycleSettings()
 
 	testCases := []struct {
