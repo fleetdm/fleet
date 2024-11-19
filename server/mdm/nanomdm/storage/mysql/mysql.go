@@ -314,10 +314,12 @@ func (s *MySQLStorage) updateLastSeenBatch(ctx context.Context, ids []string) {
 		return
 	}
 
-	if _, err = s.db.ExecContext(ctx, stmt, args...); err != nil {
+	res, err := s.db.ExecContext(ctx, stmt, args...)
+	if err != nil {
 		s.logger.Info("msg", "error batch updating nano_enrollments.last_seen_at", "err", err)
 	} else {
 		// TODO(mna): temporary, to confirm updates in load tests
-		s.logger.Info("msg", "successfully updated nano_enrollments.last_seen_at", "ids", len(ids))
+		rows, _ := res.RowsAffected()
+		s.logger.Info("msg", "successfully updated nano_enrollments.last_seen_at", "ids", len(ids), "rows", rows)
 	}
 }
