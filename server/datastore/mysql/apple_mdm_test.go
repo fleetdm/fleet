@@ -3075,6 +3075,8 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	require.Equal(t, "darwin", p)
 }
 
+// TODO(mna): add unit test with controlled async
+
 func createMDMAppleCommanderAndStorage(t *testing.T, ds *Datastore) (*apple_mdm.MDMAppleCommander, *NanoMDMStorage) {
 	mdmStorage, err := ds.NewMDMAppleMDMStorage()
 	require.NoError(t, err)

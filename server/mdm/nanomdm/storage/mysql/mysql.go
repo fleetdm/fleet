@@ -32,11 +32,13 @@ type MySQLStorage struct {
 }
 
 type config struct {
-	driver string
-	dsn    string
-	db     *sql.DB
-	logger log.Logger
-	rm     bool
+	driver        string
+	dsn           string
+	db            *sql.DB
+	logger        log.Logger
+	rm            bool
+	asyncCap      int
+	asyncInterval time.Duration
 }
 
 type Option func(*config)
@@ -71,8 +73,20 @@ func WithDeleteCommands() Option {
 	}
 }
 
+func WithAsyncLastSeen(cap int, interval time.Duration) Option {
+	return func(c *config) {
+		c.asyncCap = cap
+		c.asyncInterval = interval
+	}
+}
+
 func New(opts ...Option) (*MySQLStorage, error) {
-	cfg := &config{logger: log.NopLogger, driver: "mysql"}
+	const (
+		asyncLastSeenFlushInterval = 2 * time.Second
+		asyncLastSeenCap           = 1000
+	)
+
+	cfg := &config{logger: log.NopLogger, driver: "mysql", asyncCap: asyncLastSeenCap, asyncInterval: asyncLastSeenFlushInterval}
 	for _, opt := range opts {
 		opt(cfg)
 	}
@@ -87,15 +101,10 @@ func New(opts ...Option) (*MySQLStorage, error) {
 		return nil, err
 	}
 
-	const (
-		asyncLastSeenFlushInterval = 2 * time.Second
-		asyncLastSeenCap           = 1000
-	)
-
 	mysqlStore := &MySQLStorage{db: cfg.db, logger: cfg.logger, rm: cfg.rm}
 
 	if v := os.Getenv("FLEET_DISABLE_ASYNC_NANO_LAST_SEEN"); v != "1" {
-		als := newAsyncLastSeen(asyncLastSeenFlushInterval, asyncLastSeenCap, mysqlStore.updateLastSeenBatch)
+		als := newAsyncLastSeen(cfg.asyncInterval, cfg.asyncCap, mysqlStore.updateLastSeenBatch)
 		mysqlStore.als = als
 
 		go als.runFlushLoop(context.Background())

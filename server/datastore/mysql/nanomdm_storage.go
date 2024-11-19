@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -53,6 +54,26 @@ func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
 	s, err := nanomdm_mysql.New(
 		nanomdm_mysql.WithDB(ds.primary.DB),
 		nanomdm_mysql.WithLogger(nanoMDMLogAdapter{logger: ds.logger}),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &NanoMDMStorage{
+		MySQLStorage: s,
+		db:           ds.primary,
+		logger:       ds.logger,
+		ds:           ds,
+	}, nil
+}
+
+// NewTestMDMAppleMDMStorage returns a test MySQL nanomdm storage that uses the
+// Datastore underlying MySQL writer *sql.DB. It allows configuring the async
+// last seen time's capacity and interval and should only be used in tests.
+func (ds *Datastore) NewTestMDMAppleMDMStorage(asyncCap int, asyncInterval time.Duration) (*NanoMDMStorage, error) {
+	s, err := nanomdm_mysql.New(
+		nanomdm_mysql.WithDB(ds.primary.DB),
+		nanomdm_mysql.WithLogger(nanoMDMLogAdapter{logger: ds.logger}),
+		nanomdm_mysql.WithAsyncLastSeen(asyncCap, asyncInterval),
 	)
 	if err != nil {
 		return nil, err
