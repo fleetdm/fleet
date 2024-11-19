@@ -3248,7 +3248,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 {
   "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
   "passphrase": "6e657665-7220676f-6e6e6120-67697665-20796f75-207570",
-  "slot_key": "",
+  "slot_key": "1",
   "client_error": ""
 }
 ```
