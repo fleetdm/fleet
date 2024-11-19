@@ -108,7 +108,7 @@ module "fleet" {
   alb_config = {
     # Script execution can run for up to 300s plus overhead.
     # Ensure the load balancer does not 5XX before we have results.
-    idle_timeout = 605
+    idle_timeout = 905
   }
 }
 
