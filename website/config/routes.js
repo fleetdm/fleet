@@ -300,15 +300,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /software-management': {
-    action: 'view-software-management',
-    locals: {
-      pageTitleForMeta: 'Software management',
-      pageDescriptionForMeta: 'TODO',
-      camel_cased_variable_to_make_sure_this_doesnt_pass_lint_and_will_remind_me_to_add_pageDescriptionForMeta_value: ':)',
-    }
-  },
-
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
