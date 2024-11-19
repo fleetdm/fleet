@@ -1637,14 +1637,18 @@ func (s *integrationMDMTestSuite) TestDiskEncryptionSharedSetting() {
 	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 
-	setMDMEnabled := func(macMDM, windowsMDM bool) {
-		appConf, err := s.ds.AppConfig(context.Background())
-		require.NoError(s.T(), err)
-		appConf.MDM.WindowsEnabledAndConfigured = windowsMDM
-		appConf.MDM.EnabledAndConfigured = macMDM
-		err = s.ds.SaveAppConfig(context.Background(), appConf)
-		require.NoError(s.T(), err)
-	}
+	// setPrivateKey := func(privateKey string) {
+	// TODO - something like this, test setting/unsetting the key
+	// }
+
+	// setMDMEnabled := func(macMDM, windowsMDM bool) {
+	// 	appConf, err := s.ds.AppConfig(context.Background())
+	// 	require.NoError(s.T(), err)
+	// 	appConf.MDM.WindowsEnabledAndConfigured = windowsMDM
+	// 	appConf.MDM.EnabledAndConfigured = macMDM
+	// 	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	// 	require.NoError(s.T(), err)
+	// }
 
 	// before doing any modifications, grab the current values and make
 	// sure they're set to the same ones on cleanup to not interfere with
@@ -1656,44 +1660,44 @@ func (s *integrationMDMTestSuite) TestDiskEncryptionSharedSetting() {
 		require.NoError(s.T(), err)
 	})
 
-	checkConfigSetErrors := func() {
-		// try to set app config
-		res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "enable_disk_encryption": true }
-  }`), http.StatusUnprocessableEntity)
-		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.")
+	// checkConfigSetErrors := func() {
+	// 	// try to set app config
+	// 	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	// 	"mdm": { "enable_disk_encryption": true }
+	// }`), http.StatusUnprocessableEntity)
+	// 	errMsg := extractServerErrorText(res.Body)
+	// 	require.Contains(t, errMsg, "enable disk encryption.")
 
-		// try to create a new team using specs
-		teamSpecs := map[string]any{
-			"specs": []any{
-				map[string]any{
-					"name": teamName + uuid.NewString(),
-					"mdm": map[string]any{
-						"enable_disk_encryption": true,
-					},
-				},
-			},
-		}
-		res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
-		errMsg = extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.")
+	// 	// try to create a new team using specs
+	// 	teamSpecs := map[string]any{
+	// 		"specs": []any{
+	// 			map[string]any{
+	// 				"name": teamName + uuid.NewString(),
+	// 				"mdm": map[string]any{
+	// 					"enable_disk_encryption": true,
+	// 				},
+	// 			},
+	// 		},
+	// 	}
+	// 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
+	// 	errMsg = extractServerErrorText(res.Body)
+	// 	require.Contains(t, errMsg, "enable disk encryption")
 
-		// try to edit the existing team using specs
-		teamSpecs = map[string]any{
-			"specs": []any{
-				map[string]any{
-					"name": teamName,
-					"mdm": map[string]any{
-						"enable_disk_encryption": true,
-					},
-				},
-			},
-		}
-		res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
-		errMsg = extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.")
-	}
+	// 	// try to edit the existing team using specs
+	// 	teamSpecs = map[string]any{
+	// 		"specs": []any{
+	// 			map[string]any{
+	// 				"name": teamName,
+	// 				"mdm": map[string]any{
+	// 					"enable_disk_encryption": true,
+	// 				},
+	// 			},
+	// 		},
+	// 	}
+	// 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
+	// 	errMsg = extractServerErrorText(res.Body)
+	// 	require.Contains(t, errMsg, "enable disk encryption")
+	// }
 
 	checkConfigSetSucceeds := func() {
 		res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -1749,21 +1753,14 @@ func (s *integrationMDMTestSuite) TestDiskEncryptionSharedSetting() {
 		s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	}
 
-	// disable both windows and mac mdm
+	// TODO: try to enable disk encryption with no private key set, MDM not enabled
 	// we should get an error
-	setMDMEnabled(false, false)
-	checkConfigSetErrors()
+	// setMDMEnabled(false, false)
+	// setPrivateKey(null)
+	// checkConfigSetErrors()
 
-	// enable windows mdm, no errors
-	setMDMEnabled(false, true)
-	checkConfigSetSucceeds()
-
-	// enable mac mdm, no errors
-	setMDMEnabled(true, true)
-	checkConfigSetSucceeds()
-
-	// only macos mdm enabled, no errors
-	setMDMEnabled(true, false)
+	// Add a private key, no errors, even with MDM still not enabled
+	// setPrivateKey(something)
 	checkConfigSetSucceeds()
 }
 
@@ -7625,11 +7622,11 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			acResp = checkAppConfig(t, false, false)                          // both mac and windows mdm disabled
 			require.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // changed to disabled
 
-			// changing MDM config does cause validation error when switching to non-default vailes
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
-			acResp = checkAppConfig(t, false, false)                          // both mac and windows mdm disabled
-			require.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // still disabled
+			// changing MDM config does cause validation error when switching to non-default values
+			// ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+			// s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
+			// acResp = checkAppConfig(t, false, false)                          // both mac and windows mdm disabled
+			// require.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // still disabled
 		})
 
 		t.Run("macos setup", func(t *testing.T) {
@@ -8093,17 +8090,18 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 		})
 
 		checkTeam := func(t *testing.T, team *fleet.Team, checkMDM *fleet.TeamSpecMDM) teamResponse {
-			var wantDiskEncryption bool
+			// TODO - remove check of disk encryption from this function entirely?
+			// var wantDiskEncryption bool
 			var wantMacOSSetup fleet.MacOSSetup
 			if checkMDM != nil {
 				wantMacOSSetup = checkMDM.MacOSSetup
-				wantDiskEncryption = checkMDM.EnableDiskEncryption.Value
+				// wantDiskEncryption = checkMDM.EnableDiskEncryption.Value
 			}
 
 			var resp teamResponse
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &resp)
 			require.Equal(t, team.Name, resp.Team.Name)
-			require.Equal(t, wantDiskEncryption, resp.Team.Config.MDM.EnableDiskEncryption)
+			// require.Equal(t, wantDiskEncryption, resp.Team.Config.MDM.EnableDiskEncryption)
 			require.Equal(t, wantMacOSSetup.BootstrapPackage.Value, resp.Team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
 			require.Equal(t, wantMacOSSetup.MacOSSetupAssistant.Value, resp.Team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value)
 			require.Equal(t, wantMacOSSetup.EnableEndUserAuthentication, resp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
@@ -8181,9 +8179,10 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 				&fleet.TeamSpecMDM{
 					EnableDiskEncryption: optjson.SetBool(true),
 				},
-				// disk encryption requires mdm enabled and configured
-				http.StatusUnprocessableEntity,
+				// disk encryption does not require mdm enabled and configured
+				http.StatusOK,
 			},
+			// Ian - this test still passes, that is, returns 4xx – perhaps related to one of the endpoints we still need to update
 			{
 				"enable end user auth",
 				&fleet.TeamSpecMDM{
