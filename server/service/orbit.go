@@ -1076,7 +1076,7 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 	return svc.ds.SaveLUKSData(ctx, host.ID, encryptedPassphrase, encryptedSalt, validatedKeySlot)
 }
 
-func (svc *Service) validateAndEncrypt(ctx context.Context, passphrase string, salt string, keySlot *uint) (string, string, uint, error) {
+func (svc *Service) validateAndEncrypt(ctx context.Context, passphrase string, salt string, keySlot *uint) (encryptedPassphrase string, encryptedSalt string, validatedKeySlot uint, err error) {
 	if passphrase == "" || salt == "" || keySlot == nil {
 		return "", "", 0, badRequest("passphrase, salt, and key_slot must be provided to escrow LUKS data")
 	}
@@ -1084,11 +1084,11 @@ func (svc *Service) validateAndEncrypt(ctx context.Context, passphrase string, s
 		return "", "", 0, newOsqueryError("internal error: missing server private key")
 	}
 
-	encryptedPassphrase, err := mdm.EncryptAndEncode(passphrase, svc.config.Server.PrivateKey)
+	encryptedPassphrase, err = mdm.EncryptAndEncode(passphrase, svc.config.Server.PrivateKey)
 	if err != nil {
 		return "", "", 0, ctxerr.Wrap(ctx, err, "internal error: could not encrypt LUKS data")
 	}
-	encryptedSalt, err := mdm.EncryptAndEncode(salt, svc.config.Server.PrivateKey)
+	encryptedSalt, err = mdm.EncryptAndEncode(salt, svc.config.Server.PrivateKey)
 	if err != nil {
 		return "", "", 0, ctxerr.Wrap(ctx, err, "internal error: could not encrypt LUKS data")
 	}
