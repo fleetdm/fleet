@@ -148,7 +148,9 @@ type HostScriptRequestPayload struct {
 	UserID *uint `json:"-"`
 	// SyncRequest is filled automatically based on the endpoint used to create
 	// the execution request (synchronous or asynchronous).
-	SyncRequest             bool  `json:"-"`
+	SyncRequest bool `json:"-"`
+	// SetupExperienceScriptID is the ID of the setup experience script related to this request
+	// payload, if such a script exists.
 	SetupExperienceScriptID *uint `json:"-"`
 }
 
