@@ -24,9 +24,9 @@ type Dialog interface {
 	// ShowInfo displays a dialog that displays information. It returns an error if the dialog
 	// could not be displayed.
 	ShowInfo(ctx context.Context, opts InfoOptions) error
-	// Progress displays a dialog that shows progress. It returns a channel that can be used to
-	// end the dialog.
-	ShowProgress(ctx context.Context, opts ProgressOptions) chan struct{}
+	// Progress displays a dialog that shows progress. It waits until the
+	// context is cancelled.
+	ShowProgress(ctx context.Context, opts ProgressOptions) error
 }
 
 // EntryOptions represents options for a dialog that accepts end user input.
@@ -63,10 +63,4 @@ type ProgressOptions struct {
 
 	// Text sets the text of the dialog.
 	Text string
-
-	// Pulsate sets the progress bar to pulsate.
-	Pulsate bool
-
-	// NoCancel sets the dialog to grey out the cancel button.
-	NoCancel bool
 }

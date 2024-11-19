@@ -27,14 +27,12 @@ func main() {
 		panic(err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancelProgress := context.WithCancel(context.Background())
 
 	go func() {
 		err := prompt.ShowProgress(ctx, dialog.ProgressOptions{
-			Title:    "Zenity Test Progress Title",
-			Text:     "Zenity Test Progress Text",
-			Pulsate:  true,
-			NoCancel: true,
+			Title: "Zenity Test Progress Title",
+			Text:  "Zenity Test Progress Text",
 		})
 		if err != nil {
 			fmt.Println("Err ShowProgress")
@@ -43,7 +41,7 @@ func main() {
 	}()
 
 	time.Sleep(2 * time.Second)
-	cancel()
+	cancelProgress()
 
 	err = prompt.ShowInfo(ctx, dialog.InfoOptions{
 		Title:   "Zenity Test Info Title",

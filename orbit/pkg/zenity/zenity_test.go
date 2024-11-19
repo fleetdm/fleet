@@ -225,17 +225,7 @@ func TestProgressArgs(t *testing.T) {
 				Title: "A Title",
 				Text:  "Some text",
 			},
-			expectedArgs: []string{"--progress", "--title=A Title", "--text=Some text"},
-		},
-		{
-			name: "All Options",
-			opts: dialog.ProgressOptions{
-				Title:    "Another Title",
-				Text:     "Some more text",
-				Pulsate:  true,
-				NoCancel: true,
-			},
-			expectedArgs: []string{"--progress", "--title=Another Title", "--text=Some more text", "--pulsate", "--no-cancel"},
+			expectedArgs: []string{"--progress", "--title=A Title", "--text=Some text", "--pulsate", "--no-cancel"},
 		},
 	}
 
