@@ -2984,7 +2984,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 
 		t.Run("sso enabled", func(t *testing.T) {
 			tcResp := teamResponse{}
-			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), json.RawMessage(fmt.Sprintf(`{ "mdm": { "macos_setup": { "enable_end_user_authentication": true } } }`)), http.StatusOK, &tcResp)
+			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), json.RawMessage(`{ "mdm": { "macos_setup": { "enable_end_user_authentication": true } } }`), http.StatusOK, &tcResp)
 
 			acResp := appConfigResponse{}
 			s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
