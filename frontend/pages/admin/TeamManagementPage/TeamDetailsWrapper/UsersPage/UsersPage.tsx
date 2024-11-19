@@ -19,7 +19,7 @@ import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
 import TableCount from "components/TableContainer/TableCount";
-import CreateUserModal from "pages/admin/UserManagementPage/components/CreateUserModal";
+import CreateUserModal from "pages/admin/UserManagementPage/components/AddUserModal";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import {
   IFormData,
@@ -471,7 +471,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
       )}
       {showCreateUserModal && currentTeamDetails && (
         <CreateUserModal
-          createUserErrors={createUserErrors}
+          addUserErrors={createUserErrors}
           onCancel={toggleCreateUserModal}
           onSubmit={onCreateUserSubmit}
           defaultGlobalRole={null}

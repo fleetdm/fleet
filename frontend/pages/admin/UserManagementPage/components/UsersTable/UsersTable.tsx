@@ -15,7 +15,7 @@ import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import usersAPI from "services/entities/users";
 import invitesAPI from "services/entities/invites";
 
-import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
+import { DEFAULT_CREATE_USER_ERRORS as DEFAULT_ADD_USER_ERRORS } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
@@ -26,7 +26,7 @@ import DeleteUserModal from "../DeleteUserModal";
 import ResetPasswordModal from "../ResetPasswordModal";
 import ResetSessionsModal from "../ResetSessionsModal";
 import { NewUserType } from "../UserForm/UserForm";
-import CreateUserModal from "../CreateUserModal";
+import AddUserModal from "../AddUserModal";
 import EditUserModal from "../EditUserModal";
 
 const EmptyUsersTable = () => (
@@ -45,18 +45,18 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
   // STATES
-  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [showResetSessionsModal, setShowResetSessionsModal] = useState(false);
   const [isUpdatingUsers, setIsUpdatingUsers] = useState(false);
   const [userEditing, setUserEditing] = useState<any>(null);
-  const [createUserErrors, setCreateUserErrors] = useState<IUserFormErrors>(
-    DEFAULT_CREATE_USER_ERRORS
+  const [addUserErrors, setAddUserErrors] = useState<IUserFormErrors>(
+    DEFAULT_ADD_USER_ERRORS
   );
   const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>(
-    DEFAULT_CREATE_USER_ERRORS
+    DEFAULT_ADD_USER_ERRORS
   );
   const [querySearchText, setQuerySearchText] = useState("");
 
@@ -103,19 +103,19 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   );
 
   // TODO: Cleanup useCallbacks, add missing dependencies, use state setter functions, e.g.,
-  // `setShowCreateUserModal((prevState) => !prevState)`, instead of including state
+  // `setShowAddUserModal((prevState) => !prevState)`, instead of including state
   // variables as dependencies for toggles, etc.
 
   // TOGGLE MODALS
 
-  const toggleCreateUserModal = useCallback(() => {
-    setShowCreateUserModal(!showCreateUserModal);
+  const toggleAddUserModal = useCallback(() => {
+    setShowAddUserModal(!showAddUserModal);
 
     // clear errors on close
-    if (!showCreateUserModal) {
-      setCreateUserErrors(DEFAULT_CREATE_USER_ERRORS);
+    if (!showAddUserModal) {
+      setAddUserErrors(DEFAULT_ADD_USER_ERRORS);
     }
-  }, [showCreateUserModal, setShowCreateUserModal]);
+  }, [showAddUserModal, setShowAddUserModal]);
 
   const toggleDeleteUserModal = useCallback(
     (user?: IUser | IInvite) => {
@@ -129,7 +129,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     (user?: IUser | IInvite) => {
       setShowEditUserModal(!showEditUserModal);
       setUserEditing(!showEditUserModal ? user : null);
-      setEditUserErrors(DEFAULT_CREATE_USER_ERRORS);
+      setEditUserErrors(DEFAULT_ADD_USER_ERRORS);
     },
     [showEditUserModal, setShowEditUserModal, setUserEditing]
   );
@@ -211,7 +211,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     return userData;
   };
 
-  const onCreateUserSubmit = (formData: any) => {
+  const onAddUserSubmit = (formData: any) => {
     setIsUpdatingUsers(true);
 
     if (formData.newUserType === NewUserType.AdminInvited) {
@@ -233,24 +233,24 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
             "success",
             `An invitation email was sent${senderAddressMessage} to ${formData.email}.`
           );
-          toggleCreateUserModal();
+          toggleAddUserModal();
           refetchInvites();
         })
         .catch((userErrors: { data: IApiError }) => {
           if (userErrors.data.errors[0].reason.includes("already exists")) {
-            setCreateUserErrors({
+            setAddUserErrors({
               email: "A user with this email address already exists",
             });
           } else if (
             userErrors.data.errors[0].reason.includes("required criteria")
           ) {
-            setCreateUserErrors({
+            setAddUserErrors({
               password: "Password must meet the criteria below",
             });
           } else if (
             userErrors.data.errors?.[0].reason.includes("password too long")
           ) {
-            setCreateUserErrors({
+            setAddUserErrors({
               password: "Password is over the character limit.",
             });
           } else {
@@ -271,24 +271,24 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         .createUserWithoutInvitation(requestData)
         .then(() => {
           renderFlash("success", `Successfully created ${requestData.name}.`);
-          toggleCreateUserModal();
+          toggleAddUserModal();
           refetchUsers();
         })
         .catch((userErrors: { data: IApiError }) => {
           if (userErrors.data.errors[0].reason.includes("Duplicate")) {
-            setCreateUserErrors({
+            setAddUserErrors({
               email: "A user with this email address already exists",
             });
           } else if (
             userErrors.data.errors[0].reason.includes("required criteria")
           ) {
-            setCreateUserErrors({
+            setAddUserErrors({
               password: "Password must meet the criteria below",
             });
           } else if (
             userErrors.data.errors?.[0].reason.includes("password too long")
           ) {
-            setCreateUserErrors({
+            setAddUserErrors({
               password: "Password is over the character limit.",
             });
           } else {
@@ -483,12 +483,12 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     );
   };
 
-  const renderCreateUserModal = () => {
+  const renderAddUserModal = () => {
     return (
-      <CreateUserModal
-        createUserErrors={createUserErrors}
-        onCancel={toggleCreateUserModal}
-        onSubmit={onCreateUserSubmit}
+      <AddUserModal
+        addUserErrors={addUserErrors}
+        onCancel={toggleAddUserModal}
+        onSubmit={onAddUserSubmit}
         availableTeams={teams || []}
         defaultGlobalRole="observer"
         defaultTeams={[]}
@@ -572,9 +572,9 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           defaultSortDirection="asc"
           inputPlaceHolder="Search by name or email"
           actionButton={{
-            name: "create user",
-            buttonText: "Create user",
-            onActionButtonClick: toggleCreateUserModal,
+            name: "add user",
+            buttonText: "Add user",
+            onActionButtonClick: toggleAddUserModal,
           }}
           onQueryChange={onTableQueryChange}
           resultsTitle={"users"}
@@ -586,7 +586,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           renderCount={renderUsersCount}
         />
       )}
-      {showCreateUserModal && renderCreateUserModal()}
+      {showAddUserModal && renderAddUserModal()}
       {showEditUserModal && renderEditUserModal()}
       {showDeleteUserModal && renderDeleteUserModal()}
       {showResetSessionsModal && renderResetSessionsModal()}

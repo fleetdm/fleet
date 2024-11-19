@@ -24,7 +24,7 @@ import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
 import { roleOptions } from "../../helpers/userManagementHelpers";
 
-const baseClass = "create-user-form";
+const baseClass = "add-user-form";
 
 export enum NewUserType {
   AdminInvited = "ADMIN_INVITED",
@@ -392,6 +392,55 @@ const UserForm = ({
   return (
     <form className={baseClass} autoComplete="off">
       {/* {baseError && <div className="form__base-error">{baseError}</div>} */}
+      {isNewUser && (
+        <div className="form-field">
+          {isModifiedByGlobalAdmin ? (
+            <>
+              <div className="form-field__label">Account</div>
+              <Radio
+                className={`${baseClass}__radio-input`}
+                label="Create user"
+                id="create-user"
+                checked={formData.newUserType !== NewUserType.AdminInvited}
+                value={NewUserType.AdminCreated}
+                name="new-user-type"
+                onChange={onRadioChange("newUserType")}
+              />
+              <Radio
+                className={`${baseClass}__radio-input`}
+                label="Invite user"
+                id="invite-user"
+                disabled={!(smtpConfigured || sesConfigured)}
+                checked={formData.newUserType === NewUserType.AdminInvited}
+                value={NewUserType.AdminInvited}
+                name="new-user-type"
+                onChange={onRadioChange("newUserType")}
+                tooltip={
+                  smtpConfigured || sesConfigured ? (
+                    ""
+                  ) : (
+                    <>
+                      The &quot;Invite user&quot; feature requires that SMTP or
+                      SES is configured in order to send invitation emails.
+                      <br />
+                      <br />
+                      SMTP can be configured in Settings &gt; Organization
+                      settings.
+                    </>
+                  )
+                }
+              />
+            </>
+          ) : (
+            <input
+              type="hidden"
+              id="create-user"
+              value={NewUserType.AdminCreated}
+              name="new-user-type"
+            />
+          )}
+        </div>
+      )}
       <InputField
         label="Full name"
         autofocus
@@ -423,6 +472,38 @@ const UserForm = ({
           </>
         }
       />
+      {isNewUser && (
+        <>
+          {formData.newUserType !== NewUserType.AdminInvited &&
+            !formData.sso_enabled && (
+              <>
+                <div className={`${baseClass}__password`}>
+                  <InputField
+                    label="Password"
+                    error={errors.password}
+                    name="password"
+                    onChange={onInputChange("password")}
+                    placeholder="Password"
+                    value={formData.password || ""}
+                    type="password"
+                    helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
+                    blockAutoComplete
+                    tooltip={
+                      <>
+                        This password is temporary. This user will be asked to
+                        set a new password after logging in to the Fleet UI.
+                        <br />
+                        <br />
+                        This user will not be asked to set a new password after
+                        logging in to fleetctl or the Fleet API.
+                      </>
+                    }
+                  />
+                </div>
+              </>
+            )}
+        </>
+      )}
       {!isNewUser &&
         !isInvitePending &&
         isModifiedByGlobalAdmin &&
@@ -476,85 +557,6 @@ const UserForm = ({
           </Checkbox>
         </div>
       )}
-      {isNewUser && (
-        <>
-          <div className="form-field">
-            {isModifiedByGlobalAdmin ? (
-              <>
-                <div className="form-field__label">Account</div>
-                <Radio
-                  className={`${baseClass}__radio-input`}
-                  label="Create user"
-                  id="create-user"
-                  checked={formData.newUserType !== NewUserType.AdminInvited}
-                  value={NewUserType.AdminCreated}
-                  name="new-user-type"
-                  onChange={onRadioChange("newUserType")}
-                />
-                <Radio
-                  className={`${baseClass}__radio-input`}
-                  label="Invite user"
-                  id="invite-user"
-                  disabled={!(smtpConfigured || sesConfigured)}
-                  checked={formData.newUserType === NewUserType.AdminInvited}
-                  value={NewUserType.AdminInvited}
-                  name="new-user-type"
-                  onChange={onRadioChange("newUserType")}
-                  tooltip={
-                    smtpConfigured || sesConfigured ? (
-                      ""
-                    ) : (
-                      <>
-                        The &quot;Invite user&quot; feature requires that SMTP
-                        or SES is configured in order to send invitation emails.
-                        <br />
-                        <br />
-                        SMTP can be configured in Settings &gt; Organization
-                        settings.
-                      </>
-                    )
-                  }
-                />
-              </>
-            ) : (
-              <input
-                type="hidden"
-                id="create-user"
-                value={NewUserType.AdminCreated}
-                name="new-user-type"
-              />
-            )}
-          </div>
-          {formData.newUserType !== NewUserType.AdminInvited &&
-            !formData.sso_enabled && (
-              <>
-                <div className={`${baseClass}__password`}>
-                  <InputField
-                    label="Password"
-                    error={errors.password}
-                    name="password"
-                    onChange={onInputChange("password")}
-                    placeholder="Password"
-                    value={formData.password || ""}
-                    type="password"
-                    helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
-                    blockAutoComplete
-                    tooltip={
-                      <>
-                        This password is temporary. This user will be asked to
-                        set a new password after logging in to the Fleet UI.
-                        <br />
-                        <br />
-                        This user will not be asked to set a new password after
-                        logging in to fleetctl or the Fleet API.
-                      </>
-                    }
-                  />
-                </div>
-              </>
-            )}
-        </>
-      )}
       {isPremiumTier && (
         <>
           <div className="form-field">
@@ -590,7 +592,7 @@ const UserForm = ({
       )}
       {!isPremiumTier && renderGlobalRoleForm()}
 
-      <div className="modal-cta-wrap">
+      <div className="modal-cta-footer">
         <Button
           type="submit"
           variant="brand"
