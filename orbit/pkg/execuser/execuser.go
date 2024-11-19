@@ -52,7 +52,7 @@ func RunWithOutput(path string, opts ...Option) (output []byte, exitCode int, er
 }
 
 // RunWithWait runs an application as the current login user and waits for it to finish
-// or to be canceled by the context.
+// or to be canceled by the context.  Canceling the context will not return an error.
 // It assumes the caller is running with high privileges (root on UNIX).
 func RunWithWait(ctx context.Context, path string, opts ...Option) error {
 	var o eopts
