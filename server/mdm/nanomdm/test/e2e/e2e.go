@@ -79,6 +79,9 @@ func TestE2E(t *testing.T, ctx context.Context, store storage.AllStorage) {
 		t.Fatal(err)
 	}
 
+	t.Run("certauth", func(t *testing.T) { certAuth(t, ctx, store) })
+	t.Run("certauth-retro", func(t *testing.T) { certAuthRetro(t, ctx, store) })
+
 	// regression test for retrieving push info of missing devices.
 	t.Run("invalid-pushinfo", func(t *testing.T) {
 		_, err := store.RetrievePushInfo(ctx, []string{"INVALID"})

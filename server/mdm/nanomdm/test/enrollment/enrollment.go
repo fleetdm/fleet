@@ -105,6 +105,13 @@ func NewFromCheckins(doer protocol.Doer, serverURL, checkInURL, authenticatePath
 	return e, err
 }
 
+// ReplaceIdentityRandom changes the certificate private key to a random certificate and key.
+func ReplaceIdentityRandom(e *Enrollment) error {
+	var err error
+	e.key, e.cert, err = test.SimpleSelfSignedRSAKeypair("TESTDEVICE", 2)
+	return err
+}
+
 // NewRandomDeviceEnrollment creates a new randomly identified MDM enrollment.
 func NewRandomDeviceEnrollment(doer protocol.Doer, topic, serverURL, checkInURL string) (*Enrollment, error) {
 	udid := randString(32)
@@ -133,12 +140,12 @@ func NewRandomDeviceEnrollment(doer protocol.Doer, topic, serverURL, checkInURL 
 }
 
 // GetIdentity supplies the identity certificate and key of this enrollment.
-func (e *Enrollment) GetIdentity(context.Context) (*x509.Certificate, crypto.PrivateKey, error) {
-	return e.cert, e.key, nil
+func (c *Enrollment) GetIdentity(context.Context) (*x509.Certificate, crypto.PrivateKey, error) {
+	return c.cert, c.key, nil
 }
 
-// genAuthenticate creates an XML Plist Authenticate check-in message.
-func (e *Enrollment) genAuthenticate() (io.Reader, error) {
+// GenAuthenticate creates an XML Plist Authenticate check-in message.
+func (e *Enrollment) GenAuthenticate() (io.Reader, error) {
 	a := &mdm.Authenticate{
 		Enrollment:   e.enrollment,
 		MessageType:  mdm.MessageType{MessageType: "Authenticate"},
@@ -148,8 +155,8 @@ func (e *Enrollment) genAuthenticate() (io.Reader, error) {
 	return test.PlistReader(a)
 }
 
-// genTokenUpdate creates an XML Plist TokenUpdate check-in message.
-func (e *Enrollment) genTokenUpdate() (io.Reader, error) {
+// GenTokenUpdate creates an XML Plist TokenUpdate check-in message.
+func (e *Enrollment) GenTokenUpdate() (io.Reader, error) {
 	t := &mdm.TokenUpdate{
 		Enrollment:  e.enrollment,
 		MessageType: mdm.MessageType{MessageType: "TokenUpdate"},
@@ -159,14 +166,36 @@ func (e *Enrollment) genTokenUpdate() (io.Reader, error) {
 	return test.PlistReader(t)
 }
 
-// DoTokenUpdate sends a TokenUpdate to the MDM server.
-func (e *Enrollment) DoTokenUpdate(ctx context.Context) error {
-	e.enrollM.Lock()
-	defer e.enrollM.Unlock()
-	return e.doTokenUpdate(ctx)
+// doAuthenticate sends an Authenticate check-in message to the MDM server.
+func (e *Enrollment) doAuthenticate(ctx context.Context) error {
+	e.enrolled = false
+
+	// generate Authenticate check-in message
+	auth, err := e.GenAuthenticate()
+	if err != nil {
+		return err
+	}
+
+	// send it to the MDM server
+	authResp, err := e.transport.DoCheckIn(ctx, auth)
+	if err != nil {
+		return err
+	}
+	defer authResp.Body.Close()
+
+	// check for any errors
+	return HTTPErrors(authResp)
 }
 
-// doTokenUpdate sends a TokenUpdate to the MDM server.
+// DoAuthenticate sends an Authenticate check-in message to the MDM server.
+func (e *Enrollment) DoAuthenticate(ctx context.Context) error {
+	e.enrollM.Lock()
+	defer e.enrollM.Unlock()
+	return e.doAuthenticate(ctx)
+}
+
+// doTokenUpdate sends a TokenUpdate check-in message to the MDM server.
+// A new random push token is generated for the device.
 func (e *Enrollment) doTokenUpdate(ctx context.Context) error {
 	// generate new random push token.
 	// the token comes from Apple's APNs service. so we'll simulate this
@@ -174,7 +203,7 @@ func (e *Enrollment) doTokenUpdate(ctx context.Context) error {
 	e.push.Token = []byte(randString(32))
 
 	// generate TokenUpdate check-in message
-	msg, err := e.genTokenUpdate()
+	msg, err := e.GenTokenUpdate()
 	if err != nil {
 		return err
 	}
@@ -190,6 +219,14 @@ func (e *Enrollment) doTokenUpdate(ctx context.Context) error {
 	return HTTPErrors(resp)
 }
 
+// DoTokenUpdate sends a TokenUpdate check-in message to the MDM server.
+// A new random push token is generated for the device.
+func (e *Enrollment) DoTokenUpdate(ctx context.Context) error {
+	e.enrollM.Lock()
+	defer e.enrollM.Unlock()
+	return e.doTokenUpdate(ctx)
+}
+
 // DoEnroll enrolls (or re-enrolls) this enrollment into MDM.
 // Authenticate and TokenUpdate check-in messages are sent via the
 // transport to the MDM server.
@@ -197,32 +234,14 @@ func (e *Enrollment) DoEnroll(ctx context.Context) error {
 	e.enrollM.Lock()
 	defer e.enrollM.Unlock()
 
-	if e.enrolled {
-		e.enrolled = false
-	}
-
-	// generate Authenticate check-in message
-	auth, err := e.genAuthenticate()
+	err := e.doAuthenticate(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("authenticate check-in: %w", err)
 	}
-
-	// send it to the MDM server
-	authResp, err := e.transport.DoCheckIn(ctx, auth)
-	if err != nil {
-		return err
-	}
-
-	// check for any errors
-	if err = HTTPErrors(authResp); err != nil {
-		authResp.Body.Close()
-		return fmt.Errorf("enrollment authenticate check-in: %w", err)
-	}
-	authResp.Body.Close()
 
 	err = e.doTokenUpdate(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("tokenupdate check-in: %w", err)
 	}
 
 	e.enrolled = true
@@ -249,8 +268,9 @@ func (e *Enrollment) EnrollID() *mdm.EnrollID {
 
 func (e *Enrollment) NewMDMRequest(ctx context.Context) *mdm.Request {
 	return &mdm.Request{
-		Context:  ctx,
-		EnrollID: e.EnrollID(),
+		Context:     ctx,
+		EnrollID:    e.EnrollID(),
+		Certificate: e.cert,
 	}
 }
 
@@ -268,12 +288,12 @@ func (e *Enrollment) DoReportAndFetch(ctx context.Context, report io.Reader) (*h
 
 // genSetBootstrapToken creates an XML Plist SetBootstrapToken check-in message.
 func (e *Enrollment) genSetBootstrapToken(token []byte) (io.Reader, error) {
+	b64Token := base64.StdEncoding.EncodeToString(token)
 	msg := &mdm.SetBootstrapToken{
 		Enrollment:     e.enrollment,
 		MessageType:    mdm.MessageType{MessageType: "SetBootstrapToken"},
-		BootstrapToken: mdm.BootstrapToken{BootstrapToken: make([]byte, base64.StdEncoding.EncodedLen(len(token)))},
+		BootstrapToken: mdm.BootstrapToken{BootstrapToken: []byte(b64Token)},
 	}
-	base64.StdEncoding.Encode(msg.BootstrapToken.BootstrapToken, token)
 	return test.PlistReader(msg)
 }
 

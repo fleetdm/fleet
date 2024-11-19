@@ -203,7 +203,7 @@ jobs:
     env:
       MYSQL_PWD: testpw
       PORT: 3800
-      RACE_ENABLED: false
+      RACE_ENABLED: true
       GO_TEST_TIMEOUT: 20m
     steps:
       - name: Harden Runner
