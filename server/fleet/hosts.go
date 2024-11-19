@@ -1179,6 +1179,7 @@ type HostDiskEncryptionKey struct {
 	Decryptable     *bool     `json:"-" db:"decryptable"`
 	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
 	DecryptedValue  string    `json:"key" db:"-"`
+	ClientError     string    `json:"-" db:"client_error"`
 }
 
 // HostSoftwareInstalledPath represents where in the file system a software on a host was installed

@@ -3922,7 +3922,7 @@ func (ds *Datastore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) 
 	var key fleet.HostDiskEncryptionKey
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &key, `
           SELECT
-            host_id, base64_encrypted, decryptable, updated_at
+            host_id, base64_encrypted, decryptable, updated_at, client_error
           FROM
             host_disk_encryption_keys
           WHERE host_id = ?`, hostID)
