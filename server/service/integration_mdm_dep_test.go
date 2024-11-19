@@ -2077,6 +2077,57 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
 
+	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
+	// it out manually
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
+	require.Len(t, results, 2)
+	require.NoError(t, err)
+	var installUUID string
+	for _, r := range results {
+		if r.HostSoftwareInstallsExecutionID != nil {
+			installUUID = *r.HostSoftwareInstallsExecutionID
+		}
+	}
+
+	require.NotEmpty(t, installUUID)
+
+	// Need to get the software title to get the package name
+	var getSoftwareTitleResp getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *statusResp.Results.Software[0].SoftwareTitleID), nil, http.StatusOK, &getSoftwareTitleResp, "team_id", fmt.Sprintf("%d", *enrolledHost.TeamID))
+	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle)
+	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage)
+
+	debugPrintActivities := func(activities []*fleet.Activity) []string {
+		var res []string
+		for _, activity := range activities {
+			res = append(res, fmt.Sprintf("%+v", activity))
+		}
+		return res
+	}
+
+	// Check upcoming activities: we should only have the software upcoming because we don't run the
+	// script until after the software is done
+	var hostActivitiesResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", enrolledHost.ID),
+		nil, http.StatusOK, &hostActivitiesResp)
+
+	expectedActivityDetail := fmt.Sprintf(`
+	{
+		"status": "pending_install",
+		"host_id": %d,
+		"policy_id": null,
+		"policy_name": null,
+		"install_uuid": "%s",
+		"self_service": false,
+		"software_title": "%s",
+		"software_package": "%s",
+		"host_display_name": "%s"
+	}
+	`, enrolledHost.ID, installUUID, getSoftwareTitleResp.SoftwareTitle.Name, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage.Name, enrolledHost.DisplayName())
+	require.Len(t, hostActivitiesResp.Activities, 1, "got activities: %v", debugPrintActivities(hostActivitiesResp.Activities))
+	require.NotNil(t, hostActivitiesResp.Activities[0].Details)
+	require.JSONEq(t, expectedActivityDetail, string(*hostActivitiesResp.Activities[0].Details))
+
 	// no MDM command got enqueued due to the /status call (device not released yet)
 	cmd, err = mdmDevice.Idle()
 	require.NoError(t, err)
@@ -2093,20 +2144,6 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.NotNil(t, statusResp.Results.Script)
 	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
-
-	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
-	// it out manually
-	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
-	require.Len(t, results, 2)
-	require.NoError(t, err)
-	var installUUID string
-	for _, r := range results {
-		if r.HostSoftwareInstallsExecutionID != nil {
-			installUUID = *r.HostSoftwareInstallsExecutionID
-		}
-	}
-
-	require.NotEmpty(t, installUUID)
 
 	// record a result for software installation
 	s.Do("POST", "/api/fleet/orbit/software_install/result",
@@ -2142,22 +2179,29 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusRunning, statusResp.Results.Script.Status)
 
-	// Validate activity for software install
+	// Get script exec ID
+	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
+	require.Len(t, results, 2)
+	require.NoError(t, err)
+	var execID string
+	for _, r := range results {
+		if r.ScriptExecutionID != nil {
+			execID = *r.ScriptExecutionID
+		}
+	}
 
-	// Need to get the software title to get the package name
-	var getSoftwareTitleResp getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *statusResp.Results.Software[0].SoftwareTitleID), nil, http.StatusOK, &getSoftwareTitleResp, "team_id", fmt.Sprintf("%d", *enrolledHost.TeamID))
-	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle)
-	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage)
-
+	// Validate past activity for software install
 	// For some reason the display name that's included in the `enrolledHost` is _slightly_
 	// different than the expected value in the activities. Pulling the host directly gets the
 	// correct display name.
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", enrolledHost.ID), nil, http.StatusOK, &getHostResp)
 
-	expectedActivityDetail := fmt.Sprintf(`
+	expectedActivityDetail = fmt.Sprintf(`
 {
   "host_id": %d,
   "host_display_name": "%s",
@@ -2173,20 +2217,24 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 
 	s.lastActivityMatches(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), expectedActivityDetail, 0)
 
-	require.NotNil(t, statusResp.Results.Script)
-	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
-	require.Equal(t, fleet.SetupExperienceStatusRunning, statusResp.Results.Script.Status)
+	// Validate upcoming activity for the script
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", enrolledHost.ID),
+		nil, http.StatusOK, &hostActivitiesResp)
 
-	// Get script exec ID
-	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
-	require.Len(t, results, 2)
-	require.NoError(t, err)
-	var execID string
-	for _, r := range results {
-		if r.ScriptExecutionID != nil {
-			execID = *r.ScriptExecutionID
-		}
-	}
+	expectedActivityDetail = fmt.Sprintf(`
+{
+	"async": true,
+	"host_id": %d,
+	"policy_id": null,
+	"policy_name": null,
+	"script_name": "%s",
+	"host_display_name": "%s",
+	"script_execution_id": "%s"
+}
+	`, enrolledHost.ID, statusResp.Results.Script.Name, enrolledHost.DisplayName(), execID)
+	require.Len(t, hostActivitiesResp.Activities, 1, "got activities: %v", debugPrintActivities(hostActivitiesResp.Activities))
+	require.NotNil(t, hostActivitiesResp.Activities[0].Details)
+	require.JSONEq(t, expectedActivityDetail, string(*hostActivitiesResp.Activities[0].Details))
 
 	// record a result for script execution
 	var scriptResp orbitPostScriptResultResponse
