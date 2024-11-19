@@ -6,6 +6,7 @@ package execuser
 // To view what was modified/added, you can use the execuser_windows_diff.sh script.
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -119,6 +120,10 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 
 func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
 	return nil, 0, errors.New("not implemented")
+}
+
+func runWithWait(ctx context.Context, path string, opts eopts) error {
+	return errors.New("not implemented")
 }
 
 // getCurrentUserSessionId will attempt to resolve

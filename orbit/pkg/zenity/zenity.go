@@ -11,15 +11,18 @@ import (
 )
 
 type Zenity struct {
-	// execCmdFn can be set in tests to mock execution of the dialog.
-	execCmdFn func(ctx context.Context, args ...string) ([]byte, int, error)
+	// cmdWithOutput can be set in tests to mock execution of the dialog.
+	cmdWithOutput func(ctx context.Context, args ...string) ([]byte, int, error)
+	// cmdWithWait can be set in tests to mock execution of the dialog.
+	cmdWithWait func(ctx context.Context, args ...string) error
 }
 
 // NewZenity creates a new Zenity dialog instance for zenity v4 on Linux.
 // Zenity implements the Dialog interface.
 func New() *Zenity {
 	return &Zenity{
-		execCmdFn: execCmd,
+		cmdWithOutput: execCmdWithOutput,
+		cmdWithWait:   execCmdWithWait,
 	}
 }
 
@@ -40,7 +43,7 @@ func (z *Zenity) ShowEntry(ctx context.Context, opts dialog.EntryOptions) ([]byt
 		args = append(args, fmt.Sprintf("--timeout=%d", int(opts.TimeOut.Seconds())))
 	}
 
-	output, statusCode, err := z.execCmdFn(ctx, args...)
+	output, statusCode, err := z.cmdWithOutput(ctx, args...)
 	if err != nil {
 		switch statusCode {
 		case 1:
@@ -68,7 +71,7 @@ func (z *Zenity) ShowInfo(ctx context.Context, opts dialog.InfoOptions) error {
 		args = append(args, fmt.Sprintf("--timeout=%d", int(opts.TimeOut.Seconds())))
 	}
 
-	_, statusCode, err := z.execCmdFn(ctx, args...)
+	_, statusCode, err := z.cmdWithOutput(ctx, args...)
 	if err != nil {
 		switch statusCode {
 		case 5:
@@ -81,7 +84,32 @@ func (z *Zenity) ShowInfo(ctx context.Context, opts dialog.InfoOptions) error {
 	return nil
 }
 
-func execCmd(ctx context.Context, args ...string) ([]byte, int, error) {
+// ShowProgress displays a progress dialog. It returns a channel that can be used to
+// end the dialog.
+func (z *Zenity) ShowProgress(ctx context.Context, opts dialog.ProgressOptions) error {
+	args := []string{"--progress"}
+	if opts.Title != "" {
+		args = append(args, fmt.Sprintf("--title=%s", opts.Title))
+	}
+	if opts.Text != "" {
+		args = append(args, fmt.Sprintf("--text=%s", opts.Text))
+	}
+	if opts.Pulsate {
+		args = append(args, "--pulsate")
+	}
+	if opts.NoCancel {
+		args = append(args, "--no-cancel")
+	}
+
+	err := z.cmdWithWait(ctx, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, dialog.ErrUnknown, err.Error())
+	}
+
+	return nil
+}
+
+func execCmdWithOutput(ctx context.Context, args ...string) ([]byte, int, error) {
 	var opts []execuser.Option
 	for _, arg := range args {
 		opts = append(opts, execuser.WithArg(arg, "")) // Using empty value for positional args
@@ -93,4 +121,13 @@ func execCmd(ctx context.Context, args ...string) ([]byte, int, error) {
 	output = bytes.TrimSuffix(output, []byte("\n"))
 
 	return output, exitCode, err
+}
+
+func execCmdWithWait(ctx context.Context, args ...string) error {
+	var opts []execuser.Option
+	for _, arg := range args {
+		opts = append(opts, execuser.WithArg(arg, "")) // Using empty value for positional args
+	}
+
+	return execuser.RunWithWait(ctx, "zenity", opts...)
 }
