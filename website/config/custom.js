@@ -301,7 +301,6 @@ module.exports.custom = {
     // "Secret handbook"
     // Standard operating procedures (SOP), etc that would be public handbook content except for that it's confidential.
     'README.md': ['mikermcneil'],// « about this repo
-    'cold-outbound-strategy.md': ['mikermcneil', 'sampfluger88'],// « Cold outbound strategy (see fleetdm.com/handbook/company/why-this-way for our vision of a better way to sell)
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'sampfluger88', 'lukeheath'],// FUTURE: Bust out individual maintainership for issue templates once relevant DRIs are GitHub, markdown, and content design-certified

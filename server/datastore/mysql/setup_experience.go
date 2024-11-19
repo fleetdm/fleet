@@ -404,6 +404,32 @@ WHERE
 	return &script, nil
 }
 
+func (ds *Datastore) GetSetupExperienceScriptByID(ctx context.Context, scriptID uint) (*fleet.Script, error) {
+	query := `
+SELECT
+  id,
+  team_id,
+  name,
+  script_content_id,
+  created_at,
+  updated_at
+FROM
+  setup_experience_scripts
+WHERE
+  id = ?
+`
+
+	var script fleet.Script
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &script, query, scriptID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("SetupExperienceScript"), "get setup experience script by id")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get setup experience script by id")
+	}
+
+	return &script, nil
+}
+
 func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) error {
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
