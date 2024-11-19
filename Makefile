@@ -266,13 +266,13 @@ fleetd-tables-linux-arm64:
 	GOOS=linux GOARCH=arm64 go build -o fleetd_tables_linux_arm64.ext ./orbit/cmd/fleetd_tables
 fleetd-tables-darwin:
 	GOOS=darwin GOARCH=amd64 go build -o fleetd_tables_darwin.ext ./orbit/cmd/fleetd_tables
-fleetd-tables-darwin_arm:
-	GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build -o fleetd_tables_darwin_arm.ext ./orbit/cmd/fleetd_tables
-fleetd-tables-darwin-universal: fleetd-tables-darwin fleetd-tables-darwin_arm
-	lipo -create fleetd_tables_darwin.ext fleetd_tables_darwin_arm.ext -output fleetd_tables_darwin_universal.ext
+fleetd-tables-darwin_arm64:
+	GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build -o fleetd_tables_darwin_arm64.ext ./orbit/cmd/fleetd_tables
+fleetd-tables-darwin-universal: fleetd-tables-darwin fleetd-tables-darwin_arm64
+	lipo -create fleetd_tables_darwin.ext fleetd_tables_darwin_arm64.ext -output fleetd_tables_darwin_universal.ext
 fleetd-tables-all: fleetd-tables-windows fleetd-tables-linux fleetd-tables-darwin-universal fleetd-tables-linux-arm64
 fleetd-tables-clean:
-	rm -f fleetd_tables_windows.exe fleetd_tables_linux.ext fleetd_tables_darwin.ext fleetd_tables_darwin_arm.ext fleetd_tables_darwin_universal.ext
+	rm -f fleetd_tables_windows.exe fleetd_tables_linux.ext fleetd_tables_linux_arm64.ext fleetd_tables_darwin.ext fleetd_tables_darwin_arm64.ext fleetd_tables_darwin_universal.ext
 
 .pre-binary-arch:
 ifndef GOOS

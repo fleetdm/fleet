@@ -1511,7 +1511,8 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	svc, ctx = newTestServiceWithConfig(t, ds, fleetConfig, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
-		createdAt time.Time) error {
+		createdAt time.Time,
+	) error {
 		assert.IsType(t, fleet.ActivityAddedNDESSCEPProxy{}, activity)
 		return nil
 	}
@@ -1560,7 +1561,8 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	scepURL = "https://new.com/mscep/mscep.dll"
 	jsonPayload = fmt.Sprintf(jsonPayloadBase, scepURL, adminURL, username, "")
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
-		createdAt time.Time) error {
+		createdAt time.Time,
+	) error {
 		assert.IsType(t, fleet.ActivityEditedNDESSCEPProxy{}, activity)
 		return nil
 	}
@@ -1644,7 +1646,8 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	// Second, real run.
 	appConfig.Integrations.NDESSCEPProxy.Valid = true
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
-		createdAt time.Time) error {
+		createdAt time.Time,
+	) error {
 		assert.IsType(t, fleet.ActivityDeletedNDESSCEPProxy{}, activity)
 		return nil
 	}
@@ -1682,5 +1685,4 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 	_, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
 	assert.ErrorContains(t, err, "private key")
-
 }

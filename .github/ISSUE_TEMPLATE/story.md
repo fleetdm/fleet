@@ -19,9 +19,9 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 | I want to _________________________________________
 | so that I can _________________________________________.
 
-## Objective
+## Key result
 
-<!-- What quarterly objective does this story contribute to, if any? If it doesn't contribute to an objective, explain why it's being prioritized. -->
+<!-- What quarterly key result (KR) does this story contribute to, if any? If it doesn't contribute to a KR, explain why it's being prioritized. -->
 
 ## Original requests
 
@@ -49,6 +49,7 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 - [ ] Changes to paid features or tiers: TODO  <!-- Specify changes in pricing-features-table.yml as a PR to reference docs release branch. Remove this checkbox and specify "Fleet Free" or "Fleet Premium" if there are no changes to the pricing page necessary. -->
 - [ ] Other reference documentation changes: TODO <!-- Any other reference doc changes? Specify changes as a PR to reference docs release branch. Put "No changes" if there are no changes necessary. -->
 - [ ] Once shipped, requester has been notified
+- [ ] Once shipped, dogfooding issue has been filed
 
 ### Engineering
 - [ ] Feature guide changes: TODO <!-- Specify if a new feature guide is required at fleetdm.com/guides, or if a previous guide should be updated to reflect feature changes. -->

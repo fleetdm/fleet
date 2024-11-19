@@ -1,1 +1,0 @@
-* Added support to `fleetctl gitops` to specify a setup experience script to run and software to install, for a team or no team.

@@ -22,8 +22,6 @@ With Fleet, you can now install a SCEP certificate from NDES on all macOS hosts 
 
 Fleet now provides the ability to set an alternative MDM URL to help organizations differentiate MDM traffic from other Fleet traffic, allowing the application of network rules specific to MDM communications. Learn more in the guide [here](https://fleetdm.com/guides/alternate-apple-mdm-url).
 
-###
-
 ## Changes
 
 ### Endpoint operations

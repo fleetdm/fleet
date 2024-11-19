@@ -69,7 +69,7 @@ require (
 	github.com/klauspost/compress v1.17.8
 	github.com/kolide/launcher v1.0.12
 	github.com/lib/pq v1.10.9
-	github.com/macadmins/osquery-extension v1.2.1
+	github.com/macadmins/osquery-extension v1.2.3
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/micromdm/micromdm v1.9.0
@@ -92,7 +92,7 @@ require (
 	github.com/quasilyte/go-ruleguard/dsl v0.3.22
 	github.com/rs/zerolog v1.32.0
 	github.com/russellhaering/goxmldsig v1.2.0
-	github.com/saferwall/pe v1.5.2
+	github.com/saferwall/pe v1.5.5
 	github.com/sassoftware/relic/v8 v8.0.1
 	github.com/scjalliance/comshim v0.0.0-20230315213746-5e51f40bd3b9
 	github.com/sethvargo/go-password v0.3.0
@@ -111,9 +111,10 @@ require (
 	github.com/urfave/cli/v2 v2.23.5
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	github.com/ziutek/mymysql v1.5.4
-	go.elastic.co/apm/module/apmgorilla/v2 v2.3.0
-	go.elastic.co/apm/module/apmsql/v2 v2.4.3
-	go.elastic.co/apm/v2 v2.4.3
+	go.elastic.co/apm/module/apmgorilla/v2 v2.6.2
+	go.elastic.co/apm/module/apmhttp/v2 v2.6.2
+	go.elastic.co/apm/module/apmsql/v2 v2.6.2
+	go.elastic.co/apm/v2 v2.6.2
 	go.etcd.io/bbolt v1.3.9
 	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.56.0
@@ -241,6 +242,7 @@ require (
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
+	github.com/secDre4mer/pkcs7 v0.0.0-20240322103146-665324a4461d // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.5.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
@@ -260,7 +262,6 @@ require (
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	github.com/yashtewari/glob-intersection v0.1.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	go.elastic.co/apm/module/apmhttp/v2 v2.3.0 // indirect
 	go.elastic.co/fastjson v1.1.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.49.0 // indirect

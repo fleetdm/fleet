@@ -41,6 +41,7 @@ charts/fleet/charts
 
 #editors
 .idea
+.swp
 
 # Fleet local development DB backups
 backup.sql.gz

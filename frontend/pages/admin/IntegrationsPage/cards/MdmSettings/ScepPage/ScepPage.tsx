@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
@@ -29,9 +29,15 @@ const baseClass = "scep-page";
 
 const BAD_SCEP_URL_ERROR = "Invalid SCEP URL. Please correct and try again.";
 const BAD_CREDENTIALS_ERROR =
-  "Invalid admin URL or credentials. Please correct and try again.";
+  "Couldn't add. Admin URL or credentials are invalid.";
 const CACHE_ERROR =
   "The NDES password cache is full. Please increase the number of cached passwords in NDES and try again. By default, NDES caches 5 passwords and they expire 60 minutes after they are created.";
+const INSUFFICIENT_PERMISSIONS_ERROR =
+  "Couldn't add. This account doesn't have sufficient permissions. Please use the account with enroll permission.";
+const SCEP_URL_TIMEOUT_ERROR =
+  "Couldn't add. Request to NDES (SCEP URL) timed out. Please try again.";
+const ADMIN_URL_TIMEOUT_ERROR =
+  "Couldn't add. Request to NDES (admin URL) timed out. Please try again.";
 const DEFAULT_ERROR =
   "Something went wrong updating your SCEP server. Please try again.";
 
@@ -41,6 +47,7 @@ interface IScepCertificateContentProps {
   formData: INdesFormData;
   formErrors: INdesFormErrors;
   onInputChange: ({ name, value }: IFormField) => void;
+  onBlur: (name: string, value: string) => void;
   config: IConfig | null;
   isPremiumTier: boolean;
   isLoading: boolean;
@@ -54,6 +61,7 @@ export const ScepCertificateContent = ({
   formData,
   formErrors,
   onInputChange,
+  onBlur,
   config,
   isPremiumTier,
   isLoading,
@@ -105,7 +113,6 @@ export const ScepCertificateContent = ({
       <div>
         <ol className={`${baseClass}__steps`}>
           <li>
-            {/* TODO: confirm URL */}
             <div>
               Connect to your Network Device Enrollment Service (
               <CustomLink
@@ -144,6 +151,7 @@ export const ScepCertificateContent = ({
                   }
                   value={formData.adminUrl}
                   onChange={onInputChange}
+                  onBlur={(e: any) => onBlur("adminUrl", e.target.value)}
                   parseTarget
                   error={formErrors.adminUrl}
                   placeholder="https://example.com/certsrv/mscep_admin/"
@@ -161,6 +169,7 @@ export const ScepCertificateContent = ({
                   }
                   value={formData.username}
                   onChange={onInputChange}
+                  onBlur={(e: any) => onBlur("username", e.target.value)}
                   parseTarget
                   placeholder="username@example.microsoft.com"
                 />
@@ -181,6 +190,7 @@ export const ScepCertificateContent = ({
                   parseTarget
                   placeholder="••••••••"
                   blockAutoComplete
+                  error={formErrors.password}
                 />
                 <Button
                   type="submit"
@@ -229,6 +239,7 @@ interface INdesFormData {
 interface INdesFormErrors {
   scepUrl?: string | null;
   adminUrl?: string | null;
+  password?: string | null;
 }
 
 export interface IFormField {
@@ -266,6 +277,26 @@ const ScepPage = ({ router }: IScepPageProps) => {
   const onInputChange = ({ name, value }: IFormField) => {
     setFormErrors((prev) => ({ ...prev, [name]: null }));
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleBlur = (name: string, value: string) => {
+    // If the value of admin url or username has changed and
+    // it was not originally empty, prompt user to re-enter password
+    if (
+      (name === "adminUrl" &&
+        value !== config?.integrations.ndes_scep_proxy?.admin_url &&
+        config?.integrations.ndes_scep_proxy?.admin_url !== "") ||
+      (name === "username" &&
+        value !== config?.integrations.ndes_scep_proxy?.username &&
+        config?.integrations.ndes_scep_proxy?.username !== "")
+    ) {
+      setFormErrors((prev: INdesFormErrors) => ({
+        ...prev,
+        password:
+          "Please re-enter your password due to changes in admin URL or username",
+      }));
+      setFormData((prev: INdesFormData) => ({ ...prev, password: "" }));
+    }
   };
 
   const onFormSubmit = async (evt: React.MouseEvent<HTMLFormElement>) => {
@@ -323,12 +354,24 @@ const ScepPage = ({ router }: IScepPageProps) => {
     } catch (error) {
       console.error(error);
       const reason = getErrorReason(error);
-      if (reason.includes("invalid SCEP URL")) {
-        renderFlash("error", BAD_SCEP_URL_ERROR);
-      } else if (reason.includes("invalid admin URL or credentials")) {
+      if (reason.includes("invalid admin URL or credentials")) {
         renderFlash("error", BAD_CREDENTIALS_ERROR);
       } else if (reason.includes("the password cache is full")) {
         renderFlash("error", CACHE_ERROR);
+      } else if (reason.includes("does not have sufficient permissions")) {
+        renderFlash("error", INSUFFICIENT_PERMISSIONS_ERROR);
+      } else if (
+        reason.includes(formData.scepUrl) &&
+        reason.includes("context deadline exceeded")
+      ) {
+        renderFlash("error", SCEP_URL_TIMEOUT_ERROR);
+      } else if (
+        reason.includes(formData.adminUrl) &&
+        reason.includes("context deadline exceeded")
+      ) {
+        renderFlash("error", ADMIN_URL_TIMEOUT_ERROR);
+      } else if (reason.includes("invalid SCEP URL")) {
+        renderFlash("error", BAD_SCEP_URL_ERROR);
       } else renderFlash("error", DEFAULT_ERROR);
     } finally {
       setIsUpdatingNdesScepProxy(false);
@@ -354,6 +397,7 @@ const ScepPage = ({ router }: IScepPageProps) => {
             formData={formData}
             formErrors={formErrors}
             onInputChange={onInputChange}
+            onBlur={handleBlur}
             config={appConfig || null}
             isPremiumTier={isPremiumTier || false}
             isLoading={isLoadingAppConfig}
