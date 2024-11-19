@@ -1,16 +1,16 @@
 module.exports = {
 
 
-  friendlyName: 'View vulnerability-management',
+  friendlyName: 'View software-management',
 
 
-  description: 'Display "Vulnerability management" page.',
+  description: 'Display "Software management" page.',
 
 
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/vulnerability-management'
+      viewTemplatePath: 'pages/software-management'
     },
     badConfig: { responseType: 'badConfig' },
   },
