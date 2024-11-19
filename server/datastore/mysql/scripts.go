@@ -40,8 +40,6 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 	const (
 		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, script_id, policy_id, user_id, sync_request, setup_experience_script_id) VALUES (?, ?, ?, '', ?, ?, ?, ?, ?)`
-		// TODO(JVE): replace this with the transactionable function we have below (and update that
-		// to be a function, not a ds private method)
 		getStmt = `SELECT hsr.id, hsr.host_id, hsr.execution_id, hsr.created_at, hsr.script_id, hsr.policy_id, hsr.user_id, hsr.sync_request, sc.contents as script_contents, hsr.setup_experience_script_id FROM host_script_results hsr JOIN script_contents sc WHERE sc.id = hsr.script_content_id AND hsr.id = ?`
 	)
 
