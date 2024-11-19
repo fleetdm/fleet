@@ -89,7 +89,7 @@ func TestLinuxDiskEncryptionSummary(t *testing.T) {
 	require.Equal(t, uint(7), summary.ActionRequired)
 	require.Equal(t, uint(2), summary.Failed)
 
-	// move verified fedora host to team
+	// move verified fedora host to team will remove existing key
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
@@ -100,8 +100,8 @@ func TestLinuxDiskEncryptionSummary(t *testing.T) {
 	summary, err = ds.GetLinuxDiskEncryptionSummary(ctx, &team.ID)
 	require.NoError(t, err)
 
-	require.Equal(t, uint(1), summary.Verified)
-	require.Equal(t, uint(0), summary.ActionRequired)
+	require.Equal(t, uint(0), summary.Verified)
+	require.Equal(t, uint(1), summary.ActionRequired)
 	require.Equal(t, uint(0), summary.Failed)
 
 	// no team summary
@@ -132,9 +132,9 @@ func TestLinuxDiskEncryptionSummary(t *testing.T) {
 	summary, err = ds.GetLinuxDiskEncryptionSummary(ctx, &team.ID)
 	require.NoError(t, err)
 
-	require.Equal(t, uint(1), summary.Verified)
-	require.Equal(t, uint(7), summary.ActionRequired)
-	require.Equal(t, uint(2), summary.Failed)
+	require.Equal(t, uint(0), summary.Verified)
+	require.Equal(t, uint(10), summary.ActionRequired)
+	require.Equal(t, uint(0), summary.Failed)
 
 	// no team summary
 	summary, err = ds.GetLinuxDiskEncryptionSummary(ctx, nil)
