@@ -3819,22 +3819,23 @@ ON DUPLICATE KEY UPDATE
 	return err
 }
 
-func (ds *Datastore) SaveLUKSData(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64SlotKey string) error {
-	if encryptedBase64Passphrase == "" { // should have been caught at service level
-		return errors.New("blank encrypted passphrase")
+func (ds *Datastore) SaveLUKSData(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error {
+	if encryptedBase64Passphrase == "" || encryptedBase64Salt == "" { // should have been caught at service level
+		return errors.New("passphrase and salt must be set")
 	}
 
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 INSERT INTO host_disk_encryption_keys
-  (host_id, base64_encrypted, base64_encrypted_slot_key, client_error, decryptable)
+  (host_id, base64_encrypted, base64_encrypted_salt, key_slot, client_error, decryptable)
 VALUES
-  (?, ?, ?, '', TRUE)
+  (?, ?, ?, ?, '', TRUE)
 ON DUPLICATE KEY UPDATE
   decryptable = TRUE,
   base64_encrypted = VALUES(base64_encrypted),
-  base64_encrypted_slot_key = VALUES(base64_encrypted_slot_key),
+  base64_encrypted_salt = VALUES(base64_encrypted_salt),
+  key_slot = VALUES(key_slot),
   client_error = ''
-`, hostID, encryptedBase64Passphrase, encryptedBase64SlotKey)
+`, hostID, encryptedBase64Passphrase, encryptedBase64Salt, keySlot)
 	return err
 }
 func (ds *Datastore) IsHostPendingEscrow(ctx context.Context, hostID uint) bool {
