@@ -288,7 +288,8 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
-	notifs.RunDiskEncryptionEscrow = svc.ds.IsHostPendingEscrow(ctx, host.ID)
+	notifs.RunDiskEncryptionEscrow = host.IsLUKSSupported() &&
+		host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled && svc.ds.IsHostPendingEscrow(ctx, host.ID)
 
 	pendingInstalls, err := svc.ds.ListPendingSoftwareInstalls(ctx, host.ID)
 	if err != nil {
