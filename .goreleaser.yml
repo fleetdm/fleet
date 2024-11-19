@@ -22,6 +22,7 @@ builds:
       - linux
     goarch:
       - amd64
+      - arm64
     flags:
       - -tags=full,fts5,netgo
       - -trimpath
