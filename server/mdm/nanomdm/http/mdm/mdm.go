@@ -28,6 +28,12 @@ func mdmReqFromHTTPReq(r *http.Request) *mdm.Request {
 
 // CheckinHandler decodes an MDM check-in request and adapts it to service.
 func CheckinHandler(svc service.Checkin, logger log.Logger) http.HandlerFunc {
+	if svc == nil {
+		panic("nil service")
+	}
+	if logger == nil {
+		panic("nil logger")
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := ctxlog.Logger(r.Context(), logger)
 		bodyBytes, err := mdmhttp.ReadAllAndReplaceBody(r)

@@ -141,6 +141,12 @@ func PushHandler(pusher push.Pusher, logger log.Logger) http.HandlerFunc {
 // using. Also note we expose Go errors to the output as this is meant
 // for "API" users.
 func RawCommandEnqueueHandler(enqueuer storage.CommandEnqueuer, pusher push.Pusher, logger log.Logger) http.HandlerFunc {
+	if enqueuer == nil {
+		panic("nil enqueuer")
+	}
+	if logger == nil {
+		panic("nil logger")
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		ids := strings.Split(r.URL.Path, ",")
 		ctx, logger := setupCtxLog(r.Context(), ids, logger)
@@ -206,14 +212,14 @@ func RawCommandEnqueueHandler(enqueuer storage.CommandEnqueuer, pusher push.Push
 		// optionally send pushes
 		pushResp := make(map[string]*push.Response)
 		var pushErr error
-		if !nopush {
+		if !nopush && pusher != nil {
 			pushResp, pushErr = pusher.Push(ctx, ids)
 			if err != nil {
 				logger.Info("msg", "push", "err", err)
 				output.PushError = err.Error()
 			}
-		} else {
-			pushErr = nil
+		} else if !nopush && pusher == nil {
+			pushErr = errors.New("nil pusher")
 		}
 		// loop through our push errors, if any, and add to output
 		var pushCt, pushErrCt int

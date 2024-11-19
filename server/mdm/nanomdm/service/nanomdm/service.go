@@ -240,7 +240,6 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 		logger.Info(
 			"msg", "host reported status with invalid command uuid",
 			"command_uuid", results.CommandUUID,
-			"request_type", results.RequestType,
 			"status", results.Status,
 			"error_chain", results.ErrorChain,
 		)

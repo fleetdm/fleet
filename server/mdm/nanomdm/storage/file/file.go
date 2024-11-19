@@ -166,6 +166,14 @@ func (s *FileStorage) StoreAuthenticate(r *mdm.Request, msg *mdm.Authenticate) e
 			return err
 		}
 	}
+	if err := e.resetNumericFile(TokenUpdateTallyFilename); err != nil {
+		return err
+	}
+	// remove the BootstrapToken when we receive an Authenticate message
+	// BS tokens are only valid when a new one is escrowed after enrollment.
+	if err := os.Remove(e.dirPrefix(BootstrapTokenFile)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
 	return e.writeFile(AuthenticateFilename, msg.Raw)
 }
 
@@ -227,9 +235,6 @@ func (s *FileStorage) Disable(r *mdm.Request) error {
 		e := s.newEnrollment(id)
 		// write zero-byte disabled marker
 		if err := e.writeFile(DisabledFilename, nil); err != nil {
-			return err
-		}
-		if err := e.resetNumericFile(TokenUpdateTallyFilename); err != nil {
 			return err
 		}
 	}

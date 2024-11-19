@@ -1,4 +1,4 @@
-package certauth
+package test
 
 import (
 	"crypto/rand"

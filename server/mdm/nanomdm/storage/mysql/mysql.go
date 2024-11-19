@@ -109,6 +109,8 @@ ON DUPLICATE KEY
 UPDATE
     identity_cert = VALUES(identity_cert),
     serial_number = VALUES(serial_number),
+    bootstrap_token_b64 = NULL,
+    bootstrap_token_at = NULL,
     authenticate = VALUES(authenticate),
     authenticate_at = CURRENT_TIMESTAMP;`,
 		r.ID, pemCert, nullEmptyString(msg.SerialNumber), msg.Raw,

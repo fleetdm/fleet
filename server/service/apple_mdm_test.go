@@ -1523,7 +1523,6 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 					Enrollment:  mdm.Enrollment{UDID: hostUUID},
 					CommandUUID: commandUUID,
 					Status:      c.status,
-					RequestType: c.requestType,
 					ErrorChain:  c.errors,
 				},
 			)

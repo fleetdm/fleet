@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/file"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/test"
 )
 
 func loadAuthMsg() (*mdm.Authenticate, error) {
@@ -61,7 +62,7 @@ func TestNilCertAuth(t *testing.T) {
 }
 
 func TestCertAuth(t *testing.T) {
-	_, crt, err := SimpleSelfSignedRSAKeypair("TESTDEVICE", 1)
+	_, crt, err := test.SimpleSelfSignedRSAKeypair("TESTDEVICE", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +70,7 @@ func TestCertAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	certAuth := New(&NopService{}, storage)
+	certAuth := New(&test.NopService{}, storage)
 	if certAuth == nil {
 		t.Fatal("New returned nil")
 	}
@@ -109,7 +110,7 @@ func TestCertAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, crt2, err := SimpleSelfSignedRSAKeypair("TESTDEVICE", 2)
+	_, crt2, err := test.SimpleSelfSignedRSAKeypair("TESTDEVICE", 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +126,7 @@ func TestCertAuth(t *testing.T) {
 }
 
 func TestCertAuthRetro(t *testing.T) {
-	_, crt, err := SimpleSelfSignedRSAKeypair("TESTDEVICE", 1)
+	_, crt, err := test.SimpleSelfSignedRSAKeypair("TESTDEVICE", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +134,7 @@ func TestCertAuthRetro(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	certAuth := New(&NopService{}, storage, WithAllowRetroactive())
+	certAuth := New(&test.NopService{}, storage, WithAllowRetroactive())
 	if certAuth == nil {
 		t.Fatal("New returned nil")
 	}
@@ -153,7 +154,7 @@ func TestCertAuthRetro(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, crt2, err := SimpleSelfSignedRSAKeypair("TESTDEVICE", 2)
+	_, crt2, err := test.SimpleSelfSignedRSAKeypair("TESTDEVICE", 2)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -38,7 +38,7 @@ type Authenticate struct {
 
 	// Fields that may be present but are not strictly required for the
 	// operation of the MDM protocol. Nice-to-haves.
-	SerialNumber string
+	SerialNumber string `plist:",omitempty"`
 }
 
 type b64Data []byte
