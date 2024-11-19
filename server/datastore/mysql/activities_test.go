@@ -541,6 +541,15 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	h2SelfService, err := ds.InsertSoftwareInstallRequest(noUserCtx, h2.ID, sw1Meta.InstallerID, true, nil)
 	require.NoError(t, err)
 
+	setupExpScript := &fleet.Script{Name: "setup_experience_script", ScriptContents: "setup_experience"}
+	err = ds.SetSetupExperienceScript(ctx, setupExpScript)
+	require.NoError(t, err)
+	ses, err := ds.GetSetupExperienceScript(ctx, h2.TeamID)
+	require.NoError(t, err)
+	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h2.ID, ScriptContents: "setup_experience", SetupExperienceScriptID: &ses.ID})
+	require.NoError(t, err)
+	h2SetupExp := hsr.ExecutionID
+
 	// create pending install and uninstall requests for h3 that will be deleted
 	_, err = ds.InsertSoftwareInstallRequest(ctx, h3.ID, sw3Meta.InstallerID, false, nil)
 	require.NoError(t, err)
@@ -560,7 +569,8 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h2SelfService)
 	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h2Bar)
 	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h2A, h2F)
-	SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_vpp_software_installs", "command_uuid", vppCommand1, vppCommand2)
+	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_vpp_software_installs", "command_uuid", vppCommand1, vppCommand2)
+	SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h2SetupExp)
 
 	execIDsWithUser := map[string]bool{
 		h1A:           true,
@@ -576,11 +586,13 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		h2Bar:         true,
 		vppCommand1:   true,
 		vppCommand2:   false,
+		h2SetupExp:    false,
 	}
 	execIDsScriptName := map[string]string{
-		h1A: scr1.Name,
-		h1B: scr2.Name,
-		h2A: scr1.Name,
+		h1A:        scr1.Name,
+		h1B:        scr2.Name,
+		h2A:        scr1.Name,
+		h2SetupExp: setupExpScript.Name,
 	}
 	execIDsSoftwareTitle := map[string]string{
 		h1Fleet:       "foo",
@@ -641,10 +653,10 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
 		},
 		{
-			opts:      fleet.ListOptions{PerPage: 4},
+			opts:      fleet.ListOptions{PerPage: 5},
 			hostID:    h2.ID,
-			wantExecs: []string{h2SelfService, h2Bar, h2A, vppCommand2},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 4},
+			wantExecs: []string{h2SelfService, h2Bar, h2A, vppCommand2, h2SetupExp},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 5},
 		},
 		{
 			opts:      fleet.ListOptions{},

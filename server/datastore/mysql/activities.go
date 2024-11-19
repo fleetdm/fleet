@@ -312,7 +312,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			JSON_OBJECT(
 				'host_id', hsr.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
-				'script_name', COALESCE(scr.name, ''),
+				'script_name', COALESCE(ses.name, COALESCE(scr.name, '')),
 				'script_execution_id', hsr.execution_id,
 				'async', NOT hsr.sync_request,
 			    'policy_id', hsr.policy_id,
@@ -330,6 +330,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			scripts scr ON scr.id = hsr.script_id
 		LEFT OUTER JOIN
 		    host_software_installs hsi ON hsi.execution_id = hsr.execution_id
+		LEFT OUTER JOIN
+			setup_experience_scripts ses ON ses.id = hsr.setup_experience_script_id
 		WHERE
 			hsr.host_id = :host_id AND
 			hsr.exit_code IS NULL AND

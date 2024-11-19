@@ -220,9 +220,10 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 				return false, ctxerr.Errorf(ctx, "setup experience script missing content id: %d", *script.SetupExperienceScriptID)
 			}
 			req := &fleet.HostScriptRequestPayload{
-				HostID:          host.ID,
-				ScriptName:      script.Name,
-				ScriptContentID: *script.ScriptContentID,
+				HostID:                  host.ID,
+				ScriptName:              script.Name,
+				ScriptContentID:         *script.ScriptContentID,
+				SetupExperienceScriptID: script.SetupExperienceScriptID,
 			}
 			res, err := svc.ds.NewHostScriptExecutionRequest(ctx, req)
 			if err != nil {

@@ -149,6 +149,9 @@ type HostScriptRequestPayload struct {
 	// SyncRequest is filled automatically based on the endpoint used to create
 	// the execution request (synchronous or asynchronous).
 	SyncRequest bool `json:"-"`
+	// SetupExperienceScriptID is the ID of the setup experience script related to this request
+	// payload, if such a script exists.
+	SetupExperienceScriptID *uint `json:"-"`
 }
 
 func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) error {
@@ -251,6 +254,10 @@ type HostScriptResult struct {
 	// results can still be returned to see activity details after the host got
 	// deleted.
 	HostDeletedAt *time.Time `json:"-" db:"host_deleted_at"`
+
+	// SetupExperienceScriptID is the ID of the setup experience script, if this script execution
+	// was part of setup experience.
+	SetupExperienceScriptID *uint `json:"-" db:"setup_experience_script_id"`
 }
 
 func (hsr HostScriptResult) AuthzType() string {
