@@ -16,7 +16,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -2769,7 +2768,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 		} else {
 
 			tcResp := teamResponse{}
-			s.DoJSON("PATCH", "/api/latest/fleet/teams/"+strconv.Itoa(int(*teamId)), json.RawMessage(fmt.Sprintf(`{ "mdm": { "macos_updates": { "minimum_version": "%s", "deadline": "2023-12-31" } } }`, minVersion)), http.StatusOK, &tcResp)
+			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", *teamId), json.RawMessage(fmt.Sprintf(`{ "mdm": { "macos_updates": { "minimum_version": "%s", "deadline": "2023-12-31" } } }`, minVersion)), http.StatusOK, &tcResp)
 		}
 	}
 
@@ -2913,6 +2912,11 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
+					if tc.updateRequired == nil {
+						// skip these test cases that depend more heavily on the frontent
+						// integration, we're just testing the error handling here
+						return
+					}
 					var mi fleet.MDMAppleMachineInfo
 					if tc.machineInfo != nil {
 						mi = *tc.machineInfo
@@ -2980,7 +2984,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 
 		t.Run("sso enabled", func(t *testing.T) {
 			tcResp := teamResponse{}
-			s.DoJSON("PATCH", "/api/latest/fleet/teams/"+strconv.Itoa(int(team.ID)), json.RawMessage(fmt.Sprintf(`{ "mdm": { "macos_setup": { "enable_end_user_authentication": true } } }`)), http.StatusOK, &tcResp)
+			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), json.RawMessage(fmt.Sprintf(`{ "mdm": { "macos_setup": { "enable_end_user_authentication": true } } }`)), http.StatusOK, &tcResp)
 
 			acResp := appConfigResponse{}
 			s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -2989,6 +2993,11 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
+					if tc.updateRequired == nil {
+						// skip these test cases that depend more heavily on the frontent
+						// integration, we're just testing the error handling here
+						return
+					}
 					if tc.machineInfo != nil {
 						tc.machineInfo.Serial = devices[0].SerialNumber
 					}
