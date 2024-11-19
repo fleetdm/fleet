@@ -140,8 +140,8 @@ func NewRandomDeviceEnrollment(doer protocol.Doer, topic, serverURL, checkInURL 
 }
 
 // GetIdentity supplies the identity certificate and key of this enrollment.
-func (c *Enrollment) GetIdentity(context.Context) (*x509.Certificate, crypto.PrivateKey, error) {
-	return c.cert, c.key, nil
+func (e *Enrollment) GetIdentity(context.Context) (*x509.Certificate, crypto.PrivateKey, error) {
+	return e.cert, e.key, nil
 }
 
 // GenAuthenticate creates an XML Plist Authenticate check-in message.
