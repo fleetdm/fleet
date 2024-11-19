@@ -2850,6 +2850,10 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs [
 					return ctxerr.Wrap(ctx, err, "exec AddHostsToTeam")
 				}
 
+				if err := cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDsBatch, teamID); err != nil {
+					return ctxerr.Wrap(ctx, err, "AddHostsToTeam cleanup disk encryption keys")
+				}
+
 				return nil
 			},
 		)

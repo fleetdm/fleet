@@ -1069,7 +1069,6 @@ type Datastore interface {
 	// GetHostMDMAppleProfiles returns the MDM profile information for the specified host UUID.
 	GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)
 
-	// CleanupDiskEncryptionKeysOnTeamChange removes all disk encryption keys for the given hosts on the provided team.
 	CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error
 
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
