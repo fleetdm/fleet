@@ -2662,10 +2662,14 @@ func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
 	// enroll the host from orbit, it should match the host above via the serial
 	var resp EnrollOrbitResponse
 	hostUUID := uuid.New().String()
+	h.ComputerName = "My Mac"
+	h.HardwareModel = "MacBook Pro"
 	s.DoJSON("POST", "/api/fleet/orbit/enroll", EnrollOrbitRequest{
 		EnrollSecret:   secret,
 		HardwareUUID:   hostUUID, // will not match any existing host
 		HardwareSerial: h.HardwareSerial,
+		ComputerName:   h.ComputerName,
+		HardwareModel:  h.HardwareModel,
 	}, http.StatusOK, &resp)
 	require.NotEmpty(t, resp.OrbitNodeKey)
 
@@ -2675,10 +2679,20 @@ func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResp)
 	require.Equal(t, h.ID, hostResp.Host.ID)
 	require.NotEqual(t, dbZeroTime, hostResp.Host.LastEnrolledAt)
+	assert.Equal(t, h.ComputerName, hostResp.Host.ComputerName)
+	assert.Equal(t, h.HardwareModel, hostResp.Host.HardwareModel)
+	assert.Equal(t, h.HardwareSerial, hostResp.Host.HardwareSerial)
+	assert.Equal(t, h.DisplayName(), hostResp.Host.DisplayName)
 
 	got, err := s.ds.LoadHostByOrbitNodeKey(ctx, resp.OrbitNodeKey)
 	require.NoError(t, err)
 	require.Equal(t, h.ID, got.ID)
+
+	s.lastActivityMatches(
+		"fleet_enrolled",
+		fmt.Sprintf(`{"host_display_name": "%s", "host_serial": "%s"}`, h.DisplayName(), h.HardwareSerial),
+		0,
+	)
 
 	// enroll the host from osquery, it should match the same host
 	var osqueryResp enrollAgentResponse
@@ -11915,7 +11929,7 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 	require.True(t, vppFound, "vpp app not found in status results")
 	require.True(t, softwareFound, "software installer app not found in status results")
 
-	x, err := s.ds.GetHostAwaitingConfiguration(ctx, fleetHost.UUID)
+	awaitingConfig, err := s.ds.GetHostAwaitingConfiguration(ctx, fleetHost.UUID)
 	require.NoError(t, err)
-	require.True(t, x)
+	require.True(t, awaitingConfig)
 }

@@ -847,7 +847,7 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 	}
 
 	// cannot use the profile ID as it is now deleted
-	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{profileUUID}, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
