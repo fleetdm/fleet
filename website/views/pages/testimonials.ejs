@@ -23,74 +23,92 @@
         </div>
       </div>
       <div purpose="context-switch" class="d-flex flex-sm-row flex-column">
-        <div purpose="switch-option" :class="[selectedContent === 'mdm' ? 'selected' : '']" @click="clickChangePageContent('mdm')"><p>Device Management</p></div>
+        <div purpose="switch-option" :class="[selectedContent === 'mdm' ? 'selected' : '']" @click="clickChangePageContent('mdm')"><p>Device management</p></div>
         <div purpose="switch-option" :class="[selectedContent === 'it' ? 'selected' : '']" @click="clickChangePageContent('it')"><p>IT engineering</p></div>
         <div purpose="switch-option" :class="[selectedContent === 'security' ? 'selected' : '']" @click="clickChangePageContent('security')"><p>Security engineering</p></div>
       </div>
       <div v-if="selectedContent === 'mdm'">
         <div purpose="testimonials-container" class="card-columns">
-          <div purpose="testimonial-card" class="card" v-for="testimonial in testimonialsForMdm" target="_blank" :href="testimonial.quoteLinkUrl">
-            <div purpose="logo" class="mb-4" v-if="testimonial.quoteImageFilename">
-              <img alt="logo" :height="testimonial.imageHeight"  :src="'/images/'+testimonial.quoteImageFilename"/>
-            </div>
-            <p purpose="quote">
-              {{testimonial.quote}}
-              <a purpose="video-link" v-if="testimonial.youtubeVideoUrl" @click="clickOpenVideoModal(testimonial.quoteAuthorName)">See the video.</a>
-            </p>
-            <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
-              <div purpose="profile-picture">
-                <img alt="Profile picture" :src="'/images/'+testimonial.quoteAuthorProfileImageFilename">
+          <% for(let testimonial of testimonialsForMdm) {%>
+            <div purpose="testimonial-card" class="card">
+              <% if(testimonial.quoteImageFilename){ %>
+                <div purpose="logo" class="mb-4">
+                  <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>
+                </div>
+              <% } %>
+              <p purpose="quote">
+                <%- testimonial.quote %>
+                <%if(testimonial.youtubeVideoUrl) {%>
+                  <a purpose="video-link" @click="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</a>
+                <% } %>
+              </p>
+              <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+                <div purpose="profile-picture">
+                  <img alt="Profile picture" src="/images/<%- testimonial.quoteAuthorProfileImageFilename %>">
+                </div>
+                <div class="d-flex flex-column align-self-top">
+                  <p purpose="name" class="font-weight-bold m-0"><%- testimonial.quoteAuthorName %></p>
+                  <p purpose="job-title" class="m-0"><%- testimonial.quoteAuthorJobTitle %></p>
+                </div>
               </div>
-              <div class="d-flex flex-column align-self-top">
-                <p purpose="name" class="font-weight-bold m-0">{{testimonial.quoteAuthorName}}</p>
-                <p purpose="job-title" class="m-0">{{testimonial.quoteAuthorJobTitle}}</p>
-              </div>
             </div>
-          </div>
+          <% } %>
         </div>
       </div>
       <div v-if="selectedContent === 'it'">
         <div purpose="testimonials-container" class="card-columns">
-          <div purpose="testimonial-card" class="card" v-for="testimonial in testimonialsForItEngineering" target="_blank" :href="testimonial.quoteLinkUrl">
-            <div purpose="logo" class="mb-4" v-if="testimonial.quoteImageFilename">
-              <img alt="logo"  :height="testimonial.imageHeight"  :src="'/images/'+testimonial.quoteImageFilename"/>
-            </div>
-            <p purpose="quote">
-              {{testimonial.quote}}
-              <a purpose="video-link" v-if="testimonial.youtubeVideoUrl" @click.prevent.self="clickOpenVideoModal(testimonial.quoteAuthorName)">See the video.</a>
-            </p>
-            <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
-              <div purpose="profile-picture">
-                <img alt="Profile picture" :src="'/images/'+testimonial.quoteAuthorProfileImageFilename">
+          <% for(let testimonial of testimonialsForItEngineering) {%>
+            <div purpose="testimonial-card" class="card">
+              <% if(testimonial.quoteImageFilename){ %>
+                <div purpose="logo" class="mb-4">
+                  <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>
+                </div>
+              <% } %>
+              <p purpose="quote">
+                <%- testimonial.quote %>
+                <%if(testimonial.youtubeVideoUrl) {%>
+                  <a purpose="video-link" @click="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</a>
+                <% } %>
+              </p>
+              <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+                <div purpose="profile-picture">
+                  <img alt="Profile picture" src="/images/<%- testimonial.quoteAuthorProfileImageFilename %>">
+                </div>
+                <div class="d-flex flex-column align-self-top">
+                  <p purpose="name" class="font-weight-bold m-0"><%- testimonial.quoteAuthorName %></p>
+                  <p purpose="job-title" class="m-0"><%- testimonial.quoteAuthorJobTitle %></p>
+                </div>
               </div>
-              <div class="d-flex flex-column align-self-top">
-                <p purpose="name" class="font-weight-bold m-0">{{testimonial.quoteAuthorName}}</p>
-                <p purpose="job-title" class="m-0">{{testimonial.quoteAuthorJobTitle}}</p>
-              </div>
             </div>
-          </div>
+          <% } %>
         </div>
       </div>
       <div v-if="selectedContent === 'security'">
         <div purpose="testimonials-container" class="card-columns">
-          <div purpose="testimonial-card" class="card" v-for="testimonial in testimonialsForSecurityEngineering" target="_blank" :href="testimonial.quoteLinkUrl">
-            <div purpose="logo" class="mb-4" v-if="testimonial.quoteImageFilename">
-              <img alt="logo" :height="testimonial.imageHeight"  :src="'/images/'+testimonial.quoteImageFilename"/>
-            </div>
-            <p purpose="quote">
-              {{testimonial.quote}}
-              <a purpose="video-link" v-if="testimonial.youtubeVideoUrl" @click.prevent.self="clickOpenVideoModal(testimonial.quoteAuthorName)">See the video.</a>
-            </p>
-            <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
-              <div purpose="profile-picture">
-                <img alt="Profile picture" :src="'/images/'+testimonial.quoteAuthorProfileImageFilename">
+          <% for(let testimonial of testimonialsForSecurityEngineering) {%>
+            <div purpose="testimonial-card" class="card">
+              <% if(testimonial.quoteImageFilename){ %>
+                <div purpose="logo" class="mb-4">
+                  <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>
+                </div>
+              <% } %>
+              <p purpose="quote">
+                <%- testimonial.quote %>
+                <%if(testimonial.youtubeVideoUrl) {%>
+                  <a purpose="video-link" @click="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</a>
+                <% } %>
+              </p>
+              <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+                <div purpose="profile-picture">
+                  <img alt="<%- testimonial.quoteAuthorName %>" src="/images/<%- testimonial.quoteAuthorProfileImageFilename %>">
+                </div>
+                <div class="d-flex flex-column align-self-top">
+                  <p purpose="name" class="font-weight-bold m-0"><%- testimonial.quoteAuthorName %></p>
+                  <p purpose="job-title" class="m-0"><%- testimonial.quoteAuthorJobTitle %></p>
+                </div>
               </div>
-              <div class="d-flex flex-column align-self-top">
-                <p purpose="name" class="font-weight-bold m-0">{{testimonial.quoteAuthorName}}</p>
-                <p purpose="job-title" class="m-0">{{testimonial.quoteAuthorJobTitle}}</p>
-              </div>
             </div>
-          </div>
+          <% } %>
         </div>
       </div>
       <div purpose="page-section">
