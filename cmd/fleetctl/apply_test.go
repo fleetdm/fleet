@@ -3781,6 +3781,8 @@ spec:
     macos_settings:
       enable_disk_encryption: true
 `,
+
+			// Since Linux disk encryption does not use MDM, we allow enabling it even without MDM enabled and configured
 			wantOutput: `[+] applied fleet config`,
 		},
 		{
