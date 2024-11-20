@@ -25,10 +25,10 @@ var Schema string
 var ErrNoCert = errors.New("no certificate in MDM Request")
 
 type MySQLStorage struct {
-	logger log.Logger
-	db     *sql.DB
-	rm     bool
-	als    *asyncLastSeen
+	logger        log.Logger
+	db            *sql.DB
+	rm            bool
+	asyncLastSeen *asyncLastSeen
 }
 
 type config struct {
@@ -104,10 +104,10 @@ func New(opts ...Option) (*MySQLStorage, error) {
 	mysqlStore := &MySQLStorage{db: cfg.db, logger: cfg.logger, rm: cfg.rm}
 
 	if v := os.Getenv("FLEET_DISABLE_ASYNC_NANO_LAST_SEEN"); v != "1" {
-		als := newAsyncLastSeen(cfg.asyncInterval, cfg.asyncCap, mysqlStore.updateLastSeenBatch)
-		mysqlStore.als = als
+		asyncLastSeen := newAsyncLastSeen(cfg.asyncInterval, cfg.asyncCap, mysqlStore.updateLastSeenBatch)
+		mysqlStore.asyncLastSeen = asyncLastSeen
 
-		go als.runFlushLoop(context.Background())
+		go asyncLastSeen.runFlushLoop(context.Background())
 	}
 
 	return mysqlStore, nil
@@ -292,8 +292,8 @@ func (s *MySQLStorage) Disable(r *mdm.Request) error {
 }
 
 func (s *MySQLStorage) updateLastSeen(r *mdm.Request) (err error) {
-	if s.als != nil {
-		s.als.markHostSeen(r.Context, r.ID)
+	if s.asyncLastSeen != nil {
+		s.asyncLastSeen.markHostSeen(r.Context, r.ID)
 		return nil
 	}
 
