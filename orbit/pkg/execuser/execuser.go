@@ -43,6 +43,7 @@ func Run(path string, opts ...Option) (lastLogs string, err error) {
 // It assumes the caller is running with high privileges (root on UNIX).
 //
 // It blocks until the child process exits.
+// Non ExitError errors return with a -1 exitCode.
 func RunWithOutput(path string, opts ...Option) (output []byte, exitCode int, err error) {
 	var o eopts
 	for _, fn := range opts {
