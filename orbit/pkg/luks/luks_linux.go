@@ -95,6 +95,9 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		return nil, nil, fmt.Errorf("Failed to show passphrase entry prompt: %w", err)
 	}
 
+	cancelProgress := lr.progressPrompt(ctx, "Validating passphrase")
+	defer cancelProgress()
+
 	// Validate the passphrase
 	for {
 		valid, err := lr.passphraseIsValid(ctx, device, devicePath, passphrase)
@@ -102,21 +105,28 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 			return nil, nil, fmt.Errorf("Failed validating passphrase: %w", err)
 		}
 
-		if !valid {
-			passphrase, err = lr.entryPrompt(ctx, entryDialogTitle, retryEntryDialogText)
-			if err != nil {
-				return nil, nil, fmt.Errorf("Failed re-prompting for passphrase: %w", err)
-			}
-			continue
+		if valid {
+			break
 		}
 
-		break
+		cancelProgress()
+
+		passphrase, err = lr.entryPrompt(ctx, entryDialogTitle, retryEntryDialogText)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Failed re-prompting for passphrase: %w", err)
+		}
+
+		cancelProgress = lr.progressPrompt(ctx, "Validating passphrase")
 	}
 
 	if len(passphrase) == 0 {
 		log.Debug().Msg("Passphrase is empty, no password supplied, dialog was canceled, or timed out")
 		return nil, nil, nil
 	}
+
+	cancelProgress()
+	cancelProgress = lr.progressPrompt(ctx, "Key escrow in progress")
+	defer cancelProgress()
 
 	escrowPassphrase, err := generateRandomPassphrase()
 	if err != nil {
@@ -229,6 +239,20 @@ func (lr *LuksRunner) infoPrompt(ctx context.Context, title, text string) error 
 	}
 
 	return nil
+}
+
+func (lr *LuksRunner) progressPrompt(ctx context.Context, text string) func() {
+	ctx, cancel := context.WithCancel(ctx)
+	go func() {
+		err := lr.notifier.ShowProgress(ctx, dialog.ProgressOptions{
+			Title: "Disk encryption",
+			Text:  text,
+		})
+		if err != nil {
+			log.Error().Err(err).Msg("failed to show progress dialog")
+		}
+	}()
+	return cancel
 }
 
 type LuksDump struct {

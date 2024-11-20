@@ -55,7 +55,7 @@ func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (
 	}
 
 	if dvMatch == "" && noDvMatch == "" {
-		return "", ctxerr.Wrap(ctx, ErrNoMatch)
+		return "", ctxerr.Wrap(ctx, ErrNoMatch, os.Version)
 	}
 
 	if dvMatch == "" {
