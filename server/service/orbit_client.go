@@ -22,7 +22,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
-	luks_runner "github.com/fleetdm/fleet/v4/orbit/pkg/luks"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/luks"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -670,15 +670,17 @@ func (oc *OrbitClient) GetSetupExperienceStatus() (*fleet.SetupExperienceStatusP
 	return resp.Results, nil
 }
 
-func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks_runner.LuksResponse) error {
+func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks.LuksResponse) error {
 	verb, path := "POST", "/api/fleet/orbit/luks_data"
 	var resp orbitPostLUKSResponse
 	if err := oc.authenticatedRequest(verb, path, &orbitPostLUKSRequest{
-		Passphrase:  lr.Key,
-		SlotKey:     "1",
+		Passphrase:  lr.Passphrase,
+		KeySlot:     lr.KeySlot,
+		Salt:        lr.Salt,
 		ClientError: lr.Err,
 	}, &resp); err != nil {
 		return err
 	}
+
 	return nil
 }

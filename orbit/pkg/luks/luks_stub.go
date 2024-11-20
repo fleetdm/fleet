@@ -1,7 +1,7 @@
 //go:build !linux
 // +build !linux
 
-package luks_runner
+package luks
 
 import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
