@@ -4,13 +4,13 @@ package nanomdm
 import (
 	"errors"
 	"fmt"
-	"net/http"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/ctxlog"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
+
+	"github.com/micromdm/nanolib/log"
+	"github.com/micromdm/nanolib/log/ctxlog"
 )
 
 // Service is the main NanoMDM service which dispatches to storage.
@@ -19,16 +19,14 @@ type Service struct {
 	normalizer func(e *mdm.Enrollment) *mdm.EnrollID
 	store      storage.ServiceStore
 
-	// By default the UserAuthenticate message will be rejected (410
-	// response). If this is set true then a static zero-length
-	// digest challenge will be supplied to the first UserAuthenticate
-	// check-in message. See the Discussion section of
-	// https://developer.apple.com/documentation/devicemanagement/userauthenticate
-	sendEmptyDigestChallenge bool
-	storeRejectedUserAuth    bool
-
 	// Declarative Management
 	dm service.DeclarativeManagement
+
+	// UserAuthenticate processor
+	ua service.UserAuthenticate
+
+	// GetToken handler
+	gt service.GetToken
 }
 
 // normalize generates enrollment IDs that are used by other
@@ -69,6 +67,20 @@ func WithLogger(logger log.Logger) Option {
 func WithDeclarativeManagement(dm service.DeclarativeManagement) Option {
 	return func(s *Service) {
 		s.dm = dm
+	}
+}
+
+// WithUserAuthenticate configures a UserAuthenticate check-in message handler.
+func WithUserAuthenticate(ua service.UserAuthenticate) Option {
+	return func(s *Service) {
+		s.ua = ua
+	}
+}
+
+// WithGetToken configures a GetToken check-in message handler.
+func WithGetToken(gt service.GetToken) Option {
+	return func(s *Service) {
+		s.gt = gt
 	}
 }
 
@@ -144,45 +156,15 @@ func (s *Service) CheckOut(r *mdm.Request, message *mdm.CheckOut) error {
 	return s.store.Disable(r)
 }
 
-const emptyDigestChallenge = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>DigestChallenge</key>
-	<string></string>
-</dict>
-</plist>`
-
-var emptyDigestChallengeBytes = []byte(emptyDigestChallenge)
-
+// UserAuthenticate Check-in message implementation
 func (s *Service) UserAuthenticate(r *mdm.Request, message *mdm.UserAuthenticate) ([]byte, error) {
 	if err := s.setupRequest(r, &message.Enrollment); err != nil {
 		return nil, err
 	}
-	logger := ctxlog.Logger(r.Context, s.logger)
-	if s.sendEmptyDigestChallenge || s.storeRejectedUserAuth {
-		if err := s.store.StoreUserAuthenticate(r, message); err != nil {
-			return nil, err
-		}
+	if s.ua == nil {
+		return nil, errors.New("no UserAuthenticate handler")
 	}
-	// if the DigestResponse is empty then this is the first (of two)
-	// UserAuthenticate messages depending on our response
-	if message.DigestResponse == "" {
-		if s.sendEmptyDigestChallenge {
-			logger.Info(
-				"msg", "sending empty DigestChallenge response to UserAuthenticate",
-			)
-			return emptyDigestChallengeBytes, nil
-		}
-		return nil, service.NewHTTPStatusError(
-			http.StatusGone,
-			fmt.Errorf("declining management of user: %s", r.ID),
-		)
-	}
-	logger.Debug(
-		"msg", "sending empty response to second UserAuthenticate",
-	)
-	return nil, nil
+	return s.ua.UserAuthenticate(r, message)
 }
 
 func (s *Service) SetBootstrapToken(r *mdm.Request, message *mdm.SetBootstrapToken) error {
@@ -217,6 +199,21 @@ func (s *Service) DeclarativeManagement(r *mdm.Request, message *mdm.Declarative
 	return s.dm.DeclarativeManagement(r, message)
 }
 
+// GetToken implements the GetToken Check-in message interface.
+func (s *Service) GetToken(r *mdm.Request, message *mdm.GetToken) (*mdm.GetTokenResponse, error) {
+	if err := s.setupRequest(r, &message.Enrollment); err != nil {
+		return nil, err
+	}
+	ctxlog.Logger(r.Context, s.logger).Info(
+		"msg", "GetToken",
+		"token_service_type", message.TokenServiceType,
+	)
+	if s.gt == nil {
+		return nil, errors.New("no GetToken handler")
+	}
+	return s.gt.GetToken(r, message)
+}
+
 // CommandAndReportResults command report and next-command request implementation.
 func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandResults) (*mdm.Command, error) {
 	if err := s.setupRequest(r, &results.Enrollment); err != nil {
@@ -243,7 +240,6 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 		logger.Info(
 			"msg", "host reported status with invalid command uuid",
 			"command_uuid", results.CommandUUID,
-			"request_type", results.RequestType,
 			"status", results.Status,
 			"error_chain", results.ErrorChain,
 		)
