@@ -40,6 +40,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsDiskEncryption", testMDMWindowsDiskEncryption},
 		{"TestMDMWindowsProfilesSummary", testMDMWindowsProfilesSummary},
 		{"TestBatchSetMDMWindowsProfiles", testBatchSetMDMWindowsProfiles},
+		{"TestMDMWindowsProfileLabels", testMDMWindowsProfileLabels},
 	}
 
 	for _, c := range cases {
@@ -2010,6 +2011,164 @@ func testSetOrReplaceMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	expectWindowsProfiles(t, ds, nil, []*fleet.MDMWindowsConfigProfile{&cp2, &cp6})
 }
 
+func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	// Create a windows host
+	u := uuid.New().String()
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         &u,
+		UUID:            u,
+		Hostname:        u,
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+	windowsEnroll(t, ds, host)
+
+	// "include-any" labels
+	l1, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:        "include-any-label1",
+		Description: "desc",
+		Query:       "select 1;",
+	})
+	require.NoError(t, err)
+
+	l2, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:        "include-any-label2",
+		Description: "desc",
+		Query:       "select 1;",
+	})
+	require.NoError(t, err)
+
+	l3, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:        "include-any-label3",
+		Description: "desc",
+		Query:       "select 1;",
+	})
+	require.NoError(t, err)
+
+	// include-all labels
+	l4, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:        "include-all-label4",
+		Description: "desc",
+		Query:       "select 1;",
+	})
+	require.NoError(t, err)
+
+	l5, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:        "include-all-label5",
+		Description: "desc",
+		Query:       "select 1;",
+	})
+	require.NoError(t, err)
+
+	// exclude-all labels
+	l6, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:        "exclude-any-label6",
+		Description: "desc",
+		Query:       "select 1;",
+	})
+	require.NoError(t, err)
+
+	l7, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:        "exclude-any-label7",
+		Description: "desc",
+		Query:       "select 1;",
+	})
+	require.NoError(t, err)
+
+	// Create a profile with "include-any" with l1
+	includeAnyProf, err := ds.NewMDMWindowsConfigProfile(
+		ctx,
+		*windowsConfigProfileForTest(t, "prof-include-any", "./Foo/Bar", l1, l2, l3),
+	)
+
+	require.NoError(t, err)
+	require.NotEmpty(t, includeAnyProf.ProfileUUID)
+
+	// Create a profile with "include-all" with l4 and l5
+	includeAllProf, err := ds.NewMDMWindowsConfigProfile(
+		ctx,
+		*windowsConfigProfileForTest(t, "prof-include-all", "./Foo/Bar", l4, l5),
+	)
+	require.NoError(t, err)
+	require.NotEmpty(t, includeAllProf.ProfileUUID)
+
+	// Create a profile with "exclude-all" with l6 and l7
+	excludeAllProf, err := ds.NewMDMWindowsConfigProfile(
+		ctx,
+		*windowsConfigProfileForTest(t, "prof-exclude-any", "./Foo/Bar", l6, l7),
+	)
+	require.NoError(t, err)
+
+	// Connect the host and l1, l4, l5
+	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l1.ID, host.ID}, {l4.ID, host.ID}, {l5.ID, host.ID}})
+	require.NoError(t, err)
+
+	host.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+
+	// We should see all 3  profiles in the "to install" list
+	profilesToInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
+		{ProfileUUID: includeAllProf.ProfileUUID, ProfileName: includeAllProf.Name, HostUUID: host.UUID},
+		{ProfileUUID: includeAnyProf.ProfileUUID, ProfileName: includeAnyProf.Name, HostUUID: host.UUID},
+		{ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID},
+	}, profilesToInstall)
+
+	// Remove the l1<->host relationship, but add l2<->labelHost. The profile should still show
+	// up since it's "include any"
+	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l1.ID, host.ID}})
+	require.NoError(t, err)
+
+	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l2.ID, host.ID}})
+	require.NoError(t, err)
+
+	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
+		{ProfileUUID: includeAllProf.ProfileUUID, ProfileName: includeAllProf.Name, HostUUID: host.UUID},
+		{ProfileUUID: includeAnyProf.ProfileUUID, ProfileName: includeAnyProf.Name, HostUUID: host.UUID},
+		{ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID},
+	}, profilesToInstall)
+
+	// Remove the l2<->host relationship. Since the profile is "include-any", it should no longer
+	// show up
+	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l2.ID, host.ID}})
+	require.NoError(t, err)
+
+	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
+		{ProfileUUID: includeAllProf.ProfileUUID, ProfileName: includeAllProf.Name, HostUUID: host.UUID},
+		{ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID},
+	}, profilesToInstall)
+
+	// Remove the l4<->host relationship. Since the profile is "include-all", it should no longer show
+	// up even though the l5<->host connection is still there.
+	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l4.ID, host.ID}})
+	require.NoError(t, err)
+
+	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
+		{ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID},
+	}, profilesToInstall)
+
+	// Add a l6<->host relationship. The exclude-any profile should be gone now.
+	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l6.ID, host.ID}})
+	require.NoError(t, err)
+
+	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.Empty(t, profilesToInstall)
+}
+
 func expectWindowsProfiles(
 	t *testing.T,
 	ds *Datastore,
@@ -2068,7 +2227,8 @@ func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	applyAndExpect := func(newSet []*fleet.MDMWindowsConfigProfile, tmID *uint, want []*fleet.MDMWindowsConfigProfile,
-		wantUpdated bool) map[string]string {
+		wantUpdated bool,
+	) map[string]string {
 		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 			updatedDB, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, newSet)
 			require.NoError(t, err)
@@ -2197,9 +2357,12 @@ func windowsConfigProfileForTest(t *testing.T, name, locURI string, labels ...*f
 	}
 
 	for _, lbl := range labels {
-		if strings.HasPrefix(lbl.Name, "exclude-") {
+		switch {
+		case strings.HasPrefix(lbl.Name, "exclude-"):
 			prof.LabelsExcludeAny = append(prof.LabelsExcludeAny, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
-		} else {
+		case strings.HasPrefix(lbl.Name, "include-any-"):
+			prof.LabelsIncludeAny = append(prof.LabelsIncludeAny, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+		default:
 			prof.LabelsIncludeAll = append(prof.LabelsIncludeAll, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
 		}
 	}

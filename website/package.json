@@ -10,6 +10,7 @@
     "@sailshq/socket.io-redis": "^6.1.2",
     "jsforce": "1.11.1",
     "jsonwebtoken": "9.0.2",
+    "jsrsasign": "11.1.0",
     "moment": "2.29.4",
     "sails": "^1.5.11",
     "sails-hook-apianalytics": "^2.0.6",

@@ -126,7 +126,7 @@ host2.foo.bar CVE-2017-8817 cpe:/a:haxx:curl:7.55.0
 
 ### `csv2cpe`
 
-*csv2cpe* is a tool that generates an URI-bound CPE from CSV input, flags configure the meaning of each input field:
+*csv2cpe* is a tool that generates a URI-bound CPE from CSV input, flags configure the meaning of each input field:
 
 * `-cpe_part` -- identifies the class of a product: h for hardware, a for application and o for OS
 * `-cpe_vendor` -- identifies  the person or organisation that manufactured or created the product
