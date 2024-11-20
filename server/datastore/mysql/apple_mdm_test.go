@@ -2975,7 +2975,6 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: uuid2,
 		Status:      "Acknowledged",
-		RequestType: "ProfileList",
 		Raw:         []byte(rawCmd2),
 	})
 	require.NoError(t, err)
@@ -3005,7 +3004,6 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: uuid2,
 		Status:      "Error",
-		RequestType: "ProfileList",
 		Raw:         []byte(rawCmd2),
 	})
 	require.NoError(t, err)
@@ -3306,7 +3304,6 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: uuid1,
 		Status:      "Acknowledged",
-		RequestType: "ListApps",
 		Raw:         []byte(rawCmd1),
 	})
 	require.NoError(t, err)
@@ -3347,7 +3344,6 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: uuid1,
 		Status:      "Error",
-		RequestType: "ListApps",
 		Raw:         []byte(rawCmd1),
 	})
 	require.NoError(t, err)
@@ -3394,7 +3390,6 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: uuid2,
 		Status:      "Acknowledged",
-		RequestType: "InstallApp",
 		Raw:         []byte(rawCmd2),
 	})
 	require.NoError(t, err)
@@ -3404,7 +3399,6 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: uuid2,
 		Status:      "Acknowledged",
-		RequestType: "InstallApp",
 		Raw:         []byte(rawCmd2),
 	})
 	require.NoError(t, err)
@@ -4765,7 +4759,6 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: cmd.CommandUUID,
 		Status:      "Acknowledged",
-		RequestType: "DeviceLock",
 		Raw:         cmd.Raw,
 	})
 	require.NoError(t, err)
@@ -4818,7 +4811,6 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: cmd.CommandUUID,
 		Status:      "Error",
-		RequestType: cmd.Command.RequestType,
 		Raw:         cmd.Raw,
 	})
 	require.NoError(t, err)
@@ -4852,7 +4844,6 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: cmd.CommandUUID,
 		Status:      "Acknowledged",
-		RequestType: cmd.Command.RequestType,
 		Raw:         cmd.Raw,
 	})
 	require.NoError(t, err)
@@ -6188,7 +6179,6 @@ func testGetHostUUIDsWithPendingMDMAppleCommands(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: uuid1,
 		Status:      "Acknowledged",
-		RequestType: "ProfileList",
 		Raw:         []byte(rawCmd1),
 	})
 	require.NoError(t, err)

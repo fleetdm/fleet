@@ -1,4 +1,4 @@
-package certauth
+package test
 
 import (
 	"crypto/rand"
@@ -78,6 +78,10 @@ func (s *NopService) GetBootstrapToken(r *mdm.Request, m *mdm.GetBootstrapToken)
 }
 
 func (s *NopService) DeclarativeManagement(r *mdm.Request, m *mdm.DeclarativeManagement) ([]byte, error) {
+	return nil, nil
+}
+
+func (s *NopService) GetToken(r *mdm.Request, m *mdm.GetToken) (*mdm.GetTokenResponse, error) {
 	return nil, nil
 }
 

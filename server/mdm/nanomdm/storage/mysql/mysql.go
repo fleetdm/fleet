@@ -9,9 +9,10 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/ctxlog"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+
+	"github.com/micromdm/nanolib/log"
+	"github.com/micromdm/nanolib/log/ctxlog"
 )
 
 // Schema holds the schema for the NanoMDM MySQL storage.
@@ -108,6 +109,8 @@ ON DUPLICATE KEY
 UPDATE
     identity_cert = VALUES(identity_cert),
     serial_number = VALUES(serial_number),
+    bootstrap_token_b64 = NULL,
+    bootstrap_token_at = NULL,
     authenticate = VALUES(authenticate),
     authenticate_at = CURRENT_TIMESTAMP;`,
 		r.ID, pemCert, nullEmptyString(msg.SerialNumber), msg.Raw,

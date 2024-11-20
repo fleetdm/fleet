@@ -19,9 +19,9 @@ type StoreAuthenticateFunc func(r *mdm.Request, msg *mdm.Authenticate) error
 
 type StoreTokenUpdateFunc func(r *mdm.Request, msg *mdm.TokenUpdate) error
 
-type StoreUserAuthenticateFunc func(r *mdm.Request, msg *mdm.UserAuthenticate) error
-
 type DisableFunc func(r *mdm.Request) error
+
+type StoreUserAuthenticateFunc func(r *mdm.Request, msg *mdm.UserAuthenticate) error
 
 type StoreCommandReportFunc func(r *mdm.Request, report *mdm.CommandResults) error
 
@@ -51,6 +51,8 @@ type IsCertHashAssociatedFunc func(r *mdm.Request, hash string) (bool, error)
 
 type AssociateCertHashFunc func(r *mdm.Request, hash string, certNotValidAfter time.Time) error
 
+type EnrollmentFromHashFunc func(ctx context.Context, hash string) (string, error)
+
 type RetrieveMigrationCheckinsFunc func(p0 context.Context, p1 chan<- interface{}) error
 
 type RetrieveTokenUpdateTallyFunc func(ctx context.Context, id string) (int, error)
@@ -70,11 +72,11 @@ type MDMAppleStore struct {
 	StoreTokenUpdateFunc        StoreTokenUpdateFunc
 	StoreTokenUpdateFuncInvoked bool
 
-	StoreUserAuthenticateFunc        StoreUserAuthenticateFunc
-	StoreUserAuthenticateFuncInvoked bool
-
 	DisableFunc        DisableFunc
 	DisableFuncInvoked bool
+
+	StoreUserAuthenticateFunc        StoreUserAuthenticateFunc
+	StoreUserAuthenticateFuncInvoked bool
 
 	StoreCommandReportFunc        StoreCommandReportFunc
 	StoreCommandReportFuncInvoked bool
@@ -118,6 +120,9 @@ type MDMAppleStore struct {
 	AssociateCertHashFunc        AssociateCertHashFunc
 	AssociateCertHashFuncInvoked bool
 
+	EnrollmentFromHashFunc        EnrollmentFromHashFunc
+	EnrollmentFromHashFuncInvoked bool
+
 	RetrieveMigrationCheckinsFunc        RetrieveMigrationCheckinsFunc
 	RetrieveMigrationCheckinsFuncInvoked bool
 
@@ -153,18 +158,18 @@ func (fs *MDMAppleStore) StoreTokenUpdate(r *mdm.Request, msg *mdm.TokenUpdate) 
 	return fs.StoreTokenUpdateFunc(r, msg)
 }
 
-func (fs *MDMAppleStore) StoreUserAuthenticate(r *mdm.Request, msg *mdm.UserAuthenticate) error {
-	fs.mu.Lock()
-	fs.StoreUserAuthenticateFuncInvoked = true
-	fs.mu.Unlock()
-	return fs.StoreUserAuthenticateFunc(r, msg)
-}
-
 func (fs *MDMAppleStore) Disable(r *mdm.Request) error {
 	fs.mu.Lock()
 	fs.DisableFuncInvoked = true
 	fs.mu.Unlock()
 	return fs.DisableFunc(r)
+}
+
+func (fs *MDMAppleStore) StoreUserAuthenticate(r *mdm.Request, msg *mdm.UserAuthenticate) error {
+	fs.mu.Lock()
+	fs.StoreUserAuthenticateFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.StoreUserAuthenticateFunc(r, msg)
 }
 
 func (fs *MDMAppleStore) StoreCommandReport(r *mdm.Request, report *mdm.CommandResults) error {
@@ -263,6 +268,13 @@ func (fs *MDMAppleStore) AssociateCertHash(r *mdm.Request, hash string, certNotV
 	fs.AssociateCertHashFuncInvoked = true
 	fs.mu.Unlock()
 	return fs.AssociateCertHashFunc(r, hash, certNotValidAfter)
+}
+
+func (fs *MDMAppleStore) EnrollmentFromHash(ctx context.Context, hash string) (string, error) {
+	fs.mu.Lock()
+	fs.EnrollmentFromHashFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.EnrollmentFromHashFunc(ctx, hash)
 }
 
 func (fs *MDMAppleStore) RetrieveMigrationCheckins(p0 context.Context, p1 chan<- interface{}) error {

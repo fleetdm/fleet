@@ -1058,7 +1058,7 @@ func setupExpectedCAProfile(t *testing.T, ds *mysql.Datastore) []byte {
 
 func setupPusher(s *integrationMDMTestSuite, t *testing.T, mdmDevice *mdmtest.TestAppleMDMClient) {
 	origPush := s.pushProvider.PushFunc
-	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
 		require.Len(t, pushes, 1)
 		require.Equal(t, pushes[0].PushMagic, "pushmagic"+mdmDevice.SerialNumber)
 		res := map[string]*push.Response{
@@ -1477,7 +1477,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	defer func() { s.pushProvider.PushFunc = originalPushMock }()
 
 	// if there's an error coming from APNs servers
-	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
 		return map[string]*push.Response{
 			pushes[0].Token.String(): {
 				Id:  uuid.New().String(),
@@ -1488,7 +1488,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusBadGateway)
 
 	// if there was an error unrelated to APNs
-	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
 		res := map[string]*push.Response{
 			pushes[0].Token.String(): {
 				Id:  uuid.New().String(),
@@ -1501,8 +1501,8 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 
 	// try again, but this time the host is online and answers
 	var checkoutErr error
-	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
-		res, err := mockSuccessfulPush(pushes)
+	s.pushProvider.PushFunc = func(ctx context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+		res, err := mockSuccessfulPush(ctx, pushes)
 		checkoutErr = mdmDevice.Checkout()
 		return res, err
 	}
@@ -2903,7 +2903,6 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	}, &mdm.CommandResults{
 		CommandUUID: uuid2,
 		Status:      "Acknowledged",
-		RequestType: "ProfileList",
 		Raw:         []byte(rawCmd),
 	})
 	require.NoError(t, err)
@@ -9949,11 +9948,11 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 
 	var recordedPushes []*mdm.Push
 	var mu sync.Mutex
-	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+	s.pushProvider.PushFunc = func(ctx context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
 		mu.Lock()
 		defer mu.Unlock()
 		recordedPushes = pushes
-		return mockSuccessfulPush(pushes)
+		return mockSuccessfulPush(ctx, pushes)
 	}
 
 	// trigger the reconciliation schedule
