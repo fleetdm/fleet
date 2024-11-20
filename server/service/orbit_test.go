@@ -180,20 +180,21 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		}
 
 		// test reporting client errors
-		err := svc.EscrowLUKSData(ctx, "foo", "bar", expectedErrorMessage)
+		err := svc.EscrowLUKSData(ctx, "foo", "bar", nil, expectedErrorMessage)
 		require.NoError(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
 		// blank passphrase
 		ds.ReportEscrowErrorFuncInvoked = false
-		expectedErrorMessage = "Blank passphrase provided"
-		err = svc.EscrowLUKSData(ctx, "", "bar", "")
+		expectedErrorMessage = "passphrase, salt, and key_slot must be provided to escrow LUKS data"
+		err = svc.EscrowLUKSData(ctx, "", "bar", ptr.Uint(0), "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
 		ds.ReportEscrowErrorFuncInvoked = false
-		passphrase, slotKey := "foo", ""
-		ds.SaveLUKSDataFunc = func(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64SlotKey string) error {
+		passphrase, salt := "foo", ""
+		var keySlot *uint
+		ds.SaveLUKSDataFunc = func(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlotToPersist uint) error {
 			require.Equal(t, host.ID, hostID)
 			key := config.TestConfig().Server.PrivateKey
 
@@ -201,28 +202,35 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, passphrase, decryptedPassphrase)
 
-			if encryptedBase64SlotKey == "" {
-				require.Equal(t, slotKey, encryptedBase64SlotKey)
-				return nil
-			}
-			decryptedSlotKey, err := mdm.DecodeAndDecrypt(encryptedBase64SlotKey, key)
+			decryptedSalt, err := mdm.DecodeAndDecrypt(encryptedBase64Salt, key)
 			require.NoError(t, err)
-			require.Equal(t, slotKey, decryptedSlotKey)
+			require.Equal(t, salt, decryptedSalt)
+
+			require.Equal(t, *keySlot, keySlotToPersist)
 
 			return nil
 		}
 
-		// with no slot key
-		err = svc.EscrowLUKSData(ctx, passphrase, slotKey, "")
+		// with no salt
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "")
+		require.Error(t, err)
+		require.True(t, ds.ReportEscrowErrorFuncInvoked)
+		require.False(t, ds.SaveLUKSDataFuncInvoked)
+
+		// with no key slot
+		ds.ReportEscrowErrorFuncInvoked = false
+		salt = "baz"
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "")
+		require.Error(t, err)
+		require.True(t, ds.ReportEscrowErrorFuncInvoked)
+		require.False(t, ds.SaveLUKSDataFuncInvoked)
+
+		// with salt and key slot
+		keySlot = ptr.Uint(0)
+		ds.ReportEscrowErrorFuncInvoked = false
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "")
 		require.NoError(t, err)
 		require.False(t, ds.ReportEscrowErrorFuncInvoked)
-		require.True(t, ds.SaveLUKSDataFuncInvoked)
-
-		// with slot key
-		slotKey = "baz"
-		ds.SaveLUKSDataFuncInvoked = false
-		err = svc.EscrowLUKSData(ctx, passphrase, slotKey, "")
-		require.NoError(t, err)
 		require.True(t, ds.SaveLUKSDataFuncInvoked)
 	})
 
@@ -243,7 +251,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		cfg.Server.PrivateKey = ""
 		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 		ctx = test.HostContext(ctx, host)
-		err := svc.EscrowLUKSData(ctx, "foo", "bar", "")
+		err := svc.EscrowLUKSData(ctx, "foo", "bar", ptr.Uint(0), "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
@@ -252,7 +260,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		cfg.Server.PrivateKey = "invalid"
 		svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 		ctx = test.HostContext(ctx, host)
-		err = svc.EscrowLUKSData(ctx, "foo", "bar", "")
+		err = svc.EscrowLUKSData(ctx, "foo", "bar", ptr.Uint(0), "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 	})
