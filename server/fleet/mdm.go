@@ -723,6 +723,9 @@ const (
 	// MDMAssetNDESPassword is the password used to retrieve SCEP challenge from
 	// NDES SCEP server. It is used by Fleet's SCEP proxy.
 	MDMAssetNDESPassword MDMAssetName = "ndes_password"
+	// MDMAssetAuthenticationCertificate is the authentication (RA) certificate for DigiCert.
+	// TODO: This should be in a separate table since we can have multiple CAs
+	MDMAssetAuthenticationCertificate MDMAssetName = "authentication_certificate"
 )
 
 type MDMConfigAsset struct {

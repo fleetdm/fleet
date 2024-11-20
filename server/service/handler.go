@@ -787,6 +787,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// input to `fleetctl apply`
 	ue.POST("/api/_version_/fleet/mdm/profiles/batch", batchSetMDMProfilesEndpoint, batchSetMDMProfilesRequest{})
 
+	// Certificate management
+	ue.POST("/api/_version_/fleet/certificate_mgmt/certificate", uploadCertEndpoint, uploadCertRequest{})
+
 	errorLimiter := ratelimit.NewErrorMiddleware(limitStore)
 
 	// device-authenticated endpoints

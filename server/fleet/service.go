@@ -1165,6 +1165,11 @@ type Service interface {
 
 	// CalendarWebhook handles incoming calendar callback requests.
 	CalendarWebhook(ctx context.Context, eventUUID string, channelID string, resourceState string) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Certificate management
+
+	UploadCert(ctx context.Context, cert io.ReadSeeker) error
 }
 
 type KeyValueStore interface {
