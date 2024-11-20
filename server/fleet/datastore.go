@@ -1864,6 +1864,9 @@ type Datastore interface {
 
 	// CleanUpMDMManagedCertificates removes all managed certificates that are not associated with any host+profile.
 	CleanUpMDMManagedCertificates(ctx context.Context) error
+
+	// Get SoftwareTitleIdByAppID returns the software title ID for the given app ID.
+	GetSoftwareTitleIDByAppID(ctx context.Context, appID uint, teamID *uint) (uint, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
