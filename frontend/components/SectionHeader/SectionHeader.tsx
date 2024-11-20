@@ -7,24 +7,32 @@ interface ISectionHeaderProps {
   title: string;
   subTitle?: React.ReactNode;
   details?: JSX.Element;
-  className?: string;
+  wrapperCustomClass?: string;
+  alignLeftHeaderVertically?: boolean;
+  greySubtitle?: boolean;
 }
 
 const SectionHeader = ({
   title,
   subTitle,
   details,
-  className,
+  wrapperCustomClass,
+  alignLeftHeaderVertically,
+  greySubtitle,
 }: ISectionHeaderProps) => {
-  const classNames = classnames(baseClass, className);
+  const wrapperClassnames = classnames(baseClass, wrapperCustomClass);
+  const leftHeaderClassnames = classnames(`${baseClass}__left-header`, {
+    [`${baseClass}__left-header--vertical`]: alignLeftHeaderVertically,
+  });
+  const subTitleClassnames = classnames(`${baseClass}__sub-title`, {
+    [`${baseClass}__sub-title--grey`]: greySubtitle,
+  });
 
   return (
-    <div className={classNames}>
-      <div className={`${baseClass}__left-header`}>
+    <div className={wrapperClassnames}>
+      <div className={leftHeaderClassnames}>
         <h2>{title}</h2>
-        {subTitle && (
-          <div className={`${baseClass}__sub-title`}>{subTitle}</div>
-        )}
+        {subTitle && <div className={subTitleClassnames}>{subTitle}</div>}
       </div>
       {details && <div className={`${baseClass}__right-header`}>{details}</div>}
     </div>
