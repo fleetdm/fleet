@@ -7,10 +7,12 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"os"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
-
+	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanolib/log"
 	"github.com/micromdm/nanolib/log/ctxlog"
 )
@@ -23,17 +25,20 @@ var Schema string
 var ErrNoCert = errors.New("no certificate in MDM Request")
 
 type MySQLStorage struct {
-	logger log.Logger
-	db     *sql.DB
-	rm     bool
+	logger        log.Logger
+	db            *sql.DB
+	rm            bool
+	asyncLastSeen *asyncLastSeen
 }
 
 type config struct {
-	driver string
-	dsn    string
-	db     *sql.DB
-	logger log.Logger
-	rm     bool
+	driver        string
+	dsn           string
+	db            *sql.DB
+	logger        log.Logger
+	rm            bool
+	asyncCap      int
+	asyncInterval time.Duration
 }
 
 type Option func(*config)
@@ -68,8 +73,20 @@ func WithDeleteCommands() Option {
 	}
 }
 
+func WithAsyncLastSeen(cap int, interval time.Duration) Option {
+	return func(c *config) {
+		c.asyncCap = cap
+		c.asyncInterval = interval
+	}
+}
+
 func New(opts ...Option) (*MySQLStorage, error) {
-	cfg := &config{logger: log.NopLogger, driver: "mysql"}
+	const (
+		asyncLastSeenFlushInterval = 2 * time.Second
+		asyncLastSeenCap           = 1000
+	)
+
+	cfg := &config{logger: log.NopLogger, driver: "mysql", asyncCap: asyncLastSeenCap, asyncInterval: asyncLastSeenFlushInterval}
 	for _, opt := range opts {
 		opt(cfg)
 	}
@@ -83,7 +100,17 @@ func New(opts ...Option) (*MySQLStorage, error) {
 	if err = cfg.db.Ping(); err != nil {
 		return nil, err
 	}
-	return &MySQLStorage{db: cfg.db, logger: cfg.logger, rm: cfg.rm}, nil
+
+	mysqlStore := &MySQLStorage{db: cfg.db, logger: cfg.logger, rm: cfg.rm}
+
+	if v := os.Getenv("FLEET_DISABLE_ASYNC_NANO_LAST_SEEN"); v != "1" {
+		asyncLastSeen := newAsyncLastSeen(cfg.asyncInterval, cfg.asyncCap, mysqlStore.updateLastSeenBatch)
+		mysqlStore.asyncLastSeen = asyncLastSeen
+
+		go asyncLastSeen.runFlushLoop(context.Background())
+	}
+
+	return mysqlStore, nil
 }
 
 // nullEmptyString returns a NULL string if s is empty.
@@ -267,6 +294,11 @@ func (s *MySQLStorage) Disable(r *mdm.Request) error {
 }
 
 func (s *MySQLStorage) updateLastSeen(r *mdm.Request) (err error) {
+	if s.asyncLastSeen != nil {
+		s.asyncLastSeen.markHostSeen(r.Context, r.ID)
+		return nil
+	}
+
 	_, err = s.db.ExecContext(
 		r.Context,
 		`UPDATE nano_enrollments SET last_seen_at = CURRENT_TIMESTAMP WHERE id = ?`,
@@ -276,4 +308,21 @@ func (s *MySQLStorage) updateLastSeen(r *mdm.Request) (err error) {
 		err = fmt.Errorf("updating last seen: %w", err)
 	}
 	return
+}
+
+func (s *MySQLStorage) updateLastSeenBatch(ctx context.Context, ids []string) {
+	if len(ids) == 0 {
+		return
+	}
+
+	stmt, args, err := sqlx.In(`UPDATE nano_enrollments SET last_seen_at = CURRENT_TIMESTAMP WHERE id IN (?)`, ids)
+	if err != nil {
+		s.logger.Info("msg", "error building nano_enrollments.last_seen_at sql", "err", err)
+		return
+	}
+
+	_, err = s.db.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		s.logger.Info("msg", "error batch updating nano_enrollments.last_seen_at", "err", err)
+	}
 }
