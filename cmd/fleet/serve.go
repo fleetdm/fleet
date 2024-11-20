@@ -919,7 +919,7 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newAppleMDMProfileManager(
+				return newAppleMDMProfileManagerSchedule(
 					ctx,
 					instanceID,
 					ds,
@@ -931,7 +931,7 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newWindowsMDMProfileManager(
+				return newWindowsMDMProfileManagerSchedule(
 					ctx,
 					instanceID,
 					ds,

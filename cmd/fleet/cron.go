@@ -1182,7 +1182,7 @@ func appleMDMDEPSyncerJob(
 	}
 }
 
-func newAppleMDMProfileManager(
+func newAppleMDMProfileManagerSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
@@ -1212,7 +1212,7 @@ func newAppleMDMProfileManager(
 	return s, nil
 }
 
-func newWindowsMDMProfileManager(
+func newWindowsMDMProfileManagerSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,

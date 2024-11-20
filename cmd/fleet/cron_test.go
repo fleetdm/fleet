@@ -30,7 +30,7 @@ func TestNewAppleMDMProfileManagerWithoutConfig(t *testing.T) {
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, nil)
 	logger := kitlog.NewNopLogger()
 
-	sch, err := newAppleMDMProfileManager(ctx, "foo", ds, cmdr, logger)
+	sch, err := newAppleMDMProfileManagerSchedule(ctx, "foo", ds, cmdr, logger)
 	require.NotNil(t, sch)
 	require.NoError(t, err)
 }
@@ -40,7 +40,7 @@ func TestNewWindowsMDMProfileManagerWithoutConfig(t *testing.T) {
 	ds := new(mock.Store)
 	logger := kitlog.NewNopLogger()
 
-	sch, err := newWindowsMDMProfileManager(ctx, "foo", ds, logger)
+	sch, err := newWindowsMDMProfileManagerSchedule(ctx, "foo", ds, logger)
 	require.NotNil(t, sch)
 	require.NoError(t, err)
 }
