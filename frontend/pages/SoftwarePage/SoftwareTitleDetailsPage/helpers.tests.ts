@@ -22,6 +22,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
           },
           install_script: "echo foo",
           icon_url: "https://example.com/icon.png",
+          automatic_install_policies: [],
         },
         app_store_app: null,
         source: "apps",

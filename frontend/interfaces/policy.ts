@@ -105,7 +105,6 @@ export interface IPolicyFormData {
   team_id?: number | null;
   id?: number;
   calendar_events_enabled?: boolean;
-  // undefined from GET/LIST when not set, null for PATCH to unset
   software_title_id?: number | null;
   // null for PATCH to unset - note asymmetry with GET/LIST - see IPolicy.run_script
   script_id?: number | null;

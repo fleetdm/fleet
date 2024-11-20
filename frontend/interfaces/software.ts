@@ -55,6 +55,11 @@ export interface ISoftwareTitleVersion {
   hosts_count?: number;
 }
 
+export interface ISoftwarePackagePolicy {
+  id: number;
+  name: string;
+}
+
 export interface ISoftwarePackage {
   name: string;
   version: string;
@@ -71,6 +76,7 @@ export interface ISoftwarePackage {
     pending_uninstall: number;
     failed_uninstall: number;
   };
+  automatic_install_policies: ISoftwarePackagePolicy[];
   install_during_setup?: boolean;
 }
 

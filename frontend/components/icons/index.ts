@@ -64,6 +64,8 @@ import Refresh from "./Refresh";
 import Install from "./Install";
 import InstallSelfService from "./InstallSelfService";
 import Settings from "./Settings";
+import AutomaticSelfService from "./AutomaticSelfService";
+import User from "./User";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -134,6 +136,8 @@ export const ICON_MAP = {
   install: Install,
   "install-self-service": InstallSelfService,
   settings: Settings,
+  "automatic-self-service": AutomaticSelfService,
+  user: User,
 };
 
 export type IconNames = keyof typeof ICON_MAP;
