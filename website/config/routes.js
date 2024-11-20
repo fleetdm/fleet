@@ -236,10 +236,10 @@ module.exports.routes = {
     }
   },
 
-  'GET /vulnerability-management': {
-    action: 'view-vulnerability-management',
+  'GET /software-management': {
+    action: 'view-software-management',
     locals: {
-      pageTitleForMeta: 'Vulnerability management',
+      pageTitleForMeta: 'Software management',
       pageDescriptionForMeta: 'Report CVEs, software inventory, security posture, and other risks down to the chipset of any endpoint with Fleet.',
       currentSection: 'platform',
     }
@@ -538,12 +538,13 @@ module.exports.routes = {
   'GET /try-fleet/waitlist':   '/try-fleet',
   'GET /endpoint-operations': '/endpoint-ops',// « just in case we type it the wrong way
   'GET /example-dep-profile': 'https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/automatic-enrollment.dep.json',
+  'GET /vulnerability-management': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/software-management'+originalQueryString);},
 
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
   'GET /it': '/endpoint-ops?utm_content=eo-it',
   'GET /seceng': '/endpoint-ops?utm_content=eo-security',
-  'GET /vm': '/vulnerability-management?utm_content=vm',
+  'GET /vm': '/software-management?utm_content=vm',
 
   // Fleet UI
   // =============================================================================================================
