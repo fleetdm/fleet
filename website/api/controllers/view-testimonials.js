@@ -83,6 +83,7 @@ module.exports = {
       'Alvaro Gutierrez',
       'Tom Larkin',
       'Nick Fohs',
+      'charles zaffery',// Note: This testimonial's quoteAuthorName value is lowercased so it can be sorted to a different position than the other Charles Zaffery quote.
       'Andre Shields',
       'Abubakar Yousafzai',
       'Chandra Majumdar',
