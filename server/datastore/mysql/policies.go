@@ -1678,9 +1678,9 @@ func (ds *Datastore) GetPoliciesBySoftwareTitleID(
 	JOIN software_titles st ON si.title_id = st.id
 	WHERE st.id = ?`
 
-	args := []interface{}{softwareTitleID}
+	args := []any{softwareTitleID}
 	if teamID != nil {
-		query += " AND p.team_id = ?;"
+		query += " AND p.team_id = ?"
 		args = append(args, *teamID)
 	}
 

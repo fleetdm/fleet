@@ -405,6 +405,12 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
 	}
 
+	policies, err := ds.GetPoliciesBySoftwareTitleID(ctx, titleID, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
+	}
+	dest.AutomaticInstallPolicies = policies
+
 	return &dest, nil
 }
 

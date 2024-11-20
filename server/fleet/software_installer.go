@@ -124,6 +124,9 @@ type SoftwareInstaller struct {
 	URL string `json:"url" db:"url"`
 	// FleetLibraryAppID is the related Fleet-maintained app for this installer (if not nil).
 	FleetLibraryAppID *uint `json:"-" db:"fleet_library_app_id"`
+	// AutomaticInstallPolicies is the list of policies that trigger automatic
+	// installation of this software.
+	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies,omitempty" db:"-"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
