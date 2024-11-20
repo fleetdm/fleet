@@ -279,6 +279,14 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  fleetEnrolled: (activity: IActivity) => {
+    const hostDisplayName = activity.details?.host_display_name ? (
+      <b>{activity.details.host_display_name}</b>
+    ) : (
+      "A host"
+    );
+    return <>{hostDisplayName} enrolled in Fleet.</>;
+  },
   mdmEnrolled: (activity: IActivity) => {
     if (activity.details?.mdm_platform === "microsoft") {
       return (
@@ -1166,6 +1174,9 @@ const getDetail = (
     }
     case ActivityType.UserDeletedTeamRole: {
       return TAGGED_TEMPLATES.userDeletedTeamRole(activity);
+    }
+    case ActivityType.FleetEnrolled: {
+      return TAGGED_TEMPLATES.fleetEnrolled(activity);
     }
     case ActivityType.MdmEnrolled: {
       return TAGGED_TEMPLATES.mdmEnrolled(activity);

@@ -96,14 +96,14 @@
             <div class="invalid-feedback" v-if="formErrors.primaryBuyingSituation">Please select an option</div>
           </div>
          <div class="form-group">
-           <label for="number-of-hosts">How many <%= primaryBuyingSituation === 'mdm' ? 'devices' : 'hosts' %> do you have? *</label>
+           <label for="number-of-hosts">How many employees are in your organization? *</label>
            <input class="form-control" id="number-of-hosts" name="number-of-hosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" min="1" v-model.trim="formData.numberOfHosts">
-           <p purpose="devices-note" class="mt-3 mb-0" v-if="!primaryBuyingSituation || ['eo-it', 'mdm', 'vm'].includes(primaryBuyingSituation)">Includes computers, servers, phones, and more.</p>
-           <p purpose="devices-note" class="mt-3 mb-0" v-if="primaryBuyingSituation === 'eo-security'">Includes servers, supercomputers, and everything else.</p>
+           <!-- <p purpose="devices-note" class="mt-3 mb-0" v-if="!primaryBuyingSituation || ['eo-it', 'mdm', 'vm'].includes(primaryBuyingSituation)">Includes computers, servers, phones, and more.</p>
+           <p purpose="devices-note" class="mt-3 mb-0" v-if="primaryBuyingSituation === 'eo-security'">Includes servers, supercomputers, and everything else.</p> -->
            <!-- <p purpose="devices-note" class="mt-3 mb-0" v-if="primaryBuyingSituation === 'eo-it'">Includes Apple, Windows, Linux workstations, Chromebooks, servers, and other hosts. </p> -->
            <!-- <p purpose="devices-note" class="mt-3 mb-0" v-if="primaryBuyingSituation === 'mdm'">Includes Apple, Windows, and desktop Linux. Android coming soon.</p> -->
            <!-- <p purpose="devices-note" class="mt-3 mb-0" v-if="primaryBuyingSituation === 'vm'">Includes computers, servers, OT/ICS, containers, and other hosts.</p> -->
-           <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of <%= primaryBuyingSituation === 'mdm' ? 'devices' : 'hosts' %></div>
+           <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of employees</div>
          </div>
          <cloud-error v-if="cloudError && cloudError === 'invalidEmailDomain'">
            <p>Please enter a valid work email address</p>

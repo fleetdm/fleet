@@ -8,11 +8,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/ctxlog"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
+
+	"github.com/micromdm/nanolib/log"
+	"github.com/micromdm/nanolib/log/ctxlog"
 )
 
 var (
@@ -97,6 +98,7 @@ func New(next service.CheckinAndCommandService, storage storage.CertAuthStore, o
 	return certAuth
 }
 
+// HashCert returns the string representation
 func HashCert(cert *x509.Certificate) string {
 	hashed := sha256.Sum256(cert.Raw)
 	b := make([]byte, len(hashed))

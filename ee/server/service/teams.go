@@ -1046,13 +1046,9 @@ func (svc *Service) createTeamFromSpec(
 	}
 
 	invalid := &fleet.InvalidArgumentError{}
-	if enableDiskEncryption && !appCfg.MDM.AtLeastOnePlatformEnabledAndConfigured() {
-		invalid.Append(
-			"mdm",
-			`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`,
-		)
+	if enableDiskEncryption && svc.config.Server.PrivateKey == "" {
+		return nil, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	}
-
 	validateTeamCustomSettings(invalid, "macos", macOSSettings.CustomSettings)
 	validateTeamCustomSettings(invalid, "windows", spec.MDM.WindowsSettings.CustomSettings.Value)
 
@@ -1210,11 +1206,10 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.EnableDiskEncryption = *de
 	}
 	didUpdateDiskEncryption := team.Config.MDM.EnableDiskEncryption != oldEnableDiskEncryption
-	if !appCfg.MDM.AtLeastOnePlatformEnabledAndConfigured() && didUpdateDiskEncryption && team.Config.MDM.EnableDiskEncryption {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm",
-			`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
-	}
 
+	if didUpdateDiskEncryption && team.Config.MDM.EnableDiskEncryption && svc.config.Server.PrivateKey == "" {
+		return ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	}
 	if !team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
@@ -1523,6 +1518,9 @@ func unmarshalWithGlobalDefaults(b *json.RawMessage) (fleet.Features, error) {
 func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.Team, enable *bool) error {
 	var didUpdate, didUpdateMacOSDiskEncryption bool
 	if enable != nil {
+		if svc.config.Server.PrivateKey == "" {
+			return ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		}
 		if tm.Config.MDM.EnableDiskEncryption != *enable {
 			tm.Config.MDM.EnableDiskEncryption = *enable
 			didUpdate = true

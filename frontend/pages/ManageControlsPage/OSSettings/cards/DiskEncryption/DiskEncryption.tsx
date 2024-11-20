@@ -5,7 +5,11 @@ import { InjectedRouter } from "react-router";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { ITeamConfig } from "interfaces/team";
-import mdmAPI from "services/entities/mdm";
+import { getErrorReason } from "interfaces/errors";
+
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
+import diskEncryptionAPI from "services/entities/disk_encryption";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import configAPI from "services/entities/config";
 
@@ -15,6 +19,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import DiskEncryptionTable from "./components/DiskEncryptionTable";
 
@@ -81,7 +86,10 @@ const DiskEncryption = ({
 
   const onUpdateDiskEncryption = async () => {
     try {
-      await mdmAPI.updateAppleMdmSettings(diskEncryptionEnabled, currentTeamId);
+      await diskEncryptionAPI.updateDiskEncryption(
+        diskEncryptionEnabled,
+        currentTeamId
+      );
       renderFlash(
         "success",
         "Successfully updated disk encryption enforcement!"
@@ -91,11 +99,24 @@ const DiskEncryption = ({
       if (currentTeamId === 0) {
         getUpdatedAppConfig();
       }
-    } catch {
-      renderFlash(
-        "error",
-        "Could not update the disk encryption enforcement. Please try again."
-      );
+    } catch (e) {
+      if (getErrorReason(e).includes("Missing required private key")) {
+        const link =
+          "https://fleetdm.com/learn-more-about/fleet-server-private-key";
+        renderFlash(
+          "error",
+          <>
+            Could&apos;t enable disk encryption. Missing required private key.
+            Learn how to configure the private key here:{" "}
+            <a href={link}>{link}</a>
+          </>
+        );
+      } else {
+        renderFlash(
+          "error",
+          "Could not update the disk encryption enforcement. Please try again."
+        );
+      }
     }
   };
 
@@ -103,18 +124,43 @@ const DiskEncryption = ({
     setIsLoadingTeam(false);
   }
 
-  const createDescriptionText = () => {
-    // table is showing disk encryption status.
-    if (showAggregate) {
-      return "If turned on, hosts' disk encryption keys will be stored in Fleet. ";
-    }
-
-    return `Also known as “FileVault” on macOS and “BitLocker” on Windows. If turned on, hosts' disk encryption keys will be stored in Fleet. `;
+  const getTipContent = (platform: "windows" | "macOS") => {
+    const [AppleOrWindows, DEMethod] =
+      platform === "windows"
+        ? ["Windows", "BitLocker"]
+        : ["Apple", "FileVault"];
+    return (
+      <>
+        {AppleOrWindows} MDM must be turned on in{" "}
+        <a href="/settings/integrations/mdm">
+          <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
+          <b>Mobile Device Management (MDM)</b>
+        </a>{" "}
+        to enforce disk encryption via {DEMethod}.
+      </>
+    );
   };
+
+  const subTitle = (
+    <>
+      Disk encryption is available on{" "}
+      <TooltipWrapper tipContent={getTipContent("macOS")}>macOS</TooltipWrapper>
+      ,{" "}
+      <TooltipWrapper tipContent={getTipContent("windows")}>
+        Windows
+      </TooltipWrapper>
+      , Ubuntu Linux, and Fedora Linux hosts.
+    </>
+  );
 
   return (
     <div className={baseClass}>
-      <SectionHeader title="Disk encryption" />
+      <SectionHeader
+        title="Disk encryption"
+        subTitle={subTitle}
+        alignLeftHeaderVertically
+        greySubtitle
+      />
       {!isPremiumTier ? (
         <PremiumFeatureMessage
           className={`${baseClass}__premium-feature-message`}
@@ -139,10 +185,11 @@ const DiskEncryption = ({
                 Turn on disk encryption
               </Checkbox>
               <p>
-                {createDescriptionText()}
+                If turned on, hosts&apos; disk encryption keys will be stored in
+                Fleet{" "}
                 <CustomLink
                   text="Learn more"
-                  url="https://fleetdm.com/docs/using-fleet/mdm-disk-encryption"
+                  url={`${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`}
                   newTab
                 />
               </p>

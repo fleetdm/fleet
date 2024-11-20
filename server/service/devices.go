@@ -610,6 +610,43 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Trigger linux key escrow
+////////////////////////////////////////////////////////////////////////////////
+
+type triggerLinuxDiskEncryptionEscrowRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *triggerLinuxDiskEncryptionEscrowRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type triggerLinuxDiskEncryptionEscrowResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r triggerLinuxDiskEncryptionEscrowResponse) error() error { return r.Err }
+
+func (r triggerLinuxDiskEncryptionEscrowResponse) Status() int { return http.StatusNoContent }
+
+func triggerLinuxDiskEncryptionEscrowEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return triggerLinuxDiskEncryptionEscrowResponse{Err: err}, nil
+	}
+
+	if err := svc.TriggerLinuxDiskEncryptionEscrow(ctx, host); err != nil {
+		return triggerLinuxDiskEncryptionEscrowResponse{Err: err}, nil
+	}
+	return triggerLinuxDiskEncryptionEscrowResponse{}, nil
+}
+
+func (svc *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fleet.Host) error {
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Get Current Device's Software
 ////////////////////////////////////////////////////////////////////////////////
 

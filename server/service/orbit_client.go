@@ -456,6 +456,8 @@ func (oc *OrbitClient) enroll() (string, error) {
 		Hostname:          oc.hostInfo.Hostname,
 		Platform:          oc.hostInfo.Platform,
 		OsqueryIdentifier: oc.hostInfo.OsqueryIdentifier,
+		ComputerName:      oc.hostInfo.ComputerName,
+		HardwareModel:     oc.hostInfo.HardwareModel,
 	}
 	var resp EnrollOrbitResponse
 	err := oc.request(verb, path, params, &resp)

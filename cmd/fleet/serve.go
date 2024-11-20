@@ -64,6 +64,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"go.elastic.co/apm/module/apmhttp/v2"
 	_ "go.elastic.co/apm/module/apmsql/v2"
 	_ "go.elastic.co/apm/module/apmsql/v2/mysql"
 	"go.opentelemetry.io/otel"
@@ -1252,7 +1253,12 @@ the way that the Fleet server works.
 			liveQueryRestPeriod += 10 * time.Second
 
 			// Create the handler based on whether tracing should be there
-			handler := launcher.Handler(rootMux)
+			var handler http.Handler
+			if config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm" {
+				handler = launcher.Handler(apmhttp.Wrap(rootMux))
+			} else {
+				handler = launcher.Handler(rootMux)
+			}
 
 			srv := config.Server.DefaultHTTPServer(ctx, handler)
 			if liveQueryRestPeriod > srv.WriteTimeout {

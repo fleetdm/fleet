@@ -207,6 +207,11 @@ To update the host count on a user's subscription:
 7. Let the person who created the request know what actions were taken so they can communicate them to the customer.
 
 
+### Change customer credit card number
+
+You can help a Premium license dispenser customers change their credit card by directing them to their [account dashboard](https://fleetdm.com/customers/dashboard). On that page, the customer can update their billing card by clicking the pencil icon next to their billing information.
+
+
 ### Cancel a Fleet Premium subscription
 
 Use the following steps to cancel a Fleet Premium subscription:
