@@ -7273,7 +7273,6 @@ func testAppleMDMSetBatchAsyncLastSeenAt(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: uuid1,
 		Status:      "Acknowledged",
-		RequestType: "ProfileList",
 		Raw:         []byte(rawCmd1),
 	})
 	require.NoError(t, err)
@@ -7285,7 +7284,6 @@ func testAppleMDMSetBatchAsyncLastSeenAt(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: uuid1,
 		Status:      "Error",
-		RequestType: "ProfileList",
 		Raw:         []byte(rawCmd1),
 	})
 	require.NoError(t, err)
