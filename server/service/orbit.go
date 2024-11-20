@@ -1025,7 +1025,8 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 type orbitPostLUKSRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
 	Passphrase   string `json:"passphrase"`
-	SlotKey      string `json:"slot_key"`
+	Salt         string `json:"salt"`
+	KeySlot      *uint  `json:"key_slot"`
 	ClientError  string `json:"client_error"`
 }
 
@@ -1048,13 +1049,13 @@ func (r orbitPostLUKSResponse) Status() int  { return http.StatusNoContent }
 
 func postOrbitLUKSEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*orbitPostLUKSRequest)
-	if err := svc.EscrowLUKSData(ctx, req.Passphrase, req.SlotKey, req.ClientError); err != nil {
+	if err := svc.EscrowLUKSData(ctx, req.Passphrase, req.Salt, req.KeySlot, req.ClientError); err != nil {
 		return orbitPostLUKSResponse{Err: err}, nil
 	}
 	return orbitPostLUKSResponse{}, nil
 }
 
-func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, slotKey string, clientError string) error {
+func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string) error {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
@@ -1066,36 +1067,34 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, slotK
 	if clientError != "" {
 		return svc.ds.ReportEscrowError(ctx, host.ID, clientError)
 	}
-	encryptedPassphrase, encryptedSlotKey, err := svc.validateAndEncrypt(ctx, passphrase, slotKey)
+
+	encryptedPassphrase, encryptedSalt, validatedKeySlot, err := svc.validateAndEncrypt(ctx, passphrase, salt, keySlot)
 	if err != nil {
 		_ = svc.ds.ReportEscrowError(ctx, host.ID, err.Error())
 		return err
 	}
 
-	return svc.ds.SaveLUKSData(ctx, host.ID, encryptedPassphrase, encryptedSlotKey)
+	return svc.ds.SaveLUKSData(ctx, host.ID, encryptedPassphrase, encryptedSalt, validatedKeySlot)
 }
 
-func (svc *Service) validateAndEncrypt(ctx context.Context, passphrase string, slotKey string) (string, string, error) {
-	if passphrase == "" {
-		return "", "", badRequest("Blank passphrase provided")
+func (svc *Service) validateAndEncrypt(ctx context.Context, passphrase string, salt string, keySlot *uint) (encryptedPassphrase string, encryptedSalt string, validatedKeySlot uint, err error) {
+	if passphrase == "" || salt == "" || keySlot == nil {
+		return "", "", 0, badRequest("passphrase, salt, and key_slot must be provided to escrow LUKS data")
 	}
 	if svc.config.Server.PrivateKey == "" {
-		return "", "", newOsqueryError("internal error: missing server private key")
+		return "", "", 0, newOsqueryError("internal error: missing server private key")
 	}
 
-	encryptedPassphrase, err := mdm.EncryptAndEncode(passphrase, svc.config.Server.PrivateKey)
+	encryptedPassphrase, err = mdm.EncryptAndEncode(passphrase, svc.config.Server.PrivateKey)
 	if err != nil {
-		return "", "", ctxerr.Wrap(ctx, err, "internal error: could not encrypt LUKS data")
+		return "", "", 0, ctxerr.Wrap(ctx, err, "internal error: could not encrypt LUKS data")
 	}
-	var encryptedSlotKey string
-	if slotKey != "" {
-		encryptedSlotKey, err = mdm.EncryptAndEncode(slotKey, svc.config.Server.PrivateKey)
-		if err != nil {
-			return "", "", ctxerr.Wrap(ctx, err, "internal error: could not encrypt LUKS data")
-		}
+	encryptedSalt, err = mdm.EncryptAndEncode(salt, svc.config.Server.PrivateKey)
+	if err != nil {
+		return "", "", 0, ctxerr.Wrap(ctx, err, "internal error: could not encrypt LUKS data")
 	}
 
-	return encryptedPassphrase, encryptedSlotKey, nil
+	return encryptedPassphrase, encryptedSalt, *keySlot, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
