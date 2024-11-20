@@ -1,1 +1,1 @@
-- adding functionality to support linux disk encryption key escrow including end user prompts and LUKS key management
+* added functionality to support linux disk encryption key escrow including end user prompts and LUKS key management
