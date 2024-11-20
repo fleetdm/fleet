@@ -206,6 +206,9 @@ func (svc *Service) NewDistributedQueryCampaignByIdentifiers(ctx context.Context
 		return nil, ctxerr.Wrap(ctx, err, "finding host IDs")
 	}
 
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
 	labelMap, err := svc.ds.LabelIDsByName(ctx, labels)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "finding label IDs")
@@ -215,7 +218,6 @@ func (svc *Service) NewDistributedQueryCampaignByIdentifiers(ctx context.Context
 	// These labels are considered invalid
 	invalidLabels := fleet.DetectMissingLabels(labelMap, labels)
 	if len(invalidLabels) > 0 {
-		setAuthCheckedOnPreAuthErr(ctx)
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("%s %s.", fleet.InvalidLabelSpecifiedErrMsg, strings.Join(invalidLabels, ", ")),
 		}, "invalid labels")
