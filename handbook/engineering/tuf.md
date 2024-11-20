@@ -24,7 +24,7 @@ This handbook page outlines the processes required to create and maintain a TUF 
 
 9. Disconnect both USB drives. 
 
-10. Connect the bootable Ubuntu USB drive to the signing device and boot to Ubuntu. When the boot screen appears, press the key the manufacturuer has set to enter the boot menu. This is typically F1, F10, or ESC.
+10. Connect the bootable Ubuntu USB drive to the signing device and boot to Ubuntu. When the boot screen appears, press the key the manufacturer has set to enter the boot menu. This is typically F1, F10, or ESC.
 
 11. On the boot menu, select the Ubuntu USB drive, then "Try or Install Ubuntu" to boot directly from the USB drive. 
 
@@ -76,7 +76,7 @@ There are two roles required to complete these steps, the "Root" role who holds 
 
 2. The Realeaser pulls down the contents of the TUF repo into the `repository` sub-directory. 
 
-3. From the root of their TUF directory, the Releaser run `tuf gen-key targets`. This will create a `keys` sub-directory and `staged` sub-directory. 
+3. From the root of their TUF directory, the Releaser runs `tuf gen-key targets`. This will create a `keys` sub-directory and `staged` sub-directory.  Next, the Releaser runs `tuf gen-key snapshot`, then `tuf gen-key timestamp` to create keys for those roles. 
 
 4. The Releaser copies the `keys` directory to a USB drive, and deletes the `keys` directory from their local hard drive. 
 
@@ -104,7 +104,7 @@ There are two roles required to complete these steps, the "Root" role who holds 
 
 16. The Root role pushes the updated contents of the `repository` directory to the remote TUF server. 
 
-17. The Releser role can now run `tuf sign` to sign agent updates using their offline Targets key.
+17. The Releaser role can now run `tuf sign` to sign agent updates using their offline Targets key.
 
 ## Rotate the root keys 
 
@@ -114,7 +114,7 @@ The root keys expire every year and must be manually rotated at least 30 days pr
 
 2. The offline Ubuntu bootable USB drive is turned on. 
 
-3. The root keys USB drive is connected to the Ubuntu bootable instance. 
+3. The root keys USB drive is connected to the Ubuntu bootable instance. Before proceeding, make two backups of the root keys on USB drives for safe keeping. They will be deleted when the root keys have been successfully rotated. 
 
 4. Add three new root keys using the steps documented in creating a new TUF repo. 
 
@@ -124,11 +124,11 @@ The root keys expire every year and must be manually rotated at least 30 days pr
 
 7. Using one of the new root keys, run `tuf revoke-key <role> <id>`. Run this command for each of the old, expiring root keys. 
 
-8. Using one of the new root keys, run `tuf sign root.json` to sign the root metadata removing the old root keys. 
+8. Using each of the new root keys, run `tuf sign root.json` to sign the root metadata removing the old root keys and adding the new keys so that the new root.json is signed by all root keys.
 
 9. Using one of the new root keys, run `tuf commit` to commit the staged root metadata. 
 
-10. Confirm the file in `repository/root.json` contains the new root key ids, and removes the old root key ids.
+10. Confirm the file in `repository/root.json` contains the new root key ids by comparing the ids listed in `signed.roles.root.keyids` to the signatures in `signatures`. Make sure all root ids have signed.
 
 11. Copy the `repository` directory to the local drive of an online device and push to the remote TUF repo. 
 
