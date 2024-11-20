@@ -153,7 +153,7 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		}
 
 		userKey := encryption.NewKey(userKeySlot, passphrase)
-		escrowKey := encryption.NewKey(int(keySlot), escrowPassphrase)
+		escrowKey := encryption.NewKey(int(keySlot), escrowPassphrase) // #nosec G115
 
 		if err := device.AddKey(ctx, devicePath, userKey, escrowKey); err != nil {
 			if ErrKeySlotFull.MatchString(err.Error()) {
@@ -298,7 +298,7 @@ func getSaltforKeySlot(ctx context.Context, devicePath string, keySlot uint) (st
 }
 
 func removeKeySlot(ctx context.Context, devicePath string, keySlot uint) error {
-	cmd := exec.CommandContext(ctx, "cryptsetup", "luksKillSlot", devicePath, fmt.Sprintf("%d", keySlot))
+	cmd := exec.CommandContext(ctx, "cryptsetup", "luksKillSlot", devicePath, fmt.Sprintf("%d", keySlot)) // #nosec G204
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("Failed to run cryptsetup luksKillSlot: %w", err)
 	}
