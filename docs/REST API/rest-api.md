@@ -3870,7 +3870,7 @@ Also returns the custom email that's set via the `PUT /api/v1/fleet/hosts/:id/de
 
 Note that IdP email is only supported on macOS hosts. It's collected once, during automatic enrollment (DEP), only if the end user authenticates with the IdP and the DEP profile has `await_device_configured` set to `true`.
 
-Email with `custom` data soruce is used as identifier to get data from IdP (LDAP server).`mdm_idp_accounts` is used if `custom` isn't present. Once LDAP sync is performed, these emails will be used to determine to which end user host belongs to.
+Email with `custom` data soruce is used as the identifier to get data from the IdP (LDAP server).`mdm_idp_accounts` is used if `custom` isn't present. Once LDAP sync is performed, these emails will be used to determine to which end user the host belongs to.
 
 `GET /api/v1/fleet/hosts/:id/device_mapping`
 
