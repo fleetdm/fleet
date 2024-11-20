@@ -414,6 +414,11 @@ type HostSoftwareWithInstaller struct {
 	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
 }
 
+type AutomaticInstallPolicy struct {
+	ID   uint   `json:"id" db:"id"`
+	Name string `json:"name" db:"name"`
+}
+
 // SoftwarePackageOrApp provides information about a software installer
 // package or a VPP app.
 type SoftwarePackageOrApp struct {
@@ -421,6 +426,9 @@ type SoftwarePackageOrApp struct {
 	AppStoreID string `json:"app_store_id,omitempty"`
 	// Name is only present for software installer packages.
 	Name string `json:"name,omitempty"`
+	// AutomaticInstallPolicies is only present for Fleet maintained apps
+	// installed automatically with a policy.
+	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies,omitempty"`
 
 	Version       string                 `json:"version"`
 	SelfService   *bool                  `json:"self_service,omitempty"`

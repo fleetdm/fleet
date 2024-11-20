@@ -151,12 +151,25 @@ func (ds *Datastore) ListSoftwareTitles(
 			if title.PackageVersion != nil {
 				version = *title.PackageVersion
 			}
+
 			title.SoftwarePackage = &fleet.SoftwarePackageOrApp{
 				Name:               *title.PackageName,
 				Version:            version,
 				SelfService:        title.PackageSelfService,
 				PackageURL:         title.PackageURL,
 				InstallDuringSetup: title.PackageInstallDuringSetup,
+			}
+
+			policies, err := ds.GetPoliciesBySoftwareInstallerID(ctx, title.ID)
+			if err != nil {
+				return nil, 0, nil, ctxerr.Wrap(ctx, err, "get policies by software installer ID")
+			}
+
+			for _, policy := range policies {
+				title.SoftwarePackage.AutomaticInstallPolicies = append(title.SoftwarePackage.AutomaticInstallPolicies, fleet.AutomaticInstallPolicy{
+					Name: policy.Name,
+					ID:   policy.ID,
+				})
 			}
 		}
 
