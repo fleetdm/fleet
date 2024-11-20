@@ -919,7 +919,7 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newMDMProfileManager(
+				return newAppleMDMProfileManager(
 					ctx,
 					instanceID,
 					ds,
@@ -928,6 +928,17 @@ the way that the Fleet server works.
 				)
 			}); err != nil {
 				initFatal(err, "failed to register mdm_apple_profile_manager schedule")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newWindowsMDMProfileManager(
+					ctx,
+					instanceID,
+					ds,
+					logger,
+				)
+			}); err != nil {
+				initFatal(err, "failed to register mdm_windows_profile_manager schedule")
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
