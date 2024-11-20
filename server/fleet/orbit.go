@@ -40,6 +40,9 @@ type OrbitConfigNotifications struct {
 	// RunSetupExperience indicates whether or not Orbit should run the Fleet setup experience
 	// during macOS Setup Assistant.
 	RunSetupExperience bool `json:"run_setup_experience,omitempty"`
+
+	// RunDiskEncryptionEscrow tells Orbit to prompt the end user to escrow disk encryption data
+	RunDiskEncryptionEscrow bool `json:"run_disk_encryption_escrow,omitempty"`
 }
 
 type OrbitConfig struct {

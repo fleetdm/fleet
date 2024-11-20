@@ -639,11 +639,23 @@ type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, e
 
 type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint, encryptedBase64Key string, clientError string, decryptable *bool) error
 
+type SaveLUKSDataFunc func(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error
+
 type GetUnverifiedDiskEncryptionKeysFunc func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error)
 
-type SetHostsDiskEncryptionKeyStatusFunc func(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error
+type SetHostsDiskEncryptionKeyStatusFunc func(ctx context.Context, hostIDs []uint, decryptable bool, threshold time.Time) error
 
 type GetHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error)
+
+type IsHostPendingEscrowFunc func(ctx context.Context, hostID uint) bool
+
+type ClearPendingEscrowFunc func(ctx context.Context, hostID uint) error
+
+type ReportEscrowErrorFunc func(ctx context.Context, hostID uint, err string) error
+
+type QueueEscrowFunc func(ctx context.Context, hostID uint) error
+
+type AssertHasNoEncryptionKeyStoredFunc func(ctx context.Context, hostID uint) error
 
 type GetHostCertAssociationsToExpireFunc func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error)
 
@@ -2077,6 +2089,9 @@ type DataStore struct {
 	SetOrUpdateHostDiskEncryptionKeyFunc        SetOrUpdateHostDiskEncryptionKeyFunc
 	SetOrUpdateHostDiskEncryptionKeyFuncInvoked bool
 
+	SaveLUKSDataFunc        SaveLUKSDataFunc
+	SaveLUKSDataFuncInvoked bool
+
 	GetUnverifiedDiskEncryptionKeysFunc        GetUnverifiedDiskEncryptionKeysFunc
 	GetUnverifiedDiskEncryptionKeysFuncInvoked bool
 
@@ -2085,6 +2100,21 @@ type DataStore struct {
 
 	GetHostDiskEncryptionKeyFunc        GetHostDiskEncryptionKeyFunc
 	GetHostDiskEncryptionKeyFuncInvoked bool
+
+	IsHostPendingEscrowFunc        IsHostPendingEscrowFunc
+	IsHostPendingEscrowFuncInvoked bool
+
+	ClearPendingEscrowFunc        ClearPendingEscrowFunc
+	ClearPendingEscrowFuncInvoked bool
+
+	ReportEscrowErrorFunc        ReportEscrowErrorFunc
+	ReportEscrowErrorFuncInvoked bool
+
+	QueueEscrowFunc        QueueEscrowFunc
+	QueueEscrowFuncInvoked bool
+
+	AssertHasNoEncryptionKeyStoredFunc        AssertHasNoEncryptionKeyStoredFunc
+	AssertHasNoEncryptionKeyStoredFuncInvoked bool
 
 	GetHostCertAssociationsToExpireFunc        GetHostCertAssociationsToExpireFunc
 	GetHostCertAssociationsToExpireFuncInvoked bool
@@ -5008,6 +5038,13 @@ func (s *DataStore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID
 	return s.SetOrUpdateHostDiskEncryptionKeyFunc(ctx, hostID, encryptedBase64Key, clientError, decryptable)
 }
 
+func (s *DataStore) SaveLUKSData(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error {
+	s.mu.Lock()
+	s.SaveLUKSDataFuncInvoked = true
+	s.mu.Unlock()
+	return s.SaveLUKSDataFunc(ctx, hostID, encryptedBase64Passphrase, encryptedBase64Salt, keySlot)
+}
+
 func (s *DataStore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
 	s.mu.Lock()
 	s.GetUnverifiedDiskEncryptionKeysFuncInvoked = true
@@ -5015,11 +5052,11 @@ func (s *DataStore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]flee
 	return s.GetUnverifiedDiskEncryptionKeysFunc(ctx)
 }
 
-func (s *DataStore) SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error {
+func (s *DataStore) SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, decryptable bool, threshold time.Time) error {
 	s.mu.Lock()
 	s.SetHostsDiskEncryptionKeyStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetHostsDiskEncryptionKeyStatusFunc(ctx, hostIDs, encryptable, threshold)
+	return s.SetHostsDiskEncryptionKeyStatusFunc(ctx, hostIDs, decryptable, threshold)
 }
 
 func (s *DataStore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
@@ -5027,6 +5064,41 @@ func (s *DataStore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (
 	s.GetHostDiskEncryptionKeyFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostDiskEncryptionKeyFunc(ctx, hostID)
+}
+
+func (s *DataStore) IsHostPendingEscrow(ctx context.Context, hostID uint) bool {
+	s.mu.Lock()
+	s.IsHostPendingEscrowFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsHostPendingEscrowFunc(ctx, hostID)
+}
+
+func (s *DataStore) ClearPendingEscrow(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.ClearPendingEscrowFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearPendingEscrowFunc(ctx, hostID)
+}
+
+func (s *DataStore) ReportEscrowError(ctx context.Context, hostID uint, err string) error {
+	s.mu.Lock()
+	s.ReportEscrowErrorFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReportEscrowErrorFunc(ctx, hostID, err)
+}
+
+func (s *DataStore) QueueEscrow(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.QueueEscrowFuncInvoked = true
+	s.mu.Unlock()
+	return s.QueueEscrowFunc(ctx, hostID)
+}
+
+func (s *DataStore) AssertHasNoEncryptionKeyStored(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.AssertHasNoEncryptionKeyStoredFuncInvoked = true
+	s.mu.Unlock()
+	return s.AssertHasNoEncryptionKeyStoredFunc(ctx, hostID)
 }
 
 func (s *DataStore) GetHostCertAssociationsToExpire(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {

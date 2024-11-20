@@ -394,6 +394,7 @@ type Service interface {
 	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
 	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
+	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string) error
 
 	// AddLabelsToHost adds the given label names to the host's label membership.
 	//
@@ -964,6 +965,8 @@ type Service interface {
 
 	GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error)
 
+	TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *Host) error
+
 	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
 	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
 
@@ -1169,4 +1172,6 @@ const (
 	BatchSetSoftwareInstallersStatusCompleted = "completed"
 	// BatchSetSoftwareInstallerStatusFailed is the value returned for a failed BatchSetSoftwareInstallers operation.
 	BatchSetSoftwareInstallersStatusFailed = "failed"
+	// MinOrbitLUKSVersion is the earliest version of Orbit that can escrow LUKS passphrases
+	MinOrbitLUKSVersion = "1.36.0"
 )
