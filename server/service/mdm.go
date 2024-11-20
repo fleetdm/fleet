@@ -2194,7 +2194,7 @@ func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, e
 	lic, _ := license.FromContext(ctx)
 	if lic == nil || !lic.IsPremium() {
 		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return ErrMissingLicense
+		return fleet.ErrMissingLicense
 	}
 
 	// for historical reasons (the deprecated PATCH /mdm/apple/settings
