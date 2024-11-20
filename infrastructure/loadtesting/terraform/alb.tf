@@ -3,7 +3,7 @@ resource "aws_lb" "internal" {
   internal                   = true
   security_groups            = [data.terraform_remote_state.shared.outputs.alb_security_group.id]
   subnets                    = data.terraform_remote_state.shared.outputs.vpc.private_subnets
-  idle_timeout               = 600
+  idle_timeout               = 905
   drop_invalid_header_fields = true
   #checkov:skip=CKV_AWS_150:don't like it
 }

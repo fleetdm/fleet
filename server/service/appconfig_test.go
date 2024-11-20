@@ -1208,6 +1208,59 @@ func TestMDMAppleConfig(t *testing.T) {
 	}
 }
 
+func TestDiskEncryptionSetting(t *testing.T) {
+	ds := new(mock.Store)
+
+	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	t.Run("enableDiskEncryptionWithNoPrivateKey", func(t *testing.T) {
+		testConfig = config.TestConfig()
+		testConfig.Server.PrivateKey = ""
+		svc, ctx := newTestServiceWithConfig(t, ds, testConfig, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			MDM:            fleet.MDM{},
+		}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return dsAppConfig, nil
+		}
+
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			*dsAppConfig = *conf
+			return nil
+		}
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return nil, sql.ErrNoRows
+		}
+		ds.NewMDMAppleEnrollmentProfileFunc = func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
+			return &fleet.MDMAppleEnrollmentProfile{}, nil
+		}
+		ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
+			raw := json.RawMessage("{}")
+			return &fleet.MDMAppleEnrollmentProfile{DEPProfile: &raw}, nil
+		}
+		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+			return job, nil
+		}
+
+		ac, err := svc.AppConfigObfuscated(ctx)
+		require.NoError(t, err)
+		require.Equal(t, dsAppConfig.MDM, ac.MDM)
+
+		raw, err := json.Marshal(fleet.MDM{
+			EnableDiskEncryption: optjson.SetBool(true),
+		})
+		require.NoError(t, err)
+		raw = []byte(`{"mdm":` + string(raw) + `}`)
+		_, err = svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "Missing required private key")
+	})
+}
+
 func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -16,7 +17,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
 	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
+	nanomdm_log "github.com/micromdm/nanolib/log"
 )
 
 // NanoMDMStorage wraps a *nanomdm_mysql.MySQLStorage and overrides further functionality.
@@ -28,10 +31,50 @@ type NanoMDMStorage struct {
 	ds     fleet.Datastore
 }
 
+type nanoMDMLogAdapter struct {
+	logger log.Logger
+}
+
+func (l nanoMDMLogAdapter) Info(args ...interface{}) {
+	level.Info(l.logger).Log(args...)
+}
+
+func (l nanoMDMLogAdapter) Debug(args ...interface{}) {
+	level.Debug(l.logger).Log(args...)
+}
+
+func (l nanoMDMLogAdapter) With(args ...interface{}) nanomdm_log.Logger {
+	wl := log.With(l.logger, args...)
+	return nanoMDMLogAdapter{logger: wl}
+}
+
 // NewMDMAppleMDMStorage returns a MySQL nanomdm storage that uses the Datastore
 // underlying MySQL writer *sql.DB.
 func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
-	s, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
+	s, err := nanomdm_mysql.New(
+		nanomdm_mysql.WithDB(ds.primary.DB),
+		nanomdm_mysql.WithLogger(nanoMDMLogAdapter{logger: ds.logger}),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &NanoMDMStorage{
+		MySQLStorage: s,
+		db:           ds.primary,
+		logger:       ds.logger,
+		ds:           ds,
+	}, nil
+}
+
+// NewTestMDMAppleMDMStorage returns a test MySQL nanomdm storage that uses the
+// Datastore underlying MySQL writer *sql.DB. It allows configuring the async
+// last seen time's capacity and interval and should only be used in tests.
+func (ds *Datastore) NewTestMDMAppleMDMStorage(asyncCap int, asyncInterval time.Duration) (*NanoMDMStorage, error) {
+	s, err := nanomdm_mysql.New(
+		nanomdm_mysql.WithDB(ds.primary.DB),
+		nanomdm_mysql.WithLogger(nanoMDMLogAdapter{logger: ds.logger}),
+		nanomdm_mysql.WithAsyncLastSeen(asyncCap, asyncInterval),
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -9,12 +9,17 @@ import {
   IHostMdmProfile,
   MdmDDMProfileStatus,
   MdmProfileStatus,
+  isLinuxDiskEncryptionStatus,
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
+import { isDiskEncryptionSupportedLinuxPlatform } from "interfaces/platform";
 
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
-import { generateWinDiskEncryptionProfile } from "../../helpers";
+import {
+  generateLinuxDiskEncryptionSetting,
+  generateWinDiskEncryptionSetting,
+} from "../../helpers";
 import OSSettingsErrorCell from "./OSSettingsErrorCell";
 
 export const isMdmProfileStatus = (
@@ -69,6 +74,7 @@ const generateTableConfig = (
             status={cellProps.row.original.status}
             operationType={cellProps.row.original.operation_type}
             profileName={cellProps.row.original.name}
+            hostPlatform={cellProps.row.original.platform}
           />
         );
       },
@@ -101,7 +107,33 @@ const makeWindowsRows = ({ profiles, os_settings }: IHostMdmData) => {
     isWindowsDiskEncryptionStatus(os_settings.disk_encryption.status)
   ) {
     rows.push(
-      generateWinDiskEncryptionProfile(
+      generateWinDiskEncryptionSetting(
+        os_settings.disk_encryption.status,
+        os_settings.disk_encryption.detail
+      )
+    );
+  }
+
+  if (rows.length === 0 && !profiles) {
+    return null;
+  }
+
+  return rows;
+};
+
+const makeLinuxRows = ({ profiles, os_settings }: IHostMdmData) => {
+  const rows: IHostMdmProfileWithAddedStatus[] = [];
+
+  if (profiles) {
+    rows.push(...profiles);
+  }
+
+  if (
+    os_settings?.disk_encryption?.status &&
+    isLinuxDiskEncryptionStatus(os_settings.disk_encryption.status)
+  ) {
+    rows.push(
+      generateLinuxDiskEncryptionSetting(
         os_settings.disk_encryption.status,
         os_settings.disk_encryption.detail
       )
@@ -145,6 +177,10 @@ export const generateTableData = (
       return makeWindowsRows(hostMDMData);
     case "darwin":
       return makeDarwinRows(hostMDMData);
+    case "ubuntu":
+      return makeLinuxRows(hostMDMData);
+    case "rhel":
+      return makeLinuxRows(hostMDMData);
     case "ios":
       return hostMDMData.profiles;
     case "ipados":
