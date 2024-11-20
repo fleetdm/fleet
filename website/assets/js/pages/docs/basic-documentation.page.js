@@ -18,7 +18,7 @@ parasails.registerPage('basic-documentation', {
     relatedTopics: [],
     scrollDistance: 0,
     navSectionsByDocsSectionSlug: {},
-
+    lastScrollTop: 0,
   },
 
   computed: {
@@ -314,11 +314,11 @@ parasails.registerPage('basic-documentation', {
       // If the right nav bar exists, add and remove a class based on the current scroll position.
       if (rightNavBar) {
         if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
-          rightNavBar.classList.add('header-hidden', 'scrolled');
-        } else if (scrollTop === 0) {
-          rightNavBar.classList.remove('header-hidden', 'scrolled');
-        } else {
+          rightNavBar.classList.add('header-hidden');
+          this.lastScrollTop = scrollTop;
+        } else if(scrollTop < this.lastScrollTop - 60) {
           rightNavBar.classList.remove('header-hidden');
+          this.lastScrollTop = scrollTop;
         }
       }
       // If back to top button exists, add and remove a class based on the current scroll position.

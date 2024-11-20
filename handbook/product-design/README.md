@@ -8,6 +8,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Role                             | Contributor(s)           |
 |:---------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Head of Product Design           | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_
+| Product Designer (onboarding)    | [Eugene Kuo](https://www.linkedin.com/in/eugkuo/) _([@eugkuo](https://github.com/eugkuo))_
 | Product Designer                 | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
 
@@ -27,7 +28,7 @@ The Product Design department is responsible for reviewing and collecting feedba
 
 The Head of Product Design and a former IT admin review the new customer/prospect/community requests in the "Inbox" column the [drafting board](https://github.com/fleetdm/fleet/issues#workspaces/drafting-6192dd66ea2562000faea25c/board) to synthesize why users are making the request (i.e. what problem are they trying to solve).
 
-If a customer/prospect request is missing a Gong snippet or requires additional information to understand the "why", the Head of Product Design will @ mention the relevant Customer Success Manager (CSM) or Account Executive (AE), assign them, and move the request to the "Waiting" column.
+If a customer/prospect request is missing a Gong snippet or requires additional information to understand the "why", the Head of Product Design will @ mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🏹 #g-customer-success](https://github.com/fleetdm/fleet/issues#workspaces/g-customer-success-642c83a53e96760014c978bd/board) board.
 
 
 ### Unpacking the how
@@ -73,6 +74,13 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 
 - If the story has a requester and the title and/or description change during drafting (scope change), notify the requester. The customer DRI should confirm that the updated scope still meets the requester's needs.
 
+- Each [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) stops drafting once they reach engineering capacity for the upcoming engineering sprint. This way, we avoid creating a backlog which causes us to spend time updating soon-to-be stale designs. It's up to the product group's Product Designer to stop drafting and shift their focus to the following tasks:
+  - Run back through the unestimated user stories and do extra iterations to make sure they're as good as we think they are
+  - Go through the Fleet UI and look for bad/inconsistent text
+  - Go through bugs to see if there’s Product Design input needed
+  - File stories and draft changes for making form fields in the Fleet UI consistent (fixing conventions, moving out the tooltips, etc.)
+  - File stories and draft changes for bringing the screen width down to 375px. (one screen at a time, in which we can squeeze it into engineering sprints as front-end only work, small stories, doesn't compete with other stuff)
+
 >**Questions, missing information, and notes:** Take a screenshot of the area in Figma and add a comment in the story's GitHub issue. Figma does have a commenting system, but it is not easy to search for outstanding concerns and is therefore not preferred. Also, commenting in Figma, sends all contributors email notifications.
 >
 >For external contributors: please consider opening an issue with reference screenshots if you have a Figma related question you need to resolve.
@@ -93,6 +101,8 @@ Once a story is approved in [design review](https://fleetdm.com/handbook/company
 The EM is responsible for moving the user story to the "Specified" and "Estimated" columns.
 
 Before assigning an EM, double-check that the "Product" section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete (no TODOs). 
+
+If the story is tied to a customer feature request, the Head of Product Design (HPD) is responsible for adding the feature request issue to the [🏹 #g-customer-success board](https://github.com/fleetdm/fleet/issues#workspaces/g-customer-success-642c83a53e96760014c978bd/board). This way the Customer Success Manager (CSM) can review the wireframes and provide feedback on whether the proposed changes solve the customer's problem. If the changes don't, it's up to the HPD to decide whether to bring the user story back for more drafting or file a follow up user story (iteration).
 
 Once a bug is approved in design review, The Product Designer is responsible for moving the bug to the appropriate release board.
 

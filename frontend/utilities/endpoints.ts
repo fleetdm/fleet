@@ -34,6 +34,9 @@ export default {
   DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
   },
+  DEVICE_TRIGGER_LINUX_DISK_ENCRYPTION_KEY_ESCROW: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/mdm/linux/trigger_escrow`;
+  },
 
   // Host endpoints
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,
@@ -137,6 +140,9 @@ export default {
     `/${API_VERSION}/fleet/mdm/hosts/${id}/encryption_key`,
 
   ME: `/${API_VERSION}/fleet/me`,
+
+  // Disk encryption endpoints
+  UPDATE_DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,
 
   // Setup experiece endpoints
   MDM_SETUP_EXPERIENCE: `/${API_VERSION}/fleet/setup_experience`,

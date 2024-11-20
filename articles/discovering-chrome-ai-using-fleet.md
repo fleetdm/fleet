@@ -6,13 +6,9 @@
 
 Staying ahead of technological innovations is crucial for individuals and organizations. Google Chrome, one of the most widely used web browsers, continually evolves to incorporate new features, including artificial intelligence (AI). This article will guide you through detecting if AI capabilities have been enabled in Chrome on macOS using Fleet.
 
-## Introduction to Chrome AI innovations
-
-Google Chrome has integrated AI to enhance user experience by providing intelligent suggestions, improving search results, and offering in-browser assistance. Visit the [Chrome AI Innovations page](https://www.google.com/chrome/ai-innovations/) for more information.
-
 ## Using Fleet to discover AI features in Chrome
 
-Fleet, a comprehensive device management and security tool, allows organizations to monitor installed software configurations and enabled features on endpoints and servers. Investigating this data enables Fleet admins to build SQL queries for detection.
+Google Chrome has integrated AI to enhance user experience by providing intelligent suggestions, improving search results, and offering in-browser assistance. Visit the [Chrome AI Innovations page](https://www.google.com/chrome/ai-innovations/) for more information.
 
 ### Step 1: Understanding Chrome's preferences JSON file
 

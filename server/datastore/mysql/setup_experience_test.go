@@ -1,9 +1,9 @@
 package mysql
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,6 +29,7 @@ func TestSetupExperience(t *testing.T) {
 		{"ListSetupExperienceStatusResults", testSetupExperienceStatusResults},
 		{"SetupExperienceScriptCRUD", testSetupExperienceScriptCRUD},
 		{"TestHostInSetupExperience", testHostInSetupExperience},
+		{"TestGetSetupExperienceScriptByID", testGetSetupExperienceScriptByID},
 	}
 
 	for _, c := range cases {
@@ -53,12 +54,14 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
 		UninstallScript:   "goodbye",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     tfr1,
 		StorageID:         "storage1",
 		Filename:          "file1",
 		Title:             "Software1",
@@ -70,11 +73,13 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "banana",
 		PreInstallQuery:   "SELECT 3",
 		PostInstallScript: "apple",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     tfr2,
 		StorageID:         "storage3",
 		Filename:          "file3",
 		Title:             "Software2",
@@ -317,12 +322,14 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
 		UninstallScript:   "goodbye",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     tfr1,
 		StorageID:         "storage1",
 		Filename:          "file1",
 		Title:             "file1",
@@ -334,11 +341,13 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	tfr3, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerID3, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "banana",
 		PreInstallQuery:   "SELECT 3",
 		PostInstallScript: "apple",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     tfr3,
 		StorageID:         "storage3",
 		Filename:          "file3",
 		Title:             "file3",
@@ -351,11 +360,13 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	tfr4, err := fleet.NewTempFileReader(strings.NewReader("hello2"), t.TempDir)
+	require.NoError(t, err)
 	installerID4, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "pear",
 		PreInstallQuery:   "SELECT 4",
 		PostInstallScript: "apple",
-		InstallerFile:     bytes.NewReader([]byte("hello2")),
+		InstallerFile:     tfr4,
 		StorageID:         "storage3",
 		Filename:          "file4",
 		Title:             "file4",
@@ -445,12 +456,14 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
 		UninstallScript:   "goodbye",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     tfr1,
 		StorageID:         "storage1",
 		Filename:          "file1",
 		Title:             "file1",
@@ -463,11 +476,13 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	_ = installerID1
 	require.NoError(t, err)
 
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "world",
 		PreInstallQuery:   "SELECT 2",
 		PostInstallScript: "hello",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     tfr2,
 		StorageID:         "storage2",
 		Filename:          "file2",
 		Title:             "file2",
@@ -480,11 +495,13 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	_ = installerID2
 	require.NoError(t, err)
 
+	tfr3, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerID3, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "banana",
 		PreInstallQuery:   "SELECT 3",
 		PostInstallScript: "apple",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     tfr3,
 		StorageID:         "storage3",
 		Filename:          "file3",
 		Title:             "file3",
@@ -498,11 +515,13 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	_ = installerID3
 	require.NoError(t, err)
 
+	tfr4, err := fleet.NewTempFileReader(strings.NewReader("hello2"), t.TempDir)
+	require.NoError(t, err)
 	installerID4, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "pear",
 		PreInstallQuery:   "SELECT 4",
 		PostInstallScript: "apple",
-		InstallerFile:     bytes.NewReader([]byte("hello2")),
+		InstallerFile:     tfr4,
 		StorageID:         "storage3",
 		Filename:          "file4",
 		Title:             "file4",
@@ -657,7 +676,6 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.False(t, *titles[0].SoftwarePackage.InstallDuringSetup)
 	assert.False(t, *titles[1].SoftwarePackage.InstallDuringSetup)
 	assert.False(t, *titles[2].AppStoreApp.InstallDuringSetup)
-
 }
 
 func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
@@ -890,4 +908,29 @@ func testHostInSetupExperience(t *testing.T, ds *Datastore) {
 	inSetupExperience, err = ds.GetHostAwaitingConfiguration(ctx, "abc")
 	require.NoError(t, err)
 	require.False(t, inSetupExperience)
+}
+
+func testGetSetupExperienceScriptByID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	script := &fleet.Script{
+		Name:           "setup_experience_script",
+		ScriptContents: "echo hello",
+	}
+
+	err := ds.SetSetupExperienceScript(ctx, script)
+	require.NoError(t, err)
+
+	scriptByTeamID, err := ds.GetSetupExperienceScript(ctx, nil)
+	require.NoError(t, err)
+
+	gotScript, err := ds.GetSetupExperienceScriptByID(ctx, scriptByTeamID.ID)
+	require.NoError(t, err)
+
+	require.Equal(t, script.Name, gotScript.Name)
+	require.NotZero(t, gotScript.ScriptContentID)
+
+	b, err := ds.GetAnyScriptContents(ctx, gotScript.ScriptContentID)
+	require.NoError(t, err)
+	require.Equal(t, script.ScriptContents, string(b))
 }

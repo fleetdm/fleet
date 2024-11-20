@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
+	"strings"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -14,8 +16,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	httpmdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http/mdm"
-	nanomdm_log "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
 	nanomdm_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/multi"
@@ -30,6 +32,7 @@ import (
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/gorilla/mux"
+	nanomdm_log "github.com/micromdm/nanolib/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/throttled/throttled/v2"
@@ -694,8 +697,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Deprecated: GET /mdm/disk_encryption/summary is now deprecated, replaced by the
 	// GET /disk_encryption endpoint.
-	mdmAnyMW.GET("/api/_version_/fleet/mdm/disk_encryption/summary", getMDMDiskEncryptionSummaryEndpoint, getMDMDiskEncryptionSummaryRequest{})
-	mdmAnyMW.GET("/api/_version_/fleet/disk_encryption", getMDMDiskEncryptionSummaryEndpoint, getMDMDiskEncryptionSummaryRequest{})
+	ue.GET("/api/_version_/fleet/mdm/disk_encryption/summary", getMDMDiskEncryptionSummaryEndpoint, getMDMDiskEncryptionSummaryRequest{})
+	ue.GET("/api/_version_/fleet/disk_encryption", getMDMDiskEncryptionSummaryEndpoint, getMDMDiskEncryptionSummaryRequest{})
 
 	// Deprecated: GET /mdm/hosts/:id/encryption_key is now deprecated, replaced by
 	// GET /hosts/:id/encryption_key.
@@ -704,8 +707,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Deprecated: GET /mdm/profiles/summary is now deprecated, replaced by the
 	// GET /configuration_profiles/summary endpoint.
-	mdmAnyMW.GET("/api/_version_/fleet/mdm/profiles/summary", getMDMProfilesSummaryEndpoint, getMDMProfilesSummaryRequest{})
-	mdmAnyMW.GET("/api/_version_/fleet/configuration_profiles/summary", getMDMProfilesSummaryEndpoint, getMDMProfilesSummaryRequest{})
+	ue.GET("/api/_version_/fleet/mdm/profiles/summary", getMDMProfilesSummaryEndpoint, getMDMProfilesSummaryRequest{})
+	ue.GET("/api/_version_/fleet/configuration_profiles/summary", getMDMProfilesSummaryEndpoint, getMDMProfilesSummaryRequest{})
 
 	// Deprecated: GET /mdm/profiles/:profile_uuid is now deprecated, replaced by
 	// GET /configuration_profiles/:profile_uuid.
@@ -732,7 +735,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Deprecated: PATCH /mdm/apple/settings is deprecated, replaced by POST /disk_encryption.
 	// It was only used to set disk encryption.
 	mdmAnyMW.PATCH("/api/_version_/fleet/mdm/apple/settings", updateMDMAppleSettingsEndpoint, updateMDMAppleSettingsRequest{})
-	mdmAnyMW.POST("/api/_version_/fleet/disk_encryption", updateMDMDiskEncryptionEndpoint, updateMDMDiskEncryptionRequest{})
+	ue.POST("/api/_version_/fleet/disk_encryption", updateDiskEncryptionEndpoint, updateDiskEncryptionRequest{})
 
 	// the following set of mdm endpoints must always be accessible (even
 	// if MDM is not configured) as it bootstraps the setup of MDM
@@ -835,6 +838,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		errorLimiter.Limit("post_device_migrate_mdm", desktopQuota),
 	).POST("/api/_version_/fleet/device/{token}/migrate_mdm", migrateMDMDeviceEndpoint, deviceMigrateMDMRequest{})
 
+	de.WithCustomMiddleware(
+		errorLimiter.Limit("post_device_trigger_linux_escrow", desktopQuota),
+	).POST("/api/_version_/fleet/device/{token}/mdm/linux/trigger_escrow", triggerLinuxDiskEncryptionEscrowEndpoint, triggerLinuxDiskEncryptionEscrowRequest{})
+
 	// host-authenticated endpoints
 	he := newHostAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
 
@@ -855,6 +862,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		POST("/api/osquery/carve/begin", carveBeginEndpoint, carveBeginRequest{})
 	he.WithAltPaths("/api/v1/osquery/log").
 		POST("/api/osquery/log", submitLogsEndpoint, submitLogsRequest{})
+	he.WithAltPaths("/api/v1/osquery/yara/{name}").
+		POST("/api/osquery/yara/{name}", getYaraEndpoint, getYaraRequest{})
 
 	// orbit authenticated endpoints
 	oe := newOrbitAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
@@ -874,6 +883,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	oeWindowsMDM := oe.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
 	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_key", postOrbitDiskEncryptionKeyEndpoint, orbitPostDiskEncryptionKeyRequest{})
+
+	oe.POST("/api/fleet/orbit/luks_data", postOrbitLUKSEndpoint, orbitPostLUKSRequest{})
 
 	// unauthenticated endpoints - most of those are either login-related,
 	// invite-related or host-enrolling. So they typically do some kind of
@@ -1210,8 +1221,15 @@ func registerMDM(
 
 	mdmService = certauth.New(mdmService, mdmStorage)
 	var mdmHandler http.Handler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
-	mdmHandler = httpmdm.CertVerifyMiddleware(mdmHandler, certVerifier, mdmLogger.With("handler", "cert-verify"))
-	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, mdmLogger.With("handler", "cert-extract"))
+	verifyDisable, exists := os.LookupEnv("FLEET_MDM_APPLE_SCEP_VERIFY_DISABLE")
+	if exists && (strings.EqualFold(verifyDisable, "true") || verifyDisable == "1") {
+		level.Info(logger).Log("msg",
+			"disabling verification of macOS SCEP certificates as FLEET_MDM_APPLE_SCEP_VERIFY_DISABLE is set to true")
+	} else {
+		mdmHandler = httpmdm.CertVerifyMiddleware(mdmHandler, certVerifier, mdmLogger.With("handler", "cert-verify"))
+	}
+	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, httpmdm.MdmSignatureVerifierFunc(cryptoutil.VerifyMdmSignature),
+		httpmdm.SigLogWithLogger(mdmLogger.With("handler", "cert-extract")))
 	mux.Handle(apple_mdm.MDMPath, mdmHandler)
 	return nil
 }

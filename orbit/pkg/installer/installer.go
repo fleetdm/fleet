@@ -293,7 +293,8 @@ func (r *Runner) runInstallerScript(ctx context.Context, scriptContents string, 
 		return "", -1, fmt.Errorf("writing script: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), r.installerExecutionTimeout)
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, r.installerExecutionTimeout)
 	defer cancel()
 
 	execFn := r.execCmdFn

@@ -302,7 +302,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
 	require.Empty(t, listHostsRes.Hosts)
 
-	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
 		return map[string]*push.Response{}, nil
 	}
 
@@ -679,18 +679,19 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	}
 
 	type hostDEPRow struct {
-		HostID                uint      `db:"host_id"`
-		ProfileUUID           string    `db:"profile_uuid"`
-		AssignProfileResponse string    `db:"assign_profile_response"`
-		ResponseUpdatedAt     time.Time `db:"response_updated_at"`
-		RetryJobID            uint      `db:"retry_job_id"`
+		HostID                uint       `db:"host_id"`
+		ProfileUUID           string     `db:"profile_uuid"`
+		AssignProfileResponse string     `db:"assign_profile_response"`
+		ResponseUpdatedAt     time.Time  `db:"response_updated_at"`
+		RetryJobID            uint       `db:"retry_job_id"`
+		DeletedAt             *time.Time `db:"deleted_at"`
 	}
 	checkHostDEPAssignProfileResponses := func(deviceSerials []string, expectedProfileUUID string, expectedStatus fleet.DEPAssignProfileResponseStatus) map[string]hostDEPRow {
 		bySerial := make(map[string]hostDEPRow, len(deviceSerials))
 		for _, deviceSerial := range deviceSerials {
 			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 				var dest hostDEPRow
-				err := sqlx.GetContext(ctx, q, &dest, "SELECT host_id, assign_profile_response, profile_uuid, response_updated_at, retry_job_id FROM host_dep_assignments WHERE profile_uuid = ? AND host_id = (SELECT id FROM hosts WHERE hardware_serial = ?)", expectedProfileUUID, deviceSerial)
+				err := sqlx.GetContext(ctx, q, &dest, "SELECT host_id, assign_profile_response, profile_uuid, response_updated_at, retry_job_id, deleted_at FROM host_dep_assignments WHERE profile_uuid = ? AND host_id = (SELECT id FROM hosts WHERE hardware_serial = ?)", expectedProfileUUID, deviceSerial)
 				require.NoError(t, err)
 				require.Equal(t, string(expectedStatus), dest.AssignProfileResponse)
 				bySerial[deviceSerial] = dest
@@ -870,7 +871,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		require.Equal(t, host.DisplayName, fmt.Sprintf("MacBook Mini (%s)", host.HardwareSerial))
 	}
 
-	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
 		return map[string]*push.Response{}, nil
 	}
 
@@ -920,10 +921,13 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
+	var device1ID uint
 	for _, h := range listHostsRes.Hosts {
 		if h.HardwareSerial == devices[1].SerialNumber {
 			err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{h.ID})
 			require.NoError(t, err)
+			device1ID = h.ID
+			break
 		}
 	}
 
@@ -1043,14 +1047,22 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	deletedSerial = devices[1].SerialNumber
 	devices = []godep.Device{
 		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added", OpDate: time.Now()},
-		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "modified",
-			OpDate: time.Now().Add(time.Second)},
-		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "deleted",
-			OpDate: time.Now().Add(2 * time.Second)},
-		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added",
-			OpDate: time.Now().Add(3 * time.Second)},
-		{SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "deleted",
-			OpDate: time.Now().Add(4 * time.Second)},
+		{
+			SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "modified",
+			OpDate: time.Now().Add(time.Second),
+		},
+		{
+			SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "deleted",
+			OpDate: time.Now().Add(2 * time.Second),
+		},
+		{
+			SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added",
+			OpDate: time.Now().Add(3 * time.Second),
+		},
+		{
+			SerialNumber: addedModifiedDeletedSerial, Model: "MacBook Pro", OS: "osx", OpType: "deleted",
+			OpDate: time.Now().Add(4 * time.Second),
+		},
 
 		{SerialNumber: deletedAddedSerial, Model: "MacBook Pro", OS: "osx", OpType: "deleted", OpDate: time.Now()},
 		{SerialNumber: deletedAddedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added", OpDate: time.Now().Add(time.Second)},
@@ -1061,6 +1073,12 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		{SerialNumber: deletedSerial, Model: "MacBook Mini", OS: "osx", OpType: "deleted", OpDate: time.Now().Add(2 * time.Second)},
 	}
 	profileAssignmentReqs = []profileAssignmentReq{}
+	// Check that host display name is present for the device to be deleted; later we will check that it has been deleted
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var dest uint
+		return sqlx.GetContext(ctx, q, &dest,
+			"SELECT 1 FROM host_display_names WHERE host_id = ?", device1ID)
+	})
 	s.runDEPSchedule()
 	// all hosts should be returned from the hosts endpoint
 	listHostsRes = listHostsResponse{}
@@ -1080,6 +1098,12 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		gotSerials = append(gotSerials, req.Devices...)
 	}
 	assert.ElementsMatch(t, []string{addedModifiedDeletedSerial, deletedAddedSerial}, gotSerials)
+	// Check that host display name was deleted
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var dest uint
+		return sqlx.GetContext(ctx, q, &dest,
+			"SELECT 1 FROM host_display_names WHERE NOT EXISTS (SELECT 1 FROM host_display_names WHERE host_id = ?)", device1ID)
+	})
 
 	// delete all MDM info
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1421,7 +1445,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 		RetryJobID            uint      `db:"retry_job_id"`
 	}
 	checkHostDEPAssignProfileResponses := func(deviceSerials []string, expectedProfileUUID string,
-		expectedStatus fleet.DEPAssignProfileResponseStatus) map[string]hostDEPRow {
+		expectedStatus fleet.DEPAssignProfileResponseStatus,
+	) map[string]hostDEPRow {
 		bySerial := make(map[string]hostDEPRow, len(deviceSerials))
 		for _, deviceSerial := range deviceSerials {
 			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1612,14 +1637,18 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 	devices = []godep.Device{
 		{SerialNumber: devices[0].SerialNumber, Model: "MacBook Pro M1", OS: "osx", OpType: "added", OpDate: time.Now()},
 		{SerialNumber: devices[1].SerialNumber, Model: "MacBook Mini M1", OS: "osx", OpType: "deleted", OpDate: time.Now()},
-		{SerialNumber: defaultOrgDevices[1].SerialNumber, Model: "MacBook Pro M2", OS: "osx", OpType: "added",
-			OpDate: time.Now().Add(time.Microsecond)},
+		{
+			SerialNumber: defaultOrgDevices[1].SerialNumber, Model: "MacBook Pro M2", OS: "osx", OpType: "added",
+			OpDate: time.Now().Add(time.Microsecond),
+		},
 	}
 	defaultOrgDevices = []godep.Device{
 		{SerialNumber: defaultOrgDevices[0].SerialNumber, Model: "MacBook Mini M2", OS: "osx", OpType: "added", OpDate: time.Now()},
 		{SerialNumber: defaultOrgDevices[1].SerialNumber, Model: "MacBook Pro M2", OS: "osx", OpType: "deleted", OpDate: time.Now()},
-		{SerialNumber: devices[1].SerialNumber, Model: "MacBook Mini M1", OS: "osx", OpType: "added",
-			OpDate: time.Now().Add(time.Microsecond)},
+		{
+			SerialNumber: devices[1].SerialNumber, Model: "MacBook Mini M1", OS: "osx", OpType: "added",
+			OpDate: time.Now().Add(time.Microsecond),
+		},
 	}
 
 	// trigger a profile sync
@@ -1648,13 +1677,17 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 	// Delete the devices
 	devices = []godep.Device{
 		{SerialNumber: devices[0].SerialNumber, Model: "MacBook Pro M1", OS: "osx", OpType: "modified", OpDate: time.Now()},
-		{SerialNumber: devices[2].SerialNumber, Model: "MacBook Pro M2", OS: "osx", OpType: "deleted",
-			OpDate: time.Now().Add(time.Microsecond)},
+		{
+			SerialNumber: devices[2].SerialNumber, Model: "MacBook Pro M2", OS: "osx", OpType: "deleted",
+			OpDate: time.Now().Add(time.Microsecond),
+		},
 	}
 	defaultOrgDevices = []godep.Device{
 		{SerialNumber: defaultOrgDevices[0].SerialNumber, Model: "MacBook Mini M2", OS: "osx", OpType: "modified", OpDate: time.Now()},
-		{SerialNumber: defaultOrgDevices[2].SerialNumber, Model: "MacBook Mini M1", OS: "osx", OpType: "deleted",
-			OpDate: time.Now().Add(time.Microsecond)},
+		{
+			SerialNumber: defaultOrgDevices[2].SerialNumber, Model: "MacBook Mini M1", OS: "osx", OpType: "deleted",
+			OpDate: time.Now().Add(time.Microsecond),
+		},
 	}
 
 	// trigger a profile sync
@@ -1679,7 +1712,6 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 	checkHostDEPAssignProfileResponses(defaultSerials, defaultProfileUUIDs[len(defaultProfileUUIDs)-1],
 		fleet.DEPAssignProfileResponseSuccess)
 	checkHostDEPAssignProfileResponses(teamSerials, teamProfileUUIDs[len(teamProfileUUIDs)-1], fleet.DEPAssignProfileResponseSuccess)
-
 }
 
 func (s *integrationMDMTestSuite) TestDeprecatedDefaultAppleBMTeam() {
@@ -1870,7 +1902,7 @@ func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileS
 	// no bootstrap package, no custom setup assistant (those are already tested
 	// in the DEPEnrollReleaseDevice tests).
 
-	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
 		return map[string]*push.Response{}, nil
 	}
 
@@ -1920,6 +1952,7 @@ func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileS
 	require.Len(t, listHostsRes.Hosts, 1)
 	require.Equal(t, listHostsRes.Hosts[0].HardwareSerial, teamDevice.SerialNumber)
 	enrolledHost := listHostsRes.Hosts[0].Host
+	enrolledHost.TeamID = &tm.ID
 
 	// transfer it to the team
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
@@ -2044,6 +2077,57 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
 
+	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
+	// it out manually
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
+	require.Len(t, results, 2)
+	require.NoError(t, err)
+	var installUUID string
+	for _, r := range results {
+		if r.HostSoftwareInstallsExecutionID != nil {
+			installUUID = *r.HostSoftwareInstallsExecutionID
+		}
+	}
+
+	require.NotEmpty(t, installUUID)
+
+	// Need to get the software title to get the package name
+	var getSoftwareTitleResp getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *statusResp.Results.Software[0].SoftwareTitleID), nil, http.StatusOK, &getSoftwareTitleResp, "team_id", fmt.Sprintf("%d", *enrolledHost.TeamID))
+	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle)
+	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage)
+
+	debugPrintActivities := func(activities []*fleet.Activity) []string {
+		var res []string
+		for _, activity := range activities {
+			res = append(res, fmt.Sprintf("%+v", activity))
+		}
+		return res
+	}
+
+	// Check upcoming activities: we should only have the software upcoming because we don't run the
+	// script until after the software is done
+	var hostActivitiesResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", enrolledHost.ID),
+		nil, http.StatusOK, &hostActivitiesResp)
+
+	expectedActivityDetail := fmt.Sprintf(`
+	{
+		"status": "pending_install",
+		"host_id": %d,
+		"policy_id": null,
+		"policy_name": null,
+		"install_uuid": "%s",
+		"self_service": false,
+		"software_title": "%s",
+		"software_package": "%s",
+		"host_display_name": "%s"
+	}
+	`, enrolledHost.ID, installUUID, getSoftwareTitleResp.SoftwareTitle.Name, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage.Name, enrolledHost.DisplayName())
+	require.Len(t, hostActivitiesResp.Activities, 1, "got activities: %v", debugPrintActivities(hostActivitiesResp.Activities))
+	require.NotNil(t, hostActivitiesResp.Activities[0].Details)
+	require.JSONEq(t, expectedActivityDetail, string(*hostActivitiesResp.Activities[0].Details))
+
 	// no MDM command got enqueued due to the /status call (device not released yet)
 	cmd, err = mdmDevice.Idle()
 	require.NoError(t, err)
@@ -2060,20 +2144,6 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.NotNil(t, statusResp.Results.Script)
 	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
-
-	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
-	// it out manually
-	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
-	require.Len(t, results, 2)
-	require.NoError(t, err)
-	var installUUID string
-	for _, r := range results {
-		if r.HostSoftwareInstallsExecutionID != nil {
-			installUUID = *r.HostSoftwareInstallsExecutionID
-		}
-	}
-
-	require.NotEmpty(t, installUUID)
 
 	// record a result for software installation
 	s.Do("POST", "/api/fleet/orbit/software_install/result",
@@ -2105,12 +2175,10 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	// Software is installed, now we should run the script
 	statusResp = getOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
-	// Software is now running, script is still pending
 	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
-
 	require.NotNil(t, statusResp.Results.Script)
 	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
 	require.Equal(t, fleet.SetupExperienceStatusRunning, statusResp.Results.Script.Status)
@@ -2126,6 +2194,48 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 		}
 	}
 
+	// Validate past activity for software install
+	// For some reason the display name that's included in the `enrolledHost` is _slightly_
+	// different than the expected value in the activities. Pulling the host directly gets the
+	// correct display name.
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", enrolledHost.ID), nil, http.StatusOK, &getHostResp)
+
+	expectedActivityDetail = fmt.Sprintf(`
+{
+  "host_id": %d,
+  "host_display_name": "%s",
+  "software_title": "%s",
+  "software_package": "%s",
+  "self_service": false,
+  "install_uuid": "%s",
+  "status": "installed",
+  "policy_id": null,
+  "policy_name": null
+}
+	`, enrolledHost.ID, getHostResp.Host.DisplayName, statusResp.Results.Software[0].Name, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage.Name, installUUID)
+
+	s.lastActivityMatches(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), expectedActivityDetail, 0)
+
+	// Validate upcoming activity for the script
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", enrolledHost.ID),
+		nil, http.StatusOK, &hostActivitiesResp)
+
+	expectedActivityDetail = fmt.Sprintf(`
+{
+	"async": true,
+	"host_id": %d,
+	"policy_id": null,
+	"policy_name": null,
+	"script_name": "%s",
+	"host_display_name": "%s",
+	"script_execution_id": "%s"
+}
+	`, enrolledHost.ID, statusResp.Results.Script.Name, enrolledHost.DisplayName(), execID)
+	require.Len(t, hostActivitiesResp.Activities, 1, "got activities: %v", debugPrintActivities(hostActivitiesResp.Activities))
+	require.NotNil(t, hostActivitiesResp.Activities[0].Details)
+	require.JSONEq(t, expectedActivityDetail, string(*hostActivitiesResp.Activities[0].Details))
+
 	// record a result for script execution
 	var scriptResp orbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
@@ -2136,7 +2246,6 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	// release of the device, as all setup experience steps are now complete.
 	statusResp = getOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
-	// Software is now running, script is still pending
 	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
@@ -2170,6 +2279,21 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	}
 	require.Equal(t, 1, deviceConfiguredCount)
 	require.Equal(t, 0, otherCount)
+
+	// Validate activity for script run
+	expectedActivityDetail = fmt.Sprintf(`
+{
+	"async": true,
+	"host_id": %d,
+	"policy_id": null,
+	"policy_name": null,
+	"script_name": "%s",
+	"host_display_name": "%s",
+	"script_execution_id": "%s"
+}
+	`, enrolledHost.ID, statusResp.Results.Script.Name, getHostResp.Host.DisplayName, execID)
+
+	s.lastActivityMatches(fleet.ActivityTypeRanScript{}.ActivityName(), expectedActivityDetail, 0)
 }
 
 func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptForceRelease() {
@@ -2326,4 +2450,205 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptFo
 	}
 	require.Equal(t, 1, deviceConfiguredCount)
 	require.Equal(t, 0, otherCount)
+}
+
+func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingItFromABM() {
+	t := s.T()
+	s.enableABM(t.Name())
+	ctx := context.Background()
+
+	checkPostEnrollmentCommands := func(mdmDevice *mdmtest.TestAppleMDMClient, shouldReceive bool) {
+		// run the worker to process the DEP enroll request
+		s.runWorker()
+		// run the worker to assign configuration profiles
+		s.awaitTriggerProfileSchedule(t)
+
+		var fleetdCmd, installProfileCmd *micromdm.CommandPayload
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			var fullCmd micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			if fullCmd.Command.RequestType == "InstallEnterpriseApplication" &&
+				fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil &&
+				strings.Contains(*fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL()) {
+				fleetdCmd = &fullCmd
+			} else if cmd.Command.RequestType == "InstallProfile" {
+				installProfileCmd = &fullCmd
+			}
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+
+		if shouldReceive {
+			// received request to install fleetd
+			require.NotNil(t, fleetdCmd, "host didn't get a command to install fleetd")
+			require.NotNil(t, fleetdCmd.Command, "host didn't get a command to install fleetd")
+
+			// received request to install the global configuration profile
+			require.NotNil(t, installProfileCmd, "host didn't get a command to install profiles")
+			require.NotNil(t, installProfileCmd.Command, "host didn't get a command to install profiles")
+		} else {
+			require.Nil(t, fleetdCmd, "host got a command to install fleetd")
+			require.Nil(t, installProfileCmd, "host got a command to install profiles")
+		}
+	}
+
+	devices := []godep.Device{
+		{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"},
+	}
+
+	profileAssignmentReqs := []profileAssignmentReq{}
+
+	type hostDEPRow struct {
+		HostID                uint       `db:"host_id"`
+		ProfileUUID           string     `db:"profile_uuid"`
+		AssignProfileResponse string     `db:"assign_profile_response"`
+		ResponseUpdatedAt     time.Time  `db:"response_updated_at"`
+		RetryJobID            uint       `db:"retry_job_id"`
+		DeletedAt             *time.Time `db:"deleted_at"`
+	}
+	checkHostDEPAssignProfileResponses := func(deviceSerials []string, expectedProfileUUID string, expectedStatus fleet.DEPAssignProfileResponseStatus) map[string]hostDEPRow {
+		bySerial := make(map[string]hostDEPRow, len(deviceSerials))
+		for _, deviceSerial := range deviceSerials {
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				var dest hostDEPRow
+				err := sqlx.GetContext(ctx, q, &dest, "SELECT host_id, assign_profile_response, profile_uuid, response_updated_at, retry_job_id, deleted_at FROM host_dep_assignments WHERE profile_uuid = ? AND host_id = (SELECT id FROM hosts WHERE hardware_serial = ?)", expectedProfileUUID, deviceSerial)
+				require.NoError(t, err)
+				require.Equal(t, string(expectedStatus), dest.AssignProfileResponse)
+				bySerial[deviceSerial] = dest
+				return nil
+			})
+		}
+		return bySerial
+	}
+
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
+			require.NoError(t, err)
+		case "/profile":
+			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
+			require.NoError(t, err)
+		case "/server/devices":
+			// This endpoint  is used to get an initial list of
+			// devices, return a single device
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices[:1]})
+			require.NoError(t, err)
+		case "/devices/sync":
+			// This endpoint is polled over time to sync devices from
+			// ABM, send a repeated serial and a new one
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices, Cursor: "foo"})
+			require.NoError(t, err)
+		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var prof profileAssignmentReq
+			require.NoError(t, json.Unmarshal(b, &prof))
+			profileAssignmentReqs = append(profileAssignmentReqs, prof)
+			var resp godep.ProfileResponse
+			resp.ProfileUUID = prof.ProfileUUID
+			resp.Devices = make(map[string]string, len(prof.Devices))
+			for _, device := range prof.Devices {
+				resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
+			}
+			err = encoder.Encode(resp)
+			require.NoError(t, err)
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
+	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+		return map[string]*push.Response{}, nil
+	}
+
+	// Enroll the host via ADE
+	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+	mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+	mdmDevice.SerialNumber = devices[0].SerialNumber
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	// Simulate an osquery enrollment too
+	// set an enroll secret
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: t.Name()}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// simulate a matching host enrolling via osquery
+	j, err := json.Marshal(&enrollAgentRequest{
+		EnrollSecret:   t.Name(),
+		HostIdentifier: mdmDevice.UUID,
+	})
+	require.NoError(t, err)
+	var enrollResp enrollAgentResponse
+	hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusOK)
+	defer hres.Body.Close()
+	require.NoError(t, json.NewDecoder(hres.Body).Decode(&enrollResp))
+	require.NotEmpty(t, enrollResp.NodeKey)
+
+	listHostsRes := listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 1)
+	h := listHostsRes.Hosts[0]
+
+	s.runDEPSchedule()
+
+	// make sure the host gets post enrollment requests
+	checkPostEnrollmentCommands(mdmDevice, true)
+
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", h.ID), getHostRequest{}, http.StatusOK, &hostResp)
+	// 1 profile with fleetd configuration + 1 root CA config
+	require.Len(t, *hostResp.Host.MDM.Profiles, 2)
+
+	// Turn MDM off in the host
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusOK)
+
+	// profiles are removed and the host is no longer enrolled
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", h.ID), getHostRequest{}, http.StatusOK, &hostResp)
+	require.Nil(t, hostResp.Host.MDM.Profiles)
+	require.Equal(t, "", hostResp.Host.MDM.Name)
+
+	err = mdmDevice.Checkout()
+	require.NoError(t, err)
+
+	// Simulate the device getting unassigned from Fleet in ABM
+	devices = []godep.Device{
+		{SerialNumber: mdmDevice.SerialNumber, Model: "MacBook Pro", OS: "osx", OpType: "deleted", OpDate: time.Now()},
+	}
+
+	s.runDEPSchedule()
+
+	a := checkHostDEPAssignProfileResponses([]string{mdmDevice.SerialNumber}, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
+	require.NotZero(t, a[mdmDevice.SerialNumber].DeletedAt)
+
+	// Now we add the device back into ABM
+	profileAssignmentReqs = []profileAssignmentReq{}
+
+	devices = []godep.Device{
+		// In https://github.com/fleetdm/fleet/issues/23200, we saw a profileUUID being sent back on
+		// the godep.Device in the response from ABM. We're not 100% sure why, but the fact that
+		// this field is set was the source of the bug, which is why we're including it here.
+		{SerialNumber: mdmDevice.SerialNumber, Model: "MacBook Pro", OS: "osx", OpType: "added", OpDate: time.Now(), ProfileUUID: a[mdmDevice.SerialNumber].ProfileUUID},
+	}
+
+	s.runDEPSchedule()
+
+	a = checkHostDEPAssignProfileResponses([]string{mdmDevice.SerialNumber}, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
+	require.Nil(t, a[mdmDevice.SerialNumber].DeletedAt)
+
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	// make sure the host gets post enrollment requests
+	checkPostEnrollmentCommands(mdmDevice, true)
 }

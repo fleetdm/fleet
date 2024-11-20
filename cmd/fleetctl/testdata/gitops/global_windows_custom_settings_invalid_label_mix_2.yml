@@ -1,0 +1,96 @@
+controls:
+  windows_settings:
+    custom_settings:
+      - path: ./lib/windows-screenlock.xml
+        labels_include_all:
+          - B
+        labels_include_any:
+          - C
+  scripts:
+  enable_disk_encryption: false
+  macos_migration:
+    enable: false
+    mode: ""
+    webhook_url: ""
+  macos_setup:
+    bootstrap_package: null
+    enable_end_user_authentication: false
+    macos_setup_assistant: null
+  macos_updates:
+    deadline: null
+    minimum_version: null
+  windows_enabled_and_configured: true
+  windows_updates:
+    deadline_days: null
+    grace_period_days: null
+queries:
+policies:
+agent_options:
+  command_line_flags:
+    distributed_denylist_duration: 0
+  config:
+    options:
+      disable_distributed: false
+      distributed_interval: 10
+      distributed_plugin: tls
+      distributed_tls_max_attempts: 3
+      logger_tls_endpoint: /api/v1/osquery/log
+      pack_delimiter: /
+org_settings:
+  server_settings:
+    deferred_save_host: false
+    enable_analytics: true
+    live_query_disabled: false
+    query_report_cap: 2000
+    query_reports_disabled: false
+    scripts_disabled: false
+    server_url: $FLEET_SERVER_URL
+    ai_features_disabled: true
+  org_info:
+    contact_url: https://fleetdm.com/company/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: $ORG_NAME
+  smtp_settings:
+    authentication_method: authmethod_plain
+    authentication_type: authtype_username_password
+    configured: false
+    domain: ""
+    enable_smtp: false
+    enable_ssl_tls: true
+    enable_start_tls: true
+    password: ""
+    port: 587
+    sender_address: ""
+    server: ""
+    user_name: ""
+    verify_ssl_certs: true
+  sso_settings:
+    enable_jit_provisioning: false
+    enable_jit_role_sync: false
+    enable_sso: true
+    enable_sso_idp_login: false
+    entity_id: https://saml.example.com/entityid
+    idp_image_url: ""
+    idp_name: MockSAML
+    issuer_uri: ""
+    metadata: ""
+    metadata_url: https://mocksaml.com/api/saml/metadata
+  integrations:
+  mdm:
+  webhook_settings:
+  fleet_desktop:
+    transparency_url: https://fleetdm.com/transparency
+  host_expiry_settings:
+    host_expiry_enabled: false
+  activity_expiry_settings:
+    activity_expiry_enabled: true
+    activity_expiry_window: 60
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  vulnerability_settings:
+    databases_path: ""
+  secrets:
+    - secret: ABC
+software:

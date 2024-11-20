@@ -9,6 +9,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:--------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Chief Technology Officer (CTO)  | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 | Engineering Manager (EM)        | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
+| Quality Assurance Engineer (Dogfood) | [Janis Watts](https://www.linkedin.com/in/janis-watts-b080ab94/) _([@jmwatts](https://github.com/jmwatts))_
 | Quality Assurance Engineer (QA) | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 | Software Engineer               | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
@@ -42,10 +43,8 @@ Each week these are tracked and shared in the weekly KPI sheet by Luke Heath.
 We write [guides](https://fleetdm.com/guides) for all new features. Feature guides are published before the feature is released so that our users understand how the feature is intended to work. A guide is a type of article, so the process for writing a guide and article is the same.
 
 1. Review and follow the [Fleet writing style guide](https://fleetdm.com/handbook/company/communications#writing).
-2. Make a copy of the ["Article: Guide Template"](https://docs.google.com/document/d/1OPcDouyfyFPg3ScrN4bo6ol8vMfMa3P9-BIfbnEdcg4/copy) and rename "Article: [Guide] {feature name}".
-3. Open the template and insert your [drafted content](https://fleetdm.com/handbook/company/product-groups#defining-done) into the provided template format. 
-4. Create a [new GitHub issue](https://github.com/fleetdm/fleet/issues/new?assignees=rachaelshaw&labels=:help-it&title=New%20guide:) with the guide title, and add the `:help-it` label. It will be processed and added to the website by our [Community Advocate](https://fleetdm.com/handbook/engineering#team).
-
+2. Make a copy of a guide in the `/articles` directory and replace the content with your article. Make sure to maintain the same heading sizes and update the metadata tags at the bottom.
+3. Open a new pull request containing your article into `main` and add the pull request to the milestone this feature will be shipped in. The pull request will automatically be assigned to the appropriate reviewer.
 
 ### Create an engineering-initiated story
 
@@ -171,7 +170,7 @@ How to deploy a new release to dogfood:
 
 > Note that this action will not handle down migrations. Always deploy a newer version than is currently deployed.
 >
-> Note that "fleetdm/fleet:main" is not a image name, instead use the commit hash in place of "main".
+> Note that "fleetdm/fleet:main" is not an image name, instead use the commit hash in place of "main".
 
 
 ### Conclude current milestone 
@@ -356,7 +355,7 @@ We use Cloudflare to manage the DNS records of fleetdm.com and our other domains
 
 The on-call developer is responsible for: 
 - Knowing [the on-call rotation](https://fleetdm.com/handbook/company/product-groups#the-developer-on-call-rotation).
-- Preforming the [on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities).
+- Performing the [on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities).
 - [Escalating community questions and issues](https://fleetdm.com/handbook/company/product-groups#escalations).
 - Successfully [transferring the on-call persona to the next developer](https://fleetdm.com/handbook/company/product-groups#changing-of-the-guard).
 

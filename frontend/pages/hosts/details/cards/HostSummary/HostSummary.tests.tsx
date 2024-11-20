@@ -100,7 +100,7 @@ describe("Host Summary section", () => {
       );
 
       expect(screen.getByText("Agent")).toBeInTheDocument();
-      await user.hover(screen.getByText(new RegExp(orbitVersion, "i")));
+      await user.hover(screen.getByText(orbitVersion));
 
       expect(
         screen.getByText(new RegExp(osqueryVersion, "i"))

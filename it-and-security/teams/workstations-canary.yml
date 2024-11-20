@@ -104,6 +104,7 @@ controls:
     grace_period_days: 2
   scripts:
     - path: ../lib/collect-fleetd-logs.sh
+    - path: ../lib/macos-execute-disable-fleet-desktop.sh
     - path: ../lib/macos-see-automatic-enrollment-profile.sh
     - path: ../lib/macos-remove-old-nudge.sh
     - path: ../lib/macos-mdm-migration.sh

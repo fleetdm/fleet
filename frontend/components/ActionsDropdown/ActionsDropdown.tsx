@@ -25,6 +25,7 @@ interface IActionsDropdownProps {
   isSearchable?: boolean;
   className?: string;
   menuAlign?: "right" | "left" | "default";
+  menuPlacement?: "top" | "bottom" | "auto";
 }
 
 const getOptionBackgroundColor = (state: any) => {
@@ -113,6 +114,7 @@ const ActionsDropdown = ({
   isSearchable = false,
   className,
   menuAlign = "default",
+  menuPlacement = "bottom",
 }: IActionsDropdownProps): JSX.Element => {
   const dropdownClassnames = classnames(baseClass, className);
 
@@ -178,7 +180,7 @@ const ActionsDropdown = ({
       borderRadius: "4px",
       zIndex: 6,
       border: 0,
-      marginTop: 0,
+      margin: 0,
       width: "auto",
       minWidth: "100%",
       position: "absolute",
@@ -239,6 +241,7 @@ const ActionsDropdown = ({
         className={dropdownClassnames}
         classNamePrefix={`${baseClass}-select`}
         isOptionDisabled={(option) => !!option.disabled}
+        menuPlacement={menuPlacement}
       />
     </div>
   );

@@ -166,3 +166,51 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 
 	return sum, nil
 }
+
+func (svc *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fleet.Host) error {
+	if svc.ds.IsHostPendingEscrow(ctx, host.ID) {
+		return nil
+	}
+
+	if err := svc.validateReadyForLinuxEscrow(ctx, host); err != nil {
+		_ = svc.ds.ReportEscrowError(ctx, host.ID, err.Error())
+		return err
+	}
+
+	return svc.ds.QueueEscrow(ctx, host.ID)
+}
+
+func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet.Host) error {
+	if !host.IsLUKSSupported() {
+		return &fleet.BadRequestError{Message: "Host platform does not support key escrow"}
+	}
+
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+
+	if host.TeamID == nil {
+		if !ac.MDM.EnableDiskEncryption.Value {
+			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for hosts not assigned to a team"}
+		}
+	} else {
+		tc, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+		if err != nil {
+			return err
+		}
+		if !tc.EnableDiskEncryption {
+			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for this host's team"}
+		}
+	}
+
+	if host.DiskEncryptionEnabled == nil || !*host.DiskEncryptionEnabled {
+		return &fleet.BadRequestError{Message: "Host's disk is not encrypted. Please enable disk encryption for this host."}
+	}
+
+	if host.OrbitVersion == nil || !fleet.IsAtLeastVersion(*host.OrbitVersion, fleet.MinOrbitLUKSVersion) {
+		return &fleet.BadRequestError{Message: "Host's Orbit version does not support this feature. Please upgrade Orbit to the latest version."}
+	}
+
+	return svc.ds.AssertHasNoEncryptionKeyStored(ctx, host.ID)
+}

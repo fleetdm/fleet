@@ -1,20 +1,20 @@
-import { rest } from "msw";
+import { http, HttpResponse } from "msw";
 
 import { baseUrl } from "test/test-utils";
 import { createMockSetupExperienceScript } from "__mocks__/setupExperienceMock";
 
 const setupExperienceScriptUrl = baseUrl("/setup_experience/script");
 
-export const defaultSetupExperienceScriptHandler = rest.get(
+export const defaultSetupExperienceScriptHandler = http.get(
   setupExperienceScriptUrl,
-  (req, res, context) => {
-    return res(context.json(createMockSetupExperienceScript()));
+  () => {
+    return HttpResponse.json(createMockSetupExperienceScript());
   }
 );
 
-export const errorNoSetupExperienceScript = rest.get(
+export const errorNoSetupExperienceScript = http.get(
   setupExperienceScriptUrl,
-  (req, res, context) => {
-    return res(context.status(404));
+  () => {
+    return new HttpResponse("Not found", { status: 404 });
   }
 );

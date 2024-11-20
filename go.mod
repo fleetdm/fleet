@@ -45,9 +45,9 @@ require (
 	github.com/go-kit/kit v0.12.0
 	github.com/go-kit/log v0.2.1
 	github.com/go-ole/go-ole v1.2.6
-	github.com/go-sql-driver/mysql v1.7.1
+	github.com/go-sql-driver/mysql v1.8.1
 	github.com/gocarina/gocsv v0.0.0-20220310154401-d4df709ca055
-	github.com/golang-jwt/jwt/v4 v4.5.0
+	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/gomodule/oauth1 v0.2.0
 	github.com/gomodule/redigo v1.8.9
 	github.com/google/go-cmp v0.6.0
@@ -67,9 +67,10 @@ require (
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/josephspurrier/goversioninfo v1.4.0
 	github.com/kevinburke/go-bindata v3.24.0+incompatible
+	github.com/klauspost/compress v1.17.8
 	github.com/kolide/launcher v1.0.12
 	github.com/lib/pq v1.10.9
-	github.com/macadmins/osquery-extension v1.2.1
+	github.com/macadmins/osquery-extension v1.2.3
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/micromdm/micromdm v1.9.0
@@ -92,7 +93,7 @@ require (
 	github.com/quasilyte/go-ruleguard/dsl v0.3.22
 	github.com/rs/zerolog v1.32.0
 	github.com/russellhaering/goxmldsig v1.2.0
-	github.com/saferwall/pe v1.5.2
+	github.com/saferwall/pe v1.5.5
 	github.com/sassoftware/relic/v8 v8.0.1
 	github.com/scjalliance/comshim v0.0.0-20230315213746-5e51f40bd3b9
 	github.com/sethvargo/go-password v0.3.0
@@ -111,9 +112,10 @@ require (
 	github.com/urfave/cli/v2 v2.23.5
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	github.com/ziutek/mymysql v1.5.4
-	go.elastic.co/apm/module/apmgorilla/v2 v2.3.0
-	go.elastic.co/apm/module/apmsql/v2 v2.4.3
-	go.elastic.co/apm/v2 v2.4.3
+	go.elastic.co/apm/module/apmgorilla/v2 v2.6.2
+	go.elastic.co/apm/module/apmhttp/v2 v2.6.2
+	go.elastic.co/apm/module/apmsql/v2 v2.6.2
+	go.elastic.co/apm/v2 v2.6.2
 	go.etcd.io/bbolt v1.3.9
 	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.56.0
@@ -129,6 +131,7 @@ require (
 	golang.org/x/oauth2 v0.22.0
 	golang.org/x/sync v0.8.0
 	golang.org/x/sys v0.26.0
+	golang.org/x/term v0.25.0
 	golang.org/x/text v0.19.0
 	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d
 	google.golang.org/api v0.178.0
@@ -151,6 +154,7 @@ require (
 	cloud.google.com/go/storage v1.39.1 // indirect
 	code.gitea.io/sdk/gitea v0.15.0 // indirect
 	dario.cat/mergo v1.0.0 // indirect
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/AlekSi/pointer v1.2.0 // indirect
 	github.com/Azure/azure-pipeline-go v0.2.3 // indirect
 	github.com/Azure/azure-sdk-for-go v68.0.0+incompatible // indirect
@@ -265,7 +269,6 @@ require (
 	github.com/joeshaw/multierror v0.0.0-20140124173710-69b34d4ec901 // indirect
 	github.com/jonboulle/clockwork v0.2.2 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
-	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/kolide/kit v0.0.0-20221107170827-fb85e3d59eab // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
@@ -274,6 +277,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/mattn/go-tty v0.0.3 // indirect
+	github.com/micromdm/nanolib v0.2.0 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.3 // indirect
@@ -291,6 +295,7 @@ require (
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
+	github.com/secDre4mer/pkcs7 v0.0.0-20240322103146-665324a4461d // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.5.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
@@ -314,7 +319,6 @@ require (
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	github.com/yashtewari/glob-intersection v0.1.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	go.elastic.co/apm/module/apmhttp/v2 v2.3.0 // indirect
 	go.elastic.co/fastjson v1.1.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.49.0 // indirect
@@ -324,7 +328,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.31.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
 	gocloud.dev v0.24.0 // indirect
-	golang.org/x/term v0.25.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
 	google.golang.org/genproto v0.0.0-20240506185236-b8a5c65736ae // indirect

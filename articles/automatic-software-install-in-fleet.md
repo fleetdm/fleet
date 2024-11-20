@@ -4,7 +4,7 @@ Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) int
 
 Fleet allows its users to upload trusted software installation files to be installed and used on hosts. This installation could be conditioned on a failure of a specific Fleet Policy.
 
-> Currently, custom packages and Fleet-maintained apps can be automatically installed. (macOS App Store apps [coming soon](https://github.com/fleetdm/fleet/issues/23115))
+> Currently, Fleet-maintained apps can be automatically installed on macOS hosts and custom packages can be automatically installed on macOS, Windows, and Linux hosts. (macOS App Store apps [coming soon](https://github.com/fleetdm/fleet/issues/23115))
 
 ## Prerequisites
 
@@ -52,7 +52,7 @@ Upon failure of the selected policy, the selected software installation will be 
 
 * After configuring Fleet to auto-install a specific software the rest will be done automatically.
 * The policy check mechanism runs on a typical 1 hour cadence on all online hosts. 
-* Fleet will send install requests to the hosts on the first policy failure (first "No" result for the host) or if a policy goes from "Yes" to "No". On this iteration it will not send a install request if a policy is already failing and continues to fail ("No" -> "No"). See the following flowchart for details.
+* Fleet will send install requests to the hosts on the first policy failure (first "No" result for the host) or if a policy goes from "Yes" to "No". On this iteration it will not send an install request if a policy is already failing and continues to fail ("No" -> "No"). See the following flowchart for details.
 
 ![Flowchart](../website/assets/images/articles/automatic-software-install-workflow.png)
 *Detailed flowchart*

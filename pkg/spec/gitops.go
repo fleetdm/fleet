@@ -205,7 +205,7 @@ func (g *GitOps) IsNoTeam() bool {
 }
 
 func isNoTeam(teamName string) bool {
-	return strings.ToLower(teamName) == strings.ToLower(noTeam)
+	return strings.EqualFold(teamName, noTeam)
 }
 
 const noTeam = "No team"
@@ -588,9 +588,7 @@ func parsePolicyRunScript(baseDir string, teamName *string, policy *Policy, scri
 	}
 
 	scriptOnTeamFound := false
-	var foundScriptPaths []string
 	for _, script := range scripts {
-		foundScriptPaths = append(foundScriptPaths, *script.Path)
 		if scriptPath == *script.Path {
 			scriptOnTeamFound = true
 			break
@@ -773,8 +771,10 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal software package file %s: %v", *item.Path, err))
 				continue
 			}
+
+			softwarePackageSpec = resolveSoftwarePackagePaths(filepath.Dir(softwarePackageSpec.ReferencedYamlPath), softwarePackageSpec)
 		} else {
-			softwarePackageSpec = item.SoftwarePackageSpec
+			softwarePackageSpec = resolveSoftwarePackagePaths(baseDir, item.SoftwarePackageSpec)
 		}
 		if softwarePackageSpec.URL == "" {
 			multiError = multierror.Append(multiError, errors.New("software URL is required"))
@@ -788,6 +788,23 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	}
 
 	return multiError
+}
+
+func resolveSoftwarePackagePaths(baseDir string, softwareSpec fleet.SoftwarePackageSpec) fleet.SoftwarePackageSpec {
+	if softwareSpec.PreInstallQuery.Path != "" {
+		softwareSpec.PreInstallQuery.Path = resolveApplyRelativePath(baseDir, softwareSpec.PreInstallQuery.Path)
+	}
+	if softwareSpec.InstallScript.Path != "" {
+		softwareSpec.InstallScript.Path = resolveApplyRelativePath(baseDir, softwareSpec.InstallScript.Path)
+	}
+	if softwareSpec.PostInstallScript.Path != "" {
+		softwareSpec.PostInstallScript.Path = resolveApplyRelativePath(baseDir, softwareSpec.PostInstallScript.Path)
+	}
+	if softwareSpec.UninstallScript.Path != "" {
+		softwareSpec.UninstallScript.Path = resolveApplyRelativePath(baseDir, softwareSpec.UninstallScript.Path)
+	}
+
+	return softwareSpec
 }
 
 func getDuplicateNames[T any](slice []T, getComparableString func(T) string) []string {

@@ -303,14 +303,8 @@ func main() {
 			return fmt.Errorf("the osquery database must be an absolute path: %q", odb)
 		}
 
-		enrollSecretPath := c.String("enroll-secret-path")
-		if enrollSecretPath != "" {
-			if c.String("enroll-secret") != "" {
-				return errors.New("enroll-secret and enroll-secret-path may not be specified together")
-			}
-
+		readEnrollSecretFromFile := func(enrollSecretPath string) error {
 			// Read secret from file. If secret is found and keystore enabled, write/overwrite the secret to the keystore and delete the file.
-
 			b, err := os.ReadFile(enrollSecretPath)
 			if err != nil {
 				if !errors.Is(err, os.ErrNotExist) || !keystore.Supported() || c.Bool("disable-keystore") {
@@ -364,16 +358,33 @@ func main() {
 					}
 				}
 			}
+			return nil
 		}
-		if c.String("enroll-secret") == "" && keystore.Supported() && !c.Bool("disable-keystore") &&
-			!(runtime.GOOS == "darwin" && c.Bool("use-system-configuration")) {
-			secret, err := keystore.GetSecret()
-			if err != nil || secret == "" {
-				return fmt.Errorf("failed to retrieve enroll secret from %v: %w", keystore.Name(), err)
+		enrollSecretPath := c.String("enroll-secret-path")
+		if enrollSecretPath != "" {
+			if c.String("enroll-secret") != "" {
+				return errors.New("enroll-secret and enroll-secret-path may not be specified together")
 			}
-			log.Info().Msgf("found enroll secret in keystore: %v", keystore.Name())
-			if err = c.Set("enroll-secret", secret); err != nil {
-				return fmt.Errorf("set enroll secret from keystore: %w", err)
+			if err := readEnrollSecretFromFile(enrollSecretPath); err != nil {
+				return err
+			}
+		}
+		tryReadEnrollSecretFromKeystore := func() error {
+			if c.String("enroll-secret") == "" && keystore.Supported() && !c.Bool("disable-keystore") {
+				secret, err := keystore.GetSecret()
+				if err != nil || secret == "" {
+					return fmt.Errorf("failed to retrieve enroll secret from %v: %w", keystore.Name(), err)
+				}
+				log.Info().Msgf("found enroll secret in keystore: %v", keystore.Name())
+				if err = c.Set("enroll-secret", secret); err != nil {
+					return fmt.Errorf("set enroll secret from keystore: %w", err)
+				}
+			}
+			return nil
+		}
+		if !(runtime.GOOS == "darwin" && c.Bool("use-system-configuration")) {
+			if err := tryReadEnrollSecretFromKeystore(); err != nil {
+				return err
 			}
 		}
 
@@ -415,10 +426,42 @@ func main() {
 					if err := writeSecret(config.EnrollSecret, c.String("root-dir")); err != nil {
 						return fmt.Errorf("write enroll secret: %w", err)
 					}
+					if err := writeFleetURL(config.FleetURL, c.String("root-dir")); err != nil {
+						return fmt.Errorf("write fleet URL: %w", err)
+					}
 				}
 
 				if c.String("fleet-url") != "" && c.String("enroll-secret") != "" {
 					log.Info().Msg("found configuration values in system profile")
+					break
+				}
+
+				// If we didn't find the configuration values, try to read them from the stored files.
+				// First, get Fleet URL
+				b, err := os.ReadFile(path.Join(c.String("root-dir"), constant.FleetURLFileName))
+				if err != nil {
+					if !errors.Is(err, os.ErrNotExist) {
+						return fmt.Errorf("read fleet URL file: %w", err)
+					}
+				} else {
+					fleetURL := strings.TrimSpace(string(b))
+					if err = c.Set("fleet-url", fleetURL); err != nil {
+						return fmt.Errorf("set fleet URL from file: %w", err)
+					}
+				}
+				// Now, get enroll secret
+				if err := readEnrollSecretFromFile(path.Join(c.String("root-dir"), constant.OsqueryEnrollSecretFileName)); err != nil {
+					return err
+				}
+				// Since the normal enroll secret flow supports keychain, we can use it here as well.
+				// The story to remove the enroll secret from macOS MDM profile is: https://github.com/fleetdm/fleet/issues/16118
+				if err := tryReadEnrollSecretFromKeystore(); err != nil {
+					// Log the error but don't return it, as we want to keep trying to read the configuration
+					// from the system profile.
+					log.Error().Err(err).Msg("failed to read enroll secret from keystore")
+				}
+				if c.String("fleet-url") != "" && c.String("enroll-secret") != "" {
+					log.Info().Msg("found configuration values in local files")
 					break
 				}
 
@@ -651,6 +694,8 @@ func main() {
 			HardwareUUID:   osqueryHostInfo.HardwareUUID,
 			Hostname:       osqueryHostInfo.Hostname,
 			Platform:       osqueryHostInfo.Platform,
+			ComputerName:   osqueryHostInfo.ComputerName,
+			HardwareModel:  osqueryHostInfo.HardwareModel,
 		}
 
 		if runtime.GOOS == "darwin" {
@@ -676,9 +721,12 @@ func main() {
 					return fmt.Errorf("removing old osquery.db: %w", err)
 				}
 
-				// We can remove this because we want it to be regenerated during the re-enrollment.
+				// We can remove these because we want them to be regenerated during the re-enrollment.
 				if err := os.RemoveAll(filepath.Join(c.String("root-dir"), constant.OrbitNodeKeyFileName)); err != nil {
 					return fmt.Errorf("removing old orbit node key file: %w", err)
+				}
+				if err := os.RemoveAll(filepath.Join(c.String("root-dir"), constant.DesktopTokenFileName)); err != nil {
+					return fmt.Errorf("removing old Fleet Desktop identifier file: %w", err)
 				}
 
 				return errors.New("found a new hardware uuid, restarting")
@@ -689,13 +737,6 @@ func main() {
 		// When not set, orbit and osquery will be matched using the hardware UUID (orbitHostInfo.HardwareUUID).
 		if c.String("host-identifier") == "instance" {
 			orbitHostInfo.OsqueryIdentifier = osqueryHostInfo.InstanceID
-		}
-
-		// The hardware serial was not sent when Windows MDM was implemented,
-		// thus we clear its value here to not break any existing enroll functionality
-		// on the server.
-		if runtime.GOOS == "windows" {
-			orbitHostInfo.HardwareSerial = ""
 		}
 
 		var (
@@ -974,7 +1015,7 @@ func main() {
 		var trw *token.ReadWriter
 		var deviceClient *service.DeviceClient
 		if c.Bool("fleet-desktop") {
-			trw = token.NewReadWriter(filepath.Join(c.String("root-dir"), "identifier"))
+			trw = token.NewReadWriter(filepath.Join(c.String("root-dir"), constant.DesktopTokenFileName))
 			if err := trw.LoadOrGenerate(); err != nil {
 				return fmt.Errorf("initializing token read writer: %w", err)
 			}
@@ -1651,6 +1692,10 @@ type osqueryHostInfo struct {
 	HardwareSerial string `json:"hardware_serial"`
 	// Hostname is the device's hostname (extracted from `system_info` osquery table).
 	Hostname string `json:"hostname"`
+	// ComputerName is the friendly computer name (optional) (extracted from `system_info` osquery table).
+	ComputerName string `json:"computer_name"`
+	// HardwareModel is the device's hardware model (extracted from `system_info` osquery table).
+	HardwareModel string `json:"hardware_model"`
 	// Platform is the device's platform as defined by osquery (extracted from `os_version` osquery table).
 	Platform string `json:"platform"`
 	// InstanceID is the osquery's randomly generated instance ID
@@ -1668,7 +1713,18 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 	if err := os.MkdirAll(filepath.Dir(osqueryDBPath), constant.DefaultDirMode); err != nil {
 		return nil, err
 	}
-	const systemQuery = "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform, os.version as os_version, oi.instance_id, oi.version as osquery_version FROM system_info si, os_version os, osquery_info oi"
+	const systemQuery = `
+	SELECT
+		si.uuid,
+		si.hardware_serial,
+		si.hostname,
+		si.computer_name,
+		si.hardware_model,
+		os.platform,
+		os.version as os_version,
+		oi.instance_id,
+		oi.version as osquery_version
+	FROM system_info si, os_version os, osquery_info oi`
 	args := []string{
 		"-S",
 		"--database_path", osqueryDBPath,
@@ -1833,16 +1889,26 @@ func (f *capabilitiesChecker) Interrupt(err error) {
 // intentionally kept separate to prevent issues since the writes happen at two
 // completely different circumstances.
 func writeSecret(enrollSecret string, orbitRoot string) error {
-	path := filepath.Join(orbitRoot, constant.OsqueryEnrollSecretFileName)
-	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+	return writeOrbitFile(enrollSecret, orbitRoot, constant.OsqueryEnrollSecretFileName)
+}
+
+func writeOrbitFile(contents string, orbitRoot string, fileName string) error {
+	filePath := filepath.Join(orbitRoot, fileName)
+	if err := secure.MkdirAll(filepath.Dir(filePath), constant.DefaultDirMode); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
-	if err := os.WriteFile(path, []byte(enrollSecret), constant.DefaultFileMode); err != nil {
+	if err := os.WriteFile(filePath, []byte(contents), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
 	return nil
+}
+
+// writeFleetURL writes the Fleet URL to the designated file. This is needed in case the
+// Fleet URL originally came from a config profile, which was subsequently removed.
+func writeFleetURL(contents string, orbitRoot string) error {
+	return writeOrbitFile(contents, orbitRoot, constant.FleetURLFileName)
 }
 
 // serverOverridesRunner is a oklog.Group runner that polls for configuration overrides from Fleet.

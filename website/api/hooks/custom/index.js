@@ -73,7 +73,7 @@ will be disabled and/or hidden in the UI.
 
       // Override the default sails.LOOKS_LIKE_ASSET_RX with a regex that does not match paths starting with '/release/'.
       // Otherwise, our release blog posts are treated as assets because they contain periods in their URL (e.g., fleetdm.com/releases/fleet-4.29.0)
-      sails.LOOKS_LIKE_ASSET_RX = /^(?!\/releases\/.*$)[^?]*\/[^?\/]+\.[^?\/]+(\?.*)?$/;
+      sails.LOOKS_LIKE_ASSET_RX = /^(?!\/releases\/|\/announcements\/|\/success-stories\/|\/securing\/|\/engineering\/|\/podcasts\/*$)[^?]*\/[^?\/]+\.[^?\/]+(\?.*)?$/;
 
       // After "sails-hook-organics" finishes initializing, configure Stripe
       // and Sendgrid packs with any available credentials.
@@ -302,6 +302,7 @@ will be disabled and/or hidden in the UI.
                       firstName: sanitizedUser.firstName,
                       lastName: sanitizedUser.lastName,
                       organization: sanitizedUser.organization,
+                      contactSource: 'Website - Sign up',// Note: this is only set on new contacts.
                     });
                     let jsforce = require('jsforce');
                     // login to Salesforce
@@ -324,6 +325,7 @@ will be disabled and/or hidden in the UI.
                       return await salesforceConnection.sobject('fleet_website_page_views__c')
                       .create({
                         Contact__c: recordIds.salesforceContactId,// eslint-disable-line camelcase
+                        Account__c: recordIds.salesforceAccountId,// eslint-disable-line camelcase
                         Page_URL__c: `https://fleetdm.com${req.url}`,// eslint-disable-line camelcase
                         Visited_on__c: nowOn,// eslint-disable-line camelcase
                         Website_visit_reason__c: websiteVisitReason// eslint-disable-line camelcase

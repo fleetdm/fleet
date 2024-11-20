@@ -50,6 +50,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeChangedUserTeamRole{},
 	ActivityTypeDeletedUserTeamRole{},
 
+	ActivityTypeFleetEnrolled{},
 	ActivityTypeMDMEnrolled{},
 	ActivityTypeMDMUnenrolled{},
 
@@ -112,6 +113,10 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedNDESSCEPProxy{},
 	ActivityDeletedNDESSCEPProxy{},
 	ActivityEditedNDESSCEPProxy{},
+
+	ActivityTypeEnabledActivityAutomations{},
+	ActivityTypeEditedActivityAutomations{},
+	ActivityTypeDisabledActivityAutomations{},
 }
 
 type ActivityDetails interface {
@@ -126,6 +131,49 @@ type ActivityDetails interface {
 type ActivityHosts interface {
 	ActivityDetails
 	HostIDs() []uint
+}
+
+type ActivityTypeEnabledActivityAutomations struct {
+	WebhookUrl string `json:"webhook_url"`
+}
+
+func (a ActivityTypeEnabledActivityAutomations) ActivityName() string {
+	return "enabled_activity_automations"
+}
+
+func (a ActivityTypeEnabledActivityAutomations) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when activity automations are enabled`,
+		`This activity contains the following field:
+- "webhook_url": the URL to broadcast activities to.`, `{
+	"webhook_url": "https://example.com/notify"
+}`
+}
+
+type ActivityTypeEditedActivityAutomations struct {
+	WebhookUrl string `json:"webhook_url"`
+}
+
+func (a ActivityTypeEditedActivityAutomations) ActivityName() string {
+	return "edited_activity_automations"
+}
+
+func (a ActivityTypeEditedActivityAutomations) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when activity automations are edited while enabled`,
+		`This activity contains the following field:
+- "webhook_url": the URL to broadcast activities to, post-edit.`, `{
+	"webhook_url": "https://example.com/notify"
+}`
+}
+
+type ActivityTypeDisabledActivityAutomations struct{}
+
+func (a ActivityTypeDisabledActivityAutomations) ActivityName() string {
+	return "disabled_activity_automations"
+}
+
+func (a ActivityTypeDisabledActivityAutomations) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when activity automations are disabled`,
+		`This activity does not contain any detail fields.`, ""
 }
 
 type ActivityTypeCreatedPack struct {
@@ -748,6 +796,25 @@ func (a ActivityTypeDeletedUserTeamRole) Documentation() (activity string, detai
 }`
 }
 
+type ActivityTypeFleetEnrolled struct {
+	HostSerial      string `json:"host_serial"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeFleetEnrolled) ActivityName() string {
+	return "fleet_enrolled"
+}
+
+func (a ActivityTypeFleetEnrolled) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a host is enrolled to Fleet (Fleet's agent fleetd is installed).`,
+		`This activity contains the following fields:
+- "host_serial": Serial number of the host.
+- "host_display_name": Display name of the host.`, `{
+  "host_serial": "B04FL3ALPT21",
+  "host_display_name": "WIN-DESKTOP-JGS78KJ7C"
+}`
+}
+
 type ActivityTypeMDMEnrolled struct {
 	HostSerial       string `json:"host_serial"`
 	HostDisplayName  string `json:"host_display_name"`
@@ -910,7 +977,7 @@ func (a ActivityTypeReadHostDiskEncryptionKey) Documentation() (activity string,
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.`, `{
   "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
+  "host_display_name": "Anna's MacBook Pro"
 }`
 }
 

@@ -86,7 +86,7 @@ func testSessionsGetters(t *testing.T, ds *Datastore) {
 	assert.Equal(t, newSession.ID, gotByKey.ID)
 	require.Nil(t, gotByKey.APIOnly)
 
-	gotByID, err = ds.SessionByID(context.Background(), newSession.ID)
+	_, err = ds.SessionByID(context.Background(), newSession.ID)
 	require.NoError(t, err)
 	assert.Equal(t, newSession.ID, gotByKey.ID)
 	require.Nil(t, gotByKey.APIOnly)
@@ -108,7 +108,7 @@ func testSessionsGetters(t *testing.T, ds *Datastore) {
 	require.NotNil(t, gotByKey.APIOnly)
 	assert.True(t, *gotByKey.APIOnly)
 
-	gotByID, err = ds.SessionByID(context.Background(), apiSession.ID)
+	_, err = ds.SessionByID(context.Background(), apiSession.ID)
 	require.NoError(t, err)
 	assert.Equal(t, apiSession.ID, gotByKey.ID)
 	require.NotNil(t, gotByKey.APIOnly)

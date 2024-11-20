@@ -44,6 +44,15 @@ module.exports = {
     },
     getStartedResponses: {
       type: 'string',
+    },
+    intentSignal: {
+      type: 'string',
+      isIn: [
+        'Subscribed to the Fleet newsletter',
+        // 'Signed up for a fleetdm.com account',//
+        // 'Submitted the "Talk to us" form',
+        // 'Submitted the "Send a message" form',
+      ],
     }
 
   },
@@ -60,8 +69,7 @@ module.exports = {
 
   },
 
-
-  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses}) {
+  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses, intentSignal}) {
     // Return undefined if we're not running in a production environment.
     if(sails.config.environment !== 'production') {
       sails.log.verbose('Skipping Salesforce integration...');
@@ -102,17 +110,14 @@ module.exports = {
     if(primaryBuyingSituation) {
       valuesToSet.Primary_buying_situation__c = primaryBuyingSituation;// eslint-disable-line camelcase
     }
-    if(psychologicalStage) {
-      valuesToSet.Stage__c = psychologicalStage;// eslint-disable-line camelcase
-    }
     if(getStartedResponses) {
       valuesToSet.Website_questionnaire_answers__c = getStartedResponses;// eslint-disable-line camelcase
     }
     if(description) {
       valuesToSet.Description = description;
     }
-    if(psychologicalStageChangeReason) {
-      valuesToSet.Psystage_change_reason__c = psychologicalStageChangeReason;// eslint-disable-line camelcase
+    if(intentSignal) {
+      valuesToSet.Intent_signals__c = intentSignal;// eslint-disable-line camelcase
     }
 
     let existingContactRecord;
@@ -133,6 +138,28 @@ module.exports = {
       // If a description was provided and the contact has a description, append the new description to it.
       if(description && existingContactRecord.Description) {
         valuesToSet.Description = existingContactRecord.Description + '\n' + description;
+      }
+      // If we're updating a contact, add psychologicalStage and psychologicalStageChangeReason to the dictionary of valuesToSet.
+      if(psychologicalStage) {
+        valuesToSet.Stage__c = psychologicalStage;// eslint-disable-line camelcase
+      }
+      if(psychologicalStageChangeReason) {
+        valuesToSet.Psystage_change_reason__c = psychologicalStageChangeReason;// eslint-disable-line camelcase
+      }
+      // If an intent signal was specified, add it to the list of intent signals on the exisitng contact.
+      // Note: intent signals values are stored as a single string in salesforce, separated by a semicolon.
+      if(intentSignal && existingContactRecord.Intent_signals__c) {
+        // Convert the string from the Salesforce record into an array.
+        let existingContactIntentSignalsAsAnArray = existingContactRecord.Intent_signals__c.split(';');
+        // If this intent signal is not included in the exisitng contacts intent signals, add it.
+        if(!existingContactIntentSignalsAsAnArray.includes(intentSignal)) {
+          existingContactIntentSignalsAsAnArray.push(intentSignal);
+          // Convert the array back into a string to send it to Salesforce.
+          valuesToSet.Intent_signals__c = existingContactIntentSignalsAsAnArray.join(';');// eslint-disable-line camelcase
+        } else {
+          // Otherwise, if the existing contact already has this intent signal tracked, remove it from the valuesToSet
+          delete valuesToSet.Intent_signals__c;
+        }
       }
       // Check the existing contact record's psychologicalStage.
       if(psychologicalStage) {
@@ -234,6 +261,7 @@ module.exports = {
       }
       // console.log(`creating new Contact record.`)
       // Create a new Contact record for this person.
+
       let newContactRecord = await salesforceConnection.sobject('Contact')
       .create({
         AccountId: salesforceAccountId,
@@ -242,8 +270,17 @@ module.exports = {
         LastName: lastName ? lastName : '?',
         ...valuesToSet,
       });
-      // console.log(`Created ${newContactRecord.id}`);
       salesforceContactId = newContactRecord.id;
+
+      // Since we've created a new contact, we'll update the psychological stage to be either '2 - Aware', or whatever psystage was provided.
+      // This causes it to appear as an edit in our CRM and helps reporting.
+      await salesforceConnection.sobject('Contact')
+      .update({
+        Id: salesforceContactId,
+        Stage__c: psychologicalStage ? psychologicalStage : '2 - Aware',// eslint-disable-line camelcase
+        Psystage_change_reason__c: psychologicalStageChangeReason ? psychologicalStageChangeReason : null,// eslint-disable-line camelcase
+      });
+      // console.log(`Created ${newContactRecord.id}`);
     }//ﬁ
 
     return {

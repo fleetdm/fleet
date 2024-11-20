@@ -113,7 +113,7 @@ export interface ISoftwareTitleDetails {
   source: SoftwareSource;
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
-  versions_updated_at?: string;
+  counts_updated_at?: string;
   bundle_identifier?: string;
   browser?: BrowserType;
   versions_count?: number;

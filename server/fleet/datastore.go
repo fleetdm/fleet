@@ -439,6 +439,11 @@ type Datastore interface {
 	// value.
 	AggregateEnrollSecretPerTeam(ctx context.Context) ([]*EnrollSecret, error)
 
+	// Methods for getting and applying the stored yara rules.
+	GetYaraRules(ctx context.Context) ([]YaraRule, error)
+	ApplyYaraRules(ctx context.Context, rules []YaraRule) error
+	YaraRuleByName(ctx context.Context, name string) (*YaraRule, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// InviteStore contains the methods for managing user invites in a datastore.
 
@@ -837,9 +842,12 @@ type Datastore interface {
 	// UpdateHostSoftwareInstalledPaths looks at all software for 'hostID' and based on the contents of
 	// 'reported', either inserts or deletes the corresponding entries in the
 	// 'host_software_installed_paths' table. 'reported' is a set of
-	// 'software.ToUniqueStr()--installed_path' strings. 'mutationResults' contains the software inventory of
+	// 'installed_path\0team_identifier\0software.ToUniqueStr()' strings. 'mutationResults' contains the software inventory of
 	// the host (pre-mutations) and the mutations performed after calling 'UpdateHostSoftware',
 	// it is used as DB optimization.
+	//
+	// TODO(lucas): We should amend UpdateHostSoftwareInstalledPaths to just accept raw information
+	// otherwise the caller has to assemble the reported set the same way in all places where it's used.
 	UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, reported map[string]struct{}, mutationResults *UpdateHostSoftwareDBResult) error
 
 	// UpdateHost updates a host.
@@ -890,19 +898,29 @@ type Datastore interface {
 	// GetHostEmails returns the emails associated with the provided host for a given source, such as "google_chrome_profiles"
 	GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error)
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error
+
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
 	// a host
 	SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key, clientError string, decryptable *bool) error
+	// SaveLUKSData sets base64'd encrypted LUKS passphrase, key slot, and salt data for a host that has successfully
+	// escrowed LUKS data
+	SaveLUKSData(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error
+
 	// GetUnverifiedDiskEncryptionKeys returns all the encryption keys that
 	// are collected but their decryptable status is not known yet (ie:
 	// we're able to decrypt the key using a private key in the server)
 	GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]HostDiskEncryptionKey, error)
 	// SetHostsDiskEncryptionKeyStatus sets the encryptable status for the set
 	// of encription keys provided
-	SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error
+	SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, decryptable bool, threshold time.Time) error
 	// GetHostDiskEncryptionKey returns the encryption key information for a given host
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
+	IsHostPendingEscrow(ctx context.Context, hostID uint) bool
+	ClearPendingEscrow(ctx context.Context, hostID uint) error
+	ReportEscrowError(ctx context.Context, hostID uint, err string) error
+	QueueEscrow(ctx context.Context, hostID uint) error
+	AssertHasNoEncryptionKeyStored(ctx context.Context, hostID uint) error
 
 	// GetHostCertAssociationsToExpire retrieves host certificate
 	// associations that are close to expire and don't have a renewal in
@@ -1293,6 +1311,11 @@ type Datastore interface {
 	// a map that only contains the serials that have a matching row in the `hosts` table.
 	GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*Host, error)
 
+	// GetMatchingHostSerialsMarkedDeleted takes a list of device serial numbers and returns a map
+	// of only the ones that were found in the `hosts` table AND have a row in
+	// `host_dep_assignments` that is marked as deleted.
+	GetMatchingHostSerialsMarkedDeleted(ctx context.Context, serials []string) (map[string]struct{}, error)
+
 	// DeleteHostDEPAssignmentsFromAnotherABM makes as deleted any DEP entry that matches one of the provided serials only if the entry is NOT associated to the provided ABM token.
 	DeleteHostDEPAssignmentsFromAnotherABM(ctx context.Context, abmTokenID uint, serials []string) error
 
@@ -1490,6 +1513,14 @@ type Datastore interface {
 
 	// GetHostMDMProfileInstallStatus returns the status of the profile for the host.
 	GetHostMDMProfileInstallStatus(ctx context.Context, hostUUID string, profileUUID string) (MDMDeliveryStatus, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Linux MDM
+
+	// GetLinuxDiskEncryptionSummary summarizes the current state of Linux disk encryption on
+	// each Linux host in the specified team (or, if no team is specified, each host that is not assigned
+	// to any team).
+	GetLinuxDiskEncryptionSummary(ctx context.Context, teamID *uint) (MDMLinuxDiskEncryptionSummary, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// MDM Commands
@@ -1765,14 +1796,46 @@ type Datastore interface {
 	// Setup Experience
 	//
 
+	// ListSetupExperienceResultsByHostUUID lists the setup experience results for a host by its UUID.
 	ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*SetupExperienceStatusResult, error)
+
+	// UpdateSetupExperienceStatusResult updates the given setup experience status result.
 	UpdateSetupExperienceStatusResult(ctx context.Context, status *SetupExperienceStatusResult) error
+
+	// EnqueueSetupExperienceItems enqueues the relevant setup experience items (software and
+	// script) for a given host. It first clears out any pre-existing setup experience items that
+	// were previously enqueued for the host (since the setup experience only happens once during
+	// the initial device setup). It then adds any software and script that have been configured for
+	// this team to the host's queue and sets their status to pending. If any items were enqueued,
+	// it returns true, otherwise it returns false.
 	EnqueueSetupExperienceItems(ctx context.Context, hostUUID string, teamID uint) (bool, error)
+
+	// GetSetupExperienceScript gets the setup experience script for a team. There can only be 1
+	// setup experience script per team.
 	GetSetupExperienceScript(ctx context.Context, teamID *uint) (*Script, error)
+
+	// GetSetupExperienceScriptByID gets the setup experience script by its ID.
+	GetSetupExperienceScriptByID(ctx context.Context, scriptID uint) (*Script, error)
+
+	// SetSetupExperienceScript sets the setup experience script to the given script.
 	SetSetupExperienceScript(ctx context.Context, script *Script) error
+
+	// DeleteSetupExperienceScript deletes the setup experience script for the given team.
 	DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error
+
+	// MaybeUpdateSetupExperienceScriptStatus updates the status of the setup experience script for
+	// the given host if the script result row exists. If there was an update, it returns true.
+	// Otherwise, it returns false.
 	MaybeUpdateSetupExperienceScriptStatus(ctx context.Context, hostUUID string, executionID string, status SetupExperienceStatusResultStatus) (bool, error)
+
+	// MaybeUpdateSetupExperienceSoftwareInstallStatus updates the status of the setup experience
+	// software installer for the given host if the software installer result row exists. If there
+	// was an update, it returns true. Otherwise, it returns false.
 	MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx context.Context, hostUUID string, executionID string, status SetupExperienceStatusResultStatus) (bool, error)
+
+	// MaybeUpdateSetupExperienceVPPStatus updates the status of the setup experience
+	// VPP app for the given host if the VPP app installer row exists. If there was an update, it
+	// returns true. Otherwise, it returns false.
 	MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hostUUID string, commandUUID string, status SetupExperienceStatusResultStatus) (bool, error)
 
 	// Fleet-maintained apps

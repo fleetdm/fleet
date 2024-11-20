@@ -277,7 +277,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host pending script executions")
 	}
-	if len(pending) > maxPending {
+	if len(pending) >= maxPending {
 		return nil, fleet.NewInvalidArgumentError(
 			"script_id", "cannot queue more than 1000 scripts per host",
 		).WithStatus(http.StatusConflict)

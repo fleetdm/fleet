@@ -667,7 +667,7 @@ func testGetVPPAppByTeamAndTitleID(t *testing.T, ds *Datastore) {
 	require.Equal(t, "foo", gotVPPApp.AdamID)
 	require.Equal(t, fooTitleID, gotVPPApp.TitleID)
 	// title that doesn't exist
-	gotVPPApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, 999)
+	_, err = ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, 999)
 	require.ErrorAs(t, err, &nfe)
 
 	// create an entry for the global team
@@ -676,7 +676,7 @@ func testGetVPPAppByTeamAndTitleID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	barTitleID := barApp.TitleID
 	// not found providing the team id
-	gotVPPApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, barTitleID)
+	_, err = ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, barTitleID)
 	require.ErrorAs(t, err, &nfe)
 	// found for the global team
 	gotVPPApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, nil, barTitleID)
@@ -852,7 +852,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(0), teamTok.Teams[0].ID)
 	assert.Equal(t, fleet.TeamNameNoTeam, teamTok.Teams[0].Name)
 
-	teamTok, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	_, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
 	assert.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
 
@@ -876,7 +876,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, team.ID, toks[0].Teams[0].ID)
 	assert.Equal(t, team.Name, toks[0].Teams[0].Name)
 
-	teamTok, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	_, err = ds.GetVPPTokenByTeamID(ctx, nil)
 	assert.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
 
@@ -926,11 +926,11 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	assert.Len(t, toks, 1)
 
-	teamTok, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	_, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
 	assert.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
 
-	teamTok, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	_, err = ds.GetVPPTokenByTeamID(ctx, nil)
 	assert.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
 
@@ -1059,7 +1059,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	assert.Equal(t, tokTeams.ID, tokNil.ID)
 
-	tokTeam1, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	_, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
 	assert.Error(t, err)
 
 	tokTeam2, err = ds.GetVPPTokenByTeamID(ctx, &team2.ID)
@@ -1070,15 +1070,15 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	err = ds.DeleteVPPToken(ctx, tokTeams.ID)
 	assert.NoError(t, err)
 
-	tokNil, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	_, err = ds.GetVPPTokenByTeamID(ctx, nil)
 	assert.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
 
-	tokTeam1, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	_, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
 	assert.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
 
-	tokTeam2, err = ds.GetVPPTokenByTeamID(ctx, &team2.ID)
+	_, err = ds.GetVPPTokenByTeamID(ctx, &team2.ID)
 	assert.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
 

@@ -3,7 +3,6 @@ package maintainedapps
 import (
 	"context"
 	"fmt"
-	"io"
 	"mime"
 	"net/http"
 	"net/url"
@@ -18,7 +17,7 @@ import (
 const InstallerTimeout = 15 * time.Minute
 
 // DownloadInstaller downloads the maintained app installer located at the given URL.
-func DownloadInstaller(ctx context.Context, installerURL string, client *http.Client) ([]byte, string, error) {
+func DownloadInstaller(ctx context.Context, installerURL string, client *http.Client) (*fleet.TempFileReader, string, error) {
 	// validate the URL before doing the request
 	_, err := url.ParseRequestURI(installerURL)
 	if err != nil {
@@ -70,10 +69,10 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 		filename = path.Base(resp.Request.URL.Path)
 	}
 
-	bodyBytes, err := io.ReadAll(resp.Body)
+	tfr, err := fleet.NewTempFileReader(resp.Body, nil)
 	if err != nil {
 		return nil, "", ctxerr.Wrapf(ctx, err, "reading installer %q contents", installerURL)
 	}
 
-	return bodyBytes, filename, nil
+	return tfr, filename, nil
 }
