@@ -4,7 +4,7 @@
 
 Fleet offers managed cloud hosting for [Fleet Premium](https://fleetdm.com/pricing) customers with large deployments.
 
-> While organizations of all kinds use Fleet, from Fortune 500 companies to school districts to hobbyists, we are only currently able to provide cost-effective hosting for deployments larger than 1000 hosts.  (Instead, you can [buy a license](https://fleetdm.com/customers/register) and self-host Fleet Premium with support.)
+> While organizations of all kinds use Fleet, from Fortune 500 companies to school districts to hobbyists, today we are only currently able to provide fully-managed hosting for deployments larger than 300 hosts.  (Instead, you can [buy a license](https://fleetdm.com/customers/register) and self-host Fleet Premium with support.)
 
 Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/deploy/introduction).  Premium features are [available](https://fleetdm.com/pricing) either way.
 
