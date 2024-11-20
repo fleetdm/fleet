@@ -3914,7 +3914,7 @@ Email with `custom` data soruce is used as the identifier to get data from the I
 
 `PUT /api/v1/fleet/hosts/:id/device_mapping`
 
-Updates the email for the `custom` data source in the human-device mapping. This source can only have one email. To delete email with `custom` data source, send request with `email` as empty string.
+Updates the email for the `custom` data source in the human-device mapping. This source can only have one email. To delete email with `custom` data source, send a request with `email` set to empty string.
 
 #### Parameters
 
