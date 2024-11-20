@@ -303,7 +303,8 @@ CREATE TABLE `host_device_auth` (
 CREATE TABLE `host_disk_encryption_keys` (
   `host_id` int unsigned NOT NULL,
   `base64_encrypted` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `base64_encrypted_slot_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `base64_encrypted_salt` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `key_slot` tinyint unsigned DEFAULT NULL,
   `decryptable` tinyint(1) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

@@ -7877,31 +7877,25 @@ func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host2.ID))
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host3.ID))
 
-	// no change when blank key attempted to save
-	err = ds.SaveLUKSData(ctx, host1.ID, "", "")
+	// no change when blank key or salt attempted to save
+	err = ds.SaveLUKSData(ctx, host1.ID, "", "", 0)
+	require.Error(t, err)
+	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
+	err = ds.SaveLUKSData(ctx, host1.ID, "foo", "", 0)
 	require.Error(t, err)
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
 
-	// persists with just passphrase
-	err = ds.SaveLUKSData(ctx, host1.ID, "foobar", "")
+	// persists with passphrase and salt set
+	err = ds.SaveLUKSData(ctx, host2.ID, "bazqux", "fuzzmuffin", 0)
 	require.NoError(t, err)
-	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
-	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host2.ID))
-	key, err := ds.GetHostDiskEncryptionKey(ctx, host1.ID)
-	require.NoError(t, err)
-	require.Equal(t, "foobar", key.Base64Encrypted)
-
-	// persists with passphrase and slot key
-	err = ds.SaveLUKSData(ctx, host2.ID, "bazqux", "fuzzmuffin")
-	require.NoError(t, err)
-	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
+	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
 	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host2.ID))
-	key, err = ds.GetHostDiskEncryptionKey(ctx, host2.ID)
+	key, err := ds.GetHostDiskEncryptionKey(ctx, host2.ID)
 	require.NoError(t, err)
 	require.Equal(t, "bazqux", key.Base64Encrypted)
 
 	// persists when host hasn't had anything queued
-	err = ds.SaveLUKSData(ctx, host3.ID, "newstuff", "")
+	err = ds.SaveLUKSData(ctx, host3.ID, "newstuff", "fuzzball", 1)
 	require.NoError(t, err)
 	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host3.ID))
 	key, err = ds.GetHostDiskEncryptionKey(ctx, host3.ID)
