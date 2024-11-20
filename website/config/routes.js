@@ -240,7 +240,7 @@ module.exports.routes = {
     action: 'view-software-management',
     locals: {
       pageTitleForMeta: 'Software management',
-      pageDescriptionForMeta: 'Report CVEs, software inventory, security posture, and other risks down to the chipset of any endpoint with Fleet.',
+      pageDescriptionForMeta: 'Pick from a curated app library or upload your own custom packages. Configure custom installation scripts if you need or let Fleet do it for you.',
       currentSection: 'platform',
     }
   },
