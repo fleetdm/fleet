@@ -53,11 +53,11 @@
           <div purpose="feature-option" :class="[visibleFeature === 'mitigate-cves-automatically' ? 'active' : '']"  @click="clickSwitchFeature('mitigate-cves-automatically')">
             Mitigate CVEs automatically
           </div>
-          <div purpose="feature-option" :class="[visibleFeature === 'out-of-the-box-reporting' ? 'active' : '']" @click="clickSwitchFeature('out-of-the-box-reporting')">
-            Out-of-the-box reporting
-          </div>
           <div purpose="feature-option" :class="[visibleFeature === 'on-demand-data' ? 'active' : '']" @click="clickSwitchFeature('on-demand-data')">
             On-demand data
+          </div>
+          <div purpose="feature-option" :class="[visibleFeature === 'out-of-the-box-reporting' ? 'active' : '']" @click="clickSwitchFeature('out-of-the-box-reporting')">
+            Out-of-the-box reporting
           </div>
         </div>
         <div purpose="feature-slide" :class="[visibleFeature === 'mitigate-cves-automatically' ? '' : 'invisible']" class="d-flex flex-md-row flex-column-reverse justify-content-center mx-auto align-items-start">
