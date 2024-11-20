@@ -80,7 +80,7 @@ There are two roles required to complete these steps, the "Root" role who holds 
 
 4. The Releaser copies the `keys` directory to a USB drive, and deletes the `keys` directory from their local hard drive. 
 
-5. The Releaser send the `staged/root.json` to the Root role for signing. Note this file is safe to share and is publically available. 
+5. The Releaser sends the `staged/root.json` to the Root role for signing. Note this file is safe to share and is publicly available. 
 
 6. The Root role receives the `staged/root.json` file and copies it to a USB drive. 
 
