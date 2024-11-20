@@ -48,7 +48,7 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
 	args, err := getUserAndDisplayArgs(path, opts)
 	if err != nil {
-		return nil, 0, fmt.Errorf("get args: %w", err)
+		return nil, -1, fmt.Errorf("get args: %w", err)
 	}
 
 	args = append(args, path)
@@ -67,7 +67,7 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode = exitErr.ExitCode()
 		}
-		return output, exitCode, fmt.Errorf("%q error: %w", path, err)
+		return output, -1, fmt.Errorf("%q error: %w", path, err)
 	}
 
 	return output, exitCode, nil

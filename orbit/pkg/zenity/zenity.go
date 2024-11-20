@@ -17,7 +17,7 @@ type Zenity struct {
 	cmdWithWait func(ctx context.Context, args ...string) error
 }
 
-// NewZenity creates a new Zenity dialog instance for zenity v4 on Linux.
+// New creates a new Zenity dialog instance for zenity v4 on Linux.
 // Zenity implements the Dialog interface.
 func New() *Zenity {
 	return &Zenity{
