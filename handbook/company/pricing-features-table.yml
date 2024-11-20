@@ -150,7 +150,7 @@
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Configuration]
   usualDepartment: IT
-  tier: Free
+  tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
   waysToUse:
