@@ -66,6 +66,7 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode = exitErr.ExitCode()
+			return output, exitCode, fmt.Errorf("%q exited with code %d: %w", path, exitCode, err)
 		}
 		return output, -1, fmt.Errorf("%q error: %w", path, err)
 	}
