@@ -1713,6 +1713,17 @@ func (s *integrationMDMTestSuite) TestDiskEncryptionSharedSetting() {
 	// MDM config succeeds because we have a private key baked into default suite config
 	setMDMEnabled(false, false)
 	checkConfigSetSucceeds()
+
+	// enable windows mdm, no errors
+	setMDMEnabled(false, true)
+	checkConfigSetSucceeds()
+
+	// enable mac mdm, no errors
+	setMDMEnabled(true, true)
+	checkConfigSetSucceeds()
+
+	// only macos mdm enabled, no errors
+	setMDMEnabled(true, false)
 }
 
 func (s *integrationMDMTestSuite) TestEscrowBuddyBackwardsCompat() {
@@ -7506,7 +7517,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 
 	// TODO: Some global MDM config settings don't have MDMEnabledAndConfigured or
 	// WindowsMDMEnabledAndConfigured validations currently. Either add validations
-	// and test them or test abscence of validation.
+	// and test them or test absence of validation.
 	t.Run("apply app config spec", func(t *testing.T) {
 		t.Run("disk encryption", func(t *testing.T) {
 			t.Cleanup(func() {
@@ -7539,14 +7550,14 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // no change
 			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
 
-			// disabling disk encryption doesn't cause validation error because Windows is still enabled
+			// disabling disk encryption doesn't cause validation error
 			ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
 			acResp = checkAppConfig(t, false, true)                           // only windows mdm enabled
 			require.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // disabled
 			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
 
-			// enabling disk encryption doesn't cause validation error because Windows is still enabled
+			// enabling disk encryption doesn't cause validation error
 			ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
 			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
