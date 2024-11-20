@@ -29,6 +29,9 @@ parasails.registerPage('software-management-page', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
+    clickSwitchFeature: function(feature) {
+      this.visibleFeature = feature;
+    },
     clickOpenVideoModal: function(modalName) {
       this.modal = modalName;
     },
