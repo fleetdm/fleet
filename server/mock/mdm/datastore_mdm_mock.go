@@ -33,7 +33,7 @@ type StoreBootstrapTokenFunc func(r *mdm.Request, msg *mdm.SetBootstrapToken) er
 
 type RetrieveBootstrapTokenFunc func(r *mdm.Request, msg *mdm.GetBootstrapToken) (*mdm.BootstrapToken, error)
 
-type RetrievePushInfoFunc func(p0 context.Context, p1 []string) (map[string]*mdm.Push, error)
+type RetrievePushInfoFunc func(ctx context.Context, ids []string) (map[string]*mdm.Push, error)
 
 type IsPushCertStaleFunc func(ctx context.Context, topic string, staleToken string) (bool, error)
 
@@ -207,11 +207,11 @@ func (fs *MDMAppleStore) RetrieveBootstrapToken(r *mdm.Request, msg *mdm.GetBoot
 	return fs.RetrieveBootstrapTokenFunc(r, msg)
 }
 
-func (fs *MDMAppleStore) RetrievePushInfo(p0 context.Context, p1 []string) (map[string]*mdm.Push, error) {
+func (fs *MDMAppleStore) RetrievePushInfo(ctx context.Context, ids []string) (map[string]*mdm.Push, error) {
 	fs.mu.Lock()
 	fs.RetrievePushInfoFuncInvoked = true
 	fs.mu.Unlock()
-	return fs.RetrievePushInfoFunc(p0, p1)
+	return fs.RetrievePushInfoFunc(ctx, ids)
 }
 
 func (fs *MDMAppleStore) IsPushCertStale(ctx context.Context, topic string, staleToken string) (bool, error) {
