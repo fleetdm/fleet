@@ -30,13 +30,13 @@ const (
 	infoSuccessTitle     = "Encryption key escrow"
 	infoSuccessText      = "Key escrowed successfully."
 	maxKeySlots          = 8
+	userKeySlot          = 0 // Key slot 0 is assumed to be the location of the user's passphrase
 )
 
 var ErrKeySlotFull = regexp.MustCompile(`Key slot \d+ is full`)
 
 func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := context.Background()
 
 	if !oc.Notifications.RunDiskEncryptionEscrow {
 		return nil
@@ -65,28 +65,38 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	}
 
 	if err := lr.escrower.SendLinuxKeyEscrowResponse(response); err != nil {
-		if err := lr.infoPrompt(ctx, infoFailedTitle, infoFailedText); err != nil {
-			log.Debug().Err(err).Msg("failed to show failed escrow key dialog")
+		// If sending the response fails, remove the key slot
+		if keyslot != nil {
+			if err := removeKeySlot(ctx, devicePath, *keyslot); err != nil {
+				log.Error().Err(err).Msg("failed to remove key slot")
+			}
 		}
+
+		// Show error in dialog
+		if err := lr.infoPrompt(ctx, infoFailedTitle, infoFailedText); err != nil {
+			log.Info().Err(err).Msg("failed to show failed escrow key dialog")
+		}
+
 		return fmt.Errorf("escrower escrowKey err: %w", err)
 	}
 
 	if response.Err != "" {
 		if err := lr.infoPrompt(ctx, infoFailedTitle, response.Err); err != nil {
-			log.Debug().Err(err).Msg("failed to show failed escrow key dialog")
+			log.Info().Err(err).Msg("failed to show response error dialog")
 		}
 		return fmt.Errorf("error getting linux escrow key: %s", response.Err)
 	}
 
 	// Show success dialog
 	if err := lr.infoPrompt(ctx, infoSuccessTitle, infoSuccessText); err != nil {
-		log.Debug().Err(err).Msg("failed to show success escrow key dialog")
+		log.Info().Err(err).Msg("failed to show success escrow key dialog")
 	}
 
 	return nil
 }
 
 func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]byte, *uint, error) {
+	// AESXTSPlain64Cipher is the default cipher used by ubuntu/kubuntu/fedora
 	device := luksdevice.New(luksdevice.AESXTSPlain64Cipher)
 
 	// Prompt user for existing LUKS passphrase
@@ -133,16 +143,16 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		return nil, nil, fmt.Errorf("Failed to generate random passphrase: %w", err)
 	}
 
-	// Create a new key slot, error if all key slots are full
-	// keySlot 0 is assumed to be the user's passphrase
-	// so we start at 1
-	var keySlot uint = 1
+	// Create a new key slot and error if all key slots are full
+	// Start at slot 1 as keySlot 0 is assumed to be the location of
+	// the user's passphrase
+	var keySlot uint = userKeySlot + 1
 	for {
 		if keySlot == maxKeySlots {
 			return nil, nil, errors.New("all LUKS key slots are full")
 		}
 
-		userKey := encryption.NewKey(0, passphrase)
+		userKey := encryption.NewKey(userKeySlot, passphrase)
 		escrowKey := encryption.NewKey(int(keySlot), escrowPassphrase)
 
 		if err := device.AddKey(ctx, devicePath, userKey, escrowKey); err != nil {
@@ -285,4 +295,13 @@ func getSaltforKeySlot(ctx context.Context, devicePath string, keySlot uint) (st
 	}
 
 	return slot.KDF.Salt, nil
+}
+
+func removeKeySlot(ctx context.Context, devicePath string, keySlot uint) error {
+	cmd := exec.CommandContext(ctx, "cryptsetup", "luksKillSlot", devicePath, fmt.Sprintf("%d", keySlot))
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("Failed to run cryptsetup luksKillSlot: %w", err)
+	}
+
+	return nil
 }

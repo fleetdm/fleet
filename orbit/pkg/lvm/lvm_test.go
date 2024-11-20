@@ -8,7 +8,7 @@ import (
 )
 
 // sample from real LUKS encrypted Ubuntu disk
-var testJson = `{
+var testJsonUbuntu = `{
    "blockdevices": [
       {
          "name": "loop0",
@@ -213,12 +213,102 @@ var testJson = `{
    ]
 }`
 
+var testJsonFedora = `{
+   "blockdevices": [
+      {
+         "name": "sr0",
+         "maj:min": "11:0",
+         "rm": true,
+         "size": "2.1G",
+         "ro": false,
+         "type": "rom",
+         "mountpoints": [
+             "/run/media/luk/Fedora-WS-Live-40-1-14"
+         ]
+      },{
+         "name": "zram0",
+         "maj:min": "252:0",
+         "rm": false,
+         "size": "1.9G",
+         "ro": false,
+         "type": "disk",
+         "mountpoints": [
+             "[SWAP]"
+         ]
+      },{
+         "name": "nvme0n1",
+         "maj:min": "259:0",
+         "rm": false,
+         "size": "20G",
+         "ro": false,
+         "type": "disk",
+         "mountpoints": [
+             null
+         ],
+         "children": [
+            {
+               "name": "nvme0n1p1",
+               "maj:min": "259:1",
+               "rm": false,
+               "size": "600M",
+               "ro": false,
+               "type": "part",
+               "mountpoints": [
+                   "/boot/efi"
+               ]
+         },{
+               "name": "nvme0n1p2",
+               "maj:min": "259:2",
+               "rm": false,
+               "size": "1G",
+               "ro": false,
+               "type": "part",
+               "mountpoints": [
+                   "/boot"
+               ]
+            },{
+               "name": "nvme0n1p3",
+               "maj:min": "259:3",
+               "rm": false,
+               "size": "18.4G",
+               "ro": false,
+               "type": "part",
+               "mountpoints": [
+                   null
+               ],
+               "children": [
+                  {
+                     "name": "luks-21fc9b67-752e-42fb-83bb-8c92864382e9",
+                     "maj:min": "253:0",
+                     "rm": false,
+                     "size": "18.4G",
+                     "ro": false,
+                     "type": "crypt",
+                     "mountpoints": [
+                         "/home", "/"
+                     ]
+                  }
+               ]
+            }
+         ]
+      }
+   ]
+}`
+
 func TestFindRootDisk(t *testing.T) {
 	var input bytes.Buffer
-	_, err := input.WriteString(testJson)
+	_, err := input.WriteString(testJsonUbuntu)
 	assert.NoError(t, err)
 
 	output, err := rootDiskFromJson(input)
+	assert.NoError(t, err)
+	assert.Equal(t, "/dev/nvme0n1p3", output)
+
+	input = bytes.Buffer{}
+	_, err = input.WriteString(testJsonFedora)
+	assert.NoError(t, err)
+
+	output, err = rootDiskFromJson(input)
 	assert.NoError(t, err)
 	assert.Equal(t, "/dev/nvme0n1p3", output)
 }
