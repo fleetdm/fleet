@@ -117,8 +117,6 @@ At Fleet, we collaborate with [core team members](#creating-a-new-position), [co
 > Are you a new fleetie joining the Digital Experience team?  For Loom recordings demonstrating how to make offers, hire, onboard, and more please see [this classified Google Doc](https://docs.google.com/document/d/1fimxQguPOtK-2YLAVjWRNCYqs5TszAHJslhtT_23Ly0/edit).
 
 
-### Consultants
-
 
 #### Hiring a consultant
 
@@ -329,8 +327,12 @@ This section is about the hiring process a new core team member, or fleetie.
 > **_Note:_** _Employment classification isn't what makes someone a fleetie.  Some Fleet team members are contractors and others are employees.  The distinction between "contractor" and "employee" varies in different geographies, and the appropriate employment classification and agreement for any given team member and the place where they work is determined by Head of Digital Experience during the process of making an offer._
 
 Here are the steps hiring managers follow to get an offer out to a candidate:
-1. **Call references:** Before proceeding, make sure you have 2-5+ references. Ask the candidate for at least 2-5+ references and contact each reference in parallel using the instructions in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
-2. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to accurately reflect the candidate's:
+
+1. **Create a copy of the "Why hire?"**: Create a copy of the ["Why hire?" template](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/copy?) and complete all TODOs on the "🧑‍🚀 Candidate details" tab.
+
+2. **Call references:** Before proceeding, make sure you have 2-5+ references. Ask the candidate for at least 2-5+ references and contact each reference in parallel using the instructions in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
+
+3. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to accurately reflect the candidate's:
    - Start date
 
 > _**Tip:** No need to check with the candidate if you haven't already.  Just guess.  First Mondays tend to make good start dates.  When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date._
@@ -340,10 +342,9 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
    - LinkedIn URL _(If the fleetie does not have a LinkedIn account, enter `N/A`)_
    - Location of candidate
 
-3. **Compile feedback into a single doc:** In the "interview packet", include feedback from interviews, reference checks, and challenge submissions. Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
-   - Name the doc with a short, formulaic name that's easy to understand in an instant from just an email subject line (e.g. "_Why hire Jane Doe ("Train Conductor") - 2023-03-21_").
-   - _Share_ this single document with the [CEO and Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team).
-4. **Request a CEO interview:** Copy the template below, paste it in the hiring Slack channel for the position, and complete all "TODOs" before sending.
+4. **Compile feedback**: Include feedback from interviews, and challenge submissions, links to any supporting documents that were impactful in your final decision-making, and any other notes you can think of offhand as tabs in the document. Share the "Why hire?" document with the [CEO and Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team).
+
+5. **Request a CEO interview:** Copy the template below, paste it in the hiring Slack channel for the position, and complete all "TODOs" before sending.
 
      ```
     *CEO interview request:*
@@ -365,13 +366,16 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
 After receiving the interview packet, the Head of Digital Experience uses the following steps to make an offer:
 
 <!-- For future use: some ready-to-go language around rebencharking compensation for cost of living: https://github.com/fleetdm/fleet/pulls/13499 -->
+
 1. **Prepare the "exit scenarios" spreadsheet:** 🌐 Head of Digital Experience [copies the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and renames the copy to e.g. "Exit scenarios for Jane Doe".
    - _Edit the candidate's copy of the exit scenarios spreadsheet_ to reflect the number of shares in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0), and the spreadsheet will update automatically to reflect their approximate ownership percentage.
      > _**Note:** Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand._
+
 2. **Prepare offer:** 🌐 Head of Digital Experience [copies "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and renames to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
    - _Benefits:_ If candidate will work outside the US, [change the "Benefits" bullet](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/edit) to reflect what will be included through Fleet's international payroll provider, depending on the candidate's location.
    - _Equity:_ Highlight the number of shares with a link to the candidate's custom "exit scenarios" spreadsheet.
    - _Hand off:_ Share the offer email doc with the [Apprentice to the CEO](https://fleetdm.com/handbook/digital-experience#team).
+
 3. **Draft email:** 🦿 Apprentice to the CEO drafts the offer email in the CEO's inbox, reviews one more time, and then brings it to their next daily meeting for CEO's approval:
    - To: The candidate's personal email address _(use the email from the CEO interview calendar event)_
    - Cc: Head of Digital Experience
@@ -380,9 +384,11 @@ After receiving the interview packet, the Head of Digital Experience uses the fo
      - _Check all links in offer letter for accuracy (e.g. LinkedIn profile of hiring manager, etc.)_
      - _Click the surrounding areas to ensure no "ghost links" are left from previous edits... which has happened before._
      - _Re-read the offer email one last time, and especially double-check that the salary, number of shares, and start date match the numbers that are currently in the equity plan._
+
 4. **Send offer:** 🐈‍⬛ CEO reviews and sends the offer to the candidate:
    - _Grant the candidate "edit" access_ to their "exit scenarios" spreadsheet.
    - _Send_ the email.
+
 5. **Process the offer response** The Head of Digital Experience will process the offer response by either creating a new ["Teammate pre-onboarding" issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=pre-onboarding.md&title=Pre-onboarding%3A+______________________) and following the steps if the offer is accepted or notifying the stakeholders that the offer was not accepted and we should continue the search. 
 
 
