@@ -415,7 +415,10 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	}
 
 	if len(opts) > 0 && opts[0].WithDEPWebview {
-		frontendHandler := WithMDMEnrollmentMiddleware(svc, logger, ServeFrontend("", false, logger), "")
+		frontendHandler := WithMDMEnrollmentMiddleware(svc, logger, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// do nothing and return 200
+			w.WriteHeader(http.StatusOK)
+		}))
 		rootMux.Handle("/", frontendHandler)
 	}
 

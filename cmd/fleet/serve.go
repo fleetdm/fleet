@@ -1030,7 +1030,7 @@ the way that the Fleet server works.
 					service.ServeFrontend(config.Server.URLPrefix, config.Server.SandboxEnabled, httpLogger),
 				)
 
-				frontendHandler = service.WithMDMEnrollmentMiddleware(svc, httpLogger, frontendHandler, config.Server.URLPrefix)
+				frontendHandler = service.WithMDMEnrollmentMiddleware(svc, httpLogger, frontendHandler)
 
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
 

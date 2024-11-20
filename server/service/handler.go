@@ -1233,7 +1233,7 @@ func registerMDM(
 	return nil
 }
 
-func WithMDMEnrollmentMiddleware(svc fleet.Service, logger kitlog.Logger, next http.Handler, urlPrefix string) http.HandlerFunc {
+func WithMDMEnrollmentMiddleware(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/mdm/sso" {
 			next.ServeHTTP(w, r)
@@ -1251,7 +1251,7 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger kitlog.Logger, next h
 				return
 			}
 
-			sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(context.Background(), parsed)
+			sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(r.Context(), parsed)
 			if err != nil {
 				// just log the error and continue to next
 				level.Error(logger).Log("msg", "checking minimum os version for mdm", "err", err)
