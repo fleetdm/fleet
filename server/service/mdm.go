@@ -2165,7 +2165,7 @@ func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 // Update MDM Disk encryption
 ////////////////////////////////////////////////////////////////////////////////
 
-type updateMDMDiskEncryptionRequest struct {
+type updateDiskEncryptionRequest struct {
 	TeamID               *uint `json:"team_id"`
 	EnableDiskEncryption bool  `json:"enable_disk_encryption"`
 }
@@ -2178,8 +2178,8 @@ func (r updateMDMDiskEncryptionResponse) error() error { return r.Err }
 
 func (r updateMDMDiskEncryptionResponse) Status() int { return http.StatusNoContent }
 
-func updateMDMDiskEncryptionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*updateMDMDiskEncryptionRequest)
+func updateDiskEncryptionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*updateDiskEncryptionRequest)
 	if err := svc.UpdateMDMDiskEncryption(ctx, req.TeamID, &req.EnableDiskEncryption); err != nil {
 		return updateMDMDiskEncryptionResponse{Err: err}, nil
 	}
@@ -2194,7 +2194,7 @@ func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, e
 	lic, _ := license.FromContext(ctx)
 	if lic == nil || !lic.IsPremium() {
 		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return ErrMissingLicense
+		return fleet.ErrMissingLicense
 	}
 
 	// for historical reasons (the deprecated PATCH /mdm/apple/settings

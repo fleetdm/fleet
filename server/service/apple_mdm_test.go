@@ -1938,7 +1938,7 @@ func TestUpdateMDMAppleSettings(t *testing.T) {
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 			false,
 			nil,
-			ErrMissingLicense.Error(),
+			fleet.ErrMissingLicense.Error(),
 		},
 		{
 			"global admin premium",
@@ -1959,7 +1959,7 @@ func TestUpdateMDMAppleSettings(t *testing.T) {
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
 			false,
 			nil,
-			ErrMissingLicense.Error(),
+			fleet.ErrMissingLicense.Error(),
 		},
 		{
 			"global maintainer premium",
@@ -2036,7 +2036,7 @@ func TestUpdateMDMAppleSettings(t *testing.T) {
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 			false,
 			ptr.Uint(1),
-			ErrMissingLicense.Error(),
+			fleet.ErrMissingLicense.Error(),
 		},
 	}
 
