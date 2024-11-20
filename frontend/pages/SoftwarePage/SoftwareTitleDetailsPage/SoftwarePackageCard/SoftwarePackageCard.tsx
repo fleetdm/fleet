@@ -411,13 +411,14 @@ const SoftwarePackageCard = ({
           onSuccess={onDeleteSuccess}
         />
       )}
-      {showAutomaticInstallModal && softwarePackage && (
-        <AutomaticInstallModal
-          teamId={teamId}
-          policies={softwarePackage.automatic_install_policies}
-          onExit={() => setShowAutomaticInstallModal(false)}
-        />
-      )}
+      {showAutomaticInstallModal &&
+        softwarePackage?.automatic_install_policies && (
+          <AutomaticInstallModal
+            teamId={teamId}
+            policies={softwarePackage.automatic_install_policies}
+            onExit={() => setShowAutomaticInstallModal(false)}
+          />
+        )}
     </Card>
   );
 };
