@@ -1637,18 +1637,14 @@ func (s *integrationMDMTestSuite) TestDiskEncryptionSharedSetting() {
 	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 
-	// setPrivateKey := func(privateKey string) {
-	// TODO - something like this, test setting/unsetting the key
-	// }
-
-	// setMDMEnabled := func(macMDM, windowsMDM bool) {
-	// 	appConf, err := s.ds.AppConfig(context.Background())
-	// 	require.NoError(s.T(), err)
-	// 	appConf.MDM.WindowsEnabledAndConfigured = windowsMDM
-	// 	appConf.MDM.EnabledAndConfigured = macMDM
-	// 	err = s.ds.SaveAppConfig(context.Background(), appConf)
-	// 	require.NoError(s.T(), err)
-	// }
+	setMDMEnabled := func(macMDM, windowsMDM bool) {
+		appConf, err := s.ds.AppConfig(context.Background())
+		require.NoError(s.T(), err)
+		appConf.MDM.WindowsEnabledAndConfigured = windowsMDM
+		appConf.MDM.EnabledAndConfigured = macMDM
+		err = s.ds.SaveAppConfig(context.Background(), appConf)
+		require.NoError(s.T(), err)
+	}
 
 	// before doing any modifications, grab the current values and make
 	// sure they're set to the same ones on cleanup to not interfere with
@@ -1659,45 +1655,6 @@ func (s *integrationMDMTestSuite) TestDiskEncryptionSharedSetting() {
 		err := s.ds.SaveAppConfig(context.Background(), origAppConf)
 		require.NoError(s.T(), err)
 	})
-
-	// checkConfigSetErrors := func() {
-	// 	// try to set app config
-	// 	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	// 	"mdm": { "enable_disk_encryption": true }
-	// }`), http.StatusUnprocessableEntity)
-	// 	errMsg := extractServerErrorText(res.Body)
-	// 	require.Contains(t, errMsg, "enable disk encryption.")
-
-	// 	// try to create a new team using specs
-	// 	teamSpecs := map[string]any{
-	// 		"specs": []any{
-	// 			map[string]any{
-	// 				"name": teamName + uuid.NewString(),
-	// 				"mdm": map[string]any{
-	// 					"enable_disk_encryption": true,
-	// 				},
-	// 			},
-	// 		},
-	// 	}
-	// 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
-	// 	errMsg = extractServerErrorText(res.Body)
-	// 	require.Contains(t, errMsg, "enable disk encryption")
-
-	// 	// try to edit the existing team using specs
-	// 	teamSpecs = map[string]any{
-	// 		"specs": []any{
-	// 			map[string]any{
-	// 				"name": teamName,
-	// 				"mdm": map[string]any{
-	// 					"enable_disk_encryption": true,
-	// 				},
-	// 			},
-	// 		},
-	// 	}
-	// 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
-	// 	errMsg = extractServerErrorText(res.Body)
-	// 	require.Contains(t, errMsg, "enable disk encryption")
-	// }
 
 	checkConfigSetSucceeds := func() {
 		res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -1753,15 +1710,20 @@ func (s *integrationMDMTestSuite) TestDiskEncryptionSharedSetting() {
 		s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	}
 
-	// TODO: try to enable disk encryption with no private key set, MDM not enabled
-	// we should get an error
-	// setMDMEnabled(false, false)
-	// setPrivateKey(null)
-	// checkConfigSetErrors()
-
-	// Add a private key, no errors, even with MDM still not enabled
-	// setPrivateKey(something)
+	// MDM config succeeds because we have a private key baked into default suite config
+	setMDMEnabled(false, false)
 	checkConfigSetSucceeds()
+
+	// enable windows mdm, no errors
+	setMDMEnabled(false, true)
+	checkConfigSetSucceeds()
+
+	// enable mac mdm, no errors
+	setMDMEnabled(true, true)
+	checkConfigSetSucceeds()
+
+	// only macos mdm enabled, no errors
+	setMDMEnabled(true, false)
 }
 
 func (s *integrationMDMTestSuite) TestEscrowBuddyBackwardsCompat() {
@@ -7555,7 +7517,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 
 	// TODO: Some global MDM config settings don't have MDMEnabledAndConfigured or
 	// WindowsMDMEnabledAndConfigured validations currently. Either add validations
-	// and test them or test abscence of validation.
+	// and test them or test absence of validation.
 	t.Run("apply app config spec", func(t *testing.T) {
 		t.Run("disk encryption", func(t *testing.T) {
 			t.Cleanup(func() {
@@ -7588,14 +7550,14 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // no change
 			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
 
-			// disabling disk encryption doesn't cause validation error because Windows is still enabled
+			// disabling disk encryption doesn't cause validation error
 			ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
 			acResp = checkAppConfig(t, false, true)                           // only windows mdm enabled
 			require.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // disabled
 			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
 
-			// enabling disk encryption doesn't cause validation error because Windows is still enabled
+			// enabling disk encryption doesn't cause validation error
 			ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
 			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
@@ -7608,25 +7570,26 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			acResp = checkAppConfig(t, false, false)                         // both mac and windows mdm disabled
 			require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // disabling mdm doesn't change disk encryption
 
+			// disabling disk encryption doesn't cause validation error
+			ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, false, false)                          // no MDM enabled
+			require.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // disabled
+			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
+
+			// enabling disk encryption doesn't cause validation error
+			ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, false, false)                         // no MDM enabled
+			require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // enabled
+
 			// changing unrelated config doesn't cause validation error
 			ac.OrgInfo.OrgName = "f1338"
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
 			acResp = checkAppConfig(t, false, false)                         // both mac and windows mdm disabled
 			require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // no change
 			require.Equal(t, "f1338", acResp.AppConfig.OrgInfo.OrgName)
-
-			// changing MDM config doesn't cause validation error when switching to default values
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
-			// TODO: Should it be ok to disable disk encryption when MDM is disabled?
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
-			acResp = checkAppConfig(t, false, false)                          // both mac and windows mdm disabled
-			require.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // changed to disabled
-
-			// changing MDM config does cause validation error when switching to non-default values
-			// ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
-			// s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
-			// acResp = checkAppConfig(t, false, false)                          // both mac and windows mdm disabled
-			// require.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // still disabled
 		})
 
 		t.Run("macos setup", func(t *testing.T) {

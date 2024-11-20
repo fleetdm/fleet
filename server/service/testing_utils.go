@@ -684,17 +684,8 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"GET", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/profiles/summary", false, false},
-		// theoretically ungated by Ian – remove this line when confirmed
-		// {"GET", "/api/latest/fleet/mdm/profiles/summary", false, false},
-
-		// ungated by Ian? not in ticket but is returning 200 – remove this line when confirmed
-		// {"GET", "/api/latest/fleet/configuration_profiles/summary", false, false},
 		{"PATCH", "/api/latest/fleet/mdm/hosts/1/unenroll", false, false},
 		{"DELETE", "/api/latest/fleet/hosts/1/mdm", false, false},
-		// TODO - ungate this one ?
-		{"GET", "/api/latest/fleet/mdm/hosts/1/encryption_key", false, false},
-		// TODO - ungate this one ?
-		{"GET", "/api/latest/fleet/hosts/1/encryption_key", false, false},
 		{"GET", "/api/latest/fleet/mdm/hosts/1/profiles", false, true},
 		{"GET", "/api/latest/fleet/hosts/1/configuration_profiles", false, true},
 		{"POST", "/api/latest/fleet/mdm/hosts/1/lock", false, false},
@@ -728,10 +719,7 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"GET", "/api/latest/fleet/commands/results", false, false},
 		{"GET", "/api/latest/fleet/mdm/commands", false, false},
 		{"GET", "/api/latest/fleet/commands", false, false},
-		// TODO - ungate this one ?
 		{"POST", "/api/fleet/orbit/disk_encryption_key", false, false},
-		// TODO - ungate this one ?
-		{"GET", "/api/latest/fleet/disk_encryption", false, true},
 		{"GET", "/api/latest/fleet/mdm/profiles/1", false, false},
 		{"GET", "/api/latest/fleet/configuration_profiles/1", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/profiles/1", false, false},
