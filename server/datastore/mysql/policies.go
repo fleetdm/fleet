@@ -1664,13 +1664,28 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 	return hosts, nil
 }
 
-func (ds *Datastore) GetPoliciesBySoftwareInstallerID(
+func (ds *Datastore) GetPoliciesBySoftwareTitleID(
 	ctx context.Context,
-	softwareInstallerID uint,
+	softwareTitleID uint,
+	teamID *uint,
 ) ([]fleet.AutomaticInstallPolicy, error) {
-	query := `SELECT id, name FROM policies WHERE software_installer_id = ?;`
+	query := `
+	SELECT
+		p.id,
+		p.name
+	FROM policies p
+	JOIN software_installers si ON p.software_installer_id = si.id
+	JOIN software_titles st ON si.title_id = st.id
+	WHERE st.id = ?`
+
+	args := []interface{}{softwareTitleID}
+	if teamID != nil {
+		query += " AND p.team_id = ?;"
+		args = append(args, *teamID)
+	}
+
 	var policies []fleet.AutomaticInstallPolicy
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, softwareInstallerID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get policies by software installer id")
 	}
 	return policies, nil

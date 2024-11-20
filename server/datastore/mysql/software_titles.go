@@ -160,9 +160,9 @@ func (ds *Datastore) ListSoftwareTitles(
 				InstallDuringSetup: title.PackageInstallDuringSetup,
 			}
 
-			policies, err := ds.GetPoliciesBySoftwareInstallerID(ctx, title.ID)
+			policies, err := ds.GetPoliciesBySoftwareTitleID(ctx, title.ID, opt.TeamID)
 			if err != nil {
-				return nil, 0, nil, ctxerr.Wrap(ctx, err, "get policies by software installer ID")
+				return nil, 0, nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
 			}
 
 			for _, policy := range policies {
