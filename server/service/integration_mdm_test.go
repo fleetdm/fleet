@@ -1724,6 +1724,7 @@ func (s *integrationMDMTestSuite) TestDiskEncryptionSharedSetting() {
 
 	// only macos mdm enabled, no errors
 	setMDMEnabled(true, false)
+	checkConfigSetSucceeds()
 }
 
 func (s *integrationMDMTestSuite) TestEscrowBuddyBackwardsCompat() {
