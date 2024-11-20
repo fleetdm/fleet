@@ -1055,8 +1055,8 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM
 
-	// GetMDMDiskEncryptionSummary returns the current disk encryption status of all macOS and
-	// Windows hosts in the specified team (or, if no team is specified, each host that is not
+	// GetMDMDiskEncryptionSummary returns the current disk encryption status of all macOS, Windows, and
+	// Linux hosts in the specified team (or, if no team is specified, each host that is not
 	// assigned to any team).
 	GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uint) (*MDMDiskEncryptionSummary, error)
 
