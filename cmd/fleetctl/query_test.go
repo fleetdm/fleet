@@ -310,5 +310,5 @@ func TestAdHocLiveQuery(t *testing.T) {
 
 	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_display_name":"somehostname","host_hostname":"somehostname"}]}
 `
-	assert.Equal(t, expected, runAppForTest(t, []string{"query", "--labels", "", "--hosts", "1234", "--query", "select 42, * from time"}))
+	assert.Equal(t, expected, runAppForTest(t, []string{"query", "--hosts", "1234", "--query", "select 42, * from time"}))
 }
