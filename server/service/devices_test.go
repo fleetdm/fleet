@@ -544,24 +544,15 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
 		require.ErrorContains(t, err, "Host's disk is not encrypted. Please enable disk encryption for this host.")
 
-		// No Fleet Desktop
-		host.DiskEncryptionEnabled = ptr.Bool(true)
-		orbitInfo := &fleet.HostOrbitInfo{Version: "1.35.1"}
-		ds.GetHostOrbitInfoFunc = func(ctx context.Context, id uint) (*fleet.HostOrbitInfo, error) {
-			return orbitInfo, nil
-		}
-		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.ErrorContains(t, err, "Host's Orbit version does not support this feature. Please upgrade Orbit to the latest version.")
-
 		// Encryption key is already escrowed
-		orbitInfo.Version = fleet.MinOrbitLUKSVersion
+		host.DiskEncryptionEnabled = ptr.Bool(true)
 		ds.AssertHasNoEncryptionKeyStoredFunc = func(ctx context.Context, hostID uint) error {
 			return errors.New("encryption key is already escrowed")
 		}
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
 		require.ErrorContains(t, err, "encryption key is already escrowed")
 
-		require.Len(t, reportedErrors, 7)
+		require.Len(t, reportedErrors, 6)
 	})
 
 	t.Run("validation success", func(t *testing.T) {
@@ -573,13 +564,10 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{EnableDiskEncryption: optjson.SetBool(true)}}, nil
 		}
-		ds.GetHostOrbitInfoFunc = func(ctx context.Context, id uint) (*fleet.HostOrbitInfo, error) {
-			return &fleet.HostOrbitInfo{Version: "1.36.0", DesktopVersion: ptr.String("42")}, nil
-		}
 		ds.AssertHasNoEncryptionKeyStoredFunc = func(ctx context.Context, hostID uint) error {
 			return nil
 		}
-		host := &fleet.Host{ID: 1, Platform: "ubuntu", DiskEncryptionEnabled: ptr.Bool(true), OrbitVersion: ptr.String(fleet.MinOrbitLUKSVersion)}
+		host := &fleet.Host{ID: 1, Platform: "ubuntu", DiskEncryptionEnabled: ptr.Bool(true)}
 		ds.QueueEscrowFunc = func(ctx context.Context, hostID uint) error {
 			require.Equal(t, uint(1), hostID)
 			return nil
