@@ -514,7 +514,7 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 
 		// invalid platform
 		err := svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.Error(t, err, "Host platform does not support key escrow")
+		require.ErrorContains(t, err, "Host platform does not support key escrow")
 		require.True(t, ds.IsHostPendingEscrowFuncInvoked)
 
 		// valid platform, no-team, encryption not enabled
@@ -524,7 +524,7 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 			return appConfig, nil
 		}
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.Error(t, err, "Disk encryption is not enabled for hosts not assigned to a team")
+		require.ErrorContains(t, err, "Disk encryption is not enabled for hosts not assigned to a team")
 
 		// valid platform, team, encryption not enabled
 		host.TeamID = ptr.Uint(1)
@@ -534,29 +534,32 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 			return teamConfig, nil
 		}
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.Error(t, err, "Disk encryption is not enabled for this host's team")
+		require.ErrorContains(t, err, "Disk encryption is not enabled for this host's team")
 
 		// valid platform, team, host disk is not encrypted or unknown encryption state
 		teamConfig = &fleet.TeamMDM{EnableDiskEncryption: true}
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.Error(t, err, "Host's disk is not encrypted. Please enable disk encryption for this host.")
+		require.ErrorContains(t, err, "Host's disk is not encrypted. Please enable disk encryption for this host.")
 		host.DiskEncryptionEnabled = ptr.Bool(false)
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.Error(t, err, "Host's disk is not encrypted. Please enable disk encryption for this host.")
+		require.ErrorContains(t, err, "Host's disk is not encrypted. Please enable disk encryption for this host.")
 
-		// Orbit version is too old
+		// No Fleet Desktop
 		host.DiskEncryptionEnabled = ptr.Bool(true)
-		host.OrbitVersion = ptr.String("1.35.1")
+		orbitInfo := &fleet.HostOrbitInfo{Version: "1.35.1"}
+		ds.GetHostOrbitInfoFunc = func(ctx context.Context, id uint) (*fleet.HostOrbitInfo, error) {
+			return orbitInfo, nil
+		}
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.Error(t, err, "Host's Orbit version does not support this feature. Please upgrade Orbit to the latest version.")
+		require.ErrorContains(t, err, "Host's Orbit version does not support this feature. Please upgrade Orbit to the latest version.")
 
 		// Encryption key is already escrowed
-		host.OrbitVersion = ptr.String(fleet.MinOrbitLUKSVersion)
+		orbitInfo.Version = fleet.MinOrbitLUKSVersion
 		ds.AssertHasNoEncryptionKeyStoredFunc = func(ctx context.Context, hostID uint) error {
 			return errors.New("encryption key is already escrowed")
 		}
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.Error(t, err, "encryption key is already escrowed")
+		require.ErrorContains(t, err, "encryption key is already escrowed")
 
 		require.Len(t, reportedErrors, 7)
 	})
@@ -569,6 +572,9 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{EnableDiskEncryption: optjson.SetBool(true)}}, nil
+		}
+		ds.GetHostOrbitInfoFunc = func(ctx context.Context, id uint) (*fleet.HostOrbitInfo, error) {
+			return &fleet.HostOrbitInfo{Version: "1.36.0", DesktopVersion: ptr.String("42")}, nil
 		}
 		ds.AssertHasNoEncryptionKeyStoredFunc = func(ctx context.Context, hostID uint) error {
 			return nil
