@@ -1,0 +1,58 @@
+# This workflow update the timestamp of the TUF repository at https://tuf.fleetctl.com
+name: Update TUF timestamp
+
+on:
+  # TODO(lucas): Remove me once tests are done. This is just to allow me running a new Github Action that's not on main.
+  pull_request:
+  schedule:
+    - cron: "0 14 * * TUE" # Every Tuesday at 2 PM UTC
+  workflow_dispatch: # Manual
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+# env:
+# AWS_REGION: us-east-2
+# TODO(lucas): Set correct IAM account ID.
+# AWS_IAM_ROLE: arn:aws:iam::TBD:role/github-actions-role
+
+jobs:
+  tuf-update-timestamp:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Install fleetctl
+        run: npm install -g fleetctl
+
+      - name: Pull metadata files
+        run: |
+          mkdir -p keys repository staged
+          curl https://tuf.fleetctl.com/root.json --output ./repository/root.json
+          curl https://tuf.fleetctl.com/targets.json --output ./repository/targets.json
+          curl https://tuf.fleetctl.com/snapshot.json --output ./repository/snapshot.json
+          curl https://tuf.fleetctl.com/timestamp.json --output ./repository/timestamp.json
+          # aws s3 cp s3://fleet-tuf-repo/timestamp.json ./repository/timestamp.json
+          # aws s3 cp s3://fleet-tuf-repo/snapshot.json ./repository/snapshot.json
+          # aws s3 cp s3://fleet-tuf-repo/targets.json ./repository/targets.json
+          # aws s3 cp s3://fleet-tuf-repo/root.json ./repository/root.json
+          cat ./repository/timestamp.json
+
+      - name: Update timestamp
+        env:
+          BASE64_ENCRYPTED_TIMESTAMP_KEY_CONTENTS: ${{ secrets.BASE64_ENCRYPTED_TIMESTAMP_KEY }}
+          FLEET_TIMESTAMP_PASSPHRASE: ${{ secrets.TUF_TIMESTAMP_PASSPHRASE }}
+        run: |
+          echo "$BASE64_ENCRYPTED_TIMESTAMP_KEY_CONTENTS" | base64 -d > ./keys/timestamp.json
+          fleetctl updates timestamp --path .
+
+      - name: Push timestamp.json
+        run: |
+          # TODO(lucas): Will uncomment once ready.
+          # aws s3 cp ./repository/timestamp.json s3://fleet-tuf-repo/timestamp.json
+          cat ./repository/timestamp.json
