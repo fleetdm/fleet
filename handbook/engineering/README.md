@@ -212,7 +212,7 @@ Some of our code does not go through a scheduled release process, but is release
 This includes:
 - Our [fleetdm/nvd](https://github.com/fleetdm/nvd) repository
 - Our [fleetdm/vulnerabilities](https://github.com/fleetdm/vulnerabilities) repository
-- Our [website](https://github.com/fleetdm/fleet/tree/main/website)
+- Our [website](https://github.com/fleetdm/fleet/tree/main/website) directory
 
 In these cases there are two differences in our process:
 - QA is done before merging the code change to the main branch.
