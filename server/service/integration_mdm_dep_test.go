@@ -2774,7 +2774,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 			request.Header.Set("x-apple-aspen-deviceinfo", encodeDeviceInfo(*machineInfo))
 		}
 
-		// #nosec (this client is used for testing only)
+		// nolint: gosec (this client is used for testing only)
 		cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 			InsecureSkipVerify: true,
 		}))
@@ -2842,7 +2842,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 			request.Header.Set("x-apple-aspen-deviceinfo", encodeDeviceInfo(*machineInfo))
 		}
 
-		// #nosec (this client is used for testing only)
+		// nolint: gosec (this client is used for testing only)
 		cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 			InsecureSkipVerify: true,
 		}))
@@ -2904,14 +2904,21 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 		}
 	}
 
+	// configure idp settings
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": { "entity_id": "https://example.com", "idp_name": "example-idp", "metadata_url": "https://idp.example.com/metadata" }
+			}
+		}`), http.StatusOK, &acResp)
+
 	t.Cleanup(func() {
 		acResp := appConfigResponse{}
-		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ 
-			"mdm": { 
-				"macos_updates": { "minimum_version": null, "deadline": null }, 
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"macos_updates": { "minimum_version": null, "deadline": null },
 				"macos_setup": { "enable_end_user_authentication": false },
-				"end_user_authentication": { "entity_id": "", "idp_name": "", "metadata_url": "" },
-				"enable_end_user_authentication": false
+				"end_user_authentication": { "entity_id": "", "idp_name": "", "metadata_url": "", "issuer_uri": "", "metadata": "" }
 			}
 		}`), http.StatusOK, &acResp)
 	})
@@ -2920,7 +2927,11 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 		name           string
 		machineInfo    *fleet.MDMAppleMachineInfo
 		updateRequired *fleet.MDMAppleSoftwareUpdateRequiredDetails
-		err            string
+		// err is reserved for future test cases; currently we aren't expecting errors with this endpoint
+		// because product specs say to allow enrollment to proceed without software update so this
+		// is here so we can be explicit about those expectations and allow for future test cases
+		// that may need to check for errors
+		err string
 	}{
 		{
 			name: "device above latest",
