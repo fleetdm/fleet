@@ -161,7 +161,7 @@ Sends a password reset email to the specified email. Requires that SMTP or SES i
 
 `POST /api/v1/fleet/forgot_password`
 
-#### Parameters
+#### 
 
 | Name  | Type   | In   | Description                                                             |
 | ----- | ------ | ---- | ----------------------------------------------------------------------- |
@@ -207,7 +207,7 @@ Sends a password reset email to the specified email. Requires that SMTP or SES i
 
 Changes the password for the authenticated user.
 
-#### Parameters
+#### 
 
 | Name         | Type   | In   | Description                            |
 | ------------ | ------ | ---- | -------------------------------------- |
@@ -253,7 +253,7 @@ Resets a user's password. Which user is determined by the password reset token u
 
 `POST /api/v1/fleet/reset_password`
 
-#### Parameters
+#### 
 
 | Name                      | Type   | In   | Description                                                               |
 | ------------------------- | ------ | ---- | ------------------------------------------------------------------------- |
@@ -388,7 +388,7 @@ Gets the current SSO configuration.
 
 `POST /api/v1/fleet/sso`
 
-#### Parameters
+#### 
 
 | Name      | Type   | In   | Description                                                                 |
 | --------- | ------ | ---- | --------------------------------------------------------------------------- |
@@ -432,7 +432,7 @@ This is the callback endpoint that the identity provider will use to send securi
 
 `POST /api/v1/fleet/sso/callback`
 
-#### Parameters
+#### 
 
 | Name         | Type   | In   | Description                                                 |
 | ------------ | ------ | ---- | ----------------------------------------------------------- |
@@ -466,7 +466,7 @@ for pagination. For a comprehensive list of activity types and detailed informat
 
 `GET /api/v1/fleet/activities`
 
-#### Parameters
+#### 
 
 | Name            | Type    | In    | Description                                                 |
 |:--------------- |:------- |:----- |:------------------------------------------------------------|
@@ -656,7 +656,7 @@ Retrieves a list of the non expired carves. Carve contents remain available for 
 
 `GET /api/v1/fleet/carves`
 
-#### Parameters
+#### 
 
 | Name            | Type    | In    | Description                                                                                                                    |
 |-----------------|---------|-------|--------------------------------------------------------------------------------------------------------------------------------|
@@ -717,7 +717,7 @@ Retrieves the specified carve.
 
 `GET /api/v1/fleet/carves/:id`
 
-#### Parameters
+#### 
 
 | Name | Type    | In   | Description                           |
 | ---- | ------- | ---- | ------------------------------------- |
@@ -756,7 +756,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 `GET /api/v1/fleet/carves/:id/block/:block_id`
 
-#### Parameters
+#### 
 
 | Name     | Type    | In   | Description                                 |
 | -------- | ------- | ---- | ------------------------------------------- |
@@ -802,7 +802,7 @@ Returns the Fleet certificate.
 
 `GET /api/v1/fleet/config/certificate`
 
-#### Parameters
+#### 
 
 None.
 
@@ -828,7 +828,7 @@ Returns all information about the Fleet's configuration.
 
 `GET /api/v1/fleet/config`
 
-#### Parameters
+#### 
 
 None.
 
@@ -1095,7 +1095,7 @@ Modifies the Fleet's configuration with the supplied information.
 
 `PATCH /api/v1/fleet/config`
 
-#### Parameters
+#### 
 
 | Name                     | Type    | In    | Description   |
 | -----------------------  | ------- | ----  | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -1439,7 +1439,7 @@ Modifies the Fleet's configuration with the supplied information.
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_sso                        | boolean | Whether or not SSO is enabled for the Fleet application. If this value is true, you must also include most of the SSO settings parameters below.                       |
+| enable_sso                        | boolean | Whether or not SSO is enabled for the Fleet application. If this value is true, you must also include most of the SSO settings  below.                       |
 | entity_id                         | string  | The required entity ID is a URI that you use to identify Fleet when configuring the identity provider. Must be 5 or more characters.                                   |
 | issuer_uri                        | string  | The URI you provide here must exactly match the Entity ID field used in the identity provider configuration.                                                           |
 | idp_image_url                     | string  | An optional link to an image such as a logo for the identity provider.                                                                                                 |
@@ -1940,7 +1940,7 @@ Returns the valid global enroll secrets.
 
 `GET /api/v1/fleet/spec/enroll_secret`
 
-#### Parameters
+#### 
 
 None.
 
@@ -1975,7 +1975,7 @@ Replaces all existing global enroll secrets.
 
 `POST /api/v1/fleet/spec/enroll_secret`
 
-#### Parameters
+#### 
 
 | Name      | Type    | In   | Description                                                        |
 | --------- | ------- | ---- | ------------------------------------------------------------------ |
@@ -2039,7 +2039,7 @@ Returns the valid team enroll secrets.
 
 `GET /api/v1/fleet/teams/:id/secrets`
 
-#### Parameters
+#### 
 
 None.
 
@@ -2070,7 +2070,7 @@ Replaces all existing team enroll secrets.
 
 `PATCH /api/v1/fleet/teams/:id/secrets`
 
-#### Parameters
+#### 
 
 | Name      | Type    | In   | Description                            |
 | --------- | ------- | ---- | -------------------------------------- |
@@ -2138,7 +2138,7 @@ Delete all of a team's existing enroll secrets
 
 `POST /api/v1/fleet/invites`
 
-#### Parameters
+#### 
 
 | Name        | Type    | In   | Description                                                                                                                                           |
 | ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -2219,7 +2219,7 @@ Returns a list of the active invitations in Fleet.
 
 `GET /api/v1/fleet/invites`
 
-#### Parameters
+#### 
 
 | Name            | Type   | In    | Description                                                                                                                   |
 | --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -2268,7 +2268,7 @@ Delete the specified invite from Fleet.
 
 `DELETE /api/v1/fleet/invites/:id`
 
-#### Parameters
+#### 
 
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
@@ -2289,7 +2289,7 @@ Verify the specified invite.
 
 `GET /api/v1/fleet/invites/:token`
 
-#### Parameters
+#### 
 
 | Name  | Type    | In   | Description                            |
 | ----- | ------- | ---- | -------------------------------------- |
@@ -2338,7 +2338,7 @@ Verify the specified invite.
 
 `PATCH /api/v1/fleet/invites/:id`
 
-#### Parameters
+#### 
 
 | Name        | Type    | In   | Description                                                                                                                                           |
 | ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -2419,7 +2419,7 @@ Get version and build information from the Fleet server.
 
 `GET /api/v1/fleet/version`
 
-#### Parameters
+#### 
 
 None.
 
@@ -2508,7 +2508,7 @@ the `software` table.
 
 `GET /api/v1/fleet/hosts`
 
-#### Parameters
+#### 
 
 | Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -2566,7 +2566,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
 
 `GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true`
 
-##### Request query parameters
+##### Request query 
 
 ```json
 {
@@ -2748,7 +2748,7 @@ Response payload with the `munki_issue_id` filter provided:
 
 `GET /api/v1/fleet/hosts/count`
 
-#### Parameters
+#### 
 
 | Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -2786,7 +2786,7 @@ If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Se
 
 `GET /api/v1/fleet/hosts/count?page=0&per_page=100&order_key=hostname&query=2ce`
 
-##### Request query parameters
+##### Request query 
 
 ```json
 {
@@ -2812,7 +2812,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 `GET /api/v1/fleet/host_summary`
 
-#### Parameters
+#### 
 
 | Name            | Type    | In    | Description                                                                     |
 | --------------- | ------- | ----  | ------------------------------------------------------------------------------- |
@@ -2941,7 +2941,7 @@ Returns the information of the specified host.
 
 `GET /api/v1/fleet/hosts/:id`
 
-#### Parameters
+#### 
 
 | Name             | Type    | In    | Description                                                                         |
 |------------------|---------|-------|-------------------------------------------------------------------------------------|
@@ -5837,6 +5837,8 @@ Sets the custom MDM setup enrollment profile for a team or no team.
   }
 }
 ```
+
+> NOTE: The `ConfigurationWebURL` and `URL` values in the "custom MDM setup enrollment profile" are automatically populated. Attempting to populate them with custom values may generate server errors.
 
 ### Get custom MDM setup enrollment profile
 
