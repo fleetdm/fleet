@@ -1,7 +1,7 @@
 @font-face {
   font-family: "Inter";
   font-weight: 400;
-  src: url("../assets/fonts/inter/Inter-Regular-v4.woff2") format("woff2"),
+  src: url("../assets/fonts/inter/Inter-Regular.woff2") format("woff2"),
     url("../assets/fonts/inter/Inter-Regular.woff") format("woff");
 }
 
@@ -9,22 +9,21 @@
   font-family: "Inter";
   font-style: italic;
   font-weight: 400;
-  src: url("../assets/fonts/inter/Inter-Regular-Italic-v4.woff2")
-      format("woff2"),
+  src: url("../assets/fonts/inter/Inter-Regular-Italic.woff2") format("woff2"),
     url("../assets/fonts/inter/Inter-Regular-Italic.woff") format("woff");
 }
 
 @font-face {
   font-family: "Inter";
   font-weight: 600;
-  src: url("../assets/fonts/inter/Inter-Semibold-v4.woff2") format("woff2"),
+  src: url("../assets/fonts/inter/Inter-Semibold.woff2") format("woff2"),
     url("../assets/fonts/inter/Inter-Semibold.woff") format("woff");
 }
 
 @font-face {
   font-family: "Inter";
   font-weight: 700;
-  src: url("../assets/fonts/inter/Inter-Bold-v4.woff2") format("woff2"),
+  src: url("../assets/fonts/inter/Inter-Bold.woff2") format("woff2"),
     url("../assets/fonts/inter/Inter-Bold.woff") format("woff");
 }
 
