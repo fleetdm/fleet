@@ -214,7 +214,7 @@ This includes:
 - Our [fleetdm/vulnerabilities](https://github.com/fleetdm/vulnerabilities) repository
 - Our [website](https://github.com/fleetdm/fleet/tree/main/website)
 
-In these case there are two differences in our process:
+In these cases there are two differences in our process:
 - QA is done before merging the code change to the main branch.
 - Tickets are not moved to "Ready for release". Bug tickets are closed. Story tickets are moved to
   the Product board and put under "Confirm and celebrate" column.
