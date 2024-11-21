@@ -422,8 +422,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			templateNames := make(map[string]struct{}, len(newAppConfig.Integrations.DigiCert.Value))
 			for _, item := range appConfig.Integrations.DigiCert.Value {
 				item.PKIName = fleet.Preprocess(item.PKIName)
+				if item.PKIName == "" {
+					invalid.Append("integrations.digicert_pki.pki_name", "PKI name must be present")
+					break
+				}
 				for _, template := range item.Templates {
 					template.Name = fleet.Preprocess(template.Name)
+					if template.Name == "" {
+						invalid.Append("integrations.digicert_pki.templates.name", "template names must be present")
+						break
+					}
 					if !wordRegexp.MatchString(template.Name) {
 						invalid.Append("integrations.digicert_pki.templates.name", "template names must contain ASCII word characters only")
 						break

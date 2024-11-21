@@ -61,6 +61,8 @@ const (
 	FleetVarNDESSCEPChallenge   = "NDES_SCEP_CHALLENGE"
 	FleetVarNDESSCEPProxyURL    = "NDES_SCEP_PROXY_URL"
 	FleetVarHostEndUserEmailIDP = "HOST_END_USER_EMAIL_IDP"
+	FleetVarHostHardwareSerial  = "HOST_HARDWARE_SERIAL"
+	FleetVarPKICertPrefix       = "PKI_CERT_"
 )
 
 var (
@@ -71,7 +73,8 @@ var (
 		FleetVarNDESSCEPProxyURL))
 	fleetVarHostEndUserEmailIDPRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarHostEndUserEmailIDP,
 		FleetVarHostEndUserEmailIDP))
-	fleetVarsSupportedInConfigProfiles = []string{FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarHostEndUserEmailIDP}
+	fleetVarsSupportedInConfigProfiles        = []string{FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarHostEndUserEmailIDP}
+	fleetVarPrefixesSupportedInConfigProfiles = []string{FleetVarPKICertPrefix}
 )
 
 type hostProfileUUID struct {
@@ -454,8 +457,18 @@ func validateConfigProfileFleetVariables(contents string) error {
 	fleetVars := findFleetVariables(contents)
 	for k := range fleetVars {
 		if !slices.Contains(fleetVarsSupportedInConfigProfiles, k) {
-			return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles",
-				k)}
+			// Check if this variable has a supported prefix.
+			prefixFound := false
+			for _, prefix := range fleetVarPrefixesSupportedInConfigProfiles {
+				if strings.HasPrefix(k, prefix) {
+					prefixFound = true
+					break
+				}
+			}
+			if !prefixFound {
+				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles",
+					k)}
+			}
 		}
 	}
 	return nil
@@ -3571,39 +3584,66 @@ func preprocessProfileContents(
 
 	isNDESSCEPConfigured := func(profUUID string, target *cmdTarget) (bool, error) {
 		if !license.IsPremium(ctx) {
-			profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.hostUUIDs))
-			for _, hostUUID := range target.hostUUIDs {
-				profile, ok := hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]
-				if !ok { // Should never happen
-					continue
-				}
-				profile.Status = &fleet.MDMDeliveryFailed
-				profile.Detail = "NDES SCEP Proxy requires a Fleet Premium license."
-				profilesToUpdate = append(profilesToUpdate, profile)
-			}
-			if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, profilesToUpdate); err != nil {
-				return false, err
-			}
-			return false, nil
+			detail := "NDES SCEP Proxy requires a Fleet Premium license."
+			return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, detail)
 		}
 		if !appConfig.Integrations.NDESSCEPProxy.Valid {
-			profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.hostUUIDs))
-			for _, hostUUID := range target.hostUUIDs {
-				profile, ok := hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]
-				if !ok { // Should never happen
-					continue
-				}
-				profile.Status = &fleet.MDMDeliveryFailed
-				profile.Detail = "NDES SCEP Proxy is not configured. " +
-					"Please configure in Settings > Integrations > Mobile Device Management > Simple Certificate Enrollment Protocol."
-				profilesToUpdate = append(profilesToUpdate, profile)
-			}
-			if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, profilesToUpdate); err != nil {
-				return false, err
-			}
-			return false, nil
+			detail := "NDES SCEP Proxy is not configured. " +
+				"Please configure in Settings > Integrations > Mobile Device Management > Simple Certificate Enrollment Protocol."
+			return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, detail)
 		}
 		return appConfig.Integrations.NDESSCEPProxy.Valid, nil
+	}
+
+	var pkiCerts map[string]*fleet.PKICertificate
+	isPKIConfigured := func(profUUID string, target *cmdTarget, templateName string) (bool, error) {
+		if !license.IsPremium(ctx) {
+			return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
+				"PKI integration requires a Fleet Premium license.")
+		}
+		pkiConfigured := false
+		var pkiName string
+		if appConfig.Integrations.DigiCert.Valid {
+			for _, items := range appConfig.Integrations.DigiCert.Value {
+				for _, template := range items.Templates {
+					if template.Name == templateName {
+						pkiName = items.PKIName
+						pkiConfigured = true
+						break
+					}
+				}
+			}
+		}
+		if !pkiConfigured {
+			detail := "PKI is not configured. " + fmt.Sprintf("Template '%s' not found. ", templateName) +
+				"Please configure in Settings > Integrations > Mobile Device Management > Public key infrastructure (PKI)."
+			return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, detail)
+		}
+		pkiCert, err := ds.GetPKICertificate(ctx, pkiName)
+		if fleet.IsNotFound(err) {
+			detail := "PKI is not configured. " + fmt.Sprintf("PKI '%s' not found. ", pkiName) +
+				"Please configure in Settings > Integrations > Mobile Device Management > Public key infrastructure (PKI)."
+			return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, detail)
+		} else if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "getting PKI certificate")
+		}
+		if pkiCert.NotValidAfter == nil {
+			detail := "PKI is not configured. " + fmt.Sprintf("PKI '%s' is missing the registration authority (RA) certificate. ",
+				pkiName) +
+				"Please configure in Settings > Integrations > Mobile Device Management > Public key infrastructure (PKI)."
+			return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, detail)
+		}
+		if pkiCert.NotValidAfter.Before(time.Now()) {
+			detail := "PKI is not configured. " + fmt.Sprintf("PKI '%s' has an expired registration authority (RA) certificate. ",
+				pkiName) +
+				"Please configure in Settings > Integrations > Mobile Device Management > Public key infrastructure (PKI)."
+			return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, detail)
+		}
+		if pkiCerts == nil {
+			pkiCerts = make(map[string]*fleet.PKICertificate)
+		}
+		pkiCerts[templateName] = pkiCert
+		return true, nil
 	}
 
 	// Copy of NDES SCEP config which will contain unencrypted password, if needed
@@ -3640,20 +3680,23 @@ func preprocessProfileContents(
 			case FleetVarHostEndUserEmailIDP:
 				// No extra validation needed for this variable
 			default:
-				// Error out if we find an unknown variable
-				profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.hostUUIDs))
-				for _, hostUUID := range target.hostUUIDs {
-					profile, ok := hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]
-					if !ok { // Should never happen
-						continue
+				if strings.HasPrefix(fleetVar, FleetVarPKICertPrefix) {
+					// Get the template name
+					templateName := strings.TrimPrefix(fleetVar, FleetVarPKICertPrefix)
+					var err error
+					valid, err = isPKIConfigured(profUUID, target, templateName)
+					if err != nil {
+						return err
 					}
-					profile.Status = &fleet.MDMDeliveryFailed
-					profile.Detail = fmt.Sprintf("Unknown Fleet variable $FLEET_VAR_%s found in profile. Please update or remove.",
-						fleetVar)
-					profilesToUpdate = append(profilesToUpdate, profile)
+					break
 				}
-				if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, profilesToUpdate); err != nil {
-					return ctxerr.Wrap(ctx, err, "updating host MDM Apple profiles for unknown variable")
+
+				// Otherwise, error out since this variable is unknown
+				detail := fmt.Sprintf("Unknown Fleet variable $FLEET_VAR_%s found in profile. Please update or remove.",
+					fleetVar)
+				_, err := markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, detail)
+				if err != nil {
+					return err
 				}
 				valid = false
 			}
@@ -3810,6 +3853,30 @@ func preprocessProfileContents(
 		}
 	}
 	return nil
+}
+
+func markProfilesFailed(
+	ctx context.Context,
+	ds fleet.Datastore,
+	target *cmdTarget,
+	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
+	profUUID string,
+	detail string,
+) (bool, error) {
+	profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.hostUUIDs))
+	for _, hostUUID := range target.hostUUIDs {
+		profile, ok := hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]
+		if !ok { // Should never happen
+			continue
+		}
+		profile.Status = &fleet.MDMDeliveryFailed
+		profile.Detail = detail
+		profilesToUpdate = append(profilesToUpdate, profile)
+	}
+	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, profilesToUpdate); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "marking host profiles failed")
+	}
+	return false, nil
 }
 
 func replaceFleetVariable(regExp *regexp.Regexp, contents string, replacement string) string {
