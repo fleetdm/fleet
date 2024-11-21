@@ -208,7 +208,13 @@ func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet
 		return &fleet.BadRequestError{Message: "Host's disk is not encrypted. Please enable disk encryption for this host."}
 	}
 
-	if host.OrbitVersion == nil || !fleet.IsAtLeastVersion(*host.OrbitVersion, fleet.MinOrbitLUKSVersion) {
+	// We have to pull Orbit info because the auth context doesn't fill in host.OrbitVersion
+	orbitInfo, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
+	if err != nil {
+		return err
+	}
+
+	if orbitInfo == nil || !fleet.IsAtLeastVersion(orbitInfo.Version, fleet.MinOrbitLUKSVersion) {
 		return &fleet.BadRequestError{Message: "Host's Orbit version does not support this feature. Please upgrade Orbit to the latest version."}
 	}
 
