@@ -514,7 +514,7 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 
 		// invalid platform
 		err := svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.ErrorContains(t, err, "Host platform does not support key escrow")
+		require.ErrorContains(t, err, "Fleet does not yet support creating LUKS disk encryption keys on this platform.")
 		require.True(t, ds.IsHostPendingEscrowFuncInvoked)
 
 		// valid platform, no-team, encryption not enabled
@@ -524,7 +524,7 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 			return appConfig, nil
 		}
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.ErrorContains(t, err, "Disk encryption is not enabled for hosts not assigned to a team")
+		require.ErrorContains(t, err, "Disk encryption is not enabled for hosts not assigned to a team.")
 
 		// valid platform, team, encryption not enabled
 		host.TeamID = ptr.Uint(1)
@@ -534,15 +534,15 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 			return teamConfig, nil
 		}
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.ErrorContains(t, err, "Disk encryption is not enabled for this host's team")
+		require.ErrorContains(t, err, "Disk encryption is not enabled for this host's team.")
 
 		// valid platform, team, host disk is not encrypted or unknown encryption state
 		teamConfig = &fleet.TeamMDM{EnableDiskEncryption: true}
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.ErrorContains(t, err, "Host's disk is not encrypted. Please enable disk encryption for this host.")
+		require.ErrorContains(t, err, "Host's disk is not encrypted. Please encrypt your disk first.")
 		host.DiskEncryptionEnabled = ptr.Bool(false)
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.ErrorContains(t, err, "Host's disk is not encrypted. Please enable disk encryption for this host.")
+		require.ErrorContains(t, err, "Host's disk is not encrypted. Please encrypt your disk first.")
 
 		// No Fleet Desktop
 		host.DiskEncryptionEnabled = ptr.Bool(true)
@@ -551,7 +551,7 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 			return orbitInfo, nil
 		}
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.ErrorContains(t, err, "Host's Orbit version does not support this feature. Please upgrade Orbit to the latest version.")
+		require.ErrorContains(t, err, "Your version of fleetd does not support creating disk encryption keys on Linux. Please upgrade fleetd, then click Refetch, then try again.")
 
 		// Encryption key is already escrowed
 		orbitInfo.Version = fleet.MinOrbitLUKSVersion
