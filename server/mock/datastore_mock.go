@@ -1165,6 +1165,12 @@ type GetHostMDMCertificateProfileFunc func(ctx context.Context, hostUUID string,
 
 type CleanUpMDMManagedCertificatesFunc func(ctx context.Context) error
 
+type GetPKICertificateFunc func(ctx context.Context, name string) (*fleet.PKICertificate, error)
+
+type SavePKICertificateFunc func(ctx context.Context, cert *fleet.PKICertificate) error
+
+type ListPKICertificatesFunc func(ctx context.Context) ([]fleet.PKICertificate, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -2881,6 +2887,15 @@ type DataStore struct {
 
 	CleanUpMDMManagedCertificatesFunc        CleanUpMDMManagedCertificatesFunc
 	CleanUpMDMManagedCertificatesFuncInvoked bool
+
+	GetPKICertificateFunc        GetPKICertificateFunc
+	GetPKICertificateFuncInvoked bool
+
+	SavePKICertificateFunc        SavePKICertificateFunc
+	SavePKICertificateFuncInvoked bool
+
+	ListPKICertificatesFunc        ListPKICertificatesFunc
+	ListPKICertificatesFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -6887,4 +6902,25 @@ func (s *DataStore) CleanUpMDMManagedCertificates(ctx context.Context) error {
 	s.CleanUpMDMManagedCertificatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanUpMDMManagedCertificatesFunc(ctx)
+}
+
+func (s *DataStore) GetPKICertificate(ctx context.Context, name string) (*fleet.PKICertificate, error) {
+	s.mu.Lock()
+	s.GetPKICertificateFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPKICertificateFunc(ctx, name)
+}
+
+func (s *DataStore) SavePKICertificate(ctx context.Context, cert *fleet.PKICertificate) error {
+	s.mu.Lock()
+	s.SavePKICertificateFuncInvoked = true
+	s.mu.Unlock()
+	return s.SavePKICertificateFunc(ctx, cert)
+}
+
+func (s *DataStore) ListPKICertificates(ctx context.Context) ([]fleet.PKICertificate, error) {
+	s.mu.Lock()
+	s.ListPKICertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListPKICertificatesFunc(ctx)
 }

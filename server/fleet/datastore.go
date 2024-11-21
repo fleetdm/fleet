@@ -1864,6 +1864,13 @@ type Datastore interface {
 
 	// CleanUpMDMManagedCertificates removes all managed certificates that are not associated with any host+profile.
 	CleanUpMDMManagedCertificates(ctx context.Context) error
+
+	// GetPKICertificate returns the PKI certificate with the given name.
+	GetPKICertificate(ctx context.Context, name string) (*PKICertificate, error)
+	// SavePKICertificate creates or updates the PKI certificate using the provided struct.
+	SavePKICertificate(ctx context.Context, cert *PKICertificate) error
+	// ListPKICertificates returns metadata for PKI certificates.
+	ListPKICertificates(ctx context.Context) ([]PKICertificate, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

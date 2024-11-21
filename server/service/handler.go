@@ -788,9 +788,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/mdm/profiles/batch", batchSetMDMProfilesEndpoint, batchSetMDMProfilesRequest{})
 
 	// Certificate management
-	ue.POST("/api/_version_/fleet/certificate_mgmt/certificate/{name}", uploadCertEndpoint, uploadCertRequest{})
-	ue.POST("/api/_version_/fleet/certificate_mgmt/certificate/{name}/password", uploadCertEndpoint, uploadCertRequest{})
-	ue.GET("/api/_version_/fleet/certificate_mgmt/certificate/{name}", getCertEndpoint, getCertRequest{})
+	ue.GET("/api/_version_/fleet/certificate_mgmt/certificates", getCertificatesEndpoint, nil)
+	ue.GET("/api/_version_/fleet/certificate_mgmt/certificate/{pki_name}/request_csr", getCertCSREndpoint, getCertCSRRequest{})
+	ue.POST("/api/_version_/fleet/certificate_mgmt/certificate/{pki_name}", uploadCertEndpoint, uploadCertRequest{})
+	ue.GET("/api/_version_/fleet/certificate_mgmt/certificate/{pki_name}", getCertEndpoint, getCertRequest{})
+	ue.DELETE("/api/_version_/fleet/certificate_mgmt/certificate/{pki_name}", deleteCertEndpoint, deleteCertRequest{})
 
 	errorLimiter := ratelimit.NewErrorMiddleware(limitStore)
 

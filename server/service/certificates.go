@@ -2,6 +2,9 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/pem"
 	"io"
 	"mime/multipart"
@@ -11,14 +14,140 @@ import (
 
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 )
 
+const rsaKeySize = 2048
+
 // //////////////////////////////////////////////////////////////////////////////
-// POST /fleet/certificate_mgmt/certificate
+// GET /fleet/certificate_mgmt/certificates
 // //////////////////////////////////////////////////////////////////////////////
 
-var certificatePathRegexp = regexp.MustCompile(`/certificate/(?P<name>.*)$`)
+type getCertificatesResponse struct {
+	Certificates []fleet.PKICertificate `json:"certificates"`
+	Err          error                  `json:"error,omitempty"`
+}
+
+func (r getCertificatesResponse) error() error { return r.Err }
+
+func getCertificatesEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (errorer, error) {
+	certs, err := svc.GetPKICertificates(ctx)
+	return &getCertificatesResponse{Certificates: certs, Err: err}, nil
+}
+
+func (svc *Service) GetPKICertificates(ctx context.Context) ([]fleet.PKICertificate, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	certs, err := svc.ds.ListPKICertificates(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list pki certificates")
+	}
+	return certs, nil
+}
+
+// //////////////////////////////////////////////////////////////////////////////
+// GET /fleet/certificate_mgmt/certificate/{pki_name}/request_csr
+// //////////////////////////////////////////////////////////////////////////////
+
+type getCertCSRRequest struct {
+	Name string `url:"pki_name"`
+}
+
+type getCertCSRResponse struct {
+	CSR []byte `json:"csr"` // base64 encoded
+	Err error  `json:"error,omitempty"`
+}
+
+func (r getCertCSRResponse) error() error { return r.Err }
+
+func getCertCSREndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getCertCSRRequest)
+	csr64, err := svc.GetCertCSR(ctx, req.Name)
+	if err != nil {
+		return &getCertCSRResponse{Err: err}, nil
+	}
+
+	return &getCertCSRResponse{CSR: csr64}, nil
+}
+
+func (svc *Service) GetCertCSR(ctx context.Context, nameEscaped string) ([]byte, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	name, err := url.PathUnescape(nameEscaped)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("pki_name", "Invalid pki_name. Please provide a valid pki_name."))
+	}
+	if len(name) > 255 {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("pki_name", "pki_name too long. Please provide a valid pki_name."))
+	}
+
+	privateKey := svc.config.Server.PrivateKey
+	if testSetEmptyPrivateKey {
+		privateKey = ""
+	}
+
+	if len(privateKey) == 0 {
+		return nil, ctxerr.Wrap(ctx,
+			&fleet.BadRequestError{Message: "Couldn't download signed CSR. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key"})
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	// Check if we have existing cert and keys
+	pkiCert, err := svc.ds.GetPKICertificate(ctx, name)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "loading existing pki cert")
+	}
+	var key *rsa.PrivateKey
+	if pkiCert == nil {
+		key, err = rsa.GenerateKey(rand.Reader, rsaKeySize)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "generate new private key")
+		}
+		// Create new PKI certificate
+		pkiCert = &fleet.PKICertificate{
+			Name: name,
+			Key:  apple_mdm.EncodePrivateKeyPEM(key),
+		}
+		err = svc.ds.SavePKICertificate(ctx, pkiCert)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "saving new pki cert")
+		}
+	} else {
+		block, _ := pem.Decode(pkiCert.Key)
+		key, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshaling saved key")
+		}
+	}
+
+	// Generate new CSR every time this is called
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	csr, err := apple_mdm.GenerateAPNSCSR(appConfig.OrgInfo.OrgName, vc.Email(), key)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generate new CSR")
+	}
+
+	return csr.Raw, nil
+}
+
+// //////////////////////////////////////////////////////////////////////////////
+// POST /fleet/certificate_mgmt/certificate/{pki_name}
+// //////////////////////////////////////////////////////////////////////////////
+
+var certificatePathRegexp = regexp.MustCompile(`/certificate/(?P<pki_name>.*)$`)
 
 type uploadCertRequest struct {
 	Name string
@@ -47,11 +176,11 @@ func (uploadCertRequest) DecodeRequest(ctx context.Context, r *http.Request) (in
 	// regex to get and validate the name
 	matches := certificatePathRegexp.FindStringSubmatch(r.URL.Path)
 	for i, name := range certificatePathRegexp.SubexpNames() {
-		if name == "name" {
+		if name == "pki_name" {
 			certName, err := url.QueryUnescape(matches[i])
 			if err != nil {
 				return nil, &fleet.BadRequestError{
-					Message:     "certificate name has invalid format",
+					Message:     "certificate pki_name has invalid format",
 					InternalErr: err,
 				}
 			}
@@ -144,6 +273,10 @@ func (svc *Service) UploadCert(ctx context.Context, cert io.ReadSeeker) error {
 
 }
 
+// //////////////////////////////////////////////////////////////////////////////
+// GET /fleet/certificate_mgmt/certificate/{pki_name}
+// //////////////////////////////////////////////////////////////////////////////
+
 type getCertRequest struct {
 }
 
@@ -151,4 +284,52 @@ func getCertEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 	// TODO: Implementation
 	_ = request.(*getCertRequest)
 	return nil, nil
+}
+
+// //////////////////////////////////////////////////////////////////////////////
+// DELETE /fleet/certificate_mgmt/certificate/{pki_name}
+// //////////////////////////////////////////////////////////////////////////////
+
+type deleteCertRequest struct{}
+
+type deleteCertResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteCertResponse) error() error {
+	return r.Err
+}
+
+func deleteCertEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	if err := svc.DeleteMDMAppleAPNSCert(ctx); err != nil {
+		return &deleteMDMAppleAPNSCertResponse{Err: err}, nil
+	}
+
+	return &deleteMDMAppleAPNSCertResponse{}, nil
+}
+
+func (svc *Service) DeleteCert(ctx context.Context) error {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetAPNSCert,
+		fleet.MDMAssetAPNSKey,
+		fleet.MDMAssetCACert,
+		fleet.MDMAssetCAKey,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting apple mdm assets")
+	}
+
+	// flip the app config flag
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
+
+	appCfg.MDM.EnabledAndConfigured = false
+
+	return svc.ds.SaveAppConfig(ctx, appCfg)
 }
