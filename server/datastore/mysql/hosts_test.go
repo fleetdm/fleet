@@ -6194,6 +6194,17 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, hSimple.ID, loadSimple.ID)
 	require.True(t, loadSimple.IsOsqueryEnrolled())
 
+	// make sure disk encryption state is reflected
+	require.Nil(t, loadSimple.DiskEncryptionEnabled)
+	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hSimple.ID, false))
+	loadSimple, err = ds.LoadHostByDeviceAuthToken(ctx, "simple", time.Second*3)
+	require.NoError(t, err)
+	require.False(t, *loadSimple.DiskEncryptionEnabled)
+	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hSimple.ID, true))
+	loadSimple, err = ds.LoadHostByDeviceAuthToken(ctx, "simple", time.Second*3)
+	require.NoError(t, err)
+	require.True(t, *loadSimple.DiskEncryptionEnabled)
+
 	// create a host that will be pending enrollment in Fleet MDM
 	hFleet := createHostWithDeviceToken("fleet")
 	err = ds.SetOrUpdateMDMData(ctx, hFleet.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "")

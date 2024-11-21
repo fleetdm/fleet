@@ -205,7 +205,17 @@ Immediately after publishing a new release, we close out the associated GitHub i
 The [Fleet releases Google calendar](https://calendar.google.com/calendar/embed?src=c_v7943deqn1uns488a65v2d94bs%40group.calendar.google.com&ctz=America%2FChicago) is kept up-to-date by the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). Any change to targeted release dates is reflected on this calendar.
 
 
+### Handle process exceptions for non-released code
 
+Some of our code does not go through a scheduled release process, but is released immediately via GitHub workflows. 
+This includes:
+- Our [fleetdm/nvd](https://github.com/fleetdm/nvd) repository
+- Our [fleetdm/vulnerabilities](https://github.com/fleetdm/vulnerabilities) repository
+- Our [website](https://github.com/fleetdm/fleet/tree/main/website) directory
+
+In these cases there are two differences in our process:
+- QA is done before merging the code change to the main branch.
+- Tickets are not moved to "Ready for release". Bug are closed, and user stories are moved to the product drafting board's "Confirm and celebrate" column.
 
 
 ### Register a domain for Fleet
