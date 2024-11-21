@@ -210,7 +210,7 @@ The [Fleet releases Google calendar](https://calendar.google.com/calendar/embed?
 
 Some of our code does not go through a scheduled release process, but is released immediately via GitHub workflows. 
 This includes:
-- The NVD repository
+- Our [fleetdm/nvd](https://github.com/fleetdm/nvd) repository
 - The Vulnerabilities repository
 - Our websites (MSP and Vulnerability dashboards)
 
