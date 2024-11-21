@@ -1,11 +1,15 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -17,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/smallstep/pkcs7"
 )
 
 const rsaKeySize = 2048
@@ -154,7 +159,7 @@ type uploadCertRequest struct {
 	File *multipart.FileHeader
 }
 
-func (uploadCertRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (uploadCertRequest) DecodeRequest(_ context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadCertRequest{}
 	err := r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
@@ -209,16 +214,21 @@ func uploadCertEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	}
 	defer file.Close()
 
-	if err := svc.UploadCert(ctx, file); err != nil {
+	if err := svc.UploadCert(ctx, req.Name, file); err != nil {
 		return &uploadCertResponse{Err: err}, nil
 	}
 
 	return &uploadMDMAppleAPNSCertResponse{}, nil
 }
 
-func (svc *Service) UploadCert(ctx context.Context, cert io.ReadSeeker) error {
+func (svc *Service) UploadCert(ctx context.Context, nameEscaped string, cert io.ReadSeeker) error {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return err
+	}
+
+	name, err := url.PathUnescape(nameEscaped)
+	if err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("pki_name", "Invalid pki_name. Please provide a valid pki_name."))
 	}
 
 	privateKey := svc.config.Server.PrivateKey
@@ -240,33 +250,46 @@ func (svc *Service) UploadCert(ctx context.Context, cert io.ReadSeeker) error {
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading certificate")
 	}
+	if len(certBytes) == 0 {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("certificate", "Empty certificate. Please provide a valid certificate."))
+	}
+
+	// Convert from PEM to DER format if needed
+	block, _ := pem.Decode(certBytes)
+	if block != nil {
+		// Assume that certificate need to be converted from PEM to DER
+		certBytes = block.Bytes
+	}
 
 	// Validate cert
-	block, _ := pem.Decode(certBytes)
-	if block == nil {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate."))
-	}
-
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
-		return err
-	}
-
-	// TODO: Parse the certificate to determine expiration date and fingerprint
-	// h := sha256.New()
-	// _, _ = io.Copy(h, bytes.NewReader(certBytes)) // writes to a Hash can never fail
-	// sha256Hash := hex.EncodeToString(h.Sum(nil))
-
-	// delete the old certificate and insert the new one
-	// TODO(roberto): replacing the certificate should be done in a single transaction in the DB
-	err = svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAuthenticationCertificate})
+	p7, err := pkcs7.Parse(certBytes)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting old apns cert from db")
+		return ctxerr.Wrap(ctx,
+			fleet.NewInvalidArgumentError("certificate",
+				fmt.Sprintf("Invalid PKCS7 certificate. Please provide a valid certificate. %s", err.Error())))
 	}
-	err = svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
-		{Name: fleet.MDMAssetAuthenticationCertificate, Value: certBytes},
-	}, nil)
+	if len(p7.Certificates) == 0 {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("certificate", "No certificate found. Please provide a valid certificate."))
+	}
+
+	// Get the saved certificate
+	pkiCert, err := svc.ds.GetPKICertificate(ctx, name)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "writing cert to db")
+		return ctxerr.Wrap(ctx, err, "loading existing pki private key")
+	}
+
+	x509Cert := p7.Certificates[0]
+	pkiCert.Cert = x509Cert.Raw
+	pkiCert.NotValidAfter = &x509Cert.NotAfter
+
+	h := sha256.New()
+	_, _ = io.Copy(h, bytes.NewReader(x509Cert.Raw)) // writes to a Hash can never fail
+	sha256Hash := hex.EncodeToString(h.Sum(nil))
+	pkiCert.Sha256 = &sha256Hash
+
+	err = svc.ds.SavePKICertificate(ctx, pkiCert)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "saving new pki cert")
 	}
 
 	return nil

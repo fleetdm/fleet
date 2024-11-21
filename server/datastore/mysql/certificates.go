@@ -44,7 +44,7 @@ func (ds *Datastore) SavePKICertificate(ctx context.Context, cert *fleet.PKICert
 		INSERT INTO
 			pki_certificates (name, cert_pem, key_pem, not_valid_after, sha256)
 		VALUES
-			(?, ?, ?, ?, ?)
+			(?, ?, ?, ?, UNHEX(?))
 		ON DUPLICATE KEY UPDATE
 			cert_pem = VALUES(cert_pem),
 			key_pem = VALUES(key_pem),
@@ -52,19 +52,20 @@ func (ds *Datastore) SavePKICertificate(ctx context.Context, cert *fleet.PKICert
 			sha256 = VALUES(sha256)
 `
 	var err error
+	var encryptedCert, encryptedKey []byte
 	if len(cert.Cert) > 0 {
-		cert.Cert, err = encrypt(cert.Cert, ds.serverPrivateKey)
+		encryptedCert, err = encrypt(cert.Cert, ds.serverPrivateKey)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "encrypting pki cert")
 		}
 	}
 	if len(cert.Key) > 0 {
-		cert.Key, err = encrypt(cert.Key, ds.serverPrivateKey)
+		encryptedKey, err = encrypt(cert.Key, ds.serverPrivateKey)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "encrypting pki key")
 		}
 	}
-	_, err = ds.writer(ctx).ExecContext(ctx, stmt, cert.Name, cert.Cert, cert.Key, cert.NotValidAfter, cert.Sha256)
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, cert.Name, encryptedCert, encryptedKey, cert.NotValidAfter, cert.Sha256)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "save pki certificate")
 	}
