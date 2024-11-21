@@ -110,7 +110,7 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 
 	// Validate the passphrase
 	for {
-		valid, err := lr.passphraseIsValid(ctx, device, devicePath, passphrase)
+		valid, err := lr.passphraseIsValid(ctx, device, devicePath, passphrase, userKeySlot)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Failed validating passphrase: %w", err)
 		}
@@ -158,7 +158,7 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		break
 	}
 
-	valid, err := lr.passphraseIsValid(ctx, device, devicePath, escrowPassphrase)
+	valid, err := lr.passphraseIsValid(ctx, device, devicePath, escrowPassphrase, keySlot)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error while validating escrow passphrase: %w", err)
 	}
@@ -170,12 +170,12 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 	return escrowPassphrase, &keySlot, nil
 }
 
-func (lr *LuksRunner) passphraseIsValid(ctx context.Context, device *luksdevice.LUKS, devicePath string, passphrase []byte) (bool, error) {
+func (lr *LuksRunner) passphraseIsValid(ctx context.Context, device *luksdevice.LUKS, devicePath string, passphrase []byte, keyslot uint) (bool, error) {
 	if len(passphrase) == 0 {
 		return false, nil
 	}
 
-	valid, err := device.CheckKey(ctx, devicePath, encryption.NewKey(userKeySlot, passphrase))
+	valid, err := device.CheckKey(ctx, devicePath, encryption.NewKey(int(keyslot), passphrase)) // #nosec G115
 	if err != nil {
 		return false, fmt.Errorf("Error validating passphrase: %w", err)
 	}
