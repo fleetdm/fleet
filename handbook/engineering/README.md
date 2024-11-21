@@ -208,7 +208,7 @@ The [Fleet releases Google calendar](https://calendar.google.com/calendar/embed?
 
 ### Handle process exceptions for non-released code
 
-Some of our code areas do not go through a release process (Like the agent and the fleet server) but they rather become operational immediately upon merging the code.
+Some of our code does not go through a scheduled release process, but is released immediately via GitHub workflows. 
 These code areas include:
 - The NVD repository
 - The Vulnerabilities repository
