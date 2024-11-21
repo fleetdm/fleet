@@ -252,20 +252,6 @@ func (lr *LuksRunner) infoPrompt(ctx context.Context, title, text string) error 
 	return nil
 }
 
-func (lr *LuksRunner) progressPrompt(ctx context.Context, text string) func() {
-	ctx, cancel := context.WithCancel(ctx)
-	go func() {
-		err := lr.notifier.ShowProgress(ctx, dialog.ProgressOptions{
-			Title: "Disk encryption",
-			Text:  text,
-		})
-		if err != nil {
-			log.Error().Err(err).Msg("failed to show progress dialog")
-		}
-	}()
-	return cancel
-}
-
 type LuksDump struct {
 	Keyslots map[string]Keyslot `json:"keyslots"`
 }
