@@ -86,7 +86,30 @@ describe("Device User Banners", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders no banner correctly", () => {
+  it("renders no banner correctly for a mac that is verifying its disk encryption", () => {
+    render(
+      <DeviceUserBanners
+        hostPlatform="darwin"
+        mdmEnrollmentStatus="On (manual)"
+        mdmEnabledAndConfigured
+        connectedToFleetMdm
+        macDiskEncryptionStatus="verifying"
+        diskEncryptionActionRequired={null}
+        onTurnOnMdm={noop}
+        onTriggerEscrowLinuxKey={noop}
+        diskEncryptionOSSetting={{ status: "verifying", detail: "" }}
+      />
+    );
+
+    expect(screen.queryByText(turnOnMdmExpcetedText)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(resetNonLinuxDiskEncryptKeyExpectedText)
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(resetNonLinuxDiskEncryptKeyExpectedText)
+    ).not.toBeInTheDocument();
+  });
+  it("renders no banner correctly for a mac without MDM set up", () => {
     // setup so mdm is not enabled and configured.
     render(
       <DeviceUserBanners
