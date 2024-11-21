@@ -297,23 +297,12 @@ func (svc *Service) UploadCert(ctx context.Context, nameEscaped string, cert io.
 }
 
 // //////////////////////////////////////////////////////////////////////////////
-// GET /fleet/certificate_mgmt/certificate/{pki_name}
-// //////////////////////////////////////////////////////////////////////////////
-
-type getCertRequest struct {
-}
-
-func getCertEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	// TODO: Implementation
-	_ = request.(*getCertRequest)
-	return nil, nil
-}
-
-// //////////////////////////////////////////////////////////////////////////////
 // DELETE /fleet/certificate_mgmt/certificate/{pki_name}
 // //////////////////////////////////////////////////////////////////////////////
 
-type deleteCertRequest struct{}
+type deleteCertRequest struct {
+	Name string `url:"pki_name"`
+}
 
 type deleteCertResponse struct {
 	Err error `json:"error,omitempty"`
@@ -324,35 +313,24 @@ func (r deleteCertResponse) error() error {
 }
 
 func deleteCertEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	if err := svc.DeleteMDMAppleAPNSCert(ctx); err != nil {
-		return &deleteMDMAppleAPNSCertResponse{Err: err}, nil
-	}
-
-	return &deleteMDMAppleAPNSCertResponse{}, nil
+	req := request.(*deleteCertRequest)
+	err := svc.DeleteCert(ctx, req.Name)
+	return &deleteCertResponse{Err: err}, nil
 }
 
-func (svc *Service) DeleteCert(ctx context.Context) error {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+func (svc *Service) DeleteCert(ctx context.Context, nameEscaped string) error {
+	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
-	err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetAPNSCert,
-		fleet.MDMAssetAPNSKey,
-		fleet.MDMAssetCACert,
-		fleet.MDMAssetCAKey,
-	})
+	name, err := url.PathUnescape(nameEscaped)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting apple mdm assets")
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("pki_name", "Invalid pki_name. Please provide a valid pki_name."))
 	}
 
-	// flip the app config flag
-	appCfg, err := svc.ds.AppConfig(ctx)
+	err = svc.ds.DeletePKICertificate(ctx, name)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "retrieving app config")
+		return ctxerr.Wrap(ctx, err, "deleting pki cert")
 	}
-
-	appCfg.MDM.EnabledAndConfigured = false
-
-	return svc.ds.SaveAppConfig(ctx, appCfg)
+	return nil
 }

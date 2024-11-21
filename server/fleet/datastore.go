@@ -1871,6 +1871,8 @@ type Datastore interface {
 	SavePKICertificate(ctx context.Context, cert *PKICertificate) error
 	// ListPKICertificates returns metadata for PKI certificates.
 	ListPKICertificates(ctx context.Context) ([]PKICertificate, error)
+	// DeletePKICertificate deletes the PKI certificate with the given name.
+	DeletePKICertificate(ctx context.Context, name string) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

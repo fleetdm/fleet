@@ -1171,6 +1171,8 @@ type SavePKICertificateFunc func(ctx context.Context, cert *fleet.PKICertificate
 
 type ListPKICertificatesFunc func(ctx context.Context) ([]fleet.PKICertificate, error)
 
+type DeletePKICertificateFunc func(ctx context.Context, name string) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -2896,6 +2898,9 @@ type DataStore struct {
 
 	ListPKICertificatesFunc        ListPKICertificatesFunc
 	ListPKICertificatesFuncInvoked bool
+
+	DeletePKICertificateFunc        DeletePKICertificateFunc
+	DeletePKICertificateFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -6923,4 +6928,11 @@ func (s *DataStore) ListPKICertificates(ctx context.Context) ([]fleet.PKICertifi
 	s.ListPKICertificatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListPKICertificatesFunc(ctx)
+}
+
+func (s *DataStore) DeletePKICertificate(ctx context.Context, name string) error {
+	s.mu.Lock()
+	s.DeletePKICertificateFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeletePKICertificateFunc(ctx, name)
 }

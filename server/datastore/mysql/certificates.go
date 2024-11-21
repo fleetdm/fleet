@@ -84,3 +84,15 @@ func (ds *Datastore) ListPKICertificates(ctx context.Context) ([]fleet.PKICertif
 	}
 	return certs, nil
 }
+
+func (ds *Datastore) DeletePKICertificate(ctx context.Context, name string) error {
+	stmt := `
+		DELETE FROM pki_certificates
+		WHERE name = ?
+	`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, name)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete pki certificate")
+	}
+	return nil
+}

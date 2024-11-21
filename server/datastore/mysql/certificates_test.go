@@ -110,4 +110,14 @@ func testSavePKICertificate(t *testing.T, ds *Datastore) {
 		assert.Equal(t, pkiCerts[i].Sha256, cert.Sha256)
 	}
 
+	// Delete certs
+	require.NoError(t, ds.DeletePKICertificate(ctx, pkiCerts[0].Name))
+	certs, err = ds.ListPKICertificates(ctx)
+	require.NoError(t, err)
+	assert.Len(t, certs, 1)
+	require.NoError(t, ds.DeletePKICertificate(ctx, pkiCerts[1].Name))
+	certs, err = ds.ListPKICertificates(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, certs)
+
 }
