@@ -10,7 +10,7 @@ This handbook page outlines the processes required to create and maintain a TUF 
 
 2. Download the latest version of the `fleetctl` for Linux from the the [Fleet releases GitHub page](https://github.com/fleetdm/fleet/releases).
 
-3. Download the `tuf` CLI from [go-tuf's v0.7.0 GitHub releases page](https://github.com/theupdateframework/go-tuf/releases/tag/v0.7.0).
+3. Download the `tuf` CLI from [go-tuf's v0.5.2 GitHub releases page](https://github.com/theupdateframework/go-tuf/releases/tag/v0.5.2). It's important to use the same version of `go-tuf` that is used by `fleetctl`.
 
 4. Connect a new USB drive and copy the `fleetctl` binary and `tuf` binary to the USB drive. The `tuf` binary will likely be in `~/go/bin/`.
 
