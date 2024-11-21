@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
@@ -362,15 +361,13 @@ type NDESSCEPProxyIntegration struct {
 	Password string `json:"password"` // not stored here -- encrypted in DB
 }
 
-type AuthenticationCertificate struct {
-	ValidTo time.Time `json:"valid_to"`
-}
-
 type CertificateSAN struct {
 	UserPrincipalNames []string `json:"user_principal_names"`
 }
 
 type CertificateTemplate struct {
+	Name       string         `json:"name"`    // Limit the max number of characters, to say, 32?
+	CAName     string         `json:"ca_name"` // Limit the max number of characters, to say, 32?
 	ProfileID  string         `json:"profile_id"`
 	SeatID     string         `json:"seat_id"`
 	CommonName string         `json:"common_name"`
@@ -378,8 +375,7 @@ type CertificateTemplate struct {
 }
 
 type DigiCertIntegration struct {
-	Certificate optjson.Any[AuthenticationCertificate] `json:"certificate"`
-	Templates   optjson.Slice[CertificateTemplate]     `json:"templates"`
+	Templates []CertificateTemplate `json:"templates"`
 }
 
 // Integrations configures the integrations with external systems.
@@ -389,7 +385,7 @@ type Integrations struct {
 	GoogleCalendar []*GoogleCalendarIntegration `json:"google_calendar"`
 	// NDESSCEPProxy settings. In JSON, not specifying this field means keep current setting, null means clear settings.
 	NDESSCEPProxy optjson.Any[NDESSCEPProxyIntegration] `json:"ndes_scep_proxy"`
-	DigiCert      optjson.Slice[DigiCertIntegration]    `json:"digicert"`
+	DigiCert      optjson.Any[DigiCertIntegration]      `json:"digicert"`
 }
 
 func ValidateEnabledActivitiesWebhook(webhook ActivitiesWebhookSettings, invalid *InvalidArgumentError) {

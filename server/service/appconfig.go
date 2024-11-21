@@ -404,6 +404,33 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	if newAppConfig.Integrations.DigiCert.Set && newAppConfig.Integrations.DigiCert.Valid && !license.IsPremium() {
+		invalid.Append("integrations.digicert", ErrMissingLicense.Error())
+		appConfig.Integrations.DigiCert.Valid = false
+	} else {
+		switch {
+		case !newAppConfig.Integrations.DigiCert.Set:
+			// Nothing is set -- keep the old value
+			appConfig.Integrations.DigiCert = oldAppConfig.Integrations.DigiCert
+		case !newAppConfig.Integrations.DigiCert.Valid:
+			// User is explicitly clearing this setting
+			appConfig.Integrations.DigiCert.Valid = false
+		default:
+			templateNames := make(map[string]struct{}, len(newAppConfig.Integrations.DigiCert.Value.Templates))
+			for _, template := range appConfig.Integrations.DigiCert.Value.Templates {
+				// TODO: Validate length?
+				template.Name = fleet.Preprocess(template.Name)
+				if _, ok := templateNames[template.Name]; ok {
+					invalid.Append("integrations.digicert.templates", "template names must be unique")
+					break
+				}
+				templateNames[template.Name] = struct{}{}
+				// TODO: Validate length?
+				template.CAName = fleet.Preprocess(template.CAName)
+			}
+		}
+	}
+
 	// EnableDiskEncryption is an optjson.Bool field in order to support the
 	// legacy field under "mdm.macos_settings". If the field provided to the
 	// PATCH endpoint is set but invalid (that is, "enable_disk_encryption":

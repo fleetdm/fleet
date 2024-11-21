@@ -6,6 +6,8 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
+	"regexp"
 
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -16,8 +18,10 @@ import (
 // POST /fleet/certificate_mgmt/certificate
 // //////////////////////////////////////////////////////////////////////////////
 
+var certificatePathRegexp = regexp.MustCompile(`/certificate/(?P<name>.*)$`)
+
 type uploadCertRequest struct {
-	// TODO: Add an identifier
+	Name string
 	File *multipart.FileHeader
 }
 
@@ -39,6 +43,21 @@ func (uploadCertRequest) DecodeRequest(ctx context.Context, r *http.Request) (in
 	}
 
 	decoded.File = r.MultipartForm.File["certificate"][0]
+
+	// regex to get and validate the name
+	matches := certificatePathRegexp.FindStringSubmatch(r.URL.Path)
+	for i, name := range certificatePathRegexp.SubexpNames() {
+		if name == "name" {
+			certName, err := url.QueryUnescape(matches[i])
+			if err != nil {
+				return nil, &fleet.BadRequestError{
+					Message:     "certificate name has invalid format",
+					InternalErr: err,
+				}
+			}
+			decoded.Name = fleet.Preprocess(certName)
+		}
+	}
 
 	return &decoded, nil
 }
@@ -103,7 +122,10 @@ func (svc *Service) UploadCert(ctx context.Context, cert io.ReadSeeker) error {
 		return err
 	}
 
-	// TODO: Parse the certificate to determine expiration date
+	// TODO: Parse the certificate to determine expiration date and fingerprint
+	// h := sha256.New()
+	// _, _ = io.Copy(h, bytes.NewReader(certBytes)) // writes to a Hash can never fail
+	// sha256Hash := hex.EncodeToString(h.Sum(nil))
 
 	// delete the old certificate and insert the new one
 	// TODO(roberto): replacing the certificate should be done in a single transaction in the DB
@@ -120,4 +142,13 @@ func (svc *Service) UploadCert(ctx context.Context, cert io.ReadSeeker) error {
 
 	return nil
 
+}
+
+type getCertRequest struct {
+}
+
+func getCertEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	// TODO: Implementation
+	_ = request.(*getCertRequest)
+	return nil, nil
 }
