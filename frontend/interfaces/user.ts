@@ -49,7 +49,7 @@ export interface IUser {
   gravatar_url?: string;
   gravatar_url_dark?: string;
   sso_enabled: boolean;
-  two_factor_authetication_enabled?: boolean;
+  two_factor_authentication_enabled?: boolean;
   global_role: UserRole | null;
   api_only: boolean;
   teams: ITeam[];

@@ -10,7 +10,11 @@ import PATHS from "router/paths";
 
 import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
-import { IUserFormErrors, UserRole } from "interfaces/user";
+import {
+  ICreateUserFormData,
+  IUserFormErrors,
+  UserRole,
+} from "interfaces/user";
 
 import { SingleValue } from "react-select-5";
 import Button from "components/buttons/Button";
@@ -48,8 +52,9 @@ export interface IFormData {
   email: string;
   name: string;
   newUserType?: NewUserType | null;
-  password?: string | null;
-  sso_enabled?: boolean;
+  password?: string;
+  new_password?: string | null; // if a new password is being set for an existing user, the API expects `new_password` rather than `password`
+  sso_enabled: boolean;
   two_factor_authentication_enabled?: boolean;
   global_role: UserRole | null;
   teams: ITeam[];
@@ -124,13 +129,17 @@ const UserForm = ({
 
   const { renderFlash } = useContext(NotificationContext);
 
-  const [errors, setErrors] = useState<any>(addOrEditUserErrors);
-  const [formData, setFormData] = useState<any>({
+  const [errors, setErrors] = useState<IUserFormErrors>({
+    name: "",
+    email: "",
+    password: "",
+  });
+  const [formData, setFormData] = useState<IFormData>({
     email: defaultEmail || "",
     name: defaultName || "",
     newUserType: isNewUser ? NewUserType.AdminCreated : null,
-    password: null,
-    sso_enabled: isSsoEnabled,
+    password: "",
+    sso_enabled: isSsoEnabled || false,
     two_factor_authentication_enabled: isTwoFactorAuthenticationEnabled,
     global_role: defaultGlobalRole || null,
     teams: defaultTeams || [],
@@ -147,7 +156,9 @@ const UserForm = ({
   }, [formData]); // Re-run when data changes
 
   useEffect(() => {
-    setErrors(addOrEditUserErrors);
+    if (addOrEditUserErrors) {
+      setErrors(addOrEditUserErrors);
+    }
   }, [addOrEditUserErrors]);
 
   const onInputChange = (formField: string): ((value: string) => void) => {
@@ -184,7 +195,7 @@ const UserForm = ({
     });
   };
 
-  const onGlobalUserRoleChange = (value: string): void => {
+  const onGlobalUserRoleChange = (value: UserRole): void => {
     setFormData({
       ...formData,
       global_role: value,
@@ -345,7 +356,7 @@ const UserForm = ({
           value={formData.global_role || "Observer"}
           onChange={(selectedOption: SingleValue<CustomOptionType>) => {
             if (selectedOption) {
-              onGlobalUserRoleChange(selectedOption.value);
+              onGlobalUserRoleChange(selectedOption.value as UserRole);
             }
           }}
           isSearchable={false}
@@ -420,7 +431,7 @@ const UserForm = ({
     );
   }
 
-  const renderAccountSection = () => {
+  const renderAccountSection = () => (
     <div className="form-field">
       {isModifiedByGlobalAdmin ? (
         <>
@@ -466,48 +477,46 @@ const UserForm = ({
           name="new-user-type"
         />
       )}
-    </div>;
-  };
+    </div>
+  );
 
-  const renderNameAndEmailSection = () => {
-    return (
-      <>
-        <InputField
-          label="Full name"
-          autofocus
-          error={errors.name}
-          name="name"
-          onChange={onInputChange("name")}
-          placeholder="Full name"
-          value={formData.name || ""}
-          inputOptions={{
-            maxLength: "80",
-          }}
-        />
-        <InputField
-          label="Email"
-          error={errors.email || serverErrors?.email}
-          name="email"
-          onChange={onInputChange("email")}
-          placeholder="Email"
-          value={formData.email || ""}
-          readOnly={!isNewUser && !(smtpConfigured || sesConfigured)}
-          tooltip={
-            <>
-              Editing an email address requires that SMTP or SES is configured
-              in order to send a validation email.
-              <br />
-              <br />
-              Users with Admin role can configure SMTP in{" "}
-              <strong>Settings &gt; Organization settings</strong>.
-            </>
-          }
-        />
-      </>
-    );
-  };
+  const renderNameAndEmailSection = () => (
+    <>
+      <InputField
+        label="Full name"
+        autofocus
+        error={errors.name}
+        name="name"
+        onChange={onInputChange("name")}
+        placeholder="Full name"
+        value={formData.name || ""}
+        inputOptions={{
+          maxLength: "80",
+        }}
+      />
+      <InputField
+        label="Email"
+        error={errors.email || serverErrors?.email}
+        name="email"
+        onChange={onInputChange("email")}
+        placeholder="Email"
+        value={formData.email || ""}
+        readOnly={!isNewUser && !(smtpConfigured || sesConfigured)}
+        tooltip={
+          <>
+            Editing an email address requires that SMTP or SES is configured in
+            order to send a validation email.
+            <br />
+            <br />
+            Users with Admin role can configure SMTP in{" "}
+            <strong>Settings &gt; Organization settings</strong>.
+          </>
+        }
+      />
+    </>
+  );
 
-  const renderAuthenticationSection = () => {
+  const renderAuthenticationSection = () => (
     <div className="form-field">
       <div className="form-field__label">Authentication</div>
       <Radio
@@ -515,7 +524,7 @@ const UserForm = ({
         label="Enable single sign-on"
         id="enable-single-sign-on"
         checked={formData.sso_enabled}
-        value={formData.sso_enabled}
+        value={formData.sso_enabled.toString()}
         name="authentication-type"
         onChange={onRadioChange("sso_enabled")}
       />
@@ -525,9 +534,14 @@ const UserForm = ({
         id="require-password"
         disabled={!(smtpConfigured || sesConfigured)}
         checked={!formData.sso_enabled}
-        value={formData.sso_enabled}
+        value={formData.sso_enabled.toString()}
         name="authentication-type"
         onChange={onSsoDisable}
+        /** Note: This was a checkbox that is now a radio button, waiting on
+         * product to confirm if we're adding help text to radio buttons as
+         * it's not in Figma design system, the Figma here, or in the Radio
+         * component, but the helpText already existed on the checkbox version
+         */
         // helpText={
         //   canUseSso ? (
         //     <p className={`${baseClass}__sso-input sublabel`}>
@@ -552,10 +566,10 @@ const UserForm = ({
         //   )
         // }
       />
-    </div>;
-  };
+    </div>
+  );
 
-  const renderPasswordSection = () => {
+  const renderPasswordSection = () => (
     <div className={`${baseClass}__${isNewUser ? "" : "edit-"}password`}>
       <InputField
         label="Password"
@@ -580,42 +594,40 @@ const UserForm = ({
           ) : undefined
         }
       />
-    </div>;
-  };
+    </div>
+  );
 
   // 2fa option shows on premium tier or if previously set to true before downgrading to free
-  const renderTwoFactorAuthenticationOption = () => {
-    return (
-      <div className="form-field">
-        {/* Renders missing password heading when inviting a user */}
-        {formData.newUserType === NewUserType.AdminInvited && (
-          <div className="form-field__label">Password</div>
-        )}
-        <Checkbox
-          name="two_factor_authentication_enabled"
-          onChange={onCheckboxChange("two_factor_authentication_enabled")}
-          value={formData.two_factor_authentication_enabled}
-          wrapperClassName={`${baseClass}__2fa`}
+  const renderTwoFactorAuthenticationOption = () => (
+    <div className="form-field">
+      {/* Renders missing password heading when inviting a user */}
+      {formData.newUserType === NewUserType.AdminInvited && (
+        <div className="form-field__label">Password</div>
+      )}
+      <Checkbox
+        name="two_factor_authentication_enabled"
+        onChange={onCheckboxChange("two_factor_authentication_enabled")}
+        value={formData.two_factor_authentication_enabled}
+        wrapperClassName={`${baseClass}__2fa`}
+      >
+        Enable two-factor authentication (
+        <TooltipWrapper
+          tipContent={
+            <>
+              User will be asked to authenticate with a
+              <br />
+              magic link that will be sent to their email.
+            </>
+          }
         >
-          Enable two-factor authentication (
-          <TooltipWrapper
-            tipContent={
-              <>
-                User will be asked to authenticate with a
-                <br />
-                magic link that will be sent to their email.
-              </>
-            }
-          >
-            email
-          </TooltipWrapper>
-          )
-        </Checkbox>
-      </div>
-    );
-  };
+          email
+        </TooltipWrapper>
+        )
+      </Checkbox>
+    </div>
+  );
 
-  const renderPremiumRoleOptions = () => {
+  const renderPremiumRoleOptions = () => (
     <>
       <div className="form-field">
         <div className="form-field__label">Team</div>
@@ -646,8 +658,8 @@ const UserForm = ({
         )}
       </div>
       {isGlobalUser ? renderGlobalRoleForm() : renderTeamsForm()}
-    </>;
-  };
+    </>
+  );
 
   const renderScrollableContent = () => {
     return (
