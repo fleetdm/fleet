@@ -358,9 +358,12 @@ export default {
     return sendRequest("GET", path);
   },
 
-  getFleetMainainedApp: (id: number): Promise<IFleetMaintainedAppResponse> => {
+  getFleetMainainedApp: (
+    id: number,
+    teamId: number
+  ): Promise<IFleetMaintainedAppResponse> => {
     const { SOFTWARE_FLEET_MAINTAINED_APP } = endpoints;
-    const path = `${SOFTWARE_FLEET_MAINTAINED_APP(id)}`;
+    const path = `${SOFTWARE_FLEET_MAINTAINED_APP(id)}?team_id=${teamId}`;
     return sendRequest("GET", path);
   },
 

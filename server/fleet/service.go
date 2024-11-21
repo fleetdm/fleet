@@ -1158,7 +1158,7 @@ type Service interface {
 	// ListFleetMaintainedApps lists Fleet-maintained apps available to a specific team
 	ListFleetMaintainedApps(ctx context.Context, teamID uint, opts ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 	// GetFleetMaintainedApp returns a Fleet-maintained app by ID
-	GetFleetMaintainedApp(ctx context.Context, appID uint) (*MaintainedApp, error)
+	GetFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint) (*MaintainedApp, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Maintenance windows

@@ -5,8 +5,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -166,9 +168,10 @@ func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, op
 	return avail, meta, nil
 }
 
-func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
+func (svc *Service) GetFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint) (*fleet.MaintainedApp, error) {
+	slog.With("filename", "ee/server/service/maintained_apps.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: in handler ", "teamID", teamID)
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{
-		TeamID: nil,
+		TeamID: teamID,
 	}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
