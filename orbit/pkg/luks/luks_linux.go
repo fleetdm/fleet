@@ -59,6 +59,9 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	if keyslot != nil {
 		salt, err := getSaltforKeySlot(ctx, devicePath, *keyslot)
 		if err != nil {
+			if err := removeKeySlot(ctx, devicePath, *keyslot); err != nil {
+				log.Error().Err(err).Msgf("failed to remove key slot %d", *keyslot)
+			}
 			return fmt.Errorf("Failed to get salt for key slot: %w", err)
 		}
 		response.Salt = salt
@@ -105,9 +108,6 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		return nil, nil, fmt.Errorf("Failed to show passphrase entry prompt: %w", err)
 	}
 
-	cancelProgress := lr.progressPrompt(ctx, "Validating passphrase")
-	defer cancelProgress()
-
 	// Validate the passphrase
 	for {
 		valid, err := lr.passphraseIsValid(ctx, device, devicePath, passphrase)
@@ -119,24 +119,16 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 			break
 		}
 
-		cancelProgress()
-
 		passphrase, err = lr.entryPrompt(ctx, entryDialogTitle, retryEntryDialogText)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Failed re-prompting for passphrase: %w", err)
 		}
-
-		cancelProgress = lr.progressPrompt(ctx, "Validating passphrase")
 	}
 
 	if len(passphrase) == 0 {
 		log.Debug().Msg("Passphrase is empty, no password supplied, dialog was canceled, or timed out")
 		return nil, nil, nil
 	}
-
-	cancelProgress()
-	cancelProgress = lr.progressPrompt(ctx, "Key escrow in progress")
-	defer cancelProgress()
 
 	escrowPassphrase, err := generateRandomPassphrase()
 	if err != nil {
@@ -166,6 +158,15 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		break
 	}
 
+	valid, err := lr.passphraseIsValid(ctx, device, devicePath, escrowPassphrase)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Error while validating escrow passphrase: %w", err)
+	}
+
+	if !valid {
+		return nil, nil, errors.New("Failed to validate escrow passphrase")
+	}
+
 	return escrowPassphrase, &keySlot, nil
 }
 
@@ -174,7 +175,7 @@ func (lr *LuksRunner) passphraseIsValid(ctx context.Context, device *luksdevice.
 		return false, nil
 	}
 
-	valid, err := device.CheckKey(ctx, devicePath, encryption.NewKey(0, passphrase))
+	valid, err := device.CheckKey(ctx, devicePath, encryption.NewKey(userKeySlot, passphrase))
 	if err != nil {
 		return false, fmt.Errorf("Error validating passphrase: %w", err)
 	}
