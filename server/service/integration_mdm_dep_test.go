@@ -2905,8 +2905,6 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 	}
 
 	t.Cleanup(func() {
-		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK)
-
 		acResp := appConfigResponse{}
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ 
 			"mdm": { 
