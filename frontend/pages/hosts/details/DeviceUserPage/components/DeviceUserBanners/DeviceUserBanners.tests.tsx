@@ -87,7 +87,6 @@ describe("Device User Banners", () => {
   });
 
   it("renders no banner correctly for a mac that is verifying its disk encryption", () => {
-    // setup so mdm is not enabled and configured.
     render(
       <DeviceUserBanners
         hostPlatform="darwin"
