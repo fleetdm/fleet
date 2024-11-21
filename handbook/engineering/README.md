@@ -216,8 +216,7 @@ This includes:
 
 In these cases there are two differences in our process:
 - QA is done before merging the code change to the main branch.
-- Tickets are not moved to "Ready for release". Bug tickets are closed. Story tickets are moved to
-  the Product board and put under "Confirm and celebrate" column.
+- Tickets are not moved to "Ready for release". Bug are closed, and user stories are moved to the product drafting board's "Confirm and celebrate" column.
 
 
 ### Register a domain for Fleet
