@@ -14,6 +14,7 @@ spec:
     activity_expiry_enabled: false
     activity_expiry_window: 0
   integrations:
+    digicert_pki: null
     google_calendar: null
     jira: null
     ndes_scep_proxy: null

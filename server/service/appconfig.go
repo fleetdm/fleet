@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -29,10 +30,12 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-// Functions that can be overwritten in tests
 var (
+	// Functions that can be overwritten in tests
 	validateNDESSCEPAdminURL = eeservice.ValidateNDESSCEPAdminURL
 	validateNDESSCEPURL      = eeservice.ValidateNDESSCEPURL
+
+	wordRegexp = regexp.MustCompile(`^\w+$`)
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -405,7 +408,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	if newAppConfig.Integrations.DigiCert.Set && newAppConfig.Integrations.DigiCert.Valid && !license.IsPremium() {
-		invalid.Append("integrations.digicert", ErrMissingLicense.Error())
+		invalid.Append("integrations.digicert_pki", ErrMissingLicense.Error())
 		appConfig.Integrations.DigiCert.Valid = false
 	} else {
 		switch {
@@ -416,17 +419,21 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			// User is explicitly clearing this setting
 			appConfig.Integrations.DigiCert.Valid = false
 		default:
-			templateNames := make(map[string]struct{}, len(newAppConfig.Integrations.DigiCert.Value.Templates))
-			for _, template := range appConfig.Integrations.DigiCert.Value.Templates {
-				// TODO: Validate length?
-				template.Name = fleet.Preprocess(template.Name)
-				if _, ok := templateNames[template.Name]; ok {
-					invalid.Append("integrations.digicert.templates", "template names must be unique")
-					break
+			templateNames := make(map[string]struct{}, len(newAppConfig.Integrations.DigiCert.Value))
+			for _, item := range appConfig.Integrations.DigiCert.Value {
+				item.PKIName = fleet.Preprocess(item.PKIName)
+				for _, template := range item.Templates {
+					template.Name = fleet.Preprocess(template.Name)
+					if !wordRegexp.MatchString(template.Name) {
+						invalid.Append("integrations.digicert_pki.templates.name", "template names must contain ASCII word characters only")
+						break
+					}
+					if _, ok := templateNames[template.Name]; ok {
+						invalid.Append("integrations.digicert_pki.templates.name", "template names must be unique")
+						break
+					}
+					templateNames[template.Name] = struct{}{}
 				}
-				templateNames[template.Name] = struct{}{}
-				// TODO: Validate length?
-				template.CAName = fleet.Preprocess(template.CAName)
 			}
 		}
 	}

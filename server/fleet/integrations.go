@@ -366,8 +366,7 @@ type CertificateSAN struct {
 }
 
 type CertificateTemplate struct {
-	Name       string         `json:"name"`    // Limit the max number of characters, to say, 32?
-	CAName     string         `json:"ca_name"` // Limit the max number of characters, to say, 32?
+	Name       string         `json:"name"` // letters, numbers, and underscores only
 	ProfileID  string         `json:"profile_id"`
 	SeatID     string         `json:"seat_id"`
 	CommonName string         `json:"common_name"`
@@ -375,6 +374,7 @@ type CertificateTemplate struct {
 }
 
 type DigiCertIntegration struct {
+	PKIName   string                `json:"pki_name"`
 	Templates []CertificateTemplate `json:"templates"`
 }
 
@@ -385,7 +385,7 @@ type Integrations struct {
 	GoogleCalendar []*GoogleCalendarIntegration `json:"google_calendar"`
 	// NDESSCEPProxy settings. In JSON, not specifying this field means keep current setting, null means clear settings.
 	NDESSCEPProxy optjson.Any[NDESSCEPProxyIntegration] `json:"ndes_scep_proxy"`
-	DigiCert      optjson.Any[DigiCertIntegration]      `json:"digicert"`
+	DigiCert      optjson.Slice[DigiCertIntegration]    `json:"digicert_pki"`
 }
 
 func ValidateEnabledActivitiesWebhook(webhook ActivitiesWebhookSettings, invalid *InvalidArgumentError) {
