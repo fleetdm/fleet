@@ -2774,7 +2774,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 			request.Header.Set("x-apple-aspen-deviceinfo", encodeDeviceInfo(*machineInfo))
 		}
 
-		// nolint: gosec (this client is used for testing only)
+		// nolint:gosec // this client is used for testing only
 		cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 			InsecureSkipVerify: true,
 		}))
@@ -2842,7 +2842,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 			request.Header.Set("x-apple-aspen-deviceinfo", encodeDeviceInfo(*machineInfo))
 		}
 
-		// nolint: gosec (this client is used for testing only)
+		// nolint:gosec // this client is used for testing only
 		cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 			InsecureSkipVerify: true,
 		}))
