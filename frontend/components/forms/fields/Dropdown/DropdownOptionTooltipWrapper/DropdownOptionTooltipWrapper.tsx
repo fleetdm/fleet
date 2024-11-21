@@ -56,6 +56,7 @@ const DropdownOptionTooltipWrapper = ({
         clickable={clickable}
         offset={offset}
         positionStrategy="fixed"
+        isOpen
       >
         {tipContent}
       </ReactTooltip5>

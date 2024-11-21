@@ -49,17 +49,18 @@ const AddUserModal = ({
       onExit={onCancel}
       className={baseClass}
       width="large"
+      stickyFooter
     >
       <UserForm
         serverErrors={serverErrors}
-        createOrEditUserErrors={addUserErrors}
+        addOrEditUserErrors={addUserErrors}
         defaultGlobalRole={defaultGlobalRole}
         defaultTeamRole={defaultTeamRole}
         defaultTeams={defaultTeams}
         onCancel={onCancel}
         onSubmit={onSubmit}
         availableTeams={availableTeams || []}
-        submitText="Create"
+        submitText="Add"
         isPremiumTier={isPremiumTier}
         smtpConfigured={smtpConfigured}
         sesConfigured={sesConfigured}

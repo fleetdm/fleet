@@ -9,6 +9,7 @@ export interface IInvite {
   email: string;
   name: string;
   sso_enabled: boolean;
+  two_factor_authentication_enabled?: boolean;
   global_role: UserRole | null;
   teams: ITeam[];
   api_only?: boolean;

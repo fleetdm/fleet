@@ -45,7 +45,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
   // STATES
-  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [showAddUserModal, setShowAddUserModal] = useState(true);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
@@ -474,6 +474,9 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         sesConfigured={config?.email?.backend === "ses" || false}
         canUseSso={config?.sso_settings.enable_sso || false}
         isSsoEnabled={userData?.sso_enabled}
+        isTwoFactorAuthenticationEnabled={
+          userData?.two_factor_authentication_enabled
+        }
         isApiOnly={userData?.api_only || false}
         isModifiedByGlobalAdmin
         isInvitePending={userEditing.type === "invite"}

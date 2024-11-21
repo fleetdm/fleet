@@ -21,6 +21,7 @@ interface IEditUserModalProps {
   sesConfigured: boolean;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
+  isTwoFactorAuthenticationEnabled?: boolean; // corresponds to whether 2fa is enabled for the individual user
   isApiOnly?: boolean;
   editUserErrors?: IUserFormErrors;
   isModifiedByGlobalAdmin?: boolean | false;
@@ -44,6 +45,7 @@ const EditUserModal = ({
   sesConfigured,
   canUseSso,
   isSsoEnabled,
+  isTwoFactorAuthenticationEnabled,
   isApiOnly,
   currentTeam,
   editUserErrors,
@@ -56,9 +58,10 @@ const EditUserModal = ({
       title="Edit user"
       onExit={onCancel}
       className={`${baseClass}__edit-user-modal`}
+      stickyFooter
     >
       <UserForm
-        createOrEditUserErrors={editUserErrors}
+        addOrEditUserErrors={editUserErrors}
         defaultName={defaultName}
         defaultEmail={defaultEmail}
         defaultGlobalRole={defaultGlobalRole}
@@ -73,6 +76,7 @@ const EditUserModal = ({
         sesConfigured={sesConfigured}
         canUseSso={canUseSso}
         isSsoEnabled={isSsoEnabled}
+        isTwoFactorAuthenticationEnabled={isTwoFactorAuthenticationEnabled}
         isApiOnly={isApiOnly}
         isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
         isInvitePending={isInvitePending}

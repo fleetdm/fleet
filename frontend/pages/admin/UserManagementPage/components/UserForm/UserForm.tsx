@@ -1,4 +1,10 @@
-import React, { FormEvent, useState, useEffect, useContext } from "react";
+import React, {
+  FormEvent,
+  useState,
+  useEffect,
+  useContext,
+  useRef,
+} from "react";
 import { Link } from "react-router";
 import PATHS from "router/paths";
 
@@ -6,7 +12,11 @@ import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors, UserRole } from "interfaces/user";
 
+import { SingleValue } from "react-select-5";
 import Button from "components/buttons/Button";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import ModalFooter from "components/ModalFooter";
 import validatePresence from "components/forms/validators/validate_presence";
 import validEmail from "components/forms/validators/valid_email";
 // @ts-ignore
@@ -14,12 +24,10 @@ import validPassword from "components/forms/validators/valid_password";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
 import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink";
-import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
 import { roleOptions } from "../../helpers/userManagementHelpers";
@@ -42,6 +50,7 @@ export interface IFormData {
   newUserType?: NewUserType | null;
   password?: string | null;
   sso_enabled?: boolean;
+  two_factor_authentication_enabled?: boolean;
   global_role: UserRole | null;
   teams: ITeam[];
   currentUserId?: number;
@@ -49,7 +58,7 @@ export interface IFormData {
   role?: UserRole;
 }
 
-interface ICreateUserFormProps {
+interface IAddUserFormProps {
   availableTeams: ITeam[];
   onCancel: () => void;
   onSubmit: (formData: IFormData) => void;
@@ -67,11 +76,12 @@ interface ICreateUserFormProps {
   sesConfigured?: boolean;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
+  isTwoFactorAuthenticationEnabled?: boolean; // corresponds to whether 2fa is enabled for the individual user
   isApiOnly?: boolean;
   isNewUser?: boolean;
   isInvitePending?: boolean;
   serverErrors?: { base: string; email: string }; // "server" because this form does its own client validation
-  createOrEditUserErrors?: IUserFormErrors;
+  addOrEditUserErrors?: IUserFormErrors;
   isUpdatingUsers?: boolean;
 }
 
@@ -93,22 +103,35 @@ const UserForm = ({
   sesConfigured,
   canUseSso,
   isSsoEnabled,
+  isTwoFactorAuthenticationEnabled,
   isApiOnly,
   isNewUser,
   isInvitePending,
   serverErrors,
-  createOrEditUserErrors,
+  addOrEditUserErrors,
   isUpdatingUsers,
-}: ICreateUserFormProps): JSX.Element => {
+}: IAddUserFormProps): JSX.Element => {
+  // For scrollable modal
+  const [isTopScrolling, setIsTopScrolling] = useState(false);
+  const topDivRef = useRef<HTMLDivElement>(null);
+  const checkScroll = () => {
+    if (topDivRef.current) {
+      const isScrolling =
+        topDivRef.current.scrollHeight > topDivRef.current.clientHeight;
+      setIsTopScrolling(isScrolling);
+    }
+  };
+
   const { renderFlash } = useContext(NotificationContext);
 
-  const [errors, setErrors] = useState<any>(createOrEditUserErrors);
+  const [errors, setErrors] = useState<any>(addOrEditUserErrors);
   const [formData, setFormData] = useState<any>({
     email: defaultEmail || "",
     name: defaultName || "",
     newUserType: isNewUser ? NewUserType.AdminCreated : null,
     password: null,
     sso_enabled: isSsoEnabled,
+    two_factor_authentication_enabled: isTwoFactorAuthenticationEnabled,
     global_role: defaultGlobalRole || null,
     teams: defaultTeams || [],
     currentUserId,
@@ -116,9 +139,16 @@ const UserForm = ({
 
   const [isGlobalUser, setIsGlobalUser] = useState(!!defaultGlobalRole);
 
+  // For scrollable modal
   useEffect(() => {
-    setErrors(createOrEditUserErrors);
-  }, [createOrEditUserErrors]);
+    checkScroll();
+    window.addEventListener("resize", checkScroll);
+    return () => window.removeEventListener("resize", checkScroll);
+  }, [formData]); // Re-run when data changes
+
+  useEffect(() => {
+    setErrors(addOrEditUserErrors);
+  }, [addOrEditUserErrors]);
 
   const onInputChange = (formField: string): ((value: string) => void) => {
     return (value: string) => {
@@ -182,8 +212,8 @@ const UserForm = ({
     });
   };
 
-  // UserForm component can be used to create a new user or edit an existing user so submitData will be assembled accordingly
-  const createSubmitData = (): IFormData => {
+  // UserForm component can be used to add a new user or edit an existing user so submitData will be assembled accordingly
+  const addSubmitData = (): IFormData => {
     const submitData = formData;
 
     if (!isNewUser && !isInvitePending) {
@@ -287,7 +317,7 @@ const UserForm = ({
     evt.preventDefault();
     const valid = validate();
     if (valid) {
-      return onSubmit(createSubmitData());
+      return onSubmit(addSubmitData());
     }
   };
 
@@ -307,17 +337,18 @@ const UserForm = ({
             />
           </InfoBanner>
         )}
-        <Dropdown
+        <DropdownWrapper
           label="Role"
-          value={formData.global_role || "Observer"}
+          name="Role"
           className={`${baseClass}__global-role-dropdown`}
-          options={roleOptions({
-            isPremiumTier,
-            isApiOnly,
-          })}
-          searchable={false}
-          onChange={onGlobalUserRoleChange}
-          wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--global-role`}
+          options={roleOptions({ isPremiumTier, isApiOnly })}
+          value={formData.global_role || "Observer"}
+          onChange={(selectedOption: SingleValue<CustomOptionType>) => {
+            if (selectedOption) {
+              onGlobalUserRoleChange(selectedOption.value);
+            }
+          }}
+          isSearchable={false}
         />
       </>
     );
@@ -389,106 +420,156 @@ const UserForm = ({
     );
   }
 
-  return (
-    <form className={baseClass} autoComplete="off">
-      {/* {baseError && <div className="form__base-error">{baseError}</div>} */}
-      {isNewUser && (
-        <div className="form-field">
-          {isModifiedByGlobalAdmin ? (
-            <>
-              <div className="form-field__label">Account</div>
-              <Radio
-                className={`${baseClass}__radio-input`}
-                label="Create user"
-                id="create-user"
-                checked={formData.newUserType !== NewUserType.AdminInvited}
-                value={NewUserType.AdminCreated}
-                name="new-user-type"
-                onChange={onRadioChange("newUserType")}
-              />
-              <Radio
-                className={`${baseClass}__radio-input`}
-                label="Invite user"
-                id="invite-user"
-                disabled={!(smtpConfigured || sesConfigured)}
-                checked={formData.newUserType === NewUserType.AdminInvited}
-                value={NewUserType.AdminInvited}
-                name="new-user-type"
-                onChange={onRadioChange("newUserType")}
-                tooltip={
-                  smtpConfigured || sesConfigured ? (
-                    ""
-                  ) : (
-                    <>
-                      The &quot;Invite user&quot; feature requires that SMTP or
-                      SES is configured in order to send invitation emails.
-                      <br />
-                      <br />
-                      SMTP can be configured in Settings &gt; Organization
-                      settings.
-                    </>
-                  )
-                }
-              />
-            </>
-          ) : (
-            <input
-              type="hidden"
-              id="create-user"
-              value={NewUserType.AdminCreated}
-              name="new-user-type"
-            />
-          )}
-        </div>
-      )}
-      <InputField
-        label="Full name"
-        autofocus
-        error={errors.name}
-        name="name"
-        onChange={onInputChange("name")}
-        placeholder="Full name"
-        value={formData.name || ""}
-        inputOptions={{
-          maxLength: "80",
-        }}
-      />
-      <InputField
-        label="Email"
-        error={errors.email || serverErrors?.email}
-        name="email"
-        onChange={onInputChange("email")}
-        placeholder="Email"
-        value={formData.email || ""}
-        readOnly={!isNewUser && !(smtpConfigured || sesConfigured)}
-        tooltip={
-          <>
-            Editing an email address requires that SMTP or SES is configured in
-            order to send a validation email.
-            <br />
-            <br />
-            Users with Admin role can configure SMTP in{" "}
-            <strong>Settings &gt; Organization settings</strong>.
-          </>
-        }
-      />
-      {isNewUser && (
-        <>
-          {formData.newUserType !== NewUserType.AdminInvited &&
-            !formData.sso_enabled && (
-              <>
-                <div className={`${baseClass}__password`}>
-                  <InputField
-                    label="Password"
-                    error={errors.password}
-                    name="password"
-                    onChange={onInputChange("password")}
-                    placeholder="Password"
-                    value={formData.password || ""}
-                    type="password"
-                    helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
-                    blockAutoComplete
+  const renderScrollableContent = () => {
+    return (
+      <div className={baseClass} ref={topDivRef}>
+        <form autoComplete="off">
+          {isNewUser && (
+            <div className="form-field">
+              {isModifiedByGlobalAdmin ? (
+                <>
+                  <div className="form-field__label">Account</div>
+                  <Radio
+                    className={`${baseClass}__radio-input`}
+                    label="Create user"
+                    id="create-user"
+                    checked={formData.newUserType !== NewUserType.AdminInvited}
+                    value={NewUserType.AdminCreated}
+                    name="new-user-type"
+                    onChange={onRadioChange("newUserType")}
+                  />
+                  <Radio
+                    className={`${baseClass}__radio-input`}
+                    label="Invite user"
+                    id="invite-user"
+                    disabled={!(smtpConfigured || sesConfigured)}
+                    checked={formData.newUserType === NewUserType.AdminInvited}
+                    value={NewUserType.AdminInvited}
+                    name="new-user-type"
+                    onChange={onRadioChange("newUserType")}
                     tooltip={
+                      smtpConfigured || sesConfigured ? (
+                        ""
+                      ) : (
+                        <>
+                          The &quot;Invite user&quot; feature requires that SMTP
+                          or SES is configured in order to send invitation
+                          emails.
+                          <br />
+                          <br />
+                          SMTP can be configured in Settings &gt; Organization
+                          settings.
+                        </>
+                      )
+                    }
+                  />
+                </>
+              ) : (
+                <input
+                  type="hidden"
+                  id="create-user"
+                  value={NewUserType.AdminCreated}
+                  name="new-user-type"
+                />
+              )}
+            </div>
+          )}
+          <InputField
+            label="Full name"
+            autofocus
+            error={errors.name}
+            name="name"
+            onChange={onInputChange("name")}
+            placeholder="Full name"
+            value={formData.name || ""}
+            inputOptions={{
+              maxLength: "80",
+            }}
+          />
+          <InputField
+            label="Email"
+            error={errors.email || serverErrors?.email}
+            name="email"
+            onChange={onInputChange("email")}
+            placeholder="Email"
+            value={formData.email || ""}
+            readOnly={!isNewUser && !(smtpConfigured || sesConfigured)}
+            tooltip={
+              <>
+                Editing an email address requires that SMTP or SES is configured
+                in order to send a validation email.
+                <br />
+                <br />
+                Users with Admin role can configure SMTP in{" "}
+                <strong>Settings &gt; Organization settings</strong>.
+              </>
+            }
+          />
+          {((!isNewUser && formData.sso_enabled) || canUseSso) && (
+            <div className="form-field">
+              <div className="form-field__label">Authentication</div>
+              <Radio
+                className={`${baseClass}__radio-input`}
+                label="Enable single sign-on"
+                id="enable-single-sign-on"
+                checked={formData.sso_enabled}
+                value={formData.sso_enabled}
+                name="authentication-type"
+                onChange={onRadioChange("sso_enabled")}
+              />
+              <Radio
+                className={`${baseClass}__radio-input`}
+                label="Require password"
+                id="require-password"
+                disabled={!(smtpConfigured || sesConfigured)}
+                checked={!formData.sso_enabled}
+                value={formData.sso_enabled}
+                name="authentication-type"
+                onChange={onSsoDisable}
+                // helpText={
+                //   canUseSso ? (
+                //     <p className={`${baseClass}__sso-input sublabel`}>
+                //       Password authentication will be disabled for this user.
+                //     </p>
+                //   ) : (
+                //     <span className={`${baseClass}__sso-input sublabel-nosso`}>
+                //       This user previously signed in via SSO, which has been
+                //       globally disabled.{" "}
+                //       <button
+                //         className="button--text-link"
+                //         onClick={onSsoDisable}
+                //       >
+                //         Add password instead
+                //         <Icon
+                //           name="chevron-right"
+                //           color="core-fleet-blue"
+                //           size="small"
+                //         />
+                //       </button>
+                //     </span>
+                //   )
+                // }
+              />
+            </div>
+          )}
+          {((isNewUser && formData.newUserType !== NewUserType.AdminInvited) ||
+            (!isNewUser && !isInvitePending && isModifiedByGlobalAdmin)) &&
+            !formData.sso_enabled && (
+              <div
+                className={`${baseClass}__${isNewUser ? "" : "edit-"}password`}
+              >
+                <InputField
+                  label="Password"
+                  error={errors.password}
+                  name="password"
+                  onChange={onInputChange("password")}
+                  placeholder={isNewUser ? "Password" : "••••••••"}
+                  value={formData.password || ""}
+                  type="password"
+                  helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
+                  blockAutoComplete
+                  tooltip={
+                    isNewUser ? (
                       <>
                         This password is temporary. This user will be asked to
                         set a new password after logging in to the Fleet UI.
@@ -497,117 +578,109 @@ const UserForm = ({
                         This user will not be asked to set a new password after
                         logging in to fleetctl or the Fleet API.
                       </>
-                    }
-                  />
-                </div>
-              </>
+                    ) : undefined
+                  }
+                />
+              </div>
             )}
-        </>
-      )}
-      {!isNewUser &&
-        !isInvitePending &&
-        isModifiedByGlobalAdmin &&
-        !formData.sso_enabled && (
-          <div className={`${baseClass}__edit-password`}>
-            <div className={`${baseClass}__password`}>
-              <InputField
-                label="Password"
-                error={errors.password}
-                name="password"
-                onChange={onInputChange("password")}
-                placeholder="••••••••"
-                value={formData.password || ""}
-                type="password"
-                helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
-                blockAutoComplete
-              />
+          {/* 2fa option shows on premium tier or if previously set to true and
+          downgraded to free tier */}
+          {(isPremiumTier || isTwoFactorAuthenticationEnabled) && (
+            <div className="form-field">
+              {/* Renders missing password heading when inviting a user */}
+              {formData.newUserType === NewUserType.AdminInvited && (
+                <div className="form-field__label">Password</div>
+              )}
+              <Checkbox
+                name="two_factor_authentication_enabled"
+                onChange={onCheckboxChange("two_factor_authentication_enabled")}
+                value={formData.two_factor_authentication_enabled}
+                wrapperClassName={`${baseClass}__2fa`}
+              >
+                Enable two-factor authentication (
+                <TooltipWrapper
+                  tipContent={
+                    <>
+                      User will be asked to authenticate with a
+                      <br />
+                      magic link that will be sent to their email.
+                    </>
+                  }
+                >
+                  email
+                </TooltipWrapper>
+                )
+              </Checkbox>
             </div>
-          </div>
-        )}
-      {((!isNewUser && formData.sso_enabled) || canUseSso) && (
-        <div className={`${baseClass}__sso-input`}>
-          <Checkbox
-            name="sso_enabled"
-            onChange={onCheckboxChange("sso_enabled")}
-            value={formData.sso_enabled}
-            readOnly={!canUseSso}
-            wrapperClassName={`${baseClass}__invite-admin`}
-            helpText={
-              canUseSso ? (
-                <p className={`${baseClass}__sso-input sublabel`}>
-                  Password authentication will be disabled for this user.
-                </p>
-              ) : (
-                <span className={`${baseClass}__sso-input sublabel-nosso`}>
-                  This user previously signed in via SSO, which has been
-                  globally disabled.{" "}
-                  <button className="button--text-link" onClick={onSsoDisable}>
-                    Add password instead
-                    <Icon
-                      name="chevron-right"
-                      color="core-fleet-blue"
-                      size="small"
+          )}
+          {isPremiumTier && (
+            <>
+              <div className="form-field">
+                <div className="form-field__label">Team</div>
+                {isModifiedByGlobalAdmin ? (
+                  <>
+                    <Radio
+                      className={`${baseClass}__radio-input`}
+                      label="Global user"
+                      id="global-user"
+                      checked={isGlobalUser}
+                      value={UserTeamType.GlobalUser}
+                      name="user-team-type"
+                      onChange={onIsGlobalUserChange}
                     />
-                  </button>
-                </span>
-              )
-            }
-          >
-            Enable single sign-on
-          </Checkbox>
-        </div>
-      )}
-      {isPremiumTier && (
-        <>
-          <div className="form-field">
-            <div className="form-field__label">Team</div>
-            {isModifiedByGlobalAdmin ? (
-              <>
-                <Radio
-                  className={`${baseClass}__radio-input`}
-                  label="Global user"
-                  id="global-user"
-                  checked={isGlobalUser}
-                  value={UserTeamType.GlobalUser}
-                  name="user-team-type"
-                  onChange={onIsGlobalUserChange}
-                />
-                <Radio
-                  className={`${baseClass}__radio-input`}
-                  label="Assign teams"
-                  id="assign-teams"
-                  checked={!isGlobalUser}
-                  value={UserTeamType.AssignTeams}
-                  name="user-team-type"
-                  onChange={onIsGlobalUserChange}
-                  disabled={!availableTeams.length}
-                />
-              </>
-            ) : (
-              <>{currentTeam ? currentTeam.name : ""}</>
-            )}
-          </div>
-          {isGlobalUser ? renderGlobalRoleForm() : renderTeamsForm()}
-        </>
-      )}
-      {!isPremiumTier && renderGlobalRoleForm()}
-
-      <div className="modal-cta-footer">
-        <Button
-          type="submit"
-          variant="brand"
-          onClick={onFormSubmit}
-          className={`${submitText === "Create" ? "create" : "save"}-loading
-          `}
-          isLoading={isUpdatingUsers}
-        >
-          {submitText}
-        </Button>
-        <Button onClick={onCancel} variant="inverse">
-          Cancel
-        </Button>
+                    <Radio
+                      className={`${baseClass}__radio-input`}
+                      label="Assign team(s)"
+                      id="assign-teams"
+                      checked={!isGlobalUser}
+                      value={UserTeamType.AssignTeams}
+                      name="user-team-type"
+                      onChange={onIsGlobalUserChange}
+                      disabled={!availableTeams.length}
+                    />
+                  </>
+                ) : (
+                  <>{currentTeam ? currentTeam.name : ""}</>
+                )}
+              </div>
+              {isGlobalUser ? renderGlobalRoleForm() : renderTeamsForm()}
+            </>
+          )}
+          {!isPremiumTier && renderGlobalRoleForm()}
+        </form>
       </div>
-    </form>
+    );
+  };
+
+  const renderFooter = () => (
+    <ModalFooter
+      isTopScrolling={isTopScrolling}
+      primaryButtons={
+        <>
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="brand"
+            onClick={onFormSubmit}
+            className={`${submitText === "Add" ? "add" : "save"}-loading
+          `}
+            isLoading={isUpdatingUsers}
+          >
+            {submitText}
+          </Button>
+        </>
+      }
+    />
+  );
+
+  return (
+    <>
+      {/* {baseError && <div className="form__base-error">{baseError}</div>} */}
+      {renderScrollableContent()}
+      {renderFooter()}
+    </>
   );
 };
 
