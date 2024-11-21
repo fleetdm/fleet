@@ -67,6 +67,7 @@ require (
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/josephspurrier/goversioninfo v1.4.0
 	github.com/kevinburke/go-bindata v3.24.0+incompatible
+	github.com/klauspost/compress v1.17.9
 	github.com/kolide/launcher v1.0.12
 	github.com/lib/pq v1.10.9
 	github.com/macadmins/osquery-extension v1.2.1
@@ -97,6 +98,7 @@ require (
 	github.com/scjalliance/comshim v0.0.0-20230315213746-5e51f40bd3b9
 	github.com/sethvargo/go-password v0.3.0
 	github.com/shirou/gopsutil/v3 v3.24.3
+	github.com/siderolabs/go-blockdevice/v2 v2.0.3
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	github.com/smallstep/pkcs7 v0.0.0-20240723090913-5e2c6a136dfa
 	github.com/smallstep/scep v0.0.0-20240214080410-892e41795b99
@@ -181,6 +183,7 @@ require (
 	github.com/alecthomas/jsonschema v0.0.0-20211022214203-8b29eab41725 // indirect
 	github.com/antchfx/xpath v1.2.2 // indirect
 	github.com/apache/thrift v0.18.1 // indirect
+	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/atc0005/go-teams-notify/v2 v2.6.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.26.1 // indirect
@@ -266,7 +269,6 @@ require (
 	github.com/joeshaw/multierror v0.0.0-20140124173710-69b34d4ec901 // indirect
 	github.com/jonboulle/clockwork v0.2.2 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
-	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/kolide/kit v0.0.0-20221107170827-fb85e3d59eab // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
@@ -296,6 +298,7 @@ require (
 	github.com/secure-systems-lab/go-securesystemslib v0.5.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
+	github.com/siderolabs/go-cmd v0.1.1 // indirect
 	github.com/skeema/knownhosts v1.2.1 // indirect
 	github.com/slack-go/slack v0.9.4 // indirect
 	github.com/spf13/afero v1.6.0 // indirect

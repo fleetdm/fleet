@@ -1053,6 +1053,13 @@ type Service interface {
 	) error
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Linux MDM
+
+	// LinuxHostDiskEncryptionStatus returns the current disk encryption status of the specified Linux host
+	// Returns empty status if the host is not a supported Linux host
+	LinuxHostDiskEncryptionStatus(ctx context.Context, host Host) (HostMDMDiskEncryption, error)
+
+	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM
 
 	// GetMDMDiskEncryptionSummary returns the current disk encryption status of all macOS, Windows, and

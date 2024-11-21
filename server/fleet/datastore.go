@@ -1515,6 +1515,14 @@ type Datastore interface {
 	GetHostMDMProfileInstallStatus(ctx context.Context, hostUUID string, profileUUID string) (MDMDeliveryStatus, error)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Linux MDM
+
+	// GetLinuxDiskEncryptionSummary summarizes the current state of Linux disk encryption on
+	// each Linux host in the specified team (or, if no team is specified, each host that is not assigned
+	// to any team).
+	GetLinuxDiskEncryptionSummary(ctx context.Context, teamID *uint) (MDMLinuxDiskEncryptionSummary, error)
+
+	///////////////////////////////////////////////////////////////////////////////
 	// MDM Commands
 
 	// GetMDMCommandPlatform returns the platform (i.e. "darwin" or "windows") for the given command.

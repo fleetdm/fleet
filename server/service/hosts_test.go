@@ -400,6 +400,10 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
 
+	ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+		return &fleet.HostDiskEncryptionKey{}, nil
+	}
+
 	type testCase struct {
 		name        string
 		host        *fleet.Host
@@ -1316,7 +1320,8 @@ func TestHostEncryptionKey(t *testing.T) {
 			}
 
 			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-				_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+				_ sqlx.QueryerContext,
+			) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 					fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
 					fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
@@ -1369,7 +1374,8 @@ func TestHostEncryptionKey(t *testing.T) {
 			return nil, keyErr
 		}
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-			_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			_ sqlx.QueryerContext,
+		) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 				fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
 				fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
@@ -1430,7 +1436,8 @@ func TestHostEncryptionKey(t *testing.T) {
 					return nil
 				}
 				ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-					_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+					_ sqlx.QueryerContext,
+				) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 					return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 						fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
 						fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},

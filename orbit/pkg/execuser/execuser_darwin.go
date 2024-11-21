@@ -1,6 +1,8 @@
 package execuser
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -46,4 +48,12 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 		return tw.String(), fmt.Errorf("open path %q: %w", path, err)
 	}
 	return tw.String(), nil
+}
+
+func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
+	return nil, 0, errors.New("not implemented")
+}
+
+func runWithWait(ctx context.Context, path string, opts eopts) error {
+	return errors.New("not implemented")
 }
