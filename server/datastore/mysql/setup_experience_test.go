@@ -145,14 +145,23 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, hostTeam1, team1.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
+	awaitingConfig, err := ds.GetHostAwaitingConfiguration(ctx, hostTeam1)
+	require.NoError(t, err)
+	require.True(t, awaitingConfig)
 
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam2, team2.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
+	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam2)
+	require.NoError(t, err)
+	require.True(t, awaitingConfig)
 
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam3, team3.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
+	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam3)
+	require.NoError(t, err)
+	require.False(t, awaitingConfig)
 
 	seRows := []setupExperienceInsertTestRows{}
 
@@ -240,14 +249,21 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam1, team1.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
+	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam1)
+	require.NoError(t, err)
+	require.True(t, awaitingConfig)
 
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam2, team2.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
+	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam2)
+	require.NoError(t, err)
 
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam3, team3.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
+	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam3)
+	require.NoError(t, err)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &seRows, "SELECT host_uuid, name, status, software_installer_id, setup_experience_script_id, vpp_app_team_id FROM setup_experience_status_results")

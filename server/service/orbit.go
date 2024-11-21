@@ -242,15 +242,16 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 			if inSetupAssistant {
 				notifs.RunSetupExperience = true
+			}
 
-				// check if the client is running an old fleetd version that doesn't support the new
-				// setup experience flow.
-				mp, ok := capabilities.FromContext(ctx)
-				if !ok || !mp.Has(fleet.CapabilitySetupExperience) {
-					level.Debug(svc.logger).Log("msg", "host doesn't support Setup experience, falling back to worker-based device release", "host_uuid", host.UUID)
-					if err := svc.processReleaseDeviceForOldFleetd(ctx, host); err != nil {
-						return fleet.OrbitConfig{}, err
-					}
+			// If the client is running a fleetd that doesn't support setup experience, or if no
+			// software/script has been configured for setup experience, then we should fall back to
+			// the "old way" of releasing the device.
+			mp, ok := capabilities.FromContext(ctx)
+			if !ok || !mp.Has(fleet.CapabilitySetupExperience) || !inSetupAssistant {
+				level.Debug(svc.logger).Log("msg", "host doesn't support Setup experience, falling back to worker-based device release", "host_uuid", host.UUID)
+				if err := svc.processReleaseDeviceForOldFleetd(ctx, host); err != nil {
+					return fleet.OrbitConfig{}, err
 				}
 			}
 		}
