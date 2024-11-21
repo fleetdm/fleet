@@ -1612,7 +1612,7 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 	case "ipados":
 		slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: hmm this is ios ")
 		return &fleet.BadRequestError{
-			Message: fleet.CantTurnOffMDMForIOSOrIPadOS,
+			Message: fleet.CantTurnOffMDMForIOSOrIPadOSMessage,
 		}
 	case "windows":
 		return &fleet.BadRequestError{
