@@ -55,9 +55,9 @@ func (z *Zenity) ShowEntry(ctx context.Context, opts dialog.EntryOptions) ([]byt
 	if err != nil {
 		switch statusCode {
 		case 1:
-			return nil, ctxerr.Wrap(ctx, dialog.ErrCanceled)
+			return nil, dialog.ErrCanceled
 		case 5:
-			return nil, ctxerr.Wrap(ctx, dialog.ErrTimeout)
+			return nil, dialog.ErrTimeout
 		default:
 			return nil, ctxerr.Wrap(ctx, dialog.ErrUnknown, err.Error())
 		}

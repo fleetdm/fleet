@@ -53,6 +53,11 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 		response.Err = err.Error()
 	}
 
+	if len(key) == 0 && err == nil {
+		// dialog was canceled or timed out
+		return nil
+	}
+
 	response.Passphrase = string(key)
 	response.KeySlot = keyslot
 
@@ -108,6 +113,11 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		return nil, nil, fmt.Errorf("Failed to show passphrase entry prompt: %w", err)
 	}
 
+	if len(passphrase) == 0 {
+		log.Debug().Msg("Passphrase is empty, no password supplied, dialog was canceled, or timed out")
+		return nil, nil, nil
+	}
+
 	err = lr.notifier.ShowProgress(ctx, dialog.ProgressOptions{
 		Title: infoTitle,
 		Text:  "Validating passphrase...",
@@ -132,6 +142,11 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 			return nil, nil, fmt.Errorf("Failed re-prompting for passphrase: %w", err)
 		}
 
+		if len(passphrase) == 0 {
+			log.Debug().Msg("Passphrase is empty, no password supplied, dialog was canceled, or timed out")
+			return nil, nil, nil
+		}
+
 		err = lr.notifier.ShowProgress(ctx, dialog.ProgressOptions{
 			Title: infoTitle,
 			Text:  "Validating passphrase...",
@@ -139,11 +154,6 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		if err != nil {
 			log.Error().Err(err).Msg("failed to show progress dialog after retry")
 		}
-	}
-
-	if len(passphrase) == 0 {
-		log.Debug().Msg("Passphrase is empty, no password supplied, dialog was canceled, or timed out")
-		return nil, nil, nil
 	}
 
 	err = lr.notifier.ShowProgress(ctx, dialog.ProgressOptions{
@@ -237,18 +247,18 @@ func (lr *LuksRunner) entryPrompt(ctx context.Context, title, text string) ([]by
 		TimeOut:  1 * time.Minute,
 	})
 	if err != nil {
-		switch err {
-		case dialog.ErrCanceled:
+		switch {
+		case errors.Is(err, dialog.ErrCanceled):
 			log.Debug().Msg("end user canceled key escrow dialog")
 			return nil, nil
-		case dialog.ErrTimeout:
+		case errors.Is(err, dialog.ErrTimeout):
 			log.Debug().Msg("key escrow dialog timed out")
 			err := lr.infoPrompt(ctx, infoTitle, timeoutMessage)
 			if err != nil {
 				log.Info().Err(err).Msg("failed to show timeout dialog")
 			}
 			return nil, nil
-		case dialog.ErrUnknown:
+		case errors.Is(err, dialog.ErrUnknown):
 			return nil, err
 		default:
 			return nil, err
@@ -265,8 +275,8 @@ func (lr *LuksRunner) infoPrompt(ctx context.Context, title, text string) error 
 		TimeOut: 1 * time.Minute,
 	})
 	if err != nil {
-		switch err {
-		case dialog.ErrTimeout:
+		switch {
+		case errors.Is(err, dialog.ErrTimeout):
 			log.Debug().Msg("successPrompt timed out")
 			return nil
 		default:
