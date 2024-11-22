@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -24,6 +25,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"IngestWithBrew", testIngestWithBrew},
 		{"ListAvailableApps", testListAvailableApps},
 		{"GetMaintainedAppByID", testGetMaintainedAppByID},
+		{"GetSoftwareTitleIdByAppID", testGetSoftwareTitleIdByAppID},
 	}
 
 	for _, c := range cases {
@@ -376,4 +378,55 @@ func testGetMaintainedAppByID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.Equal(t, expApp, gotApp)
+}
+
+func testGetSoftwareTitleIdByAppID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "foo",
+		Token:            "token",
+		Version:          "1.0.0",
+		Platform:         "darwin",
+		InstallerURL:     "https://example.com/foo.zip",
+		SHA256:           "sha",
+		BundleIdentifier: "bundle",
+		InstallScript:    "install",
+		UninstallScript:  "uninstall",
+	})
+
+	installer, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+
+	// create a software installer
+	installer1ID, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		InstallerFile:     installer,
+		StorageID:         "storage1",
+		Filename:          "file1",
+		Title:             "file1",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		TeamID:            &team1.ID,
+		FleetLibraryAppID: &app.ID,
+	})
+	require.NoError(t, err)
+
+	// get the software installer metadata as we will need the associated software title id.
+	installer1, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer1ID)
+	require.NoError(t, err)
+	require.NotNil(t, installer1.TitleID)
+
+	stID, err := ds.GetSoftwareTitleIDByAppID(ctx, app.ID, &team1.ID)
+	require.NoError(t, err)
+	require.Equal(t, *installer1.TitleID, stID)
+
+	require.NoError(t, err)
 }
