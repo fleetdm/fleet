@@ -4,14 +4,15 @@ import { noop } from "lodash";
 import { renderWithSetup, createMockRouter } from "test/test-utils";
 import UserForm from "./UserForm";
 
-// Note: A lot of this flow is tested e2e so these integration tests are only nuanced tests
+// Note: Happy path is tested e2e so these integration tests are only edge cases
 describe("UserForm - component", () => {
   const defaultProps = {
     availableTeams: [],
     onCancel: noop,
     onSubmit: noop,
-    submitText: "Submit",
-    isPremiumTier: false,
+    submitText: "Add",
+    isModifiedByGlobalAdmin: true,
+    isPremiumTier: true,
     smtpConfigured: true,
     sesConfigured: true,
     canUseSso: false,
@@ -22,7 +23,7 @@ describe("UserForm - component", () => {
   it("displays error messages for invalid inputs", async () => {
     const { user } = renderWithSetup(<UserForm {...defaultProps} />);
 
-    const submitButton = screen.getByText("Submit");
+    const submitButton = screen.getByText("Add");
     await user.click(submitButton);
 
     expect(
@@ -53,5 +54,22 @@ describe("UserForm - component", () => {
 
     const inviteUserRadio = screen.getByLabelText("Invite user");
     expect(inviteUserRadio).toBeDisabled();
+  });
+
+  it("does not render premium sections when isPremiumTier is false", async () => {
+    renderWithSetup(<UserForm {...defaultProps} isPremiumTier={false} />);
+
+    // Check that premium-specific elements are not present
+    expect(screen.queryByText("Global user")).not.toBeInTheDocument();
+    expect(screen.queryByText("Assign team(s)")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Enable two-factor authentication")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/team/i)).not.toBeInTheDocument();
+
+    // Verify that non-premium elements are still present
+    expect(screen.getByLabelText("Full name")).toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toBeInTheDocument();
+    expect(screen.getByLabelText("Password")).toBeInTheDocument();
   });
 });

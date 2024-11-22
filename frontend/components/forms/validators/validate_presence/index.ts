@@ -1,3 +1,3 @@
 export default (actual: any): boolean => {
-  return !!actual;
+  return actual !== null && actual !== undefined && actual.trim() !== "";
 };

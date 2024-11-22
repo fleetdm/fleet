@@ -10,11 +10,7 @@ import PATHS from "router/paths";
 
 import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
-import {
-  ICreateUserFormData,
-  IUserFormErrors,
-  UserRole,
-} from "interfaces/user";
+import { IUserFormErrors, UserRole } from "interfaces/user";
 
 import { SingleValue } from "react-select-5";
 import Button from "components/buttons/Button";
@@ -130,9 +126,9 @@ const UserForm = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const [errors, setErrors] = useState<IUserFormErrors>({
-    name: "",
-    email: "",
-    password: "",
+    name: null,
+    email: null,
+    password: null,
   });
   const [formData, setFormData] = useState<IFormData>({
     email: defaultEmail || "",
@@ -148,12 +144,12 @@ const UserForm = ({
 
   const [isGlobalUser, setIsGlobalUser] = useState(!!defaultGlobalRole);
 
-  // For scrollable modal
+  // For scrollable modal (re-rerun when formData changes)
   useEffect(() => {
     checkScroll();
     window.addEventListener("resize", checkScroll);
     return () => window.removeEventListener("resize", checkScroll);
-  }, [formData]); // Re-run when data changes
+  }, [formData]);
 
   useEffect(() => {
     if (addOrEditUserErrors) {
@@ -251,81 +247,34 @@ const UserForm = ({
   };
 
   const validate = (): boolean => {
+    const newErrors: IUserFormErrors = {};
+
     if (!validatePresence(formData.name)) {
-      setErrors({
-        ...errors,
-        name: "Name field must be completed",
-      });
-
-      return false;
+      newErrors.name = "Name field must be completed";
     }
-
     if (!validatePresence(formData.email)) {
-      setErrors({
-        ...errors,
-        email: "Email field must be completed",
-      });
-
-      return false;
+      newErrors.email = "Email field must be completed";
+    } else if (!validEmail(formData.email)) {
+      newErrors.email = `${formData.email} is not a valid email`;
+    }
+    if (!validatePresence(formData.password)) {
+      newErrors.password = "Password field must be completed";
+    } else if (!validPassword(formData.password)) {
+      newErrors.password = "Password must meet the criteria below";
     }
 
-    if (!validEmail(formData.email)) {
-      setErrors({
-        ...errors,
-        email: `${formData.email} is not a valid email`,
-      });
-
-      return false;
-    }
-
-    if (
-      !isNewUser &&
-      !isInvitePending &&
-      formData.password &&
-      !validPassword(formData.password) &&
-      !formData.sso_enabled
-    ) {
-      setErrors({
-        ...errors,
-        password: "Password must meet the criteria below",
-      });
-
-      return false;
-    }
-
-    if (
-      isNewUser &&
-      formData.newUserType === NewUserType.AdminCreated &&
-      !formData.sso_enabled
-    ) {
-      if (!validatePresence(formData.password)) {
-        setErrors({
-          ...errors,
-          password: "Password field must be completed",
-        });
-
-        return false;
-      }
-      if (!validPassword(formData.password)) {
-        setErrors({
-          ...errors,
-          password: "Password must meet the criteria below",
-        });
-
-        return false;
-      }
-    }
+    setErrors(newErrors);
 
     if (!formData.global_role && !formData.teams.length) {
       renderFlash("error", `Please select at least one team for this user.`);
       return false;
     }
-
-    return true;
+    return Object.keys(newErrors).length === 0;
   };
 
   const onFormSubmit = (evt: FormEvent): void => {
     evt.preventDefault();
+
     const valid = validate();
     if (valid) {
       return onSubmit(addSubmitData());
@@ -493,6 +442,7 @@ const UserForm = ({
         inputOptions={{
           maxLength: "80",
         }}
+        ignore1password
       />
       <InputField
         label="Email"
