@@ -225,6 +225,10 @@
     animation: fade-in 150ms ease-out;
   }
 
+  .Select-menu {
+    max-height: 190px;
+  }
+
   .Select-noresults {
     font-size: $x-small;
   }
