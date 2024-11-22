@@ -31,7 +31,6 @@ const useSetWindowsMdm = ({
   errorMessage,
   router,
 }: ISetWindowsMdmOptions) => {
-  console.log("hook hit");
   const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
