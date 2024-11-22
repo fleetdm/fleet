@@ -31,6 +31,7 @@ const useSetWindowsMdm = ({
   errorMessage,
   router,
 }: ISetWindowsMdmOptions) => {
+  console.log("hook hit");
   const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -40,6 +41,7 @@ const useSetWindowsMdm = ({
       const updatedConfig = await configAPI.updateMDMConfig(
         {
           windows_enabled_and_configured: enableMdm,
+          windows_migration_enabled: enableAutoMigration,
         },
         true
       );
@@ -76,30 +78,30 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
   const [mdmOn, setMdmOn] = useState(
     config?.mdm?.windows_enabled_and_configured ?? false
   );
-  const [automaticMigration, setAutomaticMigration] = useState(false);
+  const [autoMigration, setAutoMigration] = useState(
+    config?.mdm?.windows_migration_enabled ?? false
+  );
 
-  const { turnOnWindowsMdm } = useSetWindowsMdm({
+  const updateWindowsMdm = useSetWindowsMdm({
     enableMdm: mdmOn,
-    enableAutoMigration: automaticMigration,
+    enableAutoMigration: autoMigration,
     successMessage: "Windows MDM settings successfully updated.",
     errorMessage: "Unable to update Windows MDM. Please try again.",
     router,
   });
 
-  // const isWindowsMdmEnabled =
-  //   config?.mdm?.windows_enabled_and_configured ?? false;
-  const migrationEnabled = config?.mdm?.windows_migration_enabled ?? false;
-
   const onChangeMdmOn = () => {
     setMdmOn(!mdmOn);
-    mdmOn && setAutomaticMigration(false);
+    mdmOn && setAutoMigration(false);
   };
 
   const onChangeAutoMigration = () => {
-    setAutomaticMigration(!automaticMigration);
+    setAutoMigration(!autoMigration);
   };
 
-  const onSaveMdm = async () => {};
+  const onSaveMdm = () => {
+    updateWindowsMdm();
+  };
 
   const descriptionText = mdmOn
     ? "Turns on MDM for Windows hosts that enroll to Fleet (excluding servers)."
@@ -124,7 +126,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
           <p>{descriptionText}</p>
           <Checkbox
             disabled={!mdmOn}
-            value={automaticMigration}
+            value={autoMigration}
             onChange={onChangeAutoMigration}
           >
             Automatically migrate hosts connected to another MDM solution
