@@ -9628,6 +9628,8 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Li
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
+| labels_include_any        | array     | form | Software will only be available for install or installed (by policy automation) on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| labels_exclude_any | array | form | Software will only be available for install or installed (by policy automation) on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 
 
 #### Example
@@ -9821,6 +9823,8 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| labels_include_any        | array     | form | App will only be available for install or installed (by policy automation) on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| labels_exclude_any | array | form | App will only be available for install or installed (by policy automation) on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 
 #### Example
 
@@ -9949,6 +9953,8 @@ Add Fleet-maintained app so it's available for install.
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| labels_include_any        | array     | form | Software will only be available for install or installed (by policy automation) on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| labels_exclude_any | array | form | Software will only be available for install or installed (by policy automation) on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 
 #### Example
 

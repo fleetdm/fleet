@@ -330,8 +330,8 @@ software:
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables) (default: `""`).
 - `post_install_script.path` is the script Fleet will run on hosts after installing software (default: `""`).
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
-- `labels_include_any` specifies whether software will only be available for install or installed (by policy automation) on hosts that **have any** of these labels.
-- `labels_exclude_any` specifies whether software will only be available for install or installed (by policy automation) on hosts that **don't have any** of these labels.
+- `labels_include_any` specifies whether the software will only be available for install or installed (by policy automation) on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified.
+- `labels_exclude_any` specifies whether the software will only be available for install or installed (by policy automation) on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified.
 
 #### Example
 
@@ -353,7 +353,9 @@ labels_include_any:
 
 > Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 
-`self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
+- `self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
+- `labels_include_any` specifies whether the app will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified.
+- `labels_exclude_any` specifies whether the app will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified.
 
 ## org_settings and team_settings
 
