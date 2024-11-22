@@ -75,7 +75,7 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 
 	invite := &fleet.Invite{
 		Email:      *payload.Email,
-		InvitedBy:  inviter.Name,
+		InvitedBy:  inviter.ID,
 		Token:      token,
 		GlobalRole: payload.GlobalRole,
 		Teams:      payload.Teams,

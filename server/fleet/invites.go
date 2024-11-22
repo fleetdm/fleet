@@ -18,7 +18,7 @@ type InvitePayload struct {
 type Invite struct {
 	UpdateCreateTimestamps
 	ID         uint        `json:"id"`
-	InvitedBy  string      `json:"invited_by" db:"invited_by"`
+	InvitedBy  uint        `json:"invited_by" db:"invited_by"`
 	Email      string      `json:"email" db:"email"`
 	Name       string      `json:"name" db:"name"`
 	Position   string      `json:"position,omitempty"`

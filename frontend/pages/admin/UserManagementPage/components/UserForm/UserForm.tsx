@@ -48,7 +48,7 @@ export interface IFormData {
   email: string;
   name: string;
   newUserType?: NewUserType | null;
-  password?: string;
+  password?: string | null;
   new_password?: string | null; // if a new password is being set for an existing user, the API expects `new_password` rather than `password`
   sso_enabled: boolean;
   two_factor_authentication_enabled?: boolean;
@@ -106,7 +106,7 @@ const UserForm = ({
   isSsoEnabled,
   isTwoFactorAuthenticationEnabled,
   isApiOnly,
-  isNewUser,
+  isNewUser = false,
   isInvitePending,
   serverErrors,
   addOrEditUserErrors,
@@ -226,7 +226,7 @@ const UserForm = ({
     if (!isNewUser && !isInvitePending) {
       // if a new password is being set for an existing user, the API expects `new_password` rather than `password`
       submitData.new_password = formData.password;
-      delete submitData.password;
+      submitData.password = null;
       delete submitData.newUserType; // this field will not be submitted when form is used to edit an existing user
       // if an existing user is converted to sso, the API expects `new_password` to be null
       if (formData.sso_enabled) {
@@ -238,7 +238,7 @@ const UserForm = ({
       submitData.sso_enabled ||
       formData.newUserType === NewUserType.AdminInvited
     ) {
-      delete submitData.password; // this field will not be submitted with the form
+      submitData.password = null; // this field will not be submitted with the form
     }
 
     return isGlobalUser
@@ -257,10 +257,14 @@ const UserForm = ({
     } else if (!validEmail(formData.email)) {
       newErrors.email = `${formData.email} is not a valid email`;
     }
-    if (!validatePresence(formData.password)) {
-      newErrors.password = "Password field must be completed";
-    } else if (!validPassword(formData.password)) {
-      newErrors.password = "Password must meet the criteria below";
+    // Only test password on new user or if sso not enabled
+    if (isNewUser && !formData.sso_enabled) {
+      if (formData.password !== null && !validPassword(formData.password)) {
+        newErrors.password = "Password must meet the criteria below";
+      }
+      if (!validatePresence(formData.password)) {
+        newErrors.password = "Password field must be completed";
+      }
     }
 
     setErrors(newErrors);

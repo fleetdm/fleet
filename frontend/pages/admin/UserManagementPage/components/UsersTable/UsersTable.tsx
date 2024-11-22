@@ -4,7 +4,7 @@ import { useQuery } from "react-query";
 
 import paths from "router/paths";
 import { IApiError } from "interfaces/errors";
-import { IInvite } from "interfaces/invite";
+import { IInvite, IEditInviteFormData } from "interfaces/invite";
 import { IUser, IUserFormErrors } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 import { clearToken } from "utilities/local";
@@ -25,7 +25,7 @@ import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
 import DeleteUserModal from "../DeleteUserModal";
 import ResetPasswordModal from "../ResetPasswordModal";
 import ResetSessionsModal from "../ResetSessionsModal";
-import { NewUserType } from "../UserForm/UserForm";
+import { NewUserType, IFormData } from "../UserForm/UserForm";
 import AddUserModal from "../AddUserModal";
 import EditUserModal from "../EditUserModal";
 
@@ -45,7 +45,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
   // STATES
-  const [showAddUserModal, setShowAddUserModal] = useState(true);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
@@ -211,7 +211,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     return userData;
   };
 
-  const onAddUserSubmit = (formData: any) => {
+  const onAddUserSubmit = (formData: IFormData) => {
     setIsUpdatingUsers(true);
 
     if (formData.newUserType === NewUserType.AdminInvited) {
@@ -301,7 +301,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     }
   };
 
-  const onEditUser = (formData: any) => {
+  const onEditUser = (formData: IFormData) => {
     const userData = getUser(userEditing.type, userEditing.id);
 
     let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
@@ -316,12 +316,18 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     const userUpdatedPasswordError = "Password must meet the criteria below";
     const userUpdatedError = `Could not edit ${userEditing?.name}. Please try again.`;
 
+    // Do not update password to empty string
+    const requestData = formData;
+    if (requestData.new_password === "") {
+      requestData.new_password = null;
+    }
+
     setIsUpdatingUsers(true);
     if (userEditing.type === "invite") {
       return (
         userData &&
         invitesAPI
-          .update(userData.id, formData)
+          .update(userData.id, requestData as IEditInviteFormData)
           .then(() => {
             renderFlash("success", userUpdatedFlashMessage);
             toggleEditUserModal();
@@ -351,7 +357,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     return (
       userData &&
       usersAPI
-        .update(userData.id, formData)
+        .update(userData.id, requestData)
         .then(() => {
           renderFlash("success", userUpdatedFlashMessage);
           toggleEditUserModal();
