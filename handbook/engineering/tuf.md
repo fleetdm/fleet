@@ -68,7 +68,7 @@ Once configured, use the [Fleet TUF repo release script](https://github.com/flee
 
 The CTO is responsible for determining who has access to push agent updates. Timestamp and Snapshot keys can be held online, so their use can be automated, but Targets and Root keys must always be held offline. The root keys are held by the CTO and CEO in secure locations. Root keys are retrieved once per year to rotate them before their annual expiration, or to sign for new Targets keys as needed. Targets keys may be generated to provide approved team members the ability to push agent updates to the TUF repo. 
 
-This process requires running TUF commands that are not available using the `fleetctl` binary, so the `tuf` CLI binary [documented by go-tuf](https://pkg.go.dev/github.com/theupdateframework/go-tuf#section-readme) needs to be downloaded and compiled for local use.
+This process requires running TUF commands that are not available using the `fleetctl` binary, so the `tuf` v0.5.2 CLI binary [documented by go-tuf](https://pkg.go.dev/github.com/theupdateframework/go-tuf#section-readme) needs to be [downloaded and compiled](https://github.com/theupdateframework/go-tuf/releases/tag/v0.5.2) for local use.
 
 There are two roles required to complete these steps, the "Root" role who holds the root keys, and the "Releaser" role, who is gaining access to push updates. 
 
@@ -76,7 +76,7 @@ There are two roles required to complete these steps, the "Root" role who holds 
 
 2. The Realeaser pulls down the contents of the TUF repo into the `repository` sub-directory. 
 
-3. From the root of their TUF directory, the Releaser runs `tuf gen-key targets`. This will create a `keys` sub-directory and `staged` sub-directory.  Next, the Releaser runs `tuf gen-key snapshot`, then `tuf gen-key timestamp` to create keys for those roles. 
+3. From the root of their TUF directory, the Releaser runs `tuf gen-key --expires=365 targets`. This will create a `keys` sub-directory and `staged` sub-directory.  Next, the Releaser runs `tuf gen-key --expires=365 snapshot`, then `tuf gen-key --expires=365 timestamp` to create keys for those roles. 
 
 4. The Releaser copies the `keys` directory to a USB drive, and deletes the `keys` directory from their local hard drive. 
 
