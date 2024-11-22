@@ -18,6 +18,7 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "numUsers": 999,
   "numTeams": 999,
   "numPolicies": 999,
+  "numQueries": 999,
   "numLabels": 999,
   "softwareInventoryEnabled": true,
   "vulnDetectionEnabled": true,

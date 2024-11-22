@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -109,6 +110,7 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		}
 
 		// must reload it to get the host IDs, refresh its count
+		ctx = ctxdb.RequirePrimary(ctx, true)
 		label, hostIDs, err = svc.ds.Label(ctx, label.ID, filter)
 		if err != nil {
 			return nil, nil, err
@@ -211,6 +213,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 			return svc.ds.SaveLabel(ctx, label, filter)
 		}
 		// Otherwise, simply reload label to get the host counts information
+		ctx = ctxdb.RequirePrimary(ctx, true)
 		return svc.ds.Label(ctx, id, filter)
 	}
 	return svc.ds.SaveLabel(ctx, label, filter)

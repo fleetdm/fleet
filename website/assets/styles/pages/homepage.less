@@ -84,6 +84,7 @@
     display: flex;
     flex-direction: row;
     justify-content: center;
+    margin-top: 64px;
     h4 {
       color: #515774;
       text-align: center;
@@ -1372,7 +1373,7 @@
   @media (max-width: 575px) {
 
     h1 {
-      font-size: 36px;
+      font-size: 32px;
     }
     h4 {
       font-size: 14px;
@@ -1386,29 +1387,35 @@
     }
     [purpose='homepage-hero'] {
       padding-bottom: 320px;
+      padding-top: 32px;
       padding-left: 24px;
       padding-right: 24px;
+    }
+    [purpose='category-switch'] {
+      margin-top: 32px;
     }
     [purpose='statistics'] {
       flex-direction: column;
       max-width: fit-content;
       margin-left: auto;
       margin-right: auto;
-      [purpose='customers-and-countries-row'] {
-        order: 2;
+      margin-top: 32px;
+      h4 {
+        margin-bottom: 0px;
       }
       [purpose='customers'] {
-        padding: 16px 48px 16px 32px;
+        padding: 0px 64px 24px 64px;
+        border-right: none;
       }
       [purpose='devices'] {
-        order: 1;
+        border-top: 1px solid #E2E4EA;
         border-bottom: 1px solid #E2E4EA;
-        padding: 16px 32px;
+        padding: 24px;
         border-right: none;
       }
 
       [purpose='countries'] {
-        padding: 16px 32px 16px 48px;
+        padding: 24px 64px 0px 64px;
         border-right: none;
       }
 
@@ -1521,6 +1528,7 @@
     [purpose='hero-logos'] {
       padding-left: 20px;
       padding-right: 20px;
+      margin-bottom: 32px;
     }
     [purpose='video-modal'] {
       [purpose='modal-content'] {

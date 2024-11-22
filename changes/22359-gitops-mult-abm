@@ -1,0 +1,2 @@
+- Updates GitOps to return an error if the deprecated `apple_bm_default_team` key is used and there
+  are more than 1 ABM tokens in Fleet.

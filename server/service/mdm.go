@@ -1209,6 +1209,7 @@ type newMDMConfigProfileRequest struct {
 	TeamID           uint
 	Profile          *multipart.FileHeader
 	LabelsIncludeAll []string
+	LabelsIncludeAny []string
 	LabelsExcludeAny []string
 }
 
@@ -1248,21 +1249,22 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	}
 
 	// add labels
-	var existsIncl, existsExcl, existsDepr bool
+	var existsInclAll, existsInclAny, existsExclAny, existsDepr bool
 	var deprecatedLabels []string
-	decoded.LabelsIncludeAll, existsIncl = r.MultipartForm.Value["labels_include_all"]
-	decoded.LabelsExcludeAny, existsExcl = r.MultipartForm.Value["labels_exclude_any"]
+	decoded.LabelsIncludeAll, existsInclAll = r.MultipartForm.Value[string(fleet.LabelsIncludeAll)]
+	decoded.LabelsIncludeAny, existsInclAny = r.MultipartForm.Value[string(fleet.LabelsIncludeAny)]
+	decoded.LabelsExcludeAny, existsExclAny = r.MultipartForm.Value[string(fleet.LabelsExcludeAny)]
 	deprecatedLabels, existsDepr = r.MultipartForm.Value["labels"]
 
 	// validate that only one of the labels type is provided
 	var count int
-	for _, b := range []bool{existsIncl, existsExcl, existsDepr} {
+	for _, b := range []bool{existsInclAll, existsInclAny, existsExclAny, existsDepr} {
 		if b {
 			count++
 		}
 	}
 	if count > 1 {
-		return nil, &fleet.BadRequestError{Message: `Only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`}
+		return nil, &fleet.BadRequestError{Message: `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`}
 	}
 	if existsDepr {
 		decoded.LabelsIncludeAll = deprecatedLabels
@@ -1292,17 +1294,25 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	isMobileConfig := strings.EqualFold(fileExt, ".mobileconfig")
 	isJSON := strings.EqualFold(fileExt, ".json")
 
-	labels := req.LabelsIncludeAll
-	excludeMode := false
-	if len(req.LabelsExcludeAny) > 0 {
+	var labels []string
+	var labelsMode fleet.MDMLabelsMode
+	switch {
+	case len(req.LabelsIncludeAny) > 0:
+		labels = req.LabelsIncludeAny
+		labelsMode = fleet.LabelsIncludeAny
+	case len(req.LabelsExcludeAny) > 0:
 		labels = req.LabelsExcludeAny
-		excludeMode = true
+		labelsMode = fleet.LabelsExcludeAny
+	default:
+		// default include all
+		labels = req.LabelsIncludeAll
+		labelsMode = fleet.LabelsIncludeAll
 	}
 
 	if isMobileConfig || isJSON {
 		// Then it's an Apple configuration file
 		if isJSON {
-			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, ff, labels, profileName, excludeMode)
+			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, ff, labels, profileName, labelsMode)
 			if err != nil {
 				return &newMDMConfigProfileResponse{Err: err}, nil
 			}
@@ -1313,7 +1323,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 
 		}
 
-		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, labels, excludeMode)
+		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, labels, labelsMode)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1323,7 +1333,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	}
 
 	if isWindows := strings.EqualFold(fileExt, ".xml"); isWindows {
-		cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, ff, labels, excludeMode)
+		cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, ff, labels, labelsMode)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1347,7 +1357,7 @@ func (svc *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID u
 	return &fleet.BadRequestError{Message: "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file."}
 }
 
-func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader, labels []string, labelsExcludeMode bool) (*fleet.MDMWindowsConfigProfile, error) {
+func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMWindowsConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -1396,11 +1406,16 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating labels")
 	}
-	if labelsExcludeMode {
+	switch labelsMembershipMode {
+	case fleet.LabelsIncludeAny:
+		cp.LabelsIncludeAny = labelMap
+	case fleet.LabelsExcludeAny:
 		cp.LabelsExcludeAny = labelMap
-	} else {
+	default:
+		// default include all
 		cp.LabelsIncludeAll = labelMap
 	}
+
 	err = validateWindowsProfileFleetVariables(string(cp.SyncML))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating Windows profile")
@@ -1577,7 +1592,7 @@ func (svc *Service) BatchSetMDMProfiles(
 
 	labels := []string{}
 	for i := range profiles {
-		// from this point on (after this condition), only LabelsIncludeAll or
+		// from this point on (after this condition), only LabelsIncludeAll, LabelsIncludeAny or
 		// LabelsExcludeAny need to be checked.
 		if len(profiles[i].Labels) > 0 {
 			// must update the struct in the slice directly, because we don't have a
@@ -1586,6 +1601,7 @@ func (svc *Service) BatchSetMDMProfiles(
 			profiles[i].Labels = nil
 		}
 		labels = append(labels, profiles[i].LabelsIncludeAll...)
+		labels = append(labels, profiles[i].LabelsIncludeAny...)
 		labels = append(labels, profiles[i].LabelsExcludeAny...)
 	}
 	labelMap, err := svc.batchValidateProfileLabels(ctx, labels)
@@ -1839,10 +1855,20 @@ func getAppleProfiles(
 			for _, labelName := range prof.LabelsIncludeAll {
 				if lbl, ok := labelMap[labelName]; ok {
 					declLabel := fleet.ConfigurationProfileLabel{
+						LabelName:  lbl.LabelName,
+						LabelID:    lbl.LabelID,
+						RequireAll: true,
+					}
+					mdmDecl.LabelsIncludeAll = append(mdmDecl.LabelsIncludeAll, declLabel)
+				}
+			}
+			for _, labelName := range prof.LabelsIncludeAny {
+				if lbl, ok := labelMap[labelName]; ok {
+					declLabel := fleet.ConfigurationProfileLabel{
 						LabelName: lbl.LabelName,
 						LabelID:   lbl.LabelID,
 					}
-					mdmDecl.LabelsIncludeAll = append(mdmDecl.LabelsIncludeAll, declLabel)
+					mdmDecl.LabelsIncludeAny = append(mdmDecl.LabelsIncludeAny, declLabel)
 				}
 			}
 			for _, labelName := range prof.LabelsExcludeAny {
@@ -1889,12 +1915,31 @@ func getAppleProfiles(
 
 		for _, labelName := range prof.LabelsIncludeAll {
 			if lbl, ok := labelMap[labelName]; ok {
-				mdmProf.LabelsIncludeAll = append(mdmProf.LabelsIncludeAll, lbl)
+				mdmLabel := fleet.ConfigurationProfileLabel{
+					LabelName:  lbl.LabelName,
+					LabelID:    lbl.LabelID,
+					RequireAll: true,
+				}
+				mdmProf.LabelsIncludeAll = append(mdmProf.LabelsIncludeAll, mdmLabel)
+			}
+		}
+		for _, labelName := range prof.LabelsIncludeAny {
+			if lbl, ok := labelMap[labelName]; ok {
+				mdmLabel := fleet.ConfigurationProfileLabel{
+					LabelName: lbl.LabelName,
+					LabelID:   lbl.LabelID,
+				}
+				mdmProf.LabelsIncludeAny = append(mdmProf.LabelsIncludeAny, mdmLabel)
 			}
 		}
 		for _, labelName := range prof.LabelsExcludeAny {
 			if lbl, ok := labelMap[labelName]; ok {
-				mdmProf.LabelsExcludeAny = append(mdmProf.LabelsExcludeAny, lbl)
+				mdmLabel := fleet.ConfigurationProfileLabel{
+					LabelName: lbl.LabelName,
+					LabelID:   lbl.LabelID,
+					Exclude:   true,
+				}
+				mdmProf.LabelsExcludeAny = append(mdmProf.LabelsExcludeAny, mdmLabel)
 			}
 		}
 
@@ -1965,12 +2010,31 @@ func getWindowsProfiles(
 		}
 		for _, labelName := range profile.LabelsIncludeAll {
 			if lbl, ok := labelMap[labelName]; ok {
-				mdmProf.LabelsIncludeAll = append(mdmProf.LabelsIncludeAll, lbl)
+				mdmLabel := fleet.ConfigurationProfileLabel{
+					LabelName:  lbl.LabelName,
+					LabelID:    lbl.LabelID,
+					RequireAll: true,
+				}
+				mdmProf.LabelsIncludeAll = append(mdmProf.LabelsIncludeAll, mdmLabel)
+			}
+		}
+		for _, labelName := range profile.LabelsIncludeAny {
+			if lbl, ok := labelMap[labelName]; ok {
+				mdmLabel := fleet.ConfigurationProfileLabel{
+					LabelName: lbl.LabelName,
+					LabelID:   lbl.LabelID,
+				}
+				mdmProf.LabelsIncludeAny = append(mdmProf.LabelsIncludeAny, mdmLabel)
 			}
 		}
 		for _, labelName := range profile.LabelsExcludeAny {
 			if lbl, ok := labelMap[labelName]; ok {
-				mdmProf.LabelsExcludeAny = append(mdmProf.LabelsExcludeAny, lbl)
+				mdmLabel := fleet.ConfigurationProfileLabel{
+					LabelName: lbl.LabelName,
+					LabelID:   lbl.LabelID,
+					Exclude:   true,
+				}
+				mdmProf.LabelsExcludeAny = append(mdmProf.LabelsExcludeAny, mdmLabel)
 			}
 		}
 
@@ -2004,6 +2068,7 @@ func validateProfiles(profiles []fleet.MDMProfileBatchPayload) error {
 		var count int
 		for _, b := range []bool{
 			len(profile.LabelsIncludeAll) > 0,
+			len(profile.LabelsIncludeAny) > 0,
 			len(profile.LabelsExcludeAny) > 0,
 			len(profile.Labels) > 0,
 		} {
@@ -2012,7 +2077,7 @@ func validateProfiles(profiles []fleet.MDMProfileBatchPayload) error {
 			}
 		}
 		if count > 1 {
-			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
+			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
 		}
 
 		if len(profile.Contents) > 1024*1024 {
@@ -2100,7 +2165,7 @@ func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 // Update MDM Disk encryption
 ////////////////////////////////////////////////////////////////////////////////
 
-type updateMDMDiskEncryptionRequest struct {
+type updateDiskEncryptionRequest struct {
 	TeamID               *uint `json:"team_id"`
 	EnableDiskEncryption bool  `json:"enable_disk_encryption"`
 }
@@ -2113,8 +2178,8 @@ func (r updateMDMDiskEncryptionResponse) error() error { return r.Err }
 
 func (r updateMDMDiskEncryptionResponse) Status() int { return http.StatusNoContent }
 
-func updateMDMDiskEncryptionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*updateMDMDiskEncryptionRequest)
+func updateDiskEncryptionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*updateDiskEncryptionRequest)
 	if err := svc.UpdateMDMDiskEncryption(ctx, req.TeamID, &req.EnableDiskEncryption); err != nil {
 		return updateMDMDiskEncryptionResponse{Err: err}, nil
 	}
@@ -2129,7 +2194,7 @@ func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, e
 	lic, _ := license.FromContext(ctx)
 	if lic == nil || !lic.IsPremium() {
 		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return ErrMissingLicense
+		return fleet.ErrMissingLicense
 	}
 
 	// for historical reasons (the deprecated PATCH /mdm/apple/settings

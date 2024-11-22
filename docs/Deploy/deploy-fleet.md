@@ -1,6 +1,6 @@
-# Deploy Fleet
+# Hosting Fleet
 
-Deploy to Render for an easy one-click proof of concept. Or, choose AWS with Terraform to deploy at scale. Just need to kick the tires? [Try Fleet locally](https://fleetdm.com/try-fleet) on your device.
+You can deploy Fleet anywhere, or we can [host it for you](/docs/get-started/faq#can-you-host-fleet-for-me).  Deploy to Render for an easy one-click proof of concept. Or, choose AWS with Terraform to deploy at scale. Just need to kick the tires? [Try Fleet locally](https://fleetdm.com/try-fleet) on your device.
 
 <div purpose="deploying-guide-buttons" class="d-flex flex-md-row flex-column">
     <a href="#render">

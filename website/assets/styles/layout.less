@@ -17,6 +17,27 @@ html, body {
   padding-bottom: @footer-height;
   background: linear-gradient(180deg, #E8F1F6 0%, #FFFFFF 200px);
   background-position: center 40px;
+  opacity: 1;
+  // Note: This element has the "show" class toggled by the mobile header nav menu button.
+  // We are overriding bootstrap classes here to allow us to prevent the page being scrolled while the mobile menu is open.
+  &.collapse {
+    display: block;
+    [purpose='mobile-nav'] {
+      display: none;
+    }
+  }
+  &.collapsing {
+    opacity: 0;
+    transition: 0s;
+  }
+  &.collapse.show {
+    max-height: 100vh;
+    overflow: hidden;
+    [purpose='mobile-nav'] {
+      display: block;
+      opacity: 1;
+    }
+  }
 }
 
 [purpose='header-background'] {
@@ -40,7 +61,7 @@ html, body {
 }
 
 [purpose='continue-banner'] {
-  z-index: 199;
+  z-index: 198;
   position: fixed;
   bottom: 24px;
   left: 24px;
@@ -279,14 +300,14 @@ html, body {
     left: 0;
     right: 0;
     bottom: 0;
-    pointer-events: none;
+    z-index: 200;
     background-color: #ffffff;
     hr {
       margin-top: 4px;
       margin-bottom: 8px;
     }
     [purpose='mobile-nav-header'] {
-      padding: 19px 40px;
+      padding: 19px 32px;
       height: 80px;
     }
     [purpose='mobile-nav-container'] {
@@ -316,6 +337,9 @@ html, body {
       font-weight: 700;
       cursor: pointer;
       color: @core-fleet-black;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
       &:hover {
         color: @core-vibrant-blue;
         text-decoration: none;
@@ -780,6 +804,7 @@ body.detected-mobile {
 
 @media (max-width: 375px) {
   [purpose='page-header'] {
+    padding: 19px 16px;
     [purpose='mobile-nav'] {
       [purpose='mobile-nav-header'] {
         padding: 19px 16px;

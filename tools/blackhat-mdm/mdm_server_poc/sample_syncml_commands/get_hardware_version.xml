@@ -1,8 +1,0 @@
-<Get>
-	<CmdID>xxcmdidxx</CmdID>
-	<Item>
-		<Target>
-			<LocURI>./DevDetail/HwV</LocURI>
-		</Target>
-	</Item>
-</Get>

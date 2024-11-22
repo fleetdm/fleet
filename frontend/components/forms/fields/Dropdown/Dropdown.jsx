@@ -231,6 +231,7 @@ class Dropdown extends Component {
           autoFocus={autoFocus}
           arrowRenderer={renderCustomDropdownArrow}
           valueComponent={iconName ? renderWithIcon : undefined}
+          tabIndex={disabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
         />
       </FormField>
     );

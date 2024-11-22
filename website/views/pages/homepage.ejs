@@ -10,7 +10,7 @@
             <p>Replace the sprawl with <%= primaryBuyingSituation === 'vm'? 'secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'open-source endpoint observability for every platform' : 'a modern device management platform that works the way you want' %>.</p>
             <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
               <a purpose="cta-button" href="<%= primaryBuyingSituation === 'mdm' ? '/device-management' : primaryBuyingSituation === 'vm' ? '/vulnerability-management' : primaryBuyingSituation === 'eo-security' ? '/endpoint-ops' : primaryBuyingSituation === 'eo-it' ? '/endpoint-ops' : '/device-management' %>">Learn how</a>
-              <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>
+              <animated-arrow-button href="/testimonials">What people are saying</animated-arrow-button>
             </div>
           </div>
         </div>
@@ -21,21 +21,15 @@
   <div purpose="hero-logos" class="mx-auto">
     <logo-carousel></logo-carousel>
     <div purpose="statistics">
-      <div purpose="customers-and-countries-row" class="d-flex flex-row justify-content-center">
-        <div purpose="customers">
-          <h4>100+</h4>
-          <p>customers</p>
-        </div>
-        <div purpose="countries" class="d-flex d-sm-none">
-          <h4>90+</h4>
-          <p>countries</p>
-        </div>
+      <div purpose="customers">
+        <h4>100+</h4>
+        <p>customers</p>
       </div>
       <div purpose="devices">
         <h4>2,000,000+</h4>
         <p>computing devices</p>
       </div>
-      <div purpose="countries" class="d-none d-sm-flex">
+      <div purpose="countries" >
         <h4>90+</h4>
         <p>countries</p>
       </div>
@@ -125,7 +119,7 @@
          <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-md-between mx-auto align-items-center">
            <div purpose="category-text-block" class="d-flex flex-column personalized">
              <h4><%= primaryBuyingSituation==='eo-security'? 'Security engineering' : 'IT engineering'%></h4>
-             <h2><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Understand your computers'%></h2>
+             <h2><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Talk to your computers'%></h2>
              <p>A <%= primaryBuyingSituation==='eo-security'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='eo-security'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
              <div>
                <animated-arrow-button href="/endpoint-ops">Start with <%= primaryBuyingSituation==='eo-security' ? 'security engineering' : 'IT engineering'%></animated-arrow-button>
@@ -192,7 +186,7 @@
            </div>
            <div purpose="category-text-block" class="d-flex flex-column personalized">
              <h4><%= primaryBuyingSituation==='mdm' ? 'IT engineering' : 'Security engineering'%></h4>
-             <h2><%= primaryBuyingSituation==='vm'? 'Instrument your endpoints' : 'Understand your computers'%></h2>
+             <h2><%= primaryBuyingSituation==='vm'? 'Instrument your endpoints' : 'Talk to your computers'%></h2>
              <p>A <%= primaryBuyingSituation==='vm'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='vm'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
              <div>
                <animated-arrow-button href="/endpoint-ops">Start with <%= primaryBuyingSituation==='mdm' ? 'IT engineering' : 'security engineering'%></animated-arrow-button>
@@ -369,7 +363,7 @@
 
         <div purpose="feature" class="ml-sm-0">
           <img alt="transparency" src="/images/homepage-icon-transparency-54x64@2x.png" class="mx-auto mx-md-0">
-          <h5>Scope transparency</h5>
+          <h5>"Why is this running on my computer?"</h5>
           <p>Let end users see the source code for exactly <a href="/better">how they are being monitored</a>, and set clear expectations about what is and isn’t acceptable use of work computers.</p>
         </div>
 
@@ -381,8 +375,8 @@
 
         <div purpose="feature" class="mr-sm-0 mb-0">
           <img alt="An open book" src="/images/homepage-icon-openness-80x64@2x.png">
-          <h5>We value openness</h5>
-          <p>Fleet's company <a href="/handbook">handbook</a> is public and open source. You can read about the <a href="/handbook/company#history">history of Fleet and osquery</a> and our commitment to improving the product.</p>
+          <h5>Open source</h5>
+          <p>All of Fleet's source code is <a href="/handbook/company/why-this-way#why-open-source">public</a>, and our company <a href="/handbook">handbook</a> is public and open to the world. You can read about the <a href="/handbook/company#history">history of Fleet and osquery</a> and our commitment to improving the product.</p>
         </div>
 
       </div>
@@ -396,7 +390,7 @@
         <h4>For teams with lots of computing devices</h4>
         <h1 class="mx-auto <%= primaryBuyingSituation%>"><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
         <div purpose="button-row" style="margin-top: 40px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" href="/register">Start now</a>
+          <a purpose="cta-button" href="/register">Try it yourself</a>
           <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>
         </div>
       </div>

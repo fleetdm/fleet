@@ -174,7 +174,6 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: appleCmdUUID,
 		Status:      "Acknowledged",
-		RequestType: "ProfileList",
 		Raw:         []byte(appleCmd),
 	})
 	require.NoError(t, err)
@@ -699,20 +698,20 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.DeleteLabel(ctx, labels[4].Name))
 	profLabels := map[string][]fleet.ConfigurationProfileLabel{
 		"C": {
-			{LabelName: labels[0].Name, LabelID: labels[0].ID},
-			{LabelName: labels[1].Name, LabelID: labels[1].ID},
+			{LabelName: labels[0].Name, LabelID: labels[0].ID, RequireAll: true},
+			{LabelName: labels[1].Name, LabelID: labels[1].ID, RequireAll: true},
 		},
 		"D": {
-			{LabelName: labels[2].Name, LabelID: labels[2].ID},
-			{LabelName: labels[3].Name, LabelID: 0, Broken: true},
+			{LabelName: labels[2].Name, LabelID: labels[2].ID, RequireAll: true},
+			{LabelName: labels[3].Name, LabelID: 0, Broken: true, RequireAll: true},
 		},
 		"E": {
-			{LabelName: labels[4].Name, LabelID: 0, Broken: true},
-			{LabelName: labels[5].Name, LabelID: labels[5].ID},
+			{LabelName: labels[4].Name, LabelID: 0, Broken: true, RequireAll: true},
+			{LabelName: labels[5].Name, LabelID: labels[5].ID, RequireAll: true},
 		},
 		"F": {
-			{LabelName: labels[6].Name, LabelID: labels[6].ID},
-			{LabelName: labels[7].Name, LabelID: labels[7].ID},
+			{LabelName: labels[6].Name, LabelID: labels[6].ID, RequireAll: true},
+			{LabelName: labels[7].Name, LabelID: labels[7].ID, RequireAll: true},
 		},
 	}
 

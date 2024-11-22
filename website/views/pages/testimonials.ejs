@@ -1,0 +1,164 @@
+<div id="testimonials" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
+      <div purpose="page-hero">
+        <h4>Customer stories</h4>
+        <h1>What people are saying</h1>
+
+        <div purpose="hero-quote">
+          <img alt="an opening quotation mark" style="width:16px; margin-bottom: 8px;" src="/images/icon-quote-21x17@2x.png">
+          <p purpose="quote-text">
+            We wanted an open-source MDM to easily use configuration-as-code, deliver the best possible experience for our employees, and make security happy.
+          </p>
+          <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+            <div purpose="profile-picture">
+              <img alt="Wes Whetstone" src="/images/testimonial-author-kenny-botelho-48x48@2x.png">
+            </div>
+            <div class="d-flex flex-column align-self-top">
+              <p purpose="name" class="font-weight-bold m-0">Kenny Botelho</p>
+              <p purpose="job-title" class="m-0">Lead Client Platform Engineer</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <div purpose="context-switch" class="d-flex flex-sm-row flex-column">
+        <div purpose="switch-option" :class="[selectedContent === 'mdm' ? 'selected' : '']" @click="clickChangePageContent('mdm')"><p>Device management</p></div>
+        <div purpose="switch-option" :class="[selectedContent === 'it' ? 'selected' : '']" @click="clickChangePageContent('it')"><p>IT engineering</p></div>
+        <div purpose="switch-option" :class="[selectedContent === 'security' ? 'selected' : '']" @click="clickChangePageContent('security')"><p>Security engineering</p></div>
+      </div>
+      <div v-if="selectedContent === 'mdm'">
+        <div purpose="testimonials-container" class="card-columns">
+          <% for(let testimonial of testimonialsForMdm) {%>
+            <div purpose="testimonial-card" class="card">
+              <% if(testimonial.quoteImageFilename){ %>
+                <div purpose="logo" class="mb-4">
+                  <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>
+                </div>
+              <% } %>
+              <p purpose="quote">
+                <%- testimonial.quote %>
+                <%if(testimonial.youtubeVideoUrl) {%>
+                  <a purpose="video-link" @click="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</a>
+                <% } %>
+              </p>
+              <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+                <div purpose="profile-picture">
+                  <img alt="Profile picture" src="/images/<%- testimonial.quoteAuthorProfileImageFilename %>">
+                </div>
+                <div class="d-flex flex-column align-self-top">
+                  <p purpose="name" class="font-weight-bold m-0"><%- testimonial.quoteAuthorName %></p>
+                  <p purpose="job-title" class="m-0"><%- testimonial.quoteAuthorJobTitle %></p>
+                </div>
+              </div>
+            </div>
+          <% } %>
+        </div>
+      </div>
+      <div v-if="selectedContent === 'it'">
+        <div purpose="testimonials-container" class="card-columns">
+          <% for(let testimonial of testimonialsForItEngineering) {%>
+            <div purpose="testimonial-card" class="card">
+              <% if(testimonial.quoteImageFilename){ %>
+                <div purpose="logo" class="mb-4">
+                  <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>
+                </div>
+              <% } %>
+              <p purpose="quote">
+                <%- testimonial.quote %>
+                <%if(testimonial.youtubeVideoUrl) {%>
+                  <a purpose="video-link" @click="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</a>
+                <% } %>
+              </p>
+              <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+                <div purpose="profile-picture">
+                  <img alt="Profile picture" src="/images/<%- testimonial.quoteAuthorProfileImageFilename %>">
+                </div>
+                <div class="d-flex flex-column align-self-top">
+                  <p purpose="name" class="font-weight-bold m-0"><%- testimonial.quoteAuthorName %></p>
+                  <p purpose="job-title" class="m-0"><%- testimonial.quoteAuthorJobTitle %></p>
+                </div>
+              </div>
+            </div>
+          <% } %>
+        </div>
+      </div>
+      <div v-if="selectedContent === 'security'">
+        <div purpose="testimonials-container" class="card-columns">
+          <% for(let testimonial of testimonialsForSecurityEngineering) {%>
+            <div purpose="testimonial-card" class="card">
+              <% if(testimonial.quoteImageFilename){ %>
+                <div purpose="logo" class="mb-4">
+                  <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>
+                </div>
+              <% } %>
+              <p purpose="quote">
+                <%- testimonial.quote %>
+                <%if(testimonial.youtubeVideoUrl) {%>
+                  <a purpose="video-link" @click="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</a>
+                <% } %>
+              </p>
+              <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+                <div purpose="profile-picture">
+                  <img alt="<%- testimonial.quoteAuthorName %>" src="/images/<%- testimonial.quoteAuthorProfileImageFilename %>">
+                </div>
+                <div class="d-flex flex-column align-self-top">
+                  <p purpose="name" class="font-weight-bold m-0"><%- testimonial.quoteAuthorName %></p>
+                  <p purpose="job-title" class="m-0"><%- testimonial.quoteAuthorJobTitle %></p>
+                </div>
+              </div>
+            </div>
+          <% } %>
+        </div>
+      </div>
+      <div purpose="page-section">
+        <div class="d-flex flex-row align-items-center justify-content-center">
+          <a purpose="share-button" href="https://github.com/fleetdm/fleet/edit/main/handbook/company/testimonials.yml" target="_blank">Share your story</a>
+        </div>
+        <div purpose="logos-and-statistics" class="mx-auto">
+          <div purpose="statistics">
+            <div purpose="customers">
+              <h4>100+</h4>
+              <p>customers</p>
+            </div>
+            <div purpose="devices">
+              <h4>2,000,000+</h4>
+              <p>computing devices</p>
+            </div>
+            <div purpose="countries" >
+              <h4>90+</h4>
+              <p>countries</p>
+            </div>
+          </div>
+          <logo-carousel></logo-carousel>
+        </div>
+      </div>
+    </div><%// page content%>
+  </div><%// page container%>
+  <%/* Bottom gradient */%>
+  <div purpose="bottom-gradient">
+    <div purpose="homepage-content" class="container">
+      <div class="text-center" purpose="bottom-cta">
+        <h4>For teams with lots of computing devices</h4>
+        <h2 class="mx-auto" v-if="selectedContent === 'mdm'">Open-source device management for everyone</h2>
+        <h2 class="mx-auto" v-if="selectedContent === 'it'">Talk to your computers</h2>
+        <h2 class="mx-auto" v-if="selectedContent === 'security'">Easily get security data</h2>
+        <div purpose="button-row" style="margin-top: 40px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
+          <a purpose="cta-button" href="/register">Try it yourself</a>
+          <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <%/* Cloud city banner */%>
+  <parallax-city></parallax-city>
+
+
+  <div v-for="video in quotesWithVideoLinks">
+    <modal purpose="video-modal" v-if="modal === video.modalId" @close="closeModal()" >
+      <iframe width="560" height="315" :src="'https://www.youtube.com/embed/'+video.embedId+'?rel=0'" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture;" allowfullscreen></iframe>
+    </modal>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
