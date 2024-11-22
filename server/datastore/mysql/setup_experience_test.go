@@ -40,20 +40,22 @@ func TestSetupExperience(t *testing.T) {
 	}
 }
 
+// TODO(JVE): this test could probably be simplified and most of the ad-hoc SQL removed.
 func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	test.CreateInsertGlobalVPPToken(t, ds)
 
+	// Create some teams
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
-
 	team3, err := ds.NewTeam(ctx, &fleet.Team{Name: "team3"})
 	require.NoError(t, err)
 
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
+	// Create some software installers and add them to setup experience
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
 	installerID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -97,6 +99,7 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		return err
 	})
 
+	// Create some VPP apps and add them to setup experience
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
 	vpp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
 	require.NoError(t, err)
@@ -110,33 +113,21 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	var script1ID, script2ID int64
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		res, err := insertScriptContents(ctx, q, "SCRIPT 1")
-		if err != nil {
-			return err
-		}
-		id1, _ := res.LastInsertId()
-		res, err = insertScriptContents(ctx, q, "SCRIPT 2")
-		if err != nil {
-			return err
-		}
-		id2, _ := res.LastInsertId()
+	// Create some scripts and add them to setup experience
+	var script1ID, script2ID uint
 
-		res, err = q.ExecContext(ctx, "INSERT INTO setup_experience_scripts (team_id, global_or_team_id, name, script_content_id) VALUES (?, ?, ?, ?)", team1.ID, team1.ID, "script1", id1)
-		if err != nil {
-			return err
-		}
-		script1ID, _ = res.LastInsertId()
+	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script1", ScriptContents: "SCRIPT 1", TeamID: &team1.ID})
+	require.NoError(t, err)
+	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script2", ScriptContents: "SCRIPT 2", TeamID: &team2.ID})
+	require.NoError(t, err)
 
-		res, err = q.ExecContext(ctx, "INSERT INTO setup_experience_scripts (team_id, global_or_team_id, name, script_content_id) VALUES (?, ?, ?, ?)", team2.ID, team2.ID, "script2", id2)
-		if err != nil {
-			return err
-		}
-		script2ID, _ = res.LastInsertId()
+	s1, err := ds.GetSetupExperienceScript(ctx, &team1.ID)
+	require.NoError(t, err)
+	script1ID = s1.ID
 
-		return nil
-	})
+	s2, err := ds.GetSetupExperienceScript(ctx, &team2.ID)
+	require.NoError(t, err)
+	script2ID = s2.ID
 
 	hostTeam1 := "123"
 	hostTeam2 := "456"
@@ -159,8 +150,11 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam3, team3.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
+	// Nothing is configured for setup experience in team 3, so we do not set
+	// host_mdm_apple_awaiting_configuration.
 	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam3)
-	require.NoError(t, err)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
 	require.False(t, awaitingConfig)
 
 	seRows := []setupExperienceInsertTestRows{}
@@ -200,13 +194,13 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 			HostUUID: hostTeam1,
 			Name:     "script1",
 			Status:   "pending",
-			ScriptID: nullableUint(uint(script1ID)), // nolint: gosec
+			ScriptID: nullableUint(script1ID),
 		},
 		{
 			HostUUID: hostTeam2,
 			Name:     "script2",
 			Status:   "pending",
-			ScriptID: nullableUint(uint(script2ID)), // nolint: gosec
+			ScriptID: nullableUint(script2ID),
 		},
 	} {
 		var found bool
@@ -221,49 +215,34 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		}
 	}
 
-	for _, row := range seRows {
-		if row.HostUUID == hostTeam3 {
-			t.Error("team 3 shouldn't have any any entries")
-		}
-	}
-
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, "DELETE FROM setup_experience_scripts WHERE global_or_team_id = ?", team2.ID)
-		if err != nil {
-			return err
+	require.Condition(t, func() (success bool) {
+		for _, row := range seRows {
+			if row.HostUUID == hostTeam3 {
+				return false
+			}
 		}
 
-		_, err = q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = false WHERE global_or_team_id = ?", team2.ID)
-		if err != nil {
-			return err
-		}
-
-		_, err = q.ExecContext(ctx, "UPDATE vpp_apps_teams SET install_during_setup = false WHERE global_or_team_id = ?", team2.ID)
-		if err != nil {
-			return err
-		}
-
-		return nil
+		return true
 	})
+
+	// Remove team2's setup experience items
+	err = ds.DeleteSetupExperienceScript(ctx, &team2.ID)
+	require.NoError(t, err)
+
+	ds.SetSetupExperienceSoftwareTitles(ctx, team2.ID, []uint{})
 
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam1, team1.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
-	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam1)
-	require.NoError(t, err)
-	require.True(t, awaitingConfig)
 
+	// team2 now has nothing enqueued
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam2, team2.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
-	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam2)
-	require.NoError(t, err)
 
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam3, team3.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
-	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam3)
-	require.NoError(t, err)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &seRows, "SELECT host_uuid, name, status, software_installer_id, setup_experience_script_id, vpp_app_team_id FROM setup_experience_status_results")
@@ -929,6 +908,7 @@ func testHostInSetupExperience(t *testing.T, ds *Datastore) {
 	inSetupExperience, err = ds.GetHostAwaitingConfiguration(ctx, "404")
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
+	require.False(t, inSetupExperience)
 }
 
 func testGetSetupExperienceScriptByID(t *testing.T, ds *Datastore) {
