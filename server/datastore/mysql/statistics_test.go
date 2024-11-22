@@ -221,7 +221,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, stats.NumSoftwareCVEs)
 	assert.Equal(t, 1, stats.NumTeams)
 	assert.Equal(t, 1, stats.NumPolicies)
-	assert.Equal(t, 1, stats.NumQueries)
+	assert.Equal(t, 0, stats.NumQueries)
 	assert.Equal(t, builtinLabels+1, stats.NumLabels)
 	assert.Equal(t, false, stats.SoftwareInventoryEnabled)
 	assert.Equal(t, false, stats.SystemUsersEnabled)
