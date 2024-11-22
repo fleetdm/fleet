@@ -19,24 +19,25 @@ type Zenity struct {
 	cmdWithOutput func(ctx context.Context, args ...string) ([]byte, int, error)
 	// cmdWithWait can be set in tests to mock execution of the dialog.
 	cmdWithWait func(ctx context.Context, args ...string) error
+	// killZenityFunc can be set in tests to mock killing the zenity process.
+	killZenityFunc func()
 }
 
 // New creates a new Zenity dialog instance for zenity v4 on Linux.
 // Zenity implements the Dialog interface.
 func New() *Zenity {
 	return &Zenity{
-		cmdWithOutput: execCmdWithOutput,
-		cmdWithWait:   execCmdWithWait,
+		cmdWithOutput:  execCmdWithOutput,
+		cmdWithWait:    execCmdWithWait,
+		killZenityFunc: killZenityProcesses,
 	}
 }
 
 // ShowEntry displays an dialog that accepts end user input. It returns the entered
 // text or errors ErrCanceled, ErrTimeout, or ErrUnknown.
 func (z *Zenity) ShowEntry(ctx context.Context, opts dialog.EntryOptions) ([]byte, error) {
-	_, err := platform.KillAllProcessByName(zenityProcessName)
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to kill zenity process")
-	}
+	z.killZenityFunc()
+
 	args := []string{"--entry"}
 	if opts.Title != "" {
 		args = append(args, fmt.Sprintf("--title=%s", opts.Title))
@@ -68,10 +69,8 @@ func (z *Zenity) ShowEntry(ctx context.Context, opts dialog.EntryOptions) ([]byt
 
 // ShowInfo displays an information dialog. It returns errors ErrTimeout or ErrUnknown.
 func (z *Zenity) ShowInfo(ctx context.Context, opts dialog.InfoOptions) error {
-	_, err := platform.KillAllProcessByName(zenityProcessName)
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to kill zenity process")
-	}
+	z.killZenityFunc()
+
 	args := []string{"--info"}
 	if opts.Title != "" {
 		args = append(args, fmt.Sprintf("--title=%s", opts.Title))
@@ -106,10 +105,8 @@ func (z *Zenity) ShowInfo(ctx context.Context, opts dialog.InfoOptions) error {
 // Use this function for cases where a progress dialog is needed to run
 // alongside other operations, with explicit cancellation or termination.
 func (z *Zenity) ShowProgress(ctx context.Context, opts dialog.ProgressOptions) error {
-	_, err := platform.KillAllProcessByName(zenityProcessName)
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to kill zenity process")
-	}
+	z.killZenityFunc()
+
 	args := []string{"--progress"}
 	if opts.Title != "" {
 		args = append(args, fmt.Sprintf("--title=%s", opts.Title))
@@ -124,7 +121,7 @@ func (z *Zenity) ShowProgress(ctx context.Context, opts dialog.ProgressOptions) 
 	// --no-cancel disables the cancel button
 	args = append(args, "--no-cancel")
 
-	err = z.cmdWithWait(ctx, args...)
+	err := z.cmdWithWait(ctx, args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, dialog.ErrUnknown, err.Error())
 	}
@@ -154,4 +151,11 @@ func execCmdWithWait(ctx context.Context, args ...string) error {
 
 	_, err := execuser.Run(zenityProcessName, opts...)
 	return err
+}
+
+func killZenityProcesses() {
+	_, err := platform.KillAllProcessByName(zenityProcessName)
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to kill zenity process")
+	}
 }
