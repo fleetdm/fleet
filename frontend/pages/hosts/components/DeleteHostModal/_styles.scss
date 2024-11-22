@@ -1,0 +1,10 @@
+.delete-host-modal {
+  ul {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $pad-medium;
+    align-self: stretch;
+    padding-inline-start: $padding-large;
+  }
+}
