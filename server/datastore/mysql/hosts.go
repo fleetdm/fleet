@@ -2669,10 +2669,22 @@ func (ds *Datastore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamF
 }
 
 func (ds *Datastore) ListHostsLiteByUUIDs(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+	return ds.listHostsLiteByUUIDs(ctx, &filter, uuids)
+}
+
+func (ds *Datastore) ListHostsLiteByUUIDsNoFilter(ctx context.Context, uuids []string) ([]*fleet.Host, error) {
+	return ds.listHostsLiteByUUIDs(ctx, nil, uuids)
+}
+
+func (ds *Datastore) listHostsLiteByUUIDs(ctx context.Context, filter *fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
 	if len(uuids) == 0 {
 		return nil, nil
 	}
 
+	whereFilterHostsByTeams := "TRUE"
+	if filter != nil {
+		whereFilterHostsByTeams = ds.whereFilterHostsByTeams(*filter, "h")
+	}
 	stmt := fmt.Sprintf(`
 SELECT
 	h.id,
@@ -2704,7 +2716,7 @@ LEFT OUTER JOIN
 ON
 	hdep.host_id = h.id AND hdep.deleted_at IS NULL
 WHERE h.uuid IN (?) AND %s
-		`, ds.whereFilterHostsByTeams(filter, "h"),
+		`, whereFilterHostsByTeams,
 	)
 
 	stmt, args, err := sqlx.In(stmt, uuids)

@@ -69,6 +69,7 @@ const (
 	FleetVarNDESSCEPProxyURL    = "NDES_SCEP_PROXY_URL"
 	FleetVarHostEndUserEmailIDP = "HOST_END_USER_EMAIL_IDP"
 	FleetVarHostHardwareSerial  = "HOST_HARDWARE_SERIAL"
+	FleetVarPKICertPassword     = "PKI_PASSWORD"
 	FleetVarPKICertPrefix       = "PKI_CERT_"
 )
 
@@ -79,7 +80,10 @@ var (
 		FleetVarNDESSCEPProxyURL))
 	fleetVarHostEndUserEmailIDPRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarHostEndUserEmailIDP,
 		FleetVarHostEndUserEmailIDP))
-	fleetVarsSupportedInConfigProfiles        = []string{FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarHostEndUserEmailIDP}
+	fleetVarHostHardwareSerial = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarHostHardwareSerial,
+		FleetVarHostHardwareSerial))
+	fleetVarsSupportedInConfigProfiles = []string{FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarHostEndUserEmailIDP,
+		FleetVarPKICertPassword}
 	fleetVarPrefixesSupportedInConfigProfiles = []string{FleetVarPKICertPrefix}
 )
 
@@ -3602,6 +3606,7 @@ func preprocessProfileContents(
 	}
 
 	var pkiCerts map[string]*fleet.PKICertificate
+	var pkiTemplates map[string]fleet.CertificateTemplate
 	isPKIConfigured := func(profUUID string, target *cmdTarget, templateName string) (bool, error) {
 		if !license.IsPremium(ctx) {
 			return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
@@ -3615,6 +3620,10 @@ func preprocessProfileContents(
 					if template.Name == templateName {
 						pkiName = items.PKIName
 						pkiConfigured = true
+						if pkiTemplates == nil {
+							pkiTemplates = make(map[string]fleet.CertificateTemplate)
+						}
+						pkiTemplates[templateName] = template
 						break
 					}
 				}
@@ -3683,8 +3692,8 @@ func preprocessProfileContents(
 					valid = false
 					break
 				}
-			case FleetVarHostEndUserEmailIDP:
-				// No extra validation needed for this variable
+			case FleetVarHostEndUserEmailIDP, FleetVarPKICertPassword:
+				// No extra validation needed for these variables
 			default:
 				if strings.HasPrefix(fleetVar, FleetVarPKICertPrefix) {
 					// Get the template name
@@ -3827,6 +3836,8 @@ func preprocessProfileContents(
 						break
 					}
 					hostContents = replaceFleetVariable(fleetVarHostEndUserEmailIDPRegexp, hostContents, emails[0])
+				case FleetVarPKICertPassword:
+					// We just keep it as is for now.
 				default:
 					if strings.HasPrefix(fleetVar, FleetVarPKICertPrefix) {
 						// Get the template name
@@ -3840,8 +3851,13 @@ func preprocessProfileContents(
 							// This should never happen since we validated the PKI configuration earlier
 							continue
 						}
+						template, ok := pkiTemplates[templateName]
+						if !ok {
+							// This should never happen since we validated the PKI configuration earlier
+							continue
+						}
 						// Insert the new certificate into the profile contents
-						certBase64, err := getNewPKICertificate(ctx, ds, pkiCert)
+						certBase64, err := getNewPKICertificate(ctx, ds, hostUUID, pkiCert, template, appConfig.OrgInfo.OrgName)
 						if err != nil {
 							// This is a server error, so we exit.
 							return ctxerr.Wrap(ctx, err, "getting new PKI certificate")
@@ -3900,7 +3916,8 @@ type GeneralNames struct {
 	OtherName OtherName `asn1:"tag:0"`
 }
 
-func getNewPKICertificate(ctx context.Context, ds fleet.Datastore, _ *fleet.PKICertificate) (string, error) {
+func getNewPKICertificate(ctx context.Context, ds fleet.Datastore, hostUUID string, _ *fleet.PKICertificate,
+	pkiTemplate fleet.CertificateTemplate, orgName string) (string, error) {
 	// This method retrieves a new PKI certificate from the CA and returns the base64-encoded certificate.
 
 	notBefore := time.Now().Add(-time.Hour)
@@ -3912,37 +3929,46 @@ func getNewPKICertificate(ctx context.Context, ds fleet.Datastore, _ *fleet.PKIC
 		return "", ctxerr.Wrap(ctx, err, "generating serial number")
 	}
 
-	orgName := "Acme Co"
-	commonName := "Cert name"
-	upnValue := "johnDoe@example.com"
+	// TODO: Also add support for end user email IdP
+	var hardwareSerial = ""
+	getHardwareSerial := func() (string, error) {
+		if hardwareSerial != "" {
+			return hardwareSerial, nil
+		}
+		// Get the hardware serial number
+		hosts, err := ds.ListHostsLiteByUUIDsNoFilter(ctx, []string{hostUUID})
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "getting hosts")
+		}
+		if len(hosts) == 0 {
+			// TODO: Improve error handling here -- a missing host should not cause all profile installations to fail
+			return "", ctxerr.Wrap(ctx, fmt.Errorf("host %s not found", hostUUID), "getting host")
+		}
+		hardwareSerial = hosts[0].HardwareSerial
+		return hardwareSerial, nil
+	}
+	if fleetVarHostHardwareSerial.MatchString(pkiTemplate.CommonName) {
+		// We only use the first hardware serial number
+		hardwareSerial, err = getHardwareSerial()
+		if err != nil {
+			return "", err
+		}
+		pkiTemplate.CommonName = fleetVarHostHardwareSerial.ReplaceAllString(pkiTemplate.CommonName, hardwareSerial)
+	}
+	userPrincipalName := ""
+	if len(pkiTemplate.SAN.UserPrincipalNames) > 0 {
+		userPrincipalName = pkiTemplate.SAN.UserPrincipalNames[0]
+		if fleetVarHostHardwareSerial.MatchString(userPrincipalName) {
+			// We only use the first hardware serial number
+			hardwareSerial, err = getHardwareSerial()
+			if err != nil {
+				return "", err
+			}
+			userPrincipalName = fleetVarHostHardwareSerial.ReplaceAllString(userPrincipalName, hardwareSerial)
+		}
+	}
 
-	// This is where we create the UPN data structure, and marshal
-	// it into an asn1 object.
-	upnExt, err := asn1.Marshal(GeneralNames{
-		OtherName: OtherName{
-			// init our ASN.1 object identifier
-			OID: asn1.ObjectIdentifier{
-				1, 3, 6, 1, 4, 1, 311, 20, 2, 3},
-			// This is the email address of the person we
-			// are generating the certificate for.
-			Value: UPN{
-				A: upnValue,
-			},
-		},
-	})
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "marshaling UPN extension")
-	}
-	// Finally, we create a new extension with
-	// the OID 2.5.29.17 (SubjectAltName), and set the
-	// marshaled GeneralNames structure as the Value
-	//
-	// http://oid-info.com/get/2.5.29.17
-	extSubjectAltName := pkix.Extension{
-		Id:       asn1.ObjectIdentifier{2, 5, 29, 17},
-		Critical: false,
-		Value:    upnExt,
-	}
+	commonName := pkiTemplate.CommonName
 
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
@@ -3950,12 +3976,41 @@ func getNewPKICertificate(ctx context.Context, ds fleet.Datastore, _ *fleet.PKIC
 			Organization: []string{orgName},
 			CommonName:   commonName,
 		},
-		NotBefore: notBefore,
-		NotAfter:  notAfter,
-		KeyUsage:  x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
-		// Add subjectAltName
-		ExtraExtensions:       []pkix.Extension{extSubjectAltName},
+		NotBefore:             notBefore,
+		NotAfter:              notAfter,
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		BasicConstraintsValid: true,
+	}
+
+	if userPrincipalName != "" {
+		// This is where we create the UPN data structure, and marshal
+		// it into an asn1 object.
+		upnExt, err := asn1.Marshal(GeneralNames{
+			OtherName: OtherName{
+				// init our ASN.1 object identifier
+				OID: asn1.ObjectIdentifier{
+					1, 3, 6, 1, 4, 1, 311, 20, 2, 3},
+				// This is the email address of the person we
+				// are generating the certificate for.
+				Value: UPN{
+					A: userPrincipalName,
+				},
+			},
+		})
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "marshaling UPN extension")
+		}
+		// Finally, we create a new extension with
+		// the OID 2.5.29.17 (SubjectAltName), and set the
+		// marshaled GeneralNames structure as the Value
+		//
+		// http://oid-info.com/get/2.5.29.17
+		extSubjectAltName := pkix.Extension{
+			Id:       asn1.ObjectIdentifier{2, 5, 29, 17},
+			Critical: false,
+			Value:    upnExt,
+		}
+		template.ExtraExtensions = []pkix.Extension{extSubjectAltName}
 	}
 
 	// Get Fleet's CA cert
@@ -3989,9 +4044,7 @@ func getNewPKICertificate(ctx context.Context, ds fleet.Datastore, _ *fleet.PKIC
 	}
 
 	// Create PKCS12
-	// pfxData, err := pkcs12.Modern.Encode(privateKey, cert, []*x509.Certificate{caCertx509}, "123") // TODO: remove password
-	// pfxData, err := pkcs12.Modern.Encode(privateKey, cert, nil, "123") // TODO: remove password
-	pfxData, err := pkcs12.Legacy.Encode(privateKey, cert, nil, "test_password")
+	pfxData, err := pkcs12.Legacy.Encode(privateKey, cert, nil, "$FLEET_VAR_"+FleetVarPKICertPassword)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "encoding PKCS12")
 	}

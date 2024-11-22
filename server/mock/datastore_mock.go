@@ -181,6 +181,8 @@ type ListHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.
 
 type ListHostsLiteByUUIDsFunc func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error)
 
+type ListHostsLiteByUUIDsNoFilterFunc func(ctx context.Context, uuids []string) ([]*fleet.Host, error)
+
 type ListHostsLiteByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.Host, error)
 
 type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
@@ -1413,6 +1415,9 @@ type DataStore struct {
 
 	ListHostsLiteByUUIDsFunc        ListHostsLiteByUUIDsFunc
 	ListHostsLiteByUUIDsFuncInvoked bool
+
+	ListHostsLiteByUUIDsNoFilterFunc        ListHostsLiteByUUIDsNoFilterFunc
+	ListHostsLiteByUUIDsNoFilterFuncInvoked bool
 
 	ListHostsLiteByIDsFunc        ListHostsLiteByIDsFunc
 	ListHostsLiteByIDsFuncInvoked bool
@@ -3463,6 +3468,13 @@ func (s *DataStore) ListHostsLiteByUUIDs(ctx context.Context, filter fleet.TeamF
 	s.ListHostsLiteByUUIDsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostsLiteByUUIDsFunc(ctx, filter, uuids)
+}
+
+func (s *DataStore) ListHostsLiteByUUIDsNoFilter(ctx context.Context, uuids []string) ([]*fleet.Host, error) {
+	s.mu.Lock()
+	s.ListHostsLiteByUUIDsNoFilterFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostsLiteByUUIDsNoFilterFunc(ctx, uuids)
 }
 
 func (s *DataStore) ListHostsLiteByIDs(ctx context.Context, ids []uint) ([]*fleet.Host, error) {

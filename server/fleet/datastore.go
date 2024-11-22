@@ -242,6 +242,8 @@ type Datastore interface {
 	// identifier. The "lite" version is a subset of the fields related to the
 	// host. See the implementation for the exact list.
 	ListHostsLiteByUUIDs(ctx context.Context, filter TeamFilter, uuids []string) ([]*Host, error)
+	// ListHostsLiteByUUIDsNoFilter is the same as ListHostsLiteByUUIDs but without any filtering.
+	ListHostsLiteByUUIDsNoFilter(ctx context.Context, uuids []string) ([]*Host, error)
 
 	// ListHostsLiteByIDs returns the "lite" version of hosts corresponding to
 	// the provided ids. The "lite" version is a subset of the fields related to
