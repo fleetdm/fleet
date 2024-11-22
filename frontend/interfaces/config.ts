@@ -57,6 +57,7 @@ export interface IMdmConfig {
   apple_bm_terms_expired: boolean;
   apple_bm_enabled_and_configured: boolean;
   windows_enabled_and_configured: boolean;
+  windows_migration_enabled: boolean;
   end_user_authentication: IEndUserAuthentication;
   macos_updates: IAppleDeviceUpdates;
   ios_updates: IAppleDeviceUpdates;

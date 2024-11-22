@@ -5,12 +5,13 @@
   }
 
   h1 {
-    margin-bottom: $pad-xxlarge;
+    margin-bottom: $pad-large;
     font-size: $x-large;
   }
 
-  p {
-    font-size: $x-small;
-    margin: 0 0 $pad-large;
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
   }
 }
