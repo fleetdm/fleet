@@ -60,6 +60,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   );
   const [querySearchText, setQuerySearchText] = useState("");
 
+  console.log("userEditing", userEditing);
   // API CALLS
   const {
     data: teams,

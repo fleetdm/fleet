@@ -21,6 +21,7 @@ export interface ICreateInviteFormData {
   invited_by?: number;
   name: string;
   sso_enabled?: boolean;
+  two_factor_authentication_enabled?: boolean;
   teams: ITeam[];
 }
 
@@ -31,5 +32,6 @@ export interface IEditInviteFormData {
   name?: string;
   password: null;
   sso_enabled: boolean;
+  two_factor_authentication_enabled?: boolean;
   teams?: ITeam[];
 }

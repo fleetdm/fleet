@@ -11,6 +11,7 @@ export default PropTypes.shape({
   force_password_reset: PropTypes.bool,
   gravatar_url: PropTypes.string,
   sso_enabled: PropTypes.bool,
+  two_factor_authentication_enabled: PropTypes.bool,
   global_role: PropTypes.string,
   api_only: PropTypes.bool,
   teams: PropTypes.arrayOf(teamInterface),
@@ -64,6 +65,7 @@ export interface IUserUpdateBody {
   name: string;
   email?: string;
   sso_enabled?: boolean;
+  two_factor_authentication_enabled?: boolean;
   role?: UserRole;
   id: number;
 }
@@ -94,7 +96,8 @@ export interface ICreateUserFormData {
   global_role: UserRole | null;
   name: string;
   password?: string | null;
-  sso_enabled?: boolean | undefined;
+  sso_enabled?: boolean;
+  two_factor_authentication_enabled?: boolean;
   teams: ITeam[];
 }
 
@@ -105,6 +108,7 @@ export interface IUpdateUserFormData {
   name?: string;
   password?: string | null;
   sso_enabled?: boolean;
+  two_factor_authentication_enabled?: boolean;
   teams?: ITeam[];
 }
 
