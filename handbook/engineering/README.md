@@ -471,6 +471,11 @@ Beginning with macOS 16, Fleet will offer same-day support for all major version
 6. When all bugs are fixed, follow the [writing a feature guide](https://fleetdm.com/handbook/engineering#write-a-feature-guide) process to publish an article announcing Fleet same-day support for the new major release.
 
 
+### Maintain TUF repo for secure agent updates
+
+Instructions for creating and maintaining a TUF repo are available on our [TUF handbook page](https://fleetdm.com/handbook/engineering/tuf). 
+
+
 ## Rituals
 
 <rituals :rituals="rituals['handbook/engineering/engineering.rituals.yml']"></rituals>
