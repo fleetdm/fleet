@@ -48,13 +48,6 @@ jobs:
           ref: main
           path: fleet-gitops
 
-      - name: Apply env vars to profiles
-        env:
-          MANAGED_CHROME_ENROLLMENT_TOKEN: ${{ secrets.CLOUD_MANAGEMENT_ENROLLMENT_TOKEN }}
-        run: |
-          envsubst < ./it-and-security/lib/configuration-profiles/macos-chrome-enrollment.mobileconfig > ./it-and-security/lib/configuration-profiles/macos-chrome-enrollment.confidential.mobileconfig
-          mv ./it-and-security/lib/configuration-profiles/macos-chrome-enrollment.confidential.mobileconfig ./it-and-security/lib/configuration-profiles/macos-chrome-enrollment.mobileconfig
-
       - name: Apply latest configuration to Fleet
         uses: ./fleet-gitops/.github/gitops-action
         with:
