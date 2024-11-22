@@ -160,6 +160,9 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		Title: infoTitle,
 		Text:  "Key escrow in progress...",
 	})
+	if err != nil {
+		log.Error().Err(err).Msg("failed to show progress dialog")
+	}
 
 	escrowPassphrase, err := generateRandomPassphrase()
 	if err != nil {
