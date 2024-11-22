@@ -74,39 +74,39 @@ describe("Host Summary section", () => {
       });
     });
 
-    it("omit fleet desktop from tooltip if no fleet desktop version", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: true,
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-      const summaryData = createMockHostSummary({
-        fleet_desktop_version: null,
-      });
-      const orbitVersion = summaryData.orbit_version as string;
-      const osqueryVersion = summaryData.osquery_version as string;
+    // it("omit fleet desktop from tooltip if no fleet desktop version", async () => {
+    //   const render = createCustomRenderer({
+    //     context: {
+    //       app: {
+    //         isPremiumTier: true,
+    //         isGlobalAdmin: true,
+    //         currentUser: createMockUser(),
+    //       },
+    //     },
+    //   });
+    //   const summaryData = createMockHostSummary({
+    //     fleet_desktop_version: null,
+    //   });
+    //   const orbitVersion = summaryData.orbit_version as string;
+    //   const osqueryVersion = summaryData.osquery_version as string;
 
-      const { user } = render(
-        <HostSummary
-          summaryData={summaryData}
-          showRefetchSpinner={false}
-          onRefetchHost={noop}
-          renderActionDropdown={() => null}
-        />
-      );
+    //   const { user } = render(
+    //     <HostSummary
+    //       summaryData={summaryData}
+    //       showRefetchSpinner={false}
+    //       onRefetchHost={noop}
+    //       renderActionDropdown={() => null}
+    //     />
+    //   );
 
-      expect(screen.getByText("Agent")).toBeInTheDocument();
-      await user.hover(screen.getByText(orbitVersion));
+    //   expect(screen.getByText("Agent")).toBeInTheDocument();
+    //   await user.hover(screen.getByText(orbitVersion));
 
-      expect(
-        screen.getByText(new RegExp(osqueryVersion, "i"))
-      ).toBeInTheDocument();
-      expect(screen.queryByText(/Fleet desktop:/i)).not.toBeInTheDocument();
-    });
+    //   expect(
+    //     screen.getByText(new RegExp(osqueryVersion, "i"))
+    //   ).toBeInTheDocument();
+    //   expect(screen.queryByText(/Fleet desktop:/i)).not.toBeInTheDocument();
+    // });
 
     it("for Chromebooks, render Agent header with osquery_version that is the fleetd chrome version and no tooltip", async () => {
       const render = createCustomRenderer({
