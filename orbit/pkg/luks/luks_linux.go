@@ -108,6 +108,14 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		return nil, nil, fmt.Errorf("Failed to show passphrase entry prompt: %w", err)
 	}
 
+	err = lr.notifier.ShowProgress(ctx, dialog.ProgressOptions{
+		Title: infoSuccessText,
+		Text:  "Validating passphrase...",
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("failed to show progress dialog")
+	}
+
 	// Validate the passphrase
 	for {
 		valid, err := lr.passphraseIsValid(ctx, device, devicePath, passphrase, userKeySlot)
@@ -123,12 +131,25 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		if err != nil {
 			return nil, nil, fmt.Errorf("Failed re-prompting for passphrase: %w", err)
 		}
+
+		err = lr.notifier.ShowProgress(ctx, dialog.ProgressOptions{
+			Title: infoSuccessText,
+			Text:  "Validating passphrase...",
+		})
+		if err != nil {
+			log.Error().Err(err).Msg("failed to show progress dialog after retry")
+		}
 	}
 
 	if len(passphrase) == 0 {
 		log.Debug().Msg("Passphrase is empty, no password supplied, dialog was canceled, or timed out")
 		return nil, nil, nil
 	}
+
+	err = lr.notifier.ShowProgress(ctx, dialog.ProgressOptions{
+		Title: infoSuccessText,
+		Text:  "Escrowing key...",
+	})
 
 	escrowPassphrase, err := generateRandomPassphrase()
 	if err != nil {
