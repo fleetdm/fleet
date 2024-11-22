@@ -28,7 +28,7 @@ const (
 	infoTitle            = "Disk encryption"
 	infoFailedText       = "Failed to escrow key. Please try again later."
 	infoSuccessText      = "Success!  Now, return to your browser window and follow the instructions to verify disk encryption."
-	timeoutMessage       = "Please visit Fleet Desktop > My device and click Create Key"
+	timeoutMessage       = "Please visit Fleet Desktop > My device and click Create key"
 	maxKeySlots          = 8
 	userKeySlot          = 0 // Key slot 0 is assumed to be the location of the user's passphrase
 )
