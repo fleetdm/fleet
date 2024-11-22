@@ -63,7 +63,8 @@ const DeleteHostModal = ({
     <Modal title="Delete host" onExit={onCancel} className={baseClass}>
       <>
         <p>
-          This will remove the record of <b>{hostText()}</b>.{largeVolumeText()}
+          This will remove the record of <b>{hostText()}</b> and associated data
+          (e.g. unlock PINs).{largeVolumeText()}
         </p>
         <ul>
           <li>
@@ -76,7 +77,6 @@ const DeleteHostModal = ({
             />
           </li>
           <li>iOS and iPadOS hosts will re-appear unless MDM is turned off.</li>
-          <li>If the host is locked, this will also delete any unlock PINs.</li>
         </ul>
         <div className="modal-cta-wrap">
           <Button
