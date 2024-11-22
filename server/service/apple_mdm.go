@@ -11,13 +11,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -1604,13 +1602,11 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting host info for mdm apple remove profile command")
 	}
-	slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: hello??? ")
 
 	switch h.Platform {
 	case "ios":
 		fallthrough
 	case "ipados":
-		slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: hmm this is ios ")
 		return &fleet.BadRequestError{
 			Message: fleet.CantTurnOffMDMForIOSOrIPadOSMessage,
 		}
@@ -1620,7 +1616,6 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		}
 	default:
 		// host is darwin, so continue
-		slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: hit default?? ", "platform", h.Platform)
 	}
 
 	info, err := svc.ds.GetHostMDMCheckinInfo(ctx, h.UUID)
