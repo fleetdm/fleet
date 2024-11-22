@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -1230,4 +1231,45 @@ func registerMDM(
 	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, mdmLogger.With("handler", "cert-extract"))
 	mux.Handle(apple_mdm.MDMPath, mdmHandler)
 	return nil
+}
+
+func WithMDMEnrollmentMiddleware(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/mdm/sso" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// if x-apple-aspen-deviceinfo custom header is present, we need to check for minimum os version
+		di := r.Header.Get("x-apple-aspen-deviceinfo")
+		if di != "" {
+			parsed, err := apple_mdm.ParseDeviceinfo(di, false) // FIXME: use verify=true when we have better parsing for various Apple certs (https://github.com/fleetdm/fleet/issues/20879)
+			if err != nil {
+				// just log the error and continue to next
+				level.Error(logger).Log("msg", "parsing x-apple-aspen-deviceinfo", "err", err)
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(r.Context(), parsed)
+			if err != nil {
+				// just log the error and continue to next
+				level.Error(logger).Log("msg", "checking minimum os version for mdm", "err", err)
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			if sur != nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				if err := json.NewEncoder(w).Encode(sur); err != nil {
+					level.Error(logger).Log("msg", "failed to encode software update required", "err", err)
+					http.Redirect(w, r, r.URL.String()+"?error=true", http.StatusSeeOther)
+				}
+				return
+			}
+		}
+
+		next.ServeHTTP(w, r)
+	}
 }
