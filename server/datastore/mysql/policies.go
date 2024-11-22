@@ -1664,6 +1664,8 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 	return hosts, nil
 }
 
+// GetPoliciesBySoftwareTitleID returns the policies that are associated with a
+// software title.
 func (ds *Datastore) GetPoliciesBySoftwareTitleID(
 	ctx context.Context,
 	softwareTitleID uint,
