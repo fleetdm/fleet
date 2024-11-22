@@ -50,7 +50,7 @@ describe("Host Summary section", () => {
       const osqueryVersion = summaryData.osquery_version as string;
       const fleetdVersion = summaryData.fleet_desktop_version as string;
 
-      const { user } = render(
+      render(
         <HostSummary
           summaryData={summaryData}
           showRefetchSpinner={false}
@@ -89,7 +89,7 @@ describe("Host Summary section", () => {
       const orbitVersion = summaryData.orbit_version as string;
       const osqueryVersion = summaryData.osquery_version as string;
 
-      const { user } = render(
+      render(
         <HostSummary
           summaryData={summaryData}
           showRefetchSpinner={false}
@@ -99,7 +99,10 @@ describe("Host Summary section", () => {
       );
 
       expect(screen.getByText("Agent")).toBeInTheDocument();
-      await user.hover(screen.getByText(orbitVersion));
+
+      await fireEvent.mouseEnter(
+        screen.getByText(new RegExp(orbitVersion, "i"))
+      );
 
       expect(
         screen.getByText(new RegExp(osqueryVersion, "i"))
