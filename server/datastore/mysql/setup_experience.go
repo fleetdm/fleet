@@ -109,8 +109,11 @@ WHERE global_or_team_id = ?`
 		}
 		totalInsertions += uint(inserts) // nolint: gosec
 
-		if err := setHostAwaitingConfiguration(ctx, tx, hostUUID, true); err != nil {
-			return ctxerr.Wrap(ctx, err, "setting host awaiting configuration to true")
+		// Only run setup experience on hosts that have something configured.
+		if totalInsertions > 0 {
+			if err := setHostAwaitingConfiguration(ctx, tx, hostUUID, true); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting host awaiting configuration to true")
+			}
 		}
 
 		return nil
@@ -503,7 +506,7 @@ WHERE host_uuid = ?
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &awaitingConfiguration, stmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return false, nil
+			return false, notFound("HostAwaitingConfiguration")
 		}
 
 		return false, ctxerr.Wrap(ctx, err, "getting host awaiting configuration")
