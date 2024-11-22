@@ -25,10 +25,10 @@ const (
 	entryDialogTitle     = "Enter disk encryption passphrase"
 	entryDialogText      = "Passphrase:"
 	retryEntryDialogText = "Passphrase incorrect. Please try again."
-	infoFailedTitle      = "Encryption key escrow"
+	infoTitle            = "Disk encryption"
 	infoFailedText       = "Failed to escrow key. Please try again later."
-	infoSuccessTitle     = "Encryption key escrow"
-	infoSuccessText      = "Key escrowed successfully."
+	infoSuccessText      = "Success!  Now, return to your browser window and follow the instructions to verify disk encryption."
+	timeoutMessage       = "Please visit Fleet Desktop > My device and click Create Key"
 	maxKeySlots          = 8
 	userKeySlot          = 0 // Key slot 0 is assumed to be the location of the user's passphrase
 )
@@ -76,7 +76,7 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 		}
 
 		// Show error in dialog
-		if err := lr.infoPrompt(ctx, infoFailedTitle, infoFailedText); err != nil {
+		if err := lr.infoPrompt(ctx, infoTitle, infoFailedText); err != nil {
 			log.Info().Err(err).Msg("failed to show failed escrow key dialog")
 		}
 
@@ -84,14 +84,14 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	}
 
 	if response.Err != "" {
-		if err := lr.infoPrompt(ctx, infoFailedTitle, response.Err); err != nil {
+		if err := lr.infoPrompt(ctx, infoTitle, response.Err); err != nil {
 			log.Info().Err(err).Msg("failed to show response error dialog")
 		}
 		return fmt.Errorf("error getting linux escrow key: %s", response.Err)
 	}
 
 	// Show success dialog
-	if err := lr.infoPrompt(ctx, infoSuccessTitle, infoSuccessText); err != nil {
+	if err := lr.infoPrompt(ctx, infoTitle, infoSuccessText); err != nil {
 		log.Info().Err(err).Msg("failed to show success escrow key dialog")
 	}
 
@@ -109,7 +109,7 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 	}
 
 	err = lr.notifier.ShowProgress(ctx, dialog.ProgressOptions{
-		Title: infoSuccessText,
+		Title: infoTitle,
 		Text:  "Validating passphrase...",
 	})
 	if err != nil {
@@ -133,7 +133,7 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		}
 
 		err = lr.notifier.ShowProgress(ctx, dialog.ProgressOptions{
-			Title: infoSuccessText,
+			Title: infoTitle,
 			Text:  "Validating passphrase...",
 		})
 		if err != nil {
@@ -147,8 +147,8 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 	}
 
 	err = lr.notifier.ShowProgress(ctx, dialog.ProgressOptions{
-		Title: infoSuccessText,
-		Text:  "Escrowing key...",
+		Title: infoTitle,
+		Text:  "Key escrow in progress...",
 	})
 
 	escrowPassphrase, err := generateRandomPassphrase()
@@ -243,6 +243,10 @@ func (lr *LuksRunner) entryPrompt(ctx context.Context, title, text string) ([]by
 			return nil, nil
 		case dialog.ErrTimeout:
 			log.Debug().Msg("key escrow dialog timed out")
+			err := lr.infoPrompt(ctx, infoTitle, timeoutMessage)
+			if err != nil {
+				log.Info().Err(err).Msg("failed to show timeout dialog")
+			}
 			return nil, nil
 		case dialog.ErrUnknown:
 			return nil, err
@@ -258,7 +262,7 @@ func (lr *LuksRunner) infoPrompt(ctx context.Context, title, text string) error 
 	err := lr.notifier.ShowInfo(ctx, dialog.InfoOptions{
 		Title:   title,
 		Text:    text,
-		TimeOut: 30 * time.Second,
+		TimeOut: 1 * time.Minute,
 	})
 	if err != nil {
 		switch err {
