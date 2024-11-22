@@ -257,7 +257,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 				// endpoint is hit.
 				mp, ok := capabilities.FromContext(ctx)
 				if !ok || !mp.Has(fleet.CapabilitySetupExperience) || !inSetupAssistant {
-					level.Debug(svc.logger).Log("msg", "host doesn't support Setup experience, falling back to worker-based device release", "host_uuid", host.UUID)
+					level.Debug(svc.logger).Log("msg", "host doesn't support setup experience or no setup experience configured, falling back to worker-based device release", "host_uuid", host.UUID)
 					if err := svc.processReleaseDeviceForOldFleetd(ctx, host); err != nil {
 						return fleet.OrbitConfig{}, err
 					}
