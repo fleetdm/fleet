@@ -925,10 +925,10 @@ func testHostInSetupExperience(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.False(t, inSetupExperience)
 
-	// host without a record in the table returns false, no error
+	// host without a record in the table returns not found
 	inSetupExperience, err = ds.GetHostAwaitingConfiguration(ctx, "404")
-	require.NoError(t, err)
-	require.False(t, inSetupExperience)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
 }
 
 func testGetSetupExperienceScriptByID(t *testing.T, ds *Datastore) {

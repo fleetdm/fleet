@@ -532,7 +532,7 @@ WHERE host_uuid = ?
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &awaitingConfiguration, stmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return false, nil
+			return false, notFound("HostAwaitingConfiguration")
 		}
 
 		return false, ctxerr.Wrap(ctx, err, "getting host awaiting configuration")
