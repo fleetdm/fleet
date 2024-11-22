@@ -723,8 +723,9 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
-	identifier := "Bar.$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
-	mcBytes := mcBytesForTest("Foo", identifier, "UUID")
+	identifier := "Bar."
+	identifierWithVar := identifier + "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+	mcBytes := mcBytesForTest("Foo", identifierWithVar, "UUID")
 	r := bytes.NewReader(mcBytes)
 
 	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
