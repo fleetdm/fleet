@@ -114,20 +114,16 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	})
 
 	// Create some scripts and add them to setup experience
-	var script1ID, script2ID uint
-
 	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script1", ScriptContents: "SCRIPT 1", TeamID: &team1.ID})
 	require.NoError(t, err)
 	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script2", ScriptContents: "SCRIPT 2", TeamID: &team2.ID})
 	require.NoError(t, err)
 
-	s1, err := ds.GetSetupExperienceScript(ctx, &team1.ID)
+	script1, err := ds.GetSetupExperienceScript(ctx, &team1.ID)
 	require.NoError(t, err)
-	script1ID = s1.ID
 
-	s2, err := ds.GetSetupExperienceScript(ctx, &team2.ID)
+	script2, err := ds.GetSetupExperienceScript(ctx, &team2.ID)
 	require.NoError(t, err)
-	script2ID = s2.ID
 
 	hostTeam1 := "123"
 	hostTeam2 := "456"
@@ -194,13 +190,13 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 			HostUUID: hostTeam1,
 			Name:     "script1",
 			Status:   "pending",
-			ScriptID: nullableUint(script1ID),
+			ScriptID: nullableUint(script1.ID),
 		},
 		{
 			HostUUID: hostTeam2,
 			Name:     "script2",
 			Status:   "pending",
-			ScriptID: nullableUint(script2ID),
+			ScriptID: nullableUint(script2.ID),
 		},
 	} {
 		var found bool
@@ -229,7 +225,8 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	err = ds.DeleteSetupExperienceScript(ctx, &team2.ID)
 	require.NoError(t, err)
 
-	ds.SetSetupExperienceSoftwareTitles(ctx, team2.ID, []uint{})
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team2.ID, []uint{})
+	require.NoError(t, err)
 
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam1, team1.ID)
 	require.NoError(t, err)
@@ -267,7 +264,7 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 			HostUUID: hostTeam1,
 			Name:     "script1",
 			Status:   "pending",
-			ScriptID: nullableUint(uint(script1ID)), // nolint: gosec
+			ScriptID: nullableUint(script1.ID),
 		},
 	} {
 		var found bool
