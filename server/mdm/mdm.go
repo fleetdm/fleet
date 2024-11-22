@@ -10,9 +10,12 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"regexp"
 
 	"github.com/smallstep/pkcs7"
 )
+
+var ProfileVariableRegex = regexp.MustCompile(`(\$FLEET_VAR_(?P<name1>\w+))|(\${FLEET_VAR_(?P<name2>\w+)})`)
 
 // MaxProfileRetries is the maximum times an install profile command may be
 // retried, after which marked as failed and no further attempts will be made

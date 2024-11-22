@@ -109,6 +109,8 @@ func getSignedProfileData(mc Mobileconfig) (Mobileconfig, error) {
 // Adapted from https://github.com/micromdm/micromdm/blob/main/platform/profile/profile.go
 func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 	mcBytes := mc
+	// Strip out $FLEET_VAR placeholders since they may not follow strict plist format
+	mcBytes = mdm.ProfileVariableRegex.ReplaceAll(mcBytes, []byte(""))
 	if mc.isSignedProfile() {
 		profileData, err := getSignedProfileData(mc)
 		if err != nil {
@@ -145,6 +147,8 @@ type payloadSummary struct {
 // See also https://developer.apple.com/documentation/devicemanagement/toplevel
 func (mc Mobileconfig) payloadSummary() ([]payloadSummary, error) {
 	mcBytes := mc
+	// Strip out $FLEET_VAR placeholders since they may not follow strict plist format
+	mcBytes = mdm.ProfileVariableRegex.ReplaceAll(mcBytes, []byte(""))
 	if mc.isSignedProfile() {
 		profileData, err := getSignedProfileData(mc)
 		if err != nil {

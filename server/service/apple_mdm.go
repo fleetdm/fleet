@@ -3,7 +3,12 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
@@ -11,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -52,6 +58,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	"go.mozilla.org/pkcs7"
+	"software.sslmate.com/src/go-pkcs12"
 )
 
 const (
@@ -66,7 +73,6 @@ const (
 )
 
 var (
-	profileVariableRegex            = regexp.MustCompile(`(\$FLEET_VAR_(?P<name1>\w+))|(\${FLEET_VAR_(?P<name2>\w+)})`)
 	fleetVarNDESSCEPChallengeRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarNDESSCEPChallenge,
 		FleetVarNDESSCEPChallenge))
 	fleetVarNDESSCEPProxyURLRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarNDESSCEPProxyURL,
@@ -3822,7 +3828,29 @@ func preprocessProfileContents(
 					}
 					hostContents = replaceFleetVariable(fleetVarHostEndUserEmailIDPRegexp, hostContents, emails[0])
 				default:
-					// This was handled in the above switch statement, so we should never reach this case
+					if strings.HasPrefix(fleetVar, FleetVarPKICertPrefix) {
+						// Get the template name
+						templateName := strings.TrimPrefix(fleetVar, FleetVarPKICertPrefix)
+						if pkiCerts == nil {
+							// This should never happen since we validated the PKI configuration earlier
+							continue
+						}
+						pkiCert, ok := pkiCerts[templateName]
+						if !ok {
+							// This should never happen since we validated the PKI configuration earlier
+							continue
+						}
+						// Insert the new certificate into the profile contents
+						certBase64, err := getNewPKICertificate(ctx, ds, pkiCert)
+						if err != nil {
+							// This is a server error, so we exit.
+							return ctxerr.Wrap(ctx, err, "getting new PKI certificate")
+						}
+						fleetPKICertRegexp := regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, fleetVar,
+							fleetVar))
+						hostContents = replaceFleetVariable(fleetPKICertRegexp, hostContents, certBase64)
+					}
+					// Invalid variables were handled in the earlier global switch statement, so we should never reach this case
 				}
 			}
 			if !failed {
@@ -3853,6 +3881,122 @@ func preprocessProfileContents(
 		}
 	}
 	return nil
+}
+
+// UPN type for asn1 encoding. This will hold
+// our utf-8 encoded string.
+type UPN struct {
+	A string `asn1:"utf8"`
+}
+
+// OtherName type for asn1 encoding
+type OtherName struct {
+	OID   asn1.ObjectIdentifier
+	Value interface{} `asn1:"tag:0"`
+}
+
+// GeneralNames type for asn1 encoding
+type GeneralNames struct {
+	OtherName OtherName `asn1:"tag:0"`
+}
+
+func getNewPKICertificate(ctx context.Context, ds fleet.Datastore, _ *fleet.PKICertificate) (string, error) {
+	// This method retrieves a new PKI certificate from the CA and returns the base64-encoded certificate.
+
+	notBefore := time.Now().Add(-time.Hour)
+	notAfter := time.Now().Add(time.Hour * 24 * 365)
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "generating serial number")
+	}
+
+	orgName := "Acme Co"
+	commonName := "Cert name"
+	upnValue := "johnDoe@example.com"
+
+	// This is where we create the UPN data structure, and marshal
+	// it into an asn1 object.
+	upnExt, err := asn1.Marshal(GeneralNames{
+		OtherName: OtherName{
+			// init our ASN.1 object identifier
+			OID: asn1.ObjectIdentifier{
+				1, 3, 6, 1, 4, 1, 311, 20, 2, 3},
+			// This is the email address of the person we
+			// are generating the certificate for.
+			Value: UPN{
+				A: upnValue,
+			},
+		},
+	})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "marshaling UPN extension")
+	}
+	// Finally, we create a new extension with
+	// the OID 2.5.29.17 (SubjectAltName), and set the
+	// marshaled GeneralNames structure as the Value
+	//
+	// http://oid-info.com/get/2.5.29.17
+	extSubjectAltName := pkix.Extension{
+		Id:       asn1.ObjectIdentifier{2, 5, 29, 17},
+		Critical: false,
+		Value:    upnExt,
+	}
+
+	template := x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			Organization: []string{orgName},
+			CommonName:   commonName,
+		},
+		NotBefore: notBefore,
+		NotAfter:  notAfter,
+		KeyUsage:  x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		// Add subjectAltName
+		ExtraExtensions:       []pkix.Extension{extSubjectAltName},
+		BasicConstraintsValid: true,
+	}
+
+	// Get Fleet's CA cert
+	fleetAssets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey}, nil)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx,
+			fmt.Errorf("loading %s, %s keypair from the database: %w", fleet.MDMAssetCACert, fleet.MDMAssetCAKey, err))
+	}
+	caCert, err := tls.X509KeyPair(fleetAssets[fleet.MDMAssetCACert].Value, fleetAssets[fleet.MDMAssetCAKey].Value)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, fmt.Errorf("parsing %s, %s keypair: %w", fleet.MDMAssetCACert, fleet.MDMAssetCAKey, err))
+	}
+	caCertx509, err := x509.ParseCertificate(caCert.Certificate[0])
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, fmt.Errorf("parsing %s certificate leaf: %w", fleet.MDMAssetCACert, err))
+	}
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "generating private key")
+	}
+
+	privateKeyOfSigner := caCert.PrivateKey
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, caCertx509, &privateKey.PublicKey, privateKeyOfSigner)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "creating certificate")
+	}
+	cert, err := x509.ParseCertificate(derBytes)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "parsing certificate")
+	}
+
+	// Create PKCS12
+	// pfxData, err := pkcs12.Modern.Encode(privateKey, cert, []*x509.Certificate{caCertx509}, "123") // TODO: remove password
+	// pfxData, err := pkcs12.Modern.Encode(privateKey, cert, nil, "123") // TODO: remove password
+	pfxData, err := pkcs12.Legacy.Encode(privateKey, cert, nil, "test_password")
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "encoding PKCS12")
+	}
+
+	return base64.StdEncoding.EncodeToString(pfxData), nil
 }
 
 func markProfilesFailed(
@@ -3890,12 +4034,12 @@ func replaceFleetVariable(regExp *regexp.Regexp, contents string, replacement st
 
 func findFleetVariables(contents string) map[string]interface{} {
 	var result map[string]interface{}
-	matches := profileVariableRegex.FindAllStringSubmatch(contents, -1)
+	matches := mdm_types.ProfileVariableRegex.FindAllStringSubmatch(contents, -1)
 	if len(matches) == 0 {
 		return nil
 	}
 	nameToIndex := make(map[string]int, 2)
-	for i, name := range profileVariableRegex.SubexpNames() {
+	for i, name := range mdm_types.ProfileVariableRegex.SubexpNames() {
 		if name == "" {
 			continue
 		}

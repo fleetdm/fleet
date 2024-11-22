@@ -152,7 +152,7 @@ func (svc *Service) GetCertCSR(ctx context.Context, nameEscaped string) ([]byte,
 // POST /fleet/certificate_mgmt/certificate/{pki_name}
 // //////////////////////////////////////////////////////////////////////////////
 
-var certificatePathRegexp = regexp.MustCompile(`/certificate/(?P<pki_name>.*)$`)
+var certificatePathRegexp = regexp.MustCompile(`/pki/(?P<pki_name>.*)$`)
 
 type uploadCertRequest struct {
 	Name string
