@@ -330,6 +330,8 @@ software:
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables) (default: `""`).
 - `post_install_script.path` is the script Fleet will run on hosts after installing software (default: `""`).
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
+- `labels_include_any` specifies whether software will only be available for install or installed (by policy automation) on hosts that **have any** of these labels.
+- `labels_exclude_any` specifies whether software will only be available for install or installed (by policy automation) on hosts that **don't have any** of these labels.
 
 #### Example
 
@@ -340,6 +342,9 @@ url: https://dl.tailscale.com/stable/tailscale-setup-1.72.0.exe
 install_script:
   path: ../lib/software/tailscale-install-script.ps1
 self_service: true
+labels_include_any:
+  - Engineering
+  - Customer Support
 ```
 
 ### app_store_apps
