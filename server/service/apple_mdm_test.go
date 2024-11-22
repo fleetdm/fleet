@@ -4254,7 +4254,10 @@ func TestGetNewPKICertificate(t *testing.T) {
 		}, nil
 	}
 
-	cert64, err := getNewPKICertificate(ctx, ds, nil)
+	certTemplate := fleet.CertificateTemplate{
+		CommonName: "My CN",
+	}
+	cert64, err := getNewPKICertificate(ctx, ds, "", nil, certTemplate, "My Org")
 	require.NoError(t, err)
 	assert.NotEmpty(t, cert64)
 }
