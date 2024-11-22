@@ -64,6 +64,7 @@ import SetupExperience from "pages/ManageControlsPage/SetupExperience/SetupExper
 import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
 import AppleMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMdmPage";
 import ScepPage from "pages/admin/IntegrationsPage/cards/MdmSettings/ScepPage";
+import PkiPage from "pages/admin/IntegrationsPage/cards/MdmSettings/PkiPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
 import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage";
 import AppleBusinessManagerPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleBusinessManagerPage";
@@ -196,6 +197,7 @@ const routes = (
             <Route path="integrations/mdm/windows" component={WindowsMdmPage} />
             <Route path="integrations/mdm/apple" component={AppleMdmPage} />
             <Route path="integrations/mdm/scep" component={ScepPage} />
+            <Route path="integrations/mdm/pki" component={PkiPage} />
             {/* This redirect is used to handle old apple automatic enrollments page */}
             <Redirect
               from="integrations/automatic-enrollment/apple"

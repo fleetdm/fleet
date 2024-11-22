@@ -1,0 +1,67 @@
+.add-pki-modal {
+  &__request-button {
+    display: flex;
+    gap: $pad-small;
+    align-items: center;
+    margin-top: $pad-small;
+
+    label {
+      display: flex;
+      gap: $pad-small;
+      cursor: pointer;
+    }
+  }
+
+  &__setup {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+    p {
+      margin: 0;
+    }
+  }
+
+  &__setup-list {
+    font-size: $x-small;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+    padding: 0;
+    margin: 0;
+    max-width: 660px;
+    list-style: none;
+
+    li {
+      display: flex;
+      flex-direction: row;
+      gap: $pad-small;
+
+      p {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        margin: 0;
+      }
+    }
+  }
+
+  &__file-uploader {
+    margin-top: $pad-medium;
+    margin-left: $pad-medium;
+
+    .file-uploader__message {
+      color: $ui-fleet-black-75;
+      margin: 0;
+    }
+
+    button {
+      margin-top: 0;
+    }
+
+    &--loading {
+      label {
+        opacity: 0.5;
+      }
+    }
+  }
+}
