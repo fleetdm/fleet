@@ -296,6 +296,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		},
 		APNSTopic:       "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
 		EnableSCEPProxy: true,
+		WithDEPWebview:  true,
 	}
 
 	// ensure all our tests support challenges with invalid XML characters
