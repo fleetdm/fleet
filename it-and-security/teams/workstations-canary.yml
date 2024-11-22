@@ -92,7 +92,7 @@ controls:
     enable_end_user_authentication: true
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2024-12-2"
+    deadline: "2024-12-02"
     minimum_version: "15.1.1"
   windows_settings:
     custom_settings:
