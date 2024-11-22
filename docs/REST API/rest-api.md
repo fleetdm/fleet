@@ -9086,6 +9086,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Modify package](#modify-package)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
+- [Modify App Store app](#modify-app-store-app)
 - [List Fleet-maintained apps](#list-fleet-maintained-apps)
 - [Get Fleet-maintained app](#get-fleet-maintained-app)
 - [Add Fleet-maintained app](#add-fleet-maintained-app)
@@ -9692,6 +9693,8 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Whether this is optional self-service software that can be installed by the end user. |
+| labels_include_any        | array     | form | Software will only be available for install or installed (by policy automation) on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| labels_exclude_any | array | form | Software will only be available for install or installed (by policy automation) on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 
 > Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
 #### Example
@@ -9838,6 +9841,46 @@ Add App Store (VPP) app purchased in Apple Business Manager.
   "team_id": 2,
   "platform": "ipados",
   "self_service": true
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Modify App Store app
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+Modify App Store (VPP) app's options.
+
+`PATCH /api/v1/fleet/software/titles/:title_id/app_store_app`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| team_id       | integer | body | **Required**. The team ID. Edits App Store apps from the specified team.  |
+| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| labels_include_any        | array     | form | App will only be available for install or installed (by policy automation) on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| labels_exclude_any | array | form | App will only be available for install or installed (by policy automation) on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
+
+#### Example
+
+`PATCH /api/v1/fleet/software/titles/3467/app_store_app`
+
+##### Request body
+
+```json
+{
+  "team_id": 2,
+  "self_service": true,
+  "labels_include_any": [
+    "Product",
+    "Marketing"
+  ]
 }
 ```
 
