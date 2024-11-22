@@ -1,6 +1,6 @@
 import React from "react";
 import { noop } from "lodash";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
 import createMockUser from "__mocks__/userMock";
@@ -50,7 +50,7 @@ describe("Host Summary section", () => {
       const osqueryVersion = summaryData.osquery_version as string;
       const fleetdVersion = summaryData.fleet_desktop_version as string;
 
-      const { user } = render(
+      render(
         <HostSummary
           summaryData={summaryData}
           showRefetchSpinner={false}
@@ -60,53 +60,55 @@ describe("Host Summary section", () => {
       );
 
       expect(screen.getByText("Agent")).toBeInTheDocument();
-      await waitFor(() => {
-        waitFor(() => {
-          user.hover(screen.getByText(new RegExp(orbitVersion, "i")));
-        });
 
-        expect(
-          screen.getByText(new RegExp(osqueryVersion, "i"))
-        ).toBeInTheDocument();
-        expect(
-          screen.getByText(new RegExp(fleetdVersion, "i"))
-        ).toBeInTheDocument();
-      });
+      await fireEvent.mouseEnter(
+        screen.getByText(new RegExp(orbitVersion, "i"))
+      );
+
+      expect(
+        screen.getByText(new RegExp(osqueryVersion, "i"))
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(new RegExp(fleetdVersion, "i"))
+      ).toBeInTheDocument();
     });
 
-    // it("omit fleet desktop from tooltip if no fleet desktop version", async () => {
-    //   const render = createCustomRenderer({
-    //     context: {
-    //       app: {
-    //         isPremiumTier: true,
-    //         isGlobalAdmin: true,
-    //         currentUser: createMockUser(),
-    //       },
-    //     },
-    //   });
-    //   const summaryData = createMockHostSummary({
-    //     fleet_desktop_version: null,
-    //   });
-    //   const orbitVersion = summaryData.orbit_version as string;
-    //   const osqueryVersion = summaryData.osquery_version as string;
+    it("omit fleet desktop from tooltip if no fleet desktop version", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+      const summaryData = createMockHostSummary({
+        fleet_desktop_version: null,
+      });
+      const orbitVersion = summaryData.orbit_version as string;
+      const osqueryVersion = summaryData.osquery_version as string;
 
-    //   const { user } = render(
-    //     <HostSummary
-    //       summaryData={summaryData}
-    //       showRefetchSpinner={false}
-    //       onRefetchHost={noop}
-    //       renderActionDropdown={() => null}
-    //     />
-    //   );
+      render(
+        <HostSummary
+          summaryData={summaryData}
+          showRefetchSpinner={false}
+          onRefetchHost={noop}
+          renderActionDropdown={() => null}
+        />
+      );
 
-    //   expect(screen.getByText("Agent")).toBeInTheDocument();
-    //   await user.hover(screen.getByText(orbitVersion));
+      expect(screen.getByText("Agent")).toBeInTheDocument();
 
-    //   expect(
-    //     screen.getByText(new RegExp(osqueryVersion, "i"))
-    //   ).toBeInTheDocument();
-    //   expect(screen.queryByText(/Fleet desktop:/i)).not.toBeInTheDocument();
-    // });
+      await fireEvent.mouseEnter(
+        screen.getByText(new RegExp(orbitVersion, "i"))
+      );
+
+      expect(
+        screen.getByText(new RegExp(osqueryVersion, "i"))
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/Fleet desktop:/i)).not.toBeInTheDocument();
+    });
 
     it("for Chromebooks, render Agent header with osquery_version that is the fleetd chrome version and no tooltip", async () => {
       const render = createCustomRenderer({
