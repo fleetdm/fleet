@@ -521,6 +521,23 @@ This activity contains the following fields:
 }
 ```
 
+## fleet_enrolled
+
+Generated when a host is enrolled to Fleet (Fleet's agent fleetd is installed).
+
+This activity contains the following fields:
+- "host_serial": Serial number of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_serial": "B04FL3ALPT21",
+  "host_display_name": "WIN-DESKTOP-JGS78KJ7C"
+}
+```
+
 ## mdm_enrolled
 
 Generated when a host is enrolled in Fleet's MDM.

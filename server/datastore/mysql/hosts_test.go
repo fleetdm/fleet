@@ -155,6 +155,7 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateHostDiskEncryptionKeys", testHostsSetOrUpdateHostDisksEncryptionKey},
 		{"SetHostsDiskEncryptionKeyStatus", testHostsSetDiskEncryptionKeyStatus},
 		{"GetUnverifiedDiskEncryptionKeys", testHostsGetUnverifiedDiskEncryptionKeys},
+		{"LUKS", testLUKSDatastoreFunctions},
 		{"EnrollOrbit", testHostsEnrollOrbit},
 		{"EnrollUpdatesMissingInfo", testHostsEnrollUpdatesMissingInfo},
 		{"EncryptionKeyRawDecryption", testHostsEncryptionKeyRawDecryption},
@@ -6193,6 +6194,17 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, hSimple.ID, loadSimple.ID)
 	require.True(t, loadSimple.IsOsqueryEnrolled())
 
+	// make sure disk encryption state is reflected
+	require.Nil(t, loadSimple.DiskEncryptionEnabled)
+	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hSimple.ID, false))
+	loadSimple, err = ds.LoadHostByDeviceAuthToken(ctx, "simple", time.Second*3)
+	require.NoError(t, err)
+	require.False(t, *loadSimple.DiskEncryptionEnabled)
+	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hSimple.ID, true))
+	loadSimple, err = ds.LoadHostByDeviceAuthToken(ctx, "simple", time.Second*3)
+	require.NoError(t, err)
+	require.True(t, *loadSimple.DiskEncryptionEnabled)
+
 	// create a host that will be pending enrollment in Fleet MDM
 	hFleet := createHostWithDeviceToken("fleet")
 	err = ds.SetOrUpdateMDMData(ctx, hFleet.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "")
@@ -7807,6 +7819,101 @@ func checkEncryptionKeyStatus(t *testing.T, ds *Datastore, hostID uint, expected
 	require.Equal(t, expectedDecryptable, got.Decryptable)
 }
 
+func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host1, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		OsqueryHostID:   ptr.String("1"),
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	host2, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("2"),
+		UUID:            "2",
+		OsqueryHostID:   ptr.String("2"),
+		Hostname:        "foo.local2",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+	})
+	require.NoError(t, err)
+	host3, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("3"),
+		UUID:            "3",
+		OsqueryHostID:   ptr.String("3"),
+		Hostname:        "foo.local3",
+		PrimaryIP:       "192.168.1.3",
+		PrimaryMac:      "30-65-EC-6F-C4-60",
+	})
+	require.NoError(t, err)
+
+	// queue shows as pending
+	require.False(t, ds.IsHostPendingEscrow(ctx, host1.ID))
+	err = ds.QueueEscrow(ctx, host1.ID)
+	require.NoError(t, err)
+	require.False(t, ds.IsHostPendingEscrow(ctx, host2.ID))
+	require.True(t, ds.IsHostPendingEscrow(ctx, host1.ID))
+
+	// clear removes pending
+	err = ds.QueueEscrow(ctx, host2.ID)
+	require.NoError(t, err)
+	err = ds.ClearPendingEscrow(ctx, host1.ID)
+	require.NoError(t, err)
+	require.False(t, ds.IsHostPendingEscrow(ctx, host1.ID))
+	require.True(t, ds.IsHostPendingEscrow(ctx, host2.ID))
+
+	// report escrow error does not remove pending
+	err = ds.ReportEscrowError(ctx, host2.ID, "this broke")
+	require.NoError(t, err)
+	require.True(t, ds.IsHostPendingEscrow(ctx, host2.ID))
+	// TODO confirm error was persisted
+
+	// assert no key stored on hosts with varying no-key-stored states
+	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
+	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host2.ID))
+	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host3.ID))
+
+	// no change when blank key or salt attempted to save
+	err = ds.SaveLUKSData(ctx, host1.ID, "", "", 0)
+	require.Error(t, err)
+	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
+	err = ds.SaveLUKSData(ctx, host1.ID, "foo", "", 0)
+	require.Error(t, err)
+	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
+
+	// persists with passphrase and salt set
+	err = ds.SaveLUKSData(ctx, host2.ID, "bazqux", "fuzzmuffin", 0)
+	require.NoError(t, err)
+	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
+	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host2.ID))
+	key, err := ds.GetHostDiskEncryptionKey(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Equal(t, "bazqux", key.Base64Encrypted)
+
+	// persists when host hasn't had anything queued
+	err = ds.SaveLUKSData(ctx, host3.ID, "newstuff", "fuzzball", 1)
+	require.NoError(t, err)
+	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host3.ID))
+	key, err = ds.GetHostDiskEncryptionKey(ctx, host3.ID)
+	require.NoError(t, err)
+	require.Equal(t, "newstuff", key.Base64Encrypted)
+}
+
 func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -8061,6 +8168,11 @@ func testHostsGetUnverifiedDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	const (
+		computerName  = "My computer"
+		hardwareModel = "CMP-1000"
+	)
+
 	createHost := func(osqueryID, serial string) *fleet.Host {
 		dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 		var osqueryIDPtr *string
@@ -8075,6 +8187,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			DetailUpdatedAt:  dbZeroTime,
 			OsqueryHostID:    osqueryIDPtr,
 			RefetchRequested: true,
+			ComputerName:     computerName,
+			HardwareModel:    hardwareModel,
 		})
 		require.NoError(t, err)
 		return h
@@ -8112,10 +8226,19 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	h, err = ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
 		HardwareUUID:   *hBoth.OsqueryHostID,
 		HardwareSerial: hBoth.HardwareSerial,
+		ComputerName:   hBoth.ComputerName,
+		HardwareModel:  hBoth.HardwareModel,
 	}, uuid.New().String(), nil)
 	require.NoError(t, err)
 	require.Equal(t, hBoth.ID, h.ID)
-	require.Empty(t, h.HardwareSerial) // this is just to prove that it was loaded based on osquery_host_id, the serial was not set in the lookup
+	assert.Equal(t, hBoth.HardwareSerial, h.HardwareSerial)
+	assert.Equal(t, hBoth.ComputerName, h.ComputerName)
+	assert.Equal(t, hBoth.HardwareModel, h.HardwareModel)
+	h, err = ds.Host(ctx, h.ID)
+	require.NoError(t, err)
+	assert.Equal(t, hBoth.HardwareSerial, h.HardwareSerial)
+	assert.Equal(t, hBoth.ComputerName, h.ComputerName)
+	assert.Equal(t, hBoth.HardwareModel, h.HardwareModel)
 
 	// enroll with osquery id from hBoth and serial from hSerialNoOsquery (should
 	// use the osquery match)
@@ -8125,14 +8248,17 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	}, uuid.New().String(), nil)
 	require.NoError(t, err)
 	require.Equal(t, hBoth.ID, h.ID)
-	require.Empty(t, h.HardwareSerial)
+	assert.Equal(t, hSerialNoOsquery.HardwareSerial, h.HardwareSerial)
 
 	// enroll with no match, will create a new one
+	newSerial := uuid.NewString()
 	h, err = ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
 		HardwareUUID:   uuid.New().String(),
-		HardwareSerial: uuid.New().String(),
+		HardwareSerial: newSerial,
 		Hostname:       "foo2",
 		Platform:       "darwin",
+		ComputerName:   "New computer",
+		HardwareModel:  "ABC-3000",
 	}, uuid.New().String(), nil)
 	require.NoError(t, err)
 	require.Greater(t, h.ID, hBoth.ID)
@@ -8141,6 +8267,9 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "foo2", h.Hostname)
 	require.Equal(t, "darwin", h.Platform)
+	assert.Equal(t, "New computer", h.ComputerName)
+	assert.Equal(t, "ABC-3000", h.HardwareModel)
+	assert.Equal(t, newSerial, h.HardwareSerial)
 
 	// simulate a "corrupt database" where two hosts have the same serial and
 	// enroll by serial should always use the same (the smaller ID)

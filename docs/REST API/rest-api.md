@@ -2545,8 +2545,6 @@ the `software` table.
 | os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. (Note that software lists can be large, so this may cause significant CPU and RAM usage depending on page size and request concurrency.) |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host. |
-| populate_users     | boolean | query | If `true`, the response will include user data for each host. |
-| populate_labels     | boolean | query | If `true`, the response will include labels for each host. |
 
 > `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
 
@@ -2566,7 +2564,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
 
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true&populate_users=true&populate_labels=true`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true`
 
 ##### Request query parameters
 
@@ -2711,57 +2709,6 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
           "platform": "darwin",
           "response": "fail",
           "critical": false
-        }
-      ],
-      "users": [
-        {
-          "uid": 0,
-          "username": "root",
-          "type": "",
-          "groupname": "root",
-          "shell": "/bin/bash"
-        },
-        {
-          "uid": 1,
-          "username": "bin",
-          "type": "",
-          "groupname": "bin",
-          "shell": "/sbin/nologin"
-        }
-      ],
-      "labels": [
-        {
-          "created_at": "2021-08-19T02:02:17Z",
-          "updated_at": "2021-08-19T02:02:17Z",
-          "id": 6,
-          "name": "All Hosts",
-          "description": "All hosts which have enrolled in Fleet",
-          "query": "SELECT 1;",
-          "platform": "",
-          "label_type": "builtin",
-          "label_membership_type": "dynamic"
-        },
-        {
-          "created_at": "2021-08-19T02:02:17Z",
-          "updated_at": "2021-08-19T02:02:17Z",
-          "id": 9,
-          "name": "CentOS Linux",
-          "description": "All CentOS hosts",
-          "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
-          "platform": "",
-          "label_type": "builtin",
-          "label_membership_type": "dynamic"
-        },
-        {
-          "created_at": "2021-08-19T02:02:17Z",
-          "updated_at": "2021-08-19T02:02:17Z",
-          "id": 12,
-          "name": "All Linux",
-          "description": "All Linux distributions",
-          "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
-          "platform": "",
-          "label_type": "builtin",
-          "label_membership_type": "dynamic"
         }
       ]
     }
@@ -3243,6 +3190,8 @@ Returns the information of the specified host.
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
+
+> Note: `signature_information` is only set for macOS (.app) applications.
 
 > Note:
 > - `orbit_version: null` means this agent is not a fleetd agent
@@ -4363,9 +4312,16 @@ Resends a configuration profile for the specified host.
       "installed_versions": [
         {
           "version": "121.0",
+          "bundle_identifier": "com.google.Chrome",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
-          "installed_paths": ["/Applications/Google Chrome.app"]
+          "installed_paths": ["/Applications/Google Chrome.app"],
+          "signature_information": [
+            {
+              "installed_path": "/Applications/Google Chrome.app",
+              "team_identifier": "EQHXZ8M8AV"
+            }
+          ]
         }
       ]
     },
@@ -4405,9 +4361,16 @@ Resends a configuration profile for the specified host.
       "installed_versions": [
         {
           "version": "118.0",
+          "bundle_identifier": "com.apple.logic10",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-1234"],
-          "installed_paths": ["/Applications/Logic Pro.app"]
+          "installed_paths": ["/Applications/Logic Pro.app"],
+          "signature_information": [
+            {
+              "installed_path": "/Applications/Logic Pro.app",
+              "team_identifier": ""
+            }
+          ]
         }
       ]
     },

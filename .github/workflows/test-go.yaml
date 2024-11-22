@@ -186,9 +186,112 @@ jobs:
         name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-summary-test-log
         path: /tmp/summary.txt
 
+  # Based on https://github.com/micromdm/nanomdm/blob/main/.github/workflows/on-push-pr.yml#L87
+  test-go-nanomdm:
+    runs-on: 'ubuntu-latest'
+    services:
+      mysql:
+        image: mysql:8.0.36
+        env:
+          MYSQL_RANDOM_ROOT_PASSWORD: yes
+          MYSQL_DATABASE: testdb
+          MYSQL_USER: testuser
+          MYSQL_PASSWORD: testpw
+        ports:
+          - 3800:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=5s --health-timeout=2s --health-retries=3
+    env:
+      MYSQL_PWD: testpw
+      PORT: 3800
+      RACE_ENABLED: true
+      GO_TEST_TIMEOUT: 20m
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout Code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: Install Go
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+        with:
+          go-version-file: 'go.mod'
+
+      - name: verify mysql
+        run: |
+          while ! mysqladmin ping --host=localhost --port=$PORT --protocol=TCP --silent; do
+            sleep 1
+          done
+
+      - name: mysql schema
+        run: |
+          mysql --version
+          mysql --user=testuser --host=localhost --port=$PORT --protocol=TCP testdb < ./server/mdm/nanomdm/storage/mysql/schema.sql
+
+      - name: set test dsn
+        run: echo "NANOMDM_MYSQL_STORAGE_TEST_DSN=testuser:testpw@tcp(localhost:$PORT)/testdb" >> $GITHUB_ENV
+
+      - name: Run Go tests
+        run: |
+          go test -v -parallel 8 -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT \
+            -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/server/mdm/nanomdm/... \
+          ./server/mdm/nanomdm/storage/mysql 2>&1 | tee /tmp/gotest.log
+
+      - name: Save coverage
+        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
+        with:
+          name: nanomdm-coverage
+          path: ./coverage.txt
+          if-no-files-found: error
+
+      - name: Generate summary of errors
+        if: failure()
+        run: |
+          c1grep() { grep "$@" || test $? = 1; }
+          c1grep -oP 'FAIL: .*$' /tmp/gotest.log > /tmp/summary.txt
+          c1grep 'test timed out after' /tmp/gotest.log >> /tmp/summary.txt
+          c1grep 'fatal error:' /tmp/gotest.log >> /tmp/summary.txt
+          c1grep -A 10 'panic: runtime error: ' /tmp/gotest.log >> /tmp/summary.txt
+          c1grep ' FAIL\t' /tmp/gotest.log >> /tmp/summary.txt
+          GO_FAIL_SUMMARY=$(head -n 5 /tmp/summary.txt | sed ':a;N;$!ba;s/\n/\\n/g')
+          echo "GO_FAIL_SUMMARY=$GO_FAIL_SUMMARY"
+          if [[ -z "$GO_FAIL_SUMMARY" ]]; then
+            GO_FAIL_SUMMARY="unknown, please check the build URL"
+          fi
+          GO_FAIL_SUMMARY=$GO_FAIL_SUMMARY envsubst < .github/workflows/config/slack_payload_template.json > ./payload.json
+
+      - name: Slack Notification
+        if: github.event.schedule == '0 4 * * *' && failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload-file-path: ./payload.json
+        env:
+          JOB_STATUS: ${{ job.status }}
+          EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
+        with:
+          name: nanomdm-test-log
+          path: /tmp/gotest.log
+          if-no-files-found: error
+
+      - name: Upload summary test log
+        if: always()
+        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a  # v4.3.6
+        with:
+          name: nanomdm-summary-test-log
+          path: /tmp/summary.txt
+
   # We upload all backend coverage in one step so that we're less like to end up in a situation with a partial coverage report.
   upload-coverage:
-    needs: [test-go]
+    needs: [test-go, test-go-nanomdm]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
