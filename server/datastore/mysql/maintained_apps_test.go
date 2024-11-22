@@ -398,6 +398,7 @@ func testGetSoftwareTitleIdByAppID(t *testing.T, ds *Datastore) {
 		InstallScript:    "install",
 		UninstallScript:  "uninstall",
 	})
+	require.NoError(t, err)
 
 	installer, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
