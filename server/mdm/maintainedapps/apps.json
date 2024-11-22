@@ -35,6 +35,9 @@
     "identifier": "cloudflare-warp",
     "bundle_identifier": "com.cloudflare.1dot1dot1dot1.macos",
     "installer_format": "pkg",
+    "post_uninstall_scripts": [
+      "/Applications/Cloudflare\\ WARP.app/Contents/Resources/uninstall.sh"
+    ],
     "automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.cloudflare.1dot1dot1dot1.macos';"
   },
   {

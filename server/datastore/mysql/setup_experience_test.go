@@ -29,6 +29,7 @@ func TestSetupExperience(t *testing.T) {
 		{"ListSetupExperienceStatusResults", testSetupExperienceStatusResults},
 		{"SetupExperienceScriptCRUD", testSetupExperienceScriptCRUD},
 		{"TestHostInSetupExperience", testHostInSetupExperience},
+		{"TestGetSetupExperienceScriptByID", testGetSetupExperienceScriptByID},
 	}
 
 	for _, c := range cases {
@@ -675,7 +676,6 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.False(t, *titles[0].SoftwarePackage.InstallDuringSetup)
 	assert.False(t, *titles[1].SoftwarePackage.InstallDuringSetup)
 	assert.False(t, *titles[2].AppStoreApp.InstallDuringSetup)
-
 }
 
 func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
@@ -908,4 +908,29 @@ func testHostInSetupExperience(t *testing.T, ds *Datastore) {
 	inSetupExperience, err = ds.GetHostAwaitingConfiguration(ctx, "abc")
 	require.NoError(t, err)
 	require.False(t, inSetupExperience)
+}
+
+func testGetSetupExperienceScriptByID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	script := &fleet.Script{
+		Name:           "setup_experience_script",
+		ScriptContents: "echo hello",
+	}
+
+	err := ds.SetSetupExperienceScript(ctx, script)
+	require.NoError(t, err)
+
+	scriptByTeamID, err := ds.GetSetupExperienceScript(ctx, nil)
+	require.NoError(t, err)
+
+	gotScript, err := ds.GetSetupExperienceScriptByID(ctx, scriptByTeamID.ID)
+	require.NoError(t, err)
+
+	require.Equal(t, script.Name, gotScript.Name)
+	require.NotZero(t, gotScript.ScriptContentID)
+
+	b, err := ds.GetAnyScriptContents(ctx, gotScript.ScriptContentID)
+	require.NoError(t, err)
+	require.Equal(t, script.ScriptContents, string(b))
 }

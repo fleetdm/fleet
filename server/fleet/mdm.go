@@ -298,6 +298,7 @@ type MDMCommandFilters struct {
 type MDMPlatformsCounts struct {
 	MacOS   uint `db:"macos" json:"macos"`
 	Windows uint `db:"windows" json:"windows"`
+	Linux   uint `db:"linux" json:"linux"`
 }
 
 type MDMDiskEncryptionSummary struct {

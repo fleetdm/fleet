@@ -1413,6 +1413,7 @@ func (a *agent) orbitEnroll() error {
 		EnrollSecret:   a.EnrollSecret,
 		HardwareUUID:   a.UUID,
 		HardwareSerial: a.SerialNumber,
+		Hostname:       a.CachedString("hostname"),
 	}
 	jsonBytes, err := json.Marshal(params)
 	if err != nil {

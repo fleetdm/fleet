@@ -39,7 +39,6 @@ import (
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/stdlogfmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -52,6 +51,7 @@ import (
 	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
+	"github.com/micromdm/nanolib/log/stdlogfmt"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1523,7 +1523,6 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 					Enrollment:  mdm.Enrollment{UDID: hostUUID},
 					CommandUUID: commandUUID,
 					Status:      c.status,
-					RequestType: c.requestType,
 					ErrorChain:  c.errors,
 				},
 			)
@@ -1939,7 +1938,7 @@ func TestUpdateMDMAppleSettings(t *testing.T) {
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 			false,
 			nil,
-			ErrMissingLicense.Error(),
+			fleet.ErrMissingLicense.Error(),
 		},
 		{
 			"global admin premium",
@@ -1960,7 +1959,7 @@ func TestUpdateMDMAppleSettings(t *testing.T) {
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
 			false,
 			nil,
-			ErrMissingLicense.Error(),
+			fleet.ErrMissingLicense.Error(),
 		},
 		{
 			"global maintainer premium",
@@ -2037,7 +2036,7 @@ func TestUpdateMDMAppleSettings(t *testing.T) {
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 			false,
 			ptr.Uint(1),
-			ErrMissingLicense.Error(),
+			fleet.ErrMissingLicense.Error(),
 		},
 	}
 

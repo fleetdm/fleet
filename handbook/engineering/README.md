@@ -170,7 +170,7 @@ How to deploy a new release to dogfood:
 
 > Note that this action will not handle down migrations. Always deploy a newer version than is currently deployed.
 >
-> Note that "fleetdm/fleet:main" is not a image name, instead use the commit hash in place of "main".
+> Note that "fleetdm/fleet:main" is not an image name, instead use the commit hash in place of "main".
 
 
 ### Conclude current milestone 
@@ -205,7 +205,17 @@ Immediately after publishing a new release, we close out the associated GitHub i
 The [Fleet releases Google calendar](https://calendar.google.com/calendar/embed?src=c_v7943deqn1uns488a65v2d94bs%40group.calendar.google.com&ctz=America%2FChicago) is kept up-to-date by the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). Any change to targeted release dates is reflected on this calendar.
 
 
+### Handle process exceptions for non-released code
 
+Some of our code does not go through a scheduled release process, but is released immediately via GitHub workflows. 
+This includes:
+- Our [fleetdm/nvd](https://github.com/fleetdm/nvd) repository
+- Our [fleetdm/vulnerabilities](https://github.com/fleetdm/vulnerabilities) repository
+- Our [website](https://github.com/fleetdm/fleet/tree/main/website) directory
+
+In these cases there are two differences in our process:
+- QA is done before merging the code change to the main branch.
+- Tickets are not moved to "Ready for release". Bug are closed, and user stories are moved to the product drafting board's "Confirm and celebrate" column.
 
 
 ### Register a domain for Fleet
@@ -355,7 +365,7 @@ We use Cloudflare to manage the DNS records of fleetdm.com and our other domains
 
 The on-call developer is responsible for: 
 - Knowing [the on-call rotation](https://fleetdm.com/handbook/company/product-groups#the-developer-on-call-rotation).
-- Preforming the [on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities).
+- Performing the [on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities).
 - [Escalating community questions and issues](https://fleetdm.com/handbook/company/product-groups#escalations).
 - Successfully [transferring the on-call persona to the next developer](https://fleetdm.com/handbook/company/product-groups#changing-of-the-guard).
 

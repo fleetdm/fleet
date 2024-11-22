@@ -206,9 +206,21 @@ func (svc *Service) NewDistributedQueryCampaignByIdentifiers(ctx context.Context
 		return nil, ctxerr.Wrap(ctx, err, "finding host IDs")
 	}
 
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
 	labelMap, err := svc.ds.LabelIDsByName(ctx, labels)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "finding label IDs")
+	}
+
+	// DetectMissingLabels will return the list of labels that are not found in the database
+	// These labels are considered invalid
+	invalidLabels := fleet.DetectMissingLabels(labelMap, labels)
+	if len(invalidLabels) > 0 {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("%s %s.", fleet.InvalidLabelSpecifiedErrMsg, strings.Join(invalidLabels, ", ")),
+		}, "invalid labels")
 	}
 
 	var labelIDs []uint
