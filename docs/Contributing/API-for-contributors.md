@@ -3610,7 +3610,7 @@ _Available in Fleet Premium._
 | --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | team_name | string | query | The name of the team to add the software package to. Ommitting this parameter will add software to "No team". |
 | dry_run   | bool   | query | If `true`, will validate the provided VPP apps and return any validation errors, but will not apply the changes.                                                                         |
-| app_store_apps | list   | body  | An array of objects. Each object contains `app_store_id` and `self_service`. |
+| app_store_apps | list   | body  | An array of objects with . Each object contains `app_store_id` and `self_service`. |
 | app_store_apps.app_store_id | string   | body  | ID of the App Store app. |
 | app_store_apps.self_service | boolean   | body  | Whether the VPP app is "Self-service" or not. |
 | app_store_apps.labels_include_any | array   | body  | App will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
