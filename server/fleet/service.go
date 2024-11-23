@@ -1059,11 +1059,10 @@ type Service interface {
 	// Returns empty status if the host is not a supported Linux host
 	LinuxHostDiskEncryptionStatus(ctx context.Context, host Host) (HostMDMDiskEncryption, error)
 
-	// GetLinuxDiskEncryptionSummary summarizes the current state of disk encryption for
-	// supported Linux hosts in the specified team (or, if no team is specified, each host that is not assigned to any team).
-
-	// TODO - custom return type, or just use relevant fields?
-	GetLinuxDiskEncryptionSummary(ctx context.Context, teamId *uint) (MDMLinuxDiskEncryptionSummary, error)
+	// GetMDMLinuxProfilesSummary summarizes the current status of Linux disk encryption for
+	// the provided team (or hosts without a team if teamId is nil), or returns zeroes if disk
+	// encryption is not enforced on the selected team
+	GetMDMLinuxProfilesSummary(ctx context.Context, teamId *uint) (MDMProfilesSummary, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM

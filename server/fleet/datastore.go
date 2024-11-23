@@ -899,6 +899,7 @@ type Datastore interface {
 	GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error)
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error
 
+	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error)
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
 	// a host

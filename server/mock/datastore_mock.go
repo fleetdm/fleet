@@ -635,6 +635,8 @@ type GetHostEmailsFunc func(ctx context.Context, hostUUID string, source string)
 
 type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64) error
 
+type GetConfigEnableDiskEncryptionFunc func(ctx context.Context, teamID *uint) (bool, error)
+
 type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, encrypted bool) error
 
 type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint, encryptedBase64Key string, clientError string, decryptable *bool) error
@@ -2086,6 +2088,9 @@ type DataStore struct {
 
 	SetOrUpdateHostDisksSpaceFunc        SetOrUpdateHostDisksSpaceFunc
 	SetOrUpdateHostDisksSpaceFuncInvoked bool
+
+	GetConfigEnableDiskEncryptionFunc        GetConfigEnableDiskEncryptionFunc
+	GetConfigEnableDiskEncryptionFuncInvoked bool
 
 	SetOrUpdateHostDisksEncryptionFunc        SetOrUpdateHostDisksEncryptionFunc
 	SetOrUpdateHostDisksEncryptionFuncInvoked bool
@@ -5032,6 +5037,13 @@ func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, 
 	s.SetOrUpdateHostDisksSpaceFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetOrUpdateHostDisksSpaceFunc(ctx, hostID, gigsAvailable, percentAvailable, gigsTotal)
+}
+
+func (s *DataStore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error) {
+	s.mu.Lock()
+	s.GetConfigEnableDiskEncryptionFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetConfigEnableDiskEncryptionFunc(ctx, teamID)
 }
 
 func (s *DataStore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error {

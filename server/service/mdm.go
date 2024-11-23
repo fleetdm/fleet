@@ -936,23 +936,15 @@ func getMDMProfilesSummaryEndpoint(ctx context.Context, request interface{}, svc
 		return &getMDMProfilesSummaryResponse{Err: err}, nil
 	}
 
-	var lx fleet.MDMLinuxDiskEncryptionSummary
-	// since this endpoint is available for Free users as well, check license here to include Linux
-	// disk encryption counts which is a premium feature. Similar to
-	// `ds.GetMDMWindowsProfilesSummary`'s `includeBitLocker` check, except that Linux hosts don't
-	// have any non-premium data to contribute here, so we can check higher up.
-	license, _ := license.FromContext(ctx)
-	if license.IsPremium() {
-		lx, err = svc.GetLinuxDiskEncryptionSummary(ctx, req.TeamID)
-		if err != nil {
-			return &getMDMProfilesSummaryResponse{Err: err}, nil
-		}
+	ls, err := svc.GetMDMLinuxProfilesSummary(ctx, req.TeamID)
+	if err != nil {
+		return &getMDMProfilesSummaryResponse{Err: err}, nil
 	}
 
-	res.Verified = as.Verified + ws.Verified + lx.Verified
+	res.Verified = as.Verified + ws.Verified + ls.Verified
 	res.Verifying = as.Verifying + ws.Verifying
-	res.Failed = as.Failed + ws.Failed + lx.Failed
-	res.Pending = as.Pending + ws.Pending + lx.ActionRequired
+	res.Failed = as.Failed + ws.Failed + ls.Failed
+	res.Pending = as.Pending + ws.Pending + ls.Pending
 
 	return &res, nil
 }

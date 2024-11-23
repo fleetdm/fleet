@@ -1218,7 +1218,7 @@ func (ds *Datastore) applyHostFilters(
 		return "", nil, ctxerr.Wrap(ctx, err, "building query to filter macOS settings status")
 	}
 	sqlStmt, whereParams = filterHostsByMacOSDiskEncryptionStatus(sqlStmt, opt, whereParams)
-	if enableDiskEncryption, err := ds.getConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
+	if enableDiskEncryption, err := ds.GetConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", nil, ctxerr.Wrap(
 				ctx, &fleet.BadRequestError{

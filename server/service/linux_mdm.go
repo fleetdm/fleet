@@ -44,19 +44,27 @@ func (svc *Service) LinuxHostDiskEncryptionStatus(ctx context.Context, host flee
 	}, nil
 }
 
-func (svc *Service) GetLinuxDiskEncryptionSummary(ctx context.Context, teamId *uint) (fleet.MDMLinuxDiskEncryptionSummary, error) {
-	if err := svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamId}, fleet.ActionRead); err != nil {
-		return fleet.MDMLinuxDiskEncryptionSummary{}, ctxerr.Wrap(ctx, err)
+func (svc *Service) GetMDMLinuxProfilesSummary(ctx context.Context, teamId *uint) (summary fleet.MDMProfilesSummary, err error) {
+	if err = svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamId}, fleet.ActionRead); err != nil {
+		return summary, ctxerr.Wrap(ctx, err)
 	}
 
-	if svc.config.Server.PrivateKey == "" {
-		return fleet.MDMLinuxDiskEncryptionSummary{}, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
-	}
-
-	ps, err := svc.ds.GetLinuxDiskEncryptionSummary(ctx, teamId)
+	// Linux doesn't have configuration profiles, so if we aren't enforcing disk encryption we have nothing to report
+	includeDiskEncryptionStats, err := svc.ds.GetConfigEnableDiskEncryption(ctx, teamId)
 	if err != nil {
-		return fleet.MDMLinuxDiskEncryptionSummary{}, ctxerr.Wrap(ctx, err)
+		return summary, ctxerr.Wrap(ctx, err)
+	} else if !includeDiskEncryptionStats {
+		return summary, nil
 	}
 
-	return ps, nil
+	counts, err := svc.ds.GetLinuxDiskEncryptionSummary(ctx, teamId)
+	if err != nil {
+		return summary, ctxerr.Wrap(ctx, err)
+	}
+
+	return fleet.MDMProfilesSummary{
+		Verified: counts.Verified,
+		Pending:  counts.ActionRequired,
+		Failed:   counts.Failed,
+	}, nil
 }
