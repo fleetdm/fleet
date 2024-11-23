@@ -155,6 +155,7 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateHostDiskEncryptionKeys", testHostsSetOrUpdateHostDisksEncryptionKey},
 		{"SetHostsDiskEncryptionKeyStatus", testHostsSetDiskEncryptionKeyStatus},
 		{"GetUnverifiedDiskEncryptionKeys", testHostsGetUnverifiedDiskEncryptionKeys},
+		{"LUKS", testLUKSDatastoreFunctions},
 		{"EnrollOrbit", testHostsEnrollOrbit},
 		{"EnrollUpdatesMissingInfo", testHostsEnrollUpdatesMissingInfo},
 		{"EncryptionKeyRawDecryption", testHostsEncryptionKeyRawDecryption},
@@ -6193,6 +6194,17 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, hSimple.ID, loadSimple.ID)
 	require.True(t, loadSimple.IsOsqueryEnrolled())
 
+	// make sure disk encryption state is reflected
+	require.Nil(t, loadSimple.DiskEncryptionEnabled)
+	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hSimple.ID, false))
+	loadSimple, err = ds.LoadHostByDeviceAuthToken(ctx, "simple", time.Second*3)
+	require.NoError(t, err)
+	require.False(t, *loadSimple.DiskEncryptionEnabled)
+	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hSimple.ID, true))
+	loadSimple, err = ds.LoadHostByDeviceAuthToken(ctx, "simple", time.Second*3)
+	require.NoError(t, err)
+	require.True(t, *loadSimple.DiskEncryptionEnabled)
+
 	// create a host that will be pending enrollment in Fleet MDM
 	hFleet := createHostWithDeviceToken("fleet")
 	err = ds.SetOrUpdateMDMData(ctx, hFleet.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "")
@@ -7805,6 +7817,101 @@ func checkEncryptionKeyStatus(t *testing.T, ds *Datastore, hostID uint, expected
 	require.NoError(t, err)
 	require.Equal(t, expectedKey, got.Base64Encrypted)
 	require.Equal(t, expectedDecryptable, got.Decryptable)
+}
+
+func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host1, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		OsqueryHostID:   ptr.String("1"),
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	host2, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("2"),
+		UUID:            "2",
+		OsqueryHostID:   ptr.String("2"),
+		Hostname:        "foo.local2",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+	})
+	require.NoError(t, err)
+	host3, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("3"),
+		UUID:            "3",
+		OsqueryHostID:   ptr.String("3"),
+		Hostname:        "foo.local3",
+		PrimaryIP:       "192.168.1.3",
+		PrimaryMac:      "30-65-EC-6F-C4-60",
+	})
+	require.NoError(t, err)
+
+	// queue shows as pending
+	require.False(t, ds.IsHostPendingEscrow(ctx, host1.ID))
+	err = ds.QueueEscrow(ctx, host1.ID)
+	require.NoError(t, err)
+	require.False(t, ds.IsHostPendingEscrow(ctx, host2.ID))
+	require.True(t, ds.IsHostPendingEscrow(ctx, host1.ID))
+
+	// clear removes pending
+	err = ds.QueueEscrow(ctx, host2.ID)
+	require.NoError(t, err)
+	err = ds.ClearPendingEscrow(ctx, host1.ID)
+	require.NoError(t, err)
+	require.False(t, ds.IsHostPendingEscrow(ctx, host1.ID))
+	require.True(t, ds.IsHostPendingEscrow(ctx, host2.ID))
+
+	// report escrow error does not remove pending
+	err = ds.ReportEscrowError(ctx, host2.ID, "this broke")
+	require.NoError(t, err)
+	require.True(t, ds.IsHostPendingEscrow(ctx, host2.ID))
+	// TODO confirm error was persisted
+
+	// assert no key stored on hosts with varying no-key-stored states
+	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
+	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host2.ID))
+	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host3.ID))
+
+	// no change when blank key or salt attempted to save
+	err = ds.SaveLUKSData(ctx, host1.ID, "", "", 0)
+	require.Error(t, err)
+	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
+	err = ds.SaveLUKSData(ctx, host1.ID, "foo", "", 0)
+	require.Error(t, err)
+	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
+
+	// persists with passphrase and salt set
+	err = ds.SaveLUKSData(ctx, host2.ID, "bazqux", "fuzzmuffin", 0)
+	require.NoError(t, err)
+	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
+	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host2.ID))
+	key, err := ds.GetHostDiskEncryptionKey(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Equal(t, "bazqux", key.Base64Encrypted)
+
+	// persists when host hasn't had anything queued
+	err = ds.SaveLUKSData(ctx, host3.ID, "newstuff", "fuzzball", 1)
+	require.NoError(t, err)
+	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host3.ID))
+	key, err = ds.GetHostDiskEncryptionKey(ctx, host3.ID)
+	require.NoError(t, err)
+	require.Equal(t, "newstuff", key.Base64Encrypted)
 }
 
 func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {

@@ -2440,6 +2440,7 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
+      hd.encrypted as disk_encryption_enabled,
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
     FROM
       host_device_auth hda
@@ -3819,6 +3820,60 @@ ON DUPLICATE KEY UPDATE
 	return err
 }
 
+func (ds *Datastore) SaveLUKSData(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error {
+	if encryptedBase64Passphrase == "" || encryptedBase64Salt == "" { // should have been caught at service level
+		return errors.New("passphrase and salt must be set")
+	}
+
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO host_disk_encryption_keys
+  (host_id, base64_encrypted, base64_encrypted_salt, key_slot, client_error, decryptable)
+VALUES
+  (?, ?, ?, ?, '', TRUE)
+ON DUPLICATE KEY UPDATE
+  decryptable = TRUE,
+  base64_encrypted = VALUES(base64_encrypted),
+  base64_encrypted_salt = VALUES(base64_encrypted_salt),
+  key_slot = VALUES(key_slot),
+  client_error = ''
+`, hostID, encryptedBase64Passphrase, encryptedBase64Salt, keySlot)
+	return err
+}
+func (ds *Datastore) IsHostPendingEscrow(ctx context.Context, hostID uint) bool {
+	var pendingEscrowCount uint
+	_ = sqlx.GetContext(ctx, ds.reader(ctx), &pendingEscrowCount, `
+          SELECT COUNT(*) FROM host_disk_encryption_keys WHERE host_id = ? AND reset_requested = TRUE`, hostID)
+	return pendingEscrowCount > 0
+}
+func (ds *Datastore) ClearPendingEscrow(ctx context.Context, hostID uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE host_disk_encryption_keys SET reset_requested = FALSE WHERE host_id = ?`, hostID)
+	return err
+}
+func (ds *Datastore) ReportEscrowError(ctx context.Context, hostID uint, errorMessage string) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO host_disk_encryption_keys
+  (host_id, base64_encrypted, client_error) VALUES (?, '', ?) ON DUPLICATE KEY UPDATE client_error = VALUES(client_error)
+`, hostID, errorMessage)
+	return err
+}
+func (ds *Datastore) QueueEscrow(ctx context.Context, hostID uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO host_disk_encryption_keys
+  (host_id, base64_encrypted, reset_requested) VALUES (?, '', TRUE) ON DUPLICATE KEY UPDATE reset_requested = TRUE
+`, hostID)
+	return err
+}
+func (ds *Datastore) AssertHasNoEncryptionKeyStored(ctx context.Context, hostID uint) error {
+	var hasKeyCount uint
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasKeyCount, `
+          SELECT COUNT(*) FROM host_disk_encryption_keys WHERE host_id = ? AND base64_encrypted != ''`, hostID)
+	if hasKeyCount > 0 {
+		return &fleet.BadRequestError{Message: "Key has already been escrowed for this host"}
+	}
+
+	return err
+}
+
 func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
 	// NOTE(mna): currently we only verify encryption keys for macOS,
 	// Windows/bitlocker uses a different approach where orbit sends the
@@ -3868,7 +3923,7 @@ func (ds *Datastore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) 
 	var key fleet.HostDiskEncryptionKey
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &key, `
           SELECT
-            host_id, base64_encrypted, decryptable, updated_at
+            host_id, base64_encrypted, decryptable, updated_at, client_error
           FROM
             host_disk_encryption_keys
           WHERE host_id = ?`, hostID)

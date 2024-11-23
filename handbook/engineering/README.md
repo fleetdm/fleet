@@ -205,7 +205,17 @@ Immediately after publishing a new release, we close out the associated GitHub i
 The [Fleet releases Google calendar](https://calendar.google.com/calendar/embed?src=c_v7943deqn1uns488a65v2d94bs%40group.calendar.google.com&ctz=America%2FChicago) is kept up-to-date by the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). Any change to targeted release dates is reflected on this calendar.
 
 
+### Handle process exceptions for non-released code
 
+Some of our code does not go through a scheduled release process, but is released immediately via GitHub workflows. 
+This includes:
+- Our [fleetdm/nvd](https://github.com/fleetdm/nvd) repository
+- Our [fleetdm/vulnerabilities](https://github.com/fleetdm/vulnerabilities) repository
+- Our [website](https://github.com/fleetdm/fleet/tree/main/website) directory
+
+In these cases there are two differences in our process:
+- QA is done before merging the code change to the main branch.
+- Tickets are not moved to "Ready for release". Bug are closed, and user stories are moved to the product drafting board's "Confirm and celebrate" column.
 
 
 ### Register a domain for Fleet
@@ -459,6 +469,11 @@ Beginning with macOS 16, Fleet will offer same-day support for all major version
 4. Confirm all automated tests are passing.
 5. [File bugs](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=P1%2Cbug%2C%3Areproduce%2C%3Aincoming&projects=&template=bug-report.md&title=) with a `P1` label and assign to the appropriate [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups).
 6. When all bugs are fixed, follow the [writing a feature guide](https://fleetdm.com/handbook/engineering#write-a-feature-guide) process to publish an article announcing Fleet same-day support for the new major release.
+
+
+### Maintain TUF repo for secure agent updates
+
+Instructions for creating and maintaining a TUF repo are available on our [TUF handbook page](https://fleetdm.com/handbook/engineering/tuf). 
 
 
 ## Rituals

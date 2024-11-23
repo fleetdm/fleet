@@ -274,6 +274,7 @@ CREATE TABLE nano_cert_auth_associations (
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    cert_not_valid_after timestamp NULL DEFAULT NULL,
 
     PRIMARY KEY (id, sha256),
 

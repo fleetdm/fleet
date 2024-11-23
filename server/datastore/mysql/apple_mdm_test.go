@@ -90,6 +90,7 @@ func TestMDMApple(t *testing.T) {
 		{"HostMDMCommands", testHostMDMCommands},
 		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
 		{"MDMManagedCertificates", testMDMManagedCertificates},
+		{"AppleMDMSetBatchAsyncLastSeenAt", testAppleMDMSetBatchAsyncLastSeenAt},
 		{"TestMDMAppleProfileLabels", testMDMAppleProfileLabels},
 	}
 
@@ -2975,7 +2976,6 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: uuid2,
 		Status:      "Acknowledged",
-		RequestType: "ProfileList",
 		Raw:         []byte(rawCmd2),
 	})
 	require.NoError(t, err)
@@ -3005,7 +3005,6 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: uuid2,
 		Status:      "Error",
-		RequestType: "ProfileList",
 		Raw:         []byte(rawCmd2),
 	})
 	require.NoError(t, err)
@@ -3306,7 +3305,6 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: uuid1,
 		Status:      "Acknowledged",
-		RequestType: "ListApps",
 		Raw:         []byte(rawCmd1),
 	})
 	require.NoError(t, err)
@@ -3347,7 +3345,6 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: uuid1,
 		Status:      "Error",
-		RequestType: "ListApps",
 		Raw:         []byte(rawCmd1),
 	})
 	require.NoError(t, err)
@@ -3394,7 +3391,6 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: uuid2,
 		Status:      "Acknowledged",
-		RequestType: "InstallApp",
 		Raw:         []byte(rawCmd2),
 	})
 	require.NoError(t, err)
@@ -3404,7 +3400,6 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: uuid2,
 		Status:      "Acknowledged",
-		RequestType: "InstallApp",
 		Raw:         []byte(rawCmd2),
 	})
 	require.NoError(t, err)
@@ -4765,7 +4760,6 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: cmd.CommandUUID,
 		Status:      "Acknowledged",
-		RequestType: "DeviceLock",
 		Raw:         cmd.Raw,
 	})
 	require.NoError(t, err)
@@ -4818,7 +4812,6 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: cmd.CommandUUID,
 		Status:      "Error",
-		RequestType: cmd.Command.RequestType,
 		Raw:         cmd.Raw,
 	})
 	require.NoError(t, err)
@@ -4852,7 +4845,6 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: cmd.CommandUUID,
 		Status:      "Acknowledged",
-		RequestType: cmd.Command.RequestType,
 		Raw:         cmd.Raw,
 	})
 	require.NoError(t, err)
@@ -6188,7 +6180,6 @@ func testGetHostUUIDsWithPendingMDMAppleCommands(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: uuid1,
 		Status:      "Acknowledged",
-		RequestType: "ProfileList",
 		Raw:         []byte(rawCmd1),
 	})
 	require.NoError(t, err)
@@ -7231,6 +7222,76 @@ func testMDMManagedCertificates(t *testing.T, ds *Datastore) {
 			badProfileUUID)
 	})
 	require.ErrorIs(t, err, sql.ErrNoRows)
+}
+
+func testAppleMDMSetBatchAsyncLastSeenAt(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create some hosts, all enrolled
+	enrolledHosts := make([]*fleet.Host, 2)
+	for i := 0; i < len(enrolledHosts); i++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      fmt.Sprintf("test-host%d-name", i),
+			OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
+			NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i)),
+			UUID:          fmt.Sprintf("test-uuid-%d", i),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, false)
+		enrolledHosts[i] = h
+		t.Logf("enrolled host [%d]: %s", i, h.UUID)
+	}
+
+	getHostLastSeenAt := func(h *fleet.Host) time.Time {
+		var lastSeenAt time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &lastSeenAt, `SELECT last_seen_at FROM nano_enrollments WHERE device_id = ?`, h.UUID)
+		})
+		return lastSeenAt
+	}
+
+	storage, err := ds.NewTestMDMAppleMDMStorage(2, 5*time.Second)
+	require.NoError(t, err)
+	commander := apple_mdm.NewMDMAppleCommander(storage, pusherFunc(okPusherFunc))
+
+	// enqueue a command for a couple of enrolled hosts
+	uuid1 := uuid.NewString()
+	rawCmd1 := createRawAppleCmd("ProfileList", uuid1)
+	err = commander.EnqueueCommand(ctx, []string{enrolledHosts[0].UUID, enrolledHosts[1].UUID}, rawCmd1)
+	require.NoError(t, err)
+
+	// at this point, last_seen_at is still the original value
+	ts1, ts2 := getHostLastSeenAt(enrolledHosts[0]), getHostLastSeenAt(enrolledHosts[1])
+
+	time.Sleep(time.Second + time.Millisecond) // ensure a distinct mysql timestamp
+
+	// simulate a result for enrolledHosts[0]
+	err = storage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: enrolledHosts[0].UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: uuid1,
+		Status:      "Acknowledged",
+		Raw:         []byte(rawCmd1),
+	})
+	require.NoError(t, err)
+
+	// simulate a result for enrolledHosts[1]
+	err = storage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: enrolledHosts[1].UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: uuid1,
+		Status:      "Error",
+		Raw:         []byte(rawCmd1),
+	})
+	require.NoError(t, err)
+
+	// timestamps should've been updated
+	ts1b, ts2b := getHostLastSeenAt(enrolledHosts[0]), getHostLastSeenAt(enrolledHosts[1])
+	require.True(t, ts1b.After(ts1))
+	require.True(t, ts2b.After(ts2))
 }
 
 func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {

@@ -608,7 +608,7 @@
 #   ║║║╣ ╚╗╔╝║║  ║╣   ╠╦╝║╣ ║║║║╣  ║║║╠═╣ ║ ║║ ║║║║
 #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩╚═╚═╝╩ ╩╚═╝═╩╝╩╩ ╩ ╩ ╩╚═╝╝╚╝
 - industryName: Device remediation
-  description: Use Fleet Policies to detect the device state. Automate remediations for issues or allow users to remediate problems in self-service.
+  description: Use Fleet Policies to detect the device state. Automate remediations for issues or allow users to remediate problems in self-service (Fleet Desktop > My device page).
   documentationUrl: https://fleetdm.com/securing/end-user-self-remediation # « NOTE: This link will change when auto-remediation is delivered.
   tier: Premium
   jamfProHasFeature: yes

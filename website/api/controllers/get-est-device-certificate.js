@@ -83,11 +83,11 @@ module.exports = {
       throw 'invalidToken';
     }
 
-    if (!introspectResponse.body.active) {
+    const introspectBody = JSON.parse(introspectResponse.body);
+    if (!introspectBody.active) {
       throw 'invalidToken';
     }
-
-    const introspectUsername = introspectResponse.body.username;
+    const introspectUsername = introspectBody.username;
 
     // Extract the email and username from the CSR. Ensure they match.
     let jsrsasign = require('jsrsasign');
