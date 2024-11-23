@@ -1,14 +1,17 @@
 import React, { useCallback, useState } from "react";
 
+import { NotificationContext } from "context/notification";
+
 import { IFormField } from "interfaces/form_field";
+import { IPkiConfig, IPkiTemplate } from "interfaces/pki";
+
+import pkiApi from "services/entities/pki";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import TooltipWrapper from "components/TooltipWrapper";
-
-import { IPkiConfig, IPkiTemplate } from "interfaces/pki";
 
 const baseClass = "pki-edit-template-modal";
 
@@ -39,6 +42,37 @@ const TEMPLATE_HELP_TEXT: Record<
     "Certificates delivered to your hosts using will be assgined to this seat ID in DigiCert.",
 };
 
+// TODO: we should revisit this in design after the PoC
+const flattenTemplate = (template: IPkiTemplate | undefined) => {
+  if (!template) {
+    return {
+      profile_id: "",
+      name: "",
+      common_name: "",
+      san: "",
+      seat_id: "",
+    };
+  }
+  return {
+    profile_id: template.profile_id.toString(),
+    name: template.name,
+    common_name: template.common_name,
+    san: template.san.user_principal_names[0],
+    seat_id: template.seat_id,
+  };
+};
+
+// TODO: we should revisit this in design after the PoC
+const unflattenTemplate = (formData: Record<keyof IPkiTemplate, string>) => {
+  return {
+    profile_id: formData.profile_id,
+    name: formData.name,
+    common_name: formData.common_name,
+    san: { user_principal_names: [formData.san] },
+    seat_id: formData.seat_id,
+  };
+};
+
 const EditTemplateModal = ({
   pkiConfig,
   onCancel,
@@ -48,14 +82,10 @@ const EditTemplateModal = ({
   onCancel: () => void;
   onSuccess: () => void;
 }) => {
-  const [formData, setFormData] = useState<IPkiTemplate>(
-    pkiConfig.templates[0] || {
-      profile_id: "",
-      name: "",
-      common_name: "",
-      san: "",
-      seat_id: "",
-    }
+  const { renderFlash } = React.useContext(NotificationContext);
+
+  const [formData, setFormData] = useState<Record<keyof IPkiTemplate, string>>(
+    flattenTemplate(pkiConfig.templates[0])
   );
   const [formErrors, setFormErrors] = useState<IFormErrors>({});
 
@@ -65,40 +95,20 @@ const EditTemplateModal = ({
   };
 
   const onSubmit = useCallback(async () => {
-    // validate
-    const errors: IFormErrors = {};
+    // TODO: validations
 
-    if (!formData.profile_id) {
-      errors.profile_id = "Profile ID is required";
+    // TODO: how do we handle multiple array elements at top-level (i.e. certs by pki_name) and at cert-level
+    // (templates by template name)?
+
+    try {
+      await pkiApi.addTemplate(pkiConfig.pki_name, unflattenTemplate(formData));
+      onSuccess();
+    } catch {
+      renderFlash("error", "Could not save template");
     }
+  }, [formData, onSuccess, pkiConfig.pki_name, renderFlash]);
 
-    if (!formData.name) {
-      errors.name = "Name is required";
-    }
-
-    if (!formData.common_name) {
-      errors.common_name = "Common name is required";
-    }
-
-    if (!formData.san) {
-      errors.san = "Subject alternative name is required";
-    }
-
-    if (!formData.seat_id) {
-      errors.seat_id = "Seat ID is required";
-    }
-
-    if (Object.keys(errors).length) {
-      setFormErrors(errors);
-      return;
-    }
-
-    // save
-    console.log("Save", formData);
-    onSuccess();
-  }, [formData, onSuccess]);
-
-  const disableInput = !pkiConfig.templates.length;
+  const disableInput = !!pkiConfig.templates.length;
   const disableSave = Object.values(formData).some((v) => !v);
 
   const isSaving = false;
@@ -137,7 +147,7 @@ const EditTemplateModal = ({
           <InputField
             inputWrapperClass={`${baseClass}__admin-url-input`}
             label="Certificate common name (CN)"
-            name="coomon_name"
+            name="common_name"
             value={formData.common_name}
             onChange={onInputChange}
             parseTarget

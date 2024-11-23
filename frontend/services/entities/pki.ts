@@ -1,9 +1,13 @@
-import { IPkiTemplate } from "interfaces/pki";
+import { IPkiCert, IPkiConfig, IPkiTemplate } from "interfaces/pki";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
+export interface IPkiListCertsResponse {
+  certificates: IPkiCert[];
+}
+
 const pkiServive = {
-  listCerts: () => {
+  listCerts: (): Promise<IPkiListCertsResponse> => {
     return sendRequest("GET", endpoints.PKI);
   },
 
@@ -20,6 +24,7 @@ const pkiServive = {
     return sendRequest("POST", path, formData);
   },
 
+  // TODO: when cert is deleted should the backend also update app config to delete the associated integrations/templates
   deleteCert: (pkiName: string) => {
     const path = `${endpoints.PKI}/${pkiName}`;
     return sendRequest("DELETE", path);
@@ -36,7 +41,7 @@ const pkiServive = {
       integrations: {
         digicert_pki: [
           {
-            name: pkiName,
+            pki_name: pkiName,
             templates: [template],
           },
         ],

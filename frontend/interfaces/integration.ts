@@ -1,3 +1,5 @@
+import { IPkiConfig } from "./pki";
+
 export type IIntegrationType = "jira" | "zendesk";
 export interface IJiraIntegration {
   url: string;
@@ -92,6 +94,7 @@ export interface IZendeskJiraIntegrations {
 export interface IGlobalIntegrations extends IZendeskJiraIntegrations {
   google_calendar?: IGlobalCalendarIntegration[] | null;
   ndes_scep_proxy?: IScepIntegration | null;
+  digicert_pki?: IPkiConfig[] | null;
 }
 
 export interface ITeamIntegrations extends IZendeskJiraIntegrations {

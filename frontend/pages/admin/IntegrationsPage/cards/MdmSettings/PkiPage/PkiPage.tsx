@@ -1,5 +1,10 @@
-import React, { useCallback, useContext, useRef, useState } from "react";
-import { noop } from "lodash";
+import React, {
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
@@ -10,7 +15,11 @@ import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
 
-import { IPkiConfig } from "interfaces/pki";
+import { IConfig } from "interfaces/config";
+import { IPkiCert, IPkiConfig } from "interfaces/pki";
+
+import configApi from "services/entities/config";
+import pkiApi, { IPkiListCertsResponse } from "services/entities/pki";
 
 import BackLink from "components/BackLink";
 import Button from "components/buttons/Button";
@@ -53,42 +62,56 @@ const PkiPage = ({ router }: { router: InjectedRouter }) => {
   const selectedPki = useRef<IPkiConfig | null>(null);
 
   const {
-    data: pkiConfigs,
-    error: errorPkiConfigs,
+    data: pkiCerts,
+    error: errorCerts,
     isLoading,
     isRefetching,
-    refetch,
-  } = useQuery<IPkiConfig[], AxiosError>(
-    ["pkiConfigs"],
-    () =>
-      Promise.resolve([
-        {
-          name: "test_config",
-          templates: [
-            {
-              profile_id: 1,
-              name: "test",
-              common_name: "test",
-              san: "test",
-              seat_id: "test",
-            },
-          ],
-        },
-      ]),
+    refetch: refetchCerts,
+  } = useQuery<IPkiListCertsResponse, AxiosError, IPkiCert[]>(
+    ["pki_certs"],
+    () => pkiApi.listCerts(),
     {
       refetchOnWindowFocus: false,
-      retry: (tries, error) =>
-        error.status !== 404 && error.status !== 400 && tries <= 3,
+      select: (data) => data.certificates,
       enabled: isPremiumTier,
     }
   );
+
+  const {
+    data: pkiConfigs,
+    error: errorConfigs,
+    isLoading: isLoadingConfigs,
+    isRefetching: isRefetchingConfigs,
+    refetch: refetchConfigs,
+  } = useQuery<IConfig, AxiosError, IPkiConfig[]>(
+    ["digicert_pki"],
+    () => configApi.loadAll(),
+    {
+      refetchOnWindowFocus: false,
+      select: (data) => data.integrations.digicert_pki || [], // TODO: handle no value
+      enabled: isPremiumTier,
+    }
+  );
+
+  const tableData = useMemo(() => {
+    const dict: Record<string, IPkiConfig> = {};
+    pkiConfigs?.forEach((pki) => {
+      dict[pki.pki_name] = pki;
+    });
+    pkiCerts?.forEach((pki) => {
+      if (!dict[pki.name]) {
+        dict[pki.name] = { pki_name: pki.name, templates: [] };
+      }
+    });
+    return Object.values(dict);
+  }, [pkiConfigs, pkiCerts]);
 
   const onAdd = () => {
     setShowAddPkiModal(true);
   };
 
   const onAdded = () => {
-    refetch();
+    refetchCerts();
     setShowAddPkiModal(false);
   };
 
@@ -104,9 +127,9 @@ const PkiPage = ({ router }: { router: InjectedRouter }) => {
 
   const onEditedTemplate = useCallback(() => {
     selectedPki.current = null;
-    refetch();
+    refetchConfigs();
     setShowEditTemplateModal(false);
-  }, [refetch]);
+  }, [refetchConfigs]);
 
   const onDelete = (pkiConfig: IPkiConfig) => {
     selectedPki.current = pkiConfig;
@@ -120,15 +143,16 @@ const PkiPage = ({ router }: { router: InjectedRouter }) => {
 
   const onDeleted = useCallback(() => {
     selectedPki.current = null;
-    refetch();
+    refetchCerts();
+    refetchConfigs();
     setShowDeleteModal(false);
-  }, [refetch]);
+  }, [refetchCerts, refetchConfigs]);
 
-  if (isLoading || isRefetching) {
-    return <Spinner />;
-  }
+  // if (isLoading || isRefetching || isLoadingConfigs || isRefetchingConfigs) {
+  //   return <Spinner />;
+  // }
 
-  const showDataError = errorPkiConfigs && errorPkiConfigs.status !== 404;
+  const showDataError = errorCerts || errorConfigs;
 
   const renderContent = () => {
     if (!isPremiumTier) {
@@ -146,7 +170,7 @@ const PkiPage = ({ router }: { router: InjectedRouter }) => {
       );
     }
 
-    if (isLoading) {
+    if (isLoading || isRefetching || isLoadingConfigs || isRefetchingConfigs) {
       return <Spinner />;
     }
 
@@ -159,7 +183,7 @@ const PkiPage = ({ router }: { router: InjectedRouter }) => {
       );
     }
 
-    if (!pkiConfigs?.length) {
+    if (!pkiCerts?.length) {
       return <AddPkiMessage onAddPki={onAdd} />;
     }
 
@@ -167,7 +191,7 @@ const PkiPage = ({ router }: { router: InjectedRouter }) => {
       <>
         <p>To help your end users connect to Wi-Fi, you can add your PKI.</p>
         <PkiTable
-          data={pkiConfigs}
+          data={tableData}
           onEdit={onEditTemplate}
           onDelete={onDelete}
         />
@@ -187,7 +211,7 @@ const PkiPage = ({ router }: { router: InjectedRouter }) => {
           <div className={`${baseClass}__page-header-section`}>
             <h1>Public key infrastructure (PKI)</h1>
             {isPremiumTier &&
-              pkiConfigs?.length !== 0 &&
+              !!pkiCerts?.length &&
               !!config?.mdm.enabled_and_configured && (
                 <Button variant="brand" onClick={onAdd}>
                   Add PKI

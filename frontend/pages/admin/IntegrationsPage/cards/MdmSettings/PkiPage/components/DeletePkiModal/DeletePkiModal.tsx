@@ -17,7 +17,7 @@ interface IDeletePkiModalProps {
 }
 
 const DeletePkiModal = ({
-  pkiConfig: { name },
+  pkiConfig: { pki_name: name },
   onCancel,
   onDeleted,
 }: IDeletePkiModalProps) => {

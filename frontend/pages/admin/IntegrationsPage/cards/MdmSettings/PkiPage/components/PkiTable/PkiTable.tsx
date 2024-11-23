@@ -10,25 +10,19 @@ const baseClass = "pki-table";
 
 interface IPkiTableProps {
   data: IPkiConfig[];
-  // onEditTokenTeam: (token: IPkiConfig) => void;
   onEdit: (pkiConfig: IPkiConfig) => void;
   onDelete: (pkiConfig: IPkiConfig) => void;
 }
 
-const PkiTable = ({
-  data,
-  // onEditTokenTeam,
-  onEdit,
-  onDelete,
-}: IPkiTableProps) => {
+const PkiTable = ({ data, onEdit, onDelete }: IPkiTableProps) => {
   const onSelectAction = (action: string, pkiConfig: IPkiConfig) => {
     switch (action) {
       case "view_template":
         onEdit(pkiConfig);
         break;
-      // case "add_template":
-      //   onRenewToken(pkiConfig);
-      //   break;
+      case "add_template":
+        onEdit(pkiConfig);
+        break;
       case "delete":
         onDelete(pkiConfig);
         break;
