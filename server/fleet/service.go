@@ -1063,7 +1063,7 @@ type Service interface {
 	// supported Linux hosts in the specified team (or, if no team is specified, each host that is not assigned to any team).
 
 	// TODO - custom return type, or just use relevant fields?
-	GetLinuxDiskEncryptionSummary(ctx context.Context, teamId *uint) (*MDMLinuxDiskEncryptionSummary, error)
+	GetLinuxDiskEncryptionSummary(ctx context.Context, teamId *uint) (MDMLinuxDiskEncryptionSummary, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM
