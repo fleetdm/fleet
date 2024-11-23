@@ -1609,10 +1609,19 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return ctxerr.Wrap(ctx, err, "getting host info for mdm apple remove profile command")
 	}
 
-	if h.Platform == "ios" || h.Platform == "ipados" {
+	switch h.Platform {
+	case "ios":
+		fallthrough
+	case "ipados":
 		return &fleet.BadRequestError{
-			Message: "Can't turn off MDM for iOS or iPadOS hosts. Use wipe instead.",
+			Message: fleet.CantTurnOffMDMForIOSOrIPadOSMessage,
 		}
+	case "windows":
+		return &fleet.BadRequestError{
+			Message: fleet.CantTurnOffMDMForWindowsHostsMessage,
+		}
+	default:
+		// host is darwin, so continue
 	}
 
 	info, err := svc.ds.GetHostMDMCheckinInfo(ctx, h.UUID)
