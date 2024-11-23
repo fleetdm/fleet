@@ -907,7 +907,8 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// GET /mdm/profiles/summary
+// GET /mdm/profiles/summary (deprecated)
+// GET /configuration_profiles/summary
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMProfilesSummaryRequest struct {
@@ -935,10 +936,15 @@ func getMDMProfilesSummaryEndpoint(ctx context.Context, request interface{}, svc
 		return &getMDMProfilesSummaryResponse{Err: err}, nil
 	}
 
-	res.Verified = as.Verified + ws.Verified
+	lx, err := svc.GetLinuxDiskEncryptionSummary(ctx, req.TeamID)
+	if err != nil {
+		return &getMDMProfilesSummaryResponse{Err: err}, nil
+	}
+
+	res.Verified = as.Verified + ws.Verified + lx.Verified
 	res.Verifying = as.Verifying + ws.Verifying
-	res.Failed = as.Failed + ws.Failed
-	res.Pending = as.Pending + ws.Pending
+	res.Failed = as.Failed + ws.Failed + lx.Failed
+	res.Pending = as.Pending + ws.Pending + lx.ActionRequired
 
 	return &res, nil
 }

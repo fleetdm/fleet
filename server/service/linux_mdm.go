@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -41,4 +42,21 @@ func (svc *Service) LinuxHostDiskEncryptionStatus(ctx context.Context, host flee
 	return fleet.HostMDMDiskEncryption{
 		Status: &verified,
 	}, nil
+}
+
+func (svc *Service) GetLinuxDiskEncryptionSummary(ctx context.Context, teamId *uint) (*fleet.MDMLinuxDiskEncryptionSummary, error) {
+	if err := svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamId}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	if svc.config.Server.PrivateKey == "" {
+		return nil, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	}
+
+	ps, err := svc.ds.GetLinuxDiskEncryptionSummary(ctx, teamId)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	return &ps, nil
 }
