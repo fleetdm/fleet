@@ -2613,6 +2613,7 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 	}
 
 	appCfg.MDM.EnabledAndConfigured = true
+	// TODO for each team (or no-team) set up for disk encryption, enable FileVault
 
 	return svc.ds.SaveAppConfig(ctx, appCfg)
 }
