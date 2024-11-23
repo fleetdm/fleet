@@ -2881,6 +2881,40 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	}, http.StatusUnprocessableEntity, &tmResp)
 }
 
+func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
+	t := s.T()
+
+	// create a Linux host
+	hostLin, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "3"),
+		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "3"),
+		UUID:            t.Name() + "3",
+		Hostname:        t.Name() + "foo3.local",
+		PrimaryIP:       "192.168.1.3",
+		PrimaryMac:      "30-65-EC-6F-C4-60",
+		Platform:        "ubuntu",
+		OSVersion:       "Ubuntu 22.04",
+	})
+	require.NoError(t, err)
+
+	// turn on disk encryption enforcement
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+
+	// set encrypted for host
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostLin.ID, true))
+
+	// should succeed as we no longer require MDM to access this endpoint, as Linux encryption doesn't require MDM
+	var summary getMDMDiskEncryptionSummaryResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/disk_encryption/summary", getMDMDiskEncryptionSummaryRequest{}, http.StatusOK, &summary)
+	s.DoJSON("GET", "/api/latest/fleet/disk_encryption", getMDMDiskEncryptionSummaryRequest{}, http.StatusOK, &summary)
+	// disk is encrypted but key hasn't been escrowed yet
+	require.Equal(t, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{Linux: 1}}, *summary.MDMDiskEncryptionSummary)
+}
+
 func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	t := s.T()
 	ctx := context.Background()

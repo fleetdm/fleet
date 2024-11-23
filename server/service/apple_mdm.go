@@ -2157,7 +2157,7 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 		if ac.MDM.EnableDiskEncryption.Value != *enabled {
 			ac.MDM.EnableDiskEncryption = optjson.SetBool(*enabled)
 			didUpdate = true
-			didUpdateMacOSDiskEncryption = true
+			didUpdateMacOSDiskEncryption = ac.MDM.EnabledAndConfigured
 		}
 	}
 
