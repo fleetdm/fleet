@@ -2613,9 +2613,46 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 	}
 
 	appCfg.MDM.EnabledAndConfigured = true
-	// TODO for each team (or no-team) set up for disk encryption, enable FileVault
+	err = svc.ds.SaveAppConfig(ctx, appCfg)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "saving app config")
+	}
 
-	return svc.ds.SaveAppConfig(ctx, appCfg)
+	// Disk encryption can be enabled prior to Apple MDM being configured, but we need MDM to be set up to escrow
+	// FileVault keys. We handle the other order of operations elsewhere (on encryption enable, after checking to see
+	// if Mac MDM is already enabled).
+
+	// Enable FileVault escrow if no-team already has disk encryption enforced
+	if appCfg.MDM.EnableDiskEncryption.Value {
+		if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "enable no-team FileVault escrow")
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEnabledMacosDiskEncryption{}); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for enabling no-team macOS disk encryption")
+		}
+	}
+	// Enable FileVault escrow for teams that already have disk encryption enforced
+	// For later: add a data store method to avoid making an extra query per team to check whether encryption is enforced
+	teams, err := svc.ds.TeamsSummary(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing teams")
+	}
+	for _, team := range teams {
+		isEncryptionEnforced, err := svc.ds.GetConfigEnableDiskEncryption(ctx, &team.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retrieving encryption enforcement status for team")
+		}
+		if isEncryptionEnforced {
+			if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, &team.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "enable FileVault escrow for team")
+			}
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for enabling macOS disk encryption for team")
+			}
+		}
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
