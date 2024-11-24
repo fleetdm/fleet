@@ -2612,6 +2612,7 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return ctxerr.Wrap(ctx, err, "retrieving app config")
 	}
 
+	wasEnabledAndConfigured := appCfg.MDM.EnabledAndConfigured
 	appCfg.MDM.EnabledAndConfigured = true
 	err = svc.ds.SaveAppConfig(ctx, appCfg)
 	if err != nil {
@@ -2620,7 +2621,11 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 
 	// Disk encryption can be enabled prior to Apple MDM being configured, but we need MDM to be set up to escrow
 	// FileVault keys. We handle the other order of operations elsewhere (on encryption enable, after checking to see
-	// if Mac MDM is already enabled).
+	// if Mac MDM is already enabled). We skip this step if we were just re-uploading an APNs cert when MDM was already
+	// enabled.
+	if wasEnabledAndConfigured {
+		return nil
+	}
 
 	// Enable FileVault escrow if no-team already has disk encryption enforced
 	if appCfg.MDM.EnableDiskEncryption.Value {
