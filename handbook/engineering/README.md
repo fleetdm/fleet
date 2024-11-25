@@ -298,9 +298,9 @@ If a community member opens an issue that we can't reproduce leave a comment ask
 
 ### Schedule developer on-call workload
 
-Engineering MWnagers are asked to be aware of the [on-call rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and reduce estimate capacity for each sprint accordingly. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
+Engineering Managers are asked to be aware of the [on-call rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and reduce estimate capacity for each sprint accordingly. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
 
-On-call engineers are asked to be available during business hours of 9AM - 5PM Pacific. The [on-call support SLA]([url](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities)) requires a 1-hour response time during business hours to any @oncall mentions.
+On-call engineers are available during the business hours of 9am - 5pm Pacific. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities) requires a 1-hour response time during business hours to any @oncall mention.
 
 
 ### Assume developer on-call alias
@@ -310,7 +310,7 @@ The on-call developer is responsible for:
 - Performing the [on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities).
 - [Escalating community questions and issues](https://fleetdm.com/handbook/company/product-groups#escalations).
 - Successfully [transferring the on-call persona to the next developer](https://fleetdm.com/handbook/company/product-groups#changing-of-the-guard).
-- Work on an [engineering-initiated story]([url](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story)).
+- Work on an [engineering-initiated story](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story).
 
 Some additional ideas:
 
@@ -385,7 +385,8 @@ Beginning with macOS 16, Fleet will offer same-day support for all major version
 
 ### Record engineering KPIs
 
-We track the success of this process by observing the throughput of issues through the system and identifying where buildups (and therefore bottlenecks) are occurring.
+We track the effectiveness of our processes by observing issue throughput and identifying where buildups (and therefore bottlenecks) are occurring.
+
 The metrics are:
 * Number of bugs opened this week
 * Total # bugs open
