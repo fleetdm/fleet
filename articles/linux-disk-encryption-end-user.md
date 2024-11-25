@@ -1,4 +1,4 @@
-# Encrypting your Fleet-managed Linux device
+# Encrypt your Fleet-managed Linux device
 
 > Note that this guide is intended for new device setup. If the operating system has already been installed, you will need to re-install in order to enable full disk encryption.
 
@@ -10,23 +10,23 @@ Fleet securely stores a passphrase to ensure that the data on your work computer
 Follow the steps below to get set up.
 
 
-## 1. **Enable encryption during installation**
+1. **Enable encryption during installation**:
 
-  ### Ubuntu Linux
+  #### Ubuntu Linux
 
   - When installing Ubuntu, choose the option to "Use LVM with encryption."
   - Set a strong passphrase when prompted. This passphrase will be used to encrypt your disk and is separate from your login password.
 
   <!-- TODO: screenshot of Ubuntu setup -->
 
-  ### Fedora Linux
+  #### Fedora Linux
 
   - During Fedora installation, select the "Encrypt my data" checkbox.
   - Enter a secure passphrase when prompted.
 
   <!-- TODO: screenshot of Fedora setup -->
 
-2. **Verify encryption**
+2. **Verify encryption**:
 
   - Once installation is complete, verify that your disk is encrypted by running:
     ```bash
@@ -35,13 +35,13 @@ Follow the steps below to get set up.
   - **Ubuntu Linux**: Look for the root (`/`) partition, and confirm it is marked as encrypted.
   - **Fedora Linux**: Ensure the `/` (root) and `/home` partitions are encrypted.
 
-3. **Escrow your key with Fleet**
+3. **Escrow your key with Fleet**:
 
   - Open Fleet Desktop. If your device is encrypted, you'll see a banner prompting you to escrow the key.
   - Click **Create key**. Enter your existing encryption passphrase when prompted.
   - Fleet will generate and securely store a new passphrase for recovery.
 
-4. **Confirmation**:
+4. **Confirm**:
   - After completion, your encryption status will update to "verified" in Fleet Desktop, meaning that your recovery key has been successfully stored.
 
 
