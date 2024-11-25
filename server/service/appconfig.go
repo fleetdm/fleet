@@ -323,6 +323,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// if turning off Windows MDM and Windows Migration is not explicitly set to
+	// on in the same update, set it to off (otherwise, if it is explicitly set
+	// to true, return an error that it can't be done when MDM is off, this is
+	// addressed in validateMDM).
+	if oldAppConfig.MDM.WindowsEnabledAndConfigured != newAppConfig.MDM.WindowsEnabledAndConfigured &&
+		!newAppConfig.MDM.WindowsEnabledAndConfigured && !newAppConfig.MDM.WindowsMigrationEnabled {
+		appConfig.MDM.WindowsMigrationEnabled = false
+	}
+
 	if newAppConfig.SSOSettings != nil {
 		validateSSOSettings(newAppConfig, appConfig, invalid, license)
 		if invalid.HasErrors() {
@@ -867,6 +876,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
 		}
+	}
+
+	if appConfig.MDM.WindowsEnabledAndConfigured && oldAppConfig.MDM.WindowsMigrationEnabled != appConfig.MDM.WindowsMigrationEnabled {
+		// TODO(mna): create corresponding activity
 	}
 
 	return obfuscatedAppConfig, nil
