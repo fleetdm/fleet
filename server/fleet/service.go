@@ -1059,6 +1059,11 @@ type Service interface {
 	// Returns empty status if the host is not a supported Linux host
 	LinuxHostDiskEncryptionStatus(ctx context.Context, host Host) (HostMDMDiskEncryption, error)
 
+	// GetMDMLinuxProfilesSummary summarizes the current status of Linux disk encryption for
+	// the provided team (or hosts without a team if teamId is nil), or returns zeroes if disk
+	// encryption is not enforced on the selected team
+	GetMDMLinuxProfilesSummary(ctx context.Context, teamId *uint) (MDMProfilesSummary, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM
 
