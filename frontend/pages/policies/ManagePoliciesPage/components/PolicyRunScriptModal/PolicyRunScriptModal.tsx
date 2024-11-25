@@ -21,6 +21,7 @@ import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "policy-run-script-modal";
 
@@ -191,6 +192,14 @@ const PolicyRunScriptModal = ({
       );
     }
 
+    const compatibleTipContent = (
+      <>
+        Shell (.sh) for macOS and Linux.
+        <br />
+        PowerShell (.ps1) for Windows.
+      </>
+    );
+
     return (
       <div className={`${baseClass} form`}>
         <div className="form-field">
@@ -201,8 +210,12 @@ const PolicyRunScriptModal = ({
             )}
           </ul>
           <span className="form-field__help-text">
-            Selected script will run when hosts fail the policy. Host counts
-            will reset when a new script is selected.{" "}
+            Selected script, if{" "}
+            <TooltipWrapper tipContent={compatibleTipContent}>
+              compatible
+            </TooltipWrapper>{" "}
+            with the host, will run when hosts fail the policy. Host counts will
+            reset when a new script is selected.{" "}
             <CustomLink
               url="https://fleetdm.com/learn-more-about/policy-automation-run-script"
               text="Learn more"
