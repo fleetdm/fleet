@@ -2,16 +2,17 @@
 
 * Upgraded macadmins osquery-extension to v1.2.3.
 
-Added computer_name and hardware_model for fleetd enrollment.
-Added serial number for fleetd enrollment for Windows hosts (already present for macOS and Linux).
+* Added `computer_name` and `hardware_model` for fleetd enrollment.
+
+* Added serial number for fleetd enrollment for Windows hosts (already present for macOS and Linux).
 
 * Added `codesign` table to provide the "Team identifier" of macOS applications.
 
 * Fixed stale Fleet Desktop token UUID after a macOS host completes Migration Assistant.
 
-* added functionality to support linux disk encryption key escrow including end user prompts and LUKS key management
+* Added functionality to support linux disk encryption key escrow including end user prompts and LUKS key management
 
-Fixed issue with fleetd not able to connect to Fleet server after Fleet MDM profiles have been removed.
+* Fixed issue with fleetd not able to connect to Fleet server after Fleet MDM profiles have been removed.
 
 * Fixed cases where self-service menu item temporarily disappeared from Fleet Desktop menu when it should have stayed visible.
 
