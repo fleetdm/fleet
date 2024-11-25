@@ -13,7 +13,7 @@ implementation that supports serving authenticated YARA rules.
 
 In this guide we demonstrate how to configure the agent and server to use this more secure remote
 YARA functionality. This is supported for live queries and saved queries to the
-[yara](https://fleetdm.com/tables/yara) table.
+[`yara`](https://fleetdm.com/tables/yara) table.
 
 ## Configuration
 
