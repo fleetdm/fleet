@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/jmoiron/sqlx"
@@ -29,6 +30,7 @@ type MySQLStorage struct {
 	db            *sql.DB
 	rm            bool
 	asyncLastSeen *asyncLastSeen
+	reader        func(ctx context.Context) fleet.DBReader
 }
 
 type config struct {

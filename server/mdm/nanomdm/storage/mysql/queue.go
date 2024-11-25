@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/google/uuid"
 )
 
 func enqueue(ctx context.Context, tx *sql.Tx, ids []string, cmd *mdm.Command) error {
@@ -183,22 +185,36 @@ UPDATE
 
 func (m *MySQLStorage) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.Command, error) {
 	command := new(mdm.Command)
+	id := "?"
+	var args []interface{}
+	// Validate the ID to avoid SQL injection.
+	// This performance optimization eliminates the prepare statement for this frequent query.
+	// Eventually, we should use binary storage for id (UUID).
+	if err := uuid.Validate(r.ID); err == nil {
+		id = "'" + r.ID + "'"
+	} else {
+		err = ctxerr.Wrap(r.Context, err, "device ID is not a valid UUID: %s", r.ID)
+		m.logger.Info("msg", "device ID is not a UUID", "device_id", r.ID, "err", err)
+		// Handle the error by sending it to Redis to be included in aggregated statistics.
+		// Before switching UUID to use binary storage, we should ensure that this error rate is low/none.
+		ctxerr.Handle(r.Context, err)
+		args = append(args, r.ID)
+	}
 	err := m.db.QueryRowContext(
-		r.Context, `
+		r.Context, fmt.Sprintf(`
 SELECT c.command_uuid, c.request_type, c.command
 FROM nano_enrollment_queue AS q
     INNER JOIN nano_commands AS c
         ON q.command_uuid = c.command_uuid
     LEFT JOIN nano_command_results r
         ON r.command_uuid = q.command_uuid AND r.id = q.id
-WHERE q.id = ?
+WHERE q.id = %s
     AND q.active = 1
-    AND (r.status IS NULL OR (r.status = 'NotNow' AND NOT ?))
+    AND (r.status IS NULL OR (r.status = 'NotNow' AND NOT %t))
 ORDER BY
     q.priority DESC,
     q.created_at
-LIMIT 1;`,
-		r.ID, skipNotNow,
+LIMIT 1;`, id, skipNotNow), args...,
 	).Scan(&command.CommandUUID, &command.Command.RequestType, &command.Raw)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
