@@ -14,7 +14,7 @@ For macOS hosts that automatically enroll, disk encryption is enforced during Se
 
 You can enforce disk encryption using the Fleet UI, Fleet API, or [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
 
-### Fleet UI:
+#### Fleet UI:
 
 1. In Fleet, head to the **Controls > OS settings > Disk encryption** page.
 
@@ -22,7 +22,9 @@ You can enforce disk encryption using the Fleet UI, Fleet API, or [Fleet's GitOp
 
 3. Check the box next to **Turn on** and select **Save**.
 
-Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#update-disk-encryption-enforcement).
+#### Fleet API: 
+
+API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#update-disk-encryption-enforcement).
 
 ### Disk encryption status
 
