@@ -201,20 +201,22 @@ func (m *MySQLStorage) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*md
 		args = append(args, r.ID)
 	}
 	err := m.reader(r.Context).QueryRowxContext(
-		r.Context, fmt.Sprintf(`
+		r.Context, fmt.Sprintf(
+			// The query should use the ANTIJOIN (NOT EXISTS) optimization on the nano_command_results table.
+			`
 SELECT c.command_uuid, c.request_type, c.command
 FROM nano_enrollment_queue AS q
     INNER JOIN nano_commands AS c
         ON q.command_uuid = c.command_uuid
     LEFT JOIN nano_command_results r
-        ON r.command_uuid = q.command_uuid AND r.id = q.id
+        ON r.command_uuid = q.command_uuid AND r.id = q.id AND (r.status != 'NotNow' OR %t)
 WHERE q.id = %s
     AND q.active = 1
-    AND (r.status IS NULL OR (r.status = 'NotNow' AND NOT %t))
+    AND r.status IS NULL
 ORDER BY
     q.priority DESC,
     q.created_at
-LIMIT 1;`, id, skipNotNow), args...,
+LIMIT 1;`, skipNotNow, id), args...,
 	).Scan(&command.CommandUUID, &command.Command.RequestType, &command.Raw)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
