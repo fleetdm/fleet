@@ -8,6 +8,7 @@ import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
 
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { IAppConfigFormProps, IFormField } from "../constants";
 
 const baseClass = "app-config-form";
@@ -209,15 +210,18 @@ const Sso = ({
               name="enableJitProvisioning"
               value={enableJitProvisioning}
               parseTarget
+              helpText={
+                <>
+                  <CustomLink
+                    url={`${LEARN_MORE_ABOUT_BASE_LINK}/just-in-time-provisioning`}
+                    text="Learn more"
+                    newTab
+                  />{" "}
+                  about just-in-time (JIT) user provisioning.
+                </>
+              }
             >
-              <>
-                Create user and sync permissions on login{" "}
-                <CustomLink
-                  url="https://fleetdm.com/learn-more-about/just-in-time-provisioning"
-                  text="Learn more"
-                  newTab
-                />
-              </>
+              Create user and sync permissions on login
             </Checkbox>
           )}
           <Button
