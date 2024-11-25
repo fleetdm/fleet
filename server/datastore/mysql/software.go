@@ -1814,9 +1814,9 @@ FROM (
 ) as combined_results
 ON DUPLICATE KEY UPDATE
     software_titles.name = software_titles.name,
-		software_titles.source = software_titles.source,
-		software_titles.browser = software_titles.browser,
-		software_titles.bundle_identifier = software_titles.bundle_identifier
+    software_titles.source = software_titles.source,
+    software_titles.browser = software_titles.browser,
+    software_titles.bundle_identifier = software_titles.bundle_identifier
 `
 		res, err := tx.ExecContext(ctx, upsertTitlesStmt)
 		if err != nil {
