@@ -130,7 +130,7 @@
     <!--STYLES END-->
   </head>
   <body>
-    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : '' %>">
+    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : '' %> collapse"  id="navbarToggleExternalContent">
       <%// Page header%>
       <div class="header" purpose="header-container" hide-when-scrolled data-nosnippet>
         <div purpose="header-background">
@@ -146,7 +146,7 @@
                   <img class="align-self-center" alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-blue-16x14@2x.png"/>
                 </a>
               </div>
-              <div purpose="mobile-nav" always-visible-when-shown class="collapse" id="navbarToggleExternalContent">
+              <div purpose="mobile-nav" always-visible-when-shown>
                 <div purpose="mobile-nav-header" class="d-flex justify-content-between align-items-center">
                   <a purpose="mobile-header-logo" href="/">
                     <img purpose="mobile-nav-logo" alt="Fleet logo" src="/images/logo-blue-118x41@2x.png" />
@@ -505,7 +505,6 @@
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
     <script src="/js/pages/try-fleet/waitlist.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
-    <script src="/js/pages/vulnerability-management.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.

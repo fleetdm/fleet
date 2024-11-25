@@ -1,7 +1,8 @@
 .custom-settings {
   &__description {
     font-size: $x-small;
-    margin: $pad-large 0;
+    margin-bottom: $pad-large;
+    @include grey-text;
   }
 
   &__pagination-controls {
@@ -29,5 +30,17 @@
         }
       }
     }
+  }
+
+  .turn-on-mdm-message {
+    border: px-to-rem(1);
+    border-color: $ui-fleet-black-10;
+    border-style: solid;
+    border-radius: px-to-rem(6);
+    padding-top: px-to-rem(64);
+    padding-bottom: px-to-rem(64);
+    width: 100%;
+    margin: px-to-rem(32) 0 0;
+    max-width: none;
   }
 }

@@ -3,7 +3,6 @@ package execuser
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -32,6 +31,12 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 		fmt.Sprintf("LD_LIBRARY_PATH=%s:%s", filepath.Dir(path), os.ExpandEnv("$LD_LIBRARY_PATH")),
 		path,
 	)
+
+	if len(opts.args) > 0 {
+		for _, arg := range opts.args {
+			args = append(args, arg[0], arg[1])
+		}
+	}
 
 	cmd := exec.Command("sudo", args...)
 	cmd.Stderr = os.Stderr
@@ -72,37 +77,6 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 	}
 
 	return output, exitCode, nil
-}
-
-func runWithWait(ctx context.Context, path string, opts eopts) error {
-	args, err := getUserAndDisplayArgs(path, opts)
-	if err != nil {
-		return fmt.Errorf("get args: %w", err)
-	}
-
-	args = append(args, path)
-
-	if len(opts.args) > 0 {
-		for _, arg := range opts.args {
-			args = append(args, arg[0], arg[1])
-		}
-	}
-
-	cmd := exec.CommandContext(ctx, "sudo", args...)
-	log.Printf("cmd=%s", cmd.String())
-
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("cmd start %q: %w", path, err)
-	}
-
-	if err := cmd.Wait(); err != nil {
-		if errors.Is(ctx.Err(), context.Canceled) {
-			return nil
-		}
-		return fmt.Errorf("cmd wait %q: %w", path, err)
-	}
-
-	return nil
 }
 
 func getUserAndDisplayArgs(path string, opts eopts) ([]string, error) {
