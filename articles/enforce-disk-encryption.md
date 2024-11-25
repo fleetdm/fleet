@@ -42,7 +42,7 @@ In the Fleet UI, head to the **Controls > OS settings > Disk encryption** tab. Y
 
 * Removing enforcement (pending): the host will receive the MDM command to remove the disk encryption profile when the host comes online.
 
-* Failed: hosts that are failed to enforce disk encryption.
+* Failed: hosts that failed to enforce disk encryption.
 
 You can click each status to view the list of hosts for that status.
 
