@@ -1,3 +1,20 @@
+## Orbit 1.36.0 (Nov 25, 2024)
+
+* Upgraded macadmins osquery-extension to v1.2.3.
+
+Added computer_name and hardware_model for fleetd enrollment.
+Added serial number for fleetd enrollment for Windows hosts (already present for macOS and Linux).
+
+* Added `codesign` table to provide the "Team identifier" of macOS applications.
+
+* Fixed stale Fleet Desktop token UUID after a macOS host completes Migration Assistant.
+
+* added functionality to support linux disk encryption key escrow including end user prompts and LUKS key management
+
+Fixed issue with fleetd not able to connect to Fleet server after Fleet MDM profiles have been removed.
+
+* Fixed cases where self-service menu item temporarily disappeared from Fleet Desktop menu when it should have stayed visible.
+
 ## Orbit 1.35.0 (Nov 01, 2024)
 
 * Fixed orbit startup to not exit when "root.json", "snapshot.json", or "targets.json" TUF signatures have expired.
