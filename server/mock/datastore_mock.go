@@ -1167,7 +1167,7 @@ type GetHostMDMCertificateProfileFunc func(ctx context.Context, hostUUID string,
 
 type CleanUpMDMManagedCertificatesFunc func(ctx context.Context) error
 
-type GetSoftwareTitleIDByAppIDFunc func(ctx context.Context, appID uint, teamID *uint) (uint, error)
+type GetSoftwareTitleIDByMaintainedAppIDFunc func(ctx context.Context, appID uint, teamID *uint) (uint, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -2889,8 +2889,8 @@ type DataStore struct {
 	CleanUpMDMManagedCertificatesFunc        CleanUpMDMManagedCertificatesFunc
 	CleanUpMDMManagedCertificatesFuncInvoked bool
 
-	GetSoftwareTitleIDByAppIDFunc        GetSoftwareTitleIDByAppIDFunc
-	GetSoftwareTitleIDByAppIDFuncInvoked bool
+	GetSoftwareTitleIDByMaintainedAppIDFunc        GetSoftwareTitleIDByMaintainedAppIDFunc
+	GetSoftwareTitleIDByMaintainedAppIDFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -6906,9 +6906,9 @@ func (s *DataStore) CleanUpMDMManagedCertificates(ctx context.Context) error {
 	return s.CleanUpMDMManagedCertificatesFunc(ctx)
 }
 
-func (s *DataStore) GetSoftwareTitleIDByAppID(ctx context.Context, appID uint, teamID *uint) (uint, error) {
+func (s *DataStore) GetSoftwareTitleIDByMaintainedAppID(ctx context.Context, appID uint, teamID *uint) (uint, error) {
 	s.mu.Lock()
-	s.GetSoftwareTitleIDByAppIDFuncInvoked = true
+	s.GetSoftwareTitleIDByMaintainedAppIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetSoftwareTitleIDByAppIDFunc(ctx, appID, teamID)
+	return s.GetSoftwareTitleIDByMaintainedAppIDFunc(ctx, appID, teamID)
 }
