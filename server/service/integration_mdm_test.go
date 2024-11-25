@@ -11910,6 +11910,7 @@ func (s *integrationMDMTestSuite) TestWindowsMigrationEnabled() {
 	}`), http.StatusOK, &acResp)
 	require.True(t, acResp.MDM.WindowsEnabledAndConfigured)
 	require.True(t, acResp.MDM.WindowsMigrationEnabled)
+	s.lastActivityMatches(fleet.ActivityTypeEnabledWindowsMDMMigration{}.ActivityName(), "", 0)
 
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
@@ -11918,6 +11919,7 @@ func (s *integrationMDMTestSuite) TestWindowsMigrationEnabled() {
 	}`), http.StatusOK, &acResp)
 	require.True(t, acResp.MDM.WindowsEnabledAndConfigured)
 	require.False(t, acResp.MDM.WindowsMigrationEnabled)
+	s.lastActivityMatches(fleet.ActivityTypeDisabledWindowsMDMMigration{}.ActivityName(), "", 0)
 
 	// set migrations back to true to see if they turn false when turning MDM off
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -11927,6 +11929,7 @@ func (s *integrationMDMTestSuite) TestWindowsMigrationEnabled() {
 	}`), http.StatusOK, &acResp)
 	require.True(t, acResp.MDM.WindowsEnabledAndConfigured)
 	require.True(t, acResp.MDM.WindowsMigrationEnabled)
+	lastEnabledID := s.lastActivityMatches(fleet.ActivityTypeEnabledWindowsMDMMigration{}.ActivityName(), "", 0)
 
 	// not providing any mdm update should leave the current values
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -11934,6 +11937,18 @@ func (s *integrationMDMTestSuite) TestWindowsMigrationEnabled() {
 	}`), http.StatusOK, &acResp)
 	require.True(t, acResp.MDM.WindowsEnabledAndConfigured)
 	require.True(t, acResp.MDM.WindowsMigrationEnabled)
+	// no new activity was created
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledWindowsMDMMigration{}.ActivityName(), "", lastEnabledID)
+
+	// set to true again does not generate a new activity, was already true
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"windows_migration_enabled": true
+		}
+	}`), http.StatusOK, &acResp)
+	require.True(t, acResp.MDM.WindowsEnabledAndConfigured)
+	require.True(t, acResp.MDM.WindowsMigrationEnabled)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledWindowsMDMMigration{}.ActivityName(), "", lastEnabledID)
 
 	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
@@ -11960,6 +11975,4 @@ func (s *integrationMDMTestSuite) TestWindowsMigrationEnabled() {
 	}`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Windows MDM is not enabled")
-
-	// TODO(mna): test migration activities
 }

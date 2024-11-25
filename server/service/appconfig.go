@@ -879,7 +879,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	if appConfig.MDM.WindowsEnabledAndConfigured && oldAppConfig.MDM.WindowsMigrationEnabled != appConfig.MDM.WindowsMigrationEnabled {
-		// TODO(mna): create corresponding activity
+		var act fleet.ActivityDetails
+		if appConfig.MDM.WindowsMigrationEnabled {
+			act = fleet.ActivityTypeEnabledWindowsMDMMigration{}
+		} else {
+			act = fleet.ActivityTypeDisabledWindowsMDMMigration{}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+		}
 	}
 
 	return obfuscatedAppConfig, nil
