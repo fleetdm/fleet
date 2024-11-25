@@ -136,6 +136,7 @@ module.exports.routes = {
       pageDescriptionForMeta: 'View and edit information about your Fleet Premium license.',
     }
   },
+  'GET /customers/update-subscription': { action: 'customers/redirect-to-stripe-billing-portal' },
   'GET /customers/forgot-password': {
     action: 'entrance/view-forgot-password',
     locals: {
@@ -675,4 +676,5 @@ module.exports.routes = {
   'POST /api/v1/account/update-start-cta-visibility': { action: 'account/update-start-cta-visibility' },
   'POST /api/v1/deliver-deal-registration-submission': { action: 'deliver-deal-registration-submission' },
   '/api/v1/unsubscribe-from-marketing-emails': { action: 'unsubscribe-from-marketing-emails' },
+  'POST /api/v1/customers/get-stripe-checkout-session-url': { action: 'customers/get-stripe-checkout-session-url' },
 };
