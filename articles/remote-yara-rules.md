@@ -86,6 +86,6 @@ For example, with `rule1.yar` and `rule2.yar` configured in the `org_settings`:
 
 <meta name="authorGitHubUsername" value="zwass">
 <meta name="authorFullName" value="Zach Wasserman">
-<meta name="publishedOn" value="2024-11-30">
+<meta name="publishedOn" value="2024-12-09">
 <meta name="articleTitle" value="Remote deployment of YARA rules">
 <meta name="category" value="guides">
