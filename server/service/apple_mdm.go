@@ -2152,12 +2152,15 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 		return err
 	}
 
-	var didUpdate, didUpdateMacOSDiskEncryption bool
+	var didUpdate bool
 	if enabled != nil {
 		if ac.MDM.EnableDiskEncryption.Value != *enabled {
+			if *enabled && svc.config.Server.PrivateKey == "" {
+				return ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+			}
+
 			ac.MDM.EnableDiskEncryption = optjson.SetBool(*enabled)
 			didUpdate = true
-			didUpdateMacOSDiskEncryption = true
 		}
 	}
 
@@ -2165,7 +2168,7 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err
 		}
-		if didUpdateMacOSDiskEncryption {
+		if ac.MDM.EnabledAndConfigured { // if macOS MDM is configured, set up FileVault escrow
 			var act fleet.ActivityDetails
 			if ac.MDM.EnableDiskEncryption.Value {
 				act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
