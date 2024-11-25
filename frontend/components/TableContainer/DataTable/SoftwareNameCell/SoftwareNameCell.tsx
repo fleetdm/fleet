@@ -82,12 +82,7 @@ const SoftwareNameCell = ({
   if (!router || !path) {
     return (
       <div className={baseClass}>
-        <SoftwareIcon
-          name={name}
-          source={source}
-          url={iconUrl}
-          macos={source === "apps"}
-        />
+        <SoftwareIcon name={name} source={source} url={iconUrl} />
         <span className="software-name">{name}</span>
       </div>
     );
