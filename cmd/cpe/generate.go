@@ -22,10 +22,10 @@ import (
 )
 
 const (
-	httpClientTimeout       = 2 * time.Minute
+	httpClientTimeout       = 3 * time.Minute
 	waitTimeBetweenRequests = 6 * time.Second
-	waitTimeForRetry        = 30 * time.Second
-	maxRetryAttempts        = 10
+	waitTimeForRetry        = 10 * time.Second
+	maxRetryAttempts        = 20
 	apiKeyEnvVar            = "NVD_API_KEY" //nolint:gosec
 )
 
