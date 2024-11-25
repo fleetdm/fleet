@@ -74,6 +74,7 @@ require (
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/micromdm/micromdm v1.9.0
+	github.com/micromdm/nanolib v0.2.0
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/gon v0.2.6-0.20231031204852-2d4f161ccecd
 	github.com/mna/redisc v1.3.2
@@ -105,7 +106,7 @@ require (
 	github.com/spf13/cast v1.4.1
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.10.0
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	github.com/theupdateframework/go-tuf v0.5.2
 	github.com/throttled/throttled/v2 v2.8.0
 	github.com/tj/assert v0.0.3
@@ -144,6 +145,8 @@ require (
 	howett.net/plist v1.0.1
 	software.sslmate.com/src/go-pkcs12 v0.4.0
 )
+
+replace github.com/pandatix/nvdapi => github.com/iansltx/nvdapi v0.0.0-20241125225022-a0b0fda988cb
 
 require (
 	cloud.google.com/go v0.112.2 // indirect
@@ -279,7 +282,6 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/mattn/go-tty v0.0.3 // indirect
-	github.com/micromdm/nanolib v0.2.0 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.3 // indirect

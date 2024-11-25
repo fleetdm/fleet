@@ -37,6 +37,7 @@ func panicIf(err error) {
 
 func main() {
 	apiKey := os.Getenv(apiKeyEnvVar)
+	baseURLOverride := os.Getenv("FLEET_NVD_BASE_URL_OVERRIDE")
 
 	logHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
 	slog.SetDefault(slog.New(logHandler))
@@ -50,6 +51,9 @@ func main() {
 	slog.Info(fmt.Sprintf("CWD: %v", cwd))
 
 	client := fleethttp.NewClient(fleethttp.WithTimeout(httpClientTimeout))
+	if baseURLOverride != "" {
+		common.BaseURL = baseURLOverride
+	}
 	dbPath := getCPEs(client, apiKey, cwd)
 
 	slog.Info(fmt.Sprintf("Sqlite file %s size: %.2f MB\n", dbPath, getSizeMB(dbPath)))
