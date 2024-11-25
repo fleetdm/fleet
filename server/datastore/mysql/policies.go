@@ -1670,6 +1670,10 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 	softwareTitleIDs []uint,
 	teamID *uint,
 ) ([]fleet.AutomaticInstallPolicy, error) {
+	if len(softwareTitleIDs) == 0 {
+		return nil, nil
+	}
+
 	query := `
 	SELECT
 		p.id AS id,
@@ -1679,7 +1683,6 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 	JOIN software_installers si ON p.software_installer_id = si.id
 	JOIN software_titles st ON si.title_id = st.id
 	WHERE st.id IN (?) AND p.team_id = ?
-	GROUP BY software_title_id, id;
 `
 
 	var tmID uint
