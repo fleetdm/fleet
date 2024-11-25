@@ -11928,6 +11928,13 @@ func (s *integrationMDMTestSuite) TestWindowsMigrationEnabled() {
 	require.True(t, acResp.MDM.WindowsEnabledAndConfigured)
 	require.True(t, acResp.MDM.WindowsMigrationEnabled)
 
+	// not providing any mdm update should leave the current values
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {}
+	}`), http.StatusOK, &acResp)
+	require.True(t, acResp.MDM.WindowsEnabledAndConfigured)
+	require.True(t, acResp.MDM.WindowsMigrationEnabled)
+
 	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
 			"windows_enabled_and_configured": false,

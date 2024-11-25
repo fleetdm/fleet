@@ -323,15 +323,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	// if turning off Windows MDM and Windows Migration is not explicitly set to
-	// on in the same update, set it to off (otherwise, if it is explicitly set
-	// to true, return an error that it can't be done when MDM is off, this is
-	// addressed in validateMDM).
-	if oldAppConfig.MDM.WindowsEnabledAndConfigured != newAppConfig.MDM.WindowsEnabledAndConfigured &&
-		!newAppConfig.MDM.WindowsEnabledAndConfigured && !newAppConfig.MDM.WindowsMigrationEnabled {
-		appConfig.MDM.WindowsMigrationEnabled = false
-	}
-
 	if newAppConfig.SSOSettings != nil {
 		validateSSOSettings(newAppConfig, appConfig, invalid, license)
 		if invalid.HasErrors() {
@@ -344,6 +335,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if err := json.Unmarshal(p, &appConfig); err != nil {
 		err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// if turning off Windows MDM and Windows Migration is not explicitly set to
+	// on in the same update, set it to off (otherwise, if it is explicitly set
+	// to true, return an error that it can't be done when MDM is off, this is
+	// addressed in validateMDM).
+	if oldAppConfig.MDM.WindowsEnabledAndConfigured != appConfig.MDM.WindowsEnabledAndConfigured &&
+		!appConfig.MDM.WindowsEnabledAndConfigured && !newAppConfig.MDM.WindowsMigrationEnabled {
+		appConfig.MDM.WindowsMigrationEnabled = false
 	}
 
 	type ndesStatusType string
