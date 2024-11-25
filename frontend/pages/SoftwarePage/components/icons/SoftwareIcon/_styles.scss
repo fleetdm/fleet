@@ -32,38 +32,36 @@
   // TODO: we should change ".core-wrapper a img" selector in that file
   // as it too generic and can affect other parts of the app.
   > img.software-icon__software-img-small {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     border-radius: $border-radius-small;
-    padding: 1px;
     margin-left: 0;
   }
 
   > img.software-icon__software-img-medium {
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
     border-radius: $border-radius-xlarge;
-    padding: 1px;
     margin-left: 0;
   }
 
   > img.software-icon__software-img-large {
-    width: 60px;
-    height: 60px;
+    width: 64px;
+    height: 64px;
     border-radius: $border-radius-xxlarge;
-    padding: 1px;
     margin-left: 0;
   }
 
   > img.software-icon__software-img-xlarge {
-    width: 88px;
-    height: 88px;
+    width: 96px;
+    height: 96px;
     border-radius: $border-radius-xxlarge;
-    padding: $pad-xsmall;
     margin-left: 0;
   }
 
-  &__app-store-icon {
-    transform: scale(1.45); // Fix app icon sizing issue #23733
+  // Fix app icon sizing issue in which macOS app store icon URLs
+  // point to an image with excess padding #23733
+  &__macos-app-store-icon {
+    transform: scale(1.36);
   }
 }

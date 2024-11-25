@@ -13,6 +13,8 @@ interface ISoftwareIconProps {
   size?: SoftwareIconSizes;
   /** Accepts an image url to display for a the software icon image. */
   url?: string;
+  /** Manually override if an icon is a macOS app store icon and needs styling override */
+  macos?: boolean;
 }
 
 const SOFTWARE_ICON_SIZES: Record<SoftwareIconSizes, string> = {
@@ -27,9 +29,9 @@ const SoftwareIcon = ({
   source = "",
   size = "small",
   url,
+  macos = false,
 }: ISoftwareIconProps) => {
   const classNames = classnames(baseClass, `${baseClass}__${size}`);
-
   // If we are given a url to render as the icon, we need to render it
   // differently than the svg icons. We will use an img tag instead with the
   // src set to the url.
@@ -37,7 +39,9 @@ const SoftwareIcon = ({
     const imgClasses = classnames(
       `${baseClass}__software-img`,
       `${baseClass}__software-img-${size}`,
-      `${baseClass}__app-store-icon`
+      {
+        [`${baseClass}__macos-app-store-icon`]: macos || source === "apps",
+      }
     );
     return (
       <div className={classNames}>
