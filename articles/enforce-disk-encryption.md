@@ -28,7 +28,7 @@ API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#update-di
 
 ### Disk encryption status
 
-In the Fleet UI, head to the **Controls > OS settings > Disk encryption** tab. You will see a table that shows the status of disk encryption on your hosts.
+In the Fleet UI, head to the **Controls > OS settings > Disk encryption** tab. You will see a table that shows the status of disk encryption on your hosts. 
 
 * Verified: the host turned disk encryption on and sent their key to Fleet. Fleet verified with osquery. See instructions for viewing the disk encryption key [here](#view-disk-encryption-key).
 
