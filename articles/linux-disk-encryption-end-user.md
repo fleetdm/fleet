@@ -46,7 +46,7 @@ Follow the steps below to get set up.
 
 
 
-<meta name="articleTitle" value="Encrypting your Fleet-managed Linux device">
+<meta name="articleTitle" value="Encrypt your Fleet-managed Linux device">
 <meta name="authorFullName" value="Rachael Shaw">
 <meta name="authorGitHubUsername" value="rachaelshaw">
 <meta name="category" value="guides">
