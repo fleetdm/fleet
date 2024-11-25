@@ -958,6 +958,9 @@ func (svc *Service) validateMDM(
 	if mdm.MacOSSetup.EnableEndUserAuthentication && oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication && !license.IsPremium() {
 		invalid.Append("macos_setup.enable_end_user_authentication", ErrMissingLicense.Error())
 	}
+	if mdm.WindowsMigrationEnabled && !license.IsPremium() {
+		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())
+	}
 
 	// we want to use `oldMdm` here as this boolean is set by the fleet
 	// server at startup and can't be modified by the user
@@ -1132,6 +1135,9 @@ func (svc *Service) validateMDM(
 			invalid.Append("mdm.windows_enabled_and_configured", "Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.")
 			return nil
 		}
+	}
+	if !mdm.WindowsEnabledAndConfigured && mdm.WindowsMigrationEnabled {
+		invalid.Append("mdm.windows_migration_enabled", "Couldn't enable Windows MDM migration, Windows MDM is not enabled.")
 	}
 	return nil
 }
