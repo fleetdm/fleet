@@ -235,19 +235,29 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 
 		if isConnectedToFleetMDM {
+			// If there is no software or script configured for setup experience and this is the
+			// first time orbit is calling the /config endpoint, then this host
+			// will not have a row in host_mdm_apple_awaiting_configuration.
+			// On subsequent calls to /config, the host WILL have a row in
+			// host_mdm_apple_awaiting_configuration.
 			inSetupAssistant, err := svc.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
-			if err != nil {
+			if err != nil && !fleet.IsNotFound(err) {
 				return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking if host is in setup experience")
 			}
 
 			if inSetupAssistant {
 				notifs.RunSetupExperience = true
+			}
 
-				// check if the client is running an old fleetd version that doesn't support the new
-				// setup experience flow.
+			if inSetupAssistant || fleet.IsNotFound(err) {
+				// If the client is running a fleetd that doesn't support setup experience, or if no
+				// software/script has been configured for setup experience, then we should fall back to
+				// the "old way" of releasing the device. We do an additional check for
+				// !inSetupAssistant to prevent enqueuing a new job every time the /config
+				// endpoint is hit.
 				mp, ok := capabilities.FromContext(ctx)
-				if !ok || !mp.Has(fleet.CapabilitySetupExperience) {
-					level.Debug(svc.logger).Log("msg", "host doesn't support Setup experience, falling back to worker-based device release", "host_uuid", host.UUID)
+				if !ok || !mp.Has(fleet.CapabilitySetupExperience) || !inSetupAssistant {
+					level.Debug(svc.logger).Log("msg", "host doesn't support setup experience or no setup experience configured, falling back to worker-based device release", "host_uuid", host.UUID)
 					if err := svc.processReleaseDeviceForOldFleetd(ctx, host); err != nil {
 						return fleet.OrbitConfig{}, err
 					}
