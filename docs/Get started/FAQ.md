@@ -4,7 +4,7 @@
 
 Fleet offers managed cloud hosting for [Fleet Premium](https://fleetdm.com/pricing) customers with large deployments.
 
-> While organizations of all kinds use Fleet, from Fortune 500 companies to school districts to hobbyists, we are only currently able to provide cost-effective hosting for deployments larger than 1000 hosts.  (Instead, you can [buy a license](https://fleetdm.com/customers/register) and self-host Fleet Premium with support.)
+> While organizations of all kinds use Fleet, from Fortune 500 companies to school districts to hobbyists, today we are only currently able to provide fully-managed hosting for deployments larger than 300 hosts.  (Instead, you can [buy a license](https://fleetdm.com/customers/register) and self-host Fleet Premium with support.)
 
 Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/deploy/introduction).  Premium features are [available](https://fleetdm.com/pricing) either way.
 
@@ -78,7 +78,7 @@ Fleet supports the following operating system versions on hosts.
 | macOS      | 13+ (Ventura)                           |
 | iOS/iPadOS | 17+                                     |
 | Windows    | Pro and Enterprise 10+, Server 2012+    |
-| Linux      | CentOS 7.1+,  Ubuntu 20.04+, Fedora 38+ |
+| Linux      | CentOS 7.1+, Ubuntu 20.04+, Fedora 38+, Debian 11+ |
 | ChromeOS   | 112.0.5615.134+                        |
 
 While Fleet may still function partially or fully with OS versions older than those above, Fleet does not actively test against unsupported versions and does not pursue bugs on them.
@@ -142,9 +142,9 @@ If you opt not to renew Fleet Premium, you can continue using only the free capa
 
 We aren’t able to sell licenses and support separately.
 
-## Do you offer pricing for ephemeral hosts which may scale up or down?
+## Do you offer pricing for unmanaged hosts? What about ephemeral hosts which may scale up or down?
 
-For now, the number of hosts is the maximum cap of distinct agents enrolled at any given time.
+For now, the number of hosts is the maximum cap of hosts enrolled at any given time. Umanaged hosts ("Pending" MDM status in Fleet) are not included in the enrolled hosts count.
 
 ## When run locally, what resources does the Fleet app typically consume on an individual instance, and when run in HA, at high volume? And how is latency on an individual instance vs clustered deployment?
 

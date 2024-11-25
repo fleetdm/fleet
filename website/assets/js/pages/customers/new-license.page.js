@@ -44,7 +44,7 @@ parasails.registerPage('new-license', {
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
     if(window.location.hash) {
-      if(typeof analytics !== 'undefined') {
+      if(window.analytics !== undefined) {
         if(window.location.hash === '#signup') {
           analytics.identify(this.me.id, {
             email: this.me.emailAddress,

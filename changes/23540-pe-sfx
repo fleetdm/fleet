@@ -1,0 +1,1 @@
+Fixed name/version parsing issue with PE (EXE) installer self-extracting archives such as Opera.

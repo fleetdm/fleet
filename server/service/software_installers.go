@@ -560,6 +560,7 @@ type batchSetSoftwareInstallersResponse struct {
 }
 
 func (r batchSetSoftwareInstallersResponse) error() error { return r.Err }
+func (r batchSetSoftwareInstallersResponse) Status() int  { return http.StatusAccepted }
 
 func batchSetSoftwareInstallersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*batchSetSoftwareInstallersRequest)

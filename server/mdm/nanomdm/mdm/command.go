@@ -23,11 +23,10 @@ type ErrorChain struct {
 // See https://developer.apple.com/documentation/devicemanagement/implementing_device_management/sending_mdm_commands_to_a_device
 type CommandResults struct {
 	Enrollment
-	CommandUUID string
+	CommandUUID string `plist:",omitempty"`
 	Status      string
-	ErrorChain  []ErrorChain
-	RequestType string
-	Raw         []byte `plist:"-"` // Original command result XML plist
+	ErrorChain  []ErrorChain `plist:",omitempty"`
+	Raw         []byte       `plist:"-"` // Original command result XML plist
 }
 
 // DecodeCheckin unmarshals rawMessage into results

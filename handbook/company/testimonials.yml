@@ -150,7 +150,7 @@
   productCategories: [Vulnerability management, Endpoint operations]
 -
   quote: Fleet has such a huge amount of use cases. My goal was to get telemetry on endpoints, but then our IR team, our TBM team, and multiple other folks in security started heavily utilizing the system in ways I didn’t expect. It spread so naturally, even our corporate and infrastructure teams want to run it.
-  quoteAuthorName: Charles Zaffery
+  quoteAuthorName: charles zaffery # Note: this name is lowercased here so we can sort the two endpoint-ops-related Charles Zaffery quotes in different spots. (The name will be capitalized via CSS)
   quoteLinkUrl: https://www.linkedin.com/in/charleszaffery/
   quoteAuthorJobTitle: Principle computer janitor
   quoteAuthorProfileImageFilename: testimonial-author-charles-zaffery-48x48@2x.png
@@ -195,3 +195,11 @@
   quoteAuthorProfileImageFilename: testimonial-author-scott-macvicar-100x100@2x.png
   quoteAuthorJobTitle: Head of Developer Infrastructure & Corporate Technology
   productCategories: [Device management, Endpoint operations]
+-
+  quote: Fleet helped us determine that Norton antivirus (pre-installed on some machines) was interfering with Crowdstrike's ability to detect downloaded malware.
+  # quoteImageFilename: social-proof-logo-proofpoint-67x32@2x.png #TODO
+  quoteLinkUrl: https://www.linkedin.com/in/arsenio-figueroa-81a56198/
+  quoteAuthorName: Arsenio Figueroa
+  quoteAuthorProfileImageFilename: testimonial-author-arsenio-figueroa-48x48@2x.png
+  quoteAuthorJobTitle: Senior Systems Security Engineer
+  productCategories: [Endpoint operations, Vulnerability management]
