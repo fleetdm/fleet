@@ -59,7 +59,7 @@ controls:
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
-    macos_setup_assistant: null
+    macos_setup_assistant: ../lib/automatic-enrollment.dep.json
     software:
       - package_path: ../lib/software/mac-google-chrome.yml # Google Chrome for macOS
       - package_path: ../lib/software/mac-zoom-arm.yml # Zoom for macOS
