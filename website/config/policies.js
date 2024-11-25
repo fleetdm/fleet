@@ -45,7 +45,7 @@ module.exports.policies = {
   'deliver-mdm-beta-signup': true,
   'deliver-apple-csr': true,
   'download-rss-feed': true,
-  'view-endpoint-ops': true,
+  'view-observability': true,
   'view-software-management': true,
   'deliver-mdm-demo-email': true,
   'view-support': true,

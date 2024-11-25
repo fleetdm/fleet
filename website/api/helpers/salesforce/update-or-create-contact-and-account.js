@@ -161,8 +161,9 @@ module.exports = {
           delete valuesToSet.Intent_signals__c;
         }
       }
-      // Check the existing contact record's psychologicalStage.
-      if(psychologicalStage) {
+
+      // Check the existing contact record's psychologicalStage (If it is set).
+      if(psychologicalStage && existingContactRecord.Stage__c !== null) {
         let recordsCurrentPsyStage = existingContactRecord.Stage__c;
         // Because each psychological stage starts with a number, we'll get the first character in the record's current psychological stage and the new psychological stage to make comparison easier.
         let psyStageStageNumberToChangeTo = Number(psychologicalStage[0]);

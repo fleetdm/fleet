@@ -136,6 +136,7 @@ module.exports.routes = {
       pageDescriptionForMeta: 'View and edit information about your Fleet Premium license.',
     }
   },
+  'GET /customers/update-subscription': { action: 'customers/redirect-to-stripe-billing-portal' },
   'GET /customers/forgot-password': {
     action: 'entrance/view-forgot-password',
     locals: {
@@ -227,10 +228,10 @@ module.exports.routes = {
     }
   },
 
-  'GET /endpoint-ops': {
-    action: 'view-endpoint-ops',
+  'GET /observability': {
+    action: 'view-observability',
     locals: {
-      pageTitleForMeta: 'Endpoint ops',
+      pageTitleForMeta: 'Observability',
       pageDescriptionForMeta: 'Pulse check anything, build reports, and ship data to any platform with Fleet.',
       currentSection: 'platform',
     }
@@ -539,11 +540,12 @@ module.exports.routes = {
   'GET /endpoint-operations': '/endpoint-ops',// « just in case we type it the wrong way
   'GET /example-dep-profile': 'https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/automatic-enrollment.dep.json',
   'GET /vulnerability-management': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/software-management'+originalQueryString);},
+  'GET /endpoint-ops': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/observability'+originalQueryString);},
 
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
-  'GET /it': '/endpoint-ops?utm_content=eo-it',
-  'GET /seceng': '/endpoint-ops?utm_content=eo-security',
+  'GET /it': '/observability?utm_content=eo-it',
+  'GET /seceng': '/observability?utm_content=eo-security',
   'GET /vm': '/software-management?utm_content=vm',
 
   // Fleet UI
@@ -675,4 +677,5 @@ module.exports.routes = {
   'POST /api/v1/account/update-start-cta-visibility': { action: 'account/update-start-cta-visibility' },
   'POST /api/v1/deliver-deal-registration-submission': { action: 'deliver-deal-registration-submission' },
   '/api/v1/unsubscribe-from-marketing-emails': { action: 'unsubscribe-from-marketing-emails' },
+  'POST /api/v1/customers/get-stripe-checkout-session-url': { action: 'customers/get-stripe-checkout-session-url' },
 };
