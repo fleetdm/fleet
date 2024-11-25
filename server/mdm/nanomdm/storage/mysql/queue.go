@@ -185,7 +185,7 @@ func (m *MySQLStorage) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*md
 		ctxerr.Handle(r.Context, err)
 		args = append(args, r.ID)
 	}
-	err := m.db.QueryRowContext(
+	err := m.reader(r.Context).QueryRowxContext(
 		r.Context, fmt.Sprintf(`
 SELECT c.command_uuid, c.request_type, c.command
 FROM nano_enrollment_queue AS q
