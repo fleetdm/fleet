@@ -92,8 +92,8 @@ controls:
     enable_end_user_authentication: true
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2024-08-23"
-    minimum_version: "14.6.1"
+    deadline: "2024-12-02"
+    minimum_version: "15.1.1"
   windows_settings:
     custom_settings:
       - path: ../lib/configuration-profiles/windows-firewall.xml
@@ -166,3 +166,5 @@ software:
       - app_store_id: '1333542190' # 1Password 7 Desktop
       - app_store_id: '1477376905' # GitHub
       - app_store_id: '1152747299' # Figma
+  packages:
+    - path: ../lib/software/mac-mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)

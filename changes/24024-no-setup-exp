@@ -1,0 +1,2 @@
+- Modifies the Fleet setup experience feature to not run if there is no software or script
+  configured for the setup experience.
