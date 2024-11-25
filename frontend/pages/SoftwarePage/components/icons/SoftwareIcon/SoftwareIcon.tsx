@@ -36,7 +36,8 @@ const SoftwareIcon = ({
   if (url) {
     const imgClasses = classnames(
       `${baseClass}__software-img`,
-      `${baseClass}__software-img-${size}`
+      `${baseClass}__software-img-${size}`,
+      `${baseClass}__app-store-icon`
     );
     return (
       <div className={classNames}>

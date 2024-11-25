@@ -1,6 +1,7 @@
 .software-icon {
   flex-shrink: 0;
   border: 1px solid $ui-fleet-black-10;
+  overflow: hidden; // for app store app icons
 
   &__small {
     border-radius: $border-radius;
@@ -38,7 +39,7 @@
     margin-left: 0;
   }
 
-  >img.software-icon__software-img-medium {
+  > img.software-icon__software-img-medium {
     width: 38px;
     height: 38px;
     border-radius: $border-radius-xlarge;
@@ -46,7 +47,7 @@
     margin-left: 0;
   }
 
-  >img.software-icon__software-img-large {
+  > img.software-icon__software-img-large {
     width: 60px;
     height: 60px;
     border-radius: $border-radius-xxlarge;
@@ -54,11 +55,15 @@
     margin-left: 0;
   }
 
-  >img.software-icon__software-img-xlarge {
+  > img.software-icon__software-img-xlarge {
     width: 88px;
     height: 88px;
     border-radius: $border-radius-xxlarge;
     padding: $pad-xsmall;
     margin-left: 0;
+  }
+
+  &__app-store-icon {
+    transform: scale(1.45); // Fix app icon sizing issue #23733
   }
 }
