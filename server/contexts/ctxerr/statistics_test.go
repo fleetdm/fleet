@@ -38,10 +38,10 @@ func TestAggregate(t *testing.T) {
 		rawAgg, err := Aggregate(ctx)
 		require.NoError(t, err)
 
-		var aggs []errorAgg
+		var aggs []ErrorAgg
 		err = json.Unmarshal(rawAgg, &aggs)
 		require.NoError(t, err)
-		require.Equal(t, []errorAgg{
+		require.Equal(t, []ErrorAgg{
 			{Count: 10, Loc: []string{"a", "b", "c"}},
 			{Count: 20, Loc: []string{"x", "y"}},
 			{Count: 30, Loc: []string{"a", "b", "c"}},

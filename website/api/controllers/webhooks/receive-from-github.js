@@ -73,7 +73,6 @@ module.exports = {
       'rfairburn',
       'zayhanlon',
       'alexmitchelliii',
-      'jostableford',
       'sampfluger88',
       'ireedy',
       'mostlikelee',

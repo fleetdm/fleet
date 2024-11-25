@@ -15,10 +15,11 @@ export interface IInfoBannerProps {
   /** default 4px  */
   borderRadius?: "large" | "xlarge";
   pageLevel?: boolean;
-  /** cta and link are mutually exclusive */
+  /** Add this element to the end of the banner message. Mutually exclusive with `link`. */
   cta?: JSX.Element;
   /** closable and link are mutually exclusive */
   closable?: boolean;
+  /** Makes the entire banner clickable */
   link?: string;
   icon?: IconNames;
 }
@@ -33,7 +34,7 @@ const InfoBanner = ({
   closable,
   link,
   icon,
-}: IInfoBannerProps): JSX.Element => {
+}: IInfoBannerProps) => {
   const wrapperClasses = classNames(
     baseClass,
     `${baseClass}__${color}`,

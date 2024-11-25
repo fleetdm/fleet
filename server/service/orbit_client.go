@@ -22,6 +22,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/luks"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -412,8 +413,7 @@ func (oc *OrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDirec
 	return resp.GetFilePath(), nil
 }
 
-type NullFileResponse struct {
-}
+type NullFileResponse struct{}
 
 func (f *NullFileResponse) Handle(resp *http.Response) error {
 	_, _, err := mime.ParseMediaType(resp.Header.Get("Content-Disposition"))
@@ -457,6 +457,8 @@ func (oc *OrbitClient) enroll() (string, error) {
 		Hostname:          oc.hostInfo.Hostname,
 		Platform:          oc.hostInfo.Platform,
 		OsqueryIdentifier: oc.hostInfo.OsqueryIdentifier,
+		ComputerName:      oc.hostInfo.ComputerName,
+		HardwareModel:     oc.hostInfo.HardwareModel,
 	}
 	var resp EnrollOrbitResponse
 	err := oc.request(verb, path, params, &resp)
@@ -654,4 +656,31 @@ var testStdoutHTTPTracer = &httptrace.ClientTrace{
 			time.Now().UTC().Format(httpTraceTimeFormat), network, addr, err,
 		)
 	},
+}
+
+// GetSetupExperienceStatus checks the status of the setup experience for this host.
+func (oc *OrbitClient) GetSetupExperienceStatus() (*fleet.SetupExperienceStatusPayload, error) {
+	verb, path := "POST", "/api/fleet/orbit/setup_experience/status"
+	var resp getOrbitSetupExperienceStatusResponse
+	err := oc.authenticatedRequest(verb, path, &getOrbitSetupExperienceStatusRequest{}, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Results, nil
+}
+
+func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks.LuksResponse) error {
+	verb, path := "POST", "/api/fleet/orbit/luks_data"
+	var resp orbitPostLUKSResponse
+	if err := oc.authenticatedRequest(verb, path, &orbitPostLUKSRequest{
+		Passphrase:  lr.Passphrase,
+		KeySlot:     lr.KeySlot,
+		Salt:        lr.Salt,
+		ClientError: lr.Err,
+	}, &resp); err != nil {
+		return err
+	}
+
+	return nil
 }

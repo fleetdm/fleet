@@ -68,7 +68,7 @@
   }
 
   .label-filter-select__placeholder {
-    width: 75px; // Truncates text for smaller filter width
+    width: 215px; // Any larger runs into indicator
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

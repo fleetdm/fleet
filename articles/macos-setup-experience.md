@@ -10,6 +10,10 @@ In Fleet, you can customize the out-of-the-box macOS Setup Assistant with Remote
 
 * Install a bootstrap package to gain full control over the setup experience by installing tools like Puppet, Munki, DEP notify, custom scripts, and more.
 
+* Install software (App Store apps, custom packages, and Fleet-maintained apps).
+
+* Run a script.
+
 In addition to the customization above, Fleet automatically installs the fleetd agent during out-of-the-box macOS setup. This agent is responsible for reporting host vitals to Fleet and presenting Fleet Desktop to the end user.
 
 macOS setup features require connecting Fleet to Apple Business Manager (ABM). Learn how [here](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm).
@@ -160,6 +164,40 @@ Testing requires a test Mac that is present in your Apple Business Manager (ABM)
 3. Transfer this host to the "Workstations (canary)" team by selecting the checkbox to the left of the host and selecting **Transfer** at the top of the table. In the modal, choose the Workstations (canary) team and select **Transfer**.
 
 4. Boot up your test Mac and complete the custom out-of-the-box setup experience.
+
+## Software and script
+
+You can configure software installations and a script to be executed during Setup Assistant. This capability allows you to configure your end users' machines during the unboxing experience, speeding up their onboarding and reducing setup time.
+
+If you configure software and/or a script for setup experience, users will see a window like this pop open after their device enrolls in MDM via ADE:
+
+![screen shot of Fleet setup experience window](../website/assets/images/install-software-preview.png)
+
+This window shows the status of the software installations as well as the script exectution. Once all steps have completed, the window can be closed and Setup Assistant will proceed as usual.
+
+### Install software
+
+To configure software to be installed during setup experience:
+
+1. Click on the "Controls" tab in the main navigation bar. Click on "Setup experience", and then on "4. Install software".
+
+2. Click the "Add software" button. In the modal, select the software that you want to have installed during the setup experience. You can search the list of software by using the search bar in the modal. Click "Save" to save your selection and close the modal. 
+
+### Run script
+
+To configure a script to run during setup experience:
+
+1. Click on the "Controls" tab in the main navigation bar. Click on "Setup experience", and then on "5. Run script".
+
+2. Click "Upload" and select a script (.sh file) from the file picker modal. Once the script is uploaded, you can use the buttons on the script in the web UI to download or delete the script.
+
+### Configuring via REST API
+
+Fleet also provides a REST API for managing setup experience software and scripts programmatically. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api).
+
+### Configuring via GitOps
+
+To manage setup experience software and script using Fleet's best practice GitOps, check out the `macos_setup` key in the GitOps reference documentation [here](https://fleetdm.com/docs/configuration/yaml-files#macos-setup)
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

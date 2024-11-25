@@ -1,0 +1,2 @@
+- Fixes a bug where users would be allowed to attempt an install of an App Store app on a host that
+  was not MDM enrolled.

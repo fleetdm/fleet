@@ -750,7 +750,7 @@ allow {
 # Global admins and maintainers can write (execute) MDM commands.
 allow {
   object.type == "mdm_command"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == [admin, maintainer, gitops][_]
   action == write
 }
 
@@ -758,7 +758,7 @@ allow {
 allow {
   not is_null(object.team_id)
   object.type == "mdm_command"
-  team_role(subject, object.team_id) == [admin, maintainer][_]
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
   action == write
 }
 

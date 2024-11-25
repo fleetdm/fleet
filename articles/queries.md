@@ -69,6 +69,11 @@ By default, queries that run on a schedule will only target platforms compatible
 
 > Note: When viewing a specific [team](https://fleetdm.com/docs/using-fleet/segment-hosts) in Fleet Premium, only queries that belong to the selected team will be listed. When configuring query automations for all hosts, only global queries will be listed.
 
+### Further reading
+
+- [Import and export queries in Fleet](https://fleetdm.com/guides/import-and-export-queries-in-fleet)
+- [Osquery: Consider joining against the users table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table) 
+
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

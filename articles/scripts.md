@@ -1,6 +1,6 @@
 # Scripts
 
-In Fleet you can execute a custom script to remediate an issue on your macOS, Windows, and Linux hosts.
+In Fleet you can run custom scripts to remediate an issue on your macOS, Windows, and Linux hosts.
 
 Shell scripts are supported on macOS and Linux. By default, shell scripts will run in the host's (root) shell (`/bin/sh`). We also support `/bin/zsh` interpreter.
 Note: To run in `/bin/zsh`, create `.sh` file (only supported extension) and add an interpreter at the first line.
@@ -21,9 +21,9 @@ If you don't use MDM features, to enable scripts, we'll deploy a fleetd agent wi
 
 Learn more about generating a fleetd agent and deploying it [here](https://fleetdm.com/guides/enroll-hosts).
 
-## Execute a script
+## Manually run scripts
 
-You can execute a script in the Fleet UI, with Fleet API, or with the fleetctl command-line interface (CLI).
+You can run a script in the Fleet UI, with Fleet API, or with the fleetctl command-line interface (CLI).
 
 Fleet UI:
 
@@ -45,9 +45,9 @@ fleetctl CLI:
 fleetctl run-script --script-path=/path/to/script --host=hostname
 ```
 
-## Automate a script
+## Automatically run scripts
 
-You can tell Fleet to run a script on a host when that host fails a policy. Learn more in our [script policy automations guide](https://fleetdm.com/guides/policy-automation-run-script).
+Learn more about automatically running scripts [here](https://fleetdm.com/guides/policy-automation-run-script).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

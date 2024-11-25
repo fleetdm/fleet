@@ -978,7 +978,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			}
 			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
 		}
-		queryStats, _ := stats[query]
+		queryStats := stats[query]
 
 		ingestedDetailUpdated, ingestedAdditionalUpdated, err := svc.ingestQueryResults(
 			ctx, query, host, rows, failed, messages, policyResults, labelResults, additionalResults, queryStats,
@@ -1240,7 +1240,6 @@ func preProcessSoftwareResults(
 	overrides map[string]osquery_utils.DetailQuery,
 	logger log.Logger,
 ) {
-	//
 	vsCodeExtensionsExtraQuery := hostDetailQueryPrefix + "software_vscode_extensions"
 	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
@@ -1249,11 +1248,11 @@ func preProcessSoftwareResults(
 		preProcessSoftwareExtraResults(fullQueryName, host.ID, results, statuses, messages, query, logger)
 	}
 
-	// Filter out python packages that are also deb packages on ubuntu
+	// Filter out python packages that are also deb packages on ubuntu/debian
 	pythonPackageFilter(host.Platform, results, statuses)
 }
 
-// pythonPackageFilter filters out duplicate python_packages that are installed under deb_packages on Ubuntu.
+// pythonPackageFilter filters out duplicate python_packages that are installed under deb_packages on Ubuntu and Debian.
 // python_packages not matching a Debian package names are updated to "python3-packagename" to match OVAL definitions.
 func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQueryResults, statuses *map[string]fleet.OsqueryStatus) {
 	const pythonPrefix = "python3-"
@@ -1261,9 +1260,9 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 	const debSource = "deb_packages"
 	const linuxSoftware = hostDetailQueryPrefix + "software_linux"
 
-	// Return early if platform is not Ubuntu
+	// Return early if platform is not Ubuntu or Debian
 	// We may need to add more platforms in the future
-	if platform != "ubuntu" {
+	if platform != "ubuntu" && platform != "debian" {
 		return
 	}
 
@@ -1358,7 +1357,7 @@ func preProcessSoftwareExtraResults(
 	}
 
 	// Extract the results of the extra query.
-	softwareExtraRows, _ := (*results)[softwareExtraQuery]
+	softwareExtraRows := (*results)[softwareExtraQuery]
 	if len(softwareExtraRows) == 0 {
 		return
 	}
@@ -1377,9 +1376,12 @@ func preProcessSoftwareExtraResults(
 			// Do not append results if the main query failed to run.
 			continue
 		}
-		(*results)[query] = removeOverrides((*results)[query], override)
-
-		(*results)[query] = append((*results)[query], softwareExtraRows...)
+		if override.SoftwareProcessResults != nil {
+			(*results)[query] = override.SoftwareProcessResults((*results)[query], softwareExtraRows)
+		} else {
+			(*results)[query] = removeOverrides((*results)[query], override)
+			(*results)[query] = append((*results)[query], softwareExtraRows...)
+		}
 		return
 	}
 }
@@ -2487,4 +2489,40 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 
 	// If none of the above patterns match, return error
 	return nil, "", fmt.Errorf("unknown format: %q", path)
+}
+
+// Yara rules
+
+func (svc *Service) YaraRuleByName(ctx context.Context, name string) (*fleet.YaraRule, error) {
+	return svc.ds.YaraRuleByName(ctx, name)
+}
+
+type getYaraRequest struct {
+	NodeKey string `json:"node_key"`
+	Name    string `url:"name"`
+}
+
+func (r *getYaraRequest) hostNodeKey() string {
+	return r.NodeKey
+}
+
+type getYaraResponse struct {
+	Err     error `json:"error,omitempty"`
+	Content string
+}
+
+func (r getYaraResponse) error() error { return r.Err }
+
+func (r getYaraResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = w.Write([]byte(r.Content))
+}
+
+func getYaraEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	r := request.(*getYaraRequest)
+	rule, err := svc.YaraRuleByName(ctx, r.Name)
+	if err != nil {
+		return getYaraResponse{Err: err}, nil
+	}
+	return getYaraResponse{Content: rule.Contents}, nil
 }

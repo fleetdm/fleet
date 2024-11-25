@@ -77,9 +77,7 @@ func Analyze(
 		return nil, err
 	}
 	var existing []fleet.OSVulnerability
-	for _, osv := range osVulns {
-		existing = append(existing, osv)
-	}
+	existing = append(existing, osVulns...)
 
 	// Compute what needs to be inserted/deleted for this batch
 	insrt, del := utils.VulnsDelta(found, existing)

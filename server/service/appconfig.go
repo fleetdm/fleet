@@ -416,6 +416,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// 1. To get the JSON value from the database
 	// 2. To update fields with the incoming values
 	if newAppConfig.MDM.EnableDiskEncryption.Valid {
+		if newAppConfig.MDM.EnableDiskEncryption.Value && svc.config.Server.PrivateKey == "" {
+			return nil, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		}
 		appConfig.MDM.EnableDiskEncryption = newAppConfig.MDM.EnableDiskEncryption
 	} else if appConfig.MDM.EnableDiskEncryption.Set && !appConfig.MDM.EnableDiskEncryption.Valid {
 		appConfig.MDM.EnableDiskEncryption = oldAppConfig.MDM.EnableDiskEncryption
@@ -484,6 +487,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
 	fleet.ValidateEnabledActivitiesWebhook(appConfig.WebhookSettings.ActivitiesWebhook, invalid)
+
 	if err := svc.validateMDM(ctx, license, &oldAppConfig.MDM, &appConfig.MDM, invalid); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")
 	}
@@ -599,6 +603,29 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
+	}
+
+	// only create activities when config change has been persisted
+
+	switch {
+	case appConfig.WebhookSettings.ActivitiesWebhook.Enable && !oldAppConfig.WebhookSettings.ActivitiesWebhook.Enable:
+		act := fleet.ActivityTypeEnabledActivityAutomations{WebhookUrl: appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for enabled activity automations")
+		}
+	case !appConfig.WebhookSettings.ActivitiesWebhook.Enable && oldAppConfig.WebhookSettings.ActivitiesWebhook.Enable:
+		act := fleet.ActivityTypeDisabledActivityAutomations{}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for disabled activity automations")
+		}
+	case appConfig.WebhookSettings.ActivitiesWebhook.Enable &&
+		appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL != oldAppConfig.WebhookSettings.ActivitiesWebhook.DestinationURL:
+		act := fleet.ActivityTypeEditedActivityAutomations{
+			WebhookUrl: appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL,
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for edited activity automations")
+		}
 	}
 
 	switch ndesStatus {
@@ -747,6 +774,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.IPadOSUpdates,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "process iPadOS OS updates config change")
+	}
+
+	if appConfig.YaraRules != nil {
+		if err := svc.ds.ApplyYaraRules(ctx, appConfig.YaraRules); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "save yara rules for app config")
+		}
 	}
 
 	// if the Windows updates requirements changed, create the corresponding
@@ -956,14 +989,19 @@ func (svc *Service) validateMDM(
 	checkCustomSettings := func(prefix string, customSettings []fleet.MDMProfileSpec) {
 		for i, prof := range customSettings {
 			count := 0
-			for _, b := range []bool{len(prof.Labels) > 0, len(prof.LabelsIncludeAll) > 0, len(prof.LabelsExcludeAny) > 0} {
+			for _, b := range []bool{
+				len(prof.Labels) > 0,
+				len(prof.LabelsIncludeAll) > 0,
+				len(prof.LabelsIncludeAny) > 0,
+				len(prof.LabelsExcludeAny) > 0,
+			} {
 				if b {
 					count++
 				}
 			}
 			if count > 1 {
 				invalid.Append(fmt.Sprintf("%s_settings.custom_settings", prefix),
-					fmt.Sprintf(`Couldn't edit %s_settings.custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`, prefix))
+					fmt.Sprintf(`Couldn't edit %s_settings.custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
 			}
 			if len(prof.Labels) > 0 {
 				customSettings[i].LabelsIncludeAll = customSettings[i].Labels
@@ -1095,15 +1133,6 @@ func (svc *Service) validateMDM(
 			return nil
 		}
 	}
-
-	// if either macOS or Windows MDM is enabled, this setting can be set.
-	if !mdm.AtLeastOnePlatformEnabledAndConfigured() {
-		if mdm.EnableDiskEncryption.Valid && mdm.EnableDiskEncryption.Value && mdm.EnableDiskEncryption.Value != oldMdm.EnableDiskEncryption.Value {
-			invalid.Append("mdm.enable_disk_encryption",
-				`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
-		}
-	}
-
 	return nil
 }
 

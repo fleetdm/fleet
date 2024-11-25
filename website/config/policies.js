@@ -46,7 +46,7 @@ module.exports.policies = {
   'deliver-apple-csr': true,
   'download-rss-feed': true,
   'view-endpoint-ops': true,
-  'view-vulnerability-management': true,
+  'view-software-management': true,
   'deliver-mdm-demo-email': true,
   'view-support': true,
   'view-integrations': true,
@@ -56,4 +56,6 @@ module.exports.policies = {
   'redirect-vanta-authorization-request': true,
   'view-deals': true,
   'deliver-deal-registration-submission': true,
+  'get-est-device-certificate': true,
+  'view-testimonials': true,
 };

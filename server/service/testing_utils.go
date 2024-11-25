@@ -13,13 +13,16 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
+	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
@@ -143,10 +146,17 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 
 	cronSchedulesService := fleet.NewCronSchedules()
 
-	if len(opts) > 0 && opts[0].StartCronSchedules != nil {
-		for _, fn := range opts[0].StartCronSchedules {
-			err = cronSchedulesService.StartCronSchedule(fn(ctx, ds))
-			require.NoError(t, err)
+	var eh *errorstore.Handler
+	if len(opts) > 0 {
+		if opts[0].Pool != nil {
+			eh = errorstore.NewHandler(ctx, opts[0].Pool, logger, time.Minute*10)
+			ctx = ctxerr.NewContext(ctx, eh)
+		}
+		if opts[0].StartCronSchedules != nil {
+			for _, fn := range opts[0].StartCronSchedules {
+				err = cronSchedulesService.StartCronSchedule(fn(ctx, ds))
+				require.NoError(t, err)
+			}
 		}
 	}
 
@@ -328,6 +338,7 @@ type TestServerOpts struct {
 	BootstrapPackageStore fleet.MDMBootstrapPackageStore
 	KeyValueStore         fleet.KeyValueStore
 	EnableSCEPProxy       bool
+	WithDEPWebview        bool
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -403,9 +414,22 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 		}
 	}
 
+	if len(opts) > 0 && opts[0].WithDEPWebview {
+		frontendHandler := WithMDMEnrollmentMiddleware(svc, logger, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// do nothing and return 200
+			w.WriteHeader(http.StatusOK)
+		}))
+		rootMux.Handle("/", frontendHandler)
+	}
+
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(1000)))
 	rootMux.Handle("/api/", apiHandler)
-	debugHandler := MakeDebugHandler(svc, cfg, logger, nil, ds)
+	var errHandler *errorstore.Handler
+	ctxErrHandler := ctxerr.FromContext(ctx)
+	if ctxErrHandler != nil {
+		errHandler = ctxErrHandler.(*errorstore.Handler)
+	}
+	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds)
 	rootMux.Handle("/debug/", debugHandler)
 
 	server := httptest.NewUnstartedServer(rootMux)
@@ -569,9 +593,7 @@ func (m *memFailingPolicySet) ListHosts(policyID uint) ([]fleet.PolicySetHost, e
 	defer m.mMu.RUnlock()
 
 	hosts := make([]fleet.PolicySetHost, len(m.m[policyID]))
-	for i := range m.m[policyID] {
-		hosts[i] = m.m[policyID][i]
-	}
+	copy(hosts, m.m[policyID])
 	return hosts, nil
 }
 
@@ -640,7 +662,7 @@ func newMockAPNSPushProviderFactory() (*mock.APNSPushProviderFactory, *mock.APNS
 	return factory, provider
 }
 
-func mockSuccessfulPush(pushes []*mdm.Push) (map[string]*push.Response, error) {
+func mockSuccessfulPush(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
 	res := make(map[string]*push.Response, len(pushes))
 	for _, p := range pushes {
 		res[p.Token.String()] = &push.Response{
@@ -671,18 +693,13 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"GET", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/profiles/summary", false, false},
-		{"GET", "/api/latest/fleet/mdm/profiles/summary", false, false},
-		{"GET", "/api/latest/fleet/configuration_profiles/summary", false, false},
 		{"PATCH", "/api/latest/fleet/mdm/hosts/1/unenroll", false, false},
 		{"DELETE", "/api/latest/fleet/hosts/1/mdm", false, false},
-		{"GET", "/api/latest/fleet/mdm/hosts/1/encryption_key", false, false},
-		{"GET", "/api/latest/fleet/hosts/1/encryption_key", false, false},
 		{"GET", "/api/latest/fleet/mdm/hosts/1/profiles", false, true},
 		{"GET", "/api/latest/fleet/hosts/1/configuration_profiles", false, true},
 		{"POST", "/api/latest/fleet/mdm/hosts/1/lock", false, false},
 		{"POST", "/api/latest/fleet/mdm/hosts/1/wipe", false, false},
 		{"PATCH", "/api/latest/fleet/mdm/apple/settings", false, false},
-		{"POST", "/api/latest/fleet/disk_encryption", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple", false, false},
 		{"GET", "/api/latest/fleet/apns", false, false},
 		{"GET", apple_mdm.EnrollPath + "?token=test", false, false},
@@ -712,8 +729,6 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"GET", "/api/latest/fleet/mdm/commands", false, false},
 		{"GET", "/api/latest/fleet/commands", false, false},
 		{"POST", "/api/fleet/orbit/disk_encryption_key", false, false},
-		{"GET", "/api/latest/fleet/mdm/disk_encryption/summary", false, true},
-		{"GET", "/api/latest/fleet/disk_encryption", false, true},
 		{"GET", "/api/latest/fleet/mdm/profiles/1", false, false},
 		{"GET", "/api/latest/fleet/configuration_profiles/1", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/profiles/1", false, false},
@@ -743,6 +758,7 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"GET", "/api/latest/fleet/bootstrap/summary", false, true},
 		{"PATCH", "/api/latest/fleet/mdm/apple/setup", false, true},
 		{"PATCH", "/api/latest/fleet/setup_experience", false, true},
+		{"POST", "/api/fleet/orbit/setup_experience/status", false, true},
 	}
 }
 

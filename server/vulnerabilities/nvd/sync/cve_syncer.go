@@ -1131,8 +1131,6 @@ func updateWithVulnCheckConfigurations(cve *schema.NVDCVEFeedJSON10DefCVEItem, v
 		CVEDataVersion: "4.0", // All entries seem to have this version string.
 		Nodes:          nodes,
 	}
-
-	return
 }
 
 // convertAPI20TimeToLegacy converts the timestamps from API 2.0 format to the expected legacy feed time format.

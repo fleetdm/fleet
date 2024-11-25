@@ -34,7 +34,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
 	"github.com/ngrok/sqlmw"
-	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
 const (
@@ -418,7 +418,12 @@ func init() {
 				return string(method)
 			}
 			// Append query with extra whitespaces removed
-			return string(method) + ": " + strings.Join(strings.Fields(query), " ")
+			query = strings.Join(strings.Fields(query), " ")
+			const maxQueryLen = 100
+			if len(query) > maxQueryLen {
+				query = query[:maxQueryLen] + "..."
+			}
+			return string(method) + ": " + query
 		}),
 	)
 	if err != nil {

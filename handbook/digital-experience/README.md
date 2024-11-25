@@ -15,8 +15,9 @@ This page details processes specific to working [with](#contact-us) and [within]
 | Head of Design                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
 | Software Engineer               | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
 | Contracts and Compliance Engineer       | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
-
+| Marketing Apprentice            | [Onasis Munro](https://www.linkedin.com/in/onasismunro/) _([@onasismunro](https://github.com/onasismunro))_
  
+
 
 ## Contact us
 
@@ -206,6 +207,11 @@ To update the host count on a user's subscription:
 7. Let the person who created the request know what actions were taken so they can communicate them to the customer.
 
 
+### Change customer credit card number
+
+You can help a Premium license dispenser customers change their credit card by directing them to their [account dashboard](https://fleetdm.com/customers/dashboard). On that page, the customer can update their billing card by clicking the pencil icon next to their billing information.
+
+
 ### Cancel a Fleet Premium subscription
 
 Use the following steps to cancel a Fleet Premium subscription:
@@ -321,16 +327,8 @@ When Digital Experience receives notification of a Fleetie's manager changing, f
 
 At Fleet, everyone is recognized on their [workiversary](https://fleetdm.com/handbook/company/communications#workiversaries). To ensure this happens, take the following steps:
 
-1. On the 15th of every month, use [Fleeties (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) to determine who is celebrating their workiversary in the next month.
-2. At-mention the Head of Digital Experience. Use the following template:
-
-   
-    ```
-    [Month]
-    [workiversary date (DD-MMM)] - [teammate name] - [number of years at Fleet]
-    ```
-
-   The Head of Digital Experience will also use this post to update the [All hands](https://fleetdm.com/handbook/company/communications#all-hands) deck.
+1. On the 1st of every month, use [Fleeties (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) to determine who is celebrating their workiversary in the next month.
+2. List all team members in the ["✌️ All hands 🖐👋🤲👏🙌🤘" section of the e-group doc (confidential Google Doc)](https://docs.google.com/document/d/13fjq3T0bZGOUah9cqHVxngckv0EB2R24A3gfl5cH7eo/edit?tab=t.0#heading=h.gg4j9w7jg6g3) using the following format: `[workiversary date (DD-MMM)] - [teammate name] - [number of years at Fleet]`.
 3. On the day prior to a workiversary, send the teammate’s manager a DM on Slack:
 
 
@@ -349,21 +347,22 @@ At Fleet, everyone is recognized on their [workiversary](https://fleetdm.com/han
 1. Use the relevant template text in the README section of the [¶¶ 💌 Compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?usp=sharing) for a current Fleetie, a new role, a prospective hire, or other benchmarking use case.
 2. Copy the template text and paste at the end of the document.
 3. Fill in details as required, pulling from [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) as required.
-4. Use the teammate's information to benchmark in [Pave](https://www.pave.com/) (login details in 1Password). You can pattern match from previous benchmarking entries, and include all company assumtions. Add the direct link to the Pave benchmark.
+4. Use the teammate's information to benchmark in [Pave](https://www.pave.com/) (login details in 1Password). You can pattern match from previous benchmarking entries and include all company assumptions. Add the direct link to the Pave benchmark.
 
 
 ### Update a team member's compensation
 
 To [change a teammate's compensation](https://fleetdm.com/handbook/company/communications#compensation-changes), follow these steps:
 1. Create a copy of the ["Values assessment" template](https://docs.google.com/spreadsheets/d/1P5TyRV2v-YN0aR_X8vd8GksKcr3uHfUDdshqpVzamV8/edit?usp=drive_link) and move it to the teammate's [personnel folder in Google Drive](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
-2. Share the values assessment document with the manager and ask them to perform the values assessment.
-3. Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and notify the Head of Digital Experience so the compensation change can be added to the e-group agenda for discussion amongst Fleet leadership.
-   - If the teammate's manager is not part of the e-group, the Head of Digital Experience will ensure they're included in the discussion at e-group as well. 
-4. Once compensation decisions have been finalized, the Head of Digital Experience will post in slack to `#help-classified` to confirm the decisions have been recorded in ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas). 
-5. Send the teammates manager a Slack DM to determine who will communicate the decision to the teammate.
-6. Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
-7. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying existing OTE to the bottom of the "Notes" cell, updating the OTE column with the new compensation information, and updating the "Last compensation change" column with the effective date from payroll platform.
-8. Calculate the monthly burn rate increase percentage and notify the CEO via a Slack DM.
+2. Share the values assessment document with the manager via Slack DM (include the Head of Digital Experience) and ask the manager to fill out the values assessment.
+3. Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and at-mention the Head of Digital Experience in the workiversary issue. Add a "DISCUSS" item to the roundup doc so the compensation change can be reviewed with the CEO.
+4. Once compensation decisions have been finalized, the Head of Digital Experience will send the teammate's manager a Slack DM to communicate the compensation decision and asking them to inform the teammate.
+5. Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
+6. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying Adding to the "Notes" cell,
+  - Update the "¶¶ Annual OTE ($)" column with the new compensation information.
+  - Update the "Last compensation change" column with the effective date from payroll platform.
+  - Update the "¶¶ Notes" column. **⚠️ MAKE SURE NOT TO DELETE ANY EXISTING NOTES ⚠️** Add the note to the top of the cell using the following format: `As of YYYY-MM-DD OTE +15k` (pattern match off of other 2024 notes). Link your note to the relevant title in the ["¶¶ 💌 Compensation decisions (offer math)" (classified Google Doc)](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?tab=t.0#heading=h.slomq4whmyas).
+7. Calculate the monthly burn rate increase percentage and notify the CEO via a Slack DM.
 
 > If the company decides on an additional equity grant as part of a compensation change, note the previous equity and new situation in detail in the "Notes" column of the equity plan. Update the "Grant started?" column to "todo" which adds it to the queue for the next time grants are processed (quarterly).
 
@@ -836,6 +835,10 @@ After the team member notifies the Head of Digital Experience (via Slack), the H
 3. Confirm the "shadowability" for external and nonrecurring internal meetings with the CEO during the next daily 🐈‍⬛🌪️ Roundup.
 4. Go through the calendar and make sure all private meetings (e.g. 1:1's, E-Group, and quarterly board meetings) have "[no shadows]" in the event title.
 
+
+### Check GitHub terms
+
+Go to [GitHub's terms of services](https://docs.github.com/en/free-pro-team@latest/github/site-policy/github-terms-of-service) and search “inbound=outbound” to find the clause, if still there as is, paste a screenshot into the table in this [document](https://docs.google.com/document/d/101rcp9v3Zdml4YolGRmqYS5ruAKzQvXLOTHLXCavPuE/edit#heading=h.xu6qsi0wrns). If the clause has changed, contact Mike M. and let him know. 
 
 
 ## Rituals

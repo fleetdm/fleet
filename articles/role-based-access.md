@@ -64,7 +64,9 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Filter hosts using policies                                                                                                                | ✅       | ✅         | ✅         | ✅    |         |
 | Create, edit, and delete policies for all hosts                                                                                            |          |            | ✅         | ✅    | ✅      |
 | Create, edit, and delete policies for all hosts assigned to team\*                                                                         |          |            | ✅         | ✅    | ✅      |
-| Manage [policy automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations)                                           |          |            |            | ✅    | ✅      |
+| Edit global ("All teams") policy automations                  |          |            |            | ✅    | ✅      |
+| Edit team policy automations: calendar events, install software, and run script\* |          |            | ✅         | ✅    | ✅      |
+| Edit team policy automations: other workflows (tickets and webhooks)\*                 |          |            |            | ✅    | ✅      |
 | Create, edit, view, and delete users                                                                                                       |          |            |            | ✅    |         |
 | Add and remove team users\*                                                                                                                |          |            |            | ✅    | ✅      |
 | Create, edit, and delete teams\*                                                                                                           |          |            |            | ✅    | ✅      |
@@ -86,13 +88,14 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View disk encryption key for macOS and Windows hosts                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
 | Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                                |          |            | ✅         | ✅    | ✅      |
 | Create, edit, resend and delete configuration profiles for macOS and Windows hosts                                                                  |          |            | ✅         | ✅    | ✅      |
-| Execute MDM commands on macOS and Windows hosts\**                                                                                         |          |            | ✅         | ✅    |         |
+| Execute MDM commands on macOS and Windows hosts\**                                                                                         |          |            | ✅         | ✅    | ✅      |
 | View results of MDM commands executed on macOS and Windows hosts\**                                                                        | ✅       | ✅         | ✅         | ✅    |         |
 | Edit [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                               |          |            |            | ✅    | ✅      |
 | Edit [MDM settings for teams](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                     |          |            |            | ✅    | ✅      |
 | View all [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                           |          |            |            | ✅    | ✅      |
-| Edit setup experience (end user authentication, bootstrap package, Setup Assistant)\*                                                                                         |          |            | ✅             | ✅    | ✅          |
+| Edit [macOS setup experience]([https://fleetdm.com/docs/](https://fleetdm.com/guides/macos-setup-experience#basic-article))\*                                                                                         |          |            | ✅             | ✅    | ✅          |
 | Edit end user license agreement (EULA)\*                                                                                         |          |            |              | ✅    |         |
+| Add and edit Simple Certificate Enrollment Protocol (SCEP) server\*                                                                        |          |            |            | ✅    | ✅      |
 | Run scripts on hosts                                                                                                                       |          |            | ✅         | ✅    |         |
 | View saved scripts\*                                                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
 | Edit/upload saved scripts\*                                                                                                                |          |            | ✅         | ✅    | ✅      |
@@ -146,7 +149,8 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Run global (inherited) policies as a live policy                                                                                 |               | ✅             | ✅              | ✅         |             |
 | Filter hosts using policies                                                                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Create, edit, and delete team policies                                                                                           |               |                | ✅              | ✅         | ✅          |
-| Manage [policy automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations)                                 |               |                |                 | ✅         | ✅          |
+| Edit team policy automations: calendar events, install software, and run script |          |            | ✅         | ✅    | ✅      |
+| Edit team policy automations: other workflows (tickets and webhooks)                 |          |            |            | ✅    | ✅      |
 | Add and remove team users                                                                                                        |               |                |                 | ✅         | ✅          |
 | Edit team name                                                                                                                   |               |                |                 | ✅         | ✅          |
 | Create, edit, and delete [team enroll secrets](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)      |               |                | ✅              | ✅         |             |
@@ -160,11 +164,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Execute MDM commands on macOS and Windows hosts*                                                                                 |               |                | ✅              | ✅         |             |
 | View results of MDM commands executed on macOS and Windows hosts*                                                                | ✅            | ✅             | ✅              | ✅         |             |
 | Edit [team MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                |               |                |                 | ✅         | ✅          |
-| View/download MDM macOS setup assistant                                                                                          |               |                | ✅              | ✅         |             |
-| Edit/upload MDM macOS setup assistant                                                                                            |               |                | ✅              | ✅         | ✅          |
-| View metadata of MDM macOS bootstrap packages                                                                                    |               |                | ✅              | ✅         |             |
-| Edit/upload MDM macOS bootstrap packages                                                                                         |               |                | ✅              | ✅         | ✅          |
-| Enable/disable MDM macOS setup end user authentication                                                                           |               |                | ✅              | ✅         | ✅          |
+| Edit [macOS setup experience]([https://fleetdm.com/docs/](https://fleetdm.com/guides/macos-setup-experience#basic-article))\*                                                                                         |          |            | ✅             | ✅    | ✅          |
 | Run scripts on hosts                                                                                                             |               |                | ✅              | ✅         |             |
 | View saved scripts                                                                                                               | ✅            | ✅             | ✅              | ✅         |             |
 | Edit/upload saved scripts                                                                                                        |               |                | ✅              | ✅         |             |
@@ -179,6 +179,6 @@ Users with access to multiple teams can be assigned different roles for each tea
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
-<meta name="publishedOn" value="2024-08-10">
+<meta name="publishedOn" value="2024-10-31">
 <meta name="articleTitle" value="Role-based access">
 <meta name="description" value="Learn about the different roles and permissions in Fleet.">

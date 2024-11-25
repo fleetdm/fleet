@@ -479,7 +479,6 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	items[0].Status = nil
 	items[1].Status = nil
 	assert.True(t, items[0].Equal(items[1]))
-
 }
 
 func TestMDMAppleProfilePayloadEqual(t *testing.T) {
@@ -559,7 +558,6 @@ func TestMDMAppleProfilePayloadEqual(t *testing.T) {
 	items[0].Checksum = nil
 	items[1].Checksum = nil
 	assert.True(t, items[0].Equal(items[1]))
-
 }
 
 func TestConfigurationProfileLabelEqual(t *testing.T) {
@@ -608,9 +606,10 @@ func TestConfigurationProfileLabelEqual(t *testing.T) {
 	fieldsInEqualMethod++
 	items[1].Exclude = items[0].Exclude
 	fieldsInEqualMethod++
+	items[1].RequireAll = items[0].RequireAll
+	fieldsInEqualMethod++
 
 	assert.Equal(t, fieldsInEqualMethod, numberOfFields,
 		"Does cmp.Equal for ConfigurationProfileLabel needs to be updated for new/updated field(s)?")
 	assert.True(t, cmp.Equal(items[0], items[1]))
-
 }

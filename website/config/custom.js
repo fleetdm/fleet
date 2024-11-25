@@ -132,7 +132,7 @@ module.exports.custom = {
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // 🫧 Articles and release notes
-    'articles': 'rachaelshaw',
+    'articles': 'zayhanlon',
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
@@ -268,6 +268,8 @@ module.exports.custom = {
     'handbook/company': 'mikermcneil',
     'handbook/company/product-groups.md': ['lukeheath', 'sampfluger88','mikermcneil'],
     'handbook/company/open-positions.yml': ['sampfluger88','mikermcneil'],
+    'handbook/company/communications.md': ['sampfluger88','mikermcneil'],
+    'handbook/company/leadership.md': ['sampfluger88','mikermcneil'],
     'handbook/digital-experience': ['sampfluger88','mikermcneil'],
     'handbook/finance': ['sampfluger88','mikermcneil'],
     'handbook/engineering': ['sampfluger88','mikermcneil', 'lukeheath'],
@@ -299,7 +301,6 @@ module.exports.custom = {
     // "Secret handbook"
     // Standard operating procedures (SOP), etc that would be public handbook content except for that it's confidential.
     'README.md': ['mikermcneil'],// « about this repo
-    'cold-outbound-strategy.md': ['mikermcneil', 'sampfluger88'],// « Cold outbound strategy (see fleetdm.com/handbook/company/why-this-way for our vision of a better way to sell)
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'sampfluger88', 'lukeheath'],// FUTURE: Bust out individual maintainership for issue templates once relevant DRIs are GitHub, markdown, and content design-certified

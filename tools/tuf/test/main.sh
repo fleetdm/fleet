@@ -14,6 +14,19 @@ if ( [ -n "$GENERATE_PKG" ] || [ -n "$GENERATE_DEB" ] || [ -n "$GENERATE_RPM" ] 
   exit 1
 fi
 
+if [ -n "$KEY_EXPIRATION_DURATION" ]; then
+  export EXTRA_FLEETCTL_LDFLAGS="$EXTRA_FLEETCTL_LDFLAGS -X github.com/fleetdm/fleet/v4/ee/fleetctl.keyExpirationDuration=$KEY_EXPIRATION_DURATION"
+fi
+if [ -n "$SNAPSHOT_EXPIRATION_DURATION" ]; then
+  export EXTRA_FLEETCTL_LDFLAGS="$EXTRA_FLEETCTL_LDFLAGS -X github.com/fleetdm/fleet/v4/ee/fleetctl.snapshotExpirationDuration=$SNAPSHOT_EXPIRATION_DURATION"
+fi
+if [ -n "$TARGETS_EXPIRATION_DURATION" ]; then
+  export EXTRA_FLEETCTL_LDFLAGS="$EXTRA_FLEETCTL_LDFLAGS -X github.com/fleetdm/fleet/v4/ee/fleetctl.targetsExpirationDuration=$TARGETS_EXPIRATION_DURATION"
+fi
+if [ -n "$TIMESTAMP_EXPIRATION_DURATION" ]; then
+  export EXTRA_FLEETCTL_LDFLAGS="$EXTRA_FLEETCTL_LDFLAGS -X github.com/fleetdm/fleet/v4/ee/fleetctl.timestampExpirationDuration=$TIMESTAMP_EXPIRATION_DURATION"
+fi
+
 make fleetctl
 ./tools/tuf/test/create_repository.sh
 

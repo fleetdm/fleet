@@ -19,10 +19,6 @@ func WithEnv(name, value string) Option {
 }
 
 // WithArg sets command line arguments for the application.
-//
-// TODO: for now CLI arguments are only used by the darwin
-// implementation, just because it's the only platform that needs
-// them.
 func WithArg(name, value string) Option {
 	return func(a *eopts) {
 		a.args = append(a.args, [2]string{name, value})
@@ -33,10 +29,23 @@ func WithArg(name, value string) Option {
 // It assumes the caller is running with high privileges (root on Unix, SYSTEM on Windows).
 //
 // It returns after starting the child process.
-func Run(path string, opts ...Option) error {
+func Run(path string, opts ...Option) (lastLogs string, err error) {
 	var o eopts
 	for _, fn := range opts {
 		fn(&o)
 	}
 	return run(path, o)
+}
+
+// RunWithOutput runs an application as the current login user and returns its output.
+// It assumes the caller is running with high privileges (root on UNIX).
+//
+// It blocks until the child process exits.
+// Non ExitError errors return with a -1 exitCode.
+func RunWithOutput(path string, opts ...Option) (output []byte, exitCode int, err error) {
+	var o eopts
+	for _, fn := range opts {
+		fn(&o)
+	}
+	return runWithOutput(path, o)
 }

@@ -6,11 +6,8 @@
 	"language": "en",
 	"region": "US",
 	"skip_setup_items": [
-		"Accessibility",
-		"Appearance",
 		"AppleID",
 		"AppStore",
-		"Biometric",
 		"Diagnostics",
 		"FileVault",
 		"iCloudDiagnostics",

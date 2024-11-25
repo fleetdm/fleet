@@ -1,6 +1,7 @@
 package certverify
 
 import (
+	"context"
 	"crypto/x509"
 	"errors"
 )
@@ -25,7 +26,7 @@ func NewPoolVerifier(rootsPEM []byte, keyUsages ...x509.ExtKeyUsage) (*PoolVerif
 }
 
 // Verify performs certificate verification
-func (v *PoolVerifier) Verify(cert *x509.Certificate) error {
+func (v *PoolVerifier) Verify(_ context.Context, cert *x509.Certificate) error {
 	if cert == nil {
 		return errors.New("missing MDM certificate")
 	}

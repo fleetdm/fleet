@@ -15,11 +15,15 @@ org_settings:
     jira: [ ]
     zendesk: [ ]
   mdm:
-    apple_bm_default_team: $DOGFOOD_APPLE_BM_DEFAULT_TEAM
     end_user_authentication:
       entity_id: dogfood-eula.fleetdm.com
       idp_name: Google Workspace
       metadata_url: $DOGFOOD_MDM_SSO_METADATA_URL
+    apple_business_manager:
+    - organization_name: Fleet Device Management Inc.
+      macos_team: "💻 Workstations" 
+      ios_team: "📱🏢 Company-owned iPhones"
+      ipados_team: "🔳🏢 Company-owned iPads"
     volume_purchasing_program:
     - location: Fleet Device Management Inc.
       teams:

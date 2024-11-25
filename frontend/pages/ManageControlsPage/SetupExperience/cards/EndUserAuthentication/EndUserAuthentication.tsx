@@ -10,12 +10,10 @@ import { ITeamConfig } from "interfaces/team";
 
 import SectionHeader from "components/SectionHeader/SectionHeader";
 import Spinner from "components/Spinner";
-import EndUserExperiencePreview from "pages/ManageControlsPage/components/EndUserExperiencePreview";
 
 import RequireEndUserAuth from "./components/RequireEndUserAuth/RequireEndUserAuth";
 import EndUserAuthForm from "./components/EndUserAuthForm/EndUserAuthForm";
-
-import OsSetupPreview from "../../../../../../assets/images/os-setup-preview.gif";
+import EndUserExperiencePreview from "./components/EndUserExperiencePreview";
 
 const baseClass = "end-user-authentication";
 
@@ -97,17 +95,7 @@ const EndUserAuthentication = ({
               defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
             />
           )}
-          <EndUserExperiencePreview previewImage={OsSetupPreview}>
-            <p>
-              When the end user reaches the <b>Remote Management</b> pane in the
-              macOS Setup Assistant, they are asked to authenticate and agree to
-              the end user license agreement (EULA).
-            </p>
-            <p>
-              After, Fleet enrolls the Mac, applies macOS settings, and installs
-              the bootstrap package.
-            </p>
-          </EndUserExperiencePreview>
+          <EndUserExperiencePreview />
         </div>
       )}
     </div>

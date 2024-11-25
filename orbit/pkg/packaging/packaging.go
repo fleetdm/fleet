@@ -186,53 +186,53 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		return nil, fmt.Errorf("failed to update metadata: %w", err)
 	}
 
-	osquerydLocalTarget, err := updater.Get("osqueryd")
+	osquerydLocalTarget, err := updater.Get(constant.OsqueryTUFTargetName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get osqueryd: %w", err)
+		return nil, fmt.Errorf("failed to get %s: %w", constant.OsqueryTUFTargetName, err)
 	}
 	osquerydPath := osquerydLocalTarget.ExecPath
-	osquerydMeta, err := updater.Lookup("osqueryd")
+	osquerydMeta, err := updater.Lookup(constant.OsqueryTUFTargetName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get osqueryd metadata: %w", err)
+		return nil, fmt.Errorf("failed to get %s metadata: %w", constant.OsqueryTUFTargetName, err)
 	}
 	type custom struct {
 		Version string `json:"version"`
 	}
 	var osquerydCustom custom
 	if err := json.Unmarshal(*osquerydMeta.Custom, &osquerydCustom); err != nil {
-		return nil, fmt.Errorf("failed to get osqueryd version: %w", err)
+		return nil, fmt.Errorf("failed to get %s version: %w", constant.OsqueryTUFTargetName, err)
 	}
 
-	orbitLocalTarget, err := updater.Get("orbit")
+	orbitLocalTarget, err := updater.Get(constant.OrbitTUFTargetName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get orbit: %w", err)
+		return nil, fmt.Errorf("failed to get %s: %w", constant.OrbitTUFTargetName, err)
 	}
 	orbitPath := orbitLocalTarget.ExecPath
-	orbitMeta, err := updater.Lookup("orbit")
+	orbitMeta, err := updater.Lookup(constant.OrbitTUFTargetName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get orbit metadata: %w", err)
+		return nil, fmt.Errorf("failed to get %s metadata: %w", constant.OrbitTUFTargetName, err)
 	}
 	var orbitCustom custom
 	if err := json.Unmarshal(*orbitMeta.Custom, &orbitCustom); err != nil {
-		return nil, fmt.Errorf("failed to get orbit version: %w", err)
+		return nil, fmt.Errorf("failed to get %s version: %w", constant.OrbitTUFTargetName, err)
 	}
 
 	var (
 		desktopPath   string
 		desktopCustom custom
 	)
-	if _, ok := updateOpt.Targets["desktop"]; ok {
-		desktopLocalTarget, err := updater.Get("desktop")
+	if _, ok := updateOpt.Targets[constant.DesktopTUFTargetName]; ok {
+		desktopLocalTarget, err := updater.Get(constant.DesktopTUFTargetName)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get desktop: %w", err)
+			return nil, fmt.Errorf("failed to get %s: %w", constant.DesktopTUFTargetName, err)
 		}
 		desktopPath = desktopLocalTarget.ExecPath
-		desktopMeta, err := updater.Lookup("desktop")
+		desktopMeta, err := updater.Lookup(constant.DesktopTUFTargetName)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get orbit metadata: %w", err)
+			return nil, fmt.Errorf("failed to get %s metadata: %w", constant.DesktopTUFTargetName, err)
 		}
 		if err := json.Unmarshal(*desktopMeta.Custom, &desktopCustom); err != nil {
-			return nil, fmt.Errorf("failed to get orbit version: %w", err)
+			return nil, fmt.Errorf("failed to get %s version: %w", constant.DesktopTUFTargetName, err)
 		}
 	}
 

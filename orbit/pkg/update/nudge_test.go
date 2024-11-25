@@ -20,7 +20,7 @@ import (
 
 func TestNudge(t *testing.T) {
 	testingSuite := new(nudgeTestSuite)
-	testingSuite.s = &testingSuite.Suite
+	testingSuite.withTUF.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
 }
 
@@ -268,13 +268,13 @@ func TestHelperProcess(t *testing.T) {
 	}
 	wantCmd := os.Getenv("GO_WANT_HELPER_PROCESS_COMMAND")
 	if gotCmd := os.Args[3]; gotCmd != wantCmd {
-		fmt.Fprint(os.Stderr, fmt.Sprintf("expected command %s but got %s", wantCmd, gotCmd))
+		fmt.Fprintf(os.Stderr, "expected command %s but got %s", wantCmd, gotCmd)
 		os.Exit(1)
 		return
 	}
 	wantArgs := os.Getenv("GO_WANT_HELPER_PROCESS_ARGS")
 	if gotArgs := os.Args[4]; gotArgs != wantArgs {
-		fmt.Fprint(os.Stderr, fmt.Sprintf("expected arg %s but got %s", wantArgs, gotArgs))
+		fmt.Fprintf(os.Stderr, "expected arg %s but got %s", wantArgs, gotArgs)
 		os.Exit(1)
 		return
 	}
@@ -287,8 +287,6 @@ func TestHelperProcess(t *testing.T) {
 	}
 
 	os.Exit(0)
-
-	return
 }
 
 // mockExecCommand returns a function that can be used to mock exec.Command using TestHelperProcess.

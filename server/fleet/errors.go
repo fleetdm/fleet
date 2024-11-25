@@ -24,6 +24,8 @@ var (
 	WindowsMDMNotConfiguredMessage       = "Windows MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
 	AppleMDMNotConfiguredMessage         = "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
 	AppleABMDefaultTeamDeprecatedMessage = "mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business_manager key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops"
+	CantTurnOffMDMForWindowsHostsMessage = "Can't turn off MDM for Windows hosts."
+	CantTurnOffMDMForIOSOrIPadOSMessage  = "Can't turn off MDM for iOS or iPadOS hosts. Use wipe instead."
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
@@ -525,6 +527,8 @@ type FleetdError struct {
 	ErrorTimestamp      time.Time      `json:"error_timestamp"`
 	ErrorMessage        string         `json:"error_message"`
 	ErrorAdditionalInfo map[string]any `json:"error_additional_info"`
+	// Vital errors are always reported to Fleet server.
+	Vital bool `json:"vital"`
 }
 
 // Error implements the error interface
@@ -536,6 +540,7 @@ func (fe FleetdError) Error() string {
 // about the error can be logged by the components that use zerolog (Orbit,
 // Fleet Desktop)
 func (fe FleetdError) MarshalZerologObject(e *zerolog.Event) {
+	e.Bool("vital", fe.Vital)
 	e.Str("error_source", fe.ErrorSource)
 	e.Str("error_source_version", fe.ErrorSourceVersion)
 	e.Time("error_timestamp", fe.ErrorTimestamp)
@@ -546,6 +551,7 @@ func (fe FleetdError) MarshalZerologObject(e *zerolog.Event) {
 // ToMap returns a map representation of the error
 func (fe FleetdError) ToMap() map[string]any {
 	return map[string]any{
+		"vital":                 fe.Vital,
 		"error_source":          fe.ErrorSource,
 		"error_source_version":  fe.ErrorSourceVersion,
 		"error_timestamp":       fe.ErrorTimestamp,
@@ -589,6 +595,8 @@ const (
 	// End user authentication
 	EndUserAuthDEPWebURLConfiguredErrMsg = `End user authentication can't be configured when the configured automatic enrollment (DEP) profile specifies a configuration_web_url.` // #nosec G101
 
+	// Labels
+	InvalidLabelSpecifiedErrMsg = "Invalid label name(s):"
 )
 
 // ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.

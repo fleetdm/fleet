@@ -46,12 +46,8 @@ func TestRecentVulns(t *testing.T) {
 		}
 
 		var input []fleet.SoftwareVulnerability
-		for _, e := range ovalVulns {
-			input = append(input, e)
-		}
-		for _, e := range nvdVulns {
-			input = append(input, e)
-		}
+		input = append(input, ovalVulns...)
+		input = append(input, nvdVulns...)
 
 		var actual []string
 		vulns, meta := RecentVulns(input, meta)

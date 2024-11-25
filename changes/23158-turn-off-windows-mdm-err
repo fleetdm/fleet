@@ -1,0 +1,1 @@
+- Adds a clearer error message when users attempt to turn MDM off on a Windows host.

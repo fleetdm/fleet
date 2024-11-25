@@ -53,6 +53,15 @@ const UpcomingActivityFeed = ({
     <div className={baseClass}>
       <div>
         {activitiesList.map((activity: IHostUpcomingActivity) => {
+          // TODO: remove this once we have a proper way of handling "Fleet-initiated" activities in
+          // the backend. For now, if all these fields are empty, then we assume it was Fleet-initiated.
+          if (
+            !activity.actor_email &&
+            !activity.actor_full_name &&
+            !activity.actor_id
+          ) {
+            activity.actor_full_name = "Fleet";
+          }
           const ActivityItemComponent =
             upcomingActivityComponentMap[activity.type];
           return (

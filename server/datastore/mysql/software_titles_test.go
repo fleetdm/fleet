@@ -730,6 +730,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Zero(t, title.SoftwareInstallersCount)
 	require.Zero(t, title.VPPAppsCount)
+	require.NotNil(t, title.CountsUpdatedAt)
 
 	// ListSoftwareTitles does not populate version host counts, so we do that manually
 	barTitle.Versions[0].HostsCount = ptr.Uint(1)

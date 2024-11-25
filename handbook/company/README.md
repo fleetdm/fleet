@@ -130,6 +130,9 @@ Fleet raised its Series A funding round.  The world now has at least 1.65 millio
 ### 2023: Your last MDM migration
 Fleet added support for [scripting and management capabilities](https://fleetdm.com/announcements/fleet-introduces-windows-mdm) on macOS, Windows, _and_ Linux devices, allowing IT departments to manage devices more consistently using modern tooling and best practices.  This allowed many customers to simplify their management practices.  In several cases, Fleet was also able to save customers several hundreds of thousands of dollars (USD) by cutting tool overlap across platforms such as Jamf, Airwatch, Intune, MobileIron, Nexthink, Tanium, Uptycs, and Rapid7.
 
+### 2024: Fleet is growing globally 
+Fleet has expanded into 90+ countries, with 100+ customers and 2.24 million computers and virtual hosts enrolled (including the worlds most powerful computer). 
+
 <!-- 2024: and implement "zero trust" faster -->
 
 > Still curious? Check out this [visualization of the Fleet repo over the years](https://www.linkedin.com/feed/update/urn:li:activity:7045068060168220672/) or listen to this [conversation between Zach and Mike Arpaia about the origin story of osquery](https://fleetdm.com/podcasts/the-future-of-device-management-ep1).

@@ -438,6 +438,9 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
 	}
+	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
+		return nil
+	}
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -903,6 +906,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
 	}
+	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
+		return nil
+	}
 
 	startSoftwareInstallerServer(t)
 
@@ -1210,6 +1216,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{}, nil
+	}
+	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
+		return nil
 	}
 
 	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
@@ -1532,6 +1541,9 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{}, nil
 	}
+	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
+		return nil
+	}
 
 	globalFileBasic, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -1852,6 +1864,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 
 func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 	startSoftwareInstallerServer(t)
+	startAndServeVPPServer(t)
 
 	cases := []struct {
 		file    string
@@ -1862,6 +1875,8 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 		// commenting out, results in the process getting killed on CI and on some machines
 		// {"testdata/gitops/team_software_installer_too_large.yml", "The maximum file size is 3 GB"},
 		{"testdata/gitops/team_software_installer_valid.yml", ""},
+		{"testdata/gitops/team_software_installer_subdir.yml", ""},
+		{"testdata/gitops/subdir/team_software_installer_valid.yml", ""},
 		{"testdata/gitops/team_software_installer_valid_apply.yml", ""},
 		{"testdata/gitops/team_software_installer_pre_condition_multiple_queries.yml", "should have only one query."},
 		{"testdata/gitops/team_software_installer_pre_condition_multiple_queries_apply.yml", "should have only one query."},
@@ -1871,12 +1886,37 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_no_url.yml", "software URL is required"},
 		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "\"packages.self_service\" must be a bool, found string"},
+		// team tests for setup experience software/script
+		{"testdata/gitops/team_setup_software_valid.yml", ""},
+		{"testdata/gitops/team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
+		{"testdata/gitops/team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that team"},
+		{"testdata/gitops/team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that team"},
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
-			setupFullGitOpsPremiumServer(t)
+			ds, _, _ := setupFullGitOpsPremiumServer(t)
+			tokExpire := time.Now().Add(time.Hour)
+			token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")
+			require.NoError(t, err)
 
-			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+				return nil
+			}
+			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+				return nil
+			}
+			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+				return &fleet.VPPTokenDB{
+					ID:        1,
+					OrgName:   "Fleet",
+					Location:  "Earth",
+					RenewDate: tokExpire,
+					Token:     string(token),
+					Teams:     nil,
+				}, nil
+			}
+
+			_, err = runAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
 				require.NoError(t, err)
 			} else {
@@ -1908,6 +1948,7 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 
 func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 	startSoftwareInstallerServer(t)
+	startAndServeVPPServer(t)
 
 	cases := []struct {
 		noTeamFile string
@@ -1918,6 +1959,8 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		// commenting out, results in the process getting killed on CI and on some machines
 		// {"testdata/gitops/no_team_software_installer_too_large.yml", "The maximum file size is 3 GB"},
 		{"testdata/gitops/no_team_software_installer_valid.yml", ""},
+		{"testdata/gitops/no_team_software_installer_subdir.yml", ""},
+		{"testdata/gitops/subdir/no_team_software_installer_valid.yml", ""},
 		{"testdata/gitops/no_team_software_installer_pre_condition_multiple_queries.yml", "should have only one query."},
 		{"testdata/gitops/no_team_software_installer_pre_condition_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_install_not_found.yml", "no such file or directory"},
@@ -1925,18 +1968,47 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_no_url.yml", "software URL is required"},
 		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "\"packages.self_service\" must be a bool, found string"},
+		// No team tests for setup experience software/script
+		{"testdata/gitops/no_team_setup_software_valid.yml", ""},
+		{"testdata/gitops/no_team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
+		{"testdata/gitops/no_team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that team"},
+		{"testdata/gitops/no_team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that team"},
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.noTeamFile), func(t *testing.T) {
-			setupFullGitOpsPremiumServer(t)
+			ds, _, _ := setupFullGitOpsPremiumServer(t)
+			tokExpire := time.Now().Add(time.Hour)
+			token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")
+			require.NoError(t, err)
+
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+				return nil
+			}
+			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+				return nil
+			}
+			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+				return &fleet.VPPTokenDB{
+					ID:        1,
+					OrgName:   "Fleet",
+					Location:  "Earth",
+					RenewDate: tokExpire,
+					Token:     string(token),
+					Teams:     nil,
+				}, nil
+			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
 			globalFile := "./testdata/gitops/global_config_no_paths.yml"
+			if strings.HasPrefix(filepath.Base(c.noTeamFile), "no_team_setup_software") {
+				// the controls section is in the no-team test file, so use a global file without that section
+				globalFile = "./testdata/gitops/global_config_no_paths_no_controls.yml"
+			}
 			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "no-team.yml")
 			t.Cleanup(func() {
 				os.Remove(dstPath)
 			})
-			err := file.Copy(c.noTeamFile, dstPath, 0o755)
+			err = file.Copy(c.noTeamFile, dstPath, 0o755)
 			require.NoError(t, err)
 			_, err = runAppNoChecks([]string{"gitops", "-f", globalFile, "-f", dstPath})
 			if c.wantErr == "" {
@@ -1949,48 +2021,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 }
 
 func TestGitOpsTeamVPPApps(t *testing.T) {
-	config := &appleVPPConfigSrvConf{
-		Assets: []vpp.Asset{
-			{
-				AdamID:         "1",
-				PricingParam:   "STDQ",
-				AvailableCount: 12,
-			},
-			{
-				AdamID:         "2",
-				PricingParam:   "STDQ",
-				AvailableCount: 3,
-			},
-		},
-		SerialNumbers: []string{"123", "456"},
-	}
-
-	startVPPApplyServer(t, config)
-
-	appleITunesSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// a map of apps we can respond with
-		db := map[string]string{
-			// macos app
-			"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1}`,
-			// macos, ios, ipados app
-			"2": `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2,
-				"supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`,
-			// ipados app
-			"3": `{"bundleId": "c-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3,
-				"supportedDevices": ["iPadAir-iPadAir"] }`,
-		}
-
-		adamIDString := r.URL.Query().Get("id")
-		adamIDs := strings.Split(adamIDString, ",")
-
-		var objs []string
-		for _, a := range adamIDs {
-			objs = append(objs, db[a])
-		}
-
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"results": [%s]}`, strings.Join(objs, ","))))
-	}))
-	t.Setenv("FLEET_DEV_ITUNES_URL", appleITunesSrv.URL)
+	startAndServeVPPServer(t)
 
 	cases := []struct {
 		file            string
@@ -2048,11 +2079,13 @@ func TestGitOpsCustomSettings(t *testing.T) {
 	}{
 		{"testdata/gitops/global_macos_windows_custom_settings_valid.yml", ""},
 		{"testdata/gitops/global_macos_custom_settings_valid_deprecated.yml", ""},
-		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included`},
+		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
+		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix_2.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
 		{"testdata/gitops/global_windows_custom_settings_unknown_label.yml", `some or all the labels provided don't exist`},
 		{"testdata/gitops/team_macos_windows_custom_settings_valid.yml", ""},
 		{"testdata/gitops/team_macos_custom_settings_valid_deprecated.yml", ""},
-		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`},
+		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
+		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix_2.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
 		{"testdata/gitops/team_macos_windows_custom_settings_unknown_label.yml", `some or all the labels provided don't exist`},
 	}
 	for _, c := range cases {
@@ -2262,6 +2295,51 @@ func startVPPApplyServer(t *testing.T, config *appleVPPConfigSrvConf) {
 	t.Cleanup(srv.Close)
 }
 
+func startAndServeVPPServer(t *testing.T) {
+	config := &appleVPPConfigSrvConf{
+		Assets: []vpp.Asset{
+			{
+				AdamID:         "1",
+				PricingParam:   "STDQ",
+				AvailableCount: 12,
+			},
+			{
+				AdamID:         "2",
+				PricingParam:   "STDQ",
+				AvailableCount: 3,
+			},
+		},
+		SerialNumbers: []string{"123", "456"},
+	}
+
+	startVPPApplyServer(t, config)
+
+	appleITunesSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// a map of apps we can respond with
+		db := map[string]string{
+			// macos app
+			"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1}`,
+			// macos, ios, ipados app
+			"2": `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2,
+				"supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`,
+			// ipados app
+			"3": `{"bundleId": "c-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3,
+				"supportedDevices": ["iPadAir-iPadAir"] }`,
+		}
+
+		adamIDString := r.URL.Query().Get("id")
+		adamIDs := strings.Split(adamIDString, ",")
+
+		var objs []string
+		for _, a := range adamIDs {
+			objs = append(objs, db[a])
+		}
+
+		_, _ = w.Write([]byte(fmt.Sprintf(`{"results": [%s]}`, strings.Join(objs, ","))))
+	}))
+	t.Setenv("FLEET_DEV_ITUNES_URL", appleITunesSrv.URL)
+}
+
 func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig, map[string]**fleet.Team) {
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
@@ -2449,6 +2527,12 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{}, nil
 	}
+	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
+		return nil
+	}
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error {
+		return nil
+	}
 
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
 	t.Setenv("ORG_NAME", orgName)
@@ -2523,26 +2607,27 @@ software:
 				assert.Contains(t, out, "[!] gitops succeeded")
 			},
 		},
-		//	{
-		//		name: "deprecated config with two tokens in the db fails",
-		//		cfgs: []string{
-		//			global("apple_bm_default_team: 💻 Workstations"),
-		//			workstations,
-		//		},
-		//		tokens: []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}, {OrganizationName: "Second Token LLC"}},
-		//		dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-		//			require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
-		//			assert.Empty(t, appCfg.MDM.AppleBussinessManager.Value)
-		//			assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
-		//			assert.NotContains(t, out, "[!] gitops dry run succeeded")
-		//		},
-		//		realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-		//			require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
-		//			assert.Empty(t, appCfg.MDM.AppleBussinessManager.Value)
-		//			assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
-		//			assert.NotContains(t, out, "[!] gitops dry run succeeded")
-		//		},
-		//	},
+		{
+			name: "deprecated config with two tokens in the db fails",
+			cfgs: []string{
+				global("apple_bm_default_team: 💻 Workstations"),
+				workstations,
+			},
+			tokens: []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}, {OrganizationName: "Second Token LLC"}},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				t.Logf("got: %s", out)
+				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
+				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
+				assert.NotContains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
+				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
+				assert.NotContains(t, out, "[!] gitops succeeded")
+			},
+		},
 		{
 			name: "new key all valid",
 			cfgs: []string{

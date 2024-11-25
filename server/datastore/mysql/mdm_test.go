@@ -174,7 +174,6 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: appleCmdUUID,
 		Status:      "Acknowledged",
-		RequestType: "ProfileList",
 		Raw:         []byte(appleCmd),
 	})
 	require.NoError(t, err)
@@ -699,20 +698,20 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.DeleteLabel(ctx, labels[4].Name))
 	profLabels := map[string][]fleet.ConfigurationProfileLabel{
 		"C": {
-			{LabelName: labels[0].Name, LabelID: labels[0].ID},
-			{LabelName: labels[1].Name, LabelID: labels[1].ID},
+			{LabelName: labels[0].Name, LabelID: labels[0].ID, RequireAll: true},
+			{LabelName: labels[1].Name, LabelID: labels[1].ID, RequireAll: true},
 		},
 		"D": {
-			{LabelName: labels[2].Name, LabelID: labels[2].ID},
-			{LabelName: labels[3].Name, LabelID: 0, Broken: true},
+			{LabelName: labels[2].Name, LabelID: labels[2].ID, RequireAll: true},
+			{LabelName: labels[3].Name, LabelID: 0, Broken: true, RequireAll: true},
 		},
 		"E": {
-			{LabelName: labels[4].Name, LabelID: 0, Broken: true},
-			{LabelName: labels[5].Name, LabelID: labels[5].ID},
+			{LabelName: labels[4].Name, LabelID: 0, Broken: true, RequireAll: true},
+			{LabelName: labels[5].Name, LabelID: labels[5].ID, RequireAll: true},
 		},
 		"F": {
-			{LabelName: labels[6].Name, LabelID: labels[6].ID},
-			{LabelName: labels[7].Name, LabelID: labels[7].ID},
+			{LabelName: labels[6].Name, LabelID: labels[6].ID, RequireAll: true},
+			{LabelName: labels[7].Name, LabelID: labels[7].ID, RequireAll: true},
 		},
 	}
 
@@ -7358,7 +7357,7 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	}
 	allProfs := getProfs(nil)
 
-	// create an Apple and Windows hosts, not members of any host
+	// create an Apple and Windows hosts, not members of any label
 	var i int
 	winHost, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      fmt.Sprintf("win-host%d-name", i),
@@ -7381,14 +7380,33 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	nanoEnroll(t, ds, appleHost, false)
 
-	// do a sync, they get all platform-specific profiles since they are not part
-	// of any label
+	// at this point the hosts have not reported any label results, so a sync
+	// does NOT install the exclude any profiles as we don't know yet if the
+	// hosts will be members or not
+	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID}, nil, nil, nil)
+	require.NoError(t, err)
+	assert.False(t, updates.AppleConfigProfile)
+	assert.False(t, updates.WindowsConfigProfile)
+	assert.False(t, updates.AppleDeclaration)
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
+		appleHost: {},
+		winHost:   {},
+	})
+
+	// setting the LabelsUpdatedAt timestamp means that labels results were reported, so now
+	// the profiles will be installed as the hosts are not members of the excluded labels.
+	winHost.LabelUpdatedAt = time.Now()
+	appleHost.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, winHost)
+	require.NoError(t, err)
+	err = ds.UpdateHost(ctx, appleHost)
+	require.NoError(t, err)
+
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID}, nil, nil, nil)
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
 	assert.True(t, updates.WindowsConfigProfile)
 	assert.True(t, updates.AppleDeclaration)
-
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		appleHost: {
 			{
@@ -7554,6 +7572,13 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, appleHost2, false)
+
+	winHost2.LabelUpdatedAt = time.Now()
+	appleHost2.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, winHost2)
+	require.NoError(t, err)
+	err = ds.UpdateHost(ctx, appleHost2)
+	require.NoError(t, err)
 
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, winHost2.ID, appleHost2.ID}, nil, nil, nil)
 	require.NoError(t, err)

@@ -1057,7 +1057,7 @@ func testListHostsInLabelIssues(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now(), false))
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(false), p2.ID: ptr.Bool(false)}, time.Now(), false))
-	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 2, 0)
+	checkLabelHostIssues(t, ds, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 2, 0)
 
 	// Add a critical vulnerability
 	// seed software
@@ -1124,26 +1124,26 @@ func testListHostsInLabelIssues(t *testing.T, ds *Datastore) {
 	// Populate critical vulnerabilities, which can be done with premium license.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	assert.NoError(t, ds.UpdateHostIssuesVulnerabilities(ctx))
-	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, hosts[6].ID, fleet.HostListOptions{}, 0, 4)
+	checkLabelHostIssues(t, ds, l1.ID, filter, hosts[6].ID, fleet.HostListOptions{}, 0, 4)
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(false)}, time.Now(), false))
-	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 1, 1)
+	checkLabelHostIssues(t, ds, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 1, 1)
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(true)}, time.Now(), false))
-	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 0, 1)
+	checkLabelHostIssues(t, ds, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 0, 1)
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
-	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h1.ID, fleet.HostListOptions{}, 1, 1)
+	checkLabelHostIssues(t, ds, l1.ID, filter, h1.ID, fleet.HostListOptions{}, 1, 1)
 
-	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h1.ID, fleet.HostListOptions{DisableIssues: true}, 0, 0)
-	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, hosts[6].ID, fleet.HostListOptions{DisableIssues: true}, 0, 0)
+	checkLabelHostIssues(t, ds, l1.ID, filter, h1.ID, fleet.HostListOptions{DisableIssues: true}, 0, 0)
+	checkLabelHostIssues(t, ds, l1.ID, filter, hosts[6].ID, fleet.HostListOptions{DisableIssues: true}, 0, 0)
 }
 
 func checkLabelHostIssues(
-	t *testing.T, ds *Datastore, hosts []*fleet.Host, lid uint, filter fleet.TeamFilter, hid uint, opts fleet.HostListOptions,
+	t *testing.T, ds *Datastore, lid uint, filter fleet.TeamFilter, hid uint, opts fleet.HostListOptions,
 	failingPoliciesExpected uint64, criticalVulnerabilitiesExpected uint64,
 ) {
-	hosts = listHostsInLabelCheckCount(t, ds, filter, lid, opts, 10)
+	hosts := listHostsInLabelCheckCount(t, ds, filter, lid, opts, 10)
 	foundH2 := false
 	var foundHost *fleet.Host
 	for _, host := range hosts {

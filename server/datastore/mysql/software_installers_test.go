@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,7 +33,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"BatchSetSoftwareInstallers", testBatchSetSoftwareInstallers},
 		{"GetSoftwareInstallerMetadataByTeamAndTitleID", testGetSoftwareInstallerMetadataByTeamAndTitleID},
 		{"HasSelfServiceSoftwareInstallers", testHasSelfServiceSoftwareInstallers},
-		{"DeleteSoftwareInstallersAssignedToPolicy", testDeleteSoftwareInstallersAssignedToPolicy},
+		{"DeleteSoftwareInstallers", testDeleteSoftwareInstallers},
 		{"GetHostLastInstallData", testGetHostLastInstallData},
 		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
 	}
@@ -52,12 +53,14 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
 		UninstallScript:   "goodbye",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     tfr1,
 		StorageID:         "storage1",
 		Filename:          "file1",
 		Title:             "file1",
@@ -67,11 +70,13 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "world",
 		PreInstallQuery:   "SELECT 2",
 		PostInstallScript: "hello",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     tfr2,
 		StorageID:         "storage2",
 		Filename:          "file2",
 		Title:             "file2",
@@ -81,11 +86,13 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	tfr3, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerID3, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "banana",
 		PreInstallQuery:   "SELECT 3",
 		PostInstallScript: "apple",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     tfr3,
 		StorageID:         "storage3",
 		Filename:          "file3",
 		Title:             "file3",
@@ -548,9 +555,15 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			require.Equal(t, swFilename, res.SoftwarePackage)
 
-			// delete installer to confirm that we can still access the install record
+			// delete installer to confirm that we can still access the install record (unless pending)
 			err = ds.DeleteSoftwareInstaller(ctx, installerID)
 			require.NoError(t, err)
+
+			if tc.expectedStatus == fleet.SoftwareInstallPending { // expect pending to be deleted
+				_, err = ds.GetSoftwareInstallResults(ctx, installUUID)
+				require.Error(t, err, notFound("HostSoftwareInstallerResult"))
+				return
+			}
 
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 				// ensure version is not changed, though we don't expose it yet
@@ -558,10 +571,6 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 				err := sqlx.GetContext(ctx, q, &version, `SELECT "version" FROM host_software_installs WHERE execution_id = ?`, installUUID)
 				require.NoError(t, err)
 				require.Equal(t, "1.11", version)
-
-				// let's also set the removed flag to ensure that the status we're pulling doesn't change
-				_, err = q.ExecContext(ctx, `UPDATE host_software_installs SET removed = 1 WHERE execution_id = ?`, installUUID)
-				require.NoError(t, err)
 
 				return nil
 			})
@@ -615,11 +624,14 @@ func testCleanupUnusedSoftwareInstallers(t *testing.T, ds *Datastore) {
 	ins0File := bytes.NewReader([]byte("installer0"))
 	err = store.Put(ctx, ins0, ins0File)
 	require.NoError(t, err)
+	_, _ = ins0File.Seek(0, 0)
+	tfr0, err := fleet.NewTempFileReader(ins0File, t.TempDir)
+	require.NoError(t, err)
 	assertExisting([]string{ins0})
 
 	swi, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
-		InstallerFile: ins0File,
+		InstallerFile: tfr0,
 		StorageID:     ins0,
 		Filename:      "installer0",
 		Title:         "ins0",
@@ -693,9 +705,11 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	// add a single installer
 	ins0 := "installer0"
 	ins0File := bytes.NewReader([]byte("installer0"))
+	tfr0, err := fleet.NewTempFileReader(ins0File, t.TempDir)
+	require.NoError(t, err)
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
 		InstallScript:   "install",
-		InstallerFile:   ins0File,
+		InstallerFile:   tfr0,
 		StorageID:       ins0,
 		Filename:        "installer0",
 		Title:           "ins0",
@@ -719,26 +733,30 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	})
 
 	// add a new installer + ins0 installer
+	// mark ins0 as install_during_setup
 	ins1 := "installer1"
 	ins1File := bytes.NewReader([]byte("installer1"))
+	tfr1, err := fleet.NewTempFileReader(ins1File, t.TempDir)
+	require.NoError(t, err)
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
-			InstallScript:   "install",
-			InstallerFile:   ins0File,
-			StorageID:       ins0,
-			Filename:        ins0,
-			Title:           ins0,
-			Source:          "apps",
-			Version:         "1",
-			PreInstallQuery: "select 0 from foo;",
-			UserID:          user1.ID,
-			Platform:        "darwin",
-			URL:             "https://example.com",
+			InstallScript:      "install",
+			InstallerFile:      tfr0,
+			StorageID:          ins0,
+			Filename:           ins0,
+			Title:              ins0,
+			Source:             "apps",
+			Version:            "1",
+			PreInstallQuery:    "select 0 from foo;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example.com",
+			InstallDuringSetup: ptr.Bool(true),
 		},
 		{
 			InstallScript:     "install",
 			PostInstallScript: "post-install",
-			InstallerFile:     ins1File,
+			InstallerFile:     tfr1,
 			StorageID:         ins1,
 			Filename:          ins1,
 			Title:             ins1,
@@ -767,12 +785,97 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		{Name: ins1, Source: "apps", Browser: ""},
 	})
 
+	// remove ins0 fails due to install_during_setup
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:     "install",
+			PostInstallScript: "post-install",
+			InstallerFile:     tfr1,
+			StorageID:         ins1,
+			Filename:          ins1,
+			Title:             ins1,
+			Source:            "apps",
+			Version:           "2",
+			PreInstallQuery:   "select 1 from bar;",
+			UserID:            user1.ID,
+		},
+	})
+	require.Error(t, err)
+	require.ErrorIs(t, err, errDeleteInstallerInstalledDuringSetup)
+
+	// batch-set both installers again, this time with nil install_during_setup for ins0,
+	// will keep it as true.
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:      "install",
+			InstallerFile:      tfr0,
+			StorageID:          ins0,
+			Filename:           ins0,
+			Title:              ins0,
+			Source:             "apps",
+			Version:            "1",
+			PreInstallQuery:    "select 0 from foo;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example.com",
+			InstallDuringSetup: nil,
+		},
+		{
+			InstallScript:     "install",
+			PostInstallScript: "post-install",
+			InstallerFile:     tfr1,
+			StorageID:         ins1,
+			Filename:          ins1,
+			Title:             ins1,
+			Source:            "apps",
+			Version:           "2",
+			PreInstallQuery:   "select 1 from bar;",
+			UserID:            user1.ID,
+			Platform:          "darwin",
+			URL:               "https://example2.com",
+		},
+	})
+	require.NoError(t, err)
+
+	// mark ins0 as NOT install_during_setup
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:      "install",
+			InstallerFile:      tfr0,
+			StorageID:          ins0,
+			Filename:           ins0,
+			Title:              ins0,
+			Source:             "apps",
+			Version:            "1",
+			PreInstallQuery:    "select 0 from foo;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example.com",
+			InstallDuringSetup: ptr.Bool(false),
+		},
+		{
+			InstallScript:     "install",
+			PostInstallScript: "post-install",
+			InstallerFile:     tfr1,
+			StorageID:         ins1,
+			Filename:          ins1,
+			Title:             ins1,
+			Source:            "apps",
+			Version:           "2",
+			PreInstallQuery:   "select 1 from bar;",
+			UserID:            user1.ID,
+			Platform:          "darwin",
+			URL:               "https://example2.com",
+		},
+	})
+	require.NoError(t, err)
+
 	// remove ins0
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
 			InstallScript:     "install",
 			PostInstallScript: "post-install",
-			InstallerFile:     ins1File,
+			InstallerFile:     tfr1,
 			StorageID:         ins1,
 			Filename:          ins1,
 			Title:             ins1,
@@ -958,7 +1061,7 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	assert.True(t, hasSelfService)
 }
 
-func testDeleteSoftwareInstallersAssignedToPolicy(t *testing.T, ds *Datastore) {
+func testDeleteSoftwareInstallers(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	dir := t.TempDir()
@@ -972,13 +1075,16 @@ func testDeleteSoftwareInstallersAssignedToPolicy(t *testing.T, ds *Datastore) {
 	ins0File := bytes.NewReader([]byte("installer0"))
 	err = store.Put(ctx, ins0, ins0File)
 	require.NoError(t, err)
+	_, _ = ins0File.Seek(0, 0)
+	tfr0, err := fleet.NewTempFileReader(ins0File, t.TempDir)
+	require.NoError(t, err)
 
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
 	softwareInstallerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
-		InstallerFile: ins0File,
+		InstallerFile: tfr0,
 		StorageID:     ins0,
 		Filename:      "installer.pkg",
 		Title:         "ins0",
@@ -1003,8 +1109,29 @@ func testDeleteSoftwareInstallersAssignedToPolicy(t *testing.T, ds *Datastore) {
 	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{p1.ID})
 	require.NoError(t, err)
 
+	// mark the installer as "installed during setup", which prevents deletion
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET install_during_setup = 1 WHERE id = ?`, softwareInstallerID)
+		return err
+	})
+
+	err = ds.DeleteSoftwareInstaller(ctx, softwareInstallerID)
+	require.Error(t, err)
+	require.ErrorIs(t, err, errDeleteInstallerInstalledDuringSetup)
+
+	// clear "installed during setup", which allows deletion
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET install_during_setup = 0 WHERE id = ?`, softwareInstallerID)
+		return err
+	})
+
 	err = ds.DeleteSoftwareInstaller(ctx, softwareInstallerID)
 	require.NoError(t, err)
+
+	// deleting again returns an error, no such installer
+	err = ds.DeleteSoftwareInstaller(ctx, softwareInstallerID)
+	var nfe *notFoundError
+	require.ErrorAs(t, err, &nfe)
 }
 
 func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
@@ -1026,10 +1153,13 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	ins0File := bytes.NewReader([]byte("installer0"))
 	err = store.Put(ctx, ins0, ins0File)
 	require.NoError(t, err)
+	_, _ = ins0File.Seek(0, 0)
+	tfr0, err := fleet.NewTempFileReader(ins0File, t.TempDir)
+	require.NoError(t, err)
 
 	softwareInstallerID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
-		InstallerFile: ins0File,
+		InstallerFile: tfr0,
 		StorageID:     ins0,
 		Filename:      "installer.pkg",
 		Title:         "ins1",
@@ -1041,7 +1171,7 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	softwareInstallerID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install2",
-		InstallerFile: ins0File,
+		InstallerFile: tfr0,
 		StorageID:     ins0,
 		Filename:      "installer2.pkg",
 		Title:         "ins2",

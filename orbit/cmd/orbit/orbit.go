@@ -26,10 +26,12 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/installer"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/keystore"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/luks"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
+	setupexperience "github.com/fleetdm/fleet/v4/orbit/pkg/setup_experience"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/orbit_info"
@@ -37,6 +39,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/user"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/zenity"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	retrypkg "github.com/fleetdm/fleet/v4/pkg/retry"
@@ -53,6 +56,15 @@ import (
 
 // unusedFlagKeyword is used by the MSI installer to populate parameters, which cannot be empty
 const unusedFlagKeyword = "dummy"
+
+type logError string
+
+const (
+	logErrorLaunchServicesSubstr logError = "error=Error Domain=NSOSStatusErrorDomain Code=-10822"
+	logErrorLaunchServicesMsg    logError = "LaunchServices kLSServerCommunicationErr (-10822)"
+	logErrorMissingExecSubstr    logError = "The application cannot be opened because its executable is missing."
+	logErrorMissingExecMsg       logError = "bad desktop executable"
+)
 
 func main() {
 	app := cli.NewApp()
@@ -293,14 +305,8 @@ func main() {
 			return fmt.Errorf("the osquery database must be an absolute path: %q", odb)
 		}
 
-		enrollSecretPath := c.String("enroll-secret-path")
-		if enrollSecretPath != "" {
-			if c.String("enroll-secret") != "" {
-				return errors.New("enroll-secret and enroll-secret-path may not be specified together")
-			}
-
+		readEnrollSecretFromFile := func(enrollSecretPath string) error {
 			// Read secret from file. If secret is found and keystore enabled, write/overwrite the secret to the keystore and delete the file.
-
 			b, err := os.ReadFile(enrollSecretPath)
 			if err != nil {
 				if !errors.Is(err, os.ErrNotExist) || !keystore.Supported() || c.Bool("disable-keystore") {
@@ -354,16 +360,33 @@ func main() {
 					}
 				}
 			}
+			return nil
 		}
-		if c.String("enroll-secret") == "" && keystore.Supported() && !c.Bool("disable-keystore") &&
-			!(runtime.GOOS == "darwin" && c.Bool("use-system-configuration")) {
-			secret, err := keystore.GetSecret()
-			if err != nil || secret == "" {
-				return fmt.Errorf("failed to retrieve enroll secret from %v: %w", keystore.Name(), err)
+		enrollSecretPath := c.String("enroll-secret-path")
+		if enrollSecretPath != "" {
+			if c.String("enroll-secret") != "" {
+				return errors.New("enroll-secret and enroll-secret-path may not be specified together")
 			}
-			log.Info().Msgf("found enroll secret in keystore: %v", keystore.Name())
-			if err = c.Set("enroll-secret", secret); err != nil {
-				return fmt.Errorf("set enroll secret from keystore: %w", err)
+			if err := readEnrollSecretFromFile(enrollSecretPath); err != nil {
+				return err
+			}
+		}
+		tryReadEnrollSecretFromKeystore := func() error {
+			if c.String("enroll-secret") == "" && keystore.Supported() && !c.Bool("disable-keystore") {
+				secret, err := keystore.GetSecret()
+				if err != nil || secret == "" {
+					return fmt.Errorf("failed to retrieve enroll secret from %v: %w", keystore.Name(), err)
+				}
+				log.Info().Msgf("found enroll secret in keystore: %v", keystore.Name())
+				if err = c.Set("enroll-secret", secret); err != nil {
+					return fmt.Errorf("set enroll secret from keystore: %w", err)
+				}
+			}
+			return nil
+		}
+		if !(runtime.GOOS == "darwin" && c.Bool("use-system-configuration")) {
+			if err := tryReadEnrollSecretFromKeystore(); err != nil {
+				return err
 			}
 		}
 
@@ -405,10 +428,42 @@ func main() {
 					if err := writeSecret(config.EnrollSecret, c.String("root-dir")); err != nil {
 						return fmt.Errorf("write enroll secret: %w", err)
 					}
+					if err := writeFleetURL(config.FleetURL, c.String("root-dir")); err != nil {
+						return fmt.Errorf("write fleet URL: %w", err)
+					}
 				}
 
 				if c.String("fleet-url") != "" && c.String("enroll-secret") != "" {
 					log.Info().Msg("found configuration values in system profile")
+					break
+				}
+
+				// If we didn't find the configuration values, try to read them from the stored files.
+				// First, get Fleet URL
+				b, err := os.ReadFile(path.Join(c.String("root-dir"), constant.FleetURLFileName))
+				if err != nil {
+					if !errors.Is(err, os.ErrNotExist) {
+						return fmt.Errorf("read fleet URL file: %w", err)
+					}
+				} else {
+					fleetURL := strings.TrimSpace(string(b))
+					if err = c.Set("fleet-url", fleetURL); err != nil {
+						return fmt.Errorf("set fleet URL from file: %w", err)
+					}
+				}
+				// Now, get enroll secret
+				if err := readEnrollSecretFromFile(path.Join(c.String("root-dir"), constant.OsqueryEnrollSecretFileName)); err != nil {
+					return err
+				}
+				// Since the normal enroll secret flow supports keychain, we can use it here as well.
+				// The story to remove the enroll secret from macOS MDM profile is: https://github.com/fleetdm/fleet/issues/16118
+				if err := tryReadEnrollSecretFromKeystore(); err != nil {
+					// Log the error but don't return it, as we want to keep trying to read the configuration
+					// from the system profile.
+					log.Error().Err(err).Msg("failed to read enroll secret from keystore")
+				}
+				if c.String("fleet-url") != "" && c.String("enroll-secret") != "" {
+					log.Info().Msg("found configuration values in local files")
 					break
 				}
 
@@ -427,25 +482,25 @@ func main() {
 		if c.Bool("fleet-desktop") {
 			switch runtime.GOOS {
 			case "darwin":
-				opt.Targets["desktop"] = update.DesktopMacOSTarget
+				opt.Targets[constant.DesktopTUFTargetName] = update.DesktopMacOSTarget
 			case "windows":
-				opt.Targets["desktop"] = update.DesktopWindowsTarget
+				opt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsTarget
 			case "linux":
 				if runtime.GOARCH == "arm64" {
-					opt.Targets["desktop"] = update.DesktopLinuxArm64Target
+					opt.Targets[constant.DesktopTUFTargetName] = update.DesktopLinuxArm64Target
 				} else {
-					opt.Targets["desktop"] = update.DesktopLinuxTarget
+					opt.Targets[constant.DesktopTUFTargetName] = update.DesktopLinuxTarget
 				}
 			default:
 				log.Fatal().Str("GOOS", runtime.GOOS).Msg("unsupported GOOS for desktop target")
 			}
 			// Override default channel with the provided value.
-			opt.Targets.SetTargetChannel("desktop", c.String("desktop-channel"))
+			opt.Targets.SetTargetChannel(constant.DesktopTUFTargetName, c.String("desktop-channel"))
 		}
 
 		// Override default channels with the provided values.
-		opt.Targets.SetTargetChannel("orbit", c.String("orbit-channel"))
-		opt.Targets.SetTargetChannel("osqueryd", c.String("osqueryd-channel"))
+		opt.Targets.SetTargetChannel(constant.OrbitTUFTargetName, c.String("orbit-channel"))
+		opt.Targets.SetTargetChannel(constant.OsqueryTUFTargetName, c.String("osqueryd-channel"))
 
 		opt.RootDirectory = c.String("root-dir")
 		opt.ServerURL = c.String("update-url")
@@ -495,20 +550,28 @@ func main() {
 			if err != nil {
 				return fmt.Errorf("create updater: %w", err)
 			}
+
 			if err := updater.UpdateMetadata(); err != nil {
-				log.Info().Err(err).Msg("update metadata. using saved metadata")
+				log.Info().Err(err).Msg("update metadata, using saved metadata")
 			}
 
-			targets := []string{"orbit", "osqueryd"}
+			signaturesExpiredAtStartup := updater.SignaturesExpired()
+			if signaturesExpiredAtStartup {
+				log.Info().Err(err).Msg("detected signatures expired at startup")
+			}
+
+			targets := []string{constant.OrbitTUFTargetName, constant.OsqueryTUFTargetName}
+
 			if c.Bool("fleet-desktop") {
-				targets = append(targets, "desktop")
+				targets = append(targets, constant.DesktopTUFTargetName)
 			}
 			if c.Bool("dev-mode") {
 				targets = targets[1:] // exclude orbit itself on dev-mode.
 			}
 			updateRunner, err = update.NewRunner(updater, update.RunnerOptions{
-				CheckInterval: c.Duration("update-interval"),
-				Targets:       targets,
+				CheckInterval:              c.Duration("update-interval"),
+				Targets:                    targets,
+				SignaturesExpiredAtStartup: signaturesExpiredAtStartup,
 			})
 			if err != nil {
 				return err
@@ -516,7 +579,7 @@ func main() {
 
 			// Get current version of osquery
 			log.Info().Msgf("orbit version: %s", build.Version)
-			osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
+			osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
 			if err != nil {
 				log.Info().Err(err).Msg("Could not find local osqueryd executable")
 			} else {
@@ -569,20 +632,20 @@ func main() {
 		} else {
 			log.Info().Msg("running with auto updates disabled")
 			updater = update.NewDisabled(opt)
-			osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
+			osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
 			if err != nil {
-				log.Fatal().Err(err).Msg("locate osqueryd")
+				log.Fatal().Err(err).Msgf("locate %s", constant.OsqueryTUFTargetName)
 			}
 			if c.Bool("fleet-desktop") {
 				if runtime.GOOS == "darwin" {
-					desktopPath, err = updater.DirLocalPath("desktop")
+					desktopPath, err = updater.DirLocalPath(constant.DesktopTUFTargetName)
 					if err != nil {
-						return fmt.Errorf("get desktop target: %w", err)
+						return fmt.Errorf("get %s target: %w", constant.DesktopTUFTargetName, err)
 					}
 				} else {
-					desktopPath, err = updater.ExecutableLocalPath("desktop")
+					desktopPath, err = updater.ExecutableLocalPath(constant.DesktopTUFTargetName)
 					if err != nil {
-						return fmt.Errorf("get desktop target: %w", err)
+						return fmt.Errorf("get %s target: %w", constant.DesktopTUFTargetName, err)
 					}
 				}
 			}
@@ -633,6 +696,8 @@ func main() {
 			HardwareUUID:   osqueryHostInfo.HardwareUUID,
 			Hostname:       osqueryHostInfo.Hostname,
 			Platform:       osqueryHostInfo.Platform,
+			ComputerName:   osqueryHostInfo.ComputerName,
+			HardwareModel:  osqueryHostInfo.HardwareModel,
 		}
 
 		if runtime.GOOS == "darwin" {
@@ -658,9 +723,12 @@ func main() {
 					return fmt.Errorf("removing old osquery.db: %w", err)
 				}
 
-				// We can remove this because we want it to be regenerated during the re-enrollment.
+				// We can remove these because we want them to be regenerated during the re-enrollment.
 				if err := os.RemoveAll(filepath.Join(c.String("root-dir"), constant.OrbitNodeKeyFileName)); err != nil {
 					return fmt.Errorf("removing old orbit node key file: %w", err)
+				}
+				if err := os.RemoveAll(filepath.Join(c.String("root-dir"), constant.DesktopTokenFileName)); err != nil {
+					return fmt.Errorf("removing old Fleet Desktop identifier file: %w", err)
 				}
 
 				return errors.New("found a new hardware uuid, restarting")
@@ -671,13 +739,6 @@ func main() {
 		// When not set, orbit and osquery will be matched using the hardware UUID (orbitHostInfo.HardwareUUID).
 		if c.String("host-identifier") == "instance" {
 			orbitHostInfo.OsqueryIdentifier = osqueryHostInfo.InstanceID
-		}
-
-		// The hardware serial was not sent when Windows MDM was implemented,
-		// thus we clear its value here to not break any existing enroll functionality
-		// on the server.
-		if runtime.GOOS == "windows" {
-			orbitHostInfo.HardwareSerial = ""
 		}
 
 		var (
@@ -857,7 +918,7 @@ func main() {
 		)
 
 		scriptConfigReceiver, scriptsEnabledFn := update.ApplyRunScriptsConfigFetcherMiddleware(
-			c.Bool("enable-scripts"), orbitClient,
+			c.Bool("enable-scripts"), orbitClient, c.String("root-dir"),
 		)
 		orbitClient.RegisterConfigReceiver(scriptConfigReceiver)
 
@@ -869,10 +930,15 @@ func main() {
 			orbitClient.RegisterConfigReceiver(update.ApplyNudgeConfigReceiverMiddleware(update.NudgeConfigFetcherOptions{
 				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
 			}))
+			setupExperiencer := setupexperience.NewSetupExperiencer(orbitClient, c.String("root-dir"))
+			orbitClient.RegisterConfigReceiver(setupExperiencer)
 			orbitClient.RegisterConfigReceiver(update.ApplySwiftDialogDownloaderMiddleware(updateRunner))
+
 		case "windows":
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(windowsMDMBitlockerCommandFrequency, orbitClient))
+		case "linux":
+			orbitClient.RegisterConfigReceiver(luks.New(orbitClient, zenity.New()))
 		}
 
 		flagUpdateReceiver := update.NewFlagReceiver(orbitClient.TriggerOrbitRestart, update.FlagUpdateOptions{
@@ -951,8 +1017,9 @@ func main() {
 		})
 
 		var trw *token.ReadWriter
+		var deviceClient *service.DeviceClient
 		if c.Bool("fleet-desktop") {
-			trw = token.NewReadWriter(filepath.Join(c.String("root-dir"), "identifier"))
+			trw = token.NewReadWriter(filepath.Join(c.String("root-dir"), constant.DesktopTokenFileName))
 			if err := trw.LoadOrGenerate(); err != nil {
 				return fmt.Errorf("initializing token read writer: %w", err)
 			}
@@ -970,7 +1037,7 @@ func main() {
 			// Note that the deviceClient used by orbit must not define a retry on
 			// invalid token, because its goal is to detect invalid tokens when
 			// making requests with this client.
-			deviceClient, err := service.NewDeviceClient(
+			deviceClient, err = service.NewDeviceClient(
 				fleetURL,
 				c.Bool("insecure"),
 				c.String("fleet-certificate"),
@@ -1084,9 +1151,7 @@ func main() {
 		// on their flagfiles.
 		hostIdentifier := c.String("host-identifier")
 		options = append(options, osquery.WithFlags([]string{"--host-identifier", hostIdentifier}))
-		for _, option := range optionsAfterFlagfile {
-			options = append(options, option)
-		}
+		options = append(options, optionsAfterFlagfile...)
 
 		// Handle additional args after '--' in the command line. These are added last and should
 		// override all other flags and flagfile entries.
@@ -1174,6 +1239,29 @@ func main() {
 				c.String("fleet-desktop-alternative-browser-host"),
 				opt.RootDirectory,
 			)
+			go func() {
+				for {
+					msg := <-desktopRunner.errorNotifyCh
+					log.Error().Err(errors.New(msg)).Msg("fleet-desktop runner error")
+					// Vital errors are always sent to Fleet, regardless of the error reporting setting FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS.
+					fleetdErr := fleet.FleetdError{
+						Vital:              true,
+						ErrorSource:        "fleet-desktop",
+						ErrorSourceVersion: desktopVersion,
+						ErrorTimestamp:     time.Now(),
+						ErrorMessage:       msg,
+						ErrorAdditionalInfo: map[string]interface{}{
+							"orbit_version":   build.Version,
+							"osquery_version": osqueryHostInfo.OsqueryVersion,
+							"os_platform":     osqueryHostInfo.Platform,
+							"os_version":      osqueryHostInfo.OSVersion,
+						},
+					}
+					if err = deviceClient.ReportError(trw.GetCached(), fleetdErr); err != nil {
+						log.Error().Err(err).Msg(fmt.Sprintf("failed to send error report to Fleet: %s", msg))
+					}
+				}
+			}()
 			addSubsystem(&g, "desktop runner", desktopRunner)
 		}
 
@@ -1213,7 +1301,7 @@ func main() {
 			}
 		}
 
-		softwareRunner := installer.NewRunner(orbitClient, r.ExtensionSocketPath(), scriptsEnabledFn)
+		softwareRunner := installer.NewRunner(orbitClient, r.ExtensionSocketPath(), scriptsEnabledFn, c.String("root-dir"))
 		orbitClient.RegisterConfigReceiver(softwareRunner)
 
 		if runtime.GOOS == "darwin" {
@@ -1278,17 +1366,17 @@ func setServerOverrides(c *cli.Context) fallbackServerOverridesConfig {
 	}
 	if overrideCfg.OrbitChannel != "" {
 		if err := c.Set("orbit-channel", overrideCfg.OrbitChannel); err != nil {
-			log.Error().Err(err).Str("component", "orbit").Msg("failed to set server overrides")
+			log.Error().Err(err).Str("component", constant.OrbitTUFTargetName).Msg("failed to set server overrides")
 		}
 	}
 	if overrideCfg.OsquerydChannel != "" {
 		if err := c.Set("osqueryd-channel", overrideCfg.OsquerydChannel); err != nil {
-			log.Error().Err(err).Str("component", "osqueryd").Msg("failed to set server overrides")
+			log.Error().Err(err).Str("component", constant.OsqueryTUFTargetName).Msg("failed to set server overrides")
 		}
 	}
 	if overrideCfg.DesktopChannel != "" {
 		if err := c.Set("desktop-channel", overrideCfg.DesktopChannel); err != nil {
-			log.Error().Err(err).Str("component", "desktop").Msg("failed to set server overrides")
+			log.Error().Err(err).Str("component", constant.DesktopTUFTargetName).Msg("failed to set server overrides")
 		}
 	}
 
@@ -1307,14 +1395,54 @@ func getFleetdComponentPaths(
 		log.Error().Err(err).Msg("update metadata before getting components")
 	}
 
+	// "root", "targets", or "snapshot" signatures have expired, thus
+	// we attempt to get local paths for the targets (updater.Get will fail
+	// because of the expired signatures).
+	if updater.SignaturesExpired() {
+		log.Error().Err(err).Msg("expired metadata, using local targets")
+
+		// Attempt to get local path of osqueryd.
+		osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
+		if err != nil {
+			log.Info().Err(err).Msgf("failed to get local path for %s target", constant.OsqueryTUFTargetName)
+			// Attempt to use fallback path.
+			if fallbackCfg.OsquerydPath == "" {
+				log.Info().Err(err).Msgf("no fallback local path for %s", constant.OsqueryTUFTargetName)
+				return "", "", fmt.Errorf("get local %s target: %w", constant.OsqueryTUFTargetName, err)
+			}
+			log.Info().Err(err).Msgf("get local %s target failed, fallback to using %s", constant.OsqueryTUFTargetName, fallbackCfg.OsquerydPath)
+			osquerydPath = fallbackCfg.OsquerydPath
+		}
+		// Attempt to get local path of Fleet Desktop.
+		if c.Bool("fleet-desktop") {
+			if runtime.GOOS == "darwin" {
+				desktopPath, err = updater.DirLocalPath(constant.DesktopTUFTargetName)
+			} else {
+				desktopPath, err = updater.ExecutableLocalPath(constant.DesktopTUFTargetName)
+			}
+			if err != nil {
+				log.Info().Err(err).Msgf("failed to get local path for %s target", constant.DesktopTUFTargetName)
+				// Attempt to use fallback path.
+				if fallbackCfg.DesktopPath == "" {
+					log.Info().Err(err).Msgf("no fallback local path for %s", constant.DesktopTUFTargetName)
+					return "", "", fmt.Errorf("get local %s target: %w", constant.DesktopTUFTargetName, err)
+				}
+				log.Info().Err(err).Msgf("get local %s target failed, fallback to using %s", constant.DesktopTUFTargetName, fallbackCfg.DesktopPath)
+				desktopPath = fallbackCfg.DesktopPath
+			}
+		}
+
+		return osquerydPath, desktopPath, nil
+	}
+
 	// osqueryd
-	osquerydLocalTarget, err := updater.Get("osqueryd")
+	osquerydLocalTarget, err := updater.Get(constant.OsqueryTUFTargetName)
 	if err != nil {
 		if fallbackCfg.OsquerydPath == "" {
-			log.Info().Err(err).Msg("get osqueryd target failed")
-			return "", "", fmt.Errorf("get osqueryd target: %w", err)
+			log.Info().Err(err).Msgf("get %s target failed", constant.OsqueryTUFTargetName)
+			return "", "", fmt.Errorf("get %s target: %w", constant.OsqueryTUFTargetName, err)
 		}
-		log.Info().Err(err).Msgf("get osqueryd target failed, fallback to using %s", fallbackCfg.OsquerydPath)
+		log.Info().Err(err).Msgf("get %s target failed, fallback to using %s", constant.OsqueryTUFTargetName, fallbackCfg.OsquerydPath)
 		osquerydPath = fallbackCfg.OsquerydPath
 	} else {
 		osquerydPath = osquerydLocalTarget.ExecPath
@@ -1322,13 +1450,13 @@ func getFleetdComponentPaths(
 
 	// Fleet Desktop
 	if c.Bool("fleet-desktop") {
-		fleetDesktopLocalTarget, err := updater.Get("desktop")
+		fleetDesktopLocalTarget, err := updater.Get(constant.DesktopTUFTargetName)
 		if err != nil {
 			if fallbackCfg.DesktopPath == "" {
-				log.Info().Err(err).Msg("get desktop target failed")
-				return "", "", fmt.Errorf("get desktop target: %w", err)
+				log.Info().Err(err).Msgf("get %s target failed", constant.DesktopTUFTargetName)
+				return "", "", fmt.Errorf("get %s target: %w", constant.DesktopTUFTargetName, err)
 			}
-			log.Info().Err(err).Msgf("get desktop target failed, fallback to using %s", fallbackCfg.DesktopPath)
+			log.Info().Err(err).Msgf("get %s target failed, fallback to using %s", constant.DesktopTUFTargetName, fallbackCfg.DesktopPath)
 			desktopPath = fallbackCfg.DesktopPath
 		} else {
 			if runtime.GOOS == "darwin" {
@@ -1373,6 +1501,10 @@ type desktopRunner struct {
 	interruptCh chan struct{} //
 	// executeDoneCh is closed when execute returns.
 	executeDoneCh chan struct{}
+	// errorNotifyCh is used to notify errors to the main orbit process.
+	errorNotifyCh chan string
+	// errorsReported is used to keep track of errors already reported to the main orbit process.
+	errorsReported map[string]struct{}
 }
 
 func newDesktopRunner(
@@ -1395,6 +1527,7 @@ func newDesktopRunner(
 		fleetAlternativeBrowserHost: fleetAlternativeBrowserHost,
 		interruptCh:                 make(chan struct{}),
 		executeDoneCh:               make(chan struct{}),
+		errorNotifyCh:               make(chan string),
 	}
 }
 
@@ -1469,8 +1602,9 @@ func (d *desktopRunner) Execute() error {
 			// To be able to run the desktop application (mostly to register the icon in the system tray)
 			// we need to run the application as the login user.
 			// Package execuser provides multi-platform support for this.
-			if err := execuser.Run(d.desktopPath, opts...); err != nil {
+			if lastLogs, err := execuser.Run(d.desktopPath, opts...); err != nil {
 				log.Debug().Err(err).Msg("execuser.Run")
+				d.processLog(lastLogs)
 				return true
 			}
 			return false
@@ -1526,6 +1660,34 @@ func (d *desktopRunner) Interrupt(err error) {
 	}
 }
 
+func (d *desktopRunner) processLog(log string) {
+	if len(log) == 0 {
+		return
+	}
+	// Important: make sure msg does not contain sensitive information since it is used for analytics.
+	var msg string
+	switch {
+	case strings.Contains(log, string(logErrorLaunchServicesSubstr)):
+		// https://github.com/fleetdm/fleet/issues/19172
+		msg = string(logErrorLaunchServicesMsg)
+	case strings.Contains(log, string(logErrorMissingExecSubstr)):
+		// For manual testing.
+		// To get this message, delete Fleet Desktop.app directory, make an empty Fleet Desktop.app directory,
+		// and kill the fleet-desktop process. Orbit will try to re-start Fleet Desktop and log this message.
+		msg = string(logErrorMissingExecMsg)
+	}
+	if msg == "" {
+		return
+	}
+	if d.errorsReported == nil {
+		d.errorsReported = make(map[string]struct{})
+	}
+	if _, ok := d.errorsReported[msg]; !ok {
+		d.errorsReported[msg] = struct{}{}
+		d.errorNotifyCh <- msg
+	}
+}
+
 // osqueryHostInfo is used to parse osquery JSON output from system tables.
 type osqueryHostInfo struct {
 	// HardwareUUID is the unique identifier for this device (extracted from `system_info` osquery table).
@@ -1534,11 +1696,19 @@ type osqueryHostInfo struct {
 	HardwareSerial string `json:"hardware_serial"`
 	// Hostname is the device's hostname (extracted from `system_info` osquery table).
 	Hostname string `json:"hostname"`
+	// ComputerName is the friendly computer name (optional) (extracted from `system_info` osquery table).
+	ComputerName string `json:"computer_name"`
+	// HardwareModel is the device's hardware model (extracted from `system_info` osquery table).
+	HardwareModel string `json:"hardware_model"`
 	// Platform is the device's platform as defined by osquery (extracted from `os_version` osquery table).
 	Platform string `json:"platform"`
 	// InstanceID is the osquery's randomly generated instance ID
 	// (extracted from `osquery_info` osquery table).
 	InstanceID string `json:"instance_id"`
+	// OSVersion is the device's OS version as defined by osquery (extracted from `os_version` osquery table).
+	OSVersion string `json:"os_version"`
+	// OsqueryVersion is the version of osquery running on the device (extracted from `osquery_info` osquery table).
+	OsqueryVersion string `json:"osquery_version"`
 }
 
 // getHostInfo retrieves system information about the host by shelling out to `osqueryd -S` and performing a `SELECT` query.
@@ -1547,7 +1717,18 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 	if err := os.MkdirAll(filepath.Dir(osqueryDBPath), constant.DefaultDirMode); err != nil {
 		return nil, err
 	}
-	const systemQuery = "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform, oi.instance_id FROM system_info si, os_version os, osquery_info oi"
+	const systemQuery = `
+	SELECT
+		si.uuid,
+		si.hardware_serial,
+		si.hostname,
+		si.computer_name,
+		si.hardware_model,
+		os.platform,
+		os.version as os_version,
+		oi.instance_id,
+		oi.version as osquery_version
+	FROM system_info si, os_version os, osquery_info oi`
 	args := []string{
 		"-S",
 		"--database_path", osqueryDBPath,
@@ -1570,9 +1751,9 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 		if unmarshalErr != nil {
 			// Since the original command failed, we log the original error and the output for debugging purposes.
 			log.Error().Str(
-				"output", string(osquerydStdout.Bytes()),
+				"output", osquerydStdout.String(),
 			).Str(
-				"stderr", string(osquerydStderr.Bytes()),
+				"stderr", osquerydStderr.String(),
 			).Msg("getHostInfo via osquery")
 			return nil, err
 		}
@@ -1712,16 +1893,26 @@ func (f *capabilitiesChecker) Interrupt(err error) {
 // intentionally kept separate to prevent issues since the writes happen at two
 // completely different circumstances.
 func writeSecret(enrollSecret string, orbitRoot string) error {
-	path := filepath.Join(orbitRoot, constant.OsqueryEnrollSecretFileName)
-	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+	return writeOrbitFile(enrollSecret, orbitRoot, constant.OsqueryEnrollSecretFileName)
+}
+
+func writeOrbitFile(contents string, orbitRoot string, fileName string) error {
+	filePath := filepath.Join(orbitRoot, fileName)
+	if err := secure.MkdirAll(filepath.Dir(filePath), constant.DefaultDirMode); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
-	if err := os.WriteFile(path, []byte(enrollSecret), constant.DefaultFileMode); err != nil {
+	if err := os.WriteFile(filePath, []byte(contents), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
 	return nil
+}
+
+// writeFleetURL writes the Fleet URL to the designated file. This is needed in case the
+// Fleet URL originally came from a config profile, which was subsequently removed.
+func writeFleetURL(contents string, orbitRoot string) error {
+	return writeOrbitFile(contents, orbitRoot, constant.FleetURLFileName)
 }
 
 // serverOverridesRunner is a oklog.Group runner that polls for configuration overrides from Fleet.

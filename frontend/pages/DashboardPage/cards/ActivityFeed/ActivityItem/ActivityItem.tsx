@@ -279,6 +279,14 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  fleetEnrolled: (activity: IActivity) => {
+    const hostDisplayName = activity.details?.host_display_name ? (
+      <b>{activity.details.host_display_name}</b>
+    ) : (
+      "A host"
+    );
+    return <>{hostDisplayName} enrolled in Fleet.</>;
+  },
   mdmEnrolled: (activity: IActivity) => {
     if (activity.details?.mdm_platform === "microsoft") {
       return (
@@ -1057,6 +1065,57 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  enabledActivityAutomations: (
+    activity: IActivity,
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
+  ) => {
+    const { webhook_url } = activity.details || {};
+    return (
+      <>
+        {" "}
+        enabled activity automations.{" "}
+        <Button
+          className={`${baseClass}__show-query-link`}
+          variant="text-link"
+          onClick={() =>
+            onDetailsClick?.(ActivityType.EnabledActivityAutomations, {
+              webhook_url,
+            })
+          }
+        >
+          Show details{" "}
+          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+        </Button>
+      </>
+    );
+  },
+  editedActivityAutomations: (
+    activity: IActivity,
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
+  ) => {
+    const { webhook_url } = activity.details || {};
+    return (
+      <>
+        {" "}
+        edited activity automations.{" "}
+        <Button
+          className={`${baseClass}__show-query-link`}
+          variant="text-link"
+          onClick={() =>
+            onDetailsClick?.(ActivityType.EditedActivityAutomations, {
+              webhook_url,
+            })
+          }
+        >
+          Show details{" "}
+          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+        </Button>
+      </>
+    );
+  },
+  disabledActivityAutomations: () => {
+    return <> disabled activity automations.</>;
+  },
 };
 
 const getDetail = (
@@ -1115,6 +1174,9 @@ const getDetail = (
     }
     case ActivityType.UserDeletedTeamRole: {
       return TAGGED_TEMPLATES.userDeletedTeamRole(activity);
+    }
+    case ActivityType.FleetEnrolled: {
+      return TAGGED_TEMPLATES.fleetEnrolled(activity);
     }
     case ActivityType.MdmEnrolled: {
       return TAGGED_TEMPLATES.mdmEnrolled(activity);
@@ -1274,6 +1336,21 @@ const getDetail = (
     }
     case ActivityType.DisabledVpp: {
       return TAGGED_TEMPLATES.disabledVpp(activity);
+    }
+    case ActivityType.EnabledActivityAutomations: {
+      return TAGGED_TEMPLATES.enabledActivityAutomations(
+        activity,
+        onDetailsClick
+      );
+    }
+    case ActivityType.EditedActivityAutomations: {
+      return TAGGED_TEMPLATES.editedActivityAutomations(
+        activity,
+        onDetailsClick
+      );
+    }
+    case ActivityType.DisabledActivityAutomations: {
+      return TAGGED_TEMPLATES.disabledActivityAutomations();
     }
 
     default: {

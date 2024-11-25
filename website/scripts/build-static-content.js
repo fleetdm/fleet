@@ -47,6 +47,8 @@ module.exports = {
           let query = yamlDocument.toJSON().spec;
           query.kind = yamlDocument.toJSON().kind;
           query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
+          // Remove the platform name from query names. This allows us to keep queries at their existing URLs while hiding them in the UI.
+          query.name = query.name.replace(/\s\(macOS\)|\(Windows\)|\(Linux\)$/, '');
           if ((query.resolution !== undefined && !_.isString(query.resolution)) || (query.kind !== 'policy' && _.isString(query.resolution))) {
             // console.log(typeof query.resolution);
             queriesWithProblematicResolutions.push(query);
@@ -1010,7 +1012,7 @@ module.exports = {
         });
 
         let githubLabelsToCheck = {};
-        let KNOWN_AUTOMATABLE_FREQUENCIES = ['Daily', 'Weekly', 'Triweekly', 'Monthly'];
+        let KNOWN_AUTOMATABLE_FREQUENCIES = ['Daily', 'Weekly', 'Triweekly', 'Monthly', 'Annually'];
         // Process each rituals YAML file. These will be added to the builtStaticContent as JSON
         for(let ritualsYamlFilePath of ritualTablesYamlFiles){
           // Get this rituals.yml file's parent folder name, we'll use this as the key for this section's rituals in the ritualsTables dictionary

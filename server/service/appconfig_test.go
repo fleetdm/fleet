@@ -908,8 +908,14 @@ func TestMDMAppleConfig(t *testing.T) {
 			name:        "nochange",
 			licenseTier: "free",
 			expectedMDM: fleet.MDM{
-				AppleBusinessManager:    optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
-				MacOSSetup:              fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
+				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
+				MacOSSetup: fleet.MacOSSetup{
+					BootstrapPackage:            optjson.String{Set: true},
+					MacOSSetupAssistant:         optjson.String{Set: true},
+					EnableReleaseDeviceManually: optjson.SetBool(false),
+					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+					Script:                      optjson.String{Set: true},
+				},
 				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
@@ -943,12 +949,18 @@ func TestMDMAppleConfig(t *testing.T) {
 			expectedMDM: fleet.MDM{
 				AppleBusinessManager:         optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				DeprecatedAppleBMDefaultTeam: "foobar",
-				MacOSSetup:                   fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
-				MacOSUpdates:                 fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				IOSUpdates:                   fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				IPadOSUpdates:                fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				VolumePurchasingProgram:      optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
-				WindowsUpdates:               fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
+				MacOSSetup: fleet.MacOSSetup{
+					BootstrapPackage:            optjson.String{Set: true},
+					MacOSSetupAssistant:         optjson.String{Set: true},
+					EnableReleaseDeviceManually: optjson.SetBool(false),
+					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+					Script:                      optjson.String{Set: true},
+				},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
+				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
@@ -962,12 +974,18 @@ func TestMDMAppleConfig(t *testing.T) {
 			expectedMDM: fleet.MDM{
 				AppleBusinessManager:         optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				DeprecatedAppleBMDefaultTeam: "foobar",
-				MacOSSetup:                   fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
-				MacOSUpdates:                 fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				IOSUpdates:                   fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				IPadOSUpdates:                fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				VolumePurchasingProgram:      optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
-				WindowsUpdates:               fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
+				MacOSSetup: fleet.MacOSSetup{
+					BootstrapPackage:            optjson.String{Set: true},
+					MacOSSetupAssistant:         optjson.String{Set: true},
+					EnableReleaseDeviceManually: optjson.SetBool(false),
+					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+					Script:                      optjson.String{Set: true},
+				},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
+				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
@@ -985,9 +1003,15 @@ func TestMDMAppleConfig(t *testing.T) {
 			newMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			oldMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			expectedMDM: fleet.MDM{
-				AppleBusinessManager:    optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
-				EndUserAuthentication:   fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}},
-				MacOSSetup:              fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
+				AppleBusinessManager:  optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
+				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}},
+				MacOSSetup: fleet.MacOSSetup{
+					BootstrapPackage:            optjson.String{Set: true},
+					MacOSSetupAssistant:         optjson.String{Set: true},
+					EnableReleaseDeviceManually: optjson.SetBool(false),
+					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+					Script:                      optjson.String{Set: true},
+				},
 				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
@@ -1015,7 +1039,13 @@ func TestMDMAppleConfig(t *testing.T) {
 					MetadataURL: "http://isser.metadata.com",
 					IDPName:     "onelogin",
 				}},
-				MacOSSetup:              fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
+				MacOSSetup: fleet.MacOSSetup{
+					BootstrapPackage:            optjson.String{Set: true},
+					MacOSSetupAssistant:         optjson.String{Set: true},
+					EnableReleaseDeviceManually: optjson.SetBool(false),
+					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+					Script:                      optjson.String{Set: true},
+				},
 				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
@@ -1075,9 +1105,15 @@ func TestMDMAppleConfig(t *testing.T) {
 				EnableDiskEncryption: optjson.SetBool(false),
 			},
 			expectedMDM: fleet.MDM{
-				AppleBusinessManager:    optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
-				EnableDiskEncryption:    optjson.Bool{Set: true, Valid: true, Value: false},
-				MacOSSetup:              fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
+				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
+				EnableDiskEncryption: optjson.Bool{Set: true, Valid: true, Value: false},
+				MacOSSetup: fleet.MacOSSetup{
+					BootstrapPackage:            optjson.String{Set: true},
+					MacOSSetupAssistant:         optjson.String{Set: true},
+					EnableReleaseDeviceManually: optjson.SetBool(false),
+					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+					Script:                      optjson.String{Set: true},
+				},
 				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
@@ -1170,6 +1206,59 @@ func TestMDMAppleConfig(t *testing.T) {
 			require.Equal(t, tt.expectedMDM, ac.MDM)
 		})
 	}
+}
+
+func TestDiskEncryptionSetting(t *testing.T) {
+	ds := new(mock.Store)
+
+	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	t.Run("enableDiskEncryptionWithNoPrivateKey", func(t *testing.T) {
+		testConfig = config.TestConfig()
+		testConfig.Server.PrivateKey = ""
+		svc, ctx := newTestServiceWithConfig(t, ds, testConfig, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			MDM:            fleet.MDM{},
+		}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return dsAppConfig, nil
+		}
+
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			*dsAppConfig = *conf
+			return nil
+		}
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return nil, sql.ErrNoRows
+		}
+		ds.NewMDMAppleEnrollmentProfileFunc = func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
+			return &fleet.MDMAppleEnrollmentProfile{}, nil
+		}
+		ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
+			raw := json.RawMessage("{}")
+			return &fleet.MDMAppleEnrollmentProfile{DEPProfile: &raw}, nil
+		}
+		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+			return job, nil
+		}
+
+		ac, err := svc.AppConfigObfuscated(ctx)
+		require.NoError(t, err)
+		require.Equal(t, dsAppConfig.MDM, ac.MDM)
+
+		raw, err := json.Marshal(fleet.MDM{
+			EnableDiskEncryption: optjson.SetBool(true),
+		})
+		require.NoError(t, err)
+		raw = []byte(`{"mdm":` + string(raw) + `}`)
+		_, err = svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "Missing required private key")
+	})
 }
 
 func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
@@ -1475,7 +1564,8 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	svc, ctx = newTestServiceWithConfig(t, ds, fleetConfig, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
-		createdAt time.Time) error {
+		createdAt time.Time,
+	) error {
 		assert.IsType(t, fleet.ActivityAddedNDESSCEPProxy{}, activity)
 		return nil
 	}
@@ -1524,7 +1614,8 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	scepURL = "https://new.com/mscep/mscep.dll"
 	jsonPayload = fmt.Sprintf(jsonPayloadBase, scepURL, adminURL, username, "")
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
-		createdAt time.Time) error {
+		createdAt time.Time,
+	) error {
 		assert.IsType(t, fleet.ActivityEditedNDESSCEPProxy{}, activity)
 		return nil
 	}
@@ -1608,7 +1699,8 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	// Second, real run.
 	appConfig.Integrations.NDESSCEPProxy.Valid = true
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
-		createdAt time.Time) error {
+		createdAt time.Time,
+	) error {
 		assert.IsType(t, fleet.ActivityDeletedNDESSCEPProxy{}, activity)
 		return nil
 	}
@@ -1646,5 +1738,4 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 	_, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
 	assert.ErrorContains(t, err, "private key")
-
 }
