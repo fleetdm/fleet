@@ -383,6 +383,11 @@ func testGetMaintainedAppByID(t *testing.T, ds *Datastore) {
 func testGetSoftwareTitleIdByAppID(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	// Maintained app doesn't exist, should get not found error
+	_, err := ds.GetSoftwareTitleIDByAppID(ctx, 99, nil)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
@@ -400,11 +405,16 @@ func testGetSoftwareTitleIdByAppID(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// Valid maintained app ID, but no installer yet so we should get not found error
+	_, err = ds.GetSoftwareTitleIDByAppID(ctx, app.ID, nil)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// create a software installer for team and for no team
 	installer, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
 
-	// create a software installer
-	installer1ID, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
+	installerTm1ID, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
@@ -420,14 +430,34 @@ func testGetSoftwareTitleIdByAppID(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	_, err = ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		InstallerFile:     installer,
+		StorageID:         "storage1",
+		Filename:          "file1",
+		Title:             "file1",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		TeamID:            nil,
+		FleetLibraryAppID: &app.ID,
+	})
+	require.NoError(t, err)
+
 	// get the software installer metadata as we will need the associated software title id.
-	installer1, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer1ID)
+	installer1, err := ds.GetSoftwareInstallerMetadataByID(ctx, installerTm1ID)
 	require.NoError(t, err)
 	require.NotNil(t, installer1.TitleID)
 
 	stID, err := ds.GetSoftwareTitleIDByAppID(ctx, app.ID, &team1.ID)
 	require.NoError(t, err)
 	require.Equal(t, *installer1.TitleID, stID)
+
+	stNoTmID, err := ds.GetSoftwareTitleIDByAppID(ctx, app.ID, nil)
+	require.NoError(t, err)
+	require.Equal(t, *installer1.TitleID, stNoTmID)
 
 	require.NoError(t, err)
 }

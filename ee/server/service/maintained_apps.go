@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -148,7 +149,9 @@ func (svc *Service) AddFleetMaintainedApp(
 		return 0, ctxerr.Wrap(ctx, err, "creating activity for added software")
 	}
 
-	titleId, err := svc.ds.GetSoftwareTitleIDByAppID(ctx, app.ID, payload.TeamID)
+	// Use the writer for this query; we need the software installer that might have just been
+	// created above
+	titleId, err := svc.ds.GetSoftwareTitleIDByAppID(ctxdb.RequirePrimary(ctx, true), app.ID, payload.TeamID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "getting software title id by app id")
 	}
