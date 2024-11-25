@@ -79,6 +79,8 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeEnabledWindowsMDM{},
 	ActivityTypeDisabledWindowsMDM{},
+	ActivityTypeEnabledWindowsMDMMigration{},
+	ActivityTypeDisabledWindowsMDMMigration{},
 
 	ActivityTypeRanScript{},
 	ActivityTypeAddedScript{},
@@ -1233,6 +1235,28 @@ func (a ActivityTypeDisabledWindowsMDM) ActivityName() string {
 
 func (a ActivityTypeDisabledWindowsMDM) Documentation() (activity, details, detailsExample string) {
 	return `Generated when a user turns off MDM features for all Windows hosts.`,
+		`This activity does not contain any detail fields.`, ``
+}
+
+type ActivityTypeEnabledWindowsMDMMigration struct{}
+
+func (a ActivityTypeEnabledWindowsMDMMigration) ActivityName() string {
+	return "enabled_windows_mdm_migration"
+}
+
+func (a ActivityTypeEnabledWindowsMDMMigration) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user enables automatic MDM migration for Windows hosts, if Windows MDM is turned on.`,
+		`This activity does not contain any detail fields.`, ``
+}
+
+type ActivityTypeDisabledWindowsMDMMigration struct{}
+
+func (a ActivityTypeDisabledWindowsMDMMigration) ActivityName() string {
+	return "disabled_windows_mdm_migration"
+}
+
+func (a ActivityTypeDisabledWindowsMDMMigration) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user disables automatic MDM migration for Windows hosts, if Windows MDM is turned on.`,
 		`This activity does not contain any detail fields.`, ``
 }
 
