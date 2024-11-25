@@ -384,7 +384,7 @@ func testGetSoftwareTitleIdByAppID(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// Maintained app doesn't exist, should get not found error
-	_, err := ds.GetSoftwareTitleIDByAppID(ctx, 99, nil)
+	_, err := ds.GetSoftwareTitleIDByMaintainedAppID(ctx, 99, nil)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 
@@ -406,7 +406,7 @@ func testGetSoftwareTitleIdByAppID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Valid maintained app ID, but no installer yet so we should get not found error
-	_, err = ds.GetSoftwareTitleIDByAppID(ctx, app.ID, nil)
+	_, err = ds.GetSoftwareTitleIDByMaintainedAppID(ctx, app.ID, nil)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 
@@ -451,11 +451,11 @@ func testGetSoftwareTitleIdByAppID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, installer1.TitleID)
 
-	stID, err := ds.GetSoftwareTitleIDByAppID(ctx, app.ID, &team1.ID)
+	stID, err := ds.GetSoftwareTitleIDByMaintainedAppID(ctx, app.ID, &team1.ID)
 	require.NoError(t, err)
 	require.Equal(t, *installer1.TitleID, stID)
 
-	stNoTmID, err := ds.GetSoftwareTitleIDByAppID(ctx, app.ID, nil)
+	stNoTmID, err := ds.GetSoftwareTitleIDByMaintainedAppID(ctx, app.ID, nil)
 	require.NoError(t, err)
 	require.Equal(t, *installer1.TitleID, stNoTmID)
 

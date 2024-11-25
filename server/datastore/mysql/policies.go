@@ -1664,26 +1664,32 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 	return hosts, nil
 }
 
-// GetPoliciesBySoftwareTitleID returns the policies that are associated with a
-// software title.
-func (ds *Datastore) GetPoliciesBySoftwareTitleID(
+// GetPoliciesBySoftwareTitleID returns the policies that are associated with a set of software titles.
+func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 	ctx context.Context,
-	softwareTitleID uint,
+	softwareTitleIDs []uint,
 	teamID *uint,
 ) ([]fleet.AutomaticInstallPolicy, error) {
 	query := `
 	SELECT
-		p.id,
-		p.name
+		p.id AS id,
+		p.name AS name,
+		st.id AS software_title_id
 	FROM policies p
 	JOIN software_installers si ON p.software_installer_id = si.id
 	JOIN software_titles st ON si.title_id = st.id
-	WHERE st.id = ?`
+	WHERE st.id IN (?) AND p.team_id = ?
+	GROUP BY software_title_id, id;
+`
 
-	args := []any{softwareTitleID}
+	var tmID uint
 	if teamID != nil {
-		query += " AND p.team_id = ?"
-		args = append(args, *teamID)
+		tmID = *teamID
+	}
+
+	query, args, err := sqlx.In(query, softwareTitleIDs, tmID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build select get policies by software id query")
 	}
 
 	var policies []fleet.AutomaticInstallPolicy

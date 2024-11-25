@@ -165,7 +165,7 @@ WHERE NOT EXISTS (
 }
 
 // GetSoftwareTitleIDByAppID returns the software title ID related to a given fleet library app ID.
-func (ds *Datastore) GetSoftwareTitleIDByAppID(ctx context.Context, appID uint, teamID *uint) (uint, error) {
+func (ds *Datastore) GetSoftwareTitleIDByMaintainedAppID(ctx context.Context, appID uint, teamID *uint) (uint, error) {
 	stmt := `
 	SELECT
 		st.id

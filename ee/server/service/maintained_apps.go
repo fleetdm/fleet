@@ -27,7 +27,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	appID uint,
 	installScript, preInstallQuery, postInstallScript, uninstallScript string,
 	selfService bool,
-) (uint, error) {
+) (titleID uint, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return 0, err
 	}
@@ -151,7 +151,7 @@ func (svc *Service) AddFleetMaintainedApp(
 
 	// Use the writer for this query; we need the software installer that might have just been
 	// created above
-	titleId, err := svc.ds.GetSoftwareTitleIDByAppID(ctxdb.RequirePrimary(ctx, true), app.ID, payload.TeamID)
+	titleId, err := svc.ds.GetSoftwareTitleIDByMaintainedAppID(ctxdb.RequirePrimary(ctx, true), app.ID, payload.TeamID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "getting software title id by app id")
 	}

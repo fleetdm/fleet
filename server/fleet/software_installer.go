@@ -126,7 +126,7 @@ type SoftwareInstaller struct {
 	FleetLibraryAppID *uint `json:"-" db:"fleet_library_app_id"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
-	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies,omitempty" db:"-"`
+	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -418,8 +418,9 @@ type HostSoftwareWithInstaller struct {
 }
 
 type AutomaticInstallPolicy struct {
-	ID   uint   `json:"id" db:"id"`
-	Name string `json:"name" db:"name"`
+	ID      uint   `json:"id" db:"id"`
+	Name    string `json:"name" db:"name"`
+	TitleID uint   `json:"-" db:"software_title_id"`
 }
 
 // SoftwarePackageOrApp provides information about a software installer
@@ -431,7 +432,7 @@ type SoftwarePackageOrApp struct {
 	Name string `json:"name,omitempty"`
 	// AutomaticInstallPolicies is only present for Fleet maintained apps
 	// installed automatically with a policy.
-	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies,omitempty"`
+	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies"`
 
 	Version       string                 `json:"version"`
 	SelfService   *bool                  `json:"self_service,omitempty"`
