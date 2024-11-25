@@ -32,7 +32,7 @@ org_settings:
       - "📱🏢 Company-owned iPhones"
       - "🔳🏢 Company-owned iPads"
   org_info:
-    contact_url: https://fleetdm.com/company/contact
+    contact_url: https://fleetdm.com/company/foo
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: Fleet
