@@ -24,7 +24,43 @@ Fleet now provides the ability to preview scripts directly on the **Host details
 
 ## Changes
 
-TODO: @noahtalerman: Update when changelog PR is opened.
+### Device management (MDM)
+- Fixed a bug where users could attempt to install an App Store app on a host that was not MDM enrolled.
+- Fixed MDM configuration profiles deployment when based on excluded labels.
+- Dismissed error flash on the my device page when navigating to another URL.
+- Fixed an issue where the create and update label endpoints could return outdated information in a deployment using a MySQL replica.
+- Added indicator of how fresh a software title's host and version counts are on the title's details page.
+- Reboot linux machine on unlock to work around GDM bug on Ubuntu.
+- Cancelled pending script executions when a script is edited or deleted.
+- Fix some cases where Fleet Maintained Apps generated incorrect uninstall scripts.
+
+### Observability
+- Users are now prompted to reenter the password in the Fleet UI if SCEP/NDES URL or username has changed.
+- Users can now view scripts in the UI without downloading them.
+- Creating a query now allows users to turn on/off automations transparently regarding the current log destination.
+- Fixed path resolution for installer queries and scripts to always be relative to where the query file or script is referenced. This change may break existing YAML files that had to account for previous inconsistent behavior.
+- Added support for deb packages compressed with zstd.
+- Updated GitOps to return an error if the deprecated `apple_bm_default_team` key is used and there are more than 1 ABM tokens in Fleet.
+- Add UI for allowing users to install custom profiles on hosts that include any of the defined labels.
+- Improved memory usage of the Fleet server when uploading a large software installer file.
+
+### Software management
+- Fixed issue with uploading macOS software packages without a top level Distribution.xml but with a top level PackageInfo.xml.
+- Added better handling of timeout and insufficient permissions errors in NDES SCEP proxy.
+- Allowed skipping computationally heavy population of vulnerability details when populating host software on hosts list endpoint when using Fleet Premium.
+
+### Bug fixes and improvements
+- Set a more elegant minimum height for the Add hosts > ChromeOS > Policy for extension field, avoiding a scrollbar.
+- Fixed a bug where the software batch endpoint status code was updated from 200 (OK) to 202 (Accepted).
+- Added capability for Fleet to serve yara rules to agents over HTTPS authenticated via node key.
+- Fixed a bug in the software batch endpoint status code.
+- Generate an activity when activity automations are enabled, edited, or disabled.
+- Major improvements to keyboard accessibility throughout the Fleet UI.
+- Updated a package used for testing (msw) to improve security.
+- Added support for "include any" label/profile relationships to the profile reconciliation machinery.
+- Added DB support for "include any" label profile deployment.
+- Added support for labels_include_any to GitOps.
+- Added info banner for cloud customers to help with their windows autoenrollment setup.
 
 ## Ready to upgrade?
 
