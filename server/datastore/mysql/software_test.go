@@ -3081,7 +3081,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	assertSoftware(t, expectedSoftware)
 
 	// Test duplicate key handling in `ReconcileSoftwareTitles`.
-	// Since the existing software_titles and software entries have different `source values,
+	// Since the existing software_titles and software entries have different `source` values,
 	// the code will attempt to insert into `software_titles`, but the bundle_identifier + additional_identifier
 	// key (com.example.app1-0) will conflict.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
