@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -29,10 +30,12 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-// Functions that can be overwritten in tests
 var (
+	// Functions that can be overwritten in tests
 	validateNDESSCEPAdminURL = eeservice.ValidateNDESSCEPAdminURL
 	validateNDESSCEPURL      = eeservice.ValidateNDESSCEPURL
+
+	wordRegexp = regexp.MustCompile(`^\w+$`)
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -399,6 +402,45 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			if validateSCEPURL {
 				if err = validateNDESSCEPURL(ctx, newSCEPProxy, svc.logger); err != nil {
 					invalid.Append("integrations.ndes_scep_proxy.url", err.Error())
+				}
+			}
+		}
+	}
+
+	if newAppConfig.Integrations.DigiCert.Set && newAppConfig.Integrations.DigiCert.Valid && !license.IsPremium() {
+		invalid.Append("integrations.digicert_pki", ErrMissingLicense.Error())
+		appConfig.Integrations.DigiCert.Valid = false
+	} else {
+		switch {
+		case !newAppConfig.Integrations.DigiCert.Set:
+			// Nothing is set -- keep the old value
+			appConfig.Integrations.DigiCert = oldAppConfig.Integrations.DigiCert
+		case !newAppConfig.Integrations.DigiCert.Valid:
+			// User is explicitly clearing this setting
+			appConfig.Integrations.DigiCert.Valid = false
+		default:
+			templateNames := make(map[string]struct{}, len(newAppConfig.Integrations.DigiCert.Value))
+			for _, item := range appConfig.Integrations.DigiCert.Value {
+				item.PKIName = fleet.Preprocess(item.PKIName)
+				if item.PKIName == "" {
+					invalid.Append("integrations.digicert_pki.pki_name", "PKI name must be present")
+					break
+				}
+				for _, template := range item.Templates {
+					template.Name = fleet.Preprocess(template.Name)
+					if template.Name == "" {
+						invalid.Append("integrations.digicert_pki.templates.name", "template names must be present")
+						break
+					}
+					if !wordRegexp.MatchString(template.Name) {
+						invalid.Append("integrations.digicert_pki.templates.name", "template names must contain ASCII word characters only")
+						break
+					}
+					if _, ok := templateNames[template.Name]; ok {
+						invalid.Append("integrations.digicert_pki.templates.name", "template names must be unique")
+						break
+					}
+					templateNames[template.Name] = struct{}{}
 				}
 			}
 		}

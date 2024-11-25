@@ -361,6 +361,23 @@ type NDESSCEPProxyIntegration struct {
 	Password string `json:"password"` // not stored here -- encrypted in DB
 }
 
+type CertificateSAN struct {
+	UserPrincipalNames []string `json:"user_principal_names"`
+}
+
+type CertificateTemplate struct {
+	Name       string         `json:"name"` // letters, numbers, and underscores only
+	ProfileID  string         `json:"profile_id"`
+	SeatID     string         `json:"seat_id"`
+	CommonName string         `json:"common_name"`
+	SAN        CertificateSAN `json:"san"`
+}
+
+type DigiCertIntegration struct {
+	PKIName   string                `json:"pki_name"`
+	Templates []CertificateTemplate `json:"templates"`
+}
+
 // Integrations configures the integrations with external systems.
 type Integrations struct {
 	Jira           []*JiraIntegration           `json:"jira"`
@@ -368,6 +385,7 @@ type Integrations struct {
 	GoogleCalendar []*GoogleCalendarIntegration `json:"google_calendar"`
 	// NDESSCEPProxy settings. In JSON, not specifying this field means keep current setting, null means clear settings.
 	NDESSCEPProxy optjson.Any[NDESSCEPProxyIntegration] `json:"ndes_scep_proxy"`
+	DigiCert      optjson.Slice[DigiCertIntegration]    `json:"digicert_pki"`
 }
 
 func ValidateEnabledActivitiesWebhook(webhook ActivitiesWebhookSettings, invalid *InvalidArgumentError) {

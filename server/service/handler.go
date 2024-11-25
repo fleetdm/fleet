@@ -788,6 +788,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// input to `fleetctl apply`
 	ue.POST("/api/_version_/fleet/mdm/profiles/batch", batchSetMDMProfilesEndpoint, batchSetMDMProfilesRequest{})
 
+	// PKI certificate management
+	ue.GET("/api/_version_/fleet/pki", getCertificatesEndpoint, nil)
+	ue.GET("/api/_version_/fleet/pki/{pki_name}/request_csr", getCertCSREndpoint, getCertCSRRequest{})
+	ue.POST("/api/_version_/fleet/pki/{pki_name}", uploadCertEndpoint, uploadCertRequest{})
+	ue.DELETE("/api/_version_/fleet/pki/{pki_name}", deleteCertEndpoint, deleteCertRequest{})
+
 	errorLimiter := ratelimit.NewErrorMiddleware(limitStore)
 
 	// device-authenticated endpoints

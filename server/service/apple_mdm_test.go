@@ -723,8 +723,9 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
-	identifier := "Bar.$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
-	mcBytes := mcBytesForTest("Foo", identifier, "UUID")
+	identifier := "Bar."
+	identifierWithVar := identifier + "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+	mcBytes := mcBytesForTest("Foo", identifierWithVar, "UUID")
 	r := bytes.NewReader(mcBytes)
 
 	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
@@ -4235,4 +4236,29 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestGetNewPKICertificate(t *testing.T) {
+	ctx := context.Background()
+
+	ds := new(mock.Store)
+	crt, key, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	certPEM := tokenpki.PEMCertificate(crt.Raw)
+	keyPEM := tokenpki.PEMRSAPrivateKey(key)
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetCACert: {Value: certPEM},
+			fleet.MDMAssetCAKey:  {Value: keyPEM},
+		}, nil
+	}
+
+	certTemplate := fleet.CertificateTemplate{
+		CommonName: "My CN",
+	}
+	cert64, err := getNewPKICertificate(ctx, ds, "", nil, certTemplate, "My Org")
+	require.NoError(t, err)
+	assert.NotEmpty(t, cert64)
 }

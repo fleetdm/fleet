@@ -242,6 +242,8 @@ type Datastore interface {
 	// identifier. The "lite" version is a subset of the fields related to the
 	// host. See the implementation for the exact list.
 	ListHostsLiteByUUIDs(ctx context.Context, filter TeamFilter, uuids []string) ([]*Host, error)
+	// ListHostsLiteByUUIDsNoFilter is the same as ListHostsLiteByUUIDs but without any filtering.
+	ListHostsLiteByUUIDsNoFilter(ctx context.Context, uuids []string) ([]*Host, error)
 
 	// ListHostsLiteByIDs returns the "lite" version of hosts corresponding to
 	// the provided ids. The "lite" version is a subset of the fields related to
@@ -1865,6 +1867,15 @@ type Datastore interface {
 
 	// CleanUpMDMManagedCertificates removes all managed certificates that are not associated with any host+profile.
 	CleanUpMDMManagedCertificates(ctx context.Context) error
+
+	// GetPKICertificate returns the PKI certificate with the given name.
+	GetPKICertificate(ctx context.Context, name string) (*PKICertificate, error)
+	// SavePKICertificate creates or updates the PKI certificate using the provided struct.
+	SavePKICertificate(ctx context.Context, cert *PKICertificate) error
+	// ListPKICertificates returns metadata for PKI certificates.
+	ListPKICertificates(ctx context.Context) ([]PKICertificate, error)
+	// DeletePKICertificate deletes the PKI certificate with the given name.
+	DeletePKICertificate(ctx context.Context, name string) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

@@ -181,6 +181,8 @@ type ListHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.
 
 type ListHostsLiteByUUIDsFunc func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error)
 
+type ListHostsLiteByUUIDsNoFilterFunc func(ctx context.Context, uuids []string) ([]*fleet.Host, error)
+
 type ListHostsLiteByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.Host, error)
 
 type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
@@ -1167,6 +1169,14 @@ type GetHostMDMCertificateProfileFunc func(ctx context.Context, hostUUID string,
 
 type CleanUpMDMManagedCertificatesFunc func(ctx context.Context) error
 
+type GetPKICertificateFunc func(ctx context.Context, name string) (*fleet.PKICertificate, error)
+
+type SavePKICertificateFunc func(ctx context.Context, cert *fleet.PKICertificate) error
+
+type ListPKICertificatesFunc func(ctx context.Context) ([]fleet.PKICertificate, error)
+
+type DeletePKICertificateFunc func(ctx context.Context, name string) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1407,6 +1417,9 @@ type DataStore struct {
 
 	ListHostsLiteByUUIDsFunc        ListHostsLiteByUUIDsFunc
 	ListHostsLiteByUUIDsFuncInvoked bool
+
+	ListHostsLiteByUUIDsNoFilterFunc        ListHostsLiteByUUIDsNoFilterFunc
+	ListHostsLiteByUUIDsNoFilterFuncInvoked bool
 
 	ListHostsLiteByIDsFunc        ListHostsLiteByIDsFunc
 	ListHostsLiteByIDsFuncInvoked bool
@@ -2887,6 +2900,18 @@ type DataStore struct {
 	CleanUpMDMManagedCertificatesFunc        CleanUpMDMManagedCertificatesFunc
 	CleanUpMDMManagedCertificatesFuncInvoked bool
 
+	GetPKICertificateFunc        GetPKICertificateFunc
+	GetPKICertificateFuncInvoked bool
+
+	SavePKICertificateFunc        SavePKICertificateFunc
+	SavePKICertificateFuncInvoked bool
+
+	ListPKICertificatesFunc        ListPKICertificatesFunc
+	ListPKICertificatesFuncInvoked bool
+
+	DeletePKICertificateFunc        DeletePKICertificateFunc
+	DeletePKICertificateFuncInvoked bool
+
 	mu sync.Mutex
 }
 
@@ -3448,6 +3473,13 @@ func (s *DataStore) ListHostsLiteByUUIDs(ctx context.Context, filter fleet.TeamF
 	s.ListHostsLiteByUUIDsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostsLiteByUUIDsFunc(ctx, filter, uuids)
+}
+
+func (s *DataStore) ListHostsLiteByUUIDsNoFilter(ctx context.Context, uuids []string) ([]*fleet.Host, error) {
+	s.mu.Lock()
+	s.ListHostsLiteByUUIDsNoFilterFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostsLiteByUUIDsNoFilterFunc(ctx, uuids)
 }
 
 func (s *DataStore) ListHostsLiteByIDs(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
@@ -6899,4 +6931,32 @@ func (s *DataStore) CleanUpMDMManagedCertificates(ctx context.Context) error {
 	s.CleanUpMDMManagedCertificatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanUpMDMManagedCertificatesFunc(ctx)
+}
+
+func (s *DataStore) GetPKICertificate(ctx context.Context, name string) (*fleet.PKICertificate, error) {
+	s.mu.Lock()
+	s.GetPKICertificateFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPKICertificateFunc(ctx, name)
+}
+
+func (s *DataStore) SavePKICertificate(ctx context.Context, cert *fleet.PKICertificate) error {
+	s.mu.Lock()
+	s.SavePKICertificateFuncInvoked = true
+	s.mu.Unlock()
+	return s.SavePKICertificateFunc(ctx, cert)
+}
+
+func (s *DataStore) ListPKICertificates(ctx context.Context) ([]fleet.PKICertificate, error) {
+	s.mu.Lock()
+	s.ListPKICertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListPKICertificatesFunc(ctx)
+}
+
+func (s *DataStore) DeletePKICertificate(ctx context.Context, name string) error {
+	s.mu.Lock()
+	s.DeletePKICertificateFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeletePKICertificateFunc(ctx, name)
 }

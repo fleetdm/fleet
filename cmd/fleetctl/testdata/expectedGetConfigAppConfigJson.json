@@ -91,7 +91,8 @@
 			"jira": null,
 			"zendesk": null,
 			"google_calendar": null,
-			"ndes_scep_proxy": null
+			"ndes_scep_proxy": null,
+			"digicert_pki": null
 		},
 		"mdm": {
 			"apple_bm_terms_expired": false,
