@@ -3219,6 +3219,31 @@ software:
 	}
 }
 
+func TestGitOpsWindowsMigration(t *testing.T) {
+	cases := []struct {
+		file    string
+		wantErr string
+	}{
+		// booleans are Windows MDM enabled and Windows migration enabled
+		{"testdata/gitops/global_config_windows_migration_true_true.yml", ""},
+		{"testdata/gitops/global_config_windows_migration_false_true.yml", "Windows MDM is not enabled"},
+		{"testdata/gitops/global_config_windows_migration_true_false.yml", ""},
+		{"testdata/gitops/global_config_windows_migration_false_false.yml", ""},
+	}
+	for _, c := range cases {
+		t.Run(filepath.Base(c.file), func(t *testing.T) {
+			setupFullGitOpsPremiumServer(t)
+
+			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
+			if c.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, c.wantErr)
+			}
+		})
+	}
+}
+
 type memKeyValueStore struct {
 	m sync.Map
 }
