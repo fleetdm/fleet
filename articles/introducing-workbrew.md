@@ -2,7 +2,7 @@
 
 ![Fleet and Workbrew](../website/assets/images/articles/fleet-and-workbrew-1600x900@2x.png)
 
-[Workbrew recently](https://workbrew.com/) made waves with its official launch, highlighted in a [TechCrunch article](https://techcrunch.com/2024/11/19/workbrew-makes-open-source-package-manager-homebrew-enterprise-friendly/). Backed by $5 million in funding from developer-focused VC firms like Heavybit and Operator Collective, Workbrew is tackling a critical challenge: transforming Homebrew from a developer-centric tool into a secure, enterprise-ready solution.
+[Workbrew recently](https://workbrew.com/) made waves with its [official launch](https://workbrew.com/blog/workbrew-1-0), highlighted in a [TechCrunch article](https://techcrunch.com/2024/11/19/workbrew-makes-open-source-package-manager-homebrew-enterprise-friendly/). Backed by $5 million in funding from developer-focused VC firms like Heavybit and Operator Collective, Workbrew is tackling a critical challenge: transforming Homebrew from a developer-centric tool into a secure, enterprise-ready solution.
 
 ## Workbrew’s mission: From single-player to multiplayer
 
