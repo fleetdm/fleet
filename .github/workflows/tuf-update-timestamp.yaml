@@ -2,8 +2,6 @@
 name: Update TUF timestamp
 
 on:
-  # TODO(lucas): Remove me once tests are done. This is just to allow me running a new Github Action that's not on main.
-  pull_request:
   schedule:
     - cron: "0 14 * * TUE" # Every Tuesday at 2 PM UTC
   workflow_dispatch: # Manual
@@ -57,6 +55,5 @@ jobs:
 
       - name: Push timestamp.json
         run: |
-          # TODO(lucas): Will uncomment once ready.
-          # aws s3 cp ./repository/timestamp.json s3://fleet-tuf-repo/timestamp.json
           cat ./repository/timestamp.json
+          aws s3 cp ./repository/timestamp.json s3://fleet-tuf-repo/timestamp.json
