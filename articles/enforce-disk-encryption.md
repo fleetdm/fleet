@@ -28,7 +28,7 @@ API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#update-di
 
 ### Disk encryption status
 
-In the Fleet UI, head to the **Controls > OS settings > Disk encryption** tab. You will see a table that shows the status of disk encryption on your hosts.
+In the Fleet UI, head to the **Controls > OS settings > Disk encryption** tab. You will see a table that shows the status of disk encryption on your hosts. 
 
 * Verified: the host turned disk encryption on and sent their key to Fleet. Fleet verified with osquery. See instructions for viewing the disk encryption key [here](#view-disk-encryption-key).
 
@@ -36,13 +36,13 @@ In the Fleet UI, head to the **Controls > OS settings > Disk encryption** tab. Y
 
 > It may take up to one hour for Fleet to collect and store the disk encryption keys from all hosts.
 
-* Action required (pending): the end user must take action to turn disk encryption on or reset their disk encryption key.
+* Action required (pending): the end user must take action to turn disk encryption on or reset their disk encryption key. 
 
 * Enforcing (pending): the host will receive the MDM command to install the configuration profile when the host comes online.
 
 * Removing enforcement (pending): the host will receive the MDM command to remove the disk encryption profile when the host comes online.
 
-* Failed: hosts that are failed to enforce disk encryption.
+* Failed: hosts that failed to enforce disk encryption.
 
 You can click each status to view the list of hosts for that status.
 
@@ -57,7 +57,7 @@ To enforce disk encryption on Ubuntu Linux and Fedora Linux devices, Fleet suppo
 2. Once the user encrypts the disk, Fleet will initiate a key escrow process through Fleet Desktop:
    * Fleet Desktop prompts the user to enter their current encryption passphrase.
    * A new encryption passphrase is generated and added as a LUKS keyslot for the encrypted volume.
-   * The new passphrase is securely stored in Fleet's backend.
+   * The new passphrase is securely stored in Fleet.
 
 3. Fleet verifies that the encryption is complete, and the key has been escrowed. Once successful, the host's status will be updated to "Verified" in the disk encryption status table.
 
