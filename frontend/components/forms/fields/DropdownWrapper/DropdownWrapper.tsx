@@ -272,6 +272,12 @@ const DropdownWrapper = ({
       },
     }),
     menuPortal: (base) => ({ ...base, zIndex: 999 }), // Not hidden beneath scrollable sections
+    noOptionsMessage: (provided) => ({
+      ...provided,
+      textAlign: "left",
+      fontSize: "14px",
+      padding: "10px 8px",
+    }),
   };
 
   const renderLabel = () => {
@@ -318,6 +324,7 @@ const DropdownWrapper = ({
         onChange={handleChange}
         isDisabled={isDisabled}
         menuPortalTarget={document.body}
+        noOptionsMessage={() => "No results found"}
         tabIndex={isDisabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
       />
     </FormField>
