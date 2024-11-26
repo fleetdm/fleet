@@ -378,8 +378,9 @@ module "monitoring" {
   alb_target_group_arn_suffix = module.main.byo-vpc.byo-db.alb.target_group_arn_suffixes[0]
   alb_arn_suffix              = module.main.byo-vpc.byo-db.alb.lb_arn_suffix
   sns_topic_arns_map = {
-    alb_httpcode_5xx = [module.notify_slack.slack_topic_arn]
-    cron_monitoring  = [module.notify_slack.slack_topic_arn]
+    alb_httpcode_5xx = [module.notify_slack_p1.slack_topic_arn]
+    cron_system_monitoring  = [module.notify_slack_p1.slack_topic_arn]
+    cron_job_failure_monitoring = [module.notify_slack_p2.slack_topic_arn]
   }
   mysql_cluster_members = module.main.byo-vpc.rds.cluster_members
   # The cloudposse module seems to have a nested list here.
@@ -456,14 +457,25 @@ variable "slack_webhook" {
   type = string
 }
 
-module "notify_slack" {
+module "notify_slack_p1" {
   source  = "terraform-aws-modules/notify-slack/aws"
   version = "5.5.0"
 
-  sns_topic_name = "fleet-dogfood"
+  sns_topic_name = "fleet-dogfood-p1-alerts"
 
   slack_webhook_url = var.slack_webhook
   slack_channel     = "#help-p1"
+  slack_username    = "monitoring"
+}
+
+module "notify_slack_p2" {
+  source  = "terraform-aws-modules/notify-slack/aws"
+  version = "5.5.0"
+
+  sns_topic_name = "fleet-dogfood-p2-alerts"
+
+  slack_webhook_url = var.slack_webhook
+  slack_channel     = "#help-p2"
   slack_username    = "monitoring"
 }
 

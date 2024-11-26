@@ -37,27 +37,40 @@ import (
 	flags "github.com/jessevdk/go-flags"
 )
 
-type NullEvent struct{}
+type (
+	NullEvent       struct{}
+	SNSTopicArnsMap map[string]string
+)
 
 type OptionsStruct struct {
-	LambdaRuntimeAPI   string `long:"lambda-runtime-api" env:"AWS_LAMBDA_RUNTIME_API"`
-	SNSTopicArns       string `long:"sns-topic-arn" env:"SNS_TOPIC_ARNS" required:"true"`
-	MySQLHost          string `long:"mysql-host" env:"MYSQL_HOST" required:"true"`
-	MySQLUser          string `long:"mysql-user" env:"MYSQL_USER" required:"true"`
-	MySQLSMSecret      string `long:"mysql-secretsmanager-secret" env:"MYSQL_SECRETSMANAGER_SECRET" required:"true"`
-	MySQLDatabase      string `long:"mysql-database" env:"MYSQL_DATABASE" required:"true"`
-	FleetEnv           string `long:"fleet-environment" env:"FLEET_ENV" required:"true"`
-	AWSRegion          string `long:"aws-region" env:"AWS_REGION" required:"true"`
-	CronDelayTolerance string `long:"cron-delay-tolerance" env:"CRON_DELAY_TOLERANCE" default:"2h"`
+	LambdaRuntimeAPI           string `long:"lambda-runtime-api" env:"AWS_LAMBDA_RUNTIME_API"`
+	SNSCronSystemTopicArns     string `long:"sns-cron-system-topic-arn" env:"CRON_SYSTEM_MONITOR_SNS_TOPIC_ARNS" required:"true"`
+	SNSCronJobFailureTopicArns string `long:"sns-cron-job-failure-topic-arn" env:"CRON_JOB_FAILURE_MONITOR_SNS_TOPIC_ARNS" required:"true"`
+	MySQLHost                  string `long:"mysql-host" env:"MYSQL_HOST" required:"true"`
+	MySQLUser                  string `long:"mysql-user" env:"MYSQL_USER" required:"true"`
+	MySQLSMSecret              string `long:"mysql-secretsmanager-secret" env:"MYSQL_SECRETSMANAGER_SECRET" required:"true"`
+	MySQLDatabase              string `long:"mysql-database" env:"MYSQL_DATABASE" required:"true"`
+	FleetEnv                   string `long:"fleet-environment" env:"FLEET_ENV" required:"true"`
+	AWSRegion                  string `long:"aws-region" env:"AWS_REGION" required:"true"`
+	CronDelayTolerance         string `long:"cron-delay-tolerance" env:"CRON_DELAY_TOLERANCE" default:"2h"`
 }
 
-var options = OptionsStruct{}
+var (
+	options   = OptionsStruct{}
+	snsTopics = make(SNSTopicArnsMap)
+)
 
-func sendSNSMessage(msg string, sess *session.Session) {
+func sendSNSMessage(msg string, topic string, sess *session.Session) {
+	topicArns, ok := snsTopics[topic]
+	if !ok {
+		log.Printf("No SNS topic ARNs available for topic '%s'", topic)
+		return
+	}
+
 	log.Printf("Sending SNS Message")
 	fullMsg := fmt.Sprintf("Environment: %s\nMessage: %s", options.FleetEnv, msg)
 	svc := sns.New(sess)
-	for _, SNSTopicArn := range strings.Split(options.SNSTopicArns, ",") {
+	for _, SNSTopicArn := range strings.Split(topicArns, ",") {
 		log.Printf("Sending '%s' to '%s'", fullMsg, SNSTopicArn)
 		result, err := svc.Publish(&sns.PublishInput{
 			Message:  &fullMsg,
@@ -74,7 +87,7 @@ func checkDB(sess *session.Session) (err error) {
 	secretCache, err := secretcache.New()
 	if err != nil {
 		log.Printf(err.Error())
-		sendSNSMessage("Unable to initialise SecretsManager helper.  Cron status is unknown.", sess)
+		sendSNSMessage("Unable to initialise SecretsManager helper.  Cron status is unknown.", "cronSystem", sess)
 		return err
 	}
 
@@ -83,7 +96,7 @@ func checkDB(sess *session.Session) (err error) {
 	MySQLPassword, err := secretCache.GetSecretString(options.MySQLSMSecret)
 	if err != nil {
 		log.Printf(err.Error())
-		sendSNSMessage("Unable to retrieve SecretsManager secret.  Cron status is unknown.", sess)
+		sendSNSMessage("Unable to retrieve SecretsManager secret.  Cron status is unknown.", "cronSystem", sess)
 		return err
 	}
 
@@ -101,12 +114,12 @@ func checkDB(sess *session.Session) (err error) {
 	defer db.Close()
 	if err != nil {
 		log.Printf(err.Error())
-		sendSNSMessage("Unable to connect to database. Cron status unknown.", sess)
+		sendSNSMessage("Unable to connect to database. Cron status unknown.", "cronSystem", sess)
 		return err
 	}
 	if err = db.Ping(); err != nil {
 		log.Printf(err.Error())
-		sendSNSMessage("Unable to connect to database. Cron status unknown.", sess)
+		sendSNSMessage("Unable to connect to database. Cron status unknown.", "cronSystem", sess)
 		return err
 	}
 
@@ -122,13 +135,13 @@ func checkDB(sess *session.Session) (err error) {
 	defer rows.Close()
 	if err != nil {
 		log.Printf(err.Error())
-		sendSNSMessage("Unable to SELECT cron_stats table.  Unable to continue.", sess)
+		sendSNSMessage("Unable to SELECT cron_stats table.  Unable to continue.", "cronSystem", sess)
 		return err
 	}
 	cronDelayDuration, err := time.ParseDuration(options.CronDelayTolerance)
 	if err != nil {
 		log.Printf(err.Error())
-		sendSNSMessage("Unable to parse cron-delay-tolerance. Check lambda settings.", sess)
+		sendSNSMessage("Unable to parse cron-delay-tolerance. Check lambda settings.", "cronSystem", sess)
 		return err
 	}
 	cronAlertTimestamp := time.Now().Add(-1 * cronDelayDuration)
@@ -136,14 +149,14 @@ func checkDB(sess *session.Session) (err error) {
 		var row CronStatsRow
 		if err := rows.Scan(&row.name, &row.status, &row.updated_at); err != nil {
 			log.Printf(err.Error())
-			sendSNSMessage("Error scanning row in cron_stats table.  Unable to continue.", sess)
+			sendSNSMessage("Error scanning row in cron_stats table.  Unable to continue.", "cronSystem", sess)
 			return err
 		}
 		log.Printf("Row %s last updated at %s", row.name, row.updated_at.String())
 		if row.updated_at.Before(cronAlertTimestamp) {
 			log.Printf("*** %s hasn't updated in more than %s, alerting! (status %s)", options.CronDelayTolerance, row.name, row.status)
 			// Fire on the first match and return.  We only need to alert that the crons need looked at, not each cron.
-			sendSNSMessage(fmt.Sprintf("Fleet cron '%s' hasn't updated in more than %s. Last status was '%s' at %s.", row.name, options.CronDelayTolerance, row.status, row.updated_at.String()), sess)
+			sendSNSMessage(fmt.Sprintf("Fleet cron '%s' hasn't updated in more than %s. Last status was '%s' at %s.", row.name, options.CronDelayTolerance, row.status, row.updated_at.String()), "cronSystem", sess)
 			return nil
 		}
 	}
@@ -188,4 +201,7 @@ func main() {
 			log.Fatal(err)
 		}
 	}
+
+	snsTopics["cronSystem"] = options.SNSCronSystemTopicArns
+	snsTopics["cronJobFailure"] = options.SNSCronJobFailureTopicArns
 }
