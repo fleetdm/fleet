@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  useEffect,
-} from "react";
+import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useQuery } from "react-query";
 import { Link } from "react-router";
 
@@ -25,7 +19,7 @@ import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
 import TableCount from "components/TableContainer/TableCount";
-import CreateUserModal from "pages/admin/UserManagementPage/components/CreateUserModal";
+import AddUserModal from "pages/admin/UserManagementPage/components/AddUserModal";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import {
   IFormData,
@@ -469,6 +463,9 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           sesConfigured={sesConfigured}
           canUseSso={canUseSso}
           isSsoEnabled={userEditing?.sso_enabled}
+          isTwoFactorAuthenticationEnabled={
+            userEditing?.two_factor_authentication_enabled
+          }
           isModifiedByGlobalAdmin={isGlobalAdmin}
           currentTeam={currentTeamDetails}
           isUpdatingUsers={isUpdatingUsers}
@@ -476,8 +473,8 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
         />
       )}
       {showCreateUserModal && currentTeamDetails && (
-        <CreateUserModal
-          createUserErrors={createUserErrors}
+        <AddUserModal
+          addUserErrors={createUserErrors}
           onCancel={toggleCreateUserModal}
           onSubmit={onCreateUserSubmit}
           defaultGlobalRole={null}

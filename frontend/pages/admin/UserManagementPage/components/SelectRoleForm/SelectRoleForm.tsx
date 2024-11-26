@@ -1,10 +1,9 @@
 import React, { useState, useContext } from "react";
-
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
-// ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import { AppContext } from "context/app";
 import { roleOptions } from "../../helpers/userManagementHelpers";
 
@@ -19,23 +18,14 @@ interface ISelectRoleFormProps {
 
 const generateSelectedTeamData = (
   allTeams: ITeam[],
-  updatedTeam?: any
+  updatedTeam?: Partial<ITeam>
 ): ITeam[] => {
-  const filtered = allTeams.map(
-    (teamItem): ITeam => {
-      const teamRole =
-        teamItem.id === updatedTeam?.id ? updatedTeam.role : teamItem.role;
-      return {
-        description: teamItem.description,
-        id: teamItem.id,
-        host_count: teamItem.host_count,
-        user_count: teamItem.user_count,
-        name: teamItem.name,
-        role: teamRole,
-      };
-    }
+  return allTeams.map(
+    (teamItem): ITeam => ({
+      ...teamItem,
+      role: teamItem.id === updatedTeam?.id ? updatedTeam.role! : teamItem.role,
+    })
   );
-  return filtered;
 };
 
 const SelectRoleForm = ({
@@ -43,33 +33,33 @@ const SelectRoleForm = ({
   currentTeam,
   teams,
   onFormChange,
-  label,
   isApiOnly,
 }: ISelectRoleFormProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
 
-  const [selectedRole, setSelectedRole] = useState(
-    defaultTeamRole.toLowerCase()
-  );
+  const [selectedRole, setSelectedRole] = useState<CustomOptionType>({
+    value: defaultTeamRole.toLowerCase(),
+    label: defaultTeamRole,
+  });
 
-  const updateSelectedRole = (newRoleValue: UserRole) => {
-    const updatedTeam = { ...currentTeam };
-
-    updatedTeam.role = newRoleValue;
-
-    onFormChange(generateSelectedTeamData(teams, updatedTeam));
-
-    setSelectedRole(newRoleValue);
+  const updateSelectedRole = (newRoleValue: SingleValue<CustomOptionType>) => {
+    if (newRoleValue) {
+      const updatedTeam = {
+        ...currentTeam,
+        role: newRoleValue.value as UserRole,
+      };
+      onFormChange(generateSelectedTeamData(teams, updatedTeam));
+      setSelectedRole(newRoleValue);
+    }
   };
 
   return (
-    <Dropdown
-      label={label}
-      value={selectedRole}
+    <DropdownWrapper
+      name="Team role"
       options={roleOptions({ isPremiumTier, isApiOnly })}
-      searchable={false}
-      onChange={(newRoleValue: UserRole) => updateSelectedRole(newRoleValue)}
-      testId={`${name}-checkbox`}
+      value={selectedRole}
+      onChange={updateSelectedRole}
+      isSearchable={false}
     />
   );
 };
