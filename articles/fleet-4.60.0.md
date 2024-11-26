@@ -25,7 +25,7 @@ Fleet now provides the ability to preview scripts directly on the **Host details
 ## Changes
 
 ### Endpoint operations
-- Added support for labels_include_any to gitops.
+- Added support for `labels_include_any` to gitops.
 - Added major improvements to keyboard accessibility throughout app (e.g. checkboxes, dropdowns, table navigation).
 - Added activity item for `fleetd` enrollment with host serial and display name.
 - Added capability for Fleet to serve YARA rules to agents over HTTPS authenticated via node key (requires osquery 5.14+).
