@@ -2,21 +2,19 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can enforce disk encryption for your macOS and Windows hosts. 
+In Fleet, you can enforce disk encryption for your macOS and Windows hosts, and verify disk encryption for Ubuntu Linux and Fedora Linux hosts.
 
-> Apple calls this [FileVault](https://support.apple.com/en-us/HT204837) and Microsoft calls this [BitLocker](https://learn.microsoft.com/en-us/windows/security/operating-system-security/data-protection/bitlocker/). 
+> Apple calls this [FileVault](https://support.apple.com/en-us/HT204837), Microsoft calls this [BitLocker](https://learn.microsoft.com/en-us/windows/security/operating-system-security/data-protection/bitlocker/), and Linux typically uses [LUKS](https://en.wikipedia.org/wiki/Linux_Unified_Key_Setup) (Linux Unified Key Setup).
 
-When disk encryption is enforced, hosts’ disk encryption keys will be stored in Fleet.
+When disk encryption is enforced, hosts' disk encryption keys will be stored in Fleet.
 
-For macOS hosts that automatically enroll, disk encryption is enforced during Setup Assistant.
-
-For Windows, disk encryption is enforced on the C: volume (default system/OS drive).
+For macOS hosts that automatically enroll, disk encryption is enforced during Setup Assistant. For Windows, disk encryption is enforced on the C: volume (default system/OS drive). On Linux, encryption requires user interaction to encrypt the device with LUKS.
 
 ## Enforce disk encryption
 
 You can enforce disk encryption using the Fleet UI, Fleet API, or [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
 
-Fleet UI:
+#### Fleet UI:
 
 1. In Fleet, head to the **Controls > OS settings > Disk encryption** page.
 
@@ -24,7 +22,9 @@ Fleet UI:
 
 3. Check the box next to **Turn on** and select **Save**.
 
-Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#update-disk-encryption-enforcement).
+#### Fleet API: 
+
+API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#update-disk-encryption-enforcement).
 
 ### Disk encryption status
 
@@ -42,9 +42,27 @@ In the Fleet UI, head to the **Controls > OS settings > Disk encryption** tab. Y
 
 * Removing enforcement (pending): the host will receive the MDM command to remove the disk encryption profile when the host comes online.
 
-* Failed: hosts that are failed to enforce disk encryption. 
+* Failed: hosts that failed to enforce disk encryption.
 
 You can click each status to view the list of hosts for that status.
+
+## Enforce disk encryption on Linux
+
+To enforce disk encryption on Ubuntu Linux and Fedora Linux devices, Fleet supports Linux Unified Key Setup (LUKS) for encrypting volumes.
+
+1. Share [this step-by-step guide](https://fleetdm.com/learn-more-about/encrypt-linux-device) with end users setting up a work computer running Ubuntu Linux or Fedora Linux.
+
+> Note that full disk encryption can only enabled during operating system setup. If the operating system has already been installed, the end user will be required to re-install the OS to enable disk encryption.
+
+2. Once the user encrypts the disk, Fleet will initiate a key escrow process through Fleet Desktop:
+   * Fleet Desktop prompts the user to enter their current encryption passphrase.
+   * A new encryption passphrase is generated and added as a LUKS keyslot for the encrypted volume.
+   * The new passphrase is securely stored in Fleet.
+
+3. Fleet verifies that the encryption is complete, and the key has been escrowed. Once successful, the host's status will be updated to "Verified" in the disk encryption status table.
+
+> Note: LUKS allows multiple passphrases for decrypting the volume. The original passphrase remains active along with the escrowed passphrase created by Fleet.
+
 
 ## View disk encryption key
 
@@ -53,6 +71,8 @@ How to view the disk encryption key:
 1. Select a host on the **Hosts** page.
 
 2. On the **Host details** page, select **Actions > Show disk encryption key**.
+
+> This action is logged in the activity log for security auditing purposes.
 
 ## Migrate macOS hosts
 
@@ -65,4 +85,4 @@ Share [these guided instructions](https://fleetdm.com/guides/mdm-migration#how-t
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="publishedOn" value="2024-08-14">
 <meta name="articleTitle" value="Enforce disk encryption">
-<meta name="description" value="Learn how to enforce disk encryption on macOS and Windows hosts and manage encryption keys with Fleet Premium.">
+<meta name="description" value="Learn how to enforce disk encryption on macOS, Windows, and Linux hosts and manage encryption keys with Fleet Premium.">
