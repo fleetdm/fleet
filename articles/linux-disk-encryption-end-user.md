@@ -17,14 +17,17 @@ Follow the steps below to get set up.
   - When installing Ubuntu, choose the option to "Use LVM with encryption."
   - Set a strong passphrase when prompted. This passphrase will be used to encrypt your disk and is separate from your login password.
 
-  <!-- TODO: screenshot of Ubuntu setup -->
+  ![Ubuntu setup "How do you want to install Ubuntu?" screen](../website/assets/images/articles/ubuntu-1-1200x675@2x.png)
+  
+  ![Ubuntu setup: Advanced features > Use LVM and encryption](../website/assets/images/articles/ubuntu-2-1200x675@2x.png)
 
   #### Fedora Linux
 
-  - During Fedora installation, select the "Encrypt my data" checkbox.
+  - During Fedora installation, under **Installation destination** > **Encryption** select the "Encrypt my data" checkbox.
   - Enter a secure passphrase when prompted.
 
-  <!-- TODO: screenshot of Fedora setup -->
+  ![Fedora setup "Installation summary" screen](../website/assets/images/articles/fedora-1-1200x675@2x.png)
+  ![Fedora setup: Installation destination > Encryption > Encrypt my data](../website/assets/images/articles/fedora-2-1200x675@2x.png)
 
 ## 2. Verify encryption
 
