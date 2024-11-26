@@ -2,9 +2,11 @@
  * This is a new component built off react-select 5.4
  * meant to replace Dropdown.jsx built off react-select 1.3
  *
+ * See storybook component for current functionality
+ *
  * Prototyped on UserForm.tsx but added and tested the following:
- * Options: text, disabled, helptext, tooltip
- * Label: text
+ * Options: text, disabled, option helptext, option tooltip
+ * Other: label text, dropdown help text, dropdown error
  */
 
 import classnames from "classnames";
@@ -68,9 +70,6 @@ const DropdownWrapper = ({
   isSearchable,
   isDisabled = false,
 }: IDropdownWrapper) => {
-  console.log("onChange", onChange);
-  console.log("value", value);
-  console.log("options", options);
   const wrapperClassNames = classnames(baseClass, className);
 
   const handleChange = (newValue: SingleValue<CustomOptionType>) => {
@@ -279,7 +278,10 @@ const DropdownWrapper = ({
     const labelWrapperClasses = classnames(
       `${baseClass}__label`,
       labelClassname,
-      { [`${baseClass}__label--error`]: !!error }
+      {
+        [`${baseClass}__label--error`]: !!error,
+        [`${baseClass}__label--disabled`]: isDisabled,
+      }
     );
 
     if (!label) {

@@ -1,0 +1,12 @@
+// react-select's customStyles styles the internal components
+// and not external elements like labels
+.dropdown-wrapper {
+  &__label {
+    &--error {
+      color: $ui-error;
+    }
+    &--disabled {
+      color: $ui-fleet-black-50;
+    }
+  }
+}
