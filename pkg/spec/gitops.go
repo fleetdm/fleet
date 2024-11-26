@@ -33,6 +33,7 @@ type Controls struct {
 	WindowsUpdates              interface{} `json:"windows_updates"`
 	WindowsSettings             interface{} `json:"windows_settings"`
 	WindowsEnabledAndConfigured interface{} `json:"windows_enabled_and_configured"`
+	WindowsMigrationEnabled     interface{} `json:"windows_migration_enabled"`
 
 	EnableDiskEncryption interface{} `json:"enable_disk_encryption"`
 
@@ -46,7 +47,7 @@ func (c Controls) Set() bool {
 		c.IPadOSUpdates != nil || c.MacOSSettings != nil ||
 		c.MacOSSetup != nil || c.MacOSMigration != nil ||
 		c.WindowsUpdates != nil || c.WindowsSettings != nil || c.WindowsEnabledAndConfigured != nil ||
-		c.EnableDiskEncryption != nil || len(c.Scripts) > 0
+		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || len(c.Scripts) > 0
 }
 
 type Policy struct {

@@ -894,6 +894,18 @@ Generated when a user turns off MDM features for all Windows hosts.
 
 This activity does not contain any detail fields.
 
+## enabled_windows_mdm_migration
+
+Generated when a user enables automatic MDM migration for Windows hosts, if Windows MDM is turned on.
+
+This activity does not contain any detail fields.
+
+## disabled_windows_mdm_migration
+
+Generated when a user disables automatic MDM migration for Windows hosts, if Windows MDM is turned on.
+
+This activity does not contain any detail fields.
+
 ## ran_script
 
 Generated when a script is sent to be run for a host.
