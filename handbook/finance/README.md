@@ -193,12 +193,6 @@ Use the following steps to update the [💸Finance department KPIs](https://docs
 **Non-personnel monthly burn**: 
 - Copy the amount from the [numbers spreadsheet](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=1308221870&range=B3) and input in the cell for this week.
 
-**SaaS metrics**: 
-- For "CAC", "CAC payback", "LTV" and "LTV:CAC" columns, drag the existing formula to this week's row.
-> Note: the formula relies on inputs in other fields, so if those fields haven't received input yet, it will look odd. If formulas are still broken after inputs in the other columns are added, [create an issue on the Finance board](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-finance&projects=&template=custom-request.md) noting which columns are affected. Once created, @ mention Finance Engineer in the issue to bring awareness.
-  
-- For "Average customer age", pull the age in days from the [Salesforce "Account age" report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000012jwX2AQ/view), then convert to months by dividing the age in days by 30.417. Put the calculated number into the cell. This metric changes gradually up each week when no new deals close and no customer churns. Because we calculate the age of the customer based on the average lifetime deal length, expected behavior is that it will decrease when a new deal closes, but not drastically (as even a 1-year deal will still add 12 months to the average age).
-
 
 ### Create an invoice
 
