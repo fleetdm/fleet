@@ -20,6 +20,17 @@ export const Default = Template.bind({});
 Default.args = {
   primaryButtons: (
     <>
+      <ActionsDropdown
+        className="modal-footer__manage-automations-dropdown"
+        onChange={(value) => alert(`Selected action: ${value}`)}
+        placeholder="More actions"
+        isSearchable={false}
+        options={[
+          { value: "action1", label: "Action 1" },
+          { value: "action2", label: "Action 2" },
+        ]}
+        menuPlacement="top"
+      />
       <Button onClick={() => alert("Done clicked")} variant="brand">
         Done
       </Button>
@@ -44,26 +55,9 @@ WithTopScrolling.args = {
   isTopScrolling: true,
 };
 
-export const WithActionsDropdown = Template.bind({});
-WithActionsDropdown.args = {
-  primaryButtons: (
-    <>
-      <ActionsDropdown
-        className="modal-footer__manage-automations-dropdown"
-        onChange={(value) => alert(`Selected action: ${value}`)}
-        placeholder="More actions"
-        isSearchable={false}
-        options={[
-          { value: "action1", label: "Action 1" },
-          { value: "action2", label: "Action 2" },
-        ]}
-        menuPlacement="top"
-      />
-      <Button onClick={() => alert("Done clicked")} variant="brand">
-        Done
-      </Button>
-    </>
-  ),
-  secondaryButtons: Default.args.secondaryButtons,
+export const WithoutSecondaryButtons = Template.bind({});
+WithoutSecondaryButtons.args = {
+  primaryButtons: Default.args.primaryButtons,
+  secondaryButtons: undefined,
   isTopScrolling: false,
 };
