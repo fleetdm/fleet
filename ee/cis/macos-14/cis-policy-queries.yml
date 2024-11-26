@@ -2360,14 +2360,16 @@ spec:
   platforms: macOS
   platform: darwin
   description: |
-    The audit system on macOS writes important operational and security information that can be both useful for an attacker and a place for an attacker to attempt to obfuscate unwanted changes that were recorded. As part of defense-in-depth the /etc/security/audit_control configuration and the files in /var/audit should be owned only by root with group wheel with read-only rights and no other access allowed. macOS ACLs should not be used for these files.
+    The audit system on macOS writes important operational and security information that can be both useful for an attacker and a place for an attacker to attempt to obfuscate unwanted changes that were recorded. As part of defense-in-depth, the /etc/security/audit_control configuration and the files in /var/audit should be owned only by root with group wheel with read-only rights and no other access allowed. macOS ACLs should not be used for these files.
+
+    The default folder for storing logs is /var/audit, but it can be changed. This recommendation will ensure that any target directory has appropriate access control in place even if the target directory is not the default of /var/audit.
   resolution: |
     Automated method:
     Ask your system administrator to deploy the following script which will Ensure Access to Audit Records Is Controlled:
       /usr/bin/sudo /usr/sbin/chown -R root:wheel /etc/security/audit_control
-      /usr/bin/sudo /bin/chmod -R o-rw /etc/security/audit_control
-      /usr/bin/sudo /usr/sbin/chown -R root:wheel /var/audit/
-      /usr/bin/sudo /bin/chmod -R o-rw /var/audit/
+      /usr/bin/sudo /bin/chmod -R og-rw /etc/security/audit_control
+      /usr/bin/sudo /usr/sbin/chown -R root:wheel $(/usr/bin/sudo /usr/bin/grep '^dir' /etc/security/audit_control | /usr/bin/awk -F: '{print $2}')
+      /usr/bin/sudo /bin/chmod -R og-rw $(/usr/bin/sudo /usr/bin/grep '^dir' /etc/security/audit_control | /usr/bin/awk -F: '{print $2}')
   query: |
     SELECT 1 WHERE 
       -- For all files in /var/audit:
