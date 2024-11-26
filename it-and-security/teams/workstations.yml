@@ -106,7 +106,7 @@ queries:
     observer_can_run: true
 software:
   packages:
-    - path: ../lib/software/mac-zoom-arm.yml # Zoom for macOS
+    - path: ../lib/software/mac-zoom.yml # Zoom for macOS
     - path: ../lib/software/mac-google-chrome.yml # Google Chrome for macOS
   app_store_apps:
     - app_store_id: '803453959' # Slack Desktop
