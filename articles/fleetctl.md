@@ -13,7 +13,7 @@ fleetctl also provides a quick way to work with all the data exposed by Fleet wi
 
 To install fleetctl on macOS, Windows, or Linux, download the fleectl binary from [GitHub](https://github.com/fleetdm/fleet/releases). 
 
-After downloading, extract the binary. To run fleetctl commands, use the binary's path (`/path/to/fleetctl`). For convenience, copy the binary to a directory in your `$PATH` (ex: `/usr/local/bin`). This allows you to execute fleetctl from anywhere without specifying its location.
+Double-click the `tar.gz` or `zip` file to extract the binary. To run fleetctl commands, use the binary's path (`/path/to/fleetctl`). For convenience, copy or move the binary to a directory in your `$PATH` (ex: `/usr/local/bin`). This allows you to execute fleetctl without specifying its location.
 
 > To generate `fleetd` packages to enroll hosts, you may need [additional dependencies](https://fleetdm.com/guides/enroll-hosts#cli), depending on both your operating system and the OS you're packaging `fleetd` for.
 
