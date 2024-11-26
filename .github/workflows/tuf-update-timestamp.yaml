@@ -17,6 +17,9 @@ env:
   AWS_REGION: us-east-1
   AWS_IAM_ROLE: arn:aws:iam::142412512209:role/github-actions-role
 
+permissions:
+  id-token: write # This is required for aws-actions/configure-aws-credentials
+
 jobs:
   tuf-update-timestamp:
     runs-on: ubuntu-latest
