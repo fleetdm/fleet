@@ -11239,6 +11239,7 @@ None.
       "force_password_reset": false,
       "gravatar_url": "",
       "sso_enabled": false,
+      "mfa_enabled": false,
       "global_role": null,
       "api_only": false,
       "teams": [
@@ -11331,6 +11332,7 @@ Creates a user account after an invited user provides registration information a
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
+    "mfa_enabled": false,
     "global_role": "admin",
     "teams": []
   }
