@@ -3,7 +3,7 @@
  * meant to replace Dropdown.jsx built off react-select 1.3
  *
  * Prototyped on UserForm.tsx but added and tested the following:
- * Options: text, disabled, helptext,
+ * Options: text, disabled, helptext, tooltip
  * Label: text
  */
 

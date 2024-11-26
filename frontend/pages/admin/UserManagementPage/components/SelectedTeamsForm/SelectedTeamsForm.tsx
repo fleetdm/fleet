@@ -137,7 +137,6 @@ const SelectedTeamsForm = ({
               onChange={(newValue: SingleValue<CustomOptionType>) =>
                 updateSelectedTeams(teamItem.id, newValue as CustomOptionType)
               }
-              // testId={`${name}-checkbox`}
             />
           </div>
         );
