@@ -1663,6 +1663,24 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			},
 			cpe: "cpe:2.3:a:oracle:virtualbox:7.0.12:*:*:*:*:macos:*:*",
 		},
+		{
+			software: fleet.Software{
+				Name:             "gh",
+				Source:           "deb_packages",
+				Version:          "2.61.0",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:github:cli:2.61.0:*:*:*:*:*:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "gh",
+				Source:           "homebrew_packages",
+				Version:          "2.61.0",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:github:cli:2.61.0:*:*:*:*:macos:*:*",
+		},
 	}
 
 	// NVD_TEST_CPEDB_PATH can be used to speed up development (sync cpe.sqlite only once).

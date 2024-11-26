@@ -7,7 +7,7 @@
       <p v-else-if="psychologicalStage === '5 - Personally confident'">Schedule a personalized demo for your team and get support or training.</p>
       <p v-else>Schedule a personalized demo, or ask us anything. We’d love to chat.</p>
       <div purpose="contact-form-switch" class="d-flex flex-sm-row flex-column justify-content-center mx-auto">
-        <div purpose="switch-option" :class="[formToDisplay === 'talk-to-us' ? 'selected' : '']" @click="clickSwitchForms('talk-to-us')">Talk to us</div>
+        <div purpose="switch-option" :class="[formToDisplay === 'talk-to-us' ? 'selected' : '']" @click="clickSwitchForms('talk-to-us')">Talk to an engineer</div>
         <div purpose="switch-option" :class="[formToDisplay === 'contact' ? 'selected' : '']" @click="clickSwitchForms('contact')">Send a message</div>
         <div purpose="switch" :class="formToDisplay+'-selected'"></div>
       </div>
