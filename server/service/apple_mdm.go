@@ -11,11 +11,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -47,6 +49,7 @@ import (
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
@@ -2889,6 +2892,38 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			return nil, ctxerr.Wrap(r.Context, err, "cleaning macOS host lock/wipe status")
 		}
 
+		// if getawaitingconfig == not found
+		// then we can release the device
+		_, err := svc.ds.GetHostAwaitingConfiguration(r.Context, cmdResult.UDID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(r.Context, err, "checking if host is in setup experience")
+		}
+
+		if fleet.IsNotFound(err) {
+			adminTeamFilter := fleet.TeamFilter{
+				User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			}
+			hosts, err := svc.ds.ListHostsLiteByUUIDs(r.Context, adminTeamFilter, []string{cmdResult.UDID})
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "getting host lite by UUID to check for release without setup experience")
+			}
+			if len(hosts) != 1 {
+				return nil, ctxerr.NewWithData(r.Context, "expected only 1 host by UUID", map[string]interface{}{"host_found_count": len(hosts)})
+			}
+
+			host := hosts[0]
+			// Release the device only if we do not have a record of it awaiting configuration AND
+			// the host is
+			// not orbit enrolled. This makes sure that we do not re-enqueue a DeviceConfigured command
+			// for a host that is deleted only from the Fleet UI but not truly unenrolled.
+			if host.OrbitNodeKey == nil {
+				slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: about to process old release ")
+				if err := svc.processReleaseWithoutSetupExperience(r.Context, host); err != nil {
+					return nil, ctxerr.Wrap(r.Context, err, "processing release for ADE device without setup experience")
+				}
+			}
+		}
+
 		return nil, nil
 	}
 
@@ -2972,12 +3007,78 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			}
 		}
 	case "DeviceConfigured":
+		slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: handling DeviceConfigured, about to mark as no longer awaiting config ")
 		if err := svc.ds.SetHostAwaitingConfiguration(r.Context, r.ID, false); err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "failed to mark host as non longer awaiting configuration")
 		}
 	}
 
 	return nil, nil
+}
+
+func (svc *MDMAppleCheckinAndCommandService) processReleaseWithoutSetupExperience(ctx context.Context, host *fleet.Host) error {
+	var manualRelease bool
+	if host.TeamID == nil {
+		ac, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get AppConfig to read enable_release_device_manually")
+		}
+		manualRelease = ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
+	} else {
+		tm, err := svc.ds.Team(ctx, *host.TeamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get Team to read enable_release_device_manually")
+		}
+		manualRelease = tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
+	}
+
+	if !manualRelease {
+		// For the commands to await, since we're in an orbit endpoint we know that
+		// fleetd has already been installed, so we only need to check for the
+		// bootstrap package install and the SSO account configuration (both are
+		// optional).
+		bootstrapCmdUUID, err := svc.ds.GetHostBootstrapPackageCommand(ctx, host.UUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "get bootstrap package command")
+		}
+
+		// AccountConfiguration covers the (optional) command to setup SSO.
+		adminTeamFilter := fleet.TeamFilter{
+			User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+		}
+		acctCmds, err := svc.ds.ListMDMCommands(ctx, adminTeamFilter, &fleet.MDMCommandListOptions{
+			Filters: fleet.MDMCommandFilters{
+				HostIdentifier: host.UUID,
+				RequestType:    "AccountConfiguration",
+			},
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list AccountConfiguration commands")
+		}
+		var acctConfigCmdUUID string
+		if len(acctCmds) > 0 {
+			// there may be more than one if e.g. the worker job that sends them had to
+			// retry, but they would all be processed anyway so we can only care about
+			// the first one.
+			acctConfigCmdUUID = acctCmds[0].CommandUUID
+		}
+
+		// Enroll reference arg is not used in the release device task, passing empty string.
+		if err := worker.QueueAppleMDMJob(ctx, svc.ds, svc.logger, worker.AppleMDMPostDEPReleaseDeviceTask,
+			host.UUID, host.Platform, host.TeamID, "", bootstrapCmdUUID, acctConfigCmdUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "queue Apple Post-DEP release device job")
+		}
+	}
+
+	// at this point we know for sure that it will get released, but we need to
+	// ensure we won't continually enqueue new worker jobs for that host until it
+	// is released. To do so, we clear up the setup experience data (since anyway
+	// this host will not go through that new flow).
+	if err := svc.ds.SetHostAwaitingConfiguration(ctx, host.UUID, false); err != nil {
+		return ctxerr.Wrap(ctx, err, "unset host awaiting configuration")
+	}
+
+	return nil
 }
 
 func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
