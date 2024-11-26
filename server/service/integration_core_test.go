@@ -2145,6 +2145,42 @@ func (s *integrationTestSuite) TestInvites() {
 		Email:       ptr.String("a@b.c"),
 		InviteToken: ptr.String(deletedInviteToken),
 	}, http.StatusNotFound, &createFromInviteResp)
+
+	// create sso invite
+	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String("banana@fleetdm.com"),
+		Name:       ptr.String("banana"),
+		SSOEnabled: ptr.Bool(true),
+		GlobalRole: null.StringFrom(fleet.RoleAdmin),
+	}}
+	createInviteResp = createInviteResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
+	require.NotNil(t, createInviteResp.Invite)
+
+	// invalid invite token
+	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+		Name:        ptr.String("banana"),
+		Email:       ptr.String("banana@fleetdm.com"),
+		Password:    nil,
+		InviteToken: ptr.String("invalid"),
+		SSOInvite:   ptr.Bool(true),
+	}, http.StatusNotFound, &createFromInviteResp)
+
+	// valid invite token
+	invite, err := s.ds.Invite(context.Background(), createInviteResp.Invite.ID)
+	require.NotNil(t, invite.Token)
+	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+		Name:        ptr.String("banana"),
+		Email:       ptr.String("banana@fleetdm.com"),
+		Password:    nil,
+		InviteToken: ptr.String(invite.Token),
+		SSOInvite:   ptr.Bool(true),
+	}, http.StatusOK, &createFromInviteResp)
+	require.NoError(t, err)
+	require.NotNil(t, createFromInviteResp.User)
+	// invite no longer exists
+	invite, _ = s.ds.Invite(context.Background(), createInviteResp.Invite.ID)
+	require.Nil(t, invite)
 }
 
 func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
