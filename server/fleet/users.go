@@ -24,7 +24,9 @@ type User struct {
 	GravatarURL              string `json:"gravatar_url" db:"gravatar_url"`
 	Position                 string `json:"position,omitempty"` // job role
 	// SSOEnabled if true, the user may only log in via SSO
-	SSOEnabled bool    `json:"sso_enabled" db:"sso_enabled"`
+	SSOEnabled bool `json:"sso_enabled" db:"sso_enabled"`
+	// MFAEnabled if true, the user (if non-SSO) must click a magic link via email to complete login
+	MFAEnabled bool    `json:"mfa_enabled" db:"mfa_enabled"`
 	GlobalRole *string `json:"global_role" db:"global_role"`
 	APIOnly    bool    `json:"api_only" db:"api_only"`
 

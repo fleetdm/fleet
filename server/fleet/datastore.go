@@ -56,6 +56,7 @@ type Datastore interface {
 	NewUser(ctx context.Context, user *User) (*User, error)
 	ListUsers(ctx context.Context, opt UserListOptions) ([]*User, error)
 	UserByEmail(ctx context.Context, email string) (*User, error)
+	UserByMFAToken(ctx context.Context, token string) (*User, error)
 	UserByID(ctx context.Context, id uint) (*User, error)
 	SaveUser(ctx context.Context, user *User) error
 	SaveUsers(ctx context.Context, users []*User) error
