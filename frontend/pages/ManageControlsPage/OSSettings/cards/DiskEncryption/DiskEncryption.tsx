@@ -124,7 +124,24 @@ const DiskEncryption = ({
     setIsLoadingTeam(false);
   }
 
-  const getTipContent = (platform: "windows" | "macOS") => {
+  const getTipContent = (platform: "windows" | "macOS" | "linux") => {
+    if (platform === "linux") {
+      return (
+        <>
+          For Ubuntu and Fedora Linux.
+          <br />
+          Currently, full disk encryption must be turned on{" "}
+          <b>
+            during OS
+            <br />
+            setup
+          </b>
+          . If disk encryption is off, the end user must re-install
+          <br />
+          their operating system.
+        </>
+      );
+    }
     const [AppleOrWindows, DEMethod] =
       platform === "windows"
         ? ["Windows", "BitLocker"]
@@ -149,7 +166,9 @@ const DiskEncryption = ({
       <TooltipWrapper tipContent={getTipContent("windows")}>
         Windows
       </TooltipWrapper>
-      , Ubuntu Linux, and Fedora Linux hosts.
+      , and{" "}
+      <TooltipWrapper tipContent={getTipContent("linux")}>Linux</TooltipWrapper>{" "}
+      hosts.
     </>
   );
 
