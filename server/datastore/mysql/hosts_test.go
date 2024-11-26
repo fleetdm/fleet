@@ -80,7 +80,7 @@ func TestHosts(t *testing.T) {
 		{"SavePackStatsOverwrites", testHostsSavePackStatsOverwrites},
 		{"WithTeamPackStats", testHostsWithTeamPackStats},
 		{"Delete", testHostsDelete},
-		// {"HostListOptionsTeamFilter", testHostListOptionsTeamFilter},
+		{"HostListOptionsTeamFilter", testHostListOptionsTeamFilter},
 		{"ListFilterAdditional", testHostsListFilterAdditional},
 		{"ListStatus", testHostsListStatus},
 		{"ListQuery", testHostsListQuery},
@@ -799,9 +799,7 @@ func listHostsCheckCount(t *testing.T, ds *Datastore, filter fleet.TeamFilter, o
 	return hosts
 }
 
-func TestHostListOptionsTeamFilter(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer TruncateTables(t, ds)
+func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	var teamIDFilterNil *uint                // "All teams" option should include all hosts regardless of team assignment
 	var teamIDFilterZero *uint = ptr.Uint(0) // "No team" option should include only hosts that are not assigned to any team
 	teamIDFilterBad := ptr.Uint(9999)
