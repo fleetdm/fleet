@@ -74,13 +74,13 @@ func sqlCaseLinuxEncryptionStatus() string {
 		hdek.base64_encrypted IS NOT NULL
 		AND hdek.base64_encrypted != ''
 		AND hdek.client_error = '' THEN
-		` + string(fleet.OSSettingsVerified) + `
+		'` + string(fleet.OSSettingsVerified) + `'
 	WHEN hdek.client_error IS NOT NULL
 	AND hdek.client_error != '' THEN
-		` + string(fleet.OSSettingsFailed) + `
+		'` + string(fleet.OSSettingsFailed) + `'
 	WHEN hdek.base64_encrypted IS NULL
 		OR (hdek.base64_encrypted = ''
 		AND hdek.client_error = '') THEN
-		` + string(fleet.OSSettingsPending) + `
+		'` + string(fleet.OSSettingsPending) + `'
 	END`
 }
