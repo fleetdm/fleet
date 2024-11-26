@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, ReactNode } from "react";
+import React, { useCallback, useContext } from "react";
 import { format } from "date-fns";
 import {
   useQuery,
@@ -15,6 +15,7 @@ import { IHostScript } from "interfaces/script";
 import { IApiError, getErrorReason } from "interfaces/errors";
 
 import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon";
@@ -87,6 +88,7 @@ const ScriptDetailsModal = ({
       enabled: !selectedScriptContent && !!selectedScriptDetails?.script_id,
     }
   );
+
   const getScriptContent = async () => {
     try {
       const content = selectedScriptContent || scriptContent;
@@ -157,60 +159,63 @@ const ScriptDetailsModal = ({
     ]
   );
 
-  const shouldShowFooter = () => {
-    return !isLoadingScriptContent && selectedScriptDetails !== undefined;
-  };
+  const shouldShowFooter =
+    !isLoadingScriptContent && selectedScriptDetails !== undefined;
 
   const renderFooter = () => {
     if (!shouldShowFooter) {
-      return <></>;
+      return null;
     }
 
     return (
-      <>
-        <div className={`secondary-actions ${baseClass}__script-actions`}>
-          <Button
-            className={`${baseClass}__action-button`}
-            variant="icon"
-            onClick={() => onClickDownload()}
-          >
-            <Icon name="download" />
-          </Button>
-          <Button
-            className={`${baseClass}__action-button`}
-            variant="icon"
-            onClick={onDelete}
-          >
-            <Icon name="trash" color="ui-fleet-black-75" />
-          </Button>
-        </div>
-        <div className={`primary-actions ${baseClass}__host-script-actions`}>
-          {showHostScriptActions && selectedScriptDetails && (
-            <div className={`${baseClass}__manage-automations-wrapper`}>
-              <ActionsDropdown
-                className={`${baseClass}__manage-automations-dropdown`}
-                onChange={(value) =>
-                  onSelectMoreActions(
-                    value,
+      <ModalFooter
+        secondaryButtons={
+          <>
+            <Button
+              className={`${baseClass}__action-button`}
+              variant="icon"
+              onClick={() => onClickDownload()}
+            >
+              <Icon name="download" />
+            </Button>
+            <Button
+              className={`${baseClass}__action-button`}
+              variant="icon"
+              onClick={onDelete}
+            >
+              <Icon name="trash" color="ui-fleet-black-75" />
+            </Button>
+          </>
+        }
+        primaryButtons={
+          <>
+            {showHostScriptActions && selectedScriptDetails && (
+              <div className={`${baseClass}__manage-automations-wrapper`}>
+                <ActionsDropdown
+                  className={`${baseClass}__manage-automations-dropdown`}
+                  onChange={(value) =>
+                    onSelectMoreActions(
+                      value,
+                      selectedScriptDetails as IHostScript
+                    )
+                  }
+                  placeholder="More actions"
+                  isSearchable={false}
+                  options={generateActionDropdownOptions(
+                    currentUser,
+                    hostTeamId || null,
                     selectedScriptDetails as IHostScript
-                  )
-                }
-                placeholder="More actions"
-                isSearchable={false}
-                options={generateActionDropdownOptions(
-                  currentUser,
-                  hostTeamId || null,
-                  selectedScriptDetails as IHostScript
-                )}
-                menuPlacement="top"
-              />
-            </div>
-          )}
-          <Button onClick={onCancel} variant="brand">
-            Done
-          </Button>
-        </div>
-      </>
+                  )}
+                  menuPlacement="top"
+                />
+              </div>
+            )}
+            <Button onClick={onCancel} variant="brand">
+              Done
+            </Button>
+          </>
+        }
+      />
     );
   };
 
@@ -249,10 +254,13 @@ const ScriptDetailsModal = ({
       title={selectedScriptDetails?.name || "Script details"}
       width="large"
       onExit={onCancel}
-      actionsFooter={shouldShowFooter() ? renderFooter() : undefined}
+      stickyFooter={shouldShowFooter}
       isHidden={isHidden}
     >
-      {renderContent()}
+      <>
+        {renderContent()}
+        {shouldShowFooter ? renderFooter() : undefined}
+      </>
     </Modal>
   );
 };

@@ -25,17 +25,9 @@
   &__content-wrapper {
     margin-top: $pad-large;
     font-size: $x-small;
-    // New pattern of max height modals pushed to 4.61 with PR #24019
-    overflow: visible;
 
     .input-field {
       width: 100%;
-
-      &::placeholder {
-        font-size: $x-small;
-        font-style: italic;
-        line-height: 24px;
-      }
     }
 
     form .modal-cta-wrap,
@@ -140,6 +132,24 @@
       padding: 11px;
     }
   }
+}
+
+.modal-scrollable-content {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-medium;
+  overflow-y: auto;
+  max-height: 705px;
+  position: relative;
+}
+
+.modal-cta-footer {
+  border-top: 1px solid $ui-fleet-black-50;
+  align-self: flex-end;
+  display: flex;
+  flex-direction: row-reverse;
+  padding-top: $pad-xlarge;
+  gap: $pad-medium;
 }
 
 .modal-cta-wrap {
