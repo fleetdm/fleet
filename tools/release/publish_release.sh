@@ -626,7 +626,7 @@ fi
 
 start_ver_tag=fleet-$start_version
 
-Check if there are updates to fleetctl dependencies (only when doing security updates to base images).
+# Check if there are updates to fleetctl dependencies (only when doing security updates to base images).
 if [[ $(git diff $start_ver_tag ./tools/wix-docker ./tools/bomutils-docker) ]]; then
 	echo "⚠️  Changes in fleetctl dependencies detected, please run the following before continuing the release:"
 	echo "1. git tag fleetctl-docker-deps-$next_ver && git push origin fleetctl-docker-deps-$next_ver"
