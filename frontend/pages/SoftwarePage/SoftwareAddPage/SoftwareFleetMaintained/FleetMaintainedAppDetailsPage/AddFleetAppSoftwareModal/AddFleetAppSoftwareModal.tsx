@@ -18,7 +18,7 @@ const AddFleetAppSoftwareModal = () => {
         <Spinner centered={false} className={`${baseClass}__spinner`} />
         <p>
           Uploading software so that it&apos;s available for install. This may
-          take few minutes.
+          take a few minutes.
         </p>
       </>
     </Modal>

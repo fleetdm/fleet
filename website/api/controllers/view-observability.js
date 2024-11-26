@@ -1,16 +1,16 @@
 module.exports = {
 
 
-  friendlyName: 'View endpoint ops',
+  friendlyName: 'View observability',
 
 
-  description: 'Display "Endpoint ops" page.',
+  description: 'Display "Observability" page.',
 
 
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/endpoint-ops'
+      viewTemplatePath: 'pages/observability'
     },
     badConfig: { responseType: 'badConfig' },
   },

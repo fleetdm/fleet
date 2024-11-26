@@ -166,3 +166,5 @@ software:
       - app_store_id: '1333542190' # 1Password 7 Desktop
       - app_store_id: '1477376905' # GitHub
       - app_store_id: '1152747299' # Figma
+  packages:
+    - path: ../lib/software/mac-mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
