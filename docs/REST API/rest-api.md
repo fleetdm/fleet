@@ -513,7 +513,7 @@ for pagination. For a comprehensive list of activity types and detailed informat
         "team_name": "Apples"
       }
     },
-        {
+    {
       "created_at": "2021-07-30T13:41:07Z",
       "id": 24,
       "actor_full_name": "name",
