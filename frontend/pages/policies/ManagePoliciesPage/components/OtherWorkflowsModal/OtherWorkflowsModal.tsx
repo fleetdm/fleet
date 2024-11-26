@@ -196,7 +196,7 @@ const OtherWorkflowsModal = ({
       delete newErrors.integration;
     }
 
-    if (isWebhookEnabled) {
+    if (isPolicyAutomationsEnabled && isWebhookEnabled) {
       if (!destinationUrl) {
         newErrors.url = "Please add a destination URL";
       } else if (!validUrl({ url: destinationUrl })) {
