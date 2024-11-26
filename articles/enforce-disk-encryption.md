@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can enforce disk encryption for your macOS, Windows, Ubuntu Linux, and Fedora Linux hosts.
+In Fleet, you can enforce disk encryption for your macOS and Windows hosts, and verify disk encryption for Ubuntu Linux and Fedora Linux hosts.
 
 > Apple calls this [FileVault](https://support.apple.com/en-us/HT204837), Microsoft calls this [BitLocker](https://learn.microsoft.com/en-us/windows/security/operating-system-security/data-protection/bitlocker/), and Linux typically uses [LUKS](https://en.wikipedia.org/wiki/Linux_Unified_Key_Setup) (Linux Unified Key Setup).
 
