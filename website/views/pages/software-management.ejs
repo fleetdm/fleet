@@ -1,0 +1,175 @@
+<div id="software-management-page" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
+      <div purpose="page-hero">
+        <h4>Software management</h4>
+        <h1>Manage software consistently</h1>
+        <p purpose="hero-text">Pick from a curated app library or upload your own custom packages. Configure custom installation scripts if you need or let Fleet do it for you.</p>
+        <div purpose="button-row" class="d-flex flex-row justify-content-start">
+          <a class="btn btn-primary" purpose="contact-button" href="/contact">Talk to us</a>
+          <animated-arrow-button href="/register">Try it yourself</animated-arrow-button>
+        </div>
+      </div>
+      <div purpose="hero-slides">
+        <div id="heroCarousel" class="carousel slide d-flex flex-column" data-ride="carousel">
+          <div purpose="carousel-headings" class="carousel-indicators d-flex flex-md-row flex-column order-md-1 order-3">
+            <div purpose="slide-text" data-target="#heroCarousel" data-slide-to="0" class="active">
+              <h5>Zero-touch installs</h5>
+              <p>Automatically install software the first time computers boot.</p>
+            </div>
+            <div purpose="slide-text" data-target="#heroCarousel" data-slide-to="1">
+              <h5>Software self-service</h5>
+              <p>Empower end users and reduce IT burden with pre-approved software.</p>
+            </div>
+            <div purpose="slide-text" data-target="#heroCarousel" data-slide-to="2">
+              <h5>Update software automatically</h5>
+              <p>Use policies to enforce specific updates and automations to run scripts or install software.</p>
+            </div>
+          </div>
+          <ol purpose="carousel-indicators" class="carousel-indicators order-2">
+            <li data-target="#heroCarousel" data-slide-to="0" class="active"></li>
+            <li data-target="#heroCarousel" data-slide-to="1"></li>
+            <li data-target="#heroCarousel" data-slide-to="2"></li>
+          </ol>
+          <div class="carousel-inner order-1 order-md-3">
+            <div class="carousel-item active">
+              <img class="d-block w-100" src="/images/software-management-feature-slide-1-1072x480@2x.png" alt="First slide">
+            </div>
+            <div class="carousel-item">
+              <img class="d-block w-100" src="/images/software-management-feature-slide-2-1072x480@2x.png" alt="Second slide">
+            </div>
+            <div class="carousel-item">
+              <img class="d-block w-100" src="/images/software-management-feature-slide-3-1072x480@2x.png" alt="Third slide">
+            </div>
+          </div>
+        </div>
+      </div><%// End of [purpose="hero-slides"]%>
+
+      <div purpose="logo-row">
+        <logo-carousel></logo-carousel>
+      </div>
+      <div purpose="feature-slides">
+        <div purpose="feature-switch" class="d-flex flex-md-row flex-column justify-content-md-center justify-content-start">
+          <div purpose="feature-option" :class="[visibleFeature === 'mitigate-cves-automatically' ? 'active' : '']"  @click="clickSwitchFeature('mitigate-cves-automatically')">
+            Mitigate CVEs automatically
+          </div>
+          <div purpose="feature-option" :class="[visibleFeature === 'on-demand-data' ? 'active' : '']" @click="clickSwitchFeature('on-demand-data')">
+            On-demand data
+          </div>
+          <div purpose="feature-option" :class="[visibleFeature === 'out-of-the-box-reporting' ? 'active' : '']" @click="clickSwitchFeature('out-of-the-box-reporting')">
+            Out-of-the-box reporting
+          </div>
+        </div>
+        <div purpose="feature-slide" :class="[visibleFeature === 'mitigate-cves-automatically' ? '' : 'invisible']" class="d-flex flex-md-row flex-column-reverse justify-content-center mx-auto align-items-start">
+          <div purpose="feature-image">
+            <img alt="Mitigate CVEs automatically" src="/images/software-management-feature-image-1-528x377@2x.png">
+          </div>
+          <div purpose="feature-text" class="d-flex flex-column">
+            <h3>Mitigate CVEs automatically</h3>
+            <p>Build automations that close tickets or mitigate vulnerabilities by updating or removing software and running custom scripts.</p>
+            <div purpose="checklist" class="flex-column d-flex">
+              <p>Automatically detect when old vulnerabilities are reintroduced, or mitigations falter.</p>
+              <p>Track and mitigate zero days, with live queries and policies, even before they're officially published as CVEs.</p>
+              <p>Only create tickets for vulnerabilities that affect your environment. Automate ticketing with Jira, ServiceNow, or integrate your own system.</p>
+              <p>Deep-link live data with internal IT and platform teams.</p>
+            </div>
+          </div>
+        </div>
+        <div purpose="feature-slide" :class="[visibleFeature === 'out-of-the-box-reporting' ? '' : 'invisible']" class="d-flex flex-md-row flex-column-reverse justify-content-center mx-auto align-items-start">
+          <div purpose="feature-image">
+            <img alt="Deep context from the environment" src="/images/software-management-feature-image-2-528x377@2x.png">
+          </div>
+          <div purpose="feature-text" class="d-flex flex-column">
+            <h3>Deep context from the environment</h3>
+            <p>Fleet gives you data down to the chip level on every endpoint to help you make sense of which vulnerabilities to prioritize.</p>
+            <div purpose="checklist" class="flex-column d-flex">
+              <p>Automate prioritization with an admin-level agent that has visibility down to the chipset of any endpoint</p>
+              <p>Access over 300 tables of system state data. Use presets or create your own queries.</p>
+              <p>Automatically match CVEs to your operating systems, apps, extensions, browser plugins, Python libraries, everything.</p>
+            </div>
+            <div purpose="feature-link">
+              <animated-arrow-button href="/tables">Explore data</animated-arrow-button>
+            </div>
+          </div>
+        </div>
+        <div purpose="feature-slide" :class="[visibleFeature === 'on-demand-data' ? '' : 'invisible']" class="d-flex flex-md-row flex-column-reverse justify-content-center mx-auto align-items-start">
+          <div purpose="feature-image">
+            <img alt="Report what matters" src="/images/software-management-feature-image-3-528x377@2x.png">
+          </div>
+          <div purpose="feature-text" class="d-flex flex-column">
+            <h3>Report what matters</h3>
+            <p>Let's face it, most built-in graphs leave you wanting more. Report MTTR and any other custom metrics exactly the way you want to using fresh data from real computers.</p>
+            <div purpose="checklist" class="flex-column d-flex">
+              <p>Track any “celebrity” CVE across every OS, every cloud, and every device, and show how quickly it was mitigated.</p>
+              <p>Avoid distracting your CISO with bloated reports. Only communicate facts important to your organization's KPIs. Show real-time mitigation progress (%) or sync with your favorite data tool like Microsoft BI.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="testimonial" class="d-flex flex-column justify-content-center align-items-center">
+        <img alt="Andre Shields" purpose="testimonial-image" src="/images/testimonial-author-andre-shields-48x48@2x.png">
+        <p purpose="testimonial-text">
+          Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced.
+        </p>
+        <div purpose="testimonial-attribution">
+          <p purpose="name">Andre Shields</p>
+          <p purpose="job-title">Cybersecurity Security Engineer, Vulnerability Management</p>
+        </div>
+      </div>
+
+      <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-center mx-auto align-items-center">
+        <div purpose="feature-image">
+          <img alt="Up-to-date data without scans" src="/images/software-management-feature-image-4-528x377@2x.png">
+        </div>
+        <div purpose="feature-text" class="d-flex flex-column">
+          <h3>Up-to-date data without scans</h3>
+          <p>Traditional network vulnerability scans can clog your network and even haunt your printers with pages full of wingdings. Fleet does things differently.</p>
+          <div purpose="checklist" class="flex-column d-flex">
+            <p>Eliminate the risk of side effects from scanning the network.</p>
+            <p>Lightweight enough for the most brittle environments (OT, data centers, embedded/BTS, low-latency gaming servers).</p>
+            <p>Quickly pull data about important CVEs and zero days during an incident or audit.</p>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-center mx-auto align-items-center">
+        <div purpose="feature-text" class="d-flex flex-column">
+          <h3>Untangle your security stack</h3>
+          <p>Use open data and APIs to connect your vulnerability solution with osquery, the agent you might already have deployed.</p>
+          <div purpose="checklist" class="flex-column d-flex">
+            <p>Normalize asset management data and software inventories from multiple tools and operating systems.</p>
+            <p>Help teams work on vulnerabilities that have actually been exploited (CISA KEVs) or have a high probability of being exploited (EPSS), or whatever is important in your environment.</p>
+            <p>Process CVEs across cloud and non-cloud assets in a single platform and see who's responsible for what.</p>
+          </div>
+        </div>
+        <div purpose="feature-image">
+          <img alt="Untangle your security stack" src="/images/software-management-feature-image-5-528x377@2x.png">
+        </div>
+      </div>
+
+    </div><%// End of [purpose="page-content"]%>
+  </div><%// End of [purpose="page-container"]%>
+  <div purpose="tweets-container" class="d-flex flex-column justify-content-center">
+    <div purpose="page-container" class="py-0">
+      <div purpose="section-heading" class="mx-auto text-center">
+        <h4>Who else uses Fleet?</h4>
+        <h2>Empowering teams, globally</h2>
+      </div>
+    </div>
+    <scrollable-tweets :testimonials="testimonialsForScrollableTweets"></scrollable-tweets>
+  </div>
+  <div purpose="page-container" class="py-0">
+    <div purpose="section-heading" class="text-center">
+      <h4>Software management</h4>
+      <h2>Manage software consistently</h2>
+      <div purpose="button-row" style="margin-top: 32px;" class="d-flex flex-row justify-content-center align-items-center mx-auto">
+        <a purpose="contact-button" href="/contact">Show me</a>
+        <animated-arrow-button href="/register">See real data</animated-arrow-button>
+      </div>
+    </div>
+  </div>
+  <%/* Cloud city banner */%>
+  <parallax-city></parallax-city>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

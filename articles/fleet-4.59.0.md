@@ -96,7 +96,7 @@ SET i.software_title_name = COALESCE(a.details->>"$.software_title", i.software_
 
 ## Ready to upgrade?
 
-Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.58.0.
+Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.59.0.
 
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">

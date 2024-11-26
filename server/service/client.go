@@ -381,6 +381,7 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 				Contents:         fileContents,
 				Labels:           profile.Labels,
 				LabelsIncludeAll: profile.LabelsIncludeAll,
+				LabelsIncludeAny: profile.LabelsIncludeAny,
 				LabelsExcludeAny: profile.LabelsExcludeAny,
 			})
 
@@ -1107,6 +1108,7 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 			// validations are done later on in the Fleet API endpoint.
 			profSpec.Labels = extractLabelField(m, "labels")
 			profSpec.LabelsIncludeAll = extractLabelField(m, "labels_include_all")
+			profSpec.LabelsIncludeAny = extractLabelField(m, "labels_include_any")
 			profSpec.LabelsExcludeAny = extractLabelField(m, "labels_exclude_any")
 
 			if profSpec.Path != "" {

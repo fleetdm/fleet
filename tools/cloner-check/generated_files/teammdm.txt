@@ -18,6 +18,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	CustomSettings	[]fleet.MD
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Path	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Labels	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAll	[]string
+github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsExcludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	DeprecatedEnableDiskEncryption	*bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	MacOSSetup	fleet.MacOSSetup

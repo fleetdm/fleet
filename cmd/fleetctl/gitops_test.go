@@ -2079,11 +2079,13 @@ func TestGitOpsCustomSettings(t *testing.T) {
 	}{
 		{"testdata/gitops/global_macos_windows_custom_settings_valid.yml", ""},
 		{"testdata/gitops/global_macos_custom_settings_valid_deprecated.yml", ""},
-		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included`},
+		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
+		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix_2.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
 		{"testdata/gitops/global_windows_custom_settings_unknown_label.yml", `some or all the labels provided don't exist`},
 		{"testdata/gitops/team_macos_windows_custom_settings_valid.yml", ""},
 		{"testdata/gitops/team_macos_custom_settings_valid_deprecated.yml", ""},
-		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`},
+		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
+		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix_2.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
 		{"testdata/gitops/team_macos_windows_custom_settings_unknown_label.yml", `some or all the labels provided don't exist`},
 	}
 	for _, c := range cases {

@@ -1240,7 +1240,6 @@ func preProcessSoftwareResults(
 	overrides map[string]osquery_utils.DetailQuery,
 	logger log.Logger,
 ) {
-	//
 	vsCodeExtensionsExtraQuery := hostDetailQueryPrefix + "software_vscode_extensions"
 	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
@@ -1377,9 +1376,12 @@ func preProcessSoftwareExtraResults(
 			// Do not append results if the main query failed to run.
 			continue
 		}
-		(*results)[query] = removeOverrides((*results)[query], override)
-
-		(*results)[query] = append((*results)[query], softwareExtraRows...)
+		if override.SoftwareProcessResults != nil {
+			(*results)[query] = override.SoftwareProcessResults((*results)[query], softwareExtraRows)
+		} else {
+			(*results)[query] = removeOverrides((*results)[query], override)
+			(*results)[query] = append((*results)[query], softwareExtraRows...)
+		}
 		return
 	}
 }

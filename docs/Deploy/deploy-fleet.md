@@ -143,3 +143,4 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
 
 <meta name="pageOrderInSection" value="100">
 <meta name="description" value="Learn how to easily deploy Fleet on Render or AWS with Terraform.">
+<meta name="title" value="Hosting Fleet">

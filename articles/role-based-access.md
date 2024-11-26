@@ -95,6 +95,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View all [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                           |          |            |            | ✅    | ✅      |
 | Edit [macOS setup experience]([https://fleetdm.com/docs/](https://fleetdm.com/guides/macos-setup-experience#basic-article))\*                                                                                         |          |            | ✅             | ✅    | ✅          |
 | Edit end user license agreement (EULA)\*                                                                                         |          |            |              | ✅    |         |
+| Add and edit Simple Certificate Enrollment Protocol (SCEP) server\*                                                                        |          |            |            | ✅    | ✅      |
 | Run scripts on hosts                                                                                                                       |          |            | ✅         | ✅    |         |
 | View saved scripts\*                                                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
 | Edit/upload saved scripts\*                                                                                                                |          |            | ✅         | ✅    | ✅      |

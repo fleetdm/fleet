@@ -29,9 +29,15 @@ const baseClass = "scep-page";
 
 const BAD_SCEP_URL_ERROR = "Invalid SCEP URL. Please correct and try again.";
 const BAD_CREDENTIALS_ERROR =
-  "Invalid admin URL or credentials. Please correct and try again.";
+  "Couldn't add. Admin URL or credentials are invalid.";
 const CACHE_ERROR =
   "The NDES password cache is full. Please increase the number of cached passwords in NDES and try again. By default, NDES caches 5 passwords and they expire 60 minutes after they are created.";
+const INSUFFICIENT_PERMISSIONS_ERROR =
+  "Couldn't add. This account doesn't have sufficient permissions. Please use the account with enroll permission.";
+const SCEP_URL_TIMEOUT_ERROR =
+  "Couldn't add. Request to NDES (SCEP URL) timed out. Please try again.";
+const ADMIN_URL_TIMEOUT_ERROR =
+  "Couldn't add. Request to NDES (admin URL) timed out. Please try again.";
 const DEFAULT_ERROR =
   "Something went wrong updating your SCEP server. Please try again.";
 
@@ -348,12 +354,24 @@ const ScepPage = ({ router }: IScepPageProps) => {
     } catch (error) {
       console.error(error);
       const reason = getErrorReason(error);
-      if (reason.includes("invalid SCEP URL")) {
-        renderFlash("error", BAD_SCEP_URL_ERROR);
-      } else if (reason.includes("invalid admin URL or credentials")) {
+      if (reason.includes("invalid admin URL or credentials")) {
         renderFlash("error", BAD_CREDENTIALS_ERROR);
       } else if (reason.includes("the password cache is full")) {
         renderFlash("error", CACHE_ERROR);
+      } else if (reason.includes("does not have sufficient permissions")) {
+        renderFlash("error", INSUFFICIENT_PERMISSIONS_ERROR);
+      } else if (
+        reason.includes(formData.scepUrl) &&
+        reason.includes("context deadline exceeded")
+      ) {
+        renderFlash("error", SCEP_URL_TIMEOUT_ERROR);
+      } else if (
+        reason.includes(formData.adminUrl) &&
+        reason.includes("context deadline exceeded")
+      ) {
+        renderFlash("error", ADMIN_URL_TIMEOUT_ERROR);
+      } else if (reason.includes("invalid SCEP URL")) {
+        renderFlash("error", BAD_SCEP_URL_ERROR);
       } else renderFlash("error", DEFAULT_ERROR);
     } finally {
       setIsUpdatingNdesScepProxy(false);

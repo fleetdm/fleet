@@ -3781,7 +3781,9 @@ spec:
     macos_settings:
       enable_disk_encryption: true
 `,
-			wantErr: `Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on`,
+
+			// Since Linux disk encryption does not use MDM, we allow enabling it even without MDM enabled and configured
+			wantOutput: `[+] applied fleet config`,
 		},
 		{
 			desc: "app config macos_settings.enable_disk_encryption false",

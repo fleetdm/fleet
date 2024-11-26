@@ -385,6 +385,7 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 					spec.Labels = extractLabelField(m, "labels")
 					spec.LabelsIncludeAll = extractLabelField(m, "labels_include_all")
 					spec.LabelsExcludeAny = extractLabelField(m, "labels_exclude_any")
+					spec.LabelsIncludeAny = extractLabelField(m, "labels_include_any")
 
 					csSpecs = append(csSpecs, spec)
 				} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
