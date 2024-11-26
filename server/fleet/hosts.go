@@ -344,7 +344,7 @@ type Host struct {
 	// is that the latter is a one-time request, while this one is a persistent
 	// until the timestamp expires. The initial use-case is to check for a host
 	// to be unenrolled from its old MDM solution, in the "migrate to Fleet MDM"
-	// workflow.
+	// workflow (both Apple and Windows).
 	//
 	// In the future, if we want to use it for more than one use-case, we could
 	// add a "reason" field with well-known labels so we know what condition(s)
