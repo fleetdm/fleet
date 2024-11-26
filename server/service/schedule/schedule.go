@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -472,7 +473,7 @@ func runJob(ctx context.Context, fn JobFn) (err error) {
 	defer func() {
 		if os.Getenv("TEST_CRON_NO_RECOVER") != "1" { // for detecting panics in tests
 			if r := recover(); r != nil {
-				err = fmt.Errorf("%v", r)
+				err = fmt.Errorf("%v\n%s", r, string(debug.Stack()))
 			}
 		}
 	}()
