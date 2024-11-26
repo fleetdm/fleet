@@ -1,4 +1,10 @@
-import React, { useCallback, useContext } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useRef,
+  useState,
+  useEffect,
+} from "react";
 import { format } from "date-fns";
 import {
   useQuery,
@@ -69,6 +75,17 @@ const ScriptDetailsModal = ({
   isHidden = false,
   onClickRunDetails,
 }: IScriptDetailsModalProps) => {
+  // For scrollable modal
+  const [isTopScrolling, setIsTopScrolling] = useState(false);
+  const topDivRef = useRef<HTMLDivElement>(null);
+  const checkScroll = () => {
+    if (topDivRef.current) {
+      const isScrolling =
+        topDivRef.current.scrollHeight > topDivRef.current.clientHeight;
+      setIsTopScrolling(isScrolling);
+    }
+  };
+
   const { currentUser } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -88,6 +105,13 @@ const ScriptDetailsModal = ({
       enabled: !selectedScriptContent && !!selectedScriptDetails?.script_id,
     }
   );
+
+  // For scrollable modal
+  useEffect(() => {
+    checkScroll();
+    window.addEventListener("resize", checkScroll);
+    return () => window.removeEventListener("resize", checkScroll);
+  }, [useEffect]); // Re-run when data changes
 
   const getScriptContent = async () => {
     try {
@@ -169,6 +193,7 @@ const ScriptDetailsModal = ({
 
     return (
       <ModalFooter
+        isTopScrolling={isTopScrolling}
         secondaryButtons={
           <>
             <Button
@@ -229,7 +254,10 @@ const ScriptDetailsModal = ({
     }
 
     return (
-      <div className={`${baseClass}__script-content`}>
+      <div
+        className={`${baseClass}__script-content  modal-scrollable-content`}
+        ref={topDivRef}
+      >
         <span>Script content:</span>
         <Textarea className={`${baseClass}__script-content-textarea`}>
           {scriptContent}
@@ -254,7 +282,6 @@ const ScriptDetailsModal = ({
       title={selectedScriptDetails?.name || "Script details"}
       width="large"
       onExit={onCancel}
-      stickyFooter={shouldShowFooter}
       isHidden={isHidden}
     >
       <>

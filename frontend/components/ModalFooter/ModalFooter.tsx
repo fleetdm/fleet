@@ -8,6 +8,7 @@ interface IModalFooterProps {
   primaryButtons: JSX.Element;
   secondaryButtons?: JSX.Element;
   className?: string;
+  /** Renders a line above action buttons to indicate scrollability */
   isTopScrolling?: boolean;
 }
 

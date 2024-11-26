@@ -37,7 +37,6 @@ export interface IModalProps {
    * */
   disableClosingModal?: boolean;
   className?: string;
-  stickyFooter?: boolean;
 }
 
 const Modal = ({
@@ -51,7 +50,6 @@ const Modal = ({
   isContentDisabled = false,
   disableClosingModal = false,
   className,
-  stickyFooter = false,
 }: IModalProps): JSX.Element => {
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {
@@ -97,7 +95,6 @@ const Modal = ({
     `${baseClass}__modal_container__${width}`,
     {
       [`${className}__loading`]: isLoading,
-      [`${className}__content-with-footer`]: stickyFooter,
     }
   );
 

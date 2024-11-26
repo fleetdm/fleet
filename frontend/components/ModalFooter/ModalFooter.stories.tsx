@@ -1,20 +1,69 @@
-// import React from "react";
-// import { Meta, Story } from "@storybook/react";
+/* eslint-disable no-alert */
+import React from "react";
+import { Meta, Story } from "@storybook/react";
 
-// import ModalFooter from ".";
-// import { IModalFooterProps } from "./ModalFooter";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+import ActionsDropdown from "components/ActionsDropdown";
+import ModalFooter from "./ModalFooter";
 
-// import "../../index.scss";
+export default {
+  title: "Components/ModalFooter",
+  component: ModalFooter,
+} as Meta;
 
-// export default {
-//   component: ModalFooter,
-//   title: "Components/ModalFooter",
-//   args: {
-//   },
-// } as Meta;
+const Template: Story = (args) => (
+  <ModalFooter primaryButtons={<></>} {...args} />
+);
 
-// const Template: Story<IModalFooterProps> = (props) => (
-//   <ModalFooter {...props} />
-// );
+export const Default = Template.bind({});
+Default.args = {
+  primaryButtons: (
+    <>
+      <Button onClick={() => alert("Done clicked")} variant="brand">
+        Done
+      </Button>
+    </>
+  ),
+  secondaryButtons: (
+    <>
+      <Button variant="icon" onClick={() => alert("Download clicked")}>
+        <Icon name="download" />
+      </Button>
+      <Button variant="icon" onClick={() => alert("Delete clicked")}>
+        <Icon name="trash" color="ui-fleet-black-75" />
+      </Button>
+    </>
+  ),
+  isTopScrolling: false,
+};
 
-// export const Default = Template.bind({});
+export const WithTopScrolling = Template.bind({});
+WithTopScrolling.args = {
+  ...Default.args,
+  isTopScrolling: true,
+};
+
+export const WithActionsDropdown = Template.bind({});
+WithActionsDropdown.args = {
+  primaryButtons: (
+    <>
+      <ActionsDropdown
+        className="modal-footer__manage-automations-dropdown"
+        onChange={(value) => alert(`Selected action: ${value}`)}
+        placeholder="More actions"
+        isSearchable={false}
+        options={[
+          { value: "action1", label: "Action 1" },
+          { value: "action2", label: "Action 2" },
+        ]}
+        menuPlacement="top"
+      />
+      <Button onClick={() => alert("Done clicked")} variant="brand">
+        Done
+      </Button>
+    </>
+  ),
+  secondaryButtons: Default.args.secondaryButtons,
+  isTopScrolling: false,
+};

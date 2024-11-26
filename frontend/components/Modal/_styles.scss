@@ -135,12 +135,8 @@
 }
 
 .modal-scrollable-content {
-  display: flex;
-  flex-direction: column;
-  gap: $pad-medium;
   overflow-y: auto;
   max-height: 705px;
-  position: relative;
 }
 
 .modal-cta-footer {

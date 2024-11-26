@@ -225,7 +225,10 @@ const RunScriptDetailsModal = ({
     }
 
     return (
-      <div className={`${baseClass}__modal-content`} ref={topDivRef}>
+      <div
+        className={`${baseClass}__modal-content modal-scrollable-content`}
+        ref={topDivRef}
+      >
         {content}
       </div>
     );
