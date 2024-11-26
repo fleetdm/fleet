@@ -205,7 +205,7 @@ func TestWindowsMDMEnrollment(t *testing.T) {
 		{"unenroll=false", nil, ptr.Bool(false), "", nil, false, ""},
 		{"unenroll=true,success", nil, ptr.Bool(true), "", nil, true, "successfully called UnregisterDeviceWithManagement"},
 		{"unenroll=true,fail", nil, ptr.Bool(true), "", io.ErrUnexpectedEOF, true, "unenroll Windows device failed"},
-		{"unenroll=true,server", nil, ptr.Bool(true), "", errIsWindowsServer, true, "device is a Windows Server, skipping unenrollment"},
+		{"unenroll=true,server", nil, ptr.Bool(true), "", errIsWindowsServer, true, "device is a Windows Server, skipping unenroll"},
 	}
 
 	for _, c := range cases {
