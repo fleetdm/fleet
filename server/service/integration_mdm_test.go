@@ -11895,3 +11895,22 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 	require.NoError(t, err)
 	require.True(t, awaitingConfig)
 }
+
+func (s *integrationMDMTestSuite) TestHostsCantTurnMDMOff() {
+	t := s.T()
+	iOSHost, _ := s.createAppleMobileHostThenEnrollMDM("ios")
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), iOSHost.ID, false, true, "https://foo.com", true, "", ""))
+
+	r := s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", iOSHost.ID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(r.Body), fleet.CantTurnOffMDMForIOSOrIPadOSMessage)
+
+	iPadOSHost, _ := s.createAppleMobileHostThenEnrollMDM("ipados")
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), iPadOSHost.ID, false, true, "https://foo.com", true, "", ""))
+
+	r = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", iPadOSHost.ID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(r.Body), fleet.CantTurnOffMDMForIOSOrIPadOSMessage)
+
+	winHost, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	r = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", winHost.ID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(r.Body), fleet.CantTurnOffMDMForWindowsHostsMessage)
+}

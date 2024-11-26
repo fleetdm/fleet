@@ -59,7 +59,12 @@ controls:
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
-    macos_setup_assistant: null
+    macos_setup_assistant: ../lib/automatic-enrollment.dep.json
+    software:
+      - package_path: ../lib/software/mac-google-chrome.yml # Google Chrome for macOS
+      - package_path: ../lib/software/mac-zoom.yml # Zoom for macOS
+      - app_store_id: '803453959' # Slack Desktop
+      - app_store_id: '1333542190' # 1Password 7 Desktop
   macos_updates:
     deadline: "2024-12-02"
     minimum_version: "15.1.1"
@@ -101,12 +106,8 @@ queries:
     observer_can_run: true
 software:
   packages:
-    - url: https://zoom.us/client/latest/Zoom.pkg?archType=arm64
-      pre_install_query:
-        path: ../lib/macos-check-if-apple-silicon.queries.yml
-      self_service: true
-    - url: https://dl.google.com/chrome/mac/stable/accept_tos%3Dhttps%253A%252F%252Fwww.google.com%252Fintl%252Fen_ph%252Fchrome%252Fterms%252F%26_and_accept_tos%3Dhttps%253A%252F%252Fpolicies.google.com%252Fterms/googlechrome.pkg
-      self_service: true
+    - path: ../lib/software/mac-zoom.yml # Zoom for macOS
+    - path: ../lib/software/mac-google-chrome.yml # Google Chrome for macOS
   app_store_apps:
     - app_store_id: '803453959' # Slack Desktop
     - app_store_id: '1333542190' # 1Password 7 Desktop

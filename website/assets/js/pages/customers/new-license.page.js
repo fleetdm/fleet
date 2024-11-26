@@ -19,6 +19,10 @@ parasails.registerPage('new-license', {
       selfHostedAcknowledgment: {required: true, is: true},
     },
 
+    checkoutFormRules: {
+      selfHostedAcknowledgment: {required: true, is: true},
+    },
+
     // Syncing / loading state
     syncing: false,
 
@@ -93,7 +97,12 @@ parasails.registerPage('new-license', {
       this.syncing = true;
       this.goto('/customers/dashboard?order-complete');
     },
-
+    handleSubmittingCheckoutForm: async function() {
+      let redirectUrl = await Cloud.getStripeCheckoutSessionUrl.with({
+        quoteId: this.formData.quoteId
+      });
+      this.goto(redirectUrl);
+    },
     submittedQuoteForm: async function(quote) {
       this.showQuotedPrice = true;
       this.quotedPrice = quote.quotedPrice;
