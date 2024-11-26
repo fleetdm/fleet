@@ -16,7 +16,7 @@ Fleet now supports escrowing the disk encryption keys for Linux (Ubuntu and Fedo
 
 ### Custom targets for OS settings
 
-With Fleet, you can now use a new "include any" label option to target OS settings (configuration profiles) to specific hosts within a team. This added flexibility allows for finer control over which OS settings apply to which hosts, making it easier to tweak configurations without disrupting broader baselines (aka Fleet [teams](https://fleetdm.com/guides/teams#basic-article)).
+With Fleet, you can now use a new "include any" label option to target OS settings (configuration profiles) to specific hosts within a team. This added flexibility allows for finer control over which OS settings apply to which hosts, making it easier to tweak configurations without disrupting broader baselines (Fleet [teams](https://fleetdm.com/guides/teams)).
 
 ### Preview scripts before run
 
