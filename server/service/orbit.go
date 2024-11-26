@@ -268,13 +268,15 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	// set the host's orbit notifications for Windows MDM
 	if appConfig.MDM.WindowsEnabledAndConfigured {
-		if IsEligibleForWindowsMDMEnrollment(host, mdmInfo) {
+		if isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
 			discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appConfig.ServerSettings.ServerURL)
 			if err != nil {
 				return fleet.OrbitConfig{}, err
 			}
 			notifs.WindowsMDMDiscoveryEndpoint = discoURL
 			notifs.NeedsProgrammaticWindowsMDMEnrollment = true
+		} else if appConfig.MDM.WindowsMigrationEnabled && isEligibleForWindowsMDMMigration(host, mdmInfo) {
+			notifs.NeedsMDMMigration = true
 		}
 	}
 	if !appConfig.MDM.WindowsEnabledAndConfigured {

@@ -8,7 +8,12 @@ import "encoding/json"
 type OrbitConfigNotifications struct {
 	RenewEnrollmentProfile  bool `json:"renew_enrollment_profile,omitempty"`
 	RotateDiskEncryptionKey bool `json:"rotate_disk_encryption_key,omitempty"`
-	NeedsMDMMigration       bool `json:"needs_mdm_migration,omitempty"`
+
+	// NeedsMDMMigration is set to true if MDM is enabled for the host's
+	// platform, MDM migration is enabled for that platform, and the host is
+	// eligible for such a migration (e.g. it is enrolled in a third-party MDM
+	// solution).
+	NeedsMDMMigration bool `json:"needs_mdm_migration,omitempty"`
 
 	// NeedsProgrammaticWindowsMDMEnrollment is sent as true if Windows MDM is
 	// enabled and the device should be enrolled as far as the server knows (e.g.
