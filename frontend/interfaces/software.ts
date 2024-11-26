@@ -62,6 +62,9 @@ export interface ISoftwarePackagePolicy {
 
 export interface ISoftwarePackage {
   name: string;
+  last_install: string | null;
+  last_uninstall: string | null;
+  package_url: string;
   version: string;
   uploaded_at: string;
   install_script: string;
@@ -76,7 +79,7 @@ export interface ISoftwarePackage {
     pending_uninstall: number;
     failed_uninstall: number;
   };
-  automatic_install_policies: ISoftwarePackagePolicy[];
+  automatic_install_policies?: ISoftwarePackagePolicy[];
   install_during_setup?: boolean;
 }
 

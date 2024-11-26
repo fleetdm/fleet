@@ -139,11 +139,16 @@ const FleetMaintainedAppDetailsPage = ({
     setShowAddFleetAppSoftwareModal(true);
 
     const { installType } = formData;
+    let titleId: number | undefined;
     try {
-      await softwareAPI.addFleetMaintainedApp(parseInt(teamId, 10), {
-        ...formData,
-        appId,
-      });
+      const res = await softwareAPI.addFleetMaintainedApp(
+        parseInt(teamId, 10),
+        {
+          ...formData,
+          appId,
+        }
+      );
+      titleId = res.software_title_id;
 
       // for manual install we redirect only on a successful software add.
       if (installType === "manual") {
@@ -176,7 +181,7 @@ const FleetMaintainedAppDetailsPage = ({
           description: getFleetAppPolicyDescription(fleetApp.name),
           query: getFleetAppPolicyQuery(fleetApp.name),
           team_id: parseInt(teamId, 10),
-          software_title_id: fleetApp.id, // TODO: this needs to to be the software title id and not the app id. API changes needed.
+          software_title_id: titleId,
           platform: "darwin",
         });
 

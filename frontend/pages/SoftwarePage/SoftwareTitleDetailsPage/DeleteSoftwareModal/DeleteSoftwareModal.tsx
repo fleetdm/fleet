@@ -67,7 +67,7 @@ const DeleteSoftwareModal = ({
         </p>
         <p>
           Installs or uninstalls currently running on a host will still
-          complete, but results won’t appear in Fleet.
+          complete, but results won&apos;t appear in Fleet.
         </p>
         <p>You cannot undo this action.</p>
         <div className="modal-cta-wrap">
