@@ -49,7 +49,7 @@ type Schedule struct {
 	altLockName string
 
 	jobs   []Job
-	errors map[string]error
+	errors fleet.CronScheduleErrors
 
 	statsStore CronStatsStore
 
@@ -82,7 +82,7 @@ type CronStatsStore interface {
 	// InsertCronStats inserts cron stats for the named cron schedule
 	InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error)
 	// UpdateCronStats updates the status of the identified cron stats record
-	UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error
+	UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error
 }
 
 // Option allows configuring a Schedule.
@@ -180,7 +180,7 @@ func New(
 		sch.logger = log.NewNopLogger()
 	}
 	sch.logger = log.With(sch.logger, "instanceID", instanceID)
-	sch.errors = make(map[string]error)
+	sch.errors = make(fleet.CronScheduleErrors)
 	return sch
 }
 
@@ -621,7 +621,7 @@ func (s *Schedule) insertStats(statsType fleet.CronStatsType, status fleet.CronS
 }
 
 func (s *Schedule) updateStats(id int, status fleet.CronStatsStatus) error {
-	return s.statsStore.UpdateCronStats(s.ctx, id, status)
+	return s.statsStore.UpdateCronStats(s.ctx, id, status, &s.errors)
 }
 
 func (s *Schedule) getLockName() string {

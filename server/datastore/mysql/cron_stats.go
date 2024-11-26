@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -15,7 +17,7 @@ func (ds *Datastore) GetLatestCronStats(ctx context.Context, name string) ([]fle
 	stmt := `
 (
 	SELECT
-		id, name, instance, stats_type, status, created_at, updated_at
+		id, name, instance, stats_type, status, coalesce(errors, '') as errors, created_at, updated_at
 	FROM
 		cron_stats
 	WHERE
@@ -28,7 +30,7 @@ func (ds *Datastore) GetLatestCronStats(ctx context.Context, name string) ([]fle
 UNION
 (
 	SELECT
-		id, name, instance, stats_type, status, created_at, updated_at
+		id, name, instance, stats_type, status, coalesce(errors, '') as errors, created_at, updated_at
 	FROM
 		cron_stats
 	WHERE
@@ -63,10 +65,19 @@ func (ds *Datastore) InsertCronStats(ctx context.Context, statsType fleet.CronSt
 	return int(id), nil
 }
 
-func (ds *Datastore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
-	stmt := `UPDATE cron_stats SET status = ? WHERE id = ?`
+func (ds *Datastore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error {
+	stmt := `UPDATE cron_stats SET status = ?, errors = ? WHERE id = ?`
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, status, id); err != nil {
+	errorsJSON := sql.NullString{}
+	if len(*cronErrors) > 0 {
+		b, err := json.Marshal(cronErrors)
+		if err == nil {
+			errorsJSON.String = string(b[:])
+			errorsJSON.Valid = true
+		}
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, status, errorsJSON, id); err != nil {
 		return ctxerr.Wrap(ctx, err, "update cron stats")
 	}
 

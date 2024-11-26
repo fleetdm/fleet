@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -28,7 +30,10 @@ func TestInsertUpdateCronStats(t *testing.T) {
 	require.Equal(t, fleet.CronStatsTypeScheduled, res[0].StatsType)
 	require.Equal(t, fleet.CronStatsStatusPending, res[0].Status)
 
-	err = ds.UpdateCronStats(ctx, id, fleet.CronStatsStatusCompleted)
+	err = ds.UpdateCronStats(ctx, id, fleet.CronStatsStatusCompleted, &fleet.CronScheduleErrors{
+		"some_job":       errors.New("some error"),
+		"some_other_job": errors.New("some other error"),
+	})
 	require.NoError(t, err)
 
 	res, err = ds.GetLatestCronStats(ctx, scheduleName)
@@ -37,6 +42,17 @@ func TestInsertUpdateCronStats(t *testing.T) {
 	require.Equal(t, id, res[0].ID)
 	require.Equal(t, fleet.CronStatsTypeScheduled, res[0].StatsType)
 	require.Equal(t, fleet.CronStatsStatusCompleted, res[0].Status)
+
+	// Make sure we got valid JSON back.
+	var actualMap map[string]string
+	err = json.Unmarshal([]byte(res[0].Errors), &actualMap)
+	require.NoError(t, err)
+
+	// Compare the error JSON with the expected object.
+	expectedJSON := `{"some_job": "some error", "some_other_job": "some other error"}`
+	var expectedMap map[string]string
+	json.Unmarshal([]byte(expectedJSON), &expectedMap)
+	require.Equal(t, actualMap, expectedMap)
 }
 
 func TestGetLatestCronStats(t *testing.T) {
