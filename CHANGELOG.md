@@ -1,13 +1,6 @@
-## Fleet 4.59.1 (Nov 18, 2024)
+## Fleet 4.60.0 (Nov 26, 2024)
 
-### Bug fixes
-
-* Added `team_identifier` signature information to Apple macOS applications to the `/api/latest/fleet/hosts/:id/software` API endpoint.
-## Fleet 4.60.0 (Nov 14, 2024)
-
-### Bug fixes
-
-### Endpoint Operations
+### Endpoint operations
 - Users are now prompted to reenter the password in the Fleet UI if SCEP/NDES URL or username has changed.
 - Users can now view scripts in the UI without downloading them.
 - Creating a query now allows users to turn on/off automations transparently regarding the current log destination.
@@ -17,7 +10,7 @@
 - Add UI for allowing users to install custom profiles on hosts that include any of the defined labels.
 - Improved memory usage of the Fleet server when uploading a large software installer file.
 
-### Device Management (MDM)
+### Device management (MDM)
 - Fixed a bug where users could attempt to install an App Store app on a host that was not MDM enrolled.
 - Fixed MDM configuration profiles deployment when based on excluded labels.
 - Dismissed error flash on the my device page when navigating to another URL.
@@ -27,7 +20,7 @@
 - Cancelled pending script executions when a script is edited or deleted.
 - Fix some cases where Fleet Maintained Apps generated incorrect uninstall scripts.
 
-### Vulnerability Management
+### Vulnerability management
 - Fixed issue with uploading macOS software packages without a top level Distribution.xml but with a top level PackageInfo.xml.
 - Added better handling of timeout and insufficient permissions errors in NDES SCEP proxy.
 - Allowed skipping computationally heavy population of vulnerability details when populating host software on hosts list endpoint when using Fleet Premium.
@@ -44,6 +37,12 @@
 - Added DB support for "include any" label profile deployment.
 - Added support for labels_include_any to GitOps.
 - Added info banner for cloud customers to help with their windows autoenrollment setup.
+
+## Fleet 4.59.1 (Nov 18, 2024)
+
+### Bug fixes
+
+* Added `team_identifier` signature information to Apple macOS applications to the `/api/latest/fleet/hosts/:id/software` API endpoint.
 
 ## Fleet 4.59.0 (Nov 12, 2024)
 
