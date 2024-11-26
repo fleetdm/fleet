@@ -347,20 +347,21 @@ const SoftwarePackageCard = ({
           </div>
         </div>
         <div className={`${baseClass}__actions-wrapper`}>
-          {softwarePackage?.automatic_install_policies && (
-            <TooltipWrapper
-              showArrow
-              position="top"
-              tipContent="Click to see policy that triggers automatic install."
-              underline={false}
-            >
-              <Tag
-                icon="refresh"
-                text="Automatic install"
-                onClick={() => setShowAutomaticInstallModal(true)}
-              />
-            </TooltipWrapper>
-          )}
+          {softwarePackage?.automatic_install_policies &&
+            softwarePackage?.automatic_install_policies.length > 0 && (
+              <TooltipWrapper
+                showArrow
+                position="top"
+                tipContent="Click to see policy that triggers automatic install."
+                underline={false}
+              >
+                <Tag
+                  icon="refresh"
+                  text="Automatic install"
+                  onClick={() => setShowAutomaticInstallModal(true)}
+                />
+              </TooltipWrapper>
+            )}
           {isSelfService && <Tag icon="user" text="Self-service" />}
           {showActions && (
             <SoftwareActionsDropdown
@@ -412,7 +413,8 @@ const SoftwarePackageCard = ({
         />
       )}
       {showAutomaticInstallModal &&
-        softwarePackage?.automatic_install_policies && (
+        softwarePackage?.automatic_install_policies &&
+        softwarePackage?.automatic_install_policies.length > 0 && (
           <AutomaticInstallModal
             teamId={teamId}
             policies={softwarePackage.automatic_install_policies}

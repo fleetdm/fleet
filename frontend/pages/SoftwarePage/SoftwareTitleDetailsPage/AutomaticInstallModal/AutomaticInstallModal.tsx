@@ -49,7 +49,7 @@ const AutomaticInstallModal = ({
   onExit,
 }: IAutomaticInstallModalProps) => {
   const description =
-    policies.length > 0 ? (
+    policies.length > 1 ? (
       <>
         Software will be installed when hosts fail any of these policies.{" "}
         <CustomLink
@@ -78,9 +78,7 @@ const AutomaticInstallModal = ({
     >
       <>
         <p className={`${baseClass}__description`}>{description}</p>
-        {policies.length > 0 && (
-          <PoliciesList teamId={teamId} policies={policies} />
-        )}
+        <PoliciesList teamId={teamId} policies={policies} />
         <div className="modal-cta-wrap">
           <Button variant="brand" onClick={onExit}>
             Done
