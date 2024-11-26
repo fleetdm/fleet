@@ -8,7 +8,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Role                                  | Contributor(s)           |
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
 | Chief Revenue Officer (CRO)                  | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
-| Solutions Consulting (SC)                    | [Dave Herder](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_ <br> [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_
+| Solutions Consulting (SC)                    | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_
 | Channel Sales                                | [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@tomostertag](https://github.com/TomOstertag))_
 | Account Executive (AE)                       | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_ <br> [Kendra McKeever](https://www.linkedin.com/in/kendramckeever/) _([@KendraAtFleet](https://github.com/KendraAtFleet))_
 
@@ -53,17 +53,26 @@ Use the following steps to change a contact's organization in Salesforce:
 - If the contact's organization in Salesforce is incorrect and we know where they're moving to, navigate to the contact in Salesforce, change the "Account name" to the contact's new organization, and save.
 
 
+### Create a subscription order form
+
+1. Navigate to the ["Template gallery"](https://docs.google.com/document/u/0/?tgif=d&ftv=1) in Google Docs and create a copy of the "TEMPLATE - Order form".
+2. Add/remove table rows as needed for multi-year deals.
+3. Where possible, include a graphic of the customer's logo. Use good judgement and omit if a high quality graphic is unavailable. If in doubt, ask Digital Experience for help.
+
+
+> **Important**
+> - All changes to the [subscription agreement template](https://docs.google.com/document/d/1X4fh2LsuFtAVyQDnU1ZGBggqg-Ec00vYHACyckEooqA/edit?tab=t.0), or [standard terms](http://fleetdm.com/terms) must be brought to ["🦢🗣 Design review (#g-digital-experience)"](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none) for approval.
+> - All non-standard (from another party) subscription agreements, NDAs, and similar contracts require legal review from Digital Experience before being signed. [Create an issue to request legal review](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/contract-review.md).
+
+
 ### Send a quote
 
-During the buying cycle, the champion will need to start the process to secure funding in cooperation with the economic buyer and the finance org.
+In order to be transparent, Fleet sends order forms within 30 days of opportunity creation in most cases. All quotes and purchase orders must be approved by the CRO and 🌐 [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) before being sent to the prospect or customer. Often, the CRO will request legal review of any unique terms required. To prepare the and send a subscription order form the Fleet owner of the opportunity (usually AE or CSM) will: 
 
-All quotes and purchase orders must be approved by CRO before being sent to the prospect or customer. Often, the CRO will request legal review of any unique terms required.
-
-The Fleet owner of the opportunity (usually AE or CSM) will prepare a quote and/or a Purchase Order when requested.
-- Because the champion may need to socialize "what is Fleet" or "what are we getting when buying Fleet," it is most often best to send the quote in [slide form](https://docs.google.com/presentation/d/15kbqm0OYPf1OmmTZvDp4F7VvMERnX4K6TMYqCYNr-wI/edit?usp=sharing).
+1. Follow the steps to [create an order form](https://fleetdm.com/handbook/sales#create-a-subscription-order-from)
 - Docusign can be used to create a [standard Purchase Order](https://www.loom.com/share/Loom-Message-16-January-2023-2ba8cf195ec645ebabac267d7df59823?sid=214f8c6b-beb3-427a-a3a8-e8c20b5dc350) if no special terms or pricing are needed.
 - Before sending to prospect, work with the Finance team to verify if sales tax needs to be charged and, if so, how much.
-
+Create a subscription agreement
 
 ### Schedule a Solutions Consultant for prospect meeting
 
@@ -72,6 +81,30 @@ To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) 
  - The AE will populate this issue with the appropriate dates for an internal prep meeting as well as the dates for the external prospect meeting.
  - Do not assign the issue. The Director of Solutions Consulting will assign the issue.
  - Ensure that the product category is defined ("Endpoint ops", "Device management", or "Vulnerability management") in the description of the issue.
+
+
+### Send an NDA to a customer
+
+- Fleet uses "Non-Disclosure Agreements" (NDAs) to protect the company and the companies we collaborate with. Always offer to send Fleet's NDA and, whenever possible, default to using the company's version. To send an NDA to a customer, follow these steps: 
+1. If a customer has no objections to using Fleet's NDA, route the NDA to them for signature using the "🙊 NDA (Non-disclosure agreement)" template in [DocuSign](https://apps.docusign.com/send/home).
+> If a customer would like to review the NDA first, download a .docx of [Fleet's NDA](https://docs.google.com/document/d/1gQCrF3silBFG9dJgyCvpmLa6hPhX_T4V7pL3XAwgqEU/edit?usp=sharing) and send it to the customer.
+2. If the customer has no objections, route the NDA using the template in DocuSign (do not upload and use the copy you emailed to the customer).
+3. If the customer "redlines" (i.e. wants to change) the NDA, follow the [contract review process](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) so that Digital Experience can look over any proposed changes and provide guidance on how to proceed.
+
+
+### Close a new customer deal
+
+To close a deal with a new customer (non-self-service), create and complete a GitHub issue using the ["Sale" issue template](https://github.com/fleetdm/confidential/issues/new?assignees=alexmitchelliii&labels=%23g-sales&projects=&template=3-sale.md&title=New+customer%3A+_____________).
+
+
+### Process a security questionnaire
+
+- The AE will [use the handbook](https://fleetdm.com/handbook/company/communications#vendor-questionnaires) to answer most of the questions with links to appropriate sections in the handbook. After this first pass has been completed, and if there are outstanding questions, the AE will [assign the issue to Digital Experience (#g-digital-experience)](https://fleetdm.com/handbook/digital-experience#contact-us)  with a requested timeline for completion defined.
+- Digital Experience consults the handbook to validate that nothing was missed by the AE. After the second pass has been completed, and if there are outstanding questions, Digital Experience will [reassign the issue to Sales (#g-sales)](https://fleetdm.com/handbook/sales#contact-us) for intake.
+- The issue will be assigned to the Solutions Consultant (SC) associated to the opportunity in order to complete any unanswered questions.
+- The SC will search for unanswered questions and confirm again that nothing was missed from the handbook. Content missing from the handbook will need to be added via PR by the SC. Any unanswered questions after this pass has been completed by the SC will need to be [escalated to the Infrastructure team (#g-customer-success)](https://fleetdm.com/handbook/customer-success#contact-us) with the requested timeline for completion defined in the issue. Once complete, the infra team will assign the issue back to the #g-sales board.
+- Any questions answered by the infra team will be added to the handbook by the SC.
+
 
 <!-- 2024-11-16 We noticed some content in these sections was outdated, so we're using this opportunity to try out a different structure ± altitude level for the content for on this page
 
@@ -112,7 +145,7 @@ The AE and SC will work together to scope the POV with the prospect in this stag
 If the above questions are answered successfully, the opportunity should progress to tech eval. If we cannot answer the questions above successfully, then the POV should not start unless approved by the CRO.
 
 During Stage 4, follow this process:
-1. SC creates a [tech eval issue](https://github.com/fleetdm/confidential/issues/new?assignees=dherder&labels=%23g-sales&projects=&template=technical-evaluation.md&title=Technical+evaluation%3A+___________________).
+1. SC creates a [tech eval issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=technical-evaluation.md&title=Technical+evaluation%3A+___________________).
 2. SC updates the issue labels to include: "~sc, :tech-eval" and the obfuscated "prospect-codename" label. See [Assign a customer a codename](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename). Instead of
    "customer-codename", prospects are labeled "prospect-codename". When a prospect purchases Fleet, the SC will edit this label from "prospect-codename" to "customer-codename".
 3. SC sets the appropriate sprint duration based on the defined timelines and an estimation of effort in points.
@@ -171,38 +204,7 @@ Temp Transfer to: Temp technical DRI
     - Confirm that contact information is accurate and that the prospect can receive and access meeting invites.
 -->  
 
-### Send an NDA to a customer
 
-- Fleet uses "Non-Disclosure Agreements" (NDAs) to protect the company and the companies we collaborate with. Always offer to send Fleet's NDA and, whenever possible, default to using the company's version. To send an NDA to a customer, follow these steps: 
-1. If a customer has no objections to using Fleet's NDA, route the NDA to them for signature using the "🙊 NDA (Non-disclosure agreement)" template in [DocuSign](https://apps.docusign.com/send/home).
-> If a customer would like to review the NDA first, download a .docx of [Fleet's NDA](https://docs.google.com/document/d/1gQCrF3silBFG9dJgyCvpmLa6hPhX_T4V7pL3XAwgqEU/edit?usp=sharing) and send it to the customer.
-2. If the customer has no objections, route the NDA using the template in DocuSign (do not upload and use the copy you emailed to the customer).
-3. If the customer "redlines" (i.e. wants to change) the NDA, follow the [contract review process](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) so that Digital Experience can look over any proposed changes and provide guidance on how to proceed.
-
-
-### Create a subscription agreement
-
-1. Create a copy of the [subscription agreement template](https://docs.google.com/document/d/1ri9sS2rlBbBLEFi7RrfKZ9bZj8e48orsFKZDfF0PgAg/copy?tab=t.0).
-2. Add/remove table rows as needed for multi-year deals.
-3. Where possible, include a graphic of the customer's logo. Use good judgement and omit if a high quality graphic is unavailable. If in doubt, ask Digital Experience for help.
-
-> **Important**
-> - All changes to the [subscription agreement template](https://docs.google.com/document/d/1ri9sS2rlBbBLEFi7RrfKZ9bZj8e48orsFKZDfF0PgAg/copy?tab=t.0), or [standard terms](http://fleetdm.com/terms) must be brought to ["🦢🗣 Design review (#g-digital-experience)"](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none) for approval.
-> - All non-standard (from another party) subscription agreements, NDAs, and similar contracts require legal review from Digital Experience before being signed. [Create an issue to request legal review](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/contract-review.md).
-
-
-### Close a new customer deal
-
-To close a deal with a new customer (non-self-service), create and complete a GitHub issue using the ["Sale" issue template](https://github.com/fleetdm/confidential/issues/new?assignees=alexmitchelliii&labels=%23g-sales&projects=&template=3-sale.md&title=New+customer%3A+_____________).
-
-
-### Process a security questionnaire
-
-- The AE will [use the handbook](https://fleetdm.com/handbook/company/communications#vendor-questionnaires) to answer most of the questions with links to appropriate sections in the handbook. After this first pass has been completed, and if there are outstanding questions, the AE will [assign the issue to Digital Experience (#g-digital-experience)](https://fleetdm.com/handbook/digital-experience#contact-us)  with a requested timeline for completion defined.
-- Digital Experience consults the handbook to validate that nothing was missed by the AE. After the second pass has been completed, and if there are outstanding questions, Digital Experience will [reassign the issue to Sales (#g-sales)](https://fleetdm.com/handbook/sales#contact-us) for intake.
-- The issue will be assigned to the Solutions Consultant (SC) associated to the opportunity in order to complete any unanswered questions.
-- The SC will search for unanswered questions and confirm again that nothing was missed from the handbook. Content missing from the handbook will need to be added via PR by the SC. Any unanswered questions after this pass has been completed by the SC will need to be [escalated to the Infrastructure team (#g-customer-success)](https://fleetdm.com/handbook/customer-success#contact-us) with the requested timeline for completion defined in the issue. Once complete, the infra team will assign the issue back to the #g-sales board.
-- Any questions answered by the infra team will be added to the handbook by the SC.
 
 
 ## Rituals
@@ -225,17 +227,6 @@ Please see [handbook/company/communications#customer-support-service-level-agree
 ##### Submit a customer contract
 Please see [handbook/sales#create-a-customer-agreement](https://fleetdm.com/handbook/sales#create-a-customer-agreement) for all sections above.
 
-##### Customer codenames
-Please see [Handbook/customer-success#assign-a-customer-codename](https://www.fleetdm.com/handbook/customer-success#assign-a-customer-codename)
-
-##### Document customer requests
-Please see [handbook/customer-success#document-customer-requests](https://fleetdm.com/handbook/customer-success#document-customer-requests)
-
-##### Generate a trial license key
-Please see [handbook/customer-success#generate-a-trial-license-key](https://fleetdm.com/handbook/customer-success#generate-a-trial-license-key)
-
-#### Create customer support Issue
-Please see [handbook/customer-success#create-customer-support-issue](https://fleetdm.com/handbook/customer-success#create-customer-support-issue)
 
 <meta name="maintainedBy" value="alexmitchelliii">
 <meta name="title" value="🐋 Sales">
