@@ -13,10 +13,9 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-# env:
-# AWS_REGION: us-east-2
-# TODO(lucas): Set correct IAM account ID.
-# AWS_IAM_ROLE: arn:aws:iam::TBD:role/github-actions-role
+env:
+  AWS_REGION: us-east-1
+  AWS_IAM_ROLE: arn:aws:iam::142412512209:role/github-actions-role
 
 jobs:
   tuf-update-timestamp:
@@ -33,14 +32,10 @@ jobs:
       - name: Pull metadata files
         run: |
           mkdir -p keys repository staged
-          curl https://tuf.fleetctl.com/root.json --output ./repository/root.json
-          curl https://tuf.fleetctl.com/targets.json --output ./repository/targets.json
-          curl https://tuf.fleetctl.com/snapshot.json --output ./repository/snapshot.json
-          curl https://tuf.fleetctl.com/timestamp.json --output ./repository/timestamp.json
-          # aws s3 cp s3://fleet-tuf-repo/timestamp.json ./repository/timestamp.json
-          # aws s3 cp s3://fleet-tuf-repo/snapshot.json ./repository/snapshot.json
-          # aws s3 cp s3://fleet-tuf-repo/targets.json ./repository/targets.json
-          # aws s3 cp s3://fleet-tuf-repo/root.json ./repository/root.json
+          aws s3 cp s3://fleet-tuf-repo/timestamp.json ./repository/timestamp.json
+          aws s3 cp s3://fleet-tuf-repo/snapshot.json ./repository/snapshot.json
+          aws s3 cp s3://fleet-tuf-repo/targets.json ./repository/targets.json
+          aws s3 cp s3://fleet-tuf-repo/root.json ./repository/root.json
           cat ./repository/timestamp.json
 
       - name: Update timestamp
