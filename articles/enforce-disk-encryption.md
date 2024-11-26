@@ -57,7 +57,7 @@ To enforce disk encryption on Ubuntu Linux and Fedora Linux devices, Fleet suppo
 2. Once the user encrypts the disk, Fleet will initiate a key escrow process through Fleet Desktop:
    * Fleet Desktop prompts the user to enter their current encryption passphrase.
    * A new encryption passphrase is generated and added as a LUKS keyslot for the encrypted volume.
-   * The new passphrase is securely stored in Fleet's backend.
+   * The new passphrase is securely stored in Fleet.
 
 3. Fleet verifies that the encryption is complete, and the key has been escrowed. Once successful, the host's status will be updated to "Verified" in the disk encryption status table.
 
