@@ -48,7 +48,8 @@ type Schedule struct {
 
 	altLockName string
 
-	jobs []Job
+	jobs   []Job
+	errors map[string]error
 
 	statsStore CronStatsStore
 
@@ -179,6 +180,7 @@ func New(
 		sch.logger = log.NewNopLogger()
 	}
 	sch.logger = log.With(sch.logger, "instanceID", instanceID)
+	sch.errors = make(map[string]error)
 	return sch
 }
 
@@ -462,6 +464,7 @@ func (s *Schedule) runAllJobs() {
 	for _, job := range s.jobs {
 		level.Debug(s.logger).Log("msg", "starting", "jobID", job.ID)
 		if err := runJob(s.ctx, job.Fn); err != nil {
+			s.errors[job.ID] = err
 			level.Error(s.logger).Log("err", "running job", "details", err, "jobID", job.ID)
 			ctxerr.Handle(s.ctx, err)
 		}

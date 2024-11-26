@@ -268,8 +268,8 @@ func TestMultipleJobsInOrder(t *testing.T) {
 	require.True(t, ok)
 
 	// Check the errors that were returned.
-	require.Equal(t, "test_job_2 : whoops", test_job_2_err)
-	require.Contains(t, "test_job_4 : oh no\n", test_job_2_err)
+	require.Equal(t, "whoops", test_job_2_err.Error())
+	require.Contains(t, test_job_4_err.Error(), "oh no\n")
 }
 
 func TestConfigReloadCheck(t *testing.T) {
