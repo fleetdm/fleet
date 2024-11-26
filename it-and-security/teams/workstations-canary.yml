@@ -139,7 +139,7 @@ policies:
     platform: darwin
     calendar_events_enabled: true
   - name: macOS - Upgrade Firefox
-    query: SELECT 1 FROM apps WHERE name = 'Firefox.app' AND version_compare(bundle_short_version, '130.0.1') >= 0;
+    query: SELECT 1 FROM apps WHERE name = 'Firefox.app' AND version_compare(bundle_short_version, '132.0.0') >= 0;
     critical: false
     description: The host may have an outdated or non-existent version of Firefox, potentially risking security vulnerabilities or compatibility issues.
     resolution: During maintenance, the Firefox app could be updated to the correct version or installed if it's missing.
