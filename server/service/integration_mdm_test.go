@@ -11901,8 +11901,8 @@ func (s *integrationMDMTestSuite) TestWindowsMigrationEnabled() {
 
 	var acResp appConfigResponse
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
-	assert.False(t, acResp.MDM.WindowsMigrationEnabled)
+	require.True(t, acResp.MDM.WindowsEnabledAndConfigured)
+	require.False(t, acResp.MDM.WindowsMigrationEnabled)
 
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
