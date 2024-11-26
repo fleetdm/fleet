@@ -9628,7 +9628,7 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Li
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
-| automatic_install_policy | boolean | form | Automatically create policy that triggers install if software isn't installed on the host. |
+| automatic_install | boolean | form | Automatically create policy that triggers install if software isn't installed on the host. |
 
 
 
