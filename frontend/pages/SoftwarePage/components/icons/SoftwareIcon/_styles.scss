@@ -1,7 +1,5 @@
 .software-icon {
   flex-shrink: 0;
-  border: 1px solid $ui-fleet-black-10;
-  overflow: hidden; // for app store app icons
 
   &__small {
     border-radius: $border-radius;
@@ -59,9 +57,3 @@
     margin-left: 0;
   }
 
-  // Fix app icon sizing issue in which macOS app store icon URLs
-  // point to an image with excess padding #23733
-  &__macos-app-store-icon {
-    transform: scale(1.36);
-  }
-}

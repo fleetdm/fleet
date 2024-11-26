@@ -71,10 +71,7 @@ const VppAppListItem = ({
       <Radio
         label={
           <div className={`${baseClass}__app-info`}>
-            <SoftwareIcon
-              url={app.icon_url}
-              macos={app.platform === "darwin"}
-            />
+            <SoftwareIcon url={app.icon_url} />
             <span>{app.name}</span>
           </div>
         }
