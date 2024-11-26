@@ -846,7 +846,7 @@ func TestHostListOptionsTeamFilter(t *testing.T) {
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID}, 3)
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID}, 0)
 
-	// // assign four hosts to team 2
+	// assign four hosts to team 2
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{hosts[13].ID, hosts[14].ID, hosts[15].ID, hosts[16].ID}))
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{}, len(hosts))
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil}, len(hosts))

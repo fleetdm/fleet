@@ -1404,7 +1404,12 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	// or are servers. Similar logic could be applied to macOS hosts but is not included in this
 	// current implementation.
 
-	sqlFmt := ` AND (h.platform IN('windows', 'darwin', 'ubuntu', 'ios', 'ipados') OR h.os_version LIKE 'Fedora%')`
+	sqlFmt := ` AND (
+		(h.platform = 'windows' AND mwe.host_uuid IS NOT NULL AND hmdm.enrolled = 1) -- windows
+		OR (h.platform IN ('darwin', 'ios', 'ipados') AND ne.id IS NOT NULL AND hmdm.enrolled = 1) -- apple
+		OR (h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%') -- linux
+	)`
+
 	if opt.TeamFilter == nil {
 		// OS settings filter is not compatible with the "all teams" option so append the "no team"
 		// filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
@@ -1412,9 +1417,11 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	}
 	var whereMacOS, whereWindows, whereLinux string
 	sqlFmt += `
-AND ((h.platform = 'windows' AND (%s))
-OR ((h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND (%s)))
-OR ((h.os_version LIKE 'Fedora%' OR h.platform = 'ubuntu') AND (%s))`
+AND (
+	(h.platform = 'windows' AND (%s))
+	OR ((h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND (%s))
+	OR ((h.os_version LIKE 'Fedora%' OR h.platform = 'ubuntu') AND (%s))
+)`
 
 	// construct the WHERE for macOS
 	whereMacOS = fmt.Sprintf(`(%s) = ?`, sqlCaseMDMAppleStatus())
@@ -1527,7 +1534,7 @@ OR ((h.os_version LIKE 'Fedora%' OR h.platform = 'ubuntu') AND (%s))`
 	params = append(params, paramsMacOS...)
 	params = append(params, paramsLinux...)
 
-	fmt.Println("sql:", sql)
+	fmt.Println("sql:", sql+fmt.Sprintf(sqlFmt, whereWindows, whereMacOS, whereLinux))
 
 	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS, whereLinux), params, nil
 }
