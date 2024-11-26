@@ -10,10 +10,6 @@ import paths from "router/paths";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { AppContext } from "context/app";
 import {
-  createMockSoftwarePackage,
-  createMockSoftwareTitleDetails,
-} from "__mocks__/softwareMock";
-import {
   ISoftwareTitleDetails,
   formatSoftwareType,
   isIpadOrIphoneSoftwareSource,
