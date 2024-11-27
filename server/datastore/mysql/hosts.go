@@ -1434,7 +1434,7 @@ AND (
 	paramsMacOS := []any{opt.OSSettingsFilter}
 
 	// construct the WHERE for linux
-	whereLinux = fmt.Sprintf(`(%s) = ?`, sqlCaseLinuxEncryptionStatus())
+	whereLinux = fmt.Sprintf(`(%s) = ?`, sqlCaseLinuxOSSettingsStatus())
 	paramsLinux := []any{opt.OSSettingsFilter}
 
 	// construct the WHERE for windows
@@ -1548,13 +1548,13 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt
 		return sql, params
 	}
 
-	sqlFmt := " AND h.platform IN('windows', 'darwin')"
+	sqlFmt := " AND h.platform IN('windows', 'darwin', 'ubuntu', 'rhel')"
 	if opt.TeamFilter == nil {
 		// OS settings filter is not compatible with the "all teams" option so append the "no
 		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
 		sqlFmt += ` AND h.team_id IS NULL`
 	}
-	sqlFmt += ` AND ((h.platform = 'windows' AND %s) OR (h.platform = 'darwin' AND %s))`
+	sqlFmt += ` AND ((h.platform = 'windows' AND %s) OR (h.platform = 'darwin' AND %s) OR ((h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%%') AND %s))`
 
 	var subqueryMacOS string
 	var subqueryParams []interface{}
@@ -1599,7 +1599,10 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt
 		whereMacOS = "EXISTS (" + subqueryMacOS + ")"
 	}
 
-	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS), append(params, subqueryParams...)
+	whereLinux := fmt.Sprintf(`(%s) = ?`, sqlCaseLinuxDiskEncryptionStatus())
+	subqueryParams = append(subqueryParams, opt.OSSettingsDiskEncryptionFilter)
+
+	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS, whereLinux), append(params, subqueryParams...)
 }
 
 func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {

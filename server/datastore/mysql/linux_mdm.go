@@ -68,7 +68,7 @@ func (ds *Datastore) GetLinuxDiskEncryptionSummary(ctx context.Context, teamID *
 	return summary, nil
 }
 
-func sqlCaseLinuxEncryptionStatus() string {
+func sqlCaseLinuxOSSettingsStatus() string {
 	return `
 	CASE WHEN 
 		hdek.base64_encrypted IS NOT NULL
@@ -82,5 +82,22 @@ func sqlCaseLinuxEncryptionStatus() string {
 		OR (hdek.base64_encrypted = ''
 		AND hdek.client_error = '') THEN
 		'` + string(fleet.OSSettingsPending) + `'
+	END`
+}
+
+func sqlCaseLinuxDiskEncryptionStatus() string {
+	return `
+	CASE WHEN 
+		hdek.base64_encrypted IS NOT NULL
+		AND hdek.base64_encrypted != ''
+		AND hdek.client_error = '' THEN
+		'` + string(fleet.DiskEncryptionVerified) + `'
+	WHEN hdek.client_error IS NOT NULL
+	AND hdek.client_error != '' THEN
+		'` + string(fleet.DiskEncryptionFailed) + `'
+	WHEN hdek.base64_encrypted IS NULL
+		OR (hdek.base64_encrypted = ''
+		AND hdek.client_error = '') THEN
+		'` + string(fleet.DiskEncryptionActionRequired) + `'
 	END`
 }
