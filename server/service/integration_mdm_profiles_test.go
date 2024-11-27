@@ -224,7 +224,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Verifying: 1}, nil)
 
 	// can't resend profile while verifying
-	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusConflict)
+	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, mcUUID), nil, http.StatusConflict)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
 
@@ -235,7 +235,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 		return err
 	})
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Pending: 1}, nil)
-	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusConflict)
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, mcUUID), nil, http.StatusConflict)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
 
@@ -246,7 +246,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 		return err
 	})
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Failed: 1}, nil)
-	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusAccepted)
+	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, mcUUID), nil, http.StatusAccepted)
 	s.awaitTriggerProfileSchedule(t)
 	installs, removes = checkNextPayloads(t, mdmDevice, false)
 	require.Len(t, installs, 1)
@@ -255,7 +255,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Verifying: 1}, nil)
 
 	// can't resend profile while verifying
-	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusConflict)
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, mcUUID), nil, http.StatusConflict)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
 
@@ -265,7 +265,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 		_, err := q.ExecContext(context.Background(), stmt, fleet.MDMDeliveryVerified, mcUUID, host.UUID)
 		return err
 	})
-	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusAccepted)
+	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, mcUUID), nil, http.StatusAccepted)
 	s.awaitTriggerProfileSchedule(t)
 	installs, removes = checkNextPayloads(t, mdmDevice, false)
 	require.Len(t, installs, 1)
@@ -309,7 +309,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Verifying: 1}, nil)
 
 	// can't resend declaration while verifying
-	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, declUUID), nil, http.StatusConflict)
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, declUUID), nil, http.StatusConflict)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
 
@@ -319,7 +319,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 		_, err := q.ExecContext(context.Background(), stmt, fleet.MDMDeliveryVerified, declUUID, host.UUID)
 		return err
 	})
-	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, declUUID), nil, http.StatusAccepted)
+	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, declUUID), nil, http.StatusAccepted)
 	checkDDMSync(mdmDevice)
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Verifying: 1}, nil)
 	s.lastActivityMatches(
@@ -342,18 +342,18 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)
 
 	// can't resend profile from another team
-	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusNotFound)
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, mcUUID), nil, http.StatusNotFound)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Unable to match profile to host")
 
 	// add a Windows profile, resend not supported when host is macOS
 	wpUUID := mysql.InsertWindowsProfileForTest(t, s.ds, 0)
-	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, wpUUID), nil, http.StatusUnprocessableEntity)
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, wpUUID), nil, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Profile is not compatible with host platform")
 
 	// invalid profile UUID prefix should return 404
-	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, "z"+uuid.NewString()), nil, http.StatusNotFound)
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, "z"+uuid.NewString()), nil, http.StatusNotFound)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Invalid profile UUID prefix")
 
@@ -3583,7 +3583,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	checkHostDetails(t, host, globalProfiles, fleet.MDMDeliveryVerifying)
 
 	// can't resend a profile while it is verifying
-	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, globalProfiles[0]), nil, http.StatusConflict)
+	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, globalProfiles[0]), nil, http.StatusConflict)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
 
@@ -3650,7 +3650,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	}, nil)
 
 	// can resend a profile after it has failed
-	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, globalProfiles[0]), nil,
+	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, globalProfiles[0]), nil,
 		http.StatusAccepted)
 	verifyProfiles(mdmDevice, 1, false)                                                 // trigger a profile sync, device gets the profile resent
 	checkHostProfileStatus(t, host.UUID, globalProfiles[0], fleet.MDMDeliveryVerifying) // profile was resent, so it back to verifying
@@ -3683,12 +3683,12 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	checkHostDetails(t, host, teamProfiles, fleet.MDMDeliveryVerifying)
 
 	// can't resend a profile while it is verifying
-	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, teamProfiles[0]), nil, http.StatusConflict)
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, teamProfiles[0]), nil, http.StatusConflict)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
 
 	// can't resend a profile from the wrong team
-	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, globalProfiles[0]), nil, http.StatusNotFound)
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, globalProfiles[0]), nil, http.StatusNotFound)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Unable to match profile to host.")
 
@@ -3761,7 +3761,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	}, nil)
 
 	// can resend a profile after it has failed
-	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, teamProfiles[0]), nil,
+	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, teamProfiles[0]), nil,
 		http.StatusAccepted)
 	verifyProfiles(mdmDevice, 1, false)                                               // trigger a profile sync, device gets the profile resent
 	checkHostProfileStatus(t, host.UUID, teamProfiles[0], fleet.MDMDeliveryVerifying) // profile was resent, so back to verifying
@@ -3783,7 +3783,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	verifyProfiles(mdmDevice, 0, false)
 
 	// can't resend a macOS profile to a Windows host
-	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusUnprocessableEntity)
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, mcUUID), nil, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Profile is not compatible with host platform")
 }

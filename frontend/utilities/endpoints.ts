@@ -52,7 +52,7 @@ export default {
   HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
   HOST_RESEND_PROFILE: (hostId: number, profileUUID: string) =>
-    `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/resend/${profileUUID}`,
+    `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/${profileUUID}/resend`,
   HOST_SOFTWARE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/software`,
   HOST_SOFTWARE_PACKAGE_INSTALL: (hostId: number, softwareId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/install`,
