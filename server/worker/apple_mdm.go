@@ -377,12 +377,13 @@ func QueueAppleMDMJob(
 	level.Info(logger).Log(attrs...)
 
 	args := &appleMDMArgs{
-		Task:               task,
-		HostUUID:           hostUUID,
-		TeamID:             teamID,
-		EnrollReference:    enrollReference,
-		EnrollmentCommands: enrollmentCommandUUIDs,
-		Platform:           platform,
+		Task:                   task,
+		HostUUID:               hostUUID,
+		TeamID:                 teamID,
+		EnrollReference:        enrollReference,
+		EnrollmentCommands:     enrollmentCommandUUIDs,
+		Platform:               platform,
+		UseWorkerDeviceRelease: useWorkerDeviceRelease,
 	}
 
 	// the release device task is always added with a delay
