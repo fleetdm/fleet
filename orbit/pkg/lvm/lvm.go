@@ -12,6 +12,7 @@ type BlockDevice struct {
 	Name        string        `json:"name"`
 	Type        string        `json:"type"`
 	Mountpoints []string      `json:"mountpoints"`
+	Mountpoint  string        `json:"mountpoint"` // on older ubuntu versions
 	Children    []BlockDevice `json:"children,omitempty"`
 }
 
@@ -68,6 +69,10 @@ func findRootPartition(devices []BlockDevice) *BlockDevice {
 // searchForRoot recursively checks each device and its children
 // to find the one mounted at "/".
 func searchForRoot(device BlockDevice) *BlockDevice {
+	if device.Mountpoint == "/" {
+		return &device
+	}
+
 	for _, mountpoint := range device.Mountpoints {
 		if mountpoint == "/" {
 			return &device
