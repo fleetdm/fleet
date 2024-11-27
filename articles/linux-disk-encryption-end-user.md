@@ -41,8 +41,8 @@ Follow the steps below to get set up.
 ## 3. Escrow your key with Fleet
 
   - Open Fleet Desktop. If your device is encrypted, you'll see a banner prompting you to escrow the key.
-  - Click **Create key**. Enter your existing encryption passphrase when prompted.
-  - Fleet will generate and securely store a new passphrase for recovery.
+  - Click **Create key**. Enter your existing encryption passphrase when prompted. 
+  - Fleet will generate and securely store a new passphrase for recovery. This may take several minutes. A popup will appear when Fleet is done.
 
 Now, your encryption status will update to "verified" in Fleet Desktop, meaning that your recovery key has been successfully stored.
 
