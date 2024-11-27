@@ -1116,7 +1116,48 @@ module.exports = {
         // Add the rituals dictionary to builtStaticContent.rituals
         builtStaticContent.rituals = rituals;
       },
+      //
+      //   █████╗ ██████╗ ██████╗     ██╗     ██╗██████╗ ██████╗  █████╗ ██████╗ ██╗   ██╗
+      //  ██╔══██╗██╔══██╗██╔══██╗    ██║     ██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗╚██╗ ██╔╝
+      //  ███████║██████╔╝██████╔╝    ██║     ██║██████╔╝██████╔╝███████║██████╔╝ ╚████╔╝
+      //  ██╔══██║██╔═══╝ ██╔═══╝     ██║     ██║██╔══██╗██╔══██╗██╔══██║██╔══██╗  ╚██╔╝
+      //  ██║  ██║██║     ██║         ███████╗██║██████╔╝██║  ██║██║  ██║██║  ██║   ██║
+      //  ╚═╝  ╚═╝╚═╝     ╚═╝         ╚══════╝╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
+      //
+      async()=>{
+        let appLibrary = [];
+        // Get app library json
+        let appsJsonData = await sails.helpers.fs.readJson(path.join(topLvlRepoPath, '/server/mdm/maintainedapps/apps.json'));
+        // Then for each item in the json, build a configuration object to add to the sails.builtStaticContent.appLibrary array.
+        await sails.helpers.flow.simultaneouslyForEach(appsJsonData, async(app)=>{
+          let appInformation = {
+            identifier: app.identifier,
+            bundleIdentifier: app.bundle_identifier,
+            installerFormat: app.installer_format,
+          };
+          // Note: This method of getting information about the apps will be out of date until the JSON files in the /server/mdm/maintainedapps/testdata/ folder are updated.
+          // let detailedInformationAboutThisApp = await sails.helpers.fs.readJson(path.join(topLvlRepoPath, '/server/mdm/maintainedapps/testdata/'+app.identifier+'.json'))
+          // .intercept('doesNotExist', (error)=>{
+          //   return new Error(`Could not build app library configuration from testdata folder. When attempting to read a JSON configuration file for ${app.identifier}, no file was found at ${path.join(topLvlRepoPath, '/server/mdm/maintainedapps/testdata/'+app.identifier+'.json. Was it moved?')}.`);
+          // });
 
+          // Grab the latest information about these apps from the Homebrew API.
+          let detailedInformationAboutThisApp = await sails.helpers.http.get(`https://formulae.brew.sh/api/cask/${app.identifier}.json`)
+          .intercept((error)=>{
+            return new Error(`Could not build app library configuration. When attempting to send a request to the homebrew API to get the latest information about ${app.identifier}, an error occured. Full error: ${util.inspect(error, {depth: null})}`);
+          });
+          let scriptToUninstallThisApp = await sails.helpers.fs.read(path.join(topLvlRepoPath, `/server/mdm/maintainedapps/testdata/scripts/${app.identifier}_uninstall.golden.sh`))
+          .intercept('doesNotExist', ()=>{
+            return new Error(`Could not build app library configuration from testdata folder. When attempting to read an uninstall script for ${app.identifier}, no file was found at ${path.join(topLvlRepoPath, '/server/mdm/maintainedapps/testdata/scripts/'+app.identifier+'_uninstall.golden.sh. Was it moved?')}.`);
+          });
+          appInformation.uninstallScript = scriptToUninstallThisApp;
+          appInformation.version = detailedInformationAboutThisApp.version.split(',')[0];
+          appInformation.description = detailedInformationAboutThisApp.desc;
+          appInformation.name = detailedInformationAboutThisApp.name[0];
+          appLibrary.push(appInformation);
+        });
+        builtStaticContent.appLibrary = appLibrary;
+      },
     ]);
     //  ██████╗ ███████╗██████╗ ██╗      █████╗  ██████╗███████╗       ███████╗ █████╗ ██╗██╗     ███████╗██████╗  ██████╗
     //  ██╔══██╗██╔════╝██╔══██╗██║     ██╔══██╗██╔════╝██╔════╝       ██╔════╝██╔══██╗██║██║     ██╔════╝██╔══██╗██╔════╝██╗
