@@ -191,21 +191,27 @@ func TestWindowsMDMEnrollment(t *testing.T) {
 		desc          string
 		enrollFlag    *bool
 		unenrollFlag  *bool
+		migrateFlag   *bool
 		discoveryURL  string
 		apiErr        error
 		wantAPICalled bool
 		wantLog       string
 	}{
-		{"enroll=false", ptr.Bool(false), nil, "", nil, false, ""},
-		{"enroll=true,discovery=''", ptr.Bool(true), nil, "", nil, false, "discovery endpoint is empty"},
-		{"enroll=true,discovery!='',success", ptr.Bool(true), nil, "http://example.com", nil, true, "successfully called RegisterDeviceWithManagement"},
-		{"enroll=true,discovery!='',fail", ptr.Bool(true), nil, "http://example.com", io.ErrUnexpectedEOF, true, "enroll Windows device failed"},
-		{"enroll=true,discovery!='',server", ptr.Bool(true), nil, "http://example.com", errIsWindowsServer, true, "device is a Windows Server, skipping enrollment"},
+		{"enroll=false", ptr.Bool(false), nil, nil, "", nil, false, ""},
+		{"enroll=true,discovery=''", ptr.Bool(true), nil, nil, "", nil, false, "discovery endpoint is empty"},
+		{"enroll=true,discovery!='',success", ptr.Bool(true), nil, nil, "http://example.com", nil, true, "successfully called RegisterDeviceWithManagement"},
+		{"enroll=true,discovery!='',fail", ptr.Bool(true), nil, nil, "http://example.com", io.ErrUnexpectedEOF, true, "enroll Windows device failed"},
+		{"enroll=true,discovery!='',server", ptr.Bool(true), nil, nil, "http://example.com", errIsWindowsServer, true, "device is a Windows Server, skipping enrollment"},
 
-		{"unenroll=false", nil, ptr.Bool(false), "", nil, false, ""},
-		{"unenroll=true,success", nil, ptr.Bool(true), "", nil, true, "successfully called UnregisterDeviceWithManagement"},
-		{"unenroll=true,fail", nil, ptr.Bool(true), "", io.ErrUnexpectedEOF, true, "unenroll Windows device failed"},
-		{"unenroll=true,server", nil, ptr.Bool(true), "", errIsWindowsServer, true, "device is a Windows Server, skipping unenroll"},
+		{"unenroll=false", nil, ptr.Bool(false), nil, "", nil, false, ""},
+		{"unenroll=true,success", nil, ptr.Bool(true), nil, "", nil, true, "successfully called UnregisterDeviceWithManagement to unenroll"},
+		{"unenroll=true,fail", nil, ptr.Bool(true), nil, "", io.ErrUnexpectedEOF, true, "unenroll Windows device failed"},
+		{"unenroll=true,server", nil, ptr.Bool(true), nil, "", errIsWindowsServer, true, "device is a Windows Server, skipping unenroll"},
+
+		{"migrate=false", nil, nil, ptr.Bool(false), "", nil, false, ""},
+		{"migrate=true,success", nil, nil, ptr.Bool(true), "", nil, true, "successfully called UnregisterDeviceWithManagement to migrate"},
+		{"migrate=true,fail", nil, nil, ptr.Bool(true), "", io.ErrUnexpectedEOF, true, "migrate Windows device failed"},
+		{"migrate=true,server", nil, nil, ptr.Bool(true), "", errIsWindowsServer, true, "device is a Windows Server, skipping migrate"},
 	}
 
 	for _, c := range cases {
@@ -215,12 +221,14 @@ func TestWindowsMDMEnrollment(t *testing.T) {
 			var (
 				enroll     = c.enrollFlag != nil && *c.enrollFlag
 				unenroll   = c.unenrollFlag != nil && *c.unenrollFlag
+				migrate    = c.migrateFlag != nil && *c.migrateFlag
 				isUnenroll = c.unenrollFlag != nil
 			)
 
 			testConfig := &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
 				NeedsProgrammaticWindowsMDMEnrollment:   enroll,
 				NeedsProgrammaticWindowsMDMUnenrollment: unenroll,
+				NeedsMDMMigration:                       migrate,
 				WindowsMDMDiscoveryEndpoint:             c.discoveryURL,
 			}}
 
@@ -241,7 +249,7 @@ func TestWindowsMDMEnrollment(t *testing.T) {
 			err := enrollReceiver.Run(testConfig)
 			require.NoError(t, err) // the dummy receiver never returns an error
 
-			if isUnenroll {
+			if isUnenroll || migrate {
 				require.Equal(t, c.wantAPICalled, unenrollGotCalled)
 				require.False(t, enrollGotCalled)
 			} else {
