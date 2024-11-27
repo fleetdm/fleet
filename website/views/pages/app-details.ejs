@@ -48,14 +48,14 @@
             </ol>
             <p>Don’t see <%- thisApp.name %> or the Fleet Desktop icon? Send a <a :href="'/app-library/'+thisApp.identifier">link to this page</a> to your IT team.</p>
           </div>
-          <div purpose="app-uninstall">
+          <!-- <div purpose="app-uninstall">
             <h3>Uninstall <%- thisApp.name %></h3>
             <p>Run the following script in your terminal to uninstall <%- thisApp.name %>:</p>
             <div purpose="codeblock">
               <div purpose="copy-button"></div>
               <pre><code class="hljs bash"><%= thisApp.uninstallScript %></code></pre>
             </div>
-          </div>
+          </div> -->
           <div purpose="app-check">
             <h3>Is <%- thisApp.name %> up to date?</h3>
             <p>Run this query in Fleet to find old versions of 1Password across all your computers:</p>
