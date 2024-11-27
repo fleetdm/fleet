@@ -1,17 +1,17 @@
 module.exports = {
 
 
-  friendlyName: 'View basic app',
+  friendlyName: 'View app details',
 
 
-  description: 'Display "Basic app" page.',
+  description: 'Display "App details" page.',
 
 
   inputs: {
     appIdentifier: {
       type: 'string',
       required: true,
-      description: '',
+      description: 'the identifier of an app in Fleet\'s maintained app library.',
       example: '1password'
     },
   },
@@ -19,7 +19,7 @@ module.exports = {
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/basic-app'
+      viewTemplatePath: 'pages/app-details'
     },
 
     badConfig: {
@@ -45,7 +45,7 @@ module.exports = {
     }
     // FUTURE: make these better.
     let pageTitleForMeta = thisApp.name + ' | Fleet app library';
-    // let pageDescriptionForMeta = ''
+    // let pageDescriptionForMeta = 'TODO'
 
     // Respond with view.
     return {
