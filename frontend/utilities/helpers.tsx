@@ -749,6 +749,9 @@ export const readableDate = (date: string) => {
 export const getPerformanceImpactDescription = (
   scheduledQueryStats: ISchedulableQueryStats
 ) => {
+  if (scheduledQueryStats.query_denylisted) {
+    return "Denylisted";
+  }
   if (
     !scheduledQueryStats.total_executions ||
     scheduledQueryStats.total_executions === 0 ||

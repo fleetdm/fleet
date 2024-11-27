@@ -64,7 +64,12 @@ export const enhanceQuery = (q: ISchedulableQuery): IEnhancedQuery => {
   return {
     ...q,
     performance: getPerformanceImpactDescription(
-      pick(q.stats, ["user_time_p50", "system_time_p50", "total_executions"])
+      pick(q.stats, [
+        "user_time_p50",
+        "system_time_p50",
+        "total_executions",
+        "query_denylisted",
+      ])
     ),
     platforms: getPlatforms(q.query),
   };

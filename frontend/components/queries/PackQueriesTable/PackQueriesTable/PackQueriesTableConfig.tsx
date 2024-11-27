@@ -273,6 +273,7 @@ const enhancePackQueriesData = (
       user_time_p50: query.stats?.user_time_p50,
       system_time_p50: query.stats?.system_time_p50,
       total_executions: query.stats?.total_executions,
+      query_denylisted: query.stats?.query_denylisted,
     };
     return {
       id: query.id,

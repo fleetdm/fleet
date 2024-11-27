@@ -30,4 +30,7 @@
   &--excessive {
     background-color: $ui-vibrant-blue-50;
   }
+  &--denylisted {
+    background-color: $core-vibrant-red;
+  }
 }

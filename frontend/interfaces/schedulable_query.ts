@@ -40,6 +40,7 @@ export interface ISchedulableQueryStats {
   system_time_p50?: number | null;
   system_time_p95?: number | null;
   total_executions?: number;
+  query_denylisted?: boolean;
 }
 
 // legacy
@@ -49,6 +50,7 @@ export default PropTypes.shape({
   system_time_p50: PropTypes.number,
   system_time_p95: PropTypes.number,
   total_executions: PropTypes.number,
+  query_denylisted: PropTypes.bool,
 });
 
 // API shapes

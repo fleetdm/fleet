@@ -38,6 +38,7 @@ const PerformanceImpactCell = ({
     "Considerable",
     "Excessive",
     "Undetermined",
+    "Denylisted",
   ].includes(indicator);
 
   const tooltipText = () => {

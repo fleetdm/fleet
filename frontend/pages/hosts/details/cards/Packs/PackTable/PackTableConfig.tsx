@@ -132,6 +132,7 @@ const enhancePackData = (query_stats: IQueryStats[]): IPackTable[] => {
       user_time_p50: query.user_time,
       system_time_p50: query.system_time,
       total_executions: query.executions,
+      query_denylisted: query.denylisted,
     };
     return {
       query_name: query.query_name,

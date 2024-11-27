@@ -1448,7 +1448,8 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 		// Do not save stats without executions so that we do not overwrite existing stats.
 		// It is normal for host to have no executions when the query just got scheduled.
 		executions := cast.ToUint64(row["executions"])
-		if executions == 0 {
+		// TODO(lucas): We should also not account for denylisted when calculating aggregated stats for queries.
+		if executions == 0 && row["denylisted"] != "1" {
 			level.Debug(logger).Log(
 				"msg", "host reported scheduled query with no executions",
 				"host", host.Hostname,
