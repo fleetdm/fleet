@@ -6,7 +6,7 @@
 	"name": [
 		"Zoom"
 	],
-	"desc": "Video communication and virtual meeting platform",
+	"desc": "Zoom is a leading video communication platform for meetings, webinars, and collaboration.",
 	"homepage": "https://www.zoom.us/",
 	"url": "https://cdn.zoom.us/prod/6.1.11.39163/arm64/zoomusInstallerFull.pkg",
 	"url_specs": {},

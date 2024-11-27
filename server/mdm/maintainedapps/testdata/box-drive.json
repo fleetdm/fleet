@@ -6,7 +6,7 @@
 	"name": [
 		"Box Drive"
 	],
-	"desc": "Client for the Box cloud storage service",
+	"desc": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage.",
 	"homepage": "https://www.box.com/drive",
 	"url": "https://e3.boxcdn.net/desktop/releases/mac/BoxDrive-2.40.345.pkg",
 	"url_specs": {
