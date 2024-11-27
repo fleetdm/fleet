@@ -132,6 +132,32 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure XProtect Is Running and Updated
+  platforms: macOS
+  platform: darwin
+  description: |
+    XProtect is Apple's native signature-based antivirus technology. XProtect both finds and blocks the execution of known malware. There are many AV and Endpoint Threat Detection and Response (ETDR) tools available for Mac OS. The native Apple provisioned tool looks for specific known malware and is completely integrated into the OS. No matter what other tools are being used, XProtect should have the latest signatures available.
+  resolution: |
+        Ask your system administrator to deploy a script that will configure:
+        /usr/bin/sudo /bin/launchctl load -w /Library/Apple/System/Library/LaunchDaemons/com.apple.XProtect.daemon.scan.plist
+        /usr/bin/sudo /bin/launchctl load -w /Library/Apple/System/Library/LaunchDaemons/com.apple.XprotectFramework.PluginService.plist
+  query: |
+      SELECT 1
+      WHERE (
+          SELECT COUNT(*)
+          FROM launchd
+          WHERE path IN (
+              '/Library/Apple/System/Library/LaunchDaemons/com.apple.XprotectFramework.PluginService.plist',
+              '/Library/Apple/System/Library/LaunchDaemons/com.apple.XProtect.daemon.scan.plist'
+          )
+      ) = 2;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Install Security Responses and System Files Is Enabled (MDM Required)
   platforms: macOS
   platform: darwin
