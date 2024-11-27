@@ -318,10 +318,19 @@ The `software` section allows you to configure packages and Apple App Store apps
 software:
   packages:
     - path: ../lib/software-name.package.yml
+    - path: ../lib/software-name2.package.yml
+      labels_include_any:
+        - Engineering
+        - Customer Support
   # path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
   app_store_apps:
     - app_store_id: '1091189122'
+    - app_store_id: '1477376905'
+      labels_include_any:
+        - Engineering
 ```
+
+Use `labels_include_any` to make software availalbe for install or installed (by policy automation) only on hosts that have all those labels or `labels_exclude_any` to make software availalbe for install or installed (by policy automation) only on hosts that don't have any of those labels.
 
 ### packages
 
@@ -330,8 +339,6 @@ software:
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables) (default: `""`).
 - `post_install_script.path` is the script Fleet will run on hosts after installing software (default: `""`).
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
-- `labels_include_any` specifies whether the software will only be available for install or installed (by policy automation) on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified.
-- `labels_exclude_any` specifies whether the software will only be available for install or installed (by policy automation) on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified.
 
 #### Example
 
@@ -342,9 +349,6 @@ url: https://dl.tailscale.com/stable/tailscale-setup-1.72.0.exe
 install_script:
   path: ../lib/software/tailscale-install-script.ps1
 self_service: true
-labels_include_any:
-  - Engineering
-  - Customer Support
 ```
 
 ### app_store_apps
