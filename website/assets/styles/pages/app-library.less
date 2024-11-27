@@ -1,0 +1,205 @@
+#app-library {
+
+  [purpose='page-container'] {
+    padding: 64px;
+  }
+  [purpose='page-content'] {
+    max-width: 1072px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  [purpose='search-and-headline'] {
+    margin-bottom: 64px;
+  }
+  [purpose='page-title'] {
+    max-width: 662px;
+    margin-right: 16px;
+  }
+  [purpose='app-search'] {
+
+    // Note: We're using classes here to override the default Docsearch styles;
+    button {
+      width: 100%;
+      cursor: text;
+      margin: 0;
+    }
+    .DocSearch-Button {
+      border-top-left-radius: 6px;
+      border-bottom-left-radius: 6px;
+      border-top-right-radius: 6px;
+      border-bottom-right-radius: 6px;
+      border: 1px solid @core-fleet-black-25;
+      background-color: #FFF;
+      padding: 8px 15px;
+      height: 36px;
+      margin: 0;
+      width: 221px;
+    }
+    .DocSearch-Button:hover {
+      box-shadow: none;
+      border: 1px solid @core-fleet-black-25;
+      color: @core-fleet-black-50;
+    }
+    .DocSearch-Search-Icon {
+      margin-left: 0px;
+      margin-right: 8px;
+      height: 16px;
+      width: 16px;
+      color: @core-fleet-black-50;
+      stroke-width: 3px;
+    }
+    .DocSearch-Button-Keys {
+      display: none;
+    }
+    .input-group:focus-within {
+      border: 1px solid @core-vibrant-blue;
+    }
+    .DocSearch-Button-Placeholder {
+      font-size: 16px;
+      line-height: 16px;
+      font-weight: 400;
+      padding-left: 0px;
+    }
+    [purpose='disabled-search'] {
+      input {
+        padding-top: 6px;
+        padding-bottom: 6px;
+        border: none;
+        } &::placeholder {
+          font-size: 16px;
+          line-height: 24px;
+          color: #8B8FA2;
+        }
+      .input-group {
+        border-top-left-radius: 6px;
+        border-bottom-left-radius: 6px;
+        border-top-right-radius: 6px;
+        border-bottom-right-radius: 6px;
+        border: 1px solid @core-fleet-black-25;
+        background: #FFF;
+      }
+      .input-group:focus-within {
+        border: 1px solid @core-vibrant-blue;
+      }
+      .form-control {
+        border-radius: 6px;
+        padding: 6px;
+        height: 36px;
+        margin: 0;
+        width: 212px;
+      }
+      .docsearch-input:focus-visible {
+        outline: none;
+      }
+      .ds-input:focus {
+        outline: rgba(0, 0, 0, 0);
+      }
+      .input-group-text {
+        color: @core-fleet-black-50;
+      }
+      .form-control {
+        height: 36px;
+        padding: 0px;
+        font-size: 16px;
+      } &:focus {
+        border: none;
+      }
+    }
+    img {
+      height: 16px;
+      margin-right: 8px;
+    }
+    background: #FFF;
+    &::placeholder {
+      font-size: 16px;
+      color: @core-fleet-black-50;
+    }
+  }
+  [purpose='app-cards'] {
+    column-count: 3;
+    margin-right: -8px;
+    margin-left: -8px;
+    margin-bottom: -8px;
+    margin-top: -8px;
+  }
+
+  [purpose='app-card'] {
+    margin-right: 8px;
+    margin-left: 8px;
+    margin-bottom: 8px;
+    margin-top: 8px;
+    display: flex;
+    height: 92px;
+    min-width: 30%;
+    padding: 16px;
+    align-items: flex-start;
+    gap: 16px;
+    // flex: 1 0 0;
+    border-radius: 8px;
+    border: 1px solid #E2E4EA;
+    background: #FFF;
+    box-shadow: none;
+    &:hover {
+      text-decoration: none;
+      color: unset;
+      box-shadow: 0px 0px 0px 2px rgba(0, 0, 0, 0.03);
+    }
+    h4 {
+      color: var(--text-text-brand, #192147);
+
+      /* Title XS */
+      font-family: Inter;
+      font-size: 16px;
+      font-style: normal;
+      font-weight: 800;
+      line-height: 19.2px; /* 120% */
+      margin-bottom: 0px;
+    }
+    p {
+      color: var(--text-text-primary, #515774);
+
+      /* Body SM (FKA Card text) */
+      font-family: Inter;
+      font-size: 14px;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 21px; /* 150% */
+    }
+  }
+  [purpose='app-icon'] {
+    margin-right: 16px;
+    img {
+      height: 60px;
+    }
+  }
+
+  @media (max-width: 991px) {
+    [purpose='page-container'] {
+      padding: 64px 32px;
+    }
+    [purpose='app-card'] {
+      min-width: 40%;
+    }
+  }
+
+  @media (max-width: 768px) {
+    [purpose='page-container'] {
+      padding: 48px 24px;
+    }
+    [purpose='app-search'] {
+      margin-top: 32px;
+      width: 100%;
+      .input-group {
+        width: 100%;
+      }
+    }
+  }
+
+  @media (max-width: 575px) {
+    [purpose='page-container'] {
+      padding: 32px 24px;
+    }
+
+  }
+
+}
