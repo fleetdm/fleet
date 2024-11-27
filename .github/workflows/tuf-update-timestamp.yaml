@@ -1,0 +1,59 @@
+# This workflow update the timestamp of the TUF repository at https://tuf.fleetctl.com
+name: Update TUF timestamp
+
+on:
+  schedule:
+    - cron: "0 14 * * TUE" # Every Tuesday at 2 PM UTC
+  workflow_dispatch: # Manual
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+env:
+  AWS_REGION: us-east-1
+  AWS_IAM_ROLE: arn:aws:iam::142412512209:role/github-actions-role
+
+permissions:
+  id-token: write # This is required for aws-actions/configure-aws-credentials
+
+jobs:
+  tuf-update-timestamp:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
+        with:
+          role-to-assume: ${{ env.AWS_IAM_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install fleetctl
+        run: npm install -g fleetctl
+
+      - name: Pull metadata files
+        run: |
+          mkdir -p keys repository staged
+          aws s3 cp s3://fleet-tuf-repo/timestamp.json ./repository/timestamp.json
+          aws s3 cp s3://fleet-tuf-repo/snapshot.json ./repository/snapshot.json
+          aws s3 cp s3://fleet-tuf-repo/targets.json ./repository/targets.json
+          aws s3 cp s3://fleet-tuf-repo/root.json ./repository/root.json
+          cat ./repository/timestamp.json
+
+      - name: Update timestamp
+        env:
+          BASE64_ENCRYPTED_TIMESTAMP_KEY_CONTENTS: ${{ secrets.BASE64_ENCRYPTED_TIMESTAMP_KEY }}
+          FLEET_TIMESTAMP_PASSPHRASE: ${{ secrets.TUF_TIMESTAMP_PASSPHRASE }}
+        run: |
+          echo "$BASE64_ENCRYPTED_TIMESTAMP_KEY_CONTENTS" | base64 -d > ./keys/timestamp.json
+          fleetctl updates timestamp --path .
+
+      - name: Push timestamp.json
+        run: |
+          cat ./repository/timestamp.json
+          aws s3 cp ./repository/timestamp.json s3://fleet-tuf-repo/timestamp.json
