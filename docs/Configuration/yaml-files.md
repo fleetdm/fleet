@@ -429,7 +429,7 @@ The `secrets` section defines the valid secrets that hosts can use to enroll to 
 ```yaml
 org_settings:
   secrets: 
-  - $ENROLL_SECRET
+  - secret: $ENROLL_SECRET
 ```
 
 ### server_settings
