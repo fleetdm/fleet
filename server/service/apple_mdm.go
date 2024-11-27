@@ -2769,20 +2769,21 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		return ctxerr.Wrap(r.Context, err, "cleaning SCEP refs")
 	}
 
+	var hasSetupExpItems bool
 	if m.AwaitingConfiguration {
 		// Enqueue setup experience items and mark the host as being in setup experience
-		_, err := svc.ds.EnqueueSetupExperienceItems(r.Context, r.ID, info.TeamID)
+		hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, r.ID, info.TeamID)
 		if err != nil {
 			return ctxerr.Wrap(r.Context, err, "queueing setup experience tasks")
 		}
-
 	}
 
 	return svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
-		Action:          mdmlifecycle.HostActionTurnOn,
-		Platform:        info.Platform,
-		UUID:            r.ID,
-		EnrollReference: r.Params[mobileconfig.FleetEnrollReferenceKey],
+		Action:                  mdmlifecycle.HostActionTurnOn,
+		Platform:                info.Platform,
+		UUID:                    r.ID,
+		EnrollReference:         r.Params[mobileconfig.FleetEnrollReferenceKey],
+		HasSetupExperienceItems: hasSetupExpItems,
 	})
 }
 
