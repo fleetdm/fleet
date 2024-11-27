@@ -1,4 +1,4 @@
-## Fleet 4.60.0 (Nov 26, 2024)
+## Fleet 4.60.0 (Nov 27, 2024)
 
 ### Endpoint operations
 - Added support for labels_include_any to gitops.
