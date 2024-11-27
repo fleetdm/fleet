@@ -3650,7 +3650,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	}, nil)
 
 	// can resend a profile after it has failed
-	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, globalProfiles[0]), nil,
+	// purposefully using deprecated path for backwards compatibility
+	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, globalProfiles[0]), nil,
 		http.StatusAccepted)
 	verifyProfiles(mdmDevice, 1, false)                                                 // trigger a profile sync, device gets the profile resent
 	checkHostProfileStatus(t, host.UUID, globalProfiles[0], fleet.MDMDeliveryVerifying) // profile was resent, so it back to verifying
@@ -3688,7 +3689,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
 
 	// can't resend a profile from the wrong team
-	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, globalProfiles[0]), nil, http.StatusNotFound)
+	// purposefully using deprecated path for backwards compatibility
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, globalProfiles[0]), nil, http.StatusNotFound)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Unable to match profile to host.")
 
