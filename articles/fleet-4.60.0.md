@@ -78,6 +78,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="2024-11-26">
+<meta name="publishedOn" value="2024-11-27">
 <meta name="articleTitle" value="Fleet 4.60.0 | Escrow Linux disk encryption keys, custom targets for OS settings, scripts preview">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.60.0-1600x900@2x.png">
