@@ -297,8 +297,20 @@ module.exports.routes = {
     action: 'view-testimonials',
     locals: {
       pageTitleForMeta: 'Customer stories',
-      pageDescriptionForMeta: 'See what people are saying about Fleet'
+      pageDescriptionForMeta: 'See what people are saying about Fleet.'
     }
+  },
+
+  'GET /app-library': {
+    action: 'view-app-library',
+    locals: {
+      pageTitleForMeta: 'App library',
+      pageDescriptionForMeta: 'Discover what is available for install in Fleet\'s maintained app library.',
+    }
+  },
+
+  'GET /app-library/:appIdentifier': {
+    action: 'view-app-details',// Meta title and description set in view action
   },
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
