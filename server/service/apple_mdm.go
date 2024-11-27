@@ -2786,7 +2786,6 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 			return ctxerr.Wrap(r.Context, err, "queueing setup experience tasks")
 		}
 	}
-	fmt.Println(">>>>> TOKENUPDATE (await config, has setup items): ", m.AwaitingConfiguration, hasSetupExpItems)
 
 	return svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:                  mdmlifecycle.HostActionTurnOn,

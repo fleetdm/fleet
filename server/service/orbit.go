@@ -248,7 +248,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			if inSetupAssistant {
 				notifs.RunSetupExperience = true
 			}
-			fmt.Println(">>>>> orbit/config (in setup asst, notif): ", inSetupAssistant, notifs.RunSetupExperience)
 
 			if inSetupAssistant {
 				// If the client is running a fleetd that doesn't support setup
@@ -488,7 +487,6 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 	}
 
 	if !manualRelease {
-		fmt.Println(">>>>> process old fleetd via worker")
 		// For the commands to await, since we're in an orbit endpoint we know that
 		// fleetd has already been installed, so we only need to check for the
 		// bootstrap package install and the SSO account configuration (both are
