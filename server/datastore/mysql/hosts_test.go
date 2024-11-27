@@ -830,7 +830,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 
 	userFilter := fleet.TeamFilter{User: test.UserAdmin}
 
-	// confirm intial state
+	// confirm initial state
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{}, len(hosts))
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil}, len(hosts))
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero}, len(hosts))
@@ -905,11 +905,12 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsVerifying}, 1)
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsPending}, 5) // pending supported linux hosts
 
-	require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), hosts[1].ID, "key1", "", ptr.Bool(true))) // set host 1 to verified
-	require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), hosts[2].ID, "", "error", nil))           // set host 2 to failed
+	require.NoError(t, ds.SaveLUKSData(context.Background(), hosts[1].ID, "key1", "morton", 1)) // set host 1 to verified
+	require.NoError(t, ds.ReportEscrowError(context.Background(), hosts[2].ID, "error"))        // set host 2 to failed
 
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsVerified}, 1) // hosts[1]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsFailed}, 1)   // hosts[2]
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsPending}, 3)  // still-pending supported linux hosts
 
 	// test team filter in combination with os settings disk encryptionfilter
 	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
@@ -930,15 +931,16 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1)  // hosts[18]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1)                               // hosts[18]
 
-	// move linux hosts to team 1
+	// move linux hosts to team 1 (un-escrows keys)
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID, hosts[5].ID}))
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsFilter: fleet.OSSettingsPending}, 5) // pending supported linux hosts
 
-	require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), hosts[1].ID, "key1", "", ptr.Bool(true))) // set host 1 to verified
-	require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), hosts[2].ID, "", "error", nil))           // set host 2 to failed
+	require.NoError(t, ds.SaveLUKSData(context.Background(), hosts[1].ID, "key1", "mutton", 2)) // set host 1 to verified
+	require.NoError(t, ds.ReportEscrowError(context.Background(), hosts[2].ID, "error"))        // set host 2 to failed
 
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsFilter: fleet.OSSettingsVerified}, 1) // hosts[1]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsFilter: fleet.OSSettingsFailed}, 1)   // hosts[2]
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsFilter: fleet.OSSettingsPending}, 3)  // still-pending supported linux hosts
 
 	// Bad team filter
 	_, err = ds.ListHosts(context.Background(), userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterBad})
