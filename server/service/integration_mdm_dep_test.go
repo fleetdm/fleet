@@ -139,6 +139,15 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, enableReleaseManually, nil, "I1", true)
 		})
 	}
+
+	// remove the setup experience script, run the new setup experience flow when
+	// there is no setup experience item to process (so it is bypassed)
+	s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK)
+	for _, enableReleaseManually := range []bool{false, true} {
+		t.Run(fmt.Sprintf("enableReleaseManually=%t;bypass_flow", enableReleaseManually), func(t *testing.T) {
+			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, enableReleaseManually, nil, "I1", false)
+		})
+	}
 }
 
 func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
@@ -241,6 +250,15 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t;old_flow", enableReleaseManually), func(t *testing.T) {
 			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, enableReleaseManually, &tm.ID, "I2", true)
+		})
+	}
+
+	// remove the setup experience script, run the new setup experience flow when
+	// there is no setup experience item to process (so it is bypassed)
+	s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK, "team_id", fmt.Sprint(tm.ID))
+	for _, enableReleaseManually := range []bool{false, true} {
+		t.Run(fmt.Sprintf("enableReleaseManually=%t;bypass_flow", enableReleaseManually), func(t *testing.T) {
+			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, enableReleaseManually, &tm.ID, "I2", false)
 		})
 	}
 }
@@ -396,6 +414,15 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	mdmDevice.SerialNumber = device.SerialNumber
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
+
+	// check if it has setup experience items or not
+	hasSetupExpItems := true
+	_, err = s.ds.GetHostAwaitingConfiguration(ctx, mdmDevice.UUID)
+	if fleet.IsNotFound(err) {
+		hasSetupExpItems = false
+	} else if err != nil {
+		require.NoError(t, err)
+	}
 
 	// run the worker to process the DEP enroll request
 	s.runWorker()
@@ -554,8 +581,13 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	b, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(b, &orbitConfigResp))
-	// should be notified of the setup experience flow
-	require.True(t, orbitConfigResp.Notifications.RunSetupExperience)
+	if hasSetupExpItems {
+		// should be notified of the setup experience flow
+		require.True(t, orbitConfigResp.Notifications.RunSetupExperience)
+	} else {
+		// should bypass the setup experience flow
+		require.False(t, orbitConfigResp.Notifications.RunSetupExperience)
+	}
 
 	if enableReleaseManually {
 		// get the worker's pending job from the future, there should not be any
@@ -566,7 +598,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		return
 	}
 
-	if useOldFleetdFlow {
+	if useOldFleetdFlow || !hasSetupExpItems {
 		// there should be a Release Device pending job
 		pending, err := s.ds.GetQueuedJobs(ctx, 2, time.Now().UTC().Add(time.Minute))
 		require.NoError(t, err)
