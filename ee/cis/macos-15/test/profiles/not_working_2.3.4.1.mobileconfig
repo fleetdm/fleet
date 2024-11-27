@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>PayloadContent</key>
+        <array>
+                <dict>
+                        <key>PayloadDisplayName</key>
+                        <string>test</string>
+                        <key>PayloadType</key>
+                        <string>com.apple.TimeMachine</string>
+                        <key>PayloadIdentifier</key>
+                        <string>com.fleetdm.cis-2.3.4.1.check</string>
+                        <key>PayloadUUID</key>
+                        <string>D884A50B-C73C-4955-B042-9B6DAF23FAF0</string>
+                        <key>Forced</key>
+                        <array>
+                                <dict>
+                                        <key>mcx_preference_settings</key>
+                                                <dict>
+                                                        <key>AutoBackup</key>
+                                                        <true/>
+                                                </dict>
+                                </dict>
+                        </array>
+                </dict>
+        </array>
+        <key>PayloadDescription</key>
+        <string>test</string>
+        <key>PayloadDisplayName</key>
+        <string>Ensure Backup Automatically is Enabled If Time Machine Is Enabled</string>
+        <key>PayloadIdentifier</key>
+        <string>com.fleetdm.cis-2.3.4.1</string>
+        <key>PayloadRemovalDisallowed</key>
+        <false/>
+        <key>PayloadScope</key>
+        <string>System</string>
+        <key>PayloadType</key>
+        <string>Configuration</string>
+        <key>PayloadUUID</key>
+        <string>582492F2-34C8-4C1C-A264-1885955A3E19</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+</dict>
+</plist>

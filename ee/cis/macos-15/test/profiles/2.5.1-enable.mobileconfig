@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>test</string>
+			<key>PayloadType</key>
+			<string>com.apple.applicationaccess</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.cis-2.5.1.check-enable</string>
+			<key>PayloadUUID</key>
+			<string>DC0652C5-E996-408F-84A0-9F09657FD771</string>
+			<key>allowAssistant</key>
+			<true/>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>test</string>
+	<key>PayloadDisplayName</key>
+	<string>Enable Siri</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.cis-2.5.1-enable</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>F5001E34-CC4D-4951-A7A3-A95DC02F0090</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
