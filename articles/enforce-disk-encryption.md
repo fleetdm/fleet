@@ -48,7 +48,7 @@ You can click each status to view the list of hosts for that status.
 
 ## Enforce disk encryption on Linux
 
-To enforce disk encryption on Ubuntu Linux and Fedora Linux devices, Fleet supports Linux Unified Key Setup (LUKS) for encrypting volumes.
+To enforce disk encryption on Ubuntu Linux and Fedora Linux devices, Fleet supports Linux Unified Key Setup (LUKS) for encrypting volumes. Support for Ubuntu 20.04 is coming soon.
 
 1. Share [this step-by-step guide](https://fleetdm.com/learn-more-about/encrypt-linux-device) with end users setting up a work computer running Ubuntu Linux or Fedora Linux.
 
