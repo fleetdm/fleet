@@ -598,6 +598,7 @@ module.exports.routes = {
   'GET /learn-more-about/policy-automation-run-script': '/guides/policy-automation-run-script',
   'GET /learn-more-about/installing-fleetctl': '/guides/fleetctl#installing-fleetctl',
   'GET /learn-more-about/mdm-disk-encryption': '/guides/enforce-disk-encryption',
+  'GET /learn-more-about/encrypt-linux-device': '/guides/linux-disk-encryption-end-user',
   'GET /contribute-to/policies': 'https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml',
 
   // Sitemap
