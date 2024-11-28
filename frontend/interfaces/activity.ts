@@ -33,6 +33,7 @@ export enum ActivityType {
   UserDeletedGlobalRole = "deleted_user_global_role",
   UserChangedTeamRole = "changed_user_team_role",
   UserDeletedTeamRole = "deleted_user_team_role",
+  FleetEnrolled = "fleet_enrolled",
   MdmEnrolled = "mdm_enrolled",
   MdmUnenrolled = "mdm_unenrolled",
   EditedMacosMinVersion = "edited_macos_min_version",
@@ -90,6 +91,9 @@ export enum ActivityType {
   AddedAppStoreApp = "added_app_store_app",
   DeletedAppStoreApp = "deleted_app_store_app",
   InstalledAppStoreApp = "installed_app_store_app",
+  EnabledActivityAutomations = "enabled_activity_automations",
+  EditedActivityAutomations = "edited_activity_automations",
+  DisabledActivityAutomations = "disabled_activity_automations",
 }
 
 // This is a subset of ActivityType that are shown only for the host past activities
@@ -177,4 +181,5 @@ export interface IActivityDetails {
   command_uuid?: string;
   app_store_id?: number;
   location?: string; // name of location associated with VPP token
+  webhook_url?: string;
 }

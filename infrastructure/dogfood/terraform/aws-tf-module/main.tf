@@ -69,7 +69,7 @@ locals {
 }
 
 module "main" {
-  source = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.9.1"
+  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.9.1"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -214,7 +214,7 @@ module "main" {
       prefix  = local.customer
       enabled = true
     }
-    idle_timeout = 605
+    idle_timeout = 905
     #    extra_target_groups = [
     #      {
     #        name             = module.saml_auth_proxy.name
@@ -364,7 +364,7 @@ module "firehose-logging" {
 module "osquery-carve" {
   source = "github.com/fleetdm/fleet//terraform/addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.1.0"
   osquery_carve_s3_bucket = {
-    name         = "fleet-${local.customer}-osquery-carve"
+    name = "fleet-${local.customer}-osquery-carve"
   }
 }
 

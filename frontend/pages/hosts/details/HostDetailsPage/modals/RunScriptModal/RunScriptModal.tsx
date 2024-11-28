@@ -24,7 +24,7 @@ import { generateTableColumnConfigs } from "./ScriptsTableConfig";
 
 const baseClass = "run-script-modal";
 
-interface IScriptsProps {
+interface IRunScriptModalProps {
   currentUser: IUser | null;
   host: IHost;
   onClose: () => void;
@@ -60,7 +60,7 @@ const RunScriptModal = ({
   onClickViewScript,
   onClickRunDetails,
   isHidden = false,
-}: IScriptsProps) => {
+}: IRunScriptModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
 

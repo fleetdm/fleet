@@ -97,7 +97,7 @@ GOOS=windows GOARCH=amd64 go build -o orbit-windows.exe ./orbit/cmd/orbit
 ./tools/tuf/test/push_target.sh windows orbit orbit-windows.exe 43
 ```
 
-If the script was executed on a macOS host, the Orbit binary will be an universal binary. To push updates you can do:
+If the script was executed on a macOS host, the Orbit binary will be a universal binary. To push updates you can do:
 
 ```sh
 # Compile a universal binary of Orbit:

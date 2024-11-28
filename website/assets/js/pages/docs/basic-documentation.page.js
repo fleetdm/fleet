@@ -18,7 +18,7 @@ parasails.registerPage('basic-documentation', {
     relatedTopics: [],
     scrollDistance: 0,
     navSectionsByDocsSectionSlug: {},
-
+    lastScrollTop: 0,
   },
 
   computed: {
@@ -221,13 +221,13 @@ parasails.registerPage('basic-documentation', {
   methods: {
 
     clickSwagRequestCTA: function () {
-      if(typeof gtag !== 'undefined') {
+      if(window.gtag !== undefined){
         gtag('event','fleet_website__swag_request');
       }
-      if(typeof window.lintrk !== 'undefined') {
+      if(window.lintrk !== undefined) {
         window.lintrk('track', { conversion_id: 18587105 });// eslint-disable-line camelcase
       }
-      if(typeof analytics !== 'undefined'){
+      if(window.analytics !== undefined) {
         analytics.track('fleet_website__swag_request');
       }
       this.goto('https://kqphpqst851.typeform.com/to/ZfA3sOu0#from_page=docs');
@@ -314,11 +314,11 @@ parasails.registerPage('basic-documentation', {
       // If the right nav bar exists, add and remove a class based on the current scroll position.
       if (rightNavBar) {
         if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
-          rightNavBar.classList.add('header-hidden', 'scrolled');
-        } else if (scrollTop === 0) {
-          rightNavBar.classList.remove('header-hidden', 'scrolled');
-        } else {
+          rightNavBar.classList.add('header-hidden');
+          this.lastScrollTop = scrollTop;
+        } else if(scrollTop < this.lastScrollTop - 60) {
           rightNavBar.classList.remove('header-hidden');
+          this.lastScrollTop = scrollTop;
         }
       }
       // If back to top button exists, add and remove a class based on the current scroll position.

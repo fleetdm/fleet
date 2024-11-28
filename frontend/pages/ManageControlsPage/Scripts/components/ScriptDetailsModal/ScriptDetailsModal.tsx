@@ -1,13 +1,18 @@
-import React, { useCallback, useContext } from "react";
+import React, { useCallback, useContext, ReactNode } from "react";
 import { format } from "date-fns";
-import { useQuery } from "react-query";
+import {
+  useQuery,
+  RefetchOptions,
+  RefetchQueryFilters,
+  QueryObserverResult,
+} from "react-query";
 import FileSaver from "file-saver";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import scriptAPI from "services/entities/scripts";
+import scriptAPI, { IHostScriptsResponse } from "services/entities/scripts";
 import { IHostScript } from "interfaces/script";
-import { getErrorReason } from "interfaces/errors";
+import { IApiError, getErrorReason } from "interfaces/errors";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -29,18 +34,21 @@ type PartialOrFullHostScript =
 interface IScriptDetailsModalProps {
   onCancel: () => void;
   onDelete: () => void;
+  /** Help text on manage scripts page's modal but not on host detail's page modal */
   runScriptHelpText?: boolean;
+  /** Host actions dropdown on host details page's modal but not on manage scripts page's modal */
   showHostScriptActions?: boolean;
   setRunScriptRequested?: (value: boolean) => void;
   hostId?: number | null;
   hostTeamId?: number | null;
-  refetchHostScripts?: any;
+  refetchHostScripts?: <TPageData>(
+    options?: (RefetchOptions & RefetchQueryFilters<TPageData>) | undefined
+  ) => Promise<QueryObserverResult<IHostScriptsResponse, IApiError>>;
   selectedScriptDetails?: PartialOrFullHostScript;
   selectedScriptContent?: string;
   isLoadingScriptContent?: boolean;
   isScriptContentError?: Error | null;
   isHidden?: boolean;
-  onCloseScriptModalGroup?: () => void;
   onClickRunDetails?: (scriptExecutionId: string) => void;
 }
 
@@ -58,7 +66,6 @@ const ScriptDetailsModal = ({
   isLoadingScriptContent,
   isScriptContentError,
   isHidden = false,
-  onCloseScriptModalGroup,
   onClickRunDetails,
 }: IScriptDetailsModalProps) => {
   const { currentUser } = useContext(AppContext);
@@ -71,8 +78,9 @@ const ScriptDetailsModal = ({
   } = useQuery<any, Error>(
     ["scriptContent", selectedScriptDetails?.script_id],
     () =>
-      selectedScriptDetails
-        ? scriptAPI.downloadScript(selectedScriptDetails.script_id!)
+      selectedScriptDetails?.script_id
+        ? // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          scriptAPI.downloadScript(selectedScriptDetails.script_id!)
         : Promise.resolve(null),
     {
       refetchOnWindowFocus: false,
@@ -106,16 +114,13 @@ const ScriptDetailsModal = ({
 
   const onSelectMoreActions = useCallback(
     async (action: string, script: IHostScript) => {
-      if (
-        hostId &&
-        setRunScriptRequested &&
-        refetchHostScripts &&
-        script.last_execution?.execution_id
-      ) {
+      if (hostId && !!setRunScriptRequested && !!refetchHostScripts) {
         switch (action) {
           case "showRunDetails": {
-            onClickRunDetails &&
-              onClickRunDetails(script.last_execution?.execution_id);
+            if (script.last_execution?.execution_id) {
+              onClickRunDetails &&
+                onClickRunDetails(script.last_execution?.execution_id);
+            }
             break;
           }
           case "run": {
@@ -130,7 +135,8 @@ const ScriptDetailsModal = ({
                 "Script is running or will run when the host comes online."
               );
               refetchHostScripts();
-              onCloseScriptModalGroup && onCloseScriptModalGroup(); // Running a script closes the modal groups
+
+              onCancel(); // Running a script returns to run script modal
             } catch (e) {
               renderFlash("error", getErrorReason(e));
               setRunScriptRequested(false);
@@ -146,8 +152,8 @@ const ScriptDetailsModal = ({
       onClickRunDetails,
       setRunScriptRequested,
       refetchHostScripts,
-      onCloseScriptModalGroup,
       renderFlash,
+      onCancel,
     ]
   );
 

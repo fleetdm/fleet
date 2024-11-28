@@ -1,6 +1,8 @@
 # Fleet 4.48.0 | IdP local account creation, VS Code extensions.
 
-![Fleet 4.48.0](../website/assets/images/articles/fleet-4.48.0-1600x900@2x.png)
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/zd_JFeryiQE?si=1jVm9M1YWW44uR2s" frameborder="0" allowfullscreen></iframe>
+</div>
 
 Fleet 4.48.0 is live. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.48.0) or continue reading to get the highlights.
 For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.

@@ -46,7 +46,6 @@
       <div purpose="sidebar-container">
         <div purpose="right-sidebar" class="d-flex flex-column">
           <div purpose="social-share-buttons" class="d-flex flex-column order-lg-2 order-1">
-            <p><strong>Share</strong></p>
             <div class="d-flex flex-row">
               <a :href="`https://news.ycombinator.com/submitlink?u=https://fleetdm.com${encodeURIComponent(thisPage.url)}&t=${encodeURIComponent(thisPage.meta.articleTitle)}`"><img src="/images/social-share-icon-hacker-news-20x20@2x.png" alt="Share this article on Hacker News"></a>
               <a :href="`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://fleetdm.com'+thisPage.url)}`"><img src="/images/social-share-icon-linkedin-20x20@2x.png" alt="Share this article on LinkedIn"></a>
@@ -59,14 +58,18 @@
             <a purpose="sidebar-link" v-for="topic in subtopics" :href="topic.url" class="nav-link p-0">{{topic.title}}</a>
           </div>
           <div purpose="docs-links" class="order-3">
-            <a purpose="sidebar-link" href="/docs">Docs</a>
-            <a purpose="sidebar-link" href="/docs/rest-api">REST API</a>
-            <a purpose="sidebar-link" href="/guides">Guides</a>
-            <div purpose="sidebar-cta">
-              <a href="<% if(!me) {%>/register<% } else { %>/start<% } %>">
+            <a purpose="sidebar-link" href="/docs"><img alt="Docs" src="/images/icon-docs-16x16@2x.png"> Docs</a>
+            <a purpose="sidebar-link" href="/docs/rest-api"><img alt="REST API" src="/images/icon-api-16x16@2x.png"> REST API</a>
+            <a purpose="sidebar-link" href="/guides"><img alt="Guides" src="/images/icon-guides-16x16@2x.png"> Guides</a>
+            <a purpose="sidebar-link" href="/contact"><img alt="Talk to an engineer" src="/images/icon-contact-16x16@2x.png"> Talk to an engineer</a>
+            <div purpose="edit-link">
+              <a purpose="sidebar-link" :href="'https://github.com/fleetdm/fleet/edit/main/articles/'+thisPage.sectionRelativeRepoPath"> <img src="/images/icon-edit-16x16@2x.png" alt="Suggest an edit">Suggest an edit</a>
+            </div>
+            <div purpose="sidebar-cta" @click="clickGotoStart()">
+              <a href="<% if(typeof me === 'undefined') {%>/register<% } else { %>/start<% } %>">
               <div purpose="cta-image"></div>
               <div purpose="cta-text">
-                <% if(!me){ %>
+                <% if(typeof me === 'undefined'){ %>
                   <h4>Try it out</h4>
                   <p>See what Fleet can do</p>
                   <a purpose="cta-button" class="btn btn-primary docs-cta-continue-button" href="/register">Start now</a>
@@ -91,22 +94,11 @@
               </div>
               </a>
             </div>
-            <div>
-              <a href="/contact" purpose="sidebar-contact-cta" class="d-flex flex-row justify-content-start">
-              <div class="d-flex align-self-start">
-                <img alt="Ask us anything" src="/images/icon-question-20x19@2x.png">
-              </div>
-              <div>
-                <p class="mb-0">Questions?</p>
-                <animated-arrow-button text-color="#515774" class="py-0" style="font-weight: 400" href="/contact">Ask us anything</animated-arrow-button>
-              </div>
-              </a>
-            </div>
-            <a purpose="edit-button" class="d-inline-block text-nowrap" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/articles/'+thisPage.sectionRelativeRepoPath"><img alt="A pencil icon" src="/images/pencil-16x16@2x.png">Edit page</a>
-          </div>
           <!-- <div class="d-flex flex-row align-items-center justify-content-start pt-3 pt-sm-1">
             <a purpose="rss-button" @click="clickCopyRssLink(articleCategorySlug)"><span>Subscribe</span></a>
           </div> -->
+          </div>
+
         </div>
       </div>
       <div purpose="article-container">

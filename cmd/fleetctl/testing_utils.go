@@ -137,8 +137,7 @@ func runServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 			fleet.MDMAssetCAKey:              "scepkey",
 		}, nil
 	}
-	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 			fleet.MDMAssetABMCert:            {Name: fleet.MDMAssetABMCert, Value: certPEM},
 			fleet.MDMAssetABMKey:             {Name: fleet.MDMAssetABMKey, Value: keyPEM},
@@ -148,6 +147,10 @@ func runServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 			fleet.MDMAssetCACert:             {Name: fleet.MDMAssetCACert, Value: certPEM},
 			fleet.MDMAssetCAKey:              {Name: fleet.MDMAssetCAKey, Value: keyPEM},
 		}, nil
+	}
+
+	ds.ApplyYaraRulesFunc = func(context.Context, []fleet.YaraRule) error {
+		return nil
 	}
 
 	var cachedDS fleet.Datastore

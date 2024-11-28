@@ -1,9 +1,9 @@
 package mysql
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,6 +29,7 @@ func TestSetupExperience(t *testing.T) {
 		{"ListSetupExperienceStatusResults", testSetupExperienceStatusResults},
 		{"SetupExperienceScriptCRUD", testSetupExperienceScriptCRUD},
 		{"TestHostInSetupExperience", testHostInSetupExperience},
+		{"TestGetSetupExperienceScriptByID", testGetSetupExperienceScriptByID},
 	}
 
 	for _, c := range cases {
@@ -39,26 +40,30 @@ func TestSetupExperience(t *testing.T) {
 	}
 }
 
+// TODO(JVE): this test could probably be simplified and most of the ad-hoc SQL removed.
 func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	test.CreateInsertGlobalVPPToken(t, ds)
 
+	// Create some teams
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
-
 	team3, err := ds.NewTeam(ctx, &fleet.Team{Name: "team3"})
 	require.NoError(t, err)
 
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
+	// Create some software installers and add them to setup experience
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
 		UninstallScript:   "goodbye",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     tfr1,
 		StorageID:         "storage1",
 		Filename:          "file1",
 		Title:             "Software1",
@@ -70,11 +75,13 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "banana",
 		PreInstallQuery:   "SELECT 3",
 		PostInstallScript: "apple",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     tfr2,
 		StorageID:         "storage3",
 		Filename:          "file3",
 		Title:             "Software2",
@@ -92,6 +99,7 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		return err
 	})
 
+	// Create some VPP apps and add them to setup experience
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
 	vpp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
 	require.NoError(t, err)
@@ -105,33 +113,17 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	var script1ID, script2ID int64
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		res, err := insertScriptContents(ctx, q, "SCRIPT 1")
-		if err != nil {
-			return err
-		}
-		id1, _ := res.LastInsertId()
-		res, err = insertScriptContents(ctx, q, "SCRIPT 2")
-		if err != nil {
-			return err
-		}
-		id2, _ := res.LastInsertId()
+	// Create some scripts and add them to setup experience
+	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script1", ScriptContents: "SCRIPT 1", TeamID: &team1.ID})
+	require.NoError(t, err)
+	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script2", ScriptContents: "SCRIPT 2", TeamID: &team2.ID})
+	require.NoError(t, err)
 
-		res, err = q.ExecContext(ctx, "INSERT INTO setup_experience_scripts (team_id, global_or_team_id, name, script_content_id) VALUES (?, ?, ?, ?)", team1.ID, team1.ID, "script1", id1)
-		if err != nil {
-			return err
-		}
-		script1ID, _ = res.LastInsertId()
+	script1, err := ds.GetSetupExperienceScript(ctx, &team1.ID)
+	require.NoError(t, err)
 
-		res, err = q.ExecContext(ctx, "INSERT INTO setup_experience_scripts (team_id, global_or_team_id, name, script_content_id) VALUES (?, ?, ?, ?)", team2.ID, team2.ID, "script2", id2)
-		if err != nil {
-			return err
-		}
-		script2ID, _ = res.LastInsertId()
-
-		return nil
-	})
+	script2, err := ds.GetSetupExperienceScript(ctx, &team2.ID)
+	require.NoError(t, err)
 
 	hostTeam1 := "123"
 	hostTeam2 := "456"
@@ -140,14 +132,26 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, hostTeam1, team1.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
+	awaitingConfig, err := ds.GetHostAwaitingConfiguration(ctx, hostTeam1)
+	require.NoError(t, err)
+	require.True(t, awaitingConfig)
 
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam2, team2.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
+	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam2)
+	require.NoError(t, err)
+	require.True(t, awaitingConfig)
 
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam3, team3.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
+	// Nothing is configured for setup experience in team 3, so we do not set
+	// host_mdm_apple_awaiting_configuration.
+	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam3)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+	require.False(t, awaitingConfig)
 
 	seRows := []setupExperienceInsertTestRows{}
 
@@ -186,13 +190,13 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 			HostUUID: hostTeam1,
 			Name:     "script1",
 			Status:   "pending",
-			ScriptID: nullableUint(uint(script1ID)), // nolint: gosec
+			ScriptID: nullableUint(script1.ID),
 		},
 		{
 			HostUUID: hostTeam2,
 			Name:     "script2",
 			Status:   "pending",
-			ScriptID: nullableUint(uint(script2ID)), // nolint: gosec
+			ScriptID: nullableUint(script2.ID),
 		},
 	} {
 		var found bool
@@ -207,35 +211,28 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		}
 	}
 
-	for _, row := range seRows {
-		if row.HostUUID == hostTeam3 {
-			t.Error("team 3 shouldn't have any any entries")
-		}
-	}
-
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, "DELETE FROM setup_experience_scripts WHERE global_or_team_id = ?", team2.ID)
-		if err != nil {
-			return err
+	require.Condition(t, func() (success bool) {
+		for _, row := range seRows {
+			if row.HostUUID == hostTeam3 {
+				return false
+			}
 		}
 
-		_, err = q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = false WHERE global_or_team_id = ?", team2.ID)
-		if err != nil {
-			return err
-		}
-
-		_, err = q.ExecContext(ctx, "UPDATE vpp_apps_teams SET install_during_setup = false WHERE global_or_team_id = ?", team2.ID)
-		if err != nil {
-			return err
-		}
-
-		return nil
+		return true
 	})
+
+	// Remove team2's setup experience items
+	err = ds.DeleteSetupExperienceScript(ctx, &team2.ID)
+	require.NoError(t, err)
+
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team2.ID, []uint{})
+	require.NoError(t, err)
 
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam1, team1.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 
+	// team2 now has nothing enqueued
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam2, team2.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
@@ -267,7 +264,7 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 			HostUUID: hostTeam1,
 			Name:     "script1",
 			Status:   "pending",
-			ScriptID: nullableUint(uint(script1ID)), // nolint: gosec
+			ScriptID: nullableUint(script1.ID),
 		},
 	} {
 		var found bool
@@ -317,12 +314,14 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
 		UninstallScript:   "goodbye",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     tfr1,
 		StorageID:         "storage1",
 		Filename:          "file1",
 		Title:             "file1",
@@ -334,11 +333,13 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	tfr3, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerID3, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "banana",
 		PreInstallQuery:   "SELECT 3",
 		PostInstallScript: "apple",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     tfr3,
 		StorageID:         "storage3",
 		Filename:          "file3",
 		Title:             "file3",
@@ -351,11 +352,13 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	tfr4, err := fleet.NewTempFileReader(strings.NewReader("hello2"), t.TempDir)
+	require.NoError(t, err)
 	installerID4, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "pear",
 		PreInstallQuery:   "SELECT 4",
 		PostInstallScript: "apple",
-		InstallerFile:     bytes.NewReader([]byte("hello2")),
+		InstallerFile:     tfr4,
 		StorageID:         "storage3",
 		Filename:          "file4",
 		Title:             "file4",
@@ -445,12 +448,14 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
 		UninstallScript:   "goodbye",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     tfr1,
 		StorageID:         "storage1",
 		Filename:          "file1",
 		Title:             "file1",
@@ -463,11 +468,13 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	_ = installerID1
 	require.NoError(t, err)
 
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "world",
 		PreInstallQuery:   "SELECT 2",
 		PostInstallScript: "hello",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     tfr2,
 		StorageID:         "storage2",
 		Filename:          "file2",
 		Title:             "file2",
@@ -480,11 +487,13 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	_ = installerID2
 	require.NoError(t, err)
 
+	tfr3, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerID3, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "banana",
 		PreInstallQuery:   "SELECT 3",
 		PostInstallScript: "apple",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     tfr3,
 		StorageID:         "storage3",
 		Filename:          "file3",
 		Title:             "file3",
@@ -498,11 +507,13 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	_ = installerID3
 	require.NoError(t, err)
 
+	tfr4, err := fleet.NewTempFileReader(strings.NewReader("hello2"), t.TempDir)
+	require.NoError(t, err)
 	installerID4, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "pear",
 		PreInstallQuery:   "SELECT 4",
 		PostInstallScript: "apple",
-		InstallerFile:     bytes.NewReader([]byte("hello2")),
+		InstallerFile:     tfr4,
 		StorageID:         "storage3",
 		Filename:          "file4",
 		Title:             "file4",
@@ -657,7 +668,6 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.False(t, *titles[0].SoftwarePackage.InstallDuringSetup)
 	assert.False(t, *titles[1].SoftwarePackage.InstallDuringSetup)
 	assert.False(t, *titles[2].AppStoreApp.InstallDuringSetup)
-
 }
 
 func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
@@ -890,4 +900,35 @@ func testHostInSetupExperience(t *testing.T, ds *Datastore) {
 	inSetupExperience, err = ds.GetHostAwaitingConfiguration(ctx, "abc")
 	require.NoError(t, err)
 	require.False(t, inSetupExperience)
+
+	// host without a record in the table returns not found
+	inSetupExperience, err = ds.GetHostAwaitingConfiguration(ctx, "404")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+	require.False(t, inSetupExperience)
+}
+
+func testGetSetupExperienceScriptByID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	script := &fleet.Script{
+		Name:           "setup_experience_script",
+		ScriptContents: "echo hello",
+	}
+
+	err := ds.SetSetupExperienceScript(ctx, script)
+	require.NoError(t, err)
+
+	scriptByTeamID, err := ds.GetSetupExperienceScript(ctx, nil)
+	require.NoError(t, err)
+
+	gotScript, err := ds.GetSetupExperienceScriptByID(ctx, scriptByTeamID.ID)
+	require.NoError(t, err)
+
+	require.Equal(t, script.Name, gotScript.Name)
+	require.NotZero(t, gotScript.ScriptContentID)
+
+	b, err := ds.GetAnyScriptContents(ctx, gotScript.ScriptContentID)
+	require.NoError(t, err)
+	require.Equal(t, script.ScriptContents, string(b))
 }

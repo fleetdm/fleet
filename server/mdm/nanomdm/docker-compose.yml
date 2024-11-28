@@ -1,0 +1,34 @@
+---
+services:
+  # To run in macOS M1, set FLEET_MYSQL_PLATFORM=linux/arm64/v8
+  mysql_nanomdm_test:
+    image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
+    platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
+    # innodb-file-per-table=OFF gives ~20% speedup for test runs.
+    command: [
+      "mysqld",
+      "--datadir=/tmpfs",
+      "--slow_query_log=1",
+      "--log_output=TABLE",
+      "--log-queries-not-using-indexes",
+      "--innodb-file-per-table=OFF",
+      "--table-definition-cache=8192",
+      # These 3 keys run MySQL with GTID consistency enforced to avoid issues with production deployments that use it.
+      "--enforce-gtid-consistency=ON",
+      "--log-bin=bin.log",
+      "--server-id=1",
+      # Required for storage of Apple MDM bootstrap packages.
+      "--max_allowed_packet=536870912",
+    ]
+    environment: &mysql-default-environment
+      MYSQL_ROOT_PASSWORD: toor
+      MYSQL_DATABASE: fleet
+      MYSQL_USER: fleet
+      MYSQL_PASSWORD: insecure
+      # This is required by Percona XtraDB server.
+      CLUSTER_NAME: fleet
+    ports:
+      - "3800:3306"
+    tmpfs:
+      - /var/lib/mysql:rw,noexec,nosuid
+      - /tmpfs

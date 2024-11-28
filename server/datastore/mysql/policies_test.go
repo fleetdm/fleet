@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"bytes"
 	"context"
 	"crypto/md5" //nolint:gosec // (only used for tests)
 	"encoding/hex"
@@ -1235,11 +1234,13 @@ func testPoliciesByID(t *testing.T, ds *Datastore) {
 	host1 := newTestHostWithPlatform(t, ds, "host1", "darwin", nil)
 
 	// Associate an installer to policy2
+	installer, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerID, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     installer,
 		StorageID:         "storage1",
 		Filename:          "file1",
 		Title:             "file1",
@@ -3981,11 +3982,13 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	// Create and associate an installer to p2.
+	installer, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerID, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     installer,
 		StorageID:         "storage1",
 		Filename:          "file1",
 		Title:             "file1",
@@ -4017,11 +4020,13 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	require.Equal(t, installerID, *p2.SoftwareInstallerID)
 
 	// Policy p4 in "No team" with associated installer.
+	installer1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	noTeamInstallerID, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     installer1,
 		StorageID:         "storage1",
 		Filename:          "file1",
 		Title:             "file1",
@@ -4236,11 +4241,13 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 
 	host1Team1 := newHost("host1Team1", &team1.ID, "darwin")
 
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello1"), t.TempDir)
+	require.NoError(t, err)
 	installer1ID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1;",
 		PostInstallScript: "world1",
-		InstallerFile:     bytes.NewReader([]byte("hello1")),
+		InstallerFile:     tfr1,
 		StorageID:         "storage1",
 		Filename:          "file1",
 		Title:             "file1",
@@ -4253,11 +4260,13 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	installer1, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer1ID)
 	require.NoError(t, err)
 	require.NotNil(t, installer1.TitleID)
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("hello2"), t.TempDir)
+	require.NoError(t, err)
 	installer2ID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello2",
 		PreInstallQuery:   "SELECT 2;",
 		PostInstallScript: "world2",
-		InstallerFile:     bytes.NewReader([]byte("hello2")),
+		InstallerFile:     tfr2,
 		StorageID:         "storage2",
 		Filename:          "file2",
 		Title:             "file2",
@@ -4270,11 +4279,13 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	installer2, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer2ID)
 	require.NoError(t, err)
 	require.NotNil(t, installer2.TitleID)
+	tfr3, err := fleet.NewTempFileReader(strings.NewReader("hello3"), t.TempDir)
+	require.NoError(t, err)
 	installer3ID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello3",
 		PreInstallQuery:   "SELECT 3;",
 		PostInstallScript: "world3",
-		InstallerFile:     bytes.NewReader([]byte("hello3")),
+		InstallerFile:     tfr3,
 		StorageID:         "storage3",
 		Filename:          "file3",
 		Title:             "file3",
@@ -4288,11 +4299,13 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, installer3.TitleID)
 	// Another installer on team1 to test changing installers.
+	tfr5, err := fleet.NewTempFileReader(strings.NewReader("hello5"), t.TempDir)
+	require.NoError(t, err)
 	installer5ID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello5",
 		PreInstallQuery:   "SELECT 5;",
 		PostInstallScript: "world5",
-		InstallerFile:     bytes.NewReader([]byte("hello5")),
+		InstallerFile:     tfr5,
 		StorageID:         "storage5",
 		Filename:          "file5",
 		Title:             "file5",
@@ -4477,11 +4490,13 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.Nil(t, team2Policies[0].SoftwareInstallerID)
 
 	// Apply team policies associated to two installers (again, with two installers with the same title).
+	tfr4, err := fleet.NewTempFileReader(strings.NewReader("hello3"), t.TempDir)
+	require.NoError(t, err)
 	installer4ID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello3",
 		PreInstallQuery:   "SELECT 3;",
 		PostInstallScript: "world3",
-		InstallerFile:     bytes.NewReader([]byte("hello3")),
+		InstallerFile:     tfr4,
 		StorageID:         "storage3",
 		Filename:          "file1",
 		Title:             "file1", // same title as installer1.

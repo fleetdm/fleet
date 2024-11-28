@@ -1,4 +1,0 @@
-* Allow clicking in the horizontal dimension of a flash message, outside of the message itself, and
-always hide flash messages when changing routes.
-* Refactor `renderFlash` and associated logic to by default dismiss the rendered message on page
-  change. Provide optional `persistOnPageChange` option to allow overriding this behavior.
