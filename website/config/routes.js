@@ -522,7 +522,6 @@ module.exports.routes = {
   //
   // For example, a clever user might try to visit fleetdm.com/documentation, not knowing that Fleet's website
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
-  'GET /testimonials':               '/customer-stories',
   'GET /admin':                      '/admin/email-preview',
   'GET /renew':                      'https://calendly.com/zayhanlon/fleet-renewal-discussion',
   'GET /documentation':              '/docs',
