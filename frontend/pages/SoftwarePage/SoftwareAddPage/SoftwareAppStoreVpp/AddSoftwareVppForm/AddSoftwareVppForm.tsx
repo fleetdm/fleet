@@ -31,6 +31,26 @@ const EnableVppCard = () => {
         </p>
         <CustomLink
           url={PATHS.ADMIN_INTEGRATIONS_VPP}
+          text="Enable VPP"
+          className={`${baseClass}__enable-vpp-link`}
+        />
+      </div>
+    </Card>
+  );
+};
+
+const EditVppCard = () => {
+  return (
+    <Card borderRadiusSize="medium" paddingSize="xxxlarge">
+      <div className={`${baseClass}__enable-vpp-message`}>
+        <p className={`${baseClass}__enable-vpp-title`}>
+          This team isn&apos;t added to Volume Purchasing Program (VPP)
+        </p>
+        <p className={`${baseClass}__enable-vpp-description`}>
+          To add App Store apps, first add this team to VPP.
+        </p>
+        <CustomLink
+          url={PATHS.ADMIN_INTEGRATIONS_VPP}
           text="Edit VPP"
           className={`${baseClass}__enable-vpp-link`}
         />
@@ -120,6 +140,7 @@ const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
 
 interface IAddSoftwareVppFormProps {
   teamId: number;
+  isVppTokenUploaded: boolean;
   hasVppToken: boolean;
   router: InjectedRouter;
   vppApps?: IVppApp[];
@@ -127,6 +148,7 @@ interface IAddSoftwareVppFormProps {
 
 const AddSoftwareVppForm = ({
   teamId,
+  isVppTokenUploaded,
   hasVppToken,
   router,
   vppApps,
@@ -206,8 +228,12 @@ const AddSoftwareVppForm = ({
   };
 
   const renderContent = () => {
-    if (!hasVppToken) {
+    if (!isVppTokenUploaded) {
       return <EnableVppCard />;
+    }
+
+    if (!hasVppToken) {
+      return <EditVppCard />;
     }
 
     if (vppApps) {
