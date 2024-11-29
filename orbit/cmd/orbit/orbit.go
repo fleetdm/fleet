@@ -511,6 +511,7 @@ func main() {
 		opt.RootDirectory = c.String("root-dir")
 		opt.ServerURL = c.String("update-url")
 		if opt.ServerURL == update.OldFleetTUFURL {
+			// orbit 1.37.0+ will use the new TUF repository
 			opt.ServerURL = update.DefaultURL
 		}
 		opt.LocalStore = localStore
@@ -1403,9 +1404,16 @@ func getFleetdComponentPaths(
 		log.Error().Err(err).Msg("update metadata before getting components")
 	}
 
-	// "root", "targets", or "snapshot" signatures have expired, thus
-	// we attempt to get local paths for the targets (updater.Get will fail
-	// because of the expired signatures).
+	//
+	// updater.SignaturesExpired():
+	// 	"root", "targets", or "snapshot" signatures have expired, thus
+	// 	we attempt to get local paths for the targets (updater.Get will fail
+	// 	because of the expired signatures).
+	//
+	// updater.LookupsFail():
+	//	Any of the targets fails to load thus we resort to the local executables we have.
+	//	This could happen if the new TUF server is down during the first run of the TUF migration.
+	//
 	if updater.SignaturesExpired() || updater.LookupsFail() {
 		log.Error().Err(err).Msg("expired metadata, using local targets")
 
