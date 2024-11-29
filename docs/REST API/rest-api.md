@@ -9141,6 +9141,9 @@ Get a list of all software versions.
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
+| without_vulnerability_details | boolean | query | _Available in Fleet Premium_. If `true` only vulnerability name is included in response. `false` or omitted (only available in Fleet Premium), adds vulnerability description, CVSS score, and other details verbose details. Setting this to `false` using the free tier will not return verbose details. See notes below on performance. |
+
+> `without_vulnerability_details` should be set to `true` whenever possible. If set to `false` a large amount of data will be included in the response and this can cause performance issues. If you need vulnerability details consider using the [Get vulnerability](#get-vulnerability) endpoint.
 
 #### Example
 
