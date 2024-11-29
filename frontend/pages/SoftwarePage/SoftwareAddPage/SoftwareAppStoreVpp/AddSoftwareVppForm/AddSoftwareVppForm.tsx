@@ -140,7 +140,7 @@ const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
 
 interface IAddSoftwareVppFormProps {
   teamId: number;
-  isVppTokenUploaded: boolean;
+  noVppTokenUploaded: boolean;
   hasVppToken: boolean;
   router: InjectedRouter;
   vppApps?: IVppApp[];
@@ -148,7 +148,7 @@ interface IAddSoftwareVppFormProps {
 
 const AddSoftwareVppForm = ({
   teamId,
-  isVppTokenUploaded,
+  noVppTokenUploaded,
   hasVppToken,
   router,
   vppApps,
@@ -228,7 +228,7 @@ const AddSoftwareVppForm = ({
   };
 
   const renderContent = () => {
-    if (!isVppTokenUploaded) {
+    if (noVppTokenUploaded) {
       return <EnableVppCard />;
     }
 

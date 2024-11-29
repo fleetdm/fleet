@@ -43,8 +43,10 @@ const SoftwareAppStoreVpp = ({
     }
   );
 
-  const isVppTokenUploaded = !vppInfo || !vppInfo.vpp_tokens.length;
+  const noVppTokenUploaded = !vppInfo || !vppInfo.vpp_tokens.length;
   const hasVppToken = teamHasVPPToken(currentTeamId, vppInfo?.vpp_tokens);
+
+  console.log(noVppTokenUploaded, hasVppToken);
 
   const {
     data: vppApps,
@@ -82,7 +84,7 @@ const SoftwareAppStoreVpp = ({
           router={router}
           teamId={currentTeamId}
           hasVppToken={hasVppToken}
-          isVppTokenUploaded={isVppTokenUploaded}
+          noVppTokenUploaded={noVppTokenUploaded}
           vppApps={vppApps}
         />
       </div>
