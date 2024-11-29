@@ -121,6 +121,14 @@ func NewRunner(updater *Updater, opt RunnerOptions) (*Runner, error) {
 		return runner, nil
 	}
 
+	if _, err := updater.Lookup(constant.OrbitTUFTargetName); errors.Is(err, client.ErrNoLocalSnapshot) {
+		// Return early and skip optimization, this will cause an unnecessary auto-update of orbit
+		// but allows orbit to start up if there's no local metadata AND if the TUF server is down
+		// (which may be the case during the migration from https://tuf.fleetctl.com to
+		// https://updates.fleetdm.com).
+		return runner, nil
+	}
+
 	// Initialize the hashes of the local files for all tracked targets.
 	//
 	// This is an optimization to not compute the hash of the local files every opt.CheckInterval
@@ -204,14 +212,6 @@ func (r *Runner) Execute() error {
 		case <-ticker.C:
 			ticker.Reset(r.opt.CheckInterval)
 
-			ok, err := needsMigration(r.updater.opt)
-			if err != nil {
-				log.Error().Err(err).Msg("needs migration check failed")
-			} else if ok {
-				log.Info().Msg("needs migration, exiting")
-				return nil
-			}
-
 			if r.opt.SignaturesExpiredAtStartup {
 				if r.updater.SignaturesExpired() {
 					log.Debug().Msg("signatures still expired")
@@ -231,33 +231,6 @@ func (r *Runner) Execute() error {
 			}
 		}
 	}
-}
-
-func needsMigration(opt Options) (bool, error) {
-	if opt.ServerURL != OldFleetTUFURL {
-		// Nothing to do. Using different TUF server+roots,
-		// or has migrated to the new URL already.
-		return false, nil
-	}
-
-	// orbit is configured to use Fleet's old TUF URL,
-	// we now check if it already migrated or needs to run migration.
-
-	ok, err := CheckAlreadyMigrated(opt.LocalStore)
-	if err != nil {
-		return false, fmt.Errorf("failed to check for TUF migration: %w", err)
-	}
-	if ok {
-		// Nothing to do. Already migrated.
-		return false, nil
-	}
-
-	if err := ProbeMigration(opt); err != nil {
-		return false, fmt.Errorf("failed to probe TUF migration: %w", err)
-	}
-
-	// Probe was successful, thus migration is ready to run.
-	return true, nil
 }
 
 // UpdateAction checks for updates on all targets.

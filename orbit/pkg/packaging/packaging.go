@@ -172,7 +172,7 @@ func (u UpdatesData) String() string {
 }
 
 func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
-	localStore, err := filestore.New(filepath.Join(updateOpt.RootDirectory, "tuf-metadata.json"))
+	localStore, err := filestore.New(filepath.Join(updateOpt.RootDirectory, update.MetadataFileName))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create local metadata store: %w", err)
 	}

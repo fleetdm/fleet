@@ -472,7 +472,13 @@ func main() {
 			}
 		}
 
-		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
+		metadataFileName := update.MetadataFileName
+		if updateURL := c.String("update-url"); updateURL != update.OldFleetTUFURL && updateURL != update.DefaultURL {
+			// Users using custom TUF repository will continue using the local TUF metadata as usual.
+			metadataFileName = update.OldMetadataFileName
+		}
+
+		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), metadataFileName))
 		if err != nil {
 			log.Fatal().Err(err).Msg("create local metadata store")
 		}
@@ -504,6 +510,9 @@ func main() {
 
 		opt.RootDirectory = c.String("root-dir")
 		opt.ServerURL = c.String("update-url")
+		if opt.ServerURL == update.OldFleetTUFURL {
+			opt.ServerURL = update.DefaultURL
+		}
 		opt.LocalStore = localStore
 		opt.InsecureTransport = c.Bool("insecure")
 		opt.ServerCertificatePath = c.String("update-tls-certificate")
@@ -546,9 +555,12 @@ func main() {
 		var updater *update.Updater
 		var updateRunner *update.Runner
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
-			updater, err = createUpdater(opt)
+			updater, err := update.NewUpdater(opt)
 			if err != nil {
 				return fmt.Errorf("create updater: %w", err)
+			}
+			if err := updater.UpdateMetadata(); err != nil {
+				log.Info().Err(err).Msg("update metadata")
 			}
 
 			signaturesExpiredAtStartup := updater.SignaturesExpired()
@@ -1394,7 +1406,7 @@ func getFleetdComponentPaths(
 	// "root", "targets", or "snapshot" signatures have expired, thus
 	// we attempt to get local paths for the targets (updater.Get will fail
 	// because of the expired signatures).
-	if updater.SignaturesExpired() {
+	if updater.SignaturesExpired() || updater.LookupsFail() {
 		log.Error().Err(err).Msg("expired metadata, using local targets")
 
 		// Attempt to get local path of osqueryd.
@@ -2098,49 +2110,4 @@ func (w *wrapSubsystem) Execute() error {
 // Interrupt partially implements subSystem.
 func (w *wrapSubsystem) Interrupt(err error) {
 	w.interrupt(err)
-}
-
-func createUpdater(opt update.Options) (*update.Updater, error) {
-	create := func(opt update.Options) (*update.Updater, error) {
-		updater, err := update.NewUpdater(opt)
-		if err != nil {
-			return nil, fmt.Errorf("update new updater: %w", err)
-		}
-		if err := updater.UpdateMetadata(); err != nil {
-			log.Info().Err(err).Msg("update metadata, using saved metadata")
-		}
-		return updater, nil
-	}
-
-	if opt.ServerURL != update.OldFleetTUFURL {
-		// Nothing to do. Using different TUF server+roots or a package
-		// built using the new TUF repository URL.
-		return create(opt)
-	}
-
-	// orbit is configured to use Fleet's old TUF URL,
-	// we now check if it already migrated or needs to run migration.
-
-	ok, err := update.CheckAlreadyMigrated(opt.LocalStore)
-	if err != nil || ok {
-		if err != nil {
-			log.Error().Err(err).Msg("failed to check for TUF migration")
-		}
-		opt.ServerURL = update.DefaultURL
-		return create(opt)
-	}
-
-	if err := update.ProbeMigration(opt); err != nil {
-		log.Error().Err(err).Msg("failed to probe TUF migration")
-		return create(opt)
-	}
-
-	if err := update.PerformMigration(&opt); err != nil {
-		log.Error().Err(err).Msg("failed to perform TUF migration")
-		return create(opt)
-	}
-
-	// Migration was successful, update default URL.
-	opt.ServerURL = update.DefaultURL
-	return create(opt)
 }

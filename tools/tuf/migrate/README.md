@@ -1,6 +1,6 @@
 # migrate
 
-This tool will be used to migrate all current targets (except `orbit` and unused ones) from https://tuf.fleetctl.com to https://updates.fleetdm.com.
+This tool will be used to migrate all current targets (except unused ones) from https://tuf.fleetctl.com to https://updates.fleetdm.com.
 
 Usage:
 ```sh

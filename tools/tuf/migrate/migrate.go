@@ -1,5 +1,5 @@
 // Package main contains an executable that migrates all targets from one source TUF repository
-// to a destination TUF repository. It migrates all targets except "orbit" and a few known unused targets.
+// to a destination TUF repository. It migrates all targets except a few known unused targets.
 package main
 
 import (
@@ -138,10 +138,6 @@ func iterateRepository(repositoryDirectory string, fn func(target, targetPath, p
 		targetName := parts[0]
 		platform := parts[1]
 		channel := parts[2]
-
-		if targetName == "orbit" {
-			continue
-		}
 
 		// Unused targets (probably accidentally pushed).
 		if targetName == "desktop.tar.gz" {
