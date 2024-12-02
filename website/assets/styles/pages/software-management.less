@@ -57,6 +57,7 @@
     padding-bottom: 32px;
   }
   [purpose='button-row'] {
+    flex-direction: row;
     [purpose='contact-button'] {
       display: flex;
       height: 36px;
@@ -218,35 +219,43 @@
     padding-bottom: 64px;
     padding-top: 32px;
     text-align: center;
-    [purpose='testimonial-image'] {
-      height: 48px;
-      margin-bottom: 5px;
-    }
-    [purpose='testimonial-text'] {
+  }
+  [purpose='it-testimonial'] {
+    max-width: 524px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-bottom: 32px;
+    padding-top: 32px;
+    text-align: center;
+  }
+  [purpose='testimonial-image'] {
+    height: 48px;
+    margin-bottom: 5px;
+  }
+  [purpose='testimonial-text'] {
+    color: @core-fleet-black-75;
+    text-align: center;
+    font-size: 18px;
+    font-style: italic;
+    font-weight: 400;
+    line-height: @text-lineheight;
+    margin-bottom: 24px;
+  }
+  [purpose='testimonial-attribution'] {
+    [purpose='name'] {
       color: @core-fleet-black-75;
       text-align: center;
-      font-size: 18px;
-      font-style: italic;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: @text-lineheight; /* 150% */
+      margin-bottom: 0px;
+    }
+    [purpose='job-title'] {
+      color: @core-fleet-black-75;
+      margin-bottom: 0px;
+      font-size: 12px;
       font-weight: 400;
       line-height: @text-lineheight;
-      margin-bottom: 24px;
-    }
-    [purpose='testimonial-attribution'] {
-      [purpose='name'] {
-        color: @core-fleet-black-75;
-        text-align: center;
-        font-size: 12px;
-        font-weight: 700;
-        line-height: @text-lineheight; /* 150% */
-        margin-bottom: 0px;
-      }
-      [purpose='job-title'] {
-        color: @core-fleet-black-75;
-        margin-bottom: 0px;
-        font-size: 12px;
-        font-weight: 400;
-        line-height: @text-lineheight;
-      }
     }
   }
 
@@ -451,7 +460,7 @@
       padding: 0px 32px 64px 32px;
     }
     [purpose='section-heading'] {
-      padding: 40px 32px;
+      padding: 40px 24px;
     }
     [parasails-component='scrollable-tweets'] {
       [purpose='tweets'] {
@@ -470,6 +479,15 @@
     [purpose='testimonial'] {
       padding-bottom: 32px;
       padding-top: 0px;
+    }
+    [purpose='button-row'] {
+      flex-direction: column;
+      align-items: center;
+      [purpose='contact-button'] {
+        margin-bottom: 12px;
+        width: 100%;
+        margin-right: 0px;
+      }
     }
     [purpose='section-heading'] {
       padding: 40px 0px;

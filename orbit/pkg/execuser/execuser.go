@@ -2,8 +2,6 @@
 // SYSTEM service on Windows) as the current login user.
 package execuser
 
-import "context"
-
 type eopts struct {
 	env        [][2]string
 	args       [][2]string
@@ -50,15 +48,4 @@ func RunWithOutput(path string, opts ...Option) (output []byte, exitCode int, er
 		fn(&o)
 	}
 	return runWithOutput(path, o)
-}
-
-// RunWithWait runs an application as the current login user and waits for it to finish
-// or to be canceled by the context.  Canceling the context will not return an error.
-// It assumes the caller is running with high privileges (root on UNIX).
-func RunWithWait(ctx context.Context, path string, opts ...Option) error {
-	var o eopts
-	for _, fn := range opts {
-		fn(&o)
-	}
-	return runWithWait(ctx, path, o)
 }

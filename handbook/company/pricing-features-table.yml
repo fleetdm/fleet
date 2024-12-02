@@ -150,7 +150,7 @@
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Configuration]
   usualDepartment: IT
-  tier: Free
+  tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
   waysToUse:
@@ -377,7 +377,7 @@
 #  ║╣ ║║║╠╣ ║ ║╠╦╝║  ║╣    ║║║╚═╗╠╩╗  ║╣ ║║║║  ╠╦╝╚╦╝╠═╝ ║ ║║ ║║║║
 #  ╚═╝╝╚╝╚  ╚═╝╩╚═╚═╝╚═╝  ═╩╝╩╚═╝╩ ╩  ╚═╝╝╚╝╚═╝╩╚═ ╩ ╩   ╩ ╩╚═╝╝╚╝
 - industryName: Enforce disk encryption
-  description: Encrypt system drives on macOS, Windows, and Linux (coming soon) computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker, LUKS).
+  description: Encrypt system drives on macOS, Windows, and Linux, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker, LUKS).
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
   friendlyName: Ensure hard disks are encrypted
   productCategories: [Device management]
@@ -608,7 +608,7 @@
 #   ║║║╣ ╚╗╔╝║║  ║╣   ╠╦╝║╣ ║║║║╣  ║║║╠═╣ ║ ║║ ║║║║
 #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩╚═╚═╝╩ ╩╚═╝═╩╝╩╩ ╩ ╩ ╩╚═╝╝╚╝
 - industryName: Device remediation
-  description: Use Fleet Policies to detect the device state. Automate remediations for issues or allow users to remediate problems in self-service.
+  description: Use Fleet Policies to detect the device state. Automate remediations for issues or allow users to remediate problems in self-service (Fleet Desktop > My device page).
   documentationUrl: https://fleetdm.com/securing/end-user-self-remediation # « NOTE: This link will change when auto-remediation is delivered.
   tier: Premium
   jamfProHasFeature: yes

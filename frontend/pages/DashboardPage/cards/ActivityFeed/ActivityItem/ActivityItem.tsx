@@ -1385,6 +1385,14 @@ const ActivityItem = ({
     ? addGravatarUrlToResource({ email: actor_email })
     : { gravatar_url: DEFAULT_GRAVATAR_LINK };
 
+  if (
+    !activity.actor_email &&
+    !activity.actor_full_name &&
+    !activity.actor_id
+  ) {
+    activity.actor_full_name = "Fleet";
+  }
+
   const activityCreatedAt = new Date(activity.created_at);
   const indicatePremiumFeature =
     isSandboxMode && PREMIUM_ACTIVITIES.has(activity.type);

@@ -168,7 +168,7 @@ const mdmService = {
   },
 
   getProfilesStatusSummary: (teamId: number) => {
-    let { MDM_PROFILES_STATUS_SUMMARY: path } = endpoints;
+    let { PROFILES_STATUS_SUMMARY: path } = endpoints;
 
     if (teamId) {
       path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
