@@ -299,8 +299,8 @@ for pkgType in "${pkgTypes[@]}"; do
         --enroll-secret="$ENROLL_SECRET" \
         --fleet-certificate=./tools/osquery/fleet.crt \
         --debug \
-        --update-roots="$ROOT_KEYS1" \
-        --update-url=$OLD_TUF_URL \
+        --update-roots="$ROOT_KEYS2" \
+        --update-url=$NEW_TUF_URL \
         --disable-open-folder \
         --disable-keystore \
         --update-interval=30s
@@ -310,7 +310,7 @@ echo "Installing fleetd package on macOS..."
 sudo installer -pkg fleet-osquery.pkg -verbose -target /
 
 CURRENT_DIR=$(pwd)
-prompt "Please install $CURRENT_DIR/fleet-osquery.msi and $CURRENT_DIR/fleet-osquery_${OLD_FULL_VERSION}_amd64.deb."
+prompt "Please install $CURRENT_DIR/fleet-osquery.msi and $CURRENT_DIR/fleet-osquery_${NEW_PATCH_VERSION}_amd64.deb."
 
 echo "Waiting until installation and auto-update to new repository happens..."
 declare -a hostnames=("$THIS_HOSTNAME" "$WINDOWS_HOST_HOSTNAME" "$LINUX_HOST_HOSTNAME")

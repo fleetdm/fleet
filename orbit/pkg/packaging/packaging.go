@@ -241,6 +241,16 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		}
 	}
 
+	if updateOpt.ServerURL == update.OldFleetTUFURL || updateOpt.ServerURL == update.DefaultURL {
+		// If using Fleet's TUF then copy the new metadata to the old location (pre-migration) to
+		// support orbit downgrades after the package is deployed.
+		oldMetadataPath := filepath.Join(updateOpt.RootDirectory, update.OldFleetTUFURL)
+		newMetadataPath := filepath.Join(updateOpt.RootDirectory, update.MetadataFileName)
+		if err := file.Copy(newMetadataPath, oldMetadataPath, constant.DefaultFileMode); err != nil {
+			return nil, fmt.Errorf("failed to create %s copy: %w", oldMetadataPath, err)
+		}
+	}
+
 	return &UpdatesData{
 		OrbitPath:    orbitPath,
 		OrbitVersion: orbitCustom.Version,
