@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/installer"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/keystore"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/luks"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
@@ -38,6 +39,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/user"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/zenity"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	retrypkg "github.com/fleetdm/fleet/v4/pkg/retry"
@@ -694,6 +696,8 @@ func main() {
 			HardwareUUID:   osqueryHostInfo.HardwareUUID,
 			Hostname:       osqueryHostInfo.Hostname,
 			Platform:       osqueryHostInfo.Platform,
+			ComputerName:   osqueryHostInfo.ComputerName,
+			HardwareModel:  osqueryHostInfo.HardwareModel,
 		}
 
 		if runtime.GOOS == "darwin" {
@@ -735,13 +739,6 @@ func main() {
 		// When not set, orbit and osquery will be matched using the hardware UUID (orbitHostInfo.HardwareUUID).
 		if c.String("host-identifier") == "instance" {
 			orbitHostInfo.OsqueryIdentifier = osqueryHostInfo.InstanceID
-		}
-
-		// The hardware serial was not sent when Windows MDM was implemented,
-		// thus we clear its value here to not break any existing enroll functionality
-		// on the server.
-		if runtime.GOOS == "windows" {
-			orbitHostInfo.HardwareSerial = ""
 		}
 
 		var (
@@ -940,6 +937,8 @@ func main() {
 		case "windows":
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(windowsMDMBitlockerCommandFrequency, orbitClient))
+		case "linux":
+			orbitClient.RegisterConfigReceiver(luks.New(orbitClient, zenity.New()))
 		}
 
 		flagUpdateReceiver := update.NewFlagReceiver(orbitClient.TriggerOrbitRestart, update.FlagUpdateOptions{
@@ -1697,6 +1696,10 @@ type osqueryHostInfo struct {
 	HardwareSerial string `json:"hardware_serial"`
 	// Hostname is the device's hostname (extracted from `system_info` osquery table).
 	Hostname string `json:"hostname"`
+	// ComputerName is the friendly computer name (optional) (extracted from `system_info` osquery table).
+	ComputerName string `json:"computer_name"`
+	// HardwareModel is the device's hardware model (extracted from `system_info` osquery table).
+	HardwareModel string `json:"hardware_model"`
 	// Platform is the device's platform as defined by osquery (extracted from `os_version` osquery table).
 	Platform string `json:"platform"`
 	// InstanceID is the osquery's randomly generated instance ID
@@ -1714,7 +1717,18 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 	if err := os.MkdirAll(filepath.Dir(osqueryDBPath), constant.DefaultDirMode); err != nil {
 		return nil, err
 	}
-	const systemQuery = "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform, os.version as os_version, oi.instance_id, oi.version as osquery_version FROM system_info si, os_version os, osquery_info oi"
+	const systemQuery = `
+	SELECT
+		si.uuid,
+		si.hardware_serial,
+		si.hostname,
+		si.computer_name,
+		si.hardware_model,
+		os.platform,
+		os.version as os_version,
+		oi.instance_id,
+		oi.version as osquery_version
+	FROM system_info si, os_version os, osquery_info oi`
 	args := []string{
 		"-S",
 		"--database_path", osqueryDBPath,

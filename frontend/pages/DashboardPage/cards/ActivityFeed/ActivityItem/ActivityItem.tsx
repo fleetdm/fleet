@@ -279,6 +279,14 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  fleetEnrolled: (activity: IActivity) => {
+    const hostDisplayName = activity.details?.host_display_name ? (
+      <b>{activity.details.host_display_name}</b>
+    ) : (
+      "A host"
+    );
+    return <>{hostDisplayName} enrolled in Fleet.</>;
+  },
   mdmEnrolled: (activity: IActivity) => {
     if (activity.details?.mdm_platform === "microsoft") {
       return (
@@ -1167,6 +1175,9 @@ const getDetail = (
     case ActivityType.UserDeletedTeamRole: {
       return TAGGED_TEMPLATES.userDeletedTeamRole(activity);
     }
+    case ActivityType.FleetEnrolled: {
+      return TAGGED_TEMPLATES.fleetEnrolled(activity);
+    }
     case ActivityType.MdmEnrolled: {
       return TAGGED_TEMPLATES.mdmEnrolled(activity);
     }
@@ -1373,6 +1384,14 @@ const ActivityItem = ({
   const { gravatar_url } = actor_email
     ? addGravatarUrlToResource({ email: actor_email })
     : { gravatar_url: DEFAULT_GRAVATAR_LINK };
+
+  if (
+    !activity.actor_email &&
+    !activity.actor_full_name &&
+    !activity.actor_id
+  ) {
+    activity.actor_full_name = "Fleet";
+  }
 
   const activityCreatedAt = new Date(activity.created_at);
   const indicatePremiumFeature =

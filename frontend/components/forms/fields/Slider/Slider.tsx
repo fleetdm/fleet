@@ -8,9 +8,10 @@ import { IFormFieldProps } from "components/forms/FormField/FormField";
 interface ISliderProps {
   onChange: () => void;
   value: boolean;
-  inactiveText: string;
-  activeText: string;
+  inactiveText: JSX.Element | string;
+  activeText: JSX.Element | string;
   className?: string;
+  helpText?: JSX.Element | string;
 }
 
 const baseClass = "fleet-slider";

@@ -1,1 +1,0 @@
-* Fixed iOS and iPadOS device release during the ADE enrollment flow, which was broken by changes made to support the new setup experience for macOS.

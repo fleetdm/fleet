@@ -130,7 +130,7 @@
     <!--STYLES END-->
   </head>
   <body>
-    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : '' %>">
+    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : '' %> collapse"  id="navbarToggleExternalContent">
       <%// Page header%>
       <div class="header" purpose="header-container" hide-when-scrolled data-nosnippet>
         <div purpose="header-background">
@@ -146,7 +146,7 @@
                   <img class="align-self-center" alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-blue-16x14@2x.png"/>
                 </a>
               </div>
-              <div purpose="mobile-nav" always-visible-when-shown class="collapse" id="navbarToggleExternalContent">
+              <div purpose="mobile-nav" always-visible-when-shown>
                 <div purpose="mobile-nav-header" class="d-flex justify-content-between align-items-center">
                   <a purpose="mobile-header-logo" href="/">
                     <img purpose="mobile-nav-logo" alt="Fleet logo" src="/images/logo-blue-118x41@2x.png" />
@@ -159,8 +159,8 @@
                   <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Multi platform</a>
                   <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
                     <a purpose="mobile-dropdown-link" href="/device-management">Device management &nbsp; <small>(+ MDM)</small></a>
-                    <a purpose="mobile-dropdown-link" href="/endpoint-ops">Observability &nbsp; <small>(+ scripting)</small></a>
-                    <a purpose="mobile-dropdown-link" href="/vulnerability-management">Software management &nbsp; <small>(+ CVEs)</small></a>
+                    <a purpose="mobile-dropdown-link" href="/observability">Observability &nbsp; <small>(+ scripting)</small></a>
+                    <a purpose="mobile-dropdown-link" href="/software-management">Software management &nbsp; <small>(+ CVEs)</small></a>
                     <a purpose="mobile-dropdown-link" href="/integrations">Integrations</a>
                   </div>
                   <hr>
@@ -169,6 +169,7 @@
                     <a purpose="mobile-dropdown-link" href="/docs">Get started</a>
                     <a purpose="mobile-dropdown-link" href="/queries">Built-in checks</a>
                     <a purpose="mobile-dropdown-link" href="/tables">Raw data</a>
+                    <a purpose="mobile-dropdown-link" href="/app-library">App library</a>
                     <a purpose="mobile-dropdown-link" href="/docs/get-started/tutorials-and-guides">Tutorials &amp; guides</a>
                     <a purpose="mobile-dropdown-link" href="/docs/rest-api">API</a>
                     <span class="mt-2 mb-2">SUPPORT</span>
@@ -183,7 +184,7 @@
                   <hr>
                   <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">Stories</a>
                   <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                    <a purpose="mobile-dropdown-link" target="_blank" href="/testimonials">What people are saying</a>
+                    <a purpose="mobile-dropdown-link" href="/testimonials">What people are saying</a>
                     <a purpose="mobile-dropdown-link" href="/announcements">News</a>
                     <a purpose="mobile-dropdown-link" href="/support">Ask around</a>
                     <span class="mt-2 mb-2">COMPANY</span>
@@ -219,8 +220,8 @@
                   <a purpose="header-nav-btn" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Multi platform</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
                     <a class="dropdown-item" href="/device-management">Device management <small>+ MDM</small></a>
-                    <a class="dropdown-item" href="/endpoint-ops">Observability <small>+ scripting, monitoring</small></a>
-                    <a class="dropdown-item" href="/vulnerability-management">Software management <small>+ CVEs, usage, app library</small></a>
+                    <a class="dropdown-item" href="/observability">Observability <small>+ scripting, monitoring</small></a>
+                    <a class="dropdown-item" href="/software-management">Software management <small>+ CVEs, usage, app library</small></a>
                     <a class="dropdown-item" href="/integrations">Integrations</a>
                   </div>
                 </div>
@@ -230,6 +231,7 @@
                     <a class="dropdown-item" href="/docs">Get started</a>
                     <a class="dropdown-item" href="/queries">Built-in checks</a><!-- «« FUTURE: consider different menu label such as 'Off the shelf', because i'm just casually a hover menu here and so it's less intentional.  I didn't click "docs" first, like I did on mobile-->
                     <a class="dropdown-item" href="/tables">Raw data</a>
+                    <a class="dropdown-item" href="/app-library">App library</a>
                     <a class="dropdown-item" href="/docs/get-started/tutorials-and-guides">Tutorials &amp; guides</a>
                     <a class="dropdown-item" href="/docs/rest-api">API</a>
                     <span class="muted dropdown-header">SUPPORT</span>
@@ -243,7 +245,7 @@
                 <div purpose="dropdown-button" class="btn-group" style="width: 89px;">
                   <a purpose="header-nav-btn" button-text="Community" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" data-toggle="dropdown">Stories</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
-                    <a class="dropdown-item" target="_blank" href="/testimonials">What people are saying</a>
+                    <a class="dropdown-item" href="/testimonials">What people are saying</a>
                     <a class="dropdown-item" href="/announcements">News</a>
                     <a class="dropdown-item" href="/support">Ask around</a>
                     <a class="dropdown-item" href="/contact">Take a tour</a><!-- «« included here in the desktop hover nav because unlike the mobile nav (which has 'Take a tour' as a primary CTA), there is no option to do that on desktop from other pages otherwise -->
@@ -308,8 +310,8 @@
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
               <strong purpose="footer-nav-header">Multi platform</strong>
               <a href="/device-management">Device management</a>
-              <a href="/endpoint-ops">Observability</a>
-              <a href="/vulnerability-management">Software management</a>
+              <a href="/observability">Observability</a>
+              <a href="/software-management">Software management</a>
               <a href="/integrations">Integrations</a>
               <a href="/pricing">Pricing</a>
             </div>
@@ -467,6 +469,8 @@
     <script src="/js/pages/admin/email-templates.page.js"></script>
     <script src="/js/pages/admin/generate-license.page.js"></script>
     <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
+    <script src="/js/pages/app-details.page.js"></script>
+    <script src="/js/pages/app-library.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
     <script src="/js/pages/connect-vanta.page.js"></script>
@@ -477,7 +481,6 @@
     <script src="/js/pages/deals.page.js"></script>
     <script src="/js/pages/device-management.page.js"></script>
     <script src="/js/pages/docs/basic-documentation.page.js"></script>
-    <script src="/js/pages/endpoint-ops.page.js"></script>
     <script src="/js/pages/entrance/confirmed-email.page.js"></script>
     <script src="/js/pages/entrance/forgot-password.page.js"></script>
     <script src="/js/pages/entrance/login.page.js"></script>
@@ -490,20 +493,22 @@
     <script src="/js/pages/integrations.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
+    <script src="/js/pages/observability.page.js"></script>
     <script src="/js/pages/osquery-table-details.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
     <script src="/js/pages/query-detail.page.js"></script>
     <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
+    <script src="/js/pages/software-management.page.js"></script>
     <script src="/js/pages/start.page.js"></script>
     <script src="/js/pages/support.page.js"></script>
+    <script src="/js/pages/testimonials.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
     <script src="/js/pages/try-fleet/waitlist.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
-    <script src="/js/pages/vulnerability-management.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.

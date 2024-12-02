@@ -1,5 +1,16 @@
 .apple-business-manager-table {
 
+  .data-table-block .data-table {
+    td.apple_id__cell {
+      max-width: 180px;
+    }
+
+    td.macos_team__cell, td.ios_team__cell, td.ipados_team__cell {
+      max-width: 150px;
+    }
+  }
+
+
   // The desired behavior is to hide the header and team cell one by one
   // as the viewport gets smaller. This is achieved by using the max-width
   // media query with the breakpoint values taken from when the table content

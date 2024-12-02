@@ -108,7 +108,7 @@ module.exports = {
     let undeployedSoftware = await UndeployedSoftware.find();
     allSoftware = allSoftware.concat(undeployedSoftware);
 
-    return {software: allSoftware, teams};
+    return {software: allSoftware, teams, fleetBaseUrl: sails.config.custom.fleetBaseUrl};
 
   }
 

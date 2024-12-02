@@ -18,6 +18,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1412,6 +1413,7 @@ func (a *agent) orbitEnroll() error {
 		EnrollSecret:   a.EnrollSecret,
 		HardwareUUID:   a.UUID,
 		HardwareSerial: a.SerialNumber,
+		Hostname:       a.CachedString("hostname"),
 	}
 	jsonBytes, err := json.Marshal(params)
 	if err != nil {
@@ -2097,8 +2099,9 @@ func (a *agent) runLiveQuery(query string) (results []map[string]string, status 
 		}
 }
 
-func (a *agent) processQuery(name, query string) (
-	handled bool, results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats,
+func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
+	handled bool, results []map[string]string,
+	status *fleet.OsqueryStatus, message *string, stats *fleet.Stats,
 ) {
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
@@ -2164,6 +2167,33 @@ func (a *agent) processQuery(name, query string) (
 		}
 		if ss == fleet.StatusOK {
 			results = a.softwareMacOS()
+			cachedResults.software = results
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"software_macos_codesign":
+		// Given queries run in lexicographic order software_macos already run and
+		// cachedResults.software should have its results.
+		ss := fleet.StatusOK
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
+			ss = fleet.OsqueryStatus(1)
+		}
+		if ss == fleet.StatusOK {
+			if len(cachedResults.software) > 0 {
+				for _, s := range cachedResults.software {
+					if s["source"] != "apps" {
+						continue
+					}
+					installedPath := s["installed_path"]
+					teamIdentifier := s["name"] // use name to be fixed (more realistic than changing often).
+					if len(teamIdentifier) > 10 {
+						teamIdentifier = teamIdentifier[:10]
+					}
+					results = append(results, map[string]string{
+						"path":            installedPath,
+						"team_identifier": teamIdentifier,
+					})
+				}
+			}
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_windows":
@@ -2254,6 +2284,10 @@ func (a *agent) processQuery(name, query string) (
 	}
 }
 
+type cachedResults struct {
+	software []map[string]string
+}
+
 func (a *agent) DistributedWrite(queries map[string]string) error {
 	r := service.SubmitDistributedQueryResultsRequest{
 		Results:  make(fleet.OsqueryDistributedQueryResults),
@@ -2262,8 +2296,21 @@ func (a *agent) DistributedWrite(queries map[string]string) error {
 		Stats:    make(map[string]*fleet.Stats),
 	}
 	r.NodeKey = a.nodeKey
-	for name, query := range queries {
-		handled, results, status, message, stats := a.processQuery(name, query)
+
+	cachedResults := cachedResults{}
+
+	// Sort queries to be executed by lexicographic name order (for result processing
+	// to be more predictable). This aligns to how osquery executes the queries.
+	queryNames := make([]string, 0, len(queries))
+	for name := range queries {
+		queryNames = append(queryNames, name)
+	}
+	sort.Strings(queryNames)
+
+	for _, name := range queryNames {
+		query := queries[name]
+
+		handled, results, status, message, stats := a.processQuery(name, query, &cachedResults)
 		if !handled {
 			// If osquery-perf does not handle the incoming query,
 			// always return status OK and the default query result.

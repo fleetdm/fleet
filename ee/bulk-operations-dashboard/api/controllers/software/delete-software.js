@@ -16,7 +16,10 @@ module.exports = {
 
 
   exits: {
-
+    softwareDeletionFailed: {
+      description: 'The specified software could not be deleted from the Fleet instance.',
+      statusCode: 409,
+    }
   },
 
 
@@ -34,6 +37,11 @@ module.exports = {
           headers: {
             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
           }
+        })
+        .intercept({raw:{statusCode: 409}}, (error)=>{
+          // If the Fleet instance's returns a 409 response, then the software is configured to be installed as
+          // part of the macOS setup experience, and must be removed before it can be deleted via API requests.
+          return {softwareDeletionFailed: error};
         });
       }
       // Delete the AllTeamsSoftware records for this software (if it exists)

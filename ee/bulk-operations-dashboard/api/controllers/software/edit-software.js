@@ -98,6 +98,9 @@ module.exports = {
           headers: {
             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
           }
+        })
+        .intercept('non200Response', (error)=>{
+          return new Error(`When attempting to transfer the installer for ${software.name} to a new team on the Fleet instance, the Fleet isntance returned a non-200 response when a request was sent to get a download stream of the installer on team_id ${teamIdToGetInstallerFrom}. Full Error: ${require('util').inspect(error, {depth: 1})}`);
         });
         let tempUploadedSoftware = await sails.uploadOne(softwareStream, {bucket: sails.config.uploads.bucketWithPostfix});
         softwareFd = tempUploadedSoftware.fd;
@@ -187,7 +190,7 @@ module.exports = {
               await sails.rm(sails.config.uploads.prefixForFileDeletion+softwareFd);
             }
             // Log a warning containing an error
-            sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, ${require('util').inspect(error, {depth: 0})}`);
+            sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, Full error: ${require('util').inspect(error, {depth: 2})}`);
             return {'softwareUploadFailed': error};
           });
           // console.timeEnd(`transfering ${software.name} to fleet instance for team id ${team}`);
@@ -197,15 +200,6 @@ module.exports = {
           // If a new installer package was provided, send patch requests to update the installer package on teams that it is already deployed to.
           await sails.helpers.flow.simultaneouslyForEach(unchangedTeamIds, async (teamApid)=>{
             // console.log(`Adding new version of ${softwareName} to teamId ${teamApid}`);
-            await sails.helpers.http.sendHttpRequest.with({
-              method: 'DELETE',
-              baseUrl: sails.config.custom.fleetBaseUrl,
-              url: `/api/v1/fleet/software/titles/${software.fleetApid}/available_for_install?team_id=${teamApid}`,
-              headers: {
-                Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
-              }
-            });
-            // console.log(`transfering the changed installer ${software.name} to fleet instance for team id ${teamApid}`);
             // console.time(`transfering ${software.name} to fleet instance for team id ${teamApid}`);
             await sails.cp(softwareFd, {bucket: sails.config.uploads.bucketWithPostfix},
             {
@@ -234,7 +228,7 @@ module.exports = {
                         contentType: 'application/octet-stream'
                       });
                       (async ()=>{
-                        await axios.post(`${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/package`, form, {
+                        await axios.patch(`${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/titles/${software.fleetApid}/package`, form, {
                           headers: {
                             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
                             ...form.getHeaders()
@@ -262,7 +256,7 @@ module.exports = {
                 await sails.rm(sails.config.uploads.prefixForFileDeletion+softwareFd);
               }
               // Log a warning containing an error
-              sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, ${require('util').inspect(error, {depth: 0})}`);
+              sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, ${require('util').inspect(error, {depth: 2})}`);
               return {'softwareUploadFailed': error};
             });
             // console.timeEnd(`transfering ${software.name} to fleet instance for team id ${teamApid}`);

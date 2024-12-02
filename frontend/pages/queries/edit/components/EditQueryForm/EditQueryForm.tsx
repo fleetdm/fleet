@@ -52,6 +52,8 @@ import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import Slider from "components/forms/fields/Slider";
+import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
@@ -127,6 +129,7 @@ const EditQueryForm = ({
     lastEditedQueryBody,
     lastEditedQueryObserverCanRun,
     lastEditedQueryFrequency,
+    lastEditedQueryAutomationsEnabled,
     lastEditedQueryPlatforms,
     lastEditedQueryMinOsqueryVersion,
     lastEditedQueryLoggingType,
@@ -136,6 +139,7 @@ const EditQueryForm = ({
     setLastEditedQueryBody,
     setLastEditedQueryObserverCanRun,
     setLastEditedQueryFrequency,
+    setLastEditedQueryAutomationsEnabled,
     setLastEditedQueryPlatforms,
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryLoggingType,
@@ -175,6 +179,8 @@ const EditQueryForm = ({
 
   const platformCompatibility = usePlatformCompatibility();
   const { setCompatiblePlatforms } = platformCompatibility;
+
+  const logDestination = config?.logging.result.plugin || "";
 
   const debounceSQL = useDebouncedCallback((sql: string) => {
     const { errors: newErrors } = validateQuerySQL(sql);
@@ -316,6 +322,7 @@ const EditQueryForm = ({
           team_id: apiTeamIdForQuery,
           observer_can_run: lastEditedQueryObserverCanRun,
           interval: lastEditedQueryFrequency,
+          automations_enabled: lastEditedQueryAutomationsEnabled,
           platform: lastEditedQueryPlatforms,
           min_osquery_version: lastEditedQueryMinOsqueryVersion,
           logging: lastEditedQueryLoggingType,
@@ -341,6 +348,7 @@ const EditQueryForm = ({
                 team_id: apiTeamIdForQuery,
                 observer_can_run: lastEditedQueryObserverCanRun,
                 interval: lastEditedQueryFrequency,
+                automations_enabled: lastEditedQueryAutomationsEnabled,
                 platform: lastEditedQueryPlatforms,
                 min_osquery_version: lastEditedQueryMinOsqueryVersion,
                 logging: lastEditedQueryLoggingType,
@@ -412,6 +420,7 @@ const EditQueryForm = ({
           query: lastEditedQueryBody,
           observer_can_run: lastEditedQueryObserverCanRun,
           interval: lastEditedQueryFrequency,
+          automations_enabled: lastEditedQueryAutomationsEnabled,
           platform: lastEditedQueryPlatforms,
           min_osquery_version: lastEditedQueryMinOsqueryVersion,
           logging: lastEditedQueryLoggingType,
@@ -723,6 +732,43 @@ const EditQueryForm = ({
                 label="Frequency"
                 wrapperClassName={`${baseClass}__form-field form-field--frequency`}
                 helpText="This is how often your query collects data."
+              />
+              <Slider
+                onChange={() =>
+                  setLastEditedQueryAutomationsEnabled(
+                    !lastEditedQueryAutomationsEnabled
+                  )
+                }
+                value={lastEditedQueryAutomationsEnabled}
+                activeText={
+                  <>
+                    Automations on
+                    {lastEditedQueryFrequency === 0 && (
+                      <TooltipWrapper
+                        tipContent={
+                          <>
+                            Automations and reporting will be paused <br />
+                            for this query until a frequency is set.
+                          </>
+                        }
+                        position="right"
+                        tipOffset={9}
+                        showArrow
+                        underline={false}
+                      >
+                        <Icon name="warning" />
+                      </TooltipWrapper>
+                    )}
+                  </>
+                }
+                inactiveText="Automations off"
+                helpText={
+                  <>
+                    Historical results will
+                    {!lastEditedQueryAutomationsEnabled ? " not " : " "}be sent
+                    to your log destination: <b>{logDestination}</b>.
+                  </>
+                }
               />
               <Checkbox
                 value={lastEditedQueryObserverCanRun}

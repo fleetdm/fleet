@@ -168,7 +168,8 @@
     </div>
     <p>{{formData.software.name}} will be removed from your library.</p>
     <ajax-form :handle-submitting="handleSubmittingDeleteSoftwareForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editSoftwareFormRules" @submitted="submittedForm()">
-      <cloud-error v-if="cloudError"></cloud-error>
+      <cloud-error v-if="cloudError && cloudError === 'softwareDeletionFailed'">This software has been configured to be installed as part of the macOS setup experience and cannot be deleted. Please remove this software from all teams the <a :href="`${fleetBaseUrl}/controls/setup-experience/install-software`" target="_blank">"Setup experience" tab of the Controls page</a> on your Fleet instance and try again </cloud-error>
+      <cloud-error v-else-if="cloudError"></cloud-error>
     <div class="d-flex flex-row justify-content-end align-items-center">
       <a class="mr-3" style="color: #D66C7B; cursor: pointer;" @click="closeModal()">Cancel</a>
       <ajax-button class="btn" purpose="delete-button" :syncing.sync="syncing">Delete</ajax-button>
