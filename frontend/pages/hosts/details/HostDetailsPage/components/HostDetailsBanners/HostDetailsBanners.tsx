@@ -8,13 +8,11 @@ import { IOSSettings } from "interfaces/host";
 import {
   HostPlatform,
   isDiskEncryptionSupportedLinuxPlatform,
-  platformSupportsDiskEncryption,
 } from "interfaces/platform";
 
 import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import { isDiskEncryptionProfile } from "pages/hosts/details/OSSettingsModal/OSSettingsTable/OSSettingStatusCell/helpers";
 
 const baseClass = "host-details-banners";
 
