@@ -22,6 +22,7 @@ export type ISupportedGraphicNames = Extract<
   | "file-p7m"
   | "file-pem"
   | "file-vpp"
+  | "file-crt"
 >;
 
 interface IFileUploaderProps {

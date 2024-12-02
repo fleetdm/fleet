@@ -239,4 +239,7 @@ export default {
   SCRIPT_RUN: `/${API_VERSION}/fleet/scripts/run`,
 
   COMMANDS_RESULTS: `/${API_VERSION}/fleet/commands/results`,
+
+  // PKI endpoints
+  PKI: `/${API_VERSION}/fleet/pki`,
 };

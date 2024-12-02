@@ -78,6 +78,8 @@ const StatusIndicatorWithIcon = ({
     <span>{valueContent}</span>
   );
 
+  // FIXME: It seems like this needs to include the __value class to work properly (otherwise the
+  // icon formatting is off).
   return <div className={classNames}>{indicatorContent}</div>;
 };
 

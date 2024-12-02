@@ -45,6 +45,7 @@ export default {
   ADMIN_INTEGRATIONS_MDM_WINDOWS: `${URL_PREFIX}/settings/integrations/mdm/windows`,
   ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER: `${URL_PREFIX}/settings/integrations/mdm/abm`,
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS: `${URL_PREFIX}/settings/integrations/automatic-enrollment/windows`,
+  ADMIN_INTEGRATIONS_PKI: `${URL_PREFIX}/settings/integrations/mdm/pki`,
   ADMIN_INTEGRATIONS_SCEP: `${URL_PREFIX}/settings/integrations/mdm/scep`,
   ADMIN_INTEGRATIONS_CALENDARS: `${URL_PREFIX}/settings/integrations/calendars`,
   ADMIN_INTEGRATIONS_VPP: `${URL_PREFIX}/settings/integrations/mdm/vpp`,
