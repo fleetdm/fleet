@@ -4092,7 +4092,7 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 				SoftwareUpdateDeviceID:      "J516sAP",
 			},
 			updateRequired: nil,
-			err:            "invalid current version",
+			err:            "", // no error, allow enrollment to proceed without software update
 		},
 	}
 

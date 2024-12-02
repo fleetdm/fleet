@@ -501,6 +501,19 @@ for pagination. For a comprehensive list of activity types and detailed informat
       }
     },
     {
+      "created_at": "2021-07-29T14:40:27Z",
+      "id": 21,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "created_team",
+      "details": {
+        "team_id": 2,
+        "team_name": "Apples"
+      }
+    },
+    {
       "created_at": "2021-07-30T13:41:07Z",
       "id": 24,
       "actor_full_name": "name",
@@ -539,80 +552,6 @@ for pagination. For a comprehensive list of activity types and detailed informat
       "details": {
         "team_id": 3,
         "team_name": "Oranges"
-      }
-    },
-    {
-      "created_at": "2021-07-29T14:40:27Z",
-      "id": 21,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "created_team",
-      "details": {
-        "team_id": 2,
-        "team_name": "Apples"
-      }
-    },
-    {
-      "created_at": "2021-07-27T14:35:08Z",
-      "id": 20,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "created_pack",
-      "details": {
-        "pack_id": 2,
-        "pack_name": "New pack"
-      }
-    },
-    {
-      "created_at": "2021-07-27T13:25:21Z",
-      "id": 19,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "targets_count": 14
-      }
-    },
-    {
-      "created_at": "2021-07-27T13:25:14Z",
-      "id": 18,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "targets_count": 14
-      }
-    },
-    {
-      "created_at": "2021-07-26T19:28:24Z",
-      "id": 17,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "target_counts": 1
-      }
-    },
-    {
-      "created_at": "2021-07-26T17:27:37Z",
-      "id": 16,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "target_counts": 14
       }
     },
     {
@@ -2543,10 +2482,12 @@ the `software` table.
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
-| populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. (Note that software lists can be large, so this may cause significant CPU and RAM usage depending on page size and request concurrency.) |
+| populate_software     | string | query | If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. See notes below on performance. |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host. |
 
 > `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
+
+> `populate_software` returns a lot of data per host when set, and drastically more data when set to `true` on Fleet Premium. If you need vulnerability details for a large number of hosts, consider setting `populate_software` to `without_vulnerability_details` and pulling vulnerability details from the [Get vulnerability](#get-vulnerability) endpoint, as this returns details once per vulnerability rather than once per vulnerability per host.
 
 If `software_title_id` is specified, an additional top-level key `"software_title"` is returned with the software title object corresponding to the `software_title_id`. See [List software](#list-software) response payload for details about this object.
 
@@ -5729,12 +5670,12 @@ Get aggregate disk encryption status counts of macOS and Windows hosts enrolled 
 
 ```json
 {
-  "verified": {"macos": 123, "windows": 123},
-  "verifying": {"macos": 123, "windows": 0},
-  "action_required": {"macos": 123, "windows": 0},
-  "enforcing": {"macos": 123, "windows": 123},
-  "failed": {"macos": 123, "windows": 123},
-  "removing_enforcement": {"macos": 123, "windows": 0},
+  "verified": {"macos": 123, "windows": 123, "linux": 13},
+  "verifying": {"macos": 123, "windows": 0, "linux": 0},
+  "action_required": {"macos": 123, "windows": 0, "linux": 37},
+  "enforcing": {"macos": 123, "windows": 123, "linux": 0},
+  "failed": {"macos": 123, "windows": 123, "linux": 0},
+  "removing_enforcement": {"macos": 123, "windows": 0, "linux": 0}
 }
 ```
 
@@ -7658,6 +7599,9 @@ Returns a list of global queries or team queries.
 | team_id         | integer | query | _Available in Fleet Premium_. The ID of the parent team for the queries to be listed. When omitted, returns global queries.                  |
 | query           | string  | query | Search query keywords. Searchable fields include `name`.                                                                      |
 | merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global queries in addition to team queries when filtering by `team_id`. (If no `team_id` is provided, this parameter is ignored.) |
+| compatible_platform | string | query | Return queries that only reference tables compatible with this platform (not a strict compatibility check). One of: `"macos"`, `"windows"`, `"linux"`, `"chrome"` (case-insensitive). |
+| page                    | integer | query | Page number of the results to fetch. |
+| per_page                | integer | query | Results per page. |
 
 #### Example
 
@@ -7746,7 +7690,12 @@ Returns a list of global queries or team queries.
         "total_executions": null
       }
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  },
+  "count": 200
 }
 ```
 
@@ -9369,6 +9318,7 @@ Returns information about the specified software. By default, `versions` are sor
       }
     },
     "app_store_app": null,
+    "counts_updated_at": "2024-11-03T22:39:36Z",
     "source": "apps",
     "browser": "",
     "hosts_count": 48,

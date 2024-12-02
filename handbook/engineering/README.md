@@ -26,18 +26,6 @@ This handbook page details processes specific to working [with](#contact-us) and
 The 🚀 Engineering department at Fleet is directly responsible for writing and maintaining the [code](https://github.com/fleetdm/fleet) for Fleet's core product and infrastructure.
 
 
-### Record engineering KPIs
-
-We track the success of this process by observing the throughput of issues through the system and identifying where buildups (and therefore bottlenecks) are occurring.
-The metrics are:
-* Number of bugs opened this week
-* Total # bugs open
-* Bugs in each state (inbox, acknowledged, reproduced)
-* Number of bugs closed this week
-
-Each week these are tracked and shared in the weekly KPI sheet by Luke Heath.
-
-
 ### Write a feature guide 
 
 We write [guides](https://fleetdm.com/guides) for all new features. Feature guides are published before the feature is released so that our users understand how the feature is intended to work. A guide is a type of article, so the process for writing a guide and article is the same.
@@ -46,13 +34,14 @@ We write [guides](https://fleetdm.com/guides) for all new features. Feature guid
 2. Make a copy of a guide in the `/articles` directory and replace the content with your article. Make sure to maintain the same heading sizes and update the metadata tags at the bottom.
 3. Open a new pull request containing your article into `main` and add the pull request to the milestone this feature will be shipped in. The pull request will automatically be assigned to the appropriate reviewer.
 
+
 ### Create an engineering-initiated story
 
 Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
 
 It is important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users.
 
-To [create an engineering-initiated user story](https://fleetdm.com/handbook/engineering#creating-an-engineering-initiated-story), follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=lukeheath&labels=story,~engineering-initiated&projects=&template=story.md&title=), make sure the `~engineering-initiated` label is added and the engineering output and architecture DRI (@lukeheath) is assigned. 
+To [create an engineering-initiated user story](https://fleetdm.com/handbook/engineering#creating-an-engineering-initiated-story), follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=lukeheath&labels=story,~engineering-initiated&projects=&template=story.md&title=), make sure the `~engineering-initiated` label is added, the `:product` label is removed, and the engineering output and architecture DRI (@lukeheath) is assigned. 
 
 What happens next? The engineering output and architecture DRI reviews engineering-initiated stories weekly. 
 
@@ -158,7 +147,7 @@ Documentation on completing the release process can be found [here](https://gith
 
 ### Deploy a new release to dogfood
 
-After each Fleet release, the new release is deployed to Fleet's "dogfood" (internal) instance.
+After each Fleet release, the new release is deployed to Fleet's "dogfood" (internal) instance. To avoid interruptions to sales demos using this instance, deploys should occur outside of the business hours of 7am - 5pm Pacific time Monday - Friday. If a deployment is necessary during business hours, coordinate with the Sales department in the #g-sales Slack channel.
 
 How to deploy a new release to dogfood:
 
@@ -205,7 +194,17 @@ Immediately after publishing a new release, we close out the associated GitHub i
 The [Fleet releases Google calendar](https://calendar.google.com/calendar/embed?src=c_v7943deqn1uns488a65v2d94bs%40group.calendar.google.com&ctz=America%2FChicago) is kept up-to-date by the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). Any change to targeted release dates is reflected on this calendar.
 
 
+### Handle process exceptions for non-released code
 
+Some of our code does not go through a scheduled release process, but is released immediately via GitHub workflows. 
+This includes:
+- Our [fleetdm/nvd](https://github.com/fleetdm/nvd) repository
+- Our [fleetdm/vulnerabilities](https://github.com/fleetdm/vulnerabilities) repository
+- Our [website](https://github.com/fleetdm/fleet/tree/main/website) directory
+
+In these cases there are two differences in our process:
+- QA is done before merging the code change to the main branch.
+- Tickets are not moved to "Ready for release". Bug are closed, and user stories are moved to the product drafting board's "Confirm and celebrate" column.
 
 
 ### Register a domain for Fleet
@@ -250,33 +249,6 @@ Once the user has installed fleetd, verify the device is correctly enrolled by c
 ### Enroll a ChromeOS device in dogfood
 
 ChromeOS devices are automatically enrolled in dogfood after the IT admin sets up automatic enrollment. This is done in dogfood by following the steps found in the dialog popup when selecting "Add hosts > ChromeOS" from the dogfood Hosts page.
-
-
-### Lock a macOS host in dogfood using fleetctl CLI tool
-
-- Download the lock command XML file from Google Drive [here](https://drive.google.com/file/d/1o6vJ1fHilRtBmyKAj0I5URiKn77qe4gS/view?usp=drive_link).
-- Customize any messaging that will appear on the locked device, and modify the pin for unlocking the device by editing the file in text editor.
-  - Note you will need to safely store the recovery pin for the device, suggest using 1Password or other secure storage method
-- Run this command with fleetctl CLI tool: `fleetctl mdm run-command --hosts=hostname --payload=Downloads/command-lock-macos-host.xml`
-  - Note that `hostname` must be replaced with **Hostname** in Fleet (not the display name)
-  - Note that the payload path may change based on where the file is stored once downloaded
-  - Note that if you haven't logged into fleetctl recently, will need to follow authentication steps (see [Logging in with SAML (SSO) authentication](https://fleetdm.com/docs/using-fleet/fleetctl-cli#logging-in-with-saml-sso-authentication) ).
-- Device will be locked
-- When device needs to be unlocked, enter the security pin (from XML file) in the input field of the device
-- The device will then open to the regular login screen, asking for password
-  -  If you do not have the password available, you can choose the option to enter recovery key/disk encryption key (this option might be behind `?` icon).
-  - Get disk encryption key from Fleet dogfood (using the action menu from the individual host page).
-  - Enter disk encryption key on laptop. This should prompt you to create a new password.
-- You will then be logged into the default device profile, and can complete any needed actions (wipe, recover data).
-
-
-### Review another product group's pull request
-
-Some code paths require pull request review from multiple product groups to confirm there are no
-unintended side effects of the change for another product group. All code paths defined in
-[CODEOWNERS](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) that are assigned to individual
-engineers across multiple product groups must be approved by one engineer from each product group
-before merging.
 
 
 ### Review a community pull request
@@ -326,29 +298,9 @@ If a community member opens an issue that we can't reproduce leave a comment ask
 
 ### Schedule developer on-call workload
 
-Engineering managers are asked to be aware of the [on-call rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and schedule a light workload for engineers while they are on-call. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
+Engineering Managers are asked to be aware of the [on-call rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and reduce estimate capacity for each sprint accordingly. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
 
-We aspire to clear sprint work for the on-call engineer, but due to capacity or other constraints, sometimes the on-call engineer is required for sprint work. When this is the case, the EM will work with the on-call engineer to take over support requests or @oncall assignment completely when necessary.
-
-The remaining time after fulfilling the responsibilities of on-call is free for the engineer to choose their own path. Please choose something relevant to your work or Fleet's goals to focus on. If unsure, speak with your manager.
-
-Some ideas:
-
-- Do training/learning relevant to your work.
-- Improve the Fleet developer experience.
-- Hack on a product idea. Note: Experiments are encouraged, but not all experiments will ship! Check in with the product team before shipping user-visible changes.
-- Create a blog post (or other content) for fleetdm.com.
-- Try out an experimental refactor. 
-
-
-### Edit a DNS record
-
-We use Cloudflare to manage the DNS records of fleetdm.com and our other domains. To make DNS changes in Cloudflare:
-1. Log into your Cloudflare account and select the "Fleet" account.
-2. Select the domain you want to change and go to the DNS panel on that domain's dashboard.
-3. To add a record, click the "Add record" button, select the record's type, fill in the required values, and click "Save". If you're making changes to an existing record, you only need to click on the record, update the record's values, and save your changes.
-
-> If you need access to Fleet's Cloudflare account, please ask the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) [Luke Heath](https://fleetdm.com/handbook/engineering#team) in Slack for an invitation.
+On-call engineers are available during the business hours of 9am - 5pm Pacific. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities) requires a 1-hour response time during business hours to any @oncall mention.
 
 
 ### Assume developer on-call alias
@@ -358,6 +310,15 @@ The on-call developer is responsible for:
 - Performing the [on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities).
 - [Escalating community questions and issues](https://fleetdm.com/handbook/company/product-groups#escalations).
 - Successfully [transferring the on-call persona to the next developer](https://fleetdm.com/handbook/company/product-groups#changing-of-the-guard).
+- Work on an [engineering-initiated story](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story).
+
+Some additional ideas:
+
+- Do training/learning relevant to your work.
+- Improve the Fleet contributor experience.
+- Hack on a product idea. Note: Experiments are encouraged, but not all experiments will ship! Check in with the product team before shipping user-visible changes.
+- Create a blog post (or other content) for fleetdm.com.
+- Try out an experimental refactor. 
 
 
 ### Notify stakeholders when a user story is pushed to the next release
@@ -383,23 +344,6 @@ For each bug found, please use the [bug report template](https://github.com/flee
 For unreleased bugs in an active sprint, a new bug is created with the `~unreleased bug` label. The `:release` label and associated product group label is added, and the engineer responsible for the feature is assigned. If QA is unsure who the bug should be assigned to, it is assigned to the EM. Fixing the bug becomes part of the story.
 
 
-### Accept new Apple developer account terms
-
-Engineering is responsible for managing third-party accounts required to support engineering infrastructure. We use the official Fleet Apple developer account to notarize installers we generate for Apple devices. Whenever Apple releases new terms of service, we are unable to notarize new packages until the new terms are accepted.
-
-When this occurs, we will begin receiving the following error message when attempting to notarize packages: "You must first sign the relevant contracts online." To resolve this error, follow the steps below.
-
-1. Visit the [Apple developer account login page](https://appleid.apple.com/account?appId=632&returnUrl=https%3A%2F%2Fdeveloper.apple.com%2Fcontact%2F).
-
-2. Log in using the credentials stored in 1Password under "Apple developer account".
-
-3. Contact the Head of Digital Experience to determine which phone number to use for 2FA.
-
-4. Complete the 2FA process to log in.
-
-5. Accept the new terms of service.
-
-
 ### Interview a developer candidate
 
 Ensure the interview process follows these steps in order. This process must follow [creating a new position](https://fleetdm.com/handbook/company/leadership#creating-a-new-position) through [receiving job applications](https://fleetdm.com/handbook/company/leadership#receiving-job-applications). Once the position is approved manage this process per candidate in a [hiring pipeline](https://drive.google.com/drive/folders/1dLZaor9dQmAxcxyU6prm-MWNd-C-U8_1?usp=drive_link)
@@ -413,28 +357,6 @@ Ensure the interview process follows these steps in order. This process must fol
 7. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @lukeheath.
 
 If the candidate passes all of these steps then continue with [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
-
-
-### Renew MDM certificate signing request (CSR) 
-
-The certificate signing request (CSR) certificate expires every year. It needs to be renewed prior to expiring. This is notified to the team by the MDM calendar event [IMPORTANT: Renew MDM CSR certificate](https://calendar.google.com/calendar/u/0/r/eventedit/MmdqNTY4dG9nbWZycnNxbDBzYjQ5dGplM2FfMjAyNDA5MDlUMTczMDAwWiBjXzMyMjM3NjgyZGRlOThlMzI4MjVhNTY1ZDEyZjk0MDEyNmNjMWI0ZDljYjZjNjgyYzQ2MjcxZGY0N2UzNjM5NDZAZw)
-
-Steps to renew the certificate:
-
-1. Visit the [Apple developer account login page](https://developer.apple.com/account).
-2. Log in using the credentials stored in 1Password under **Apple developer account**.
-3. Verify you are using the **Enterprise** subaccount for Fleet Device Management Inc.
-4. Generate a new certificate following the instructions in [MicroMDM](https://github.com/micromdm/micromdm/blob/c7e70b94d0cfc7710e5c92be20d4534d9d5a0640/docs/user-guide/quickstart.md?plain=1#L103-L118).
-5. Note: `mdmctl` (a micromdm command for MDM vendors) will generate a `VendorPrivateKey.key` and `VendorCertificateRequest.csr` using an appropriate shared email relay and a passphrase (suggested generation method with pwgen available in brew / apt / yum `pwgen -s 32 -1vcy`)
-6. Uploading `VendorCertificateRequest.csr` to Apple you will download a corresponding `mdm.cer` file
-7. Convert the downloaded cert to PEM with `openssl x509 -inform DER -outform PEM -in mdm.cer -out server.crt.pem`
-8. Update the **Config vars** in [Heroku](https://dashboard.heroku.com/apps/production-fleetdm-website/settings):
-* Update `sails_custom__mdmVendorCertPem` with the results from step 7 `server.crt.pem`
-* Update `sails_custom__mdmVendorKeyPassphrase` with the passphrase used in step 4
-* Update `sails_custom__mdmVendorKeyPem` with `VendorPrivateKey.key` from step 4
-9. Store updated values in [Confidential 1Password Vault](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=lcvkjobeheaqdgnz33ontpuhxq&i=byyfn2knejwh42a2cbc5war5sa&h=fleetdevicemanagement.1password.com)
-10. Verify by logging into a normal apple account (not billing@...) and Generate a new Push Certificate following our [setup MDM](https://fleetdm.com/docs/using-fleet/mdm-setup) steps and verify the Expiration date is 1 year from today.
-11. Adjust calendar event to be between 2-4 weeks before the next expiration.
 
 
 ### Perform an incident postmortem
@@ -459,6 +381,73 @@ Beginning with macOS 16, Fleet will offer same-day support for all major version
 4. Confirm all automated tests are passing.
 5. [File bugs](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=P1%2Cbug%2C%3Areproduce%2C%3Aincoming&projects=&template=bug-report.md&title=) with a `P1` label and assign to the appropriate [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups).
 6. When all bugs are fixed, follow the [writing a feature guide](https://fleetdm.com/handbook/engineering#write-a-feature-guide) process to publish an article announcing Fleet same-day support for the new major release.
+
+
+### Record engineering KPIs
+
+We track the effectiveness of our processes by observing issue throughput and identifying where buildups (and therefore bottlenecks) are occurring.
+
+The metrics are:
+* Number of bugs opened this week
+* Total # bugs open
+* Bugs in each state (inbox, acknowledged, reproduced)
+* Number of bugs closed this week
+
+Each week these are tracked and shared in the weekly KPI sheet by Luke Heath.
+
+
+### Edit a DNS record
+
+We use Cloudflare to manage the DNS records of fleetdm.com and our other domains. To make DNS changes in Cloudflare:
+1. Log into your Cloudflare account and select the "Fleet" account.
+2. Select the domain you want to change and go to the DNS panel on that domain's dashboard.
+3. To add a record, click the "Add record" button, select the record's type, fill in the required values, and click "Save". If you're making changes to an existing record, you only need to click on the record, update the record's values, and save your changes.
+
+> If you need access to Fleet's Cloudflare account, please ask the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) [Luke Heath](https://fleetdm.com/handbook/engineering#team) in Slack for an invitation.
+
+
+### Accept new Apple developer account terms
+
+Engineering is responsible for managing third-party accounts required to support engineering infrastructure. We use the official Fleet Apple developer account to notarize installers we generate for Apple devices. Whenever Apple releases new terms of service, we are unable to notarize new packages until the new terms are accepted.
+
+When this occurs, we will begin receiving the following error message when attempting to notarize packages: "You must first sign the relevant contracts online." To resolve this error, follow the steps below.
+
+1. Visit the [Apple developer account login page](https://appleid.apple.com/account?appId=632&returnUrl=https%3A%2F%2Fdeveloper.apple.com%2Fcontact%2F).
+
+2. Log in using the credentials stored in 1Password under "Apple developer account".
+
+3. Contact the Head of Digital Experience to determine which phone number to use for 2FA.
+
+4. Complete the 2FA process to log in.
+
+5. Accept the new terms of service.
+
+
+### Renew MDM certificate signing request (CSR) 
+
+The certificate signing request (CSR) certificate expires every year. It needs to be renewed prior to expiring. This is notified to the team by the MDM calendar event [IMPORTANT: Renew MDM CSR certificate](https://calendar.google.com/calendar/u/0/r/eventedit/MmdqNTY4dG9nbWZycnNxbDBzYjQ5dGplM2FfMjAyNDA5MDlUMTczMDAwWiBjXzMyMjM3NjgyZGRlOThlMzI4MjVhNTY1ZDEyZjk0MDEyNmNjMWI0ZDljYjZjNjgyYzQ2MjcxZGY0N2UzNjM5NDZAZw)
+
+Steps to renew the certificate:
+
+1. Visit the [Apple developer account login page](https://developer.apple.com/account).
+2. Log in using the credentials stored in 1Password under **Apple developer account**.
+3. Verify you are using the **Enterprise** subaccount for Fleet Device Management Inc.
+4. Generate a new certificate following the instructions in [MicroMDM](https://github.com/micromdm/micromdm/blob/c7e70b94d0cfc7710e5c92be20d4534d9d5a0640/docs/user-guide/quickstart.md?plain=1#L103-L118).
+5. Note: `mdmctl` (a micromdm command for MDM vendors) will generate a `VendorPrivateKey.key` and `VendorCertificateRequest.csr` using an appropriate shared email relay and a passphrase (suggested generation method with pwgen available in brew / apt / yum `pwgen -s 32 -1vcy`)
+6. Uploading `VendorCertificateRequest.csr` to Apple you will download a corresponding `mdm.cer` file
+7. Convert the downloaded cert to PEM with `openssl x509 -inform DER -outform PEM -in mdm.cer -out server.crt.pem`
+8. Update the **Config vars** in [Heroku](https://dashboard.heroku.com/apps/production-fleetdm-website/settings):
+* Update `sails_custom__mdmVendorCertPem` with the results from step 7 `server.crt.pem`
+* Update `sails_custom__mdmVendorKeyPassphrase` with the passphrase used in step 4
+* Update `sails_custom__mdmVendorKeyPem` with `VendorPrivateKey.key` from step 4
+9. Store updated values in [Confidential 1Password Vault](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=lcvkjobeheaqdgnz33ontpuhxq&i=byyfn2knejwh42a2cbc5war5sa&h=fleetdevicemanagement.1password.com)
+10. Verify by logging into a normal apple account (not billing@...) and Generate a new Push Certificate following our [setup MDM](https://fleetdm.com/docs/using-fleet/mdm-setup) steps and verify the Expiration date is 1 year from today.
+11. Adjust calendar event to be between 2-4 weeks before the next expiration.
+
+
+### Maintain TUF repo for secure agent updates
+
+Instructions for creating and maintaining a TUF repo are available on our [TUF handbook page](https://fleetdm.com/handbook/engineering/tuf). 
 
 
 ## Rituals

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -730,7 +731,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAnyMW.POST("/api/_version_/fleet/mdm/profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
 	mdmAnyMW.POST("/api/_version_/fleet/configuration_profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
 
+	// Deprecated: POST /hosts/{host_id:[0-9]+}/configuration_profiles/resend/{profile_uuid} is now deprecated, replaced by the
+	// POST /hosts/{host_id:[0-9]+}/configuration_profiles/{profile_uuid}/resend endpoint.
 	mdmAnyMW.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/configuration_profiles/resend/{profile_uuid}", resendHostMDMProfileEndpoint, resendHostMDMProfileRequest{})
+	mdmAnyMW.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/configuration_profiles/{profile_uuid}/resend", resendHostMDMProfileEndpoint, resendHostMDMProfileRequest{})
 
 	// Deprecated: PATCH /mdm/apple/settings is deprecated, replaced by POST /disk_encryption.
 	// It was only used to set disk encryption.
@@ -1232,4 +1236,45 @@ func registerMDM(
 		httpmdm.SigLogWithLogger(mdmLogger.With("handler", "cert-extract")))
 	mux.Handle(apple_mdm.MDMPath, mdmHandler)
 	return nil
+}
+
+func WithMDMEnrollmentMiddleware(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/mdm/sso" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// if x-apple-aspen-deviceinfo custom header is present, we need to check for minimum os version
+		di := r.Header.Get("x-apple-aspen-deviceinfo")
+		if di != "" {
+			parsed, err := apple_mdm.ParseDeviceinfo(di, false) // FIXME: use verify=true when we have better parsing for various Apple certs (https://github.com/fleetdm/fleet/issues/20879)
+			if err != nil {
+				// just log the error and continue to next
+				level.Error(logger).Log("msg", "parsing x-apple-aspen-deviceinfo", "err", err)
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(r.Context(), parsed)
+			if err != nil {
+				// just log the error and continue to next
+				level.Error(logger).Log("msg", "checking minimum os version for mdm", "err", err)
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			if sur != nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				if err := json.NewEncoder(w).Encode(sur); err != nil {
+					level.Error(logger).Log("msg", "failed to encode software update required", "err", err)
+					http.Redirect(w, r, r.URL.String()+"?error=true", http.StatusSeeOther)
+				}
+				return
+			}
+		}
+
+		next.ServeHTTP(w, r)
+	}
 }

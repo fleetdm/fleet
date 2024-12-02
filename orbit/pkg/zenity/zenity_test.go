@@ -76,7 +76,8 @@ func TestShowEntryArgs(t *testing.T) {
 				output: []byte("some output"),
 			}
 			z := &Zenity{
-				cmdWithOutput: mock.runWithOutput,
+				cmdWithOutput:  mock.runWithOutput,
+				killZenityFunc: func() {},
 			}
 			output, err := z.ShowEntry(ctx, tt.opts)
 			assert.NoError(t, err)
@@ -117,7 +118,8 @@ func TestShowEntryError(t *testing.T) {
 				exitCode: tt.exitCode,
 			}
 			z := &Zenity{
-				cmdWithOutput: mock.runWithOutput,
+				cmdWithOutput:  mock.runWithOutput,
+				killZenityFunc: func() {},
 			}
 			output, err := z.ShowEntry(ctx, dialog.EntryOptions{})
 			require.ErrorIs(t, err, tt.expectedErr)
@@ -133,7 +135,8 @@ func TestShowEntrySuccess(t *testing.T) {
 		output: []byte("some output"),
 	}
 	z := &Zenity{
-		cmdWithOutput: mock.runWithOutput,
+		cmdWithOutput:  mock.runWithOutput,
+		killZenityFunc: func() {},
 	}
 	output, err := z.ShowEntry(ctx, dialog.EntryOptions{})
 	assert.NoError(t, err)
@@ -168,7 +171,8 @@ func TestShowInfoArgs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mock := &mockExecCmd{}
 			z := &Zenity{
-				cmdWithOutput: mock.runWithOutput,
+				cmdWithOutput:  mock.runWithOutput,
+				killZenityFunc: func() {},
 			}
 			err := z.ShowInfo(ctx, tt.opts)
 			assert.NoError(t, err)
@@ -203,7 +207,8 @@ func TestShowInfoError(t *testing.T) {
 				exitCode: tt.exitCode,
 			}
 			z := &Zenity{
-				cmdWithOutput: mock.runWithOutput,
+				cmdWithOutput:  mock.runWithOutput,
+				killZenityFunc: func() {},
 			}
 			err := z.ShowInfo(ctx, dialog.InfoOptions{})
 			require.ErrorIs(t, err, tt.expectedErr)
@@ -233,7 +238,8 @@ func TestProgressArgs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mock := &mockExecCmd{}
 			z := &Zenity{
-				cmdWithWait: mock.runWithWait,
+				cmdWithWait:    mock.runWithWait,
+				killZenityFunc: func() {},
 			}
 			err := z.ShowProgress(ctx, tt.opts)
 			assert.NoError(t, err)
@@ -249,7 +255,8 @@ func TestProgressKillOnCancel(t *testing.T) {
 		waitDuration: 5 * time.Second,
 	}
 	z := &Zenity{
-		cmdWithWait: mock.runWithWait,
+		cmdWithWait:    mock.runWithWait,
+		killZenityFunc: func() {},
 	}
 
 	done := make(chan struct{})

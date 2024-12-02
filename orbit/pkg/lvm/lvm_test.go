@@ -295,6 +295,134 @@ var testJsonFedora = `{
    ]
 }`
 
+var testJsonOther = `{
+    "blockdevices": [
+        {
+            "name": "loop0",
+            "maj:min": "7:0",
+            "rm": false,
+            "size": "4K",
+            "ro": true,
+            "type": "loop",
+            "mountpoint": "/snap/bare/5"
+        },
+        {
+            "name": "loop1",
+            "maj:min": "7:1",
+            "rm": false,
+            "size": "346.3M",
+            "ro": true,
+            "type": "loop",
+            "mountpoint": "/snap/gnome-3-38-2004/119"
+        },
+        {
+            "name": "loop2",
+            "maj:min": "7:2",
+            "rm": false,
+            "size": "49.9M",
+            "ro": true,
+            "type": "loop",
+            "mountpoint": "/snap/snapd/18357"
+        },
+        {
+            "name": "loop3",
+            "maj:min": "7:3",
+            "rm": false,
+            "size": "46M",
+            "ro": true,
+            "type": "loop",
+            "mountpoint": "/snap/snap-store/638"
+        },
+        {
+            "name": "loop4",
+            "maj:min": "7:4",
+            "rm": false,
+            "size": "63.3M",
+            "ro": true,
+            "type": "loop",
+            "mountpoint": "/snap/core20/1828"
+        },
+        {
+            "name": "loop5",
+            "maj:min": "7:5",
+            "rm": false,
+            "size": "91.7M",
+            "ro": true,
+            "type": "loop",
+            "mountpoint": "/snap/gtk-common-themes/1535"
+        },
+        {
+            "name": "nvme0n1",
+            "maj:min": "259:0",
+            "rm": false,
+            "size": "953.9G",
+            "ro": false,
+            "type": "disk",
+            "mountpoint": null,
+            "children": [
+                {
+                    "name": "nvme0n1p1",
+                    "maj:min": "259:1",
+                    "rm": false,
+                    "size": "512M",
+                    "ro": false,
+                    "type": "part",
+                    "mountpoint": "/boot/efi"
+                },
+                {
+                    "name": "nvme0n1p2",
+                    "maj:min": "259:2",
+                    "rm": false,
+                    "size": "1.4G",
+                    "ro": false,
+                    "type": "part",
+                    "mountpoint": "/boot"
+                },
+                {
+                    "name": "nvme0n1p3",
+                    "maj:min": "259:3",
+                    "rm": false,
+                    "size": "952G",
+                    "ro": false,
+                    "type": "part",
+                    "mountpoint": null,
+                    "children": [
+                        {
+                            "name": "nvme0n1p3_crypt",
+                            "maj:min": "253:0",
+                            "rm": false,
+                            "size": "951.9G",
+                            "ro": false,
+                            "type": "crypt",
+                            "mountpoint": null,
+                            "children": [
+                                {
+                                    "name": "vgubuntu-root",
+                                    "maj:min": "253:1",
+                                    "rm": false,
+                                    "size": "930.4G",
+                                    "ro": false,
+                                    "type": "lvm",
+                                    "mountpoint": "/"
+                                },
+                                {
+                                    "name": "vgubuntu-swap_1",
+                                    "maj:min": "253:2",
+                                    "rm": false,
+                                    "size": "976M",
+                                    "ro": false,
+                                    "type": "lvm",
+                                    "mountpoint": "[SWAP]"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}`
+
 func TestFindRootDisk(t *testing.T) {
 	var input bytes.Buffer
 	_, err := input.WriteString(testJsonUbuntu)
@@ -306,6 +434,14 @@ func TestFindRootDisk(t *testing.T) {
 
 	input = bytes.Buffer{}
 	_, err = input.WriteString(testJsonFedora)
+	assert.NoError(t, err)
+
+	output, err = rootDiskFromJson(input)
+	assert.NoError(t, err)
+	assert.Equal(t, "/dev/nvme0n1p3", output)
+
+	input = bytes.Buffer{}
+	_, err = input.WriteString(testJsonOther)
 	assert.NoError(t, err)
 
 	output, err = rootDiskFromJson(input)
