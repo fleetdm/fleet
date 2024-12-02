@@ -58,7 +58,7 @@ module.exports = {
           }
         })
         .intercept((error)=>{
-          return new Error(`When sending an API request to get the streaming bytes of a software installer (${software.name}), an error occurred., Full error: ${require('util').inspect(error, {depth: null})}`)
+          return new Error(`When sending an API request to get the streaming bytes of a software installer (${software.name}), an error occurred., Full error: ${require('util').inspect(error, {depth: null})}`);
         });
         sails.log.info(`Uploading installer to s3 bucket.`);
         let tempUploadedSoftware = await sails.uploadOne(softwareStream, {bucket: sails.config.uploads.bucketWithPostfix});
