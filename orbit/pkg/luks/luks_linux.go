@@ -125,7 +125,11 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 	if err != nil {
 		log.Error().Err(err).Msg("failed to show progress dialog")
 	}
-	defer cancelProgress()
+	defer func() {
+		if err := cancelProgress(); err != nil {
+			log.Error().Err(err).Msg("failed to cancel progress dialog")
+		}
+	}()
 
 	// Validate the passphrase
 	for {
@@ -150,7 +154,10 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 
 	}
 
-	cancelProgress()
+	if err := cancelProgress(); err != nil {
+		log.Error().Err(err).Msg("failed to cancel progress dialog")
+	}
+
 	cancelProgress, err = lr.notifier.ShowProgress(dialog.ProgressOptions{
 		Title: infoTitle,
 		Text:  "Escrowing key...",
@@ -158,7 +165,12 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 	if err != nil {
 		log.Error().Err(err).Msg("failed to show progress dialog")
 	}
-	defer cancelProgress()
+
+	defer func() {
+		if err := cancelProgress(); err != nil {
+			log.Error().Err(err).Msg("failed to cancel progress dialog")
+		}
+	}()
 
 	escrowPassphrase, err := generateRandomPassphrase()
 	if err != nil {
