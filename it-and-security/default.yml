@@ -78,4 +78,4 @@ org_settings:
       host_batch_size: 0
 policies:
 queries:
-  - path: ./lib/collect-fleetd-update-channels.queries.yml
+  - path: ./lib/queries/collect-fleetd-update-channels.yml
