@@ -35,16 +35,11 @@ const pkiServive = {
     return sendRequest("GET", path);
   },
 
-  addTemplate: (pkiName: string, template: IPkiTemplate) => {
+  patchIntegrationsDigicertPki: (pkiConfigs: IPkiConfig[]) => {
     const { CONFIG } = endpoints;
     const formData = {
       integrations: {
-        digicert_pki: [
-          {
-            pki_name: pkiName,
-            templates: [template],
-          },
-        ],
+        digicert_pki: pkiConfigs,
       },
     };
 

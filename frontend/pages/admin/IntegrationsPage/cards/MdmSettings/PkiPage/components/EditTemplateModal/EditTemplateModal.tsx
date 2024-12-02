@@ -74,44 +74,73 @@ const unflattenTemplate = (formData: Record<keyof IPkiTemplate, string>) => {
 };
 
 const EditTemplateModal = ({
-  pkiConfig,
+  selectedConfig,
+  byPkiName,
   onCancel,
   onSuccess,
 }: {
-  pkiConfig: IPkiConfig;
+  selectedConfig: IPkiConfig;
+  byPkiName: Record<string, IPkiConfig>;
   onCancel: () => void;
   onSuccess: () => void;
 }) => {
   const { renderFlash } = React.useContext(NotificationContext);
 
   const [formData, setFormData] = useState<Record<keyof IPkiTemplate, string>>(
-    flattenTemplate(pkiConfig.templates[0])
+    flattenTemplate(selectedConfig.templates[0])
   );
   const [formErrors, setFormErrors] = useState<IFormErrors>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   const onInputChange = ({ name, value }: IFormField) => {
     setFormErrors((prev) => ({ ...prev, [name]: "" }));
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const onSubmit = useCallback(async () => {
-    // TODO: validations
+  const onSubmit = useCallback(
+    async (evt: React.MouseEvent<HTMLFormElement>) => {
+      evt.preventDefault();
+      // TODO: validations
 
-    // TODO: how do we handle multiple array elements at top-level (i.e. certs by pki_name) and at cert-level
-    // (templates by template name)?
+      setIsSaving(true);
 
-    try {
-      await pkiApi.addTemplate(pkiConfig.pki_name, unflattenTemplate(formData));
-      onSuccess();
-    } catch {
-      renderFlash("error", "Could not save template");
-    }
-  }, [formData, onSuccess, pkiConfig.pki_name, renderFlash]);
+      // TODO: Need specs for how we handle multiple array elements at top-level (i.e. certs by pki_name) and at cert-level
+      // (templates by template name). For now, we're just going to replace all templates for the
+      // selected pki_name and preserve existing config data associated to any other pki_name.
 
-  const disableInput = !!pkiConfig.templates.length;
+      const payload: IPkiConfig[] = [];
+      Object.entries(byPkiName).forEach(([pkiName, config]) => {
+        if (pkiName === selectedConfig.pki_name) {
+          payload.push({
+            pki_name: pkiName,
+            templates: [unflattenTemplate(formData)],
+          });
+        } else {
+          payload.push(config);
+        }
+      });
+
+      try {
+        await pkiApi.patchIntegrationsDigicertPki(payload);
+        renderFlash(
+          "success",
+          <>
+            Successfully added certificate template for your{" "}
+            <b>{selectedConfig.pki_name}</b> PKI
+          </>
+        );
+        onSuccess();
+      } catch {
+        renderFlash("error", "Could not save template");
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [formData, onSuccess, selectedConfig.pki_name, byPkiName, renderFlash]
+  );
+
+  const disableInput = !!selectedConfig.templates.length;
   const disableSave = Object.values(formData).some((v) => !v);
-
-  const isSaving = false;
 
   return (
     <Modal
@@ -121,7 +150,7 @@ const EditTemplateModal = ({
       <>
         <form onSubmit={onSubmit} autoComplete="off">
           <InputField
-            inputWrapperClass={`${baseClass}__admin-url-input`}
+            inputWrapperClass={`${baseClass} ${baseClass}__admin-url-input`}
             label="Name"
             name="name"
             value={formData.name}
@@ -133,7 +162,7 @@ const EditTemplateModal = ({
             disabled={disableInput}
           />
           <InputField
-            inputWrapperClass={`${baseClass}__scep-url-input`}
+            inputWrapperClass={`${baseClass} ${baseClass}__scep-url-input`}
             label="Profile ID"
             name="profile_id"
             value={formData.profile_id}
@@ -145,7 +174,7 @@ const EditTemplateModal = ({
             disabled={disableInput}
           />
           <InputField
-            inputWrapperClass={`${baseClass}__admin-url-input`}
+            inputWrapperClass={`${baseClass} ${baseClass}__admin-url-input`}
             label="Certificate common name (CN)"
             name="common_name"
             value={formData.common_name}
@@ -157,7 +186,7 @@ const EditTemplateModal = ({
             disabled={disableInput}
           />
           <InputField
-            inputWrapperClass={`${baseClass}__username-input`}
+            inputWrapperClass={`${baseClass} ${baseClass}__username-input`}
             label="Certificate subject alternative name (SAN)"
             name="san"
             value={formData.san}
@@ -169,7 +198,7 @@ const EditTemplateModal = ({
             disabled={disableInput}
           />
           <InputField
-            inputWrapperClass={`${baseClass}__password-input`}
+            inputWrapperClass={`${baseClass} ${baseClass}__password-input`}
             label="Certificate seat ID"
             name="seat_id"
             value={formData.seat_id}
@@ -181,26 +210,34 @@ const EditTemplateModal = ({
             disabled={disableInput}
           />
           <div className="modal-cta-wrap">
-            <TooltipWrapper
-              tipContent="Complete all fields to save"
-              position="top"
-              showArrow
-              underline={false}
-              tipOffset={8}
-              disableTooltip={!disableSave || isSaving}
-            >
-              <Button
-                variant="brand"
-                type="submit"
-                isLoading={isSaving}
-                disabled={disableSave}
-              >
-                Save
+            {disableInput ? (
+              <Button variant="brand" type="button" onClick={onCancel}>
+                Done
               </Button>
-            </TooltipWrapper>
-            <Button variant="inverse" onClick={onCancel}>
-              Cancel
-            </Button>
+            ) : (
+              <>
+                <TooltipWrapper
+                  tipContent="Complete all fields to save"
+                  position="top"
+                  showArrow
+                  underline={false}
+                  tipOffset={8}
+                  disableTooltip={!disableSave || isSaving}
+                >
+                  <Button
+                    variant="brand"
+                    type="submit"
+                    isLoading={isSaving}
+                    disabled={disableSave}
+                  >
+                    Save
+                  </Button>
+                </TooltipWrapper>
+                <Button variant="inverse" onClick={onCancel}>
+                  Cancel
+                </Button>
+              </>
+            )}
           </div>
         </form>
       </>

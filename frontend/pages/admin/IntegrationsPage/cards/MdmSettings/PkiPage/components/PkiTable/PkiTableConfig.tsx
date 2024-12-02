@@ -9,6 +9,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ActionsDropdown from "components/ActionsDropdown";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
 
 type IPkiTableConfig = Column<IPkiConfig>;
 type ITableStringCellProps = IStringCellProps<IPkiConfig>;
@@ -23,11 +24,11 @@ const generateActions = (pkiConfig: IPkiConfig): IDropdownOption[] => {
       label: pkiConfig.templates?.length ? "View template" : "Add template",
       disabled: false,
     },
-    {
-      value: "delete",
-      label: "Delete",
-      disabled: false,
-    },
+    // {
+    //   value: "delete",
+    //   label: "Delete",
+    //   disabled: false,
+    // },
   ];
 };
 
@@ -51,7 +52,11 @@ export const generateTableConfig = (
       Header: "Certificate template",
       disableSortBy: true,
       Cell: ({ value: templates }: IPkiTemplatesCellProps) => {
-        return <TextCell value={templates.length ? "✅ Added" : "---"} />; // TODO: use our own icon
+        return templates.length ? (
+          <StatusIndicatorWithIcon status="success" value="Added" />
+        ) : (
+          <TextCell value={"---"} />
+        );
       },
     },
     {

@@ -97,6 +97,8 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
 
   const noScepCredentials = !config?.integrations.ndes_scep_proxy;
 
+  const noPki = !config?.integrations.digicert_pki?.length;
+
   // We are relying on the API to give us a 404 to
   // tell use the user has not uploaded a eula.
   const noEulaUploaded = eulaError && eulaError.status === 404;
@@ -137,7 +139,7 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
           <PkiSection
             router={router}
             isPremiumTier={!!isPremiumTier}
-            isPkiOn={!noScepCredentials}
+            isPkiOn={!noPki}
           />
           <ScepSection
             router={router}

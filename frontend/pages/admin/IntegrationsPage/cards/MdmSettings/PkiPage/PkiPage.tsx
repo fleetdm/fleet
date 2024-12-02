@@ -11,6 +11,8 @@ import { InjectedRouter } from "react-router";
 
 import { AxiosError } from "axios";
 
+import { noop } from "lodash";
+
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
@@ -55,7 +57,7 @@ const AddPkiMessage = ({ onAddPki }: IAddPkiMessageProps) => {
 const PkiPage = ({ router }: { router: InjectedRouter }) => {
   const { config, isPremiumTier } = useContext(AppContext);
 
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  // const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddPkiModal, setShowAddPkiModal] = useState(false);
   const [showEditTemplateModal, setShowEditTemplateModal] = useState(false);
 
@@ -93,7 +95,7 @@ const PkiPage = ({ router }: { router: InjectedRouter }) => {
     }
   );
 
-  const tableData = useMemo(() => {
+  const byPkiName = useMemo(() => {
     const dict: Record<string, IPkiConfig> = {};
     pkiConfigs?.forEach((pki) => {
       dict[pki.pki_name] = pki;
@@ -103,8 +105,12 @@ const PkiPage = ({ router }: { router: InjectedRouter }) => {
         dict[pki.name] = { pki_name: pki.name, templates: [] };
       }
     });
-    return Object.values(dict);
+    return dict;
   }, [pkiConfigs, pkiCerts]);
+
+  const tableData = useMemo(() => {
+    return Object.values(byPkiName);
+  }, [byPkiName]);
 
   const onAdd = () => {
     setShowAddPkiModal(true);
@@ -131,22 +137,24 @@ const PkiPage = ({ router }: { router: InjectedRouter }) => {
     setShowEditTemplateModal(false);
   }, [refetchConfigs]);
 
-  const onDelete = (pkiConfig: IPkiConfig) => {
-    selectedPki.current = pkiConfig;
-    setShowDeleteModal(true);
-  };
+  const onDelete = noop;
 
-  const onCancelDelete = useCallback(() => {
-    selectedPki.current = null;
-    setShowDeleteModal(false);
-  }, []);
+  // const onDelete = (pkiConfig: IPkiConfig) => {
+  //   selectedPki.current = pkiConfig;
+  //   setShowDeleteModal(true);
+  // };
 
-  const onDeleted = useCallback(() => {
-    selectedPki.current = null;
-    refetchCerts();
-    refetchConfigs();
-    setShowDeleteModal(false);
-  }, [refetchCerts, refetchConfigs]);
+  // const onCancelDelete = useCallback(() => {
+  //   selectedPki.current = null;
+  //   setShowDeleteModal(false);
+  // }, []);
+
+  // const onDeleted = useCallback(() => {
+  //   selectedPki.current = null;
+  //   refetchCerts();
+  //   refetchConfigs();
+  //   setShowDeleteModal(false);
+  // }, [refetchCerts, refetchConfigs]);
 
   // if (isLoading || isRefetching || isLoadingConfigs || isRefetchingConfigs) {
   //   return <Spinner />;
@@ -227,16 +235,17 @@ const PkiPage = ({ router }: { router: InjectedRouter }) => {
           onCancel={() => setShowAddPkiModal(false)}
         />
       )}
-      {showDeleteModal && selectedPki.current && (
+      {/* {showDeleteModal && selectedPki.current && (
         <DeletePkiModal
           pkiConfig={selectedPki.current}
           onCancel={onCancelDelete}
           onDeleted={onDeleted}
         />
-      )}
+      )} */}
       {showEditTemplateModal && selectedPki.current && (
         <EditTemplateModal
-          pkiConfig={selectedPki.current}
+          byPkiName={byPkiName}
+          selectedConfig={selectedPki.current}
           onCancel={onCancelEditTemplate}
           onSuccess={onEditedTemplate}
         />

@@ -44,10 +44,19 @@ const PkiCard = ({ isAppleMdmOn, isPkiOn, router }: IPkiCardProps) => {
     <SectionCard
       className={baseClass}
       iconName="success"
+      // cta={
+      //   <Button onClick={navigateToPkiSetup} variant="text-icon">
+      //     <Icon name="pencil" />
+      //     Edit
+      //   </Button>
+      // }
       cta={
-        <Button onClick={navigateToPkiSetup} variant="text-icon">
-          <Icon name="pencil" />
-          Edit
+        <Button
+          className="windows-details-button"
+          onClick={navigateToPkiSetup}
+          variant="text-icon"
+        >
+          Details <Icon name="chevron-right" color="core-fleet-blue" />
         </Button>
       }
     >
