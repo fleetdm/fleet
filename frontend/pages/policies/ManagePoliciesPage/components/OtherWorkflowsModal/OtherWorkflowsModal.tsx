@@ -185,24 +185,23 @@ const OtherWorkflowsModal = ({
 
     const newErrors = { ...errors };
 
-    if (
-      isPolicyAutomationsEnabled &&
-      newPolicyIds.length &&
-      !isWebhookEnabled &&
-      !selectedIntegration
-    ) {
-      newErrors.integration = "Please enable at least one integration:";
-    } else {
-      delete newErrors.integration;
-    }
-
-    if (isPolicyAutomationsEnabled && isWebhookEnabled) {
-      if (!destinationUrl) {
-        newErrors.url = "Please add a destination URL";
-      } else if (!validUrl({ url: destinationUrl })) {
-        newErrors.url = `${destinationUrl} is not a valid URL`;
+    if (isPolicyAutomationsEnabled) {
+      // Ticket workflow validation
+      if (newPolicyIds.length && !isWebhookEnabled && !selectedIntegration) {
+        newErrors.integration = "Please enable at least one integration:";
       } else {
-        delete newErrors.url;
+        delete newErrors.integration;
+      }
+
+      // Webhook workflow validation
+      if (isWebhookEnabled) {
+        if (!destinationUrl) {
+          newErrors.url = "Please add a destination URL";
+        } else if (!validUrl({ url: destinationUrl })) {
+          newErrors.url = `${destinationUrl} is not a valid URL`;
+        } else {
+          delete newErrors.url;
+        }
       }
     }
 
