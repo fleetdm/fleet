@@ -1,5 +1,17 @@
 #!/bin/bash
 
+# Script used to test the migration from a TUF repository to a new one.
+# It assumes the following:
+#   - User runs the script on macOS
+#   - User has a Ubuntu 22.04 and a Windows 10/11 VM (running on the same macOS host script runs on).
+#   - Fleet is running on the macOS host.
+#   - host.docker.internal points to localhost on the macOS host.
+#   - host.docker.internal points to the macOS host on the two VMs (/etc/hosts on Ubuntu and C:\Windows\System32\Drivers\etc\hosts on Windows).
+#   - 1.36.0 is the last version of orbit that uses the old TUF repository
+#   - 1.37.0 is the new version of orbit that will use the new TUF repository.
+#   - Old TUF repository directory is ./test_tuf_old and server listens on 8081 (runs on the macOS host).
+#   - New TUF repository directory is ./test_tuf_new and server listens on 8082 (runs on the macOS host).
+
 set -e
 
 if [ -z "$FLEET_URL" ]; then
@@ -55,7 +67,7 @@ rm -rf "$OLD_TUF_PATH"
 rm -rf "$NEW_TUF_PATH"
 pkill file-server || true
 
-echo "Generating a TUF repository on $OLD_TUF_PATH (\"old\")..."
+echo "Generating a TUF repository on $OLD_TUF_PATH (aka \"old\")..."
 SYSTEMS="macos linux windows" \
 TUF_PATH=$OLD_TUF_PATH \
 TUF_PORT=$OLD_TUF_PORT \
@@ -67,7 +79,7 @@ export FLEET_TARGETS_PASSPHRASE=p4ssphr4s3
 export FLEET_SNAPSHOT_PASSPHRASE=p4ssphr4s3
 export FLEET_TIMESTAMP_PASSPHRASE=p4ssphr4s3
 
-echo "Downloading and pushing latest released orbit from https://tuf.fleetctl.com..."
+echo "Downloading and pushing latest released orbit from https://tuf.fleetctl.com to the old repository..."
 curl https://tuf.fleetctl.com/targets/orbit/macos/$OLD_FULL_VERSION/orbit --output orbit-darwin
 ./build/fleetctl updates add --path $OLD_TUF_PATH --target ./orbit-darwin --platform macos --name orbit --version $OLD_FULL_VERSION -t $OLD_MINOR_VERSION -t 1 -t stable
 curl https://tuf.fleetctl.com/targets/orbit/linux/$OLD_FULL_VERSION/orbit --output orbit-linux
@@ -99,9 +111,9 @@ for pkgType in "${pkgTypes[@]}"; do
         --update-interval=30s
 done
 
+# Install fleetd generated with old fleetctl and using old TUF on devices.
 echo "Installing fleetd package on macOS..."
 sudo installer -pkg fleet-osquery.pkg -verbose -target /
-
 CURRENT_DIR=$(pwd)
 prompt "Please install $CURRENT_DIR/fleet-osquery.msi and $CURRENT_DIR/fleet-osquery_${OLD_FULL_VERSION}_amd64.deb."
 
@@ -151,7 +163,7 @@ if [ "$SIMULATE_NEW_TUF_OUTAGE" = "1" ]; then
     mv $NEW_TUF_PATH/repository/*.json $NEW_TUF_PATH/tmp/
 fi
 
-echo "Pushing new orbit to old repository..."
+echo "Pushing new orbit to old repository!..."
 ./build/fleetctl updates add --path $OLD_TUF_PATH --target ./orbit-darwin --platform macos --name orbit --version $NEW_FULL_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
 ./build/fleetctl updates add --path $OLD_TUF_PATH --target ./orbit-linux --platform linux --name orbit --version $NEW_FULL_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
 ./build/fleetctl updates add --path $OLD_TUF_PATH --target ./orbit.exe --platform windows --name orbit --version $NEW_FULL_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
@@ -247,6 +259,40 @@ ROOT_KEYS1=$(./build/fleetctl-v4.60.0 updates roots --path $OLD_TUF_PATH)
 declare -a pkgTypes=("pkg" "deb" "msi")
 for pkgType in "${pkgTypes[@]}"; do
     ./build/fleetctl-v4.60.0 package --type="$pkgType" \
+        --enable-scripts \
+        --fleet-desktop \
+        --fleet-url="$FLEET_URL" \
+        --enroll-secret="$ENROLL_SECRET" \
+        --fleet-certificate=./tools/osquery/fleet.crt \
+        --debug \
+        --update-roots="$ROOT_KEYS1" \
+        --update-url=$OLD_TUF_URL \
+        --disable-open-folder \
+        --disable-keystore \
+        --update-interval=30s
+done
+
+echo "Installing fleetd package on macOS..."
+sudo installer -pkg fleet-osquery.pkg -verbose -target /
+
+CURRENT_DIR=$(pwd)
+prompt "Please install $CURRENT_DIR/fleet-osquery.msi and $CURRENT_DIR/fleet-osquery_${OLD_FULL_VERSION}_amd64.deb."
+
+echo "Waiting until installation and auto-update to new repository happens..."
+declare -a hostnames=("$THIS_HOSTNAME" "$WINDOWS_HOST_HOSTNAME" "$LINUX_HOST_HOSTNAME")
+for host_hostname in "${hostnames[@]}"; do
+    ORBIT_VERSION=""
+    until [ "$ORBIT_VERSION" = "\"$NEW_PATCH_VERSION\"" ]; do
+        sleep 1
+        ORBIT_VERSION=$(fleetctl query --hosts "$host_hostname" --exit --query 'SELECT * FROM orbit_info;' 2>/dev/null | jq '.rows[0].version')
+    done
+done
+
+echo "Building fleetd packages using new repository and new fleetctl version..."
+ROOT_KEYS1=$(./build/fleetctl updates roots --path $OLD_TUF_PATH)
+declare -a pkgTypes=("pkg" "deb" "msi")
+for pkgType in "${pkgTypes[@]}"; do
+    ./build/fleetctl package --type="$pkgType" \
         --enable-scripts \
         --fleet-desktop \
         --fleet-url="$FLEET_URL" \

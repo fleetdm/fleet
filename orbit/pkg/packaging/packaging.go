@@ -172,7 +172,12 @@ func (u UpdatesData) String() string {
 }
 
 func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
-	localStore, err := filestore.New(filepath.Join(updateOpt.RootDirectory, update.MetadataFileName))
+	metadataFileName := update.MetadataFileName
+	if updateOpt.ServerURL != update.OldFleetTUFURL && updateOpt.ServerURL != update.DefaultURL {
+		// Users using custom TUF repository will continue using the local TUF metadata as usual.
+		metadataFileName = update.OldMetadataFileName
+	}
+	localStore, err := filestore.New(filepath.Join(updateOpt.RootDirectory, metadataFileName))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create local metadata store: %w", err)
 	}
