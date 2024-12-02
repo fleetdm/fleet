@@ -242,4 +242,38 @@ for host_hostname in "${hostnames[@]}"; do
     done
 done
 
+echo "Building fleetd packages using old repository and old fleetctl version that should auto-update to new orbit that talks to new repository..."
+ROOT_KEYS1=$(./build/fleetctl-v4.60.0 updates roots --path $OLD_TUF_PATH)
+declare -a pkgTypes=("pkg" "deb" "msi")
+for pkgType in "${pkgTypes[@]}"; do
+    ./build/fleetctl-v4.60.0 package --type="$pkgType" \
+        --enable-scripts \
+        --fleet-desktop \
+        --fleet-url="$FLEET_URL" \
+        --enroll-secret="$ENROLL_SECRET" \
+        --fleet-certificate=./tools/osquery/fleet.crt \
+        --debug \
+        --update-roots="$ROOT_KEYS1" \
+        --update-url=$OLD_TUF_URL \
+        --disable-open-folder \
+        --disable-keystore \
+        --update-interval=30s
+done
+
+echo "Installing fleetd package on macOS..."
+sudo installer -pkg fleet-osquery.pkg -verbose -target /
+
+CURRENT_DIR=$(pwd)
+prompt "Please install $CURRENT_DIR/fleet-osquery.msi and $CURRENT_DIR/fleet-osquery_${OLD_FULL_VERSION}_amd64.deb."
+
+echo "Waiting until installation and auto-update to new repository happens..."
+declare -a hostnames=("$THIS_HOSTNAME" "$WINDOWS_HOST_HOSTNAME" "$LINUX_HOST_HOSTNAME")
+for host_hostname in "${hostnames[@]}"; do
+    ORBIT_VERSION=""
+    until [ "$ORBIT_VERSION" = "\"$NEW_PATCH_VERSION\"" ]; do
+        sleep 1
+        ORBIT_VERSION=$(fleetctl query --hosts "$host_hostname" --exit --query 'SELECT * FROM orbit_info;' 2>/dev/null | jq '.rows[0].version')
+    done
+done
+
 echo "Migration testing completed."
