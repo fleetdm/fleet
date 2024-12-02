@@ -5779,7 +5779,7 @@ Sets the custom MDM setup enrollment profile for a team or no team.
 }
 ```
 
-> NOTE: The `ConfigurationWebURL` and `URL` values in the "custom MDM setup enrollment profile" are automatically populated. Attempting to populate them with custom values may generate server response errors.
+> NOTE: The `ConfigurationWebURL` and `URL` values in the custom MDM setup enrollment profile are automatically populated. Attempting to populate them with custom values may generate server response errors.
 
 ### Get custom MDM setup enrollment profile
 
