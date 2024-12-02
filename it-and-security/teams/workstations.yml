@@ -84,7 +84,7 @@ policies:
   - path: ../lib/macos-device-health.policies.yml
   - path: ../lib/windows-device-health.policies.yml
   - path: ../lib/linux-device-health.policies.yml
-  - path: ../lib/macos-cis.policies.yml
+  - path: ../lib/policies/macos-cis.policies.yml
   - path: ../lib/windows-cis.policies.yml
   - name: macOS - Check if latest version
     query: SELECT 1 FROM os_version WHERE (major = '14' AND minor = '6') OR major = '15';
