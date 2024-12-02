@@ -1,4 +1,4 @@
-import React, { act } from "react";
+import React from "react";
 
 import { IHostActivityItemComponentProps } from "../../ActivityConfig";
 import HostActivityItem from "../../HostActivityItem";
