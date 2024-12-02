@@ -150,7 +150,7 @@
   productCategories: [Vulnerability management, Endpoint operations]
 -
   quote: Fleet has such a huge amount of use cases. My goal was to get telemetry on endpoints, but then our IR team, our TBM team, and multiple other folks in security started heavily utilizing the system in ways I didn’t expect. It spread so naturally, even our corporate and infrastructure teams want to run it.
-  quoteAuthorName: Charles Zaffery
+  quoteAuthorName: charles zaffery # Note: this name is lowercased here so we can sort the two endpoint-ops-related Charles Zaffery quotes in different spots. (The name will be capitalized via CSS)
   quoteLinkUrl: https://www.linkedin.com/in/charleszaffery/
   quoteAuthorJobTitle: Principle computer janitor
   quoteAuthorProfileImageFilename: testimonial-author-charles-zaffery-48x48@2x.png
@@ -185,7 +185,7 @@
   quoteLinkUrl: https://www.linkedin.com/in/mrerictan/
   quoteAuthorName: Eric Tan
   quoteAuthorProfileImageFilename: testimonial-author-eric-tan-99x99@2x.png
-  quoteAuthorJobTitle: CIO & Chief Security Officer at Flock Safety
+  quoteAuthorJobTitle: CIO & CSO at Flock Safety
   productCategories: [Device management, Endpoint operations]
 -
   quote: We've been using Fleet for a few years at Stripe and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customise it to our needs, and seamlessly integrate it into our existing environment.

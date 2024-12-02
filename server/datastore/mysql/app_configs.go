@@ -274,7 +274,7 @@ func (ds *Datastore) AggregateEnrollSecretPerTeam(ctx context.Context) ([]*fleet
 	return secrets, nil
 }
 
-func (ds *Datastore) getConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error) {
+func (ds *Datastore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error) {
 	if teamID != nil && *teamID > 0 {
 		tc, err := ds.TeamMDMConfig(ctx, *teamID)
 		if err != nil {

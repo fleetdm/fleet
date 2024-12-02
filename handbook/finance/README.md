@@ -1,23 +1,28 @@
 # Finance
+
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 ## Team
+
 | Role                          | Contributor(s)           |
 |:------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Finance Engineer | [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
 
 
 ## Contact us
+
 - To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-finance&projects=&template=custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#g-finance](https://fleetdm.slack.com/archives/C047N5L6EGH).
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/-g-finance-63f3dc3cc931f6247fcf55a9/board?sprints=none) for this department, including pending tasks and the status of new requests.
 
 
 ## Responsibilities
+
 The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commision calculations, exspense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, and financial operations including bank accounts and cash flow management.
 
 
 ### Run payroll
+
 Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy. 
 
  - Salaried fleeties are automated in Gusto and Plane.
@@ -76,12 +81,14 @@ To complete payroll for an international contractor, use the following steps:
 
 
 ### Reconcile monthly recurring expenses
+
 Recurring monthly or annual expenses, such as the tools we use throughout Fleet, are tracked as recurring, non-personnel expenses in ["🧮 The Numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) _(¶confidential Google Sheet)_, along with their payment source. Reconciliation of recurring expenses happens monthly. <!-- TODO: Merge "🧮 The Numbers" and  ["Tools we use" (private Google doc)](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing) -->
 
 > Use this spreadsheet as the source of truth.  Always make changes to it first before adding or removing a recurring expense. Only track significant expenses. (Other things besides amount can make a payment significant; like it being an individualized expense, for example.)
 
 
 ### Register Fleet as an employer with a new state 
+
 Fleet must register as an employer in any state where we hire new teammates. To do this, complete the following steps in Gusto:
 1. After a new teammate completes their Gusto profile, the Finance department will be prompted to approve it for payroll. Sign in to your Gusto admin account and begin the approval process.
 2. Select "yes" when prompted to file a new hire report and complete the approval process.
@@ -93,6 +100,7 @@ Fleet must register as an employer in any state where we hire new teammates. To 
     
 
 ### Process an email from a state agency
+
 From time to time, you may get notices via email (or in the mail) from state agencies regarding Fleet's withholding and/or unemployment tax accounts. You can resolve some of these notices on your own by verifying and/or updating the settings in your Gusto account.
 
 If the notice is regarding an upcoming change to your deposit schedule or unemployment tax rate, make the required change in Gusto, such as:
@@ -185,14 +193,9 @@ Use the following steps to update the [💸Finance department KPIs](https://docs
 **Non-personnel monthly burn**: 
 - Copy the amount from the [numbers spreadsheet](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=1308221870&range=B3) and input in the cell for this week.
 
-**SaaS metrics**: 
-- For "CAC", "CAC payback", "LTV" and "LTV:CAC" columns, drag the existing formula to this week's row.
-> Note: the formula relies on inputs in other fields, so if those fields haven't received input yet, it will look odd. If formulas are still broken after inputs in the other columns are added, [create an issue on the Finance board](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-finance&projects=&template=custom-request.md) noting which columns are affected. Once created, @ mention Finance Engineer in the issue to bring awareness.
-  
-- For "Average customer age", pull the age in days from the [Salesforce "Account age" report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000012jwX2AQ/view), then convert to months by dividing the age in days by 30.417. Put the calculated number into the cell. This metric changes gradually up each week when no new deals close and no customer churns. Because we calculate the age of the customer based on the average lifetime deal length, expected behavior is that it will decrease when a new deal closes, but not drastically (as even a 1-year deal will still add 12 months to the average age).
-
 
 ### Create an invoice
+
 To create a new invoice for a Fleet customer, follow these steps:
 1. Go to the [invoice folder in Google Drive](https://drive.google.com/drive/folders/11limC_KQYNYQPApPoXN0CplHo_5Qgi2b?usp=drive_link).
 2. Create a copy of the invoice template, and title the copy `[invoice number] Fleet invoice - [customer name]`.
@@ -226,7 +229,17 @@ Thanks,
 > Certain vendors require invoices submitted via a payment portal (such as Coupa). Once you've generated the invoice using the steps above, upload it to the relevant payment portal and email the billing contact to let them know you've submitted the invoice.
 
 
+### Provide payment information to a customer
+
+For customers with large deployments, Fleet accepts payment via wire transfer or electronic debit (ACH/SWIFT).
+
+Payment information for customers within the United States is on Fleet's invoices. Typically, payment information does not need to be sent separately.
+
+For Fleet customers outside of the United States or instances where a customer is requesting payment information prior to invoicing, provide remittance information to customers by exporting ["💸 Paying Fleet"](https://docs.google.com/document/d/1KP_-x9c1x3sS1X9Q8Wlib2H7tq69xRONn1KMA3nVFQc/edit) into a PDF, then sending that to the prospect.
+
+
 ### Communicate the status of customer financial actions
+
 This reporting is performed to update the status of open or upcoming customer actions regarding the financial health of the opportunity. To complete the report:
 1. Check [SVB](https://connect.svb.com/#/) and [Brex](https://accounts.brex.com/login) for any recently received payments from customers and record them in SFDC.
 2. Go to this [report folder](https://fleetdm.lightning.force.com/lightning/r/Folder/00lUG000000DstpYAC/view?queryScope=userFolders) in SFDC. The three reports will provide the data used in the report.
@@ -252,10 +265,17 @@ Thanks,
 ```
 
 5. If any accounts will become overdue within a week, reply in thread to the slack post, mention the opportunity owner of the account, and ask them to notify their contact that Fleet is still awaiting payment.
-6. Review the [billing cycles](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000000yGjR2AU/view) report in SFDC for customers on multiyear deals. For any customers due for invoicing within the next week, create an issue on the Finance board.
+6. If Finance is still awaiting a PO one week after the opportunity has been closed/won, reply to the thread in the Slack post, mention the CSM, and ask them to follow up with their customer contact.
+7. Review the [billing cycles](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000000yGjR2AU/view) report in SFDC for customers on multiyear deals. For any customers due for invoicing within the next week, create an issue on the Finance board.
+
+
+### Obtain a copy of Fleet's W-9
+
+A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1ugXazEBk1oVm_LqGbYNsIFECcv5jXLA9/view?usp=drivesdk).
 
 
 ### Run US commission payroll
+
 1. Update individual teammates commission calculators (linked from [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing)) with new revenue from any deals that are closed-won (have a subscription agreement signed by both parties) and have a **close date** within the previous month.
     - Verify closed-won deal numbers with CRO to ensure any agreed upon exceptions are captured (eg: CRO approves an AE to receive commission on a renewal deal due to cross-sell).
 2. In the "Monthly commission payroll party" meeting, present the commission calculations for Fleeties receiving commission for approval.
@@ -265,6 +285,7 @@ Thanks,
 4. Once commission payroll has been run, update the [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing) to mark the commission as paid.
 
 ### Run international commission payroll
+
 1. Follow the steps in [run US commission payroll](https://fleetdm.com/handbook/finance#run-us-commission-payroll) to have the commission amounts approved by the CRO.
 2. After the amounts are approved in the "Monthly commission payroll party", navigate to Help > Ask a question in Plane to request a commission payment for the teammate.
 3. Send a message using the following template
@@ -283,6 +304,7 @@ Thanks,
 
 
 ### Run quarterly or annual employee bonus payroll
+
 1. Update individual teammate bonus calculator (linked from [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing)) with relevant metrics.
     - Bonus plans will have details specified on how to measure success, with most drawing from the [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?usp=sharing) or from linked SFDC reports. If unsure where to pull achievement metrics from, contact teammate's manager to clarify.
 2. In the "Monthly commission payroll party" meeting, present the bonus calculations for Fleeties receiving bonus for approval.
@@ -293,6 +315,7 @@ Thanks,
  
 
 ### Process monthly accounting
+
 Create a [new montly accounting issue](https://github.com/fleetdm/confidential/issues/new/choose) for the current month and year named "Closing out YYYY-MM" in GitHub and complete all of the tasks in the issue. (This uses the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md).
 
 - **SLA:** The monthly accounting issue should be completed and closed before the 7th of the month.
@@ -301,6 +324,7 @@ Create a [new montly accounting issue](https://github.com/fleetdm/confidential/i
 
 
 ### Respond to low credit alert
+
 Fleet admins will receive an email alert when the usage of company cards for the month is aproaching the company credit limit. To avoid the limit being exceeded, a Brex admin will follow these steps:
 1. Sign in to Fleet's Brex account.
 2. On the landing page, use the "Move money" button to "Add funds to your Brex business accounts".
@@ -310,6 +334,7 @@ Fleet admins will receive an email alert when the usage of company cards for the
 No further action needs to be taken, the amount available for use will increase without disruption to regular processes.
 
 ### Check franchise tax status
+
 No later than the second month of every quarter, we check [Delaware divison of corporations](https://icis.corp.delaware.gov) to ensure that Fleet has paid the quarterly franchise tax amounts to remain in good standing with the state of Delaware.
 - Go to the [DCIS - eCorp website](https://icis.corp.delaware.gov/ecorp/logintax.aspx?FilingType=FranchiseTax) and use the details in 1Password to look up Fleet's status.
 - If no outstanding amounts: the tax has been paid.
@@ -317,6 +342,7 @@ No later than the second month of every quarter, we check [Delaware divison of c
 
 
 ### Check finances for quirks
+
 Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up on quirks.
 1. Check to make sure [bookkeeping quirks](https://docs.google.com/spreadsheets/d/1nuUPMZb1z_lrbaQEcgjnxppnYv_GWOTTo4FMqLOlsWg/edit?usp=sharing) are all accounted for and resolved or in progress toward resolution.
 2. Check balance sheet and profit and loss statements (P&Ls) in QBO against the latest [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive. Ensure reports are in the "accural" accounting method.
@@ -325,6 +351,7 @@ Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up 
 
 
 ### Report quarterly numbers in Chronograph
+
 Follow these steps to perform quarterly reporting for Fleet's investors:
 1. Login to Chronograph and upload our profit and loss statement (P&L), balance sheet and cash flow statements for CRV (all in one book saved in [Google Drive](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM).
 2. Provide updated metrics for the following items using Fleet's [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
@@ -345,6 +372,7 @@ Follow these steps to perform quarterly reporting for Fleet's investors:
 
 
 ### Deliver annual report for venture line
+
 Within 60 days of the end of the year, follow these steps:
 1. Provide Silicon Valley Bank (SVB) with our balance sheet and profit and loss statement (P&L, sometimes called a cashflow statement) for the past twelve months.  
 2. Provide SVB with our board-approved annual operating budgets and projections (on a quarterly granularity) for the new year.
@@ -352,6 +380,7 @@ Within 60 days of the end of the year, follow these steps:
 
 
 ### Process a new vendor invoice
+
 Fleet pays its vendors in less than 15 business days in most cases. All invoices and tax documents should be submitted to the Finance department using the [appropriate Fleet email address (confidential Google Doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 - After making sure the invoice received from a new vendor is valid, add the new vendor to the recurring expenses section of ["The numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) before paying the invoice.
 - If we have not paid this vendor before, make sure we have received the required W-9 or W-8 form from the vendor. **Accounting cannot process a payment without these tax forms for compliance reasons.**
@@ -360,6 +389,7 @@ Fleet pays its vendors in less than 15 business days in most cases. All invoices
 
 
 ### Process a request to cancel a vendor
+
 - Make the cancellation notification in accordance with the contract terms between Fleet and the vendor, typically these notifications are made via email and may have a specific address that notice must be sent to. If the vendor has an autorenew contract with Fleet there will often be a window of time in which Fleet can cancel, if notification is made after this time period Fleet may be obligated to pay for the subsequent year even if we don't use the vendor during the next contract term.  
 - Once cancelled, update the recurring expenses section of [The Numbers](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) to reflect the cancellation by changing the projected monthly burn in column G to $0 and adding "CANCELLED" in front of the vendor's name in column C.
 

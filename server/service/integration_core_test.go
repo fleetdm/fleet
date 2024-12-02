@@ -6223,10 +6223,8 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Fleet MDM is not configured")
 
-	// update MDM disk encryption, the endpoint returns an error if MDM is not enabled
-	res = s.Do("POST", "/api/latest/fleet/disk_encryption", fleet.MDMAppleSettingsPayload{}, fleet.ErrMDMNotConfigured.StatusCode())
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+	// update MDM disk encryption
+	_ = s.Do("POST", "/api/latest/fleet/disk_encryption", fleet.MDMAppleSettingsPayload{}, http.StatusPaymentRequired)
 
 	// device migrate mdm endpoint returns an error if not premium
 	createHostAndDeviceToken(t, s.ds, "some-token")
@@ -8640,6 +8638,11 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
 	require.True(t, *getHostResp.Host.DiskEncryptionEnabled)
 
+	// should succeed as we no longer require MDM to access this endpoint, as Linux encryption doesn't require MDM
+	var profiles getMDMProfilesSummaryResponse
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &profiles)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &profiles)
+
 	// set unencrypted for all hosts
 	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostWin.ID, false))
 	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostMac.ID, false))
@@ -8655,7 +8658,7 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	require.Equal(t, hostMac.ID, getHostResp.Host.ID)
 	require.False(t, *getHostResp.Host.DiskEncryptionEnabled)
 
-	// Linux does not return false, it omits the field when false
+	// Linux may omit the field when false
 	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, hostLin.ID, getHostResp.Host.ID)

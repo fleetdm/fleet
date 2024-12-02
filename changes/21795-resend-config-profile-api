@@ -1,0 +1,1 @@
+* Update resend config profile API from hosts/[hostid}/configuration_profiles/resend/{uuid} to hosts/{hostid}/configuration_profiles/{uuid}/resend
