@@ -118,19 +118,12 @@ policies:
   - path: ../lib/windows-device-health.policies.yml
   - path: ../lib/linux-device-health.policies.yml
   - name: macOS - Check if latest version
-    query: SELECT 1 FROM os_version WHERE (major = '14' AND minor = '6') OR major = '15';
+    query: SELECT 1 FROM os_version WHERE (major = '15' AND minor = '1' AND patch = '1');
     critical: false
     description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
     resolution: We will update your macOS to the latest version.
     platform: darwin
     calendar_events_enabled: false  
-  - name: macOS - MDM migration complete
-    query: SELECT 1 AS result FROM system_info WHERE computer_name NOT IN ('Titanosauria2', 'Drew’s MacBook Pro2','fleetwoodmike2');
-    critical: false
-    description: Determines if the device has completed MDM migration to Fleet.
-    resolution: We will migrate your macOS MDM to Fleet.
-    platform: darwin
-    calendar_events_enabled: false
   - name: macOS - System maintenance complete
     query: SELECT 1 AS result FROM system_info WHERE computer_name NOT IN ('Drew’s MacBook Pro','Anthony’s MacBook Pro','Patricia’s MacBook Pro','Paul’s MacBook Pro','Tom’s MacBook Air');
     critical: false
@@ -162,10 +155,10 @@ queries:
   - path: ../lib/collect-software-permissions-user.queries.yml
   - path: ../lib/collect-crowdstrike-info.queries.yml
 software:
+  packages:
+    - path: ../lib/software/mac-mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
   app_store_apps:
       - app_store_id: '803453959' # Slack Desktop
       - app_store_id: '1333542190' # 1Password 7 Desktop
       - app_store_id: '1477376905' # GitHub
       - app_store_id: '1152747299' # Figma
-  packages:
-    - path: ../lib/software/mac-mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
