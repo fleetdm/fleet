@@ -15393,24 +15393,25 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"per_page", "2",
-		"order_key", "name",
+		"order_key", "id",
 		"order_direction", "desc",
 		"available_for_install", "true",
 		"team_id", "0",
 	)
 
 	require.Len(t, resp.SoftwareTitles, 2)
-	for _, st := range resp.SoftwareTitles {
-		switch st.ID {
-		case addMAResp.SoftwareTitleID:
-			require.NotNil(t, st.SoftwarePackage)
-			require.Len(t, st.SoftwarePackage.AutomaticInstallPolicies, 1)
-			gotPolicy := st.SoftwarePackage.AutomaticInstallPolicies[0]
-			require.Equal(t, tpResp.Policy.Name, gotPolicy.Name)
-			require.Equal(t, tpResp.Policy.ID, gotPolicy.ID)
-		default:
-		}
-	}
+	// most recently added FMA should have 1 automatic install policy
+	st := resp.SoftwareTitles[0] // sorted by ID above
+	require.NotNil(t, st.SoftwarePackage)
+	require.Len(t, st.SoftwarePackage.AutomaticInstallPolicies, 1)
+	gotPolicy := st.SoftwarePackage.AutomaticInstallPolicies[0]
+	require.Equal(t, tpResp.Policy.Name, gotPolicy.Name)
+	require.Equal(t, tpResp.Policy.ID, gotPolicy.ID)
+
+	// First FMA added doesn't have automatic install policies
+	st = resp.SoftwareTitles[1] // sorted by ID above
+	require.NotNil(t, st.SoftwarePackage)
+	require.Empty(t, st.SoftwarePackage.AutomaticInstallPolicies)
 
 	// Get the specific app that we set to be installed automatically
 	var titleResp getSoftwareTitleResponse
@@ -15421,10 +15422,31 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		"team_id", "0",
 	)
 	require.NotNil(t, titleResp.SoftwareTitle)
-	st := titleResp.SoftwareTitle
-	require.NotNil(t, st.SoftwarePackage)
-	require.Len(t, st.SoftwarePackage.AutomaticInstallPolicies, 1)
-	gotPolicy := st.SoftwarePackage.AutomaticInstallPolicies[0]
+	swTitle := titleResp.SoftwareTitle
+	require.NotNil(t, swTitle.SoftwarePackage)
+	require.Len(t, swTitle.SoftwarePackage.AutomaticInstallPolicies, 1)
+	gotPolicy = swTitle.SoftwarePackage.AutomaticInstallPolicies[0]
 	require.Equal(t, tpResp.Policy.Name, gotPolicy.Name)
 	require.Equal(t, tpResp.Policy.ID, gotPolicy.ID)
+
+	// Policy should appear in the list of policies
+	var listPolResp listTeamPoliciesResponse
+	s.DoJSON(
+		"GET", "/api/latest/fleet/teams/0/policies",
+		listTeamPoliciesRequest{},
+		http.StatusOK, &listPolResp,
+		"page", "0",
+	)
+
+	require.Len(t, listPolResp.Policies, 1)
+	policies := listPolResp.Policies
+	require.Equal(t, tpResp.Policy.Name, policies[0].Name)
+	require.Equal(t, tpResp.Policy.ID, policies[0].ID)
+	require.Equal(t, tpResp.Policy.Description, policies[0].Description)
+	require.Equal(t, tpResp.Policy.Query, policies[0].Query)
+	require.Equal(t, "darwin", policies[0].Platform)
+	require.False(t, policies[0].Critical)
+	require.NotNil(t, policies[0].InstallSoftware)
+	require.Equal(t, tpResp.Policy.InstallSoftware.Name, policies[0].InstallSoftware.Name)
+	require.Equal(t, tpResp.Policy.InstallSoftware.SoftwareTitleID, policies[0].InstallSoftware.SoftwareTitleID)
 }
