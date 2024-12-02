@@ -113,13 +113,10 @@ const HostDetailsBanners = ({
   // setting applies
   if (
     hostPlatform &&
-    platformSupportsDiskEncryption(hostPlatform, hostOsVersion) &&
+    isDiskEncryptionSupportedLinuxPlatform(hostPlatform, hostOsVersion ?? "") &&
     diskEncryptionOSSetting?.status
   ) {
-    if (
-      !diskIsEncrypted &&
-      isDiskEncryptionSupportedLinuxPlatform(hostPlatform, hostOsVersion ?? "")
-    ) {
+    if (!diskIsEncrypted) {
       // linux host not in compliance with setting
       return (
         <div className={baseClass}>
