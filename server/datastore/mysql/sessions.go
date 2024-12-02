@@ -2,7 +2,9 @@ package mysql
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"errors"
 	"time"
 
@@ -102,7 +104,20 @@ func (ds *Datastore) ListSessionsForUser(ctx context.Context, id uint) ([]*fleet
 	return sessions, nil
 }
 
-func (ds *Datastore) NewSession(ctx context.Context, userID uint, sessionKey string) (*fleet.Session, error) {
+func (ds *Datastore) NewSession(ctx context.Context, userID uint, sessionKeySize uint) (*fleet.Session, error) {
+	key := make([]byte, sessionKeySize)
+	_, err := rand.Read(key)
+	if err != nil {
+		return nil, err
+	}
+	session, err := ds.saveSession(ctx, userID, base64.StdEncoding.EncodeToString(key))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating new session")
+	}
+	return session, nil
+}
+
+func (ds *Datastore) saveSession(ctx context.Context, userID uint, sessionKey string) (*fleet.Session, error) {
 	sqlStatement := `
 		INSERT INTO sessions (
 			user_id,

@@ -37,7 +37,7 @@ func testSessionsGetters(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	session, err := ds.NewSession(context.Background(), user.ID, "somekey")
+	session, err := ds.NewSession(context.Background(), user.ID, 8)
 	require.NoError(t, err)
 	require.NotZero(t, session.ID)
 
@@ -53,7 +53,7 @@ func testSessionsGetters(t *testing.T, ds *Datastore) {
 	require.NotNil(t, gotByKey.APIOnly)
 	assert.False(t, *gotByKey.APIOnly)
 
-	newSession, err := ds.NewSession(context.Background(), user.ID, "somekey2")
+	newSession, err := ds.NewSession(context.Background(), user.ID, 8)
 	require.NoError(t, err)
 
 	sessions, err := ds.ListSessionsForUser(context.Background(), user.ID)
@@ -78,7 +78,7 @@ func testSessionsGetters(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.DestroyAllSessionsForUser(context.Background(), user.ID))
 
 	// session for a non-existing user
-	newSession, err = ds.NewSession(context.Background(), user.ID+1, "someotherkey")
+	newSession, err = ds.NewSession(context.Background(), user.ID+1, 8)
 	require.NoError(t, err)
 
 	gotByKey, err = ds.SessionByKey(context.Background(), newSession.Key)
@@ -99,7 +99,7 @@ func testSessionsGetters(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// session for an api user
-	apiSession, err := ds.NewSession(context.Background(), apiUser.ID, "someapikey")
+	apiSession, err := ds.NewSession(context.Background(), apiUser.ID, 8)
 	require.NoError(t, err)
 
 	gotByKey, err = ds.SessionByKey(context.Background(), apiSession.Key)

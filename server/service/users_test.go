@@ -741,7 +741,7 @@ func testUsersChangePassword(t *testing.T, ds *mysql.Datastore) {
 			}
 
 			// Attempt login after successful change
-			_, _, err = svc.Login(context.Background(), tt.user.Email, tt.newPassword)
+			_, _, err = svc.Login(context.Background(), tt.user.Email, tt.newPassword, false)
 			require.Nil(t, err, "should be able to login with new password")
 		})
 	}
@@ -759,7 +759,7 @@ func testUsersRequirePasswordReset(t *testing.T, ds *mysql.Datastore) {
 			var sessions []*fleet.Session
 
 			// Log user in
-			_, _, err = svc.Login(test.UserContext(ctx, test.UserAdmin), tt.Email, tt.PlaintextPassword)
+			_, _, err = svc.Login(test.UserContext(ctx, test.UserAdmin), tt.Email, tt.PlaintextPassword, false)
 			require.Nil(t, err, "login unsuccessful")
 			sessions, err = svc.GetInfoAboutSessionsForUser(test.UserContext(ctx, test.UserAdmin), user.ID)
 			require.Nil(t, err)
@@ -804,7 +804,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 
 			ctx = refreshCtx(t, ctx, user, ds, nil)
 
-			session, err := ds.NewSession(context.Background(), user.ID, "")
+			session, err := ds.NewSession(context.Background(), user.ID, 8)
 			require.Nil(t, err)
 			ctx = refreshCtx(t, ctx, user, ds, session)
 
@@ -831,7 +831,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 			ctx = context.Background()
 
 			// Now user should be able to login with new password
-			u, _, err = svc.Login(ctx, tt.Email, test.GoodPassword2)
+			u, _, err = svc.Login(ctx, tt.Email, test.GoodPassword2, false)
 			require.Nil(t, err)
 			assert.False(t, u.AdminForcedPasswordReset)
 		})
@@ -910,7 +910,7 @@ func TestAuthenticatedUser(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 	admin1, err := ds.UserByEmail(context.Background(), "admin1@example.com")
 	require.NoError(t, err)
-	admin1Session, err := ds.NewSession(context.Background(), admin1.ID, "admin1")
+	admin1Session, err := ds.NewSession(context.Background(), admin1.ID, 8)
 	require.NoError(t, err)
 
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin1, Session: admin1Session})

@@ -407,8 +407,8 @@ type Datastore interface {
 	// ListSessionsForUser finds all the active sessions for a given user
 	ListSessionsForUser(ctx context.Context, id uint) ([]*Session, error)
 
-	// NewSession stores a new session struct
-	NewSession(ctx context.Context, userID uint, sessionKey string) (*Session, error)
+	// NewSession creates a new session for the given user and stores it
+	NewSession(ctx context.Context, userID uint, sessionKeySize uint) (*Session, error)
 
 	// DestroySession destroys the currently tracked session
 	DestroySession(ctx context.Context, session *Session) error
@@ -1532,7 +1532,7 @@ type Datastore interface {
 	// GetMDMCommandPlatform returns the platform (i.e. "darwin" or "windows") for the given command.
 	GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error)
 
-	// ListMDMAppleCommands returns a list of MDM Apple commands that have been
+	// ListMDMCommands returns a list of MDM Apple commands that have been
 	// executed, based on the provided options.
 	ListMDMCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMCommandListOptions) ([]*MDMCommand, error)
 

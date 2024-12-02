@@ -108,7 +108,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 			level.Error(svc.logger).Log("err", err, "msg", "password not set during admin user creation")
 		} else {
 			// Create a session for the API-only user by logging in.
-			_, session, err := svc.Login(ctx, user.Email, *p.Password)
+			_, session, err := svc.Login(ctx, user.Email, *p.Password, false)
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "create session for api-only user")
 			}

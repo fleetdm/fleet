@@ -3,8 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"html/template"
 	"net/http"
@@ -227,7 +225,7 @@ func (svc *Service) Login(ctx context.Context, email, password string, supportsE
 		return nil, nil, sendingMFAEmail
 	}
 
-	session, err := svc.makeSession(ctx, user.ID)
+	session, err := svc.ds.NewSession(ctx, user.ID, uint(svc.config.Session.KeySize))
 	if err != nil {
 		return nil, nil, fleet.NewAuthFailedError(err.Error())
 	}
@@ -290,7 +288,7 @@ func (svc *Service) CompleteMFA(ctx context.Context, token string) (*fleet.User,
 		return nil, nil, fleet.NewAuthFailedError("no user associated with MFA token")
 	}
 
-	session, err := svc.makeSession(ctx, user.ID)
+	session, err := svc.ds.NewSession(ctx, user.ID, uint(svc.config.Session.KeySize))
 	if err != nil {
 		return nil, nil, fleet.NewAuthFailedError(err.Error())
 	}
@@ -606,7 +604,7 @@ func (svc *Service) LoginSSOUser(ctx context.Context, user *fleet.User, redirect
 		err := ctxerr.New(ctx, "user not configured to use sso")
 		return nil, ctxerr.Wrap(ctx, newSSOError(err, ssoAccountDisabled))
 	}
-	session, err := svc.makeSession(ctx, user.ID)
+	session, err := svc.ds.NewSession(ctx, user.ID, uint(svc.config.Session.KeySize))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "make session in sso callback")
 	}
@@ -677,21 +675,6 @@ func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SessionSSOSettings,
 // makeMFAEmail sends an MFA email to the given user
 func (svc *Service) makeMFAEmail(ctx context.Context, userID uint) error {
 	return nil // TODO
-}
-
-// makeSession creates a new session for the given user.
-func (svc *Service) makeSession(ctx context.Context, userID uint) (*fleet.Session, error) {
-	sessionKeySize := svc.config.Session.KeySize
-	key := make([]byte, sessionKeySize)
-	_, err := rand.Read(key)
-	if err != nil {
-		return nil, err
-	}
-	session, err := svc.ds.NewSession(ctx, userID, base64.StdEncoding.EncodeToString(key))
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "creating new session")
-	}
-	return session, nil
 }
 
 func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*fleet.Session, error) {

@@ -3,9 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -9506,12 +9504,7 @@ func createOrbitEnrolledHost(t *testing.T, os, suffix string, ds fleet.Datastore
 
 // creates a session and returns it, its key is to be passed as authorization header.
 func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
-	key := make([]byte, 64)
-	_, err := rand.Read(key)
-	require.NoError(t, err)
-
-	sessionKey := base64.StdEncoding.EncodeToString(key)
-	ssn, err := ds.NewSession(context.Background(), uid, sessionKey)
+	ssn, err := ds.NewSession(context.Background(), uid, 64)
 	require.NoError(t, err)
 
 	return ssn

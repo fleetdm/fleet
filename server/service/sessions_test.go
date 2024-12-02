@@ -118,7 +118,7 @@ func TestAuthenticate(t *testing.T) {
 
 	for _, tt := range loginTests {
 		t.Run(tt.email, func(st *testing.T) {
-			loggedIn, token, err := svc.Login(test.UserContext(ctx, test.UserAdmin), tt.email, tt.password)
+			loggedIn, token, err := svc.Login(test.UserContext(ctx, test.UserAdmin), tt.email, tt.password, false)
 			require.Nil(st, err, "login unsuccessful")
 			assert.Equal(st, tt.email, loggedIn.Email)
 			assert.NotEmpty(st, token)
