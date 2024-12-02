@@ -186,15 +186,6 @@ module.exports = {
           // If a new installer package was provided, send patch requests to update the installer package on teams that it is already deployed to.
           await sails.helpers.flow.simultaneouslyForEach(unchangedTeamIds, async (teamApid)=>{
             // console.log(`Adding new version of ${softwareName} to teamId ${teamApid}`);
-            await sails.helpers.http.sendHttpRequest.with({
-              method: 'DELETE',
-              baseUrl: sails.config.custom.fleetBaseUrl,
-              url: `/api/v1/fleet/software/titles/${software.fleetApid}/available_for_install?team_id=${teamApid}`,
-              headers: {
-                Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
-              }
-            });
-            // console.log(`transfering the changed installer ${software.name} to fleet instance for team id ${teamApid}`);
             // console.time(`transfering ${software.name} to fleet instance for team id ${teamApid}`);
             await sails.cp(softwareFd, {bucket: sails.config.uploads.bucketWithPostfix},
             {
@@ -223,7 +214,7 @@ module.exports = {
                         contentType: 'application/octet-stream'
                       });
                       (async ()=>{
-                        await axios.post(`${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/package`, form, {
+                        await axios.patch(`${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/titles/${software.fleetApid}/package`, form, {
                           headers: {
                             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
                             ...form.getHeaders()
