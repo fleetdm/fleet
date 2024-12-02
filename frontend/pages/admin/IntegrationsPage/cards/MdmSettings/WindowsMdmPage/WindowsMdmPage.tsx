@@ -72,7 +72,7 @@ interface IWindowsMdmPageProps {
 }
 
 const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
-  const { config } = useContext(AppContext);
+  const { config, isPremiumTier } = useContext(AppContext);
 
   const [mdmOn, setMdmOn] = useState(
     config?.mdm?.windows_enabled_and_configured ?? false
@@ -124,9 +124,12 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
           />
           <p>{descriptionText}</p>
           <Checkbox
-            disabled={!mdmOn}
+            disabled={!isPremiumTier || !mdmOn}
             value={autoMigration}
             onChange={onChangeAutoMigration}
+            tooltipContent={
+              isPremiumTier ? "" : "This feature is included in Fleet Premium."
+            }
           >
             Automatically migrate hosts connected to another MDM solution
           </Checkbox>
