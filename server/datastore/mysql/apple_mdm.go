@@ -5367,6 +5367,16 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	return tok, nil
 }
 
+func (ds *Datastore) CountABMTokens(ctx context.Context) (uint32, error) {
+	stmt := `SELECT COUNT(*) FROM abm_tokens`
+
+	var count uint32
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, stmt); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count ABM tokens")
+	}
+	return count, nil
+}
+
 func (ds *Datastore) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error) {
 	stmt := `
 SELECT

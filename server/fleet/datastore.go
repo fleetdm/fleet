@@ -1435,6 +1435,9 @@ type Datastore interface {
 	// ListABMTokens lists all of the ABM tokens.
 	ListABMTokens(ctx context.Context) ([]*ABMToken, error)
 
+	// CountABMTokens counts the ABM tokens.
+	CountABMTokens(ctx context.Context) (uint32, error)
+
 	// DeleteABMToken deletes the given ABM token from the datastore.
 	DeleteABMToken(ctx context.Context, tokenID uint) error
 
