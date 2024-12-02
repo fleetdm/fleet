@@ -3,15 +3,21 @@ import React, { FormEvent, useCallback, useMemo, useState } from "react";
 import mdmAppleApi from "services/entities/mdm_apple";
 import pkiApi from "services/entities/pki";
 
-import Icon from "components/Icon";
 import Button from "components/buttons/Button";
+import TooltipWrapper from "components/TooltipWrapper";
+import Icon from "components/Icon";
+
 import { RequestState, downloadBase64ToFile } from "./helpers";
 
+// TODO: Refactor this interface to be more generalizable; probably some kind of fetchData
+// callback that resolves to a base64 string and props for filename, button label, disable button,
+// tooltip content, etc., and leave parms for the fetch (like pkiName) to the caller.
 interface IDownloadCSRProps {
   baseClass: string;
   onSuccess?: () => void;
   onError?: (e: unknown) => void;
   pkiName?: string;
+  disabled?: boolean;
 }
 
 const downloadCSRFile = (data: { csr: string }, filename?: string) => {
@@ -53,6 +59,7 @@ const useDownloadCSR = ({
     () => ({
       downloadState,
       handleDownload,
+      isLoading: downloadState === "loading",
     }),
     [downloadState, handleDownload]
   );
@@ -65,20 +72,35 @@ export const DownloadCSR = ({
   onSuccess,
   onError,
   pkiName,
+  disabled = false,
 }: IDownloadCSRProps) => {
-  const { handleDownload } = useDownloadCSR({ onSuccess, onError, pkiName });
+  const { isLoading, handleDownload } = useDownloadCSR({
+    onSuccess,
+    onError,
+    pkiName,
+  });
 
   return (
-    <Button
-      className={`${baseClass}__request-button`}
-      variant="text-icon"
-      onClick={handleDownload}
+    <TooltipWrapper
+      tipContent="Complete all fields to download CSR"
+      position="top"
+      showArrow
+      underline={false}
+      tipOffset={-8}
+      disableTooltip={!disabled || isLoading}
     >
-      <label htmlFor="request-csr">
-        <Icon name="download" color="core-fleet-blue" size="medium" />
-        <span>Download CSR</span>
-      </label>
-    </Button>
+      <Button
+        className={`${baseClass}__request-button`}
+        variant="text-icon"
+        onClick={handleDownload}
+        disabled={disabled || isLoading}
+      >
+        <label htmlFor="request-csr">
+          <Icon name="download" color="core-fleet-blue" size="medium" />
+          <span>Download CSR</span>
+        </label>
+      </Button>
+    </TooltipWrapper>
   );
 };
 

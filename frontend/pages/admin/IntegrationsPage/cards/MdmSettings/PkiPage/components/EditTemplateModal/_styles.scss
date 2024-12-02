@@ -1,4 +1,9 @@
 .pki-edit-template-modal {
+  .input-field {
+    &::placeholder {
+      font-style: normal; // FIXME: Should this be a global style change instead? See https://github.com/fleetdm/fleet/blob/99d962036774357e6767b9b84470c1d40b007c3b/frontend/components/Modal/_styles.scss#L36
+    }
+  }
   .form-field__label {
     color: $core-fleet-black;
   }

@@ -1,4 +1,4 @@
-const DEFAULT_ERROR_MESSAGE = "Couldn't add. Please try again.";
+const DEFAULT_ERROR_MESSAGE = "Couldn't add your PKI. Please try again.";
 
 // eslint-disable-next-line import/prefer-default-export
 export const getErrorMessage = (err: unknown) => {

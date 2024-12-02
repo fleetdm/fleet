@@ -47,7 +47,7 @@ const AddPkiModal = ({ onCancel, onAdded }: IAddPkiModalProps) => {
 
     try {
       await pkiAPI.uploadCert(pkiName, pkiCert);
-      renderFlash("success", "Added successfully.");
+      renderFlash("success", "Successfully added your PKI.");
       onAdded();
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
@@ -80,6 +80,7 @@ const AddPkiModal = ({ onCancel, onAdded }: IAddPkiModalProps) => {
             onChange={onInputChangeName}
             name="pkiName"
             value={pkiName}
+            placeholder="PKI name"
           />
           <ol className={`${baseClass}__setup-list`}>
             <li>
@@ -88,9 +89,12 @@ const AddPkiModal = ({ onCancel, onAdded }: IAddPkiModalProps) => {
                 Download a certificate signing request (CSR) for DigiCert.
                 <DownloadCSR
                   baseClass={baseClass}
+                  // TODO: add onError and onSuccess; we may want to use these to set local state so
+                  // that we can look out for cases where the pkiName changes after then CSR is requested
                   onError={noop}
                   onSuccess={noop}
                   pkiName={pkiName}
+                  disabled={!pkiName}
                 />
               </p>
             </li>

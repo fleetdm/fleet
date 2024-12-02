@@ -36,7 +36,7 @@ const PkiTable = ({ data, onEdit, onDelete }: IPkiTableProps) => {
   return (
     <TableContainer<IPkiConfig>
       columnConfigs={tableConfig}
-      defaultSortHeader="org_name"
+      defaultSortHeader="pki_name"
       disableTableHeader
       disablePagination
       showMarkAllPages={false}

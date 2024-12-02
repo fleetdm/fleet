@@ -1,4 +1,8 @@
 .pki-page {
+  p {
+    margin: 0;
+  }
+
   &__back-to-mdm {
     margin-bottom: $pad-xlarge;
   }

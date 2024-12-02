@@ -9,7 +9,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ActionsDropdown from "components/ActionsDropdown";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
+import Icon from "components/Icon";
 
 type IPkiTableConfig = Column<IPkiConfig>;
 type ITableStringCellProps = IStringCellProps<IPkiConfig>;
@@ -53,7 +53,11 @@ export const generateTableConfig = (
       disableSortBy: true,
       Cell: ({ value: templates }: IPkiTemplatesCellProps) => {
         return templates.length ? (
-          <StatusIndicatorWithIcon status="success" value="Added" />
+          // FIXME: See related note in frontend/components/StatusIndicatorWithIcon/StatusIndicatorWithIcon.tsx
+          <span className="status-indicator-with-icon__value">
+            <Icon name="success" />
+            <span>Added</span>
+          </span>
         ) : (
           <TextCell value={"---"} />
         );

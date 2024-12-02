@@ -139,12 +139,13 @@ const EditTemplateModal = ({
     [formData, onSuccess, selectedConfig.pki_name, byPkiName, renderFlash]
   );
 
-  const disableInput = !!selectedConfig.templates.length;
-  const disableSave = Object.values(formData).some((v) => !v);
+  const isViewOnly = !!selectedConfig.templates.length;
+  const disableInput = isViewOnly || isSaving;
+  const disableSave = disableInput || Object.values(formData).some((v) => !v);
 
   return (
     <Modal
-      title={disableInput ? "Certificate template" : "Add template"}
+      title={isViewOnly ? "Certificate template" : "Add template"}
       onExit={onCancel}
     >
       <>
@@ -210,7 +211,7 @@ const EditTemplateModal = ({
             disabled={disableInput}
           />
           <div className="modal-cta-wrap">
-            {disableInput ? (
+            {isViewOnly ? (
               <Button variant="brand" type="button" onClick={onCancel}>
                 Done
               </Button>
@@ -228,7 +229,7 @@ const EditTemplateModal = ({
                     variant="brand"
                     type="submit"
                     isLoading={isSaving}
-                    disabled={disableSave}
+                    disabled={disableSave || isSaving}
                   >
                     Save
                   </Button>
