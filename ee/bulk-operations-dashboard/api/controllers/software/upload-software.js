@@ -106,7 +106,7 @@ module.exports = {
         })
         .intercept({name: 'AxiosError'}, async (error)=>{
           await sails.rm(sails.config.uploads.prefixForFileDeletion+uploadedSoftware.fd);
-          sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, ${require('util').inspect(error, {depth: 0})}`);
+          sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, ${require('util').inspect(error, {depth: 2})}`);
           return {'softwareUploadFailed': error};
         });
       }
