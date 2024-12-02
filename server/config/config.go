@@ -1316,19 +1316,6 @@ func (man Manager) addConfigs() {
 		"calendar.periodicity", 0,
 		"How much time to wait between processing calendar integration.",
 	)
-
-	// Hide Microsoft/Windows MDM flags as we don't want it to be discoverable for users for now
-	betaMDMFlags := []string{
-		"mdm.windows_wstep_identity_cert",
-		"mdm.windows_wstep_identity_key",
-		"mdm.windows_wstep_identity_cert_bytes",
-		"mdm.windows_wstep_identity_key_bytes",
-	}
-	for _, mdmFlag := range betaMDMFlags {
-		if flag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(mdmFlag)); flag != nil {
-			flag.Hidden = true
-		}
-	}
 }
 
 func (man Manager) hideConfig(name string) {
