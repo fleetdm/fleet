@@ -5926,7 +5926,6 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 
-	// the feature flag is enabled for the MDM test suite
 	var acResp appConfigResponse
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
@@ -5937,46 +5936,65 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "2"})
 	require.NoError(t, err)
 
-	// create some hosts - a Windows workstation in each team and no-team,
-	// Windows server in no team, Windows workstation enrolled in a 3rd-party in
-	// team 2, Windows workstation already enrolled in Fleet in no team, and a
-	// macOS host in no team.
-	metadataHosts := []struct {
-		os           string
-		suffix       string
-		isServer     bool
-		teamID       *uint
-		enrolledName string
-		shouldEnroll bool
-	}{
-		{"windows", "win-no-team", false, nil, "", true},
-		{"windows", "win-team-1", false, &tm1.ID, "", true},
-		{"windows", "win-team-2", false, &tm2.ID, "", true},
-		{"windows", "win-server", true, nil, "", false},                                    // is a server
-		{"windows", "win-third-party", false, &tm2.ID, fleet.WellKnownMDMSimpleMDM, false}, // is enrolled in 3rd-party
-		{"windows", "win-fleet", false, nil, fleet.WellKnownMDMFleet, false},               // is already Fleet-enrolled
-		{"darwin", "macos-no-team", false, nil, "", false},                                 // is not Windows
-	}
-	hostsBySuffix := make(map[string]*fleet.Host, len(metadataHosts))
-	for _, meta := range metadataHosts {
-		h := createOrbitEnrolledHost(t, meta.os, meta.suffix, s.ds)
-		createDeviceTokenForHost(t, s.ds, h.ID, meta.suffix)
-		err := s.ds.SetOrUpdateMDMData(ctx, h.ID, meta.isServer, meta.enrolledName != "", "https://example.com", false, meta.enrolledName, "")
-		require.NoError(t, err)
-		if meta.teamID != nil {
-			err = s.ds.AddHostsToTeam(ctx, meta.teamID, []uint{h.ID})
-			require.NoError(t, err)
-		}
-		hostsBySuffix[meta.suffix] = h
-	}
-
 	// enable Windows MDM
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_enabled_and_configured": true }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
+	assert.False(t, acResp.MDM.WindowsMigrationEnabled)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledWindowsMDM{}.ActivityName(), `{}`, 0)
+
+	// create some hosts - a Windows workstation in each team and no-team,
+	// Windows server in no team, Windows workstation enrolled in a 3rd-party in
+	// team 2, Windows workstation already enrolled in Fleet in no team, and a
+	// macOS host in no team.
+	metadataHosts := []struct {
+		os            string
+		suffix        string
+		isServer      bool
+		teamID        *uint
+		enrolledName  string
+		shouldEnroll  bool
+		shouldMigrate bool
+	}{
+		{"windows", "win-no-team", false, nil, "", true, false},
+		{"windows", "win-team-1", false, &tm1.ID, "", true, false},
+		{"windows", "win-team-2", false, &tm2.ID, "", true, false},
+		{"windows", "win-server", true, nil, "", false, false},                                      // is a server
+		{"windows", "win-third-party", false, &tm2.ID, fleet.WellKnownMDMSimpleMDM, false, true},    // is enrolled in 3rd-party
+		{"windows", "win-fleet", false, nil, fleet.WellKnownMDMFleet, false, false},                 // is already Fleet-enrolled
+		{"darwin", "macos-no-team", false, nil, "", false, false},                                   // is not Windows
+		{"windows", "win-server-third-party", true, nil, fleet.WellKnownMDMSimpleMDM, false, false}, // is enrolled in 3rd-party, but is a server
+	}
+	hostsBySuffix := make(map[string]*fleet.Host, len(metadataHosts))
+	for _, meta := range metadataHosts {
+		var host *fleet.Host
+		if meta.os == "windows" && meta.enrolledName == fleet.WellKnownMDMFleet {
+			// special-case to create a properly MDM-enrolled into Fleet host
+			host = createOrbitEnrolledHost(t, meta.os, meta.suffix, s.ds)
+			mdmDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *host.OrbitNodeKey)
+			err := mdmDevice.Enroll()
+			require.NoError(t, err)
+			err = s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, mdmDevice.DeviceID)
+			require.NoError(t, err)
+			err = s.ds.SetOrUpdateMDMData(ctx, host.ID, meta.isServer, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
+			require.NoError(t, err)
+		} else {
+			host = createOrbitEnrolledHost(t, meta.os, meta.suffix, s.ds)
+			createDeviceTokenForHost(t, s.ds, host.ID, meta.suffix)
+
+			serverURL := "https://example.com"
+			err := s.ds.SetOrUpdateMDMData(ctx, host.ID, meta.isServer, meta.enrolledName != "", serverURL, false, meta.enrolledName, "")
+			require.NoError(t, err)
+		}
+
+		if meta.teamID != nil {
+			err = s.ds.AddHostsToTeam(ctx, meta.teamID, []uint{host.ID})
+			require.NoError(t, err)
+		}
+		hostsBySuffix[meta.suffix] = host
+	}
 
 	// get the orbit config for each host, verify that only the expected ones
 	// receive the "needs enrollment to Windows MDM" notification.
@@ -5987,6 +6005,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 			http.StatusOK, &resp)
 		require.Equal(t, meta.shouldEnroll, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
 		require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
+		require.False(t, resp.Notifications.NeedsMDMMigration)
 		if meta.shouldEnroll {
 			require.Contains(t, resp.Notifications.WindowsMDMDiscoveryEndpoint, microsoft_mdm.MDE2DiscoveryPath)
 		} else {
@@ -5994,7 +6013,34 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 		}
 	}
 
-	// turn on MDM for a host
+	// enable Windows MDM migration
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_migration_enabled": true }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
+	assert.True(t, acResp.MDM.WindowsMigrationEnabled)
+	s.lastActivityMatches(fleet.ActivityTypeEnabledWindowsMDMMigration{}.ActivityName(), `{}`, 0)
+
+	// get the orbit config for each host, verify that only the expected ones
+	// receive the "needs enrollment to Windows MDM" and "needs migration" notifications.
+	// They still get enrollment notifications as we have not proceeded with enrollment.
+	for _, meta := range metadataHosts {
+		var resp orbitGetConfigResponse
+		s.DoJSON("POST", "/api/fleet/orbit/config",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hostsBySuffix[meta.suffix].OrbitNodeKey)),
+			http.StatusOK, &resp)
+		require.Equal(t, meta.shouldEnroll, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
+		require.Equal(t, meta.shouldMigrate, resp.Notifications.NeedsMDMMigration)
+		require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
+		if meta.shouldEnroll {
+			require.Contains(t, resp.Notifications.WindowsMDMDiscoveryEndpoint, microsoft_mdm.MDE2DiscoveryPath)
+		} else {
+			require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
+		}
+	}
+
+	// turn on MDM for another host
 	orbitHost, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 	// disable Microsoft MDM
@@ -6002,9 +6048,10 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 		"mdm": { "windows_enabled_and_configured": false }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
+	assert.False(t, acResp.MDM.WindowsMigrationEnabled)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledWindowsMDM{}.ActivityName(), `{}`, 0)
 
-	// get the orbit config for win-no-team should return true for the
+	// get the orbit config for that MDM-enrolled host returns true for the
 	// unenrollment notification
 	var resp orbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config",
@@ -6012,7 +6059,25 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 		http.StatusOK, &resp)
 	require.True(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
 	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
+	require.False(t, resp.Notifications.NeedsMDMMigration)
 	require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
+
+	// get the orbit config for each host, only the fleet-enrolled ones get the unenrollment,
+	// and none get enrollment/migration (because MDM is now off).
+	for _, meta := range metadataHosts {
+		var resp orbitGetConfigResponse
+		s.DoJSON("POST", "/api/fleet/orbit/config",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hostsBySuffix[meta.suffix].OrbitNodeKey)),
+			http.StatusOK, &resp)
+		require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
+		require.False(t, resp.Notifications.NeedsMDMMigration)
+		if meta.enrolledName == fleet.WellKnownMDMFleet {
+			require.True(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
+		} else {
+			require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
+		}
+		require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
+	}
 }
 
 func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
