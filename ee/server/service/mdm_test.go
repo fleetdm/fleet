@@ -171,10 +171,12 @@ func TestCountABMTokensAuth(t *testing.T) {
 			shoudFailWithAuth bool
 		}{
 			{"no role", test.UserNoRoles, true},
+			{"gitops can read", test.UserGitOps, false},
 			{"maintainer can read", test.UserMaintainer, false},
 			{"observer can read", test.UserObserver, false},
 			{"observer+ can read", test.UserObserverPlus, false},
 			{"admin can read", test.UserAdmin, false},
+			{"tm1 gitops cannot read", test.UserTeamGitOpsTeam1, true},
 			{"tm1 maintainer can read", test.UserTeamMaintainerTeam1, false},
 			{"tm1 observer can read", test.UserTeamObserverTeam1, false},
 			{"tm1 observer+ can read", test.UserTeamObserverPlusTeam1, false},
