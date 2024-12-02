@@ -54,6 +54,7 @@ export interface IDropdownWrapper {
   isSearchable?: boolean;
   isDisabled?: boolean;
   placeholder?: string;
+  menuPortalTarget?: HTMLElement | null;
 }
 
 const baseClass = "dropdown-wrapper";
@@ -71,6 +72,7 @@ const DropdownWrapper = ({
   isSearchable,
   isDisabled = false,
   placeholder,
+  menuPortalTarget,
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className);
 
@@ -317,7 +319,6 @@ const DropdownWrapper = ({
         styles={customStyles}
         options={options}
         components={{
-          // Control: CustomControl,
           Option: CustomOption,
           DropdownIndicator: CustomDropdownIndicator,
           IndicatorSeparator: () => null,
@@ -325,7 +326,9 @@ const DropdownWrapper = ({
         value={getCurrentValue()}
         onChange={handleChange}
         isDisabled={isDisabled}
-        menuPortalTarget={document.body}
+        menuPortalTarget={
+          menuPortalTarget === undefined ? document.body : menuPortalTarget
+        }
         noOptionsMessage={() => "No results found"}
         tabIndex={isDisabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
         placeholder={placeholder}

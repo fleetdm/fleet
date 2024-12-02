@@ -1,5 +1,7 @@
-// react-select's customStyles styles the internal components
-// and not external elements like labels
+// react-select's <Select/> styles prop customizes the styling of
+// the internal components and not external elements like labels
+// See customStyles in DropdownWrappr.tsx
+// https://react-select.com/styles
 .dropdown-wrapper {
   &__label {
     &--error {

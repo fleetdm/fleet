@@ -370,7 +370,6 @@ const UserForm = ({
             </>
           ) : (
             <SelectRoleForm
-              label="Role"
               currentTeam={currentTeam || formData.teams[0]}
               teams={formData.teams}
               defaultTeamRole={defaultTeamRole || "observer"}

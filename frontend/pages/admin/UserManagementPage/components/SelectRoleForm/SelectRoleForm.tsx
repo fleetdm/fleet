@@ -12,7 +12,6 @@ interface ISelectRoleFormProps {
   currentTeam?: ITeam;
   teams: ITeam[];
   onFormChange: (teams: ITeam[]) => void;
-  label: string | string[];
   isApiOnly?: boolean;
 }
 
