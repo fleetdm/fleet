@@ -18,10 +18,9 @@ import { PADDING } from "styles/var/padding";
 import { COLORS } from "styles/var/colors";
 
 import Icon from "components/Icon";
-import DropdownOptionTooltipWrapper from "components/forms/fields/Dropdown/DropdownOptionTooltipWrapper";
 import AvatarTopNav from "../../AvatarTopNav";
 
-const baseClass = "user-menu2";
+const baseClass = "user-menu";
 
 interface IUserMenuProps {
   onLogout: () => void;
@@ -79,21 +78,12 @@ const CustomOption: React.FC<OptionProps<IDropdownOption, false>> = (props) => {
       }}
     >
       {data.label}
-      {data.helpText && (
-        <span className={`${baseClass}__help-text`}>{data.helpText}</span>
-      )}
     </div>
   );
 
   return (
     <components.Option {...props} isFocused={false}>
-      {data.tooltipContent ? (
-        <DropdownOptionTooltipWrapper tipContent={data.tooltipContent}>
-          {optionContent}
-        </DropdownOptionTooltipWrapper>
-      ) : (
-        optionContent
-      )}
+      {optionContent}
     </components.Option>
   );
 };
@@ -189,7 +179,7 @@ const UserMenu = ({
       cursor: "pointer",
       "&:hover": {
         boxShadow: "none",
-        ".user-menu2-select__indicator svg": {
+        ".user-menu-select__indicator svg": {
           animation: `${bounceDownAnimation} 0.3s ease-in-out`,
         },
       },
@@ -199,7 +189,7 @@ const UserMenu = ({
           // Add other focus styles as needed
         }),
       ...(state.menuIsOpen && {
-        ".user-menu2-select__indicator svg": {
+        ".user-menu-select__indicator svg": {
           transform: "rotate(180deg)",
         },
       }),
