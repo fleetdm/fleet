@@ -49,7 +49,7 @@ module.exports = {
 
   fn: async function ({newSoftware, teams, isDeployedToAllTeams}) {
     let uploadedSoftware;
-    if(!teams) {
+    if(teams.length === 0) {
       uploadedSoftware = await sails.uploadOne(newSoftware, {bucket: sails.config.uploads.bucketWithPostfix});
       let datelessFilename = uploadedSoftware.filename.replace(/^\d{4}-\d{2}-\d{2}\s/, '');
       // Build a dictonary of information about this software to return to the softwares page.

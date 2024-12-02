@@ -69,11 +69,16 @@ module.exports = {
     let axios = require('axios');
     // Cast the strings in the newTeamIds array to numbers.
     if(newTeamIds){
-      if(isDeployedToAllTeams){
-        // Create an AllTeamsSoftware record for this software, this software will be automaticaly transfered to all new teams via a scheduled run of the detect-new-teams-and-transfer-software script.
+      if(isDeployedToAllTeams && !software.isDeployedToAllTeams){
+        // If this software was not previously marked as being for all teams
+        // Create an AllTeamsSoftware record for this software.
+        // This will mean that this software will be automaticaly transfered to all new teams via a scheduled run of the detect-new-teams-and-transfer-software script.
         await AllTeamsSoftware.create({ fleetApid: software.fleetApid, teamApids: newTeamIds});
+      } else if(isDeployedToAllTeams) {
+        // Otherwise if this software was previosuly deployed to all teams, we'll update the database record to include the new lsit of team IDs.
+        await AllTeamsSoftware.updateOne({ fleetApid: software.fleetApid}).set({teamApids: newTeamIds});
       } else {
-        // Destory a AllTeamsSoftware record (if it exists)
+        // Destory an AllTeamsSoftware record (if it exists)
         await AllTeamsSoftware.destroyOne({fleetApid: software.fleetApid});
       }
       newTeamIds = newTeamIds.map(Number);
