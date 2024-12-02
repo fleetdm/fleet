@@ -17,9 +17,9 @@ controls:
   macos_settings:
     custom_settings:
       - path: ../lib/configuration-profiles/ios-restrictions.mobileconfig
-      - path: ../lib/configuration-profiles/ios-passcode-settings-ddm.json
       - path: ../lib/configuration-profiles/ios-lock-screen-message.mobileconfig
       - path: ../lib/configuration-profiles/ios-content-filtering.mobileconfig
+      - path: ../lib/declarations/ios-passcode-settings-ddm.json
   scripts:
 policies:
 queries:

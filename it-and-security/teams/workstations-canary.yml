@@ -103,32 +103,26 @@ controls:
     deadline_days: 7
     grace_period_days: 2
   scripts:
-    - path: ../lib/collect-fleetd-logs.sh
-    - path: ../lib/macos-execute-disable-fleet-desktop.sh
-    - path: ../lib/macos-see-automatic-enrollment-profile.sh
-    - path: ../lib/macos-remove-old-nudge.sh
-    - path: ../lib/macos-mdm-migration.sh
-    - path: ../lib/macos-system-maintenance.sh
-    - path: ../lib/windows-remove-fleetd.ps1
-    - path: ../lib/windows-turn-off-mdm.ps1
-    - path: ../lib/windows-install-bitdefender.ps1
-    - path: ../lib/windows-enable-ms-defender.ps1
+    - path: ../lib/scripts/macos-collect-fleetd-logs.sh
+    - path: ../lib/scripts/macos-execute-disable-fleet-desktop.sh
+    - path: ../lib/scripts/macos-see-automatic-enrollment-profile.sh
+    - path: ../lib/scripts/macos-remove-old-nudge.sh
+    - path: ../lib/scripts/macos-mdm-migration.sh
+    - path: ../lib/scripts/macos-system-maintenance.sh
+    - path: ../lib/scripts/windows-remove-fleetd.ps1
+    - path: ../lib/scripts/windows-turn-off-mdm.ps1
+    - path: ../lib/scripts/windows-install-bitdefender.ps1
+    - path: ../lib/scripts/windows-enable-ms-defender.ps1
 policies:
-  - path: ../lib/macos-device-health.policies.yml
-  - path: ../lib/windows-device-health.policies.yml
-  - path: ../lib/linux-device-health.policies.yml
+  - path: ../lib/policies/macos-device-health.yml
+  - path: ../lib/policies/macos-upgrade-firefox.yml
+  - path: ../lib/policies/windows-device-health.yml
+  - path: ../lib/policies/linux-device-health.yml
   - name: macOS - Check if latest version
-    query: SELECT 1 FROM os_version WHERE (major = '14' AND minor = '6') OR major = '15';
-    critical: false
+    query: SELECT 1 FROM os_version WHERE (major = '15' AND minor = '6' AND patch = '1');
+    critical: true
     description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
     resolution: We will update your macOS to the latest version.
-    platform: darwin
-    calendar_events_enabled: false  
-  - name: macOS - MDM migration complete
-    query: SELECT 1 AS result FROM system_info WHERE computer_name NOT IN ('Titanosauria2', 'Drew’s MacBook Pro2','fleetwoodmike2');
-    critical: false
-    description: Determines if the device has completed MDM migration to Fleet.
-    resolution: We will migrate your macOS MDM to Fleet.
     platform: darwin
     calendar_events_enabled: false
   - name: macOS - System maintenance complete
@@ -138,14 +132,6 @@ policies:
     resolution: We will perform system maintenance on your device.
     platform: darwin
     calendar_events_enabled: true
-  - name: macOS - Upgrade Firefox
-    query: SELECT 1 FROM apps WHERE name = 'Firefox.app' AND version_compare(bundle_short_version, '132.0.0') >= 0;
-    critical: false
-    description: The host may have an outdated or non-existent version of Firefox, potentially risking security vulnerabilities or compatibility issues.
-    resolution: During maintenance, the Firefox app could be updated to the correct version or installed if it's missing.
-    platform: darwin
-    install_software:
-      package_path: "../lib/software/mac-mozilla-firefox.yml"
   - name: macOS - Upgrade Slack
     query: SELECT 1 FROM apps WHERE name = 'Slack.app' AND version_compare(bundle_short_version, '4.40.126') >= 0;
     critical: false
@@ -154,13 +140,13 @@ policies:
     platform: darwin
     calendar_events_enabled: false
 queries:
-  - path: ../lib/collect-failed-login-attempts.queries.yml
-  - path: ../lib/collect-fleetd-information.yml
-  - path: ../lib/collect-usb-devices.queries.yml
-  - path: ../lib/collect-vs-code-extensions.queries.yml
-  - path: ../lib/collect-software-permissions-system.queries.yml
-  - path: ../lib/collect-software-permissions-user.queries.yml
-  - path: ../lib/collect-crowdstrike-info.queries.yml
+  - path: ../lib/queries/collect-failed-login-attempts.yml
+  - path: ../lib/queries/collect-fleetd-information.yml
+  - path: ../lib/queries/collect-usb-devices.yml
+  - path: ../lib/queries/collect-vs-code-extensions.yml
+  - path: ../lib/queries/collect-software-permissions-system.yml
+  - path: ../lib/queries/collect-software-permissions-user.yml
+  - path: ../lib/queries/collect-crowdstrike-info.yml
 software:
   app_store_apps:
       - app_store_id: '803453959' # Slack Desktop
@@ -168,4 +154,4 @@ software:
       - app_store_id: '1477376905' # GitHub
       - app_store_id: '1152747299' # Figma
   packages:
-    - path: ../lib/software/mac-mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
+    - path: ../lib/software/macos-mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)

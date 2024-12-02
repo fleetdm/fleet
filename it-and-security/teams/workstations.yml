@@ -61,8 +61,8 @@ controls:
     enable_end_user_authentication: true
     macos_setup_assistant: ../lib/automatic-enrollment.dep.json
     software:
-      - package_path: ../lib/software/mac-google-chrome.yml # Google Chrome for macOS
-      - package_path: ../lib/software/mac-zoom.yml # Zoom for macOS
+      - package_path: ../lib/software/macos-google-chrome.yml # Google Chrome for macOS
+      - package_path: ../lib/software/macos-zoom.yml # Zoom for macOS
       - app_store_id: '803453959' # Slack Desktop
       - app_store_id: '1333542190' # 1Password 7 Desktop
   macos_updates:
@@ -74,18 +74,18 @@ controls:
     deadline_days: 7
     grace_period_days: 2
   scripts:
-    - path: ../lib/collect-fleetd-logs.sh
-    - path: ../lib/macos-see-automatic-enrollment-profile.sh
-    - path: ../lib/macos-remove-old-nudge.sh
-    - path: ../lib/install-update-homebrew.sh
-    - path: ../lib/windows-remove-fleetd.ps1
-    - path: ../lib/windows-turn-off-mdm.ps1
+    - path: ../lib/scripts/collect-fleetd-logs.sh
+    - path: ../lib/scripts/macos-see-automatic-enrollment-profile.sh
+    - path: ../lib/scripts/macos-remove-old-nudge.sh
+    - path: ../lib/scripts/windows-remove-fleetd.ps1
+    - path: ../lib/scripts/windows-turn-off-mdm.ps1
 policies:
-  - path: ../lib/macos-device-health.policies.yml
-  - path: ../lib/windows-device-health.policies.yml
-  - path: ../lib/linux-device-health.policies.yml
-  - path: ../lib/macos-cis.policies.yml
-  - path: ../lib/windows-cis.policies.yml
+  - path: ../lib/policies/macos-device-health.yml
+  - path: ../lib/policies/macos-cis.yml
+  - path: ../lib/policies/macos-upgrade-firefox.yml
+  - path: ../lib/policies/windows-device-health.yml
+  - path: ../lib/policies/windows-cis.yml
+  - path: ../lib/policies/linux-device-health.yml
   - name: macOS - Check if latest version
     query: SELECT 1 FROM os_version WHERE (major = '14' AND minor = '6') OR major = '15';
     critical: false
@@ -94,9 +94,9 @@ policies:
     platform: darwin
     calendar_events_enabled: false
 queries:
-  - path: ../lib/collect-failed-login-attempts.queries.yml
-  - path: ../lib/collect-usb-devices.queries.yml
-  - path: ../lib/collect-vs-code-extensions.queries.yml
+  - path: ../lib/queries/collect-failed-login-attempts.yml
+  - path: ../lib/queries/collect-usb-devices.yml
+  - path: ../lib/queries/collect-vs-code-extensions.yml
   - name: Collect expiration date for MDM SCEP certificates
     description: "For the following issue: https://github.com/fleetdm/confidential/issues/4518. Returns expiration date for macOS hosts's MDM SCEP certs."
     query: "SELECT common_name, datetime(not_valid_after,'unixepoch') AS expires FROM certificates WHERE 'common_name' LIKE '%FleetDM Identity%';"
@@ -106,8 +106,8 @@ queries:
     observer_can_run: true
 software:
   packages:
-    - path: ../lib/software/mac-zoom.yml # Zoom for macOS
-    - path: ../lib/software/mac-google-chrome.yml # Google Chrome for macOS
+    - path: ../lib/software/macos-zoom.yml # Zoom for macOS
+    - path: ../lib/software/macos-google-chrome.yml # Google Chrome for macOS
   app_store_apps:
     - app_store_id: '803453959' # Slack Desktop
     - app_store_id: '1333542190' # 1Password 7 Desktop
