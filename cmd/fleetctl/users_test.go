@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/csv"
 	"fmt"
 	"math/big"
@@ -87,7 +88,13 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 		return nil, &notFoundError{}
 	}
 	var apiOnlyUserSessionKey string
-	ds.NewSessionFunc = func(ctx context.Context, userID uint, sessionKey string) (*fleet.Session, error) {
+	ds.NewSessionFunc = func(ctx context.Context, userID uint, sessionKeySize uint) (*fleet.Session, error) {
+		key := make([]byte, sessionKeySize)
+		_, err := rand.Read(key)
+		if err != nil {
+			return nil, err
+		}
+		sessionKey := base64.StdEncoding.EncodeToString(key)
 		apiOnlyUserSessionKey = sessionKey
 		return &fleet.Session{
 			ID:     2,
