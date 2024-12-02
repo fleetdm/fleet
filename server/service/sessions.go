@@ -275,9 +275,19 @@ func (svc *Service) CompleteMFA(ctx context.Context, token string) (*fleet.User,
 	// skipauth: No user context available yet to authorize against.
 	svc.authz.SkipAuthorization(ctx)
 
+	var err error
+	defer func(start time.Time) { // force MFA failures to take at least a second for brute force/timing attack resistance
+		if err != nil {
+			time.Sleep(time.Until(start.Add(1 * time.Second)))
+		}
+	}(time.Now())
+
 	user, err := svc.ds.UserByMFAToken(ctx, token)
 	if err != nil {
 		return nil, nil, fleet.NewAuthFailedError(err.Error())
+	}
+	if user == nil {
+		return nil, nil, fleet.NewAuthFailedError("no user associated with MFA token")
 	}
 
 	session, err := svc.makeSession(ctx, user.ID)

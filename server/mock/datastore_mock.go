@@ -315,6 +315,8 @@ type DestroyAllSessionsForUserFunc func(ctx context.Context, id uint) error
 
 type MarkSessionAccessedFunc func(ctx context.Context, session *fleet.Session) error
 
+type UserByMFATokenFunc func(ctx context.Context, token string) (*fleet.User, error)
+
 type NewAppConfigFunc func(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error)
 
 type AppConfigFunc func(ctx context.Context) (*fleet.AppConfig, error)
@@ -1608,6 +1610,9 @@ type DataStore struct {
 
 	MarkSessionAccessedFunc        MarkSessionAccessedFunc
 	MarkSessionAccessedFuncInvoked bool
+
+	UserByMFATokenFunc        UserByMFATokenFunc
+	UserByMFATokenFuncInvoked bool
 
 	NewAppConfigFunc        NewAppConfigFunc
 	NewAppConfigFuncInvoked bool
@@ -3917,6 +3922,13 @@ func (s *DataStore) MarkSessionAccessed(ctx context.Context, session *fleet.Sess
 	s.MarkSessionAccessedFuncInvoked = true
 	s.mu.Unlock()
 	return s.MarkSessionAccessedFunc(ctx, session)
+}
+
+func (s *DataStore) UserByMFAToken(ctx context.Context, token string) (*fleet.User, error) {
+	s.mu.Lock()
+	s.UserByMFATokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.UserByMFATokenFunc(ctx, token)
 }
 
 func (s *DataStore) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error) {

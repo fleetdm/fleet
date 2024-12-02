@@ -3,11 +3,45 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
+
+const mfaLinkTTL = time.Minute * 15
+
+func (ds *Datastore) UserByMFAToken(ctx context.Context, token string) (*fleet.User, error) {
+	var userID uint
+	err := sqlx.GetContext(
+		ctx,
+		ds.reader(ctx),
+		userID,
+		"SELECT user_id FROM verification_tokens WHERE token = ? AND created_at >= NOW() - INTERVAL ? SECOND",
+		token,
+		mfaLinkTTL.Seconds(),
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("Verification Token"))
+		}
+		return nil, err
+	}
+
+	user, err := ds.UserByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// only delete token once we've successfully consumed it
+	if _, err = ds.writer(ctx).ExecContext(ctx, "DELETE FROM verification_tokens WHERE token = ?", token); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
 
 func (ds *Datastore) SessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
 	sqlStatement := `
@@ -59,7 +93,7 @@ func (ds *Datastore) ListSessionsForUser(ctx context.Context, id uint) ([]*fleet
 		ON s.user_id = u.id
 		WHERE s.user_id = ?
 	`
-	sessions := []*fleet.Session{}
+	var sessions []*fleet.Session
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &sessions, sqlStatement, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting sessions for user")
