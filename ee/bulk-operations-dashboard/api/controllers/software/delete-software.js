@@ -41,7 +41,7 @@ module.exports = {
         .intercept({raw:{statusCode: 409}}, (error)=>{
           // If the Fleet instance's returns a 409 response, then the software is configured to be installed as
           // part of the macOS setup experience, and must be removed before it can be deleted via API requests.
-          return {softwareDeletionFailed: error}
+          return {softwareDeletionFailed: error};
         });
       }
     }
