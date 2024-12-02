@@ -110,12 +110,12 @@ const HostDetailsBanners = ({
       </div>
     );
   }
-  // setting applies
   if (
     hostPlatform &&
     isDiskEncryptionSupportedLinuxPlatform(hostPlatform, hostOsVersion ?? "") &&
     diskEncryptionOSSetting?.status
   ) {
+    // setting applies to a Linux host
     if (!diskIsEncrypted) {
       // linux host not in compliance with setting
       return (
@@ -140,8 +140,9 @@ const HostDetailsBanners = ({
       );
     }
     if (!diskEncryptionKeyAvailable) {
-      // disk is encrypted, but Fleet doesn't yet have a disk
-      // encryption key escrowed (possible for Linux hosts)
+      // linux host's disk is encrypted, but Fleet doesn't yet have a disk
+      // encryption key escrowed (note that this state is also possible for Windows hosts, which we
+      // don't show this banner for currently)
       return (
         <div className={baseClass}>
           <InfoBanner color="yellow">
