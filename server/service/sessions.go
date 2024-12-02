@@ -253,7 +253,7 @@ type sessionCreateRequest struct {
 
 func sessionCreateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*sessionCreateRequest)
-	user, session, err := svc.CompleteMFA(ctx, req.Token)
+	session, user, err := svc.CompleteMFA(ctx, req.Token)
 	if err != nil {
 		return loginResponse{Err: err}, nil
 	}
@@ -273,7 +273,7 @@ func sessionCreateEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	return loginResponse{user, availableTeams, session.Key, nil}, nil
 }
 
-func (svc *Service) CompleteMFA(ctx context.Context, token string) (*fleet.User, *fleet.Session, error) {
+func (svc *Service) CompleteMFA(ctx context.Context, token string) (*fleet.Session, *fleet.User, error) {
 	// skipauth: No user context available yet to authorize against.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -284,15 +284,7 @@ func (svc *Service) CompleteMFA(ctx context.Context, token string) (*fleet.User,
 		}
 	}(time.Now())
 
-	user, err := svc.ds.UserByMFAToken(ctx, token)
-	if err != nil {
-		return nil, nil, fleet.NewAuthFailedError(err.Error())
-	}
-	if user == nil {
-		return nil, nil, fleet.NewAuthFailedError("no user associated with MFA token")
-	}
-
-	session, err := svc.makeSession(ctx, user.ID)
+	session, user, err := svc.ds.SessionByMFAToken(ctx, token, uint(svc.config.Session.KeySize)) //nolint:gosec // dismiss G115
 	if err != nil {
 		return nil, nil, fleet.NewAuthFailedError(err.Error())
 	}
@@ -303,7 +295,7 @@ func (svc *Service) CompleteMFA(ctx context.Context, token string) (*fleet.User,
 		}); err != nil {
 		return nil, nil, err
 	}
-	return user, session, nil
+	return session, user, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

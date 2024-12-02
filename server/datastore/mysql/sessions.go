@@ -15,7 +15,7 @@ import (
 
 const mfaLinkTTL = time.Minute * 15
 
-func (ds *Datastore) UserByMFAToken(ctx context.Context, token string) (*fleet.User, error) {
+func (ds *Datastore) SessionByMFAToken(ctx context.Context, token string, sessionKeySize uint) (*fleet.Session, *fleet.User, error) {
 	var userID uint
 	err := sqlx.GetContext(
 		ctx,
@@ -27,22 +27,34 @@ func (ds *Datastore) UserByMFAToken(ctx context.Context, token string) (*fleet.U
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, notFound("Verification Token"))
+			return nil, nil, ctxerr.Wrap(ctx, notFound("Verification Token"))
 		}
-		return nil, err
+		return nil, nil, err
 	}
 
 	user, err := ds.UserByID(ctx, userID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// only delete token once we've successfully consumed it
-	if _, err = ds.writer(ctx).ExecContext(ctx, "DELETE FROM verification_tokens WHERE token = ?", token); err != nil {
-		return nil, err
+	var session *fleet.Session
+	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if session, err = ds.makeSessionInTransaction(ctx, tx, user.ID, sessionKeySize); err != nil {
+			return err
+		}
+
+		// only delete token once we've successfully consumed it
+		if _, err = ds.writer(ctx).ExecContext(ctx, "DELETE FROM verification_tokens WHERE token = ?", token); err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return user, nil
+	return session, user, nil
 }
 
 func (ds *Datastore) SessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
@@ -105,19 +117,17 @@ func (ds *Datastore) ListSessionsForUser(ctx context.Context, id uint) ([]*fleet
 }
 
 func (ds *Datastore) NewSession(ctx context.Context, userID uint, sessionKeySize uint) (*fleet.Session, error) {
+	return ds.makeSessionInTransaction(ctx, ds.writer(ctx), userID, sessionKeySize)
+}
+
+func (ds *Datastore) makeSessionInTransaction(ctx context.Context, tx sqlx.ExtContext, userID uint, sessionKeySize uint) (*fleet.Session, error) {
 	key := make([]byte, sessionKeySize)
 	_, err := rand.Read(key)
 	if err != nil {
 		return nil, err
 	}
-	session, err := ds.saveSession(ctx, userID, base64.StdEncoding.EncodeToString(key))
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "creating new session")
-	}
-	return session, nil
-}
+	sessionKey := base64.StdEncoding.EncodeToString(key)
 
-func (ds *Datastore) saveSession(ctx context.Context, userID uint, sessionKey string) (*fleet.Session, error) {
 	sqlStatement := `
 		INSERT INTO sessions (
 			user_id,
@@ -125,9 +135,9 @@ func (ds *Datastore) saveSession(ctx context.Context, userID uint, sessionKey st
 		)
 		VALUES(?,?)
 	`
-	result, err := ds.writer(ctx).ExecContext(ctx, sqlStatement, userID, sessionKey)
+	result, err := tx.ExecContext(ctx, sqlStatement, userID, sessionKey)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "inserting session")
+		return nil, ctxerr.Wrap(ctx, err, "saving session")
 	}
 
 	id, _ := result.LastInsertId()                       // cannot fail with the mysql driver

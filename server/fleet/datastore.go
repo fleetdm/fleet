@@ -419,8 +419,8 @@ type Datastore interface {
 	// MarkSessionAccessed marks the currently tracked session as access to extend expiration
 	MarkSessionAccessed(ctx context.Context, session *Session) error
 
-	// UserByMFAToken retrieves the user associated with an MFA token if that token is active
-	UserByMFAToken(ctx context.Context, token string) (*User, error)
+	// SessionByMFAToken redeems an MFA token for a session, and returns the associated user, if that MFA token is valid
+	SessionByMFAToken(ctx context.Context, token string, sessionKeySize uint) (*Session, *User, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigStore contains method for saving and retrieving application configuration
