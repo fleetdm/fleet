@@ -148,10 +148,10 @@ queries:
   - path: ../lib/queries/collect-software-permissions-user.yml
   - path: ../lib/queries/collect-crowdstrike-info.yml
 software:
+  packages:
+    - path: ../lib/software/macos-mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
   app_store_apps:
       - app_store_id: '803453959' # Slack Desktop
       - app_store_id: '1333542190' # 1Password 7 Desktop
       - app_store_id: '1477376905' # GitHub
       - app_store_id: '1152747299' # Figma
-  packages:
-    - path: ../lib/software/macos-mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
