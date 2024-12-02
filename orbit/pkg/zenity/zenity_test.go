@@ -15,7 +15,6 @@ type mockExecCmd struct {
 	output       []byte
 	exitCode     int
 	capturedArgs []string
-	waitDuration time.Duration
 }
 
 // MockCommandContext simulates exec.CommandContext and captures arguments
@@ -29,17 +28,10 @@ func (m *mockExecCmd) runWithOutput(ctx context.Context, args ...string) ([]byte
 	return m.output, m.exitCode, nil
 }
 
-func (m *mockExecCmd) runWithWait(ctx context.Context, args ...string) error {
+func (m *mockExecCmd) runWithStdin(args ...string) (func() error, error) {
 	m.capturedArgs = append(m.capturedArgs, args...)
 
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(m.waitDuration):
-
-	}
-
-	return nil
+	return nil, nil
 }
 
 func TestShowEntryArgs(t *testing.T) {
@@ -76,8 +68,7 @@ func TestShowEntryArgs(t *testing.T) {
 				output: []byte("some output"),
 			}
 			z := &Zenity{
-				cmdWithOutput:  mock.runWithOutput,
-				killZenityFunc: func() {},
+				cmdWithOutput: mock.runWithOutput,
 			}
 			output, err := z.ShowEntry(ctx, tt.opts)
 			assert.NoError(t, err)
@@ -118,8 +109,7 @@ func TestShowEntryError(t *testing.T) {
 				exitCode: tt.exitCode,
 			}
 			z := &Zenity{
-				cmdWithOutput:  mock.runWithOutput,
-				killZenityFunc: func() {},
+				cmdWithOutput: mock.runWithOutput,
 			}
 			output, err := z.ShowEntry(ctx, dialog.EntryOptions{})
 			require.ErrorIs(t, err, tt.expectedErr)
@@ -135,8 +125,7 @@ func TestShowEntrySuccess(t *testing.T) {
 		output: []byte("some output"),
 	}
 	z := &Zenity{
-		cmdWithOutput:  mock.runWithOutput,
-		killZenityFunc: func() {},
+		cmdWithOutput: mock.runWithOutput,
 	}
 	output, err := z.ShowEntry(ctx, dialog.EntryOptions{})
 	assert.NoError(t, err)
@@ -171,8 +160,7 @@ func TestShowInfoArgs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mock := &mockExecCmd{}
 			z := &Zenity{
-				cmdWithOutput:  mock.runWithOutput,
-				killZenityFunc: func() {},
+				cmdWithOutput: mock.runWithOutput,
 			}
 			err := z.ShowInfo(ctx, tt.opts)
 			assert.NoError(t, err)
@@ -207,8 +195,7 @@ func TestShowInfoError(t *testing.T) {
 				exitCode: tt.exitCode,
 			}
 			z := &Zenity{
-				cmdWithOutput:  mock.runWithOutput,
-				killZenityFunc: func() {},
+				cmdWithOutput: mock.runWithOutput,
 			}
 			err := z.ShowInfo(ctx, dialog.InfoOptions{})
 			require.ErrorIs(t, err, tt.expectedErr)
@@ -217,8 +204,6 @@ func TestShowInfoError(t *testing.T) {
 }
 
 func TestProgressArgs(t *testing.T) {
-	ctx := context.Background()
-
 	testCases := []struct {
 		name         string
 		opts         dialog.ProgressOptions
@@ -230,7 +215,7 @@ func TestProgressArgs(t *testing.T) {
 				Title: "A Title",
 				Text:  "Some text",
 			},
-			expectedArgs: []string{"--progress", "--title=A Title", "--text=Some text", "--pulsate", "--no-cancel"},
+			expectedArgs: []string{"--progress", "--title=A Title", "--text=Some text", "--pulsate", "--no-cancel", "--auto-close"},
 		},
 	}
 
@@ -238,38 +223,11 @@ func TestProgressArgs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mock := &mockExecCmd{}
 			z := &Zenity{
-				cmdWithWait:    mock.runWithWait,
-				killZenityFunc: func() {},
+				cmdWithCancel: mock.runWithStdin,
 			}
-			err := z.ShowProgress(ctx, tt.opts)
+			_, err := z.ShowProgress(tt.opts)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedArgs, mock.capturedArgs)
 		})
 	}
-}
-
-func TestProgressKillOnCancel(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	mock := &mockExecCmd{
-		waitDuration: 5 * time.Second,
-	}
-	z := &Zenity{
-		cmdWithWait:    mock.runWithWait,
-		killZenityFunc: func() {},
-	}
-
-	done := make(chan struct{})
-	start := time.Now()
-
-	go func() {
-		_ = z.ShowProgress(ctx, dialog.ProgressOptions{})
-		close(done)
-	}()
-
-	time.Sleep(100 * time.Millisecond)
-	cancel()
-	<-done
-
-	assert.True(t, time.Since(start) < 5*time.Second)
 }
