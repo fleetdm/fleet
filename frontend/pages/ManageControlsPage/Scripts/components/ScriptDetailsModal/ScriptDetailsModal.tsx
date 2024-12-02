@@ -111,7 +111,7 @@ const ScriptDetailsModal = ({
     checkScroll();
     window.addEventListener("resize", checkScroll);
     return () => window.removeEventListener("resize", checkScroll);
-  }, [useEffect]); // Re-run when data changes
+  }, [scriptContent]); // Re-run when data changes
 
   const getScriptContent = async () => {
     try {
