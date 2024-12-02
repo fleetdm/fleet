@@ -86,11 +86,11 @@ controls:
       - path: ../lib/configuration-profiles/macos-secure-terminal-keyboard.mobileconfig
       - path: ../lib/configuration-profiles/macos-disable-update-notifications.mobileconfig
       - path: ../lib/configuration-profiles/macos-ensure-show-status-bar-is-enabled.mobileconfig
-      - path: ../lib/configuration-profiles/macos-passcode-settings.json
+      - path: ../lib/declarations/macos-passcode-settings.json
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
-    macos_setup_assistant: null
+    macos_setup_assistant: ../lib/enrollment-profiles/automatic-enrollment.dep.json
   macos_updates:
     deadline: "2024-12-04"
     minimum_version: "15.1.1"

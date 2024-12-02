@@ -55,11 +55,11 @@ controls:
       - path: ../lib/configuration-profiles/macos-misc.mobileconfig
       - path: ../lib/configuration-profiles/macos-prevent-autologon.mobileconfig
       - path: ../lib/configuration-profiles/macos-secure-terminal-keyboard.mobileconfig
-      - path: ../lib/configuration-profiles/macos-passcode-settings.json
+      - path: ../lib/declarations/macos-passcode-settings.json
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
-    macos_setup_assistant: ../lib/automatic-enrollment.dep.json
+    macos_setup_assistant: ../lib/enrollment-profiles/automatic-enrollment.dep.json
     software:
       - package_path: ../lib/software/macos-google-chrome.yml # Google Chrome for macOS
       - package_path: ../lib/software/macos-zoom.yml # Zoom for macOS
