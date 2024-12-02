@@ -53,6 +53,7 @@ export interface IDropdownWrapper {
   helpText?: JSX.Element | string;
   isSearchable?: boolean;
   isDisabled?: boolean;
+  placeholder?: string;
 }
 
 const baseClass = "dropdown-wrapper";
@@ -69,6 +70,7 @@ const DropdownWrapper = ({
   helpText,
   isSearchable,
   isDisabled = false,
+  placeholder,
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className);
 
@@ -326,6 +328,7 @@ const DropdownWrapper = ({
         menuPortalTarget={document.body}
         noOptionsMessage={() => "No results found"}
         tabIndex={isDisabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
+        placeholder={placeholder}
       />
     </FormField>
   );
