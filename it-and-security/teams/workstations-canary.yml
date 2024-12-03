@@ -92,7 +92,7 @@ controls:
     enable_end_user_authentication: true
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2024-12-02"
+    deadline: "2024-12-04"
     minimum_version: "15.1.1"
   windows_settings:
     custom_settings:
@@ -144,7 +144,8 @@ policies:
     description: The host may have an outdated or non-existent version of Firefox, potentially risking security vulnerabilities or compatibility issues.
     resolution: During maintenance, the Firefox app could be updated to the correct version or installed if it's missing.
     platform: darwin
-    calendar_events_enabled: false
+    install_software:
+      package_path: "../lib/software/mac-mozilla-firefox.yml"
   - name: macOS - Upgrade Slack
     query: SELECT 1 FROM apps WHERE name = 'Slack.app' AND version_compare(bundle_short_version, '4.40.126') >= 0;
     critical: false

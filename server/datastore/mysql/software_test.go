@@ -3079,6 +3079,19 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	expectedTitlesByNSB[gotTitles[4].Name+gotTitles[4].Source+gotTitles[4].Browser] = gotTitles[4]
 	assertTitles(t, gotTitles, nil)
 	assertSoftware(t, expectedSoftware)
+
+	// Test duplicate key handling in `ReconcileSoftwareTitles`.
+	// Since the existing software_titles and software entries have different `source` values,
+	// the code will attempt to insert into `software_titles`, but the bundle_identifier + additional_identifier
+	// key (com.example.app1-0) will conflict.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err = q.ExecContext(ctx, `INSERT INTO software_titles (id, name, source, browser, bundle_identifier) VALUES (7, 'App1', 'some_source', 'Chrome', 'com.example.app1')`)
+		require.NoError(t, err)
+		_, err = q.ExecContext(ctx, `INSERT INTO software (name, source, browser, bundle_identifier) VALUES ('App1', 'some_other_source', 'Chrome', 'com.example.app1')`)
+		require.NoError(t, err)
+		require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+		return nil
+	})
 }
 
 func testUpdateHostSoftwareDeadlock(t *testing.T, ds *Datastore) {

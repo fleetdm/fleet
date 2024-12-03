@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  useEffect,
-} from "react";
+import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useQuery } from "react-query";
 import { Link } from "react-router";
 

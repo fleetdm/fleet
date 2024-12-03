@@ -104,7 +104,7 @@
 		"installer_format": "zip:app"
 	},
 	{
-		"identifier": "zoom",
+		"identifier": "zoom-for-it-admins",
 		"bundle_identifier": "us.zoom.xos",
 		"installer_format": "pkg"
 	}

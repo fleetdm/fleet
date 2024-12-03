@@ -1,0 +1,1 @@
+* Added support for the new `windows_migration_enabled` setting (can be set via `fleetctl`, the `PATCH /api/latest/fleet/config` API endpoint and the UI). Requires a premium license.
