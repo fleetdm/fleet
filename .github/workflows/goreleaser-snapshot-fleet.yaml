@@ -72,8 +72,8 @@ jobs:
         uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b
         with:
           distribution: goreleaser-pro
-          version: "~> 1"
-          args: release --snapshot --rm-dist -f .goreleaser-snapshot.yml
+          version: "~> 2.6.1"
+          args: release --snapshot --clean -f .goreleaser-snapshot.yml
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
