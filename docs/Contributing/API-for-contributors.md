@@ -533,6 +533,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
 - [Upload APNS certificate](#upload-apns-certificate)
 - [Add ABM token](#add-abm-token)
+- [Count ABM tokens](#count-abm-tokens)
 - [Turn off Apple MDM](#turn-off-apple-mdm)
 - [Update ABM token's teams](#update-abm-tokens-teams)
 - [Renew ABM token](#renew-abm-token)
@@ -681,6 +682,30 @@ Content-Type: application/octet-stream
   "macos_team": null,
   "ios_team": null,
   "ipados_team": null
+}
+```
+
+### Count ABM tokens
+
+`GET /api/v1/fleet/abm_tokens/count`
+
+Get the number of ABM tokens on the Fleet server.
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/abm_tokens/count`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 1
 }
 ```
 
