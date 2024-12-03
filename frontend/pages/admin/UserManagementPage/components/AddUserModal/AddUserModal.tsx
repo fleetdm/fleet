@@ -49,7 +49,6 @@ const AddUserModal = ({
       onExit={onCancel}
       className={baseClass}
       width="large"
-      stickyFooter
     >
       <UserForm
         serverErrors={serverErrors}

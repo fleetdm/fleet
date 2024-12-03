@@ -13,7 +13,7 @@ import PATHS from "router/paths";
 import usersAPI from "services/entities/users";
 import inviteAPI from "services/entities/invites";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
-import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
+import { DEFAULT_USER_FORM_ERRORS } from "utilities/constants";
 
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
@@ -69,11 +69,11 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   const [isUpdatingUsers, setIsUpdatingUsers] = useState(false);
   const [userEditing, setUserEditing] = useState<IUser>();
   const [searchString, setSearchString] = useState("");
-  const [createUserErrors, setCreateUserErrors] = useState<IUserFormErrors>(
-    DEFAULT_CREATE_USER_ERRORS
+  const [addUserErrors, setAddUserErrors] = useState<IUserFormErrors>(
+    DEFAULT_USER_FORM_ERRORS
   );
   const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>(
-    DEFAULT_CREATE_USER_ERRORS
+    DEFAULT_USER_FORM_ERRORS
   );
 
   const toggleAddUserModal = useCallback(() => {
@@ -129,7 +129,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     (user?: IUser) => {
       setShowEditUserModal(!showEditUserModal);
       user ? setUserEditing(user) : setUserEditing(undefined);
-      setEditUserErrors(DEFAULT_CREATE_USER_ERRORS);
+      setEditUserErrors(DEFAULT_USER_FORM_ERRORS);
     },
     [showEditUserModal, setShowEditUserModal, setUserEditing]
   );
@@ -234,14 +234,14 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
               "a user with this account already exists"
             )
           ) {
-            setCreateUserErrors({
+            setAddUserErrors({
               email: "A user with this email address already exists",
             });
           } else if (
             userErrors.data.errors?.[0].reason.includes("Invite") &&
             userErrors.data.errors?.[0].reason.includes("already exists")
           ) {
-            setCreateUserErrors({
+            setAddUserErrors({
               email: "A user with this email address has already been invited",
             });
           } else {
@@ -266,19 +266,19 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
         })
         .catch((userErrors: { data: IApiError }) => {
           if (userErrors.data.errors?.[0].reason.includes("Duplicate")) {
-            setCreateUserErrors({
+            setAddUserErrors({
               email: "A user with this email address already exists",
             });
           } else if (
             userErrors.data.errors?.[0].reason.includes("already invited")
           ) {
-            setCreateUserErrors({
+            setAddUserErrors({
               email: "A user with this email address has already been invited",
             });
           } else if (
             userErrors.data.errors?.[0].reason.includes("password too long")
           ) {
-            setCreateUserErrors({
+            setAddUserErrors({
               password: "Password is over the character limit.",
             });
           } else {
@@ -474,7 +474,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
       )}
       {showCreateUserModal && currentTeamDetails && (
         <AddUserModal
-          addUserErrors={createUserErrors}
+          addUserErrors={addUserErrors}
           onCancel={toggleCreateUserModal}
           onSubmit={onCreateUserSubmit}
           defaultGlobalRole={null}

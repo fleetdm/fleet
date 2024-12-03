@@ -15,7 +15,7 @@ import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import usersAPI from "services/entities/users";
 import invitesAPI from "services/entities/invites";
 
-import { DEFAULT_CREATE_USER_ERRORS as DEFAULT_ADD_USER_ERRORS } from "utilities/constants";
+import { DEFAULT_USER_FORM_ERRORS } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
@@ -53,14 +53,13 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const [isUpdatingUsers, setIsUpdatingUsers] = useState(false);
   const [userEditing, setUserEditing] = useState<any>(null);
   const [addUserErrors, setAddUserErrors] = useState<IUserFormErrors>(
-    DEFAULT_ADD_USER_ERRORS
+    DEFAULT_USER_FORM_ERRORS
   );
   const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>(
-    DEFAULT_ADD_USER_ERRORS
+    DEFAULT_USER_FORM_ERRORS
   );
   const [querySearchText, setQuerySearchText] = useState("");
 
-  console.log("userEditing", userEditing);
   // API CALLS
   const {
     data: teams,
@@ -114,7 +113,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
     // clear errors on close
     if (!showAddUserModal) {
-      setAddUserErrors(DEFAULT_ADD_USER_ERRORS);
+      setAddUserErrors(DEFAULT_USER_FORM_ERRORS);
     }
   }, [showAddUserModal, setShowAddUserModal]);
 
@@ -130,7 +129,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     (user?: IUser | IInvite) => {
       setShowEditUserModal(!showEditUserModal);
       setUserEditing(!showEditUserModal ? user : null);
-      setEditUserErrors(DEFAULT_ADD_USER_ERRORS);
+      setEditUserErrors(DEFAULT_USER_FORM_ERRORS);
     },
     [showEditUserModal, setShowEditUserModal, setUserEditing]
   );

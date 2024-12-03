@@ -58,7 +58,6 @@ const EditUserModal = ({
       title="Edit user"
       onExit={onCancel}
       className={`${baseClass}__edit-user-modal`}
-      stickyFooter
     >
       <UserForm
         addOrEditUserErrors={editUserErrors}
