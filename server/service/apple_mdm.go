@@ -4480,6 +4480,35 @@ func (svc *Service) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error
 	return nil, fleet.ErrMissingLicense
 }
 
+// //////////////////////////////////////////////////////////////////////////////
+// Count ABM tokens endpoint
+// //////////////////////////////////////////////////////////////////////////////
+
+type countABMTokensResponse struct {
+	Err   error `json:"error,omitempty"`
+	Count int   `json:"count"`
+}
+
+func (r countABMTokensResponse) error() error { return r.Err }
+
+func countABMTokensEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (errorer, error) {
+	tokenCount, err := svc.CountABMTokens(ctx)
+	if err != nil {
+		return &countABMTokensResponse{Err: err}, nil
+	}
+
+	return &countABMTokensResponse{Count: tokenCount}, nil
+}
+
+func (svc *Service) CountABMTokens(ctx context.Context) (int, error) {
+	// Automatic enrollment (ABM/ADE/DEP) is a feature that requires a license.
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return 0, fleet.ErrMissingLicense
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Update ABM token teams endpoint
 ////////////////////////////////////////////////////////////////////////////////
