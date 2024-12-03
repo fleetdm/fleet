@@ -44,10 +44,13 @@ type DetailQuery struct {
 	// empty, run on all platforms.
 	Platforms []string
 	// SoftwareOverrideMatch is a function that can be used to override a software
-	// result.  The function evaluates a software detail query result row and deletes
+	// result. The function evaluates a software detail query result row and deletes
 	// the result if the function returns true so the result of this detail query can be
 	// used instead.
 	SoftwareOverrideMatch func(row map[string]string) bool
+	// SoftwareProcessResults is a function that can be used to process entries of the main
+	// software query and append or modify data using results of additional queries.
+	SoftwareProcessResults func(mainSoftwareResults []map[string]string, additionalSoftwareResults []map[string]string) []map[string]string
 	// IngestFunc translates a query result into an update to the host struct,
 	// around data that lives on the hosts table.
 	IngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error
@@ -820,7 +823,6 @@ var softwareMacOS = DetailQuery{
 SELECT
   name AS name,
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
-  'Application (macOS)' AS type,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,
   '' AS browser,
@@ -833,7 +835,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Python)' AS type,
   '' AS bundle_identifier,
   '' AS extension_id,
   '' AS browser,
@@ -846,7 +847,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Chrome)' AS type,
   '' AS bundle_identifier,
   identifier AS extension_id,
   browser_type AS browser,
@@ -859,7 +859,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Firefox)' AS type,
   '' AS bundle_identifier,
   identifier AS extension_id,
   'firefox' AS browser,
@@ -872,7 +871,6 @@ UNION
 SELECT
   name As name,
   version AS version,
-  'Browser plugin (Safari)' AS type,
   '' AS bundle_identifier,
   '' AS extension_id,
   '' AS browser,
@@ -885,7 +883,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Homebrew)' AS type,
   '' AS bundle_identifier,
   '' AS extension_id,
   '' AS browser,
@@ -908,7 +905,6 @@ var softwareVSCodeExtensions = DetailQuery{
 SELECT
   name,
   version,
-  'IDE extension (VS Code)' AS type,
   '' AS bundle_identifier,
   uuid AS extension_id,
   '' AS browser,
@@ -937,7 +933,6 @@ var softwareLinux = DetailQuery{
 SELECT
   name AS name,
   version AS version,
-  'Package (deb)' AS type,
   '' AS extension_id,
   '' AS browser,
   'deb_packages' AS source,
@@ -951,7 +946,6 @@ UNION
 SELECT
   package AS name,
   version AS version,
-  'Package (Portage)' AS type,
   '' AS extension_id,
   '' AS browser,
   'portage_packages' AS source,
@@ -964,7 +958,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (RPM)' AS type,
   '' AS extension_id,
   '' AS browser,
   'rpm_packages' AS source,
@@ -977,7 +970,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (NPM)' AS type,
   '' AS extension_id,
   '' AS browser,
   'npm_packages' AS source,
@@ -990,7 +982,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Chrome)' AS type,
   identifier AS extension_id,
   browser_type AS browser,
   'chrome_extensions' AS source,
@@ -1003,7 +994,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Firefox)' AS type,
   identifier AS extension_id,
   'firefox' AS browser,
   'firefox_addons' AS source,
@@ -1016,7 +1006,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Python)' AS type,
   '' AS extension_id,
   '' AS browser,
   'python_packages' AS source,
@@ -1035,7 +1024,6 @@ var softwareWindows = DetailQuery{
 SELECT
   name AS name,
   version AS version,
-  'Program (Windows)' AS type,
   '' AS extension_id,
   '' AS browser,
   'programs' AS source,
@@ -1046,7 +1034,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Python)' AS type,
   '' AS extension_id,
   '' AS browser,
   'python_packages' AS source,
@@ -1057,7 +1044,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (IE)' AS type,
   '' AS extension_id,
   '' AS browser,
   'ie_extensions' AS source,
@@ -1068,7 +1054,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Chrome)' AS type,
   identifier AS extension_id,
   browser_type AS browser,
   'chrome_extensions' AS source,
@@ -1079,7 +1064,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Firefox)' AS type,
   identifier AS extension_id,
   'firefox' AS browser,
   'firefox_addons' AS source,
@@ -1090,7 +1074,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Chocolatey)' AS type,
   '' AS extension_id,
   '' AS browser,
   'chocolatey_packages' AS source,
@@ -1108,7 +1091,6 @@ var softwareChrome = DetailQuery{
   version AS version,
   identifier AS extension_id,
   browser_type AS browser,
-  'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source,
   '' AS vendor,
   '' AS installed_path
@@ -1123,10 +1105,13 @@ FROM chrome_extensions`,
 // Software queries expect specific columns to be present.  Reference the
 // software_{macos|windows|linux} queries for the expected columns.
 var SoftwareOverrideQueries = map[string]DetailQuery{
-	// macos_firefox Differentiates between Firefox and Firefox ESR by checking the RemotingName value in the
+	// macos_firefox differentiates between Firefox and Firefox ESR by checking the RemotingName value in the
 	// application.ini file. If the RemotingName is 'firefox-esr', the name is set to 'Firefox ESR.app'.
+	//
+	// NOTE(lucas): This could be re-written to use SoftwareProcessResults so that this query doesn't need to match
+	// the columns of the main softwareMacOS query.
 	"macos_firefox": {
-		Description: "A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS.  Requires `fleetd`",
+		Description: "A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS. Requires `fleetd`",
 		Query: `
 			WITH app_paths AS (
 				SELECT path
@@ -1145,7 +1130,6 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 					ELSE 'Firefox.app'
 				END AS name,
 				COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
-				'Application (macOS)' AS type,
 				apps.bundle_identifier AS bundle_identifier,
 				'' AS extension_id,
 				'' AS browser,
@@ -1163,6 +1147,40 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		),
 		SoftwareOverrideMatch: func(row map[string]string) bool {
 			return row["bundle_identifier"] == "org.mozilla.firefox"
+		},
+	},
+	// macos_codesign collects code signature information of apps on a separate query for two reasons:
+	//   - codesign is a fleetd table (not part of osquery core).
+	//   - Avoid growing the main `software_macos` query
+	//     (having big queries can cause performance issues or be denylisted).
+	"macos_codesign": {
+		Query: `
+		SELECT a.path, c.team_identifier
+		FROM apps a
+		JOIN codesign c ON a.path = c.path
+	`,
+		Description: "A software override query[^1] to append codesign information to macOS software entries. Requires `fleetd`",
+		Platforms:   []string{"darwin"},
+		Discovery:   discoveryTable("codesign"),
+		SoftwareProcessResults: func(mainSoftwareResults, codesignResults []map[string]string) []map[string]string {
+			codesignInformation := make(map[string]string) // path -> team_identifier
+			for _, codesignResult := range codesignResults {
+				codesignInformation[codesignResult["path"]] = codesignResult["team_identifier"]
+			}
+			if len(codesignInformation) == 0 {
+				return mainSoftwareResults
+			}
+
+			for _, result := range mainSoftwareResults {
+				codesignInfo := codesignInformation[result["installed_path"]]
+				if codesignInfo == "" {
+					// No codesign information for this application.
+					continue
+				}
+				result["team_identifier"] = codesignInfo
+			}
+
+			return mainSoftwareResults
 		},
 	},
 }
@@ -1546,7 +1564,18 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			// NOTE: osquery is sometimes incorrectly returning the value "null" for some install paths.
 			// Thus, we explicitly ignore such value here.
 			strings.ToLower(installedPath) != "null" {
-			key := fmt.Sprintf("%s%s%s", installedPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+			truncateString := func(str string, length int) string {
+				runes := []rune(str)
+				if len(runes) > length {
+					return string(runes[:length])
+				}
+				return str
+			}
+			teamIdentifier := truncateString(row["team_identifier"], fleet.SoftwareTeamIdentifierMaxLength)
+			key := fmt.Sprintf(
+				"%s%s%s%s%s",
+				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+			)
 			sPaths[key] = struct{}{}
 		}
 	}

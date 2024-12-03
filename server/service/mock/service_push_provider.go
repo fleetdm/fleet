@@ -3,6 +3,7 @@
 package mock
 
 import (
+	"context"
 	"sync"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -11,7 +12,7 @@ import (
 
 var _ push.PushProvider = (*APNSPushProvider)(nil)
 
-type PushFunc func(p0 []*mdm.Push) (map[string]*push.Response, error)
+type PushFunc func(p0 context.Context, p1 []*mdm.Push) (map[string]*push.Response, error)
 
 type APNSPushProvider struct {
 	PushFunc        PushFunc
@@ -20,9 +21,9 @@ type APNSPushProvider struct {
 	mu sync.Mutex
 }
 
-func (s *APNSPushProvider) Push(p0 []*mdm.Push) (map[string]*push.Response, error) {
+func (s *APNSPushProvider) Push(p0 context.Context, p1 []*mdm.Push) (map[string]*push.Response, error) {
 	s.mu.Lock()
 	s.PushFuncInvoked = true
 	s.mu.Unlock()
-	return s.PushFunc(p0)
+	return s.PushFunc(p0, p1)
 }

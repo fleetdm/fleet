@@ -25,8 +25,8 @@
   &__content-wrapper {
     margin-top: $pad-large;
     font-size: $x-small;
-    max-height: 800px;
-    overflow-y: auto;
+    // New pattern of max height modals pushed to 4.61 with PR #24019
+    overflow: visible;
 
     .input-field {
       width: 100%;

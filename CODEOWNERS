@@ -59,7 +59,6 @@ go.mod @fleetdm/go
 /infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
 /charts/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
 /terraform/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
-/it-and-security/ @noahtalerman @lukeheath @getvictor
 
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.
@@ -70,7 +69,6 @@ go.mod @fleetdm/go
 /docs/REST\ API/rest-api.md                     @rachaelshaw # « REST API reference documentation
 /docs/Contributing/API-for-contributors.md      @rachaelshaw # « Advanced / contributors-only API reference documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
-/docs/Deploy/_kubernetes/ @dherder # « Kubernetes best practice
 /render.yaml                                    @edwardsb
 
 ##############################################################################################

@@ -1,1 +1,0 @@
-* Added a validation to prevent removing a software package or a VPP app from a team if that software is selected to be installed during the setup experience.

@@ -32,13 +32,14 @@ const (
 // Not all options are required for all actions, each individual action should
 // validate that it receives the required information.
 type HostOptions struct {
-	Action          HostAction
-	Platform        string
-	UUID            string
-	HardwareSerial  string
-	HardwareModel   string
-	EnrollReference string
-	Host            *fleet.Host
+	Action                  HostAction
+	Platform                string
+	UUID                    string
+	HardwareSerial          string
+	HardwareModel           string
+	EnrollReference         string
+	Host                    *fleet.Host
+	HasSetupExperienceItems bool
 }
 
 // HostLifecycle manages MDM host lifecycle actions
@@ -174,6 +175,7 @@ func (t *HostLifecycle) turnOnDarwin(ctx context.Context, opts HostOptions) erro
 			opts.Platform,
 			tmID,
 			opts.EnrollReference,
+			!opts.HasSetupExperienceItems,
 		)
 		return ctxerr.Wrap(ctx, err, "queue DEP post-enroll task")
 	}
@@ -189,6 +191,7 @@ func (t *HostLifecycle) turnOnDarwin(ctx context.Context, opts HostOptions) erro
 			opts.Platform,
 			tmID,
 			opts.EnrollReference,
+			false,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue manual post-enroll task")
 		}

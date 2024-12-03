@@ -21,7 +21,7 @@ These flaws are listed here publicly for two reasons. The first is so that peopl
   - I appreciate it when fleeties ask “What do you think of my work?” It reminds me I'm speaking in front of the sculptor, not just alone with the statue.
   - I can hurry to decisions when I think something is time-sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback" vs. “I’m not yet 70% sure I’m 100% done with this."
 3. I often need to talk to think.
-  - It is ok to set a boundary and let me marinade.  You might say: "Hold up.  What is our goal?"
+  - It is ok to set a boundary and let me marinate.  You might say: "Hold up.  What is our goal?"
   - I get grumpy when I am tired and I worry that I'll forget to follow up about things.  So I try to say them all.
   - I can talk too much.  On video calls, and especially during a screenshare session, I sometimes will keep talking longer than I otherwise would.  If you get lost, or overwhelmed, you can interrupt me or send a chat: "Hold up, I'm feeling out of phase from this conversation."
 
@@ -109,22 +109,44 @@ In this meeting, the department leader discusses actual week-over-week progress 
 - Use this meeting to add, remove, or change the definitions or ownership of KPIs.  Otherwise, KPI definitions do not change, even if those definitions have problems.  For help with KPIs, contact the [Digital Experience department](https://fleetdm.com/handbook/digital-experience#contact-us).
 
 
+## Adding an advisor
 
-## Hiring
+First:
 
-At Fleet, we collaborate with [core team members](#creating-a-new-position), [consultants](#hiring-a-consultant), [advisors](#adding-an-advisor), and [outside contributors](https://github.com/fleetdm/fleet/graphs/contributors) from the community.  
+Advisor agreements are sent through [DocuSign](https://www.docusign.com/), using the "Advisor Agreement" template.
+- Update the ["Advisors" sheet](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483)
+  >**_Note:_** *Be sure to mark any columns that haven't been completed yet as "TODO"*
+- Update the "Equity plan" sheet (which should have been automatically updated after updating "Advisors" thanks to the global unique IDs next to each row which are used to connect the spreadsheets) to reflect the default number of shares for advisor equity grants.
+- Send the advisor agreement [through Docusign](https://apps.docusign.com/send/templates?view=shared&folder=0482b0fd-a752-41be-93a0-185e2fb7ef54) using the CEO's account, pulling the advisor's email address from a recent calendar event on the CEO's calendar.
+- Complete the first step of signing, which involves filling in the number of shares.
+- Then wait for the advisor to sign.  (Fleet's CEO will sign after that.)
 
-> Are you a new fleetie joining the Digital Experience team?  For Loom recordings demonstrating how to make offers, hire, onboard, and more please see [this classified Google Doc](https://docs.google.com/document/d/1fimxQguPOtK-2YLAVjWRNCYqs5TszAHJslhtT_23Ly0/edit).
+Then, to finalize a new advisor after signing is complete:
+- Schedule quarterly recurring 1h meeting between the CEO and the advisor, with 30m of recurring prep scheduled back to back ahead of the meeting.
+- Update the status columns in the ["Advisors" sheet](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483) to show that the agreement has been signed, and ask the new advisor to add us on [LinkedIn](https://www.linkedin.com/company/71111416), [Crunchbase](https://www.crunchbase.com/organization/fleet-device-management), and [Angellist](https://angel.co/company/fleetdm).
+- Update "Equity plan" status columns to reflect updated status for this advisor, and to ensure the advisor's equity is queued up for the next quarterly equity grant ritual.
 
 
-### Consultants
-
-
-#### Hiring a consultant
+## Hiring a consultant
 
 In addition to [core team members](#hiring-a-new-team-member), from time to time Fleet hires consultants who may work for only a handful of hours on short projects.
 
-A consultant is someone who we expect to either:
+**Who ISN'T a consultant?**: If a consultant plans to work _more_ than 10 hours per week, or for _longer_ than 6 weeks, they should instead be hired as a [core team member](#hiring-a-new-team-member).
+
+Core team members:
+- are hired for an existing [open position](#creating-a-new-position)
+- are hired using Fleet's "Hiring" issue template, including receiving a company-issued laptop and Yubikeys
+- must be onboarded (complete the entire, unabridged onboarding process in Fleet's "Onboarding" issue template)
+- must be offboarded
+- get an email address
+- have a manager and a formal place in the company [org chart](https://fleetdm.com/handbook/company#org-chart)
+- are listed in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) (private Google Doc)
+- are paid as part of the standard payroll ritual for the place they work and their employment classification.
+
+Consultants aren't required to do any of those things.
+
+
+**Who IS a consultant?**: A consultant is someone who we expect to either:
 - complete their relationship with the company in less than 6 weeks
 - or have a longer-term relationship with the company, but never work more than 10 hours per week.
 
@@ -141,24 +163,7 @@ Consultants [track time using the company's tools](#tracking-hours) and sign [Fl
 To hire a consultant, [submit a new consultant onboarding request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=new-consultant-onboarding.md&title=New+US%2Finternational+consultant) to the Digital Experience team.
 
 
-#### Who ISN'T a consultant?
-
-If a consultant plans to work _more_ than 10 hours per week, or for _longer_ than 6 weeks, they should instead be hired as a [core team member](#hiring-a-new-team-member).
-
-Core team members:
-- are hired for an existing [open position](#creating-a-new-position)
-- are hired using Fleet's "Hiring" issue template, including receiving a company-issued laptop and Yubikeys
-- must be onboarded (complete the entire, unabridged onboarding process in Fleet's "Onboarding" issue template)
-- must be offboarded
-- get an email address
-- have a manager and a formal place in the company [org chart](https://fleetdm.com/handbook/company#org-chart)
-- are listed in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) (private Google Doc)
-- are paid as part of the standard payroll ritual for the place they work and their employment classification.
-
-Consultants aren't required to do any of those things.
-
-
-#### Sending a consulting agreement
+### Sending a consulting agreement
 
 To send a consulting agreement, you will need to [submit a new consultant onboarding request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=new-consultant-onboarding.md&title=New+US%2Finternational+consultant) to the Digital Experience team. They will then peform the steps needed to bring aboard a new consultant.
 
@@ -180,25 +185,36 @@ If the consultant is international, you will also provide:
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/e9d36657-fab9-44c1-9162-7bc640e2f3a0">
 
 
-### Adding an advisor
+## Hiring
 
-First:
+At Fleet, we collaborate with [core team members](#creating-a-new-position), [consultants](#hiring-a-consultant), [advisors](#adding-an-advisor), and [outside contributors](https://github.com/fleetdm/fleet/graphs/contributors) from the community.  
 
-Advisor agreements are sent through [DocuSign](https://www.docusign.com/), using the "Advisor Agreement" template.
-- Update the ["Advisors" sheet](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483)
-  >**_Note:_** *Be sure to mark any columns that haven't been completed yet as "TODO"*
-- Update the "Equity plan" sheet (which should have been automatically updated after updating "Advisors" thanks to the global unique IDs next to each row which are used to connect the spreadsheets) to reflect the default number of shares for advisor equity grants.
-- Send the advisor agreement [through Docusign](https://apps.docusign.com/send/templates?view=shared&folder=0482b0fd-a752-41be-93a0-185e2fb7ef54) using the CEO's account, pulling the advisor's email address from a recent calendar event on the CEO's calendar.
-- Complete the first step of signing, which involves filling in the number of shares.
-- Then wait for the advisor to sign.  (Fleet's CEO will sign after that.)
-
-Then, to finalize a new advisor after signing is complete:
-- Schedule quarterly recurring 1h meeting between the CEO and the advisor, with 30m of recurring prep scheduled back to back ahead of the meeting.
-- Update the status columns in the ["Advisors" sheet](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483) to show that the agreement has been signed, and ask the new advisor to add us on [LinkedIn](https://www.linkedin.com/company/71111416), [Crunchbase](https://www.crunchbase.com/organization/fleet-device-management), and [Angellist](https://angel.co/company/fleetdm).
-- Update "Equity plan" status columns to reflect updated status for this advisor, and to ensure the advisor's equity is queued up for the next quarterly equity grant ritual.
+> Are you a new fleetie joining the Digital Experience team?  For Loom recordings demonstrating how to make offers, hire, onboard, and more please see [this classified Google Doc](https://docs.google.com/document/d/1fimxQguPOtK-2YLAVjWRNCYqs5TszAHJslhtT_23Ly0/edit).
 
 
-### Creating a new position
+### Hiring restrictions
+
+**Incompatible former employers**: Fleet maintains a list of companies with whom Fleet has do-not-solicit terms that prevents us from making offers to employees of these companies.  The list is in the Do Not Solicit tab of the [Digital Experience spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0).
+
+**Incompatible locations**: Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
+
+
+## Interviewing
+
+> TODO: Rewrite this section for the hiring manager as our audience.
+
+We're glad you're interested in joining the team! 
+Here are some of the things you can anticipate throughout this process:
+  - We will reply by email within one business day from the time when the application arrives.
+  - You may receive a rejection email (Bummer, consider applying again in the future).
+  - You may receive an invitation to "book with us."
+If you've been invited to "book with us," you'll have a Zoom meeting with the hiring team to discuss the next steps.
+
+Department-specific interviewing instructions:
+- [Engineering](https://fleetdm.com/handbook/engineering#interview-a-developer-candidate)
+
+
+## Creating a new position
 
 Want to hire? Use these steps to hire a [fleetie, not a consultant](https://fleetdm.com/handbook/company/leadership#who-isnt-a-consultant). Here's how to  open up a new position on the core team:
 
@@ -250,7 +266,7 @@ A completed open position entry should look something like this:
 
 4. **Get it approved and merged:**  When you submit your proposed job description, the CEO will be automatically tagged for review and get a notification.  He will consider where this role fits into Fleet's strategy and decide whether Fleet will open this position at this time.  He will review the data carefully to try and catch any simple mistakes, then tentatively budget cash and equity compensation and document this compensation research.  He will set a tentative start date (which also indicates this position is no longer just "proposed"; it's now part of the hiring plan.)  Then the CEO will start a `#hiring-xxxxx-YYYY` Slack channel, at-mentioning the original proposer and letting them know their position is approved.  (Unless it isn't.)
 
-- _**Why bother with approvals?**  We avoid cancelling or significantly changing a role after opening it.  It hurts candidates too much.  Instead, get the position approved first, before you start recruiting and interviewing.  This gives you a sounding board and avoids misunderstandings._
+- _**Why bother with approvals?**  We avoid canceling or significantly changing a role after opening it.  It hurts candidates too much.  Instead, get the position approved first, before you start recruiting and interviewing.  This gives you a sounding board and avoids misunderstandings._
 
 
 ### Approving a new position
@@ -277,60 +293,36 @@ When review is requested on a proposal to open a new position, the Apprentice to
 > _**Note:** Most columns of the "Equity plan" are updated automatically when "Fleeties" is, based on the unique identifier of each row, like `🧑‍🚀890`.  (Advisors have their own flavor of unique IDs, such as `🦉755`, which are defined in ["Advisors and investors"](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).)_
 
 
-### Recruiting
+## Recruiting
 
 Fleet accepts job applications, but the company does not list positions on general purpose job boards.  This prevents us being overwhelmed with candidates so we can fulfill our goal of responding promptly to every applicant. This means that outbound recruiting, 3rd party recruiters, and references from team members are important aspect of the company's hiring strategy.  Fleet's CEO is happy to assist with outreach, intros, and recruiting strategy for candidates.
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/ea3d3470-575d-4516-a19e-02abec3e1285">
 
 
-#### Receiving job applications
+### Receiving job applications
 
 Every job description page ends with a "call to action", including a link to the hiring manager's LinkedIn to apply for the job directly with the hiring manager.  Fleet replies to all candidates within **1 business day** and always provides either a **rejection** or **decisive next steps**; even if the next step is just a promise. Hiring managers are encouraged to use [email/message templates](https://fleetdm.com/handbook/company/leadership#candidate-correspondence-email-templates) for consistency and efficiency.
 
 
-#### Candidate correspondence email templates
+### Candidate correspondence email templates
 
 Fleet uses [certain email templates](https://docs.google.com/document/d/1VAMWIH8o7_vH7lV9nM1wQCM4Vc3GxBRBDPK-mKO9HNk/edit?usp=sharing) when responding to candidates.  This helps us live our value of [🔴 empathy](https://fleetdm.com/handbook/company#empathy) and helps the company meet the aspiration of replying to all applications within one business day.
 
 
-### Hiring restrictions
-
-
-#### Incompatible former employers
-
-Fleet maintains a list of companies with whom Fleet has do-not-solicit terms that prevents us from making offers to employees of these companies.  The list is in the Do Not Solicit tab of the [Digital Experience spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0).
-
-
-#### Incompatible locations
-
-Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
-
-
-### Interviewing
-
-> TODO: Rewrite this section for the hiring manager as our audience.
-
-We're glad you're interested in joining the team! 
-Here are some of the things you can anticipate throughout this process:
-  - We will reply by email within one business day from the time when the application arrives.
-  - You may receive a rejection email (Bummer, consider applying again in the future).
-  - You may receive an invitation to "book with us."
-If you've been invited to "book with us," you'll have a Zoom meeting with the hiring team to discuss the next steps.
-
-Department specific interviewing instructions:
-- [Engineering](https://fleetdm.com/handbook/engineering#interview-a-developer-candidate)
-
-
-#### Hiring a new team member
+## Hiring a new team member
 
 This section is about the hiring process a new core team member, or fleetie.
 
 > **_Note:_** _Employment classification isn't what makes someone a fleetie.  Some Fleet team members are contractors and others are employees.  The distinction between "contractor" and "employee" varies in different geographies, and the appropriate employment classification and agreement for any given team member and the place where they work is determined by Head of Digital Experience during the process of making an offer._
 
 Here are the steps hiring managers follow to get an offer out to a candidate:
-1. **Call references:** Before proceeding, make sure you have 2-5+ references. Ask the candidate for at least 2-5+ references and contact each reference in parallel using the instructions in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
-2. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to accurately reflect the candidate's:
+
+1. **Create a copy of the "Why hire?"**: Create a copy of the ["Why hire?" template](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/copy?) and complete all TODOs on the "🧑‍🚀 Candidate details" tab.
+
+2. **Call references:** Before proceeding, make sure you have 2-5+ references. Ask the candidate for at least 2-5+ references and contact each reference in parallel using the instructions in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
+
+3. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to accurately reflect the candidate's:
    - Start date
 
 > _**Tip:** No need to check with the candidate if you haven't already.  Just guess.  First Mondays tend to make good start dates.  When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date._
@@ -340,10 +332,9 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
    - LinkedIn URL _(If the fleetie does not have a LinkedIn account, enter `N/A`)_
    - Location of candidate
 
-3. **Compile feedback into a single doc:** In the "interview packet", include feedback from interviews, reference checks, and challenge submissions. Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
-   - Name the doc with a short, formulaic name that's easy to understand in an instant from just an email subject line (e.g. "_Why hire Jane Doe ("Train Conductor") - 2023-03-21_").
-   - _Share_ this single document with the [CEO and Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team).
-4. **Request a CEO interview:** Copy the template below, paste it in the hiring Slack channel for the position, and complete all "TODOs" before sending.
+4. **Compile feedback**: Include feedback from interviews, and challenge submissions, links to any supporting documents that were impactful in your final decision-making, and any other notes you can think of offhand as tabs in the document. Share the "Why hire?" document with the [CEO and Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team).
+
+5. **Request a CEO interview:** Copy the template below, paste it in the hiring Slack channel for the position, and complete all "TODOs" before sending.
 
      ```
     *CEO interview request:*
@@ -365,13 +356,16 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
 After receiving the interview packet, the Head of Digital Experience uses the following steps to make an offer:
 
 <!-- For future use: some ready-to-go language around rebencharking compensation for cost of living: https://github.com/fleetdm/fleet/pulls/13499 -->
+
 1. **Prepare the "exit scenarios" spreadsheet:** 🌐 Head of Digital Experience [copies the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and renames the copy to e.g. "Exit scenarios for Jane Doe".
    - _Edit the candidate's copy of the exit scenarios spreadsheet_ to reflect the number of shares in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0), and the spreadsheet will update automatically to reflect their approximate ownership percentage.
      > _**Note:** Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand._
+
 2. **Prepare offer:** 🌐 Head of Digital Experience [copies "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and renames to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
    - _Benefits:_ If candidate will work outside the US, [change the "Benefits" bullet](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/edit) to reflect what will be included through Fleet's international payroll provider, depending on the candidate's location.
    - _Equity:_ Highlight the number of shares with a link to the candidate's custom "exit scenarios" spreadsheet.
    - _Hand off:_ Share the offer email doc with the [Apprentice to the CEO](https://fleetdm.com/handbook/digital-experience#team).
+
 3. **Draft email:** 🦿 Apprentice to the CEO drafts the offer email in the CEO's inbox, reviews one more time, and then brings it to their next daily meeting for CEO's approval:
    - To: The candidate's personal email address _(use the email from the CEO interview calendar event)_
    - Cc: Head of Digital Experience
@@ -380,13 +374,15 @@ After receiving the interview packet, the Head of Digital Experience uses the fo
      - _Check all links in offer letter for accuracy (e.g. LinkedIn profile of hiring manager, etc.)_
      - _Click the surrounding areas to ensure no "ghost links" are left from previous edits... which has happened before._
      - _Re-read the offer email one last time, and especially double-check that the salary, number of shares, and start date match the numbers that are currently in the equity plan._
+
 4. **Send offer:** 🐈‍⬛ CEO reviews and sends the offer to the candidate:
    - _Grant the candidate "edit" access_ to their "exit scenarios" spreadsheet.
    - _Send_ the email.
+
 5. **Process the offer response** The Head of Digital Experience will process the offer response by either creating a new ["Teammate pre-onboarding" issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=pre-onboarding.md&title=Pre-onboarding%3A+______________________) and following the steps if the offer is accepted or notifying the stakeholders that the offer was not accepted and we should continue the search. 
 
 
-#### After an offer is accepted
+### After an offer is accepted
 
 The Head of Digital Experience will then follow the steps in the ["Teammate pre-onboarding"](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=pre-onboarding.md&title=Pre-onboarding%3A+______________________) issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
 

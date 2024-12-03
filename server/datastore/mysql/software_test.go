@@ -1,12 +1,10 @@
 package mysql
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"maps"
 	"math/rand"
 	"sort"
 	"strings"
@@ -60,10 +58,10 @@ func TestSoftware(t *testing.T) {
 		{"DeleteSoftwareCPEs", testDeleteSoftwareCPEs},
 		{"SoftwareByIDNoDuplicatedVulns", testSoftwareByIDNoDuplicatedVulns},
 		{"SoftwareByIDIncludesCVEPublishedDate", testSoftwareByIDIncludesCVEPublishedDate},
-		{"getHostSoftwareInstalledPaths", testGetHostSoftwareInstalledPaths},
-		{"hostSoftwareInstalledPathsDelta", testHostSoftwareInstalledPathsDelta},
-		{"deleteHostSoftwareInstalledPaths", testDeleteHostSoftwareInstalledPaths},
-		{"insertHostSoftwareInstalledPaths", testInsertHostSoftwareInstalledPaths},
+		{"GetHostSoftwareInstalledPaths", testGetHostSoftwareInstalledPaths},
+		{"HostSoftwareInstalledPathsDelta", testHostSoftwareInstalledPathsDelta},
+		{"DeleteHostSoftwareInstalledPaths", testDeleteHostSoftwareInstalledPaths},
+		{"InsertHostSoftwareInstalledPaths", testInsertHostSoftwareInstalledPaths},
 		{"VerifySoftwareChecksum", testVerifySoftwareChecksum},
 		{"ListHostSoftware", testListHostSoftware},
 		{"ListIOSHostSoftware", testListIOSHostSoftware},
@@ -1344,7 +1342,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	// Insert paths for software1
 	s1Paths := map[string]struct{}{}
 	for _, s := range software1 {
-		key := fmt.Sprintf("%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		s1Paths[key] = struct{}{}
 	}
 	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host1.ID, s1Paths, mutationResults))
@@ -1355,7 +1353,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	// Insert paths for software2
 	s2Paths := map[string]struct{}{}
 	for _, s := range software2 {
-		key := fmt.Sprintf("%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		s2Paths[key] = struct{}{}
 	}
 	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host2.ID, s2Paths, mutationResults))
@@ -2735,9 +2733,9 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 
 	t.Run("host has no software but some paths were reported", func(t *testing.T) {
 		reported := make(map[string]struct{})
-		reported[fmt.Sprintf("/some/path/%d%s%s", software[0].ID, fleet.SoftwareFieldSeparator, software[0].ToUniqueStr())] = struct{}{}
-		reported[fmt.Sprintf("/some/path/%d%s%s", software[1].ID+1, fleet.SoftwareFieldSeparator, software[1].ToUniqueStr())] = struct{}{}
-		reported[fmt.Sprintf("/some/path/%d%s%s", software[2].ID, fleet.SoftwareFieldSeparator, software[2].ToUniqueStr())] = struct{}{}
+		reported[fmt.Sprintf("/some/path/%d%s%s%s%s", software[0].ID, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, software[0].ToUniqueStr())] = struct{}{}
+		reported[fmt.Sprintf("/some/path/%d%s%s%s%s", software[1].ID+1, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, software[1].ToUniqueStr())] = struct{}{}
+		reported[fmt.Sprintf("/some/path/%d%s%s%s%s", software[2].ID, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, software[2].ToUniqueStr())] = struct{}{}
 
 		var stored []fleet.HostSoftwareInstalledPath
 		_, _, err := hostSoftwareInstalledPathsDelta(host.ID, reported, stored, nil)
@@ -2746,7 +2744,7 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 
 	t.Run("we have some deltas", func(t *testing.T) {
 		getKey := func(s fleet.Software, change uint) string {
-			return fmt.Sprintf("/some/path/%d%s%s", s.ID+change, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+			return fmt.Sprintf("/some/path/%d%s%s%s%s", s.ID+change, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		}
 		reported := make(map[string]struct{})
 		reported[getKey(software[0], 0)] = struct{}{}
@@ -3310,7 +3308,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	installPaths := make([]string, 0, len(software))
 	for _, s := range software {
 		path := fmt.Sprintf("/some/path/%s", s.Name)
-		key := fmt.Sprintf("%s%s%s", path, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s", path, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		swPaths[key] = struct{}{}
 		installPaths = append(installPaths, path)
 	}
@@ -3874,8 +3872,6 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	vpp1TmCmdUUID := createVPPAppInstallRequest(t, ds, tmHost, vpp1, user.ID)
 	require.NotEmpty(t, vpp1TmCmdUUID)
 
-	expectedWithoutVPP := maps.Clone(expected)
-
 	expected["vpp1apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp1",
 		Source:      "apps",
@@ -3896,14 +3892,6 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 2}, meta)
 	compareResults(expected, sw, true, i3.Name+i3.Source, i2.Name+i2.Source) // i3 is for team, i2 is available (excluded)
 
-	// Exclude VPP apps from query
-	opts.ExcludeVPPApps = true
-	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
-	require.NoError(t, err)
-	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 4}, meta)
-	compareResults(expectedWithoutVPP, sw, true, i3.Name+i3.Source, i2.Name+i2.Source) // i3 is for team, i2 is available (excluded)
-	opts.ExcludeVPPApps = false
-
 	expected["vpp3apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp3",
 		Source:      "apps",
@@ -3911,45 +3899,41 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, SelfService: ptr.Bool(true)},
 	}
 
-	expectedAvailableOnlyExcludeVPP := maps.Clone(expectedAvailableOnly)
-	for _, app := range expectedAvailableOnlyExcludeVPP {
-		fmt.Printf("  app: %+v\n", app)
-	}
-
 	expectedAvailableOnly["vpp1apps"] = expected["vpp1apps"]
 	expectedAvailableOnly["vpp2apps"] = expected["vpp2apps"]
 	expectedAvailableOnly["vpp3apps"] = expected["vpp3apps"]
 	opts.IncludeAvailableForInstall = true
+	opts.IsMDMEnrolled = true
 	opts.ListOptions.PerPage = 20
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 1}, meta)
 	compareResults(expected, sw, true, i3.Name+i3.Source) // i3 is for team
 
-	// Exclude vpp apps from query
-	opts.ExcludeVPPApps = true
+	// Host is not MDM enrolled - we should not get "vpp3papps" because we can't install it.
+	opts.IsMDMEnrolled = false
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 4}, meta)
-	compareResults(expectedWithoutVPP, sw, true, i3.Name+i3.Source) // i3 is for team
-	opts.ExcludeVPPApps = false
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 2}, meta)
+	compareResults(expected, sw, true, "vpp3apps", i3.Name+i3.Source) // i3 is for team
 
 	// Available for install only
 	opts.OnlyAvailableForInstall = true
+	opts.IsMDMEnrolled = true
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	assert.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expectedAvailableOnly))}, meta)
 	compareResults(expectedAvailableOnly, sw, true)
-	opts.OnlyAvailableForInstall = false
 
-	// Available for install only without vpp
-	opts.OnlyAvailableForInstall = true
-	opts.ExcludeVPPApps = true
+	// Available for install only with host not MDM enrolled
+	// We should only exclude "vpp3apps", because it was not installed previously and we can't
+	// install it without MDM
+	opts.IsMDMEnrolled = false
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expectedAvailableOnlyExcludeVPP))}, meta)
-	compareResults(expectedAvailableOnlyExcludeVPP, sw, true)
-	opts.ExcludeVPPApps = false
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expectedAvailableOnly) - 1)}, meta)
+	compareResults(expectedAvailableOnly, sw, true, "vpp3apps")
+	opts.IsMDMEnrolled = false
 	opts.OnlyAvailableForInstall = false
 
 	// team host sees available i3 and pending vpp1
@@ -4030,57 +4014,78 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 13},
 		},
 		{
-			name:      "Include Available for install software, page 0",
-			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 5}, IncludeAvailableForInstall: true},
+			name:      "Include Available for install software with MDM on, page 0",
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 5}, IncludeAvailableForInstall: true, IsMDMEnrolled: true},
 			wantNames: []string{byNSV[a1].Name, byNSV[a2].Name, byNSV[b].Name, byNSV[c1].Name, byNSV[d].Name},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 15},
 		},
 		{
-			name:      "Include Available for install software, page 1",
-			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 5}, IncludeAvailableForInstall: true},
+			name:      "Include Available for install software with MDM on, page 1",
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 5}, IncludeAvailableForInstall: true, IsMDMEnrolled: true},
 			wantNames: []string{byNSV[e2].Name, i0.Name, i1.Name, i2.Name, i4.Name},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 15},
 		},
 		{
-			name: "Include Available for install software, page 2",
+			name: "Include Available for install software with MDM on, page 2",
 			opts: fleet.HostSoftwareTitleListOptions{
 				ListOptions:                fleet.ListOptions{Page: 2, PerPage: 5},
 				IncludeAvailableForInstall: true,
+				IsMDMEnrolled:              true,
 			},
 			wantNames: []string{i5.Name, i6.Name, "vpp1", "vpp2", "vpp3"},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 15},
 		},
+
 		{
-			name: "Include Available for install software, page 3",
+			// Excludes vpp3 because it was never installed, and we can't install it with MDM off
+			name: "Include Available for install software with MDM off, page 2",
+			opts: fleet.HostSoftwareTitleListOptions{
+				ListOptions:                fleet.ListOptions{Page: 2, PerPage: 5},
+				IncludeAvailableForInstall: true,
+			},
+			wantNames: []string{i5.Name, i6.Name, "vpp1", "vpp2"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 14},
+		},
+		{
+			name: "Include Available for install software with MDM on, page 3",
 			opts: fleet.HostSoftwareTitleListOptions{
 				ListOptions:                fleet.ListOptions{Page: 3, PerPage: 5},
 				IncludeAvailableForInstall: true,
+				IsMDMEnrolled:              true,
 			},
 			wantNames: []string{},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 15},
 		},
 		{
-			name:      "Available for install and self-service only software, page 0",
-			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 3}, IncludeAvailableForInstall: true, SelfServiceOnly: true},
+			name:      "Available for install and self-service only software with MDM on, page 0",
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 3}, IncludeAvailableForInstall: true, SelfServiceOnly: true, IsMDMEnrolled: true},
 			wantNames: []string{byNSV[b].Name, i0.Name, "vpp3"},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 3},
 		},
 		{
-			name:      "Available for install and self-service only software, page 1",
-			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 3}, IncludeAvailableForInstall: true, SelfServiceOnly: true},
+			name:      "Available for install and self-service only software with MDM on, page 1",
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 3}, IncludeAvailableForInstall: true, SelfServiceOnly: true, IsMDMEnrolled: true},
 			wantNames: []string{},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 3},
 		},
 		{
-			name:      "Only available for install software, page 0",
-			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 0, PerPage: 4}, OnlyAvailableForInstall: true},
+			name:      "Available for install and self-service only software with MDM off, page 0",
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 3}, IncludeAvailableForInstall: true, SelfServiceOnly: true},
+			wantNames: []string{byNSV[b].Name, i0.Name},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 2},
+		},
+		{
+			name:      "Only available for install software with MDM on, page 0",
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 0, PerPage: 4}, OnlyAvailableForInstall: true, IsMDMEnrolled: true},
 			wantNames: []string{byNSV[b].Name, "i0", "i1", "i2"},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 10},
 		},
 		{
+			name: "Only available for install with MDM on, page 2",
 			opts: fleet.HostSoftwareTitleListOptions{
 				ListOptions:             fleet.ListOptions{Page: 2, PerPage: 4},
 				OnlyAvailableForInstall: true,
+				IsMDMEnrolled:           true,
 			},
 			wantNames: []string{"vpp2", "vpp3"},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 10},
@@ -4404,6 +4409,7 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 	expectedAvailableOnly["vpp3ios_apps"] = expected["vpp3ios_apps"]
 	expectedAvailableOnly["vpp4ios_apps"] = expected["vpp4ios_apps"]
 	opts.IncludeAvailableForInstall = true
+	opts.IsMDMEnrolled = true
 	opts.ListOptions.PerPage = 20
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
@@ -4593,9 +4599,11 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create a software installer for team 1
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerTm1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "hello",
-		InstallerFile: bytes.NewReader([]byte("hello")),
+		InstallerFile: tfr1,
 		StorageID:     "storage1",
 		Filename:      "file1",
 		Title:         "file1",
@@ -4703,9 +4711,11 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 	require.NoError(t, err)
 
 	// create a software installer for team 1
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	installerTm1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "hello",
-		InstallerFile: bytes.NewReader([]byte("hello")),
+		InstallerFile: tfr1,
 		StorageID:     "storage1",
 		Filename:      "file1",
 		Title:         "file1",

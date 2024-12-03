@@ -201,6 +201,7 @@ type MDMAppleConfigProfile struct {
 	// Checksum is an MD5 hash of the Mobileconfig bytes
 	Checksum         []byte                      `db:"checksum" json:"checksum,omitempty"`
 	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
+	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
 	CreatedAt        time.Time                   `db:"created_at" json:"created_at"`
 	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
@@ -217,13 +218,18 @@ type MDMProfilesUpdates struct {
 // profiles and labels.
 //
 // NOTE: json representation of the fields is a bit awkward to match the
-// required API response, as this struct is returned within profile responses.
+// required API response, as this struct is returned within profile
+// responses.
+//
+// NOTE The fields in this struct other than LabelName and LabelID
+// MAY NOT BE SET CORRECTLY, dependong on where they're being ingested from.
 type ConfigurationProfileLabel struct {
 	ProfileUUID string `db:"profile_uuid" json:"-"`
 	LabelName   string `db:"label_name" json:"name"`
 	LabelID     uint   `db:"label_id" json:"id,omitempty"`   // omitted if 0 (which is impossible if the label is not broken)
 	Broken      bool   `db:"broken" json:"broken,omitempty"` // omitted (not rendered to JSON) if false
-	Exclude     bool   `db:"exclude" json:"-"`               // not rendered in JSON, used to store the profile in LabelsIncludeAll or LabelsExcludeAny on the parent profile
+	Exclude     bool   `db:"exclude" json:"-"`               // not rendered in JSON, used to store the profile in LabelsIncludeAll, LabelsIncludeAny, or LabelsExcludeAny on the parent profile
+	RequireAll  bool   `db:"require_all" json:"-"`           // not rendered in JSON, used to store the profile in  LabelsIncludeAll, LabelsIncludeAny, or LabelsIncludeAny on the parent profile
 }
 
 func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile, error) {
@@ -599,6 +605,7 @@ type MDMAppleDeclaration struct {
 
 	// labels associated with this Declaration
 	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
+	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
 
 	CreatedAt  time.Time `db:"created_at" json:"created_at"`

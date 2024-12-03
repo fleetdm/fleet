@@ -1,5 +1,4 @@
 import {
-  DiskEncryptionStatus,
   IHostMdmProfile,
   IMdmCommandResult,
   IMdmProfile,
@@ -21,16 +20,6 @@ export interface IEulaMetadataResponse {
 
 export type ProfileStatusSummaryResponse = Record<MdmProfileStatus, number>;
 
-export interface IDiskEncryptionStatusAggregate {
-  macos: number;
-  windows: number;
-}
-
-export type IDiskEncryptionSummaryResponse = Record<
-  DiskEncryptionStatus,
-  IDiskEncryptionStatusAggregate
->;
-
 export interface IGetProfilesApiParams {
   page?: number;
   per_page?: number;
@@ -49,6 +38,7 @@ export interface IUploadProfileApiParams {
   file: File;
   teamId?: number;
   labelsIncludeAll?: string[];
+  labelsIncludeAny?: string[];
   labelsExcludeAny?: string[];
 }
 
@@ -132,6 +122,7 @@ const mdmService = {
     file,
     teamId,
     labelsIncludeAll,
+    labelsIncludeAny,
     labelsExcludeAny,
   }: IUploadProfileApiParams) => {
     const { MDM_PROFILES } = endpoints;
@@ -143,11 +134,18 @@ const mdmService = {
       formData.append("team_id", teamId.toString());
     }
 
-    if (labelsIncludeAll || labelsExcludeAny) {
-      const labels = labelsIncludeAll || labelsExcludeAny;
-      const labelKey = labelsIncludeAll
-        ? "labels_include_all"
-        : "labels_exclude_any";
+    if (labelsIncludeAll || labelsIncludeAny || labelsExcludeAny) {
+      const labels = labelsIncludeAll || labelsIncludeAny || labelsExcludeAny;
+
+      let labelKey = "";
+      if (labelsIncludeAll) {
+        labelKey = "labels_include_all";
+      } else if (labelsIncludeAny) {
+        labelKey = "labels_include_any";
+      } else {
+        labelKey = "labels_exclude_any";
+      }
+
       labels?.forEach((label) => {
         formData.append(labelKey, label);
       });
@@ -170,44 +168,13 @@ const mdmService = {
   },
 
   getProfilesStatusSummary: (teamId: number) => {
-    let { MDM_PROFILES_STATUS_SUMMARY: path } = endpoints;
+    let { PROFILES_STATUS_SUMMARY: path } = endpoints;
 
     if (teamId) {
       path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
     }
 
     return sendRequest("GET", path);
-  },
-
-  getDiskEncryptionSummary: (teamId?: number) => {
-    let { MDM_DISK_ENCRYPTION_SUMMARY: path } = endpoints;
-
-    if (teamId) {
-      path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
-    }
-    return sendRequest("GET", path);
-  },
-
-  // TODO: API INTEGRATION: change when API is implemented that works for windows
-  // disk encryption too.
-  updateAppleMdmSettings: (enableDiskEncryption: boolean, teamId?: number) => {
-    const {
-      MDM_UPDATE_APPLE_SETTINGS: teamsEndpoint,
-      CONFIG: noTeamsEndpoint,
-    } = endpoints;
-    if (teamId === 0) {
-      return sendRequest("PATCH", noTeamsEndpoint, {
-        mdm: {
-          // TODO: API INTEGRATION: remove macos_settings when API change is merged in.
-          macos_settings: { enable_disk_encryption: enableDiskEncryption },
-          // enable_disk_encryption: enableDiskEncryption,
-        },
-      });
-    }
-    return sendRequest("PATCH", teamsEndpoint, {
-      enable_disk_encryption: enableDiskEncryption,
-      team_id: teamId,
-    });
   },
 
   initiateMDMAppleSSO: () => {

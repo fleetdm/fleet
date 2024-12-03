@@ -1,10 +1,10 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -48,10 +48,11 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	client := fleethttp.NewClient(fleethttp.WithTimeout(timeout))
-	installerBytes, filename, err := maintainedapps.DownloadInstaller(ctx, app.InstallerURL, client)
+	installerTFR, filename, err := maintainedapps.DownloadInstaller(ctx, app.InstallerURL, client)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "downloading app installer")
 	}
+	defer installerTFR.Close()
 
 	extension, err := maintainedapps.ExtensionForBundleIdentifier(app.BundleIdentifier)
 	if err != nil {
@@ -63,14 +64,15 @@ func (svc *Service) AddFleetMaintainedApp(
 	// hash shouldn't be checked.
 	if app.SHA256 != noCheckHash {
 		h := sha256.New()
-		_, err = h.Write(installerBytes)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "generating SHA256 of maintained app installer")
-		}
+		_, _ = io.Copy(h, installerTFR) // writes to a Hash can never fail
 		gotHash := hex.EncodeToString(h.Sum(nil))
 
 		if gotHash != app.SHA256 {
 			return ctxerr.New(ctx, "mismatch in maintained app SHA256 hash")
+		}
+
+		if err := installerTFR.Rewind(); err != nil {
+			return ctxerr.Wrap(ctx, err, "rewind installer reader")
 		}
 	}
 
@@ -95,9 +97,8 @@ func (svc *Service) AddFleetMaintainedApp(
 		uninstallScript = app.UninstallScript
 	}
 
-	installerReader := bytes.NewReader(installerBytes)
 	payload := &fleet.UploadSoftwareInstallerPayload{
-		InstallerFile:     installerReader,
+		InstallerFile:     installerTFR,
 		Title:             app.Name,
 		UserID:            vc.UserID(),
 		TeamID:            teamID,

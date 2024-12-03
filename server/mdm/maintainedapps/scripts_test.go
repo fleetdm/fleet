@@ -36,6 +36,9 @@ func TestScriptGeneration(t *testing.T) {
 		err = json.Unmarshal(caskJSON, &cask)
 		require.NoError(t, err)
 
+		cask.PreUninstallScripts = app.PreUninstallScripts
+		cask.PostUninstallScripts = app.PostUninstallScripts
+
 		t.Run(app.Identifier, func(t *testing.T) {
 			installScript, err := installScriptForApp(app, &cask)
 			require.NoError(t, err)

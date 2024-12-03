@@ -75,6 +75,9 @@ parasails.registerPage('basic-article', {
         window.open('https://fleetdm.com/rss/'+articleCategory, '_blank');
       }
     },
+    clickGotoStart: function() {
+      this.goto('/register');
+    },
     handleScrollingInArticle: function () {
       let rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
       let scrollTop = window.pageYOffset;

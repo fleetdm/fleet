@@ -63,8 +63,8 @@ module "fleet" {
 
   fleet_config = {
     # To avoid pull-rate limiting from dockerhub, consider using our quay.io mirror
-    # for the Fleet image. e.g. "quay.io/fleetdm/fleet:v4.58.0"
-    image = "fleetdm/fleet:v4.58.0" # override default to deploy the image you desire
+    # for the Fleet image. e.g. "quay.io/fleetdm/fleet:v4.59.1"
+    image = "fleetdm/fleet:v4.59.1" # override default to deploy the image you desire
     # See https://fleetdm.com/docs/deploy/reference-architectures#aws for appropriate scaling
     # memory and cpu.
     autoscaling = {
@@ -108,7 +108,7 @@ module "fleet" {
   alb_config = {
     # Script execution can run for up to 300s plus overhead.
     # Ensure the load balancer does not 5XX before we have results.
-    idle_timeout = 605
+    idle_timeout = 905
   }
 }
 

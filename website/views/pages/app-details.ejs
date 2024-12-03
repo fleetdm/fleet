@@ -1,0 +1,88 @@
+<div id="app-details" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content" class="container p-0">
+      <div purpose="breadcrumbs-and-search" class="d-flex flex-md-row flex-column justify-content-between align-items-md-center align-items-start">
+        <div purpose="breadcrumbs" class="d-flex flex-row align-items-start">
+          <div>
+            <a purpose="breadcrumbs-category" class="text-nowrap" href="/app-library">App library</a>/
+          </div>
+          <div purpose="breadcrumbs-title">
+            <span><%- thisApp.name %></span>
+          </div>
+        </div>
+<!--         <div purpose="search" id="docsearch-query" class="d-flex">
+          <div purpose="disabled-search" class="d-flex w-100">
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <span class="input-group-text border-0 bg-transparent pl-3" >
+                  <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+                </span>
+              </div>
+              <div class="form-control border-0 ">
+              <input class="docsearch-input pr-1"
+                placeholder="Search" aria-label="Search the handbook"
+                />
+              </div>
+            </div>
+          </div>
+        </div> -->
+      </div>
+      <div purpose="app-details-and-sidebar" class="d-flex flex-nowrap flex-lg-row flex-column">
+        <div purpose="app-details" class="d-inline-flex flex-column flex-shrink w-0">
+          <div purpose="icon-and-name" class="d-flex">
+            <div purpose="app-icon"><img  alt="<%- thisApp.name %> icon"  src="/images/app-icon-<%- thisApp.identifier %>-60x60@2x.png"></div>
+            <div class="d-flex flex-column">
+              <h2 purpose="app-name"><%- thisApp.name %></h2>
+              <div purpose="platform-and-version" class="d-flex flex-row">
+                  <p>macOS | <%- thisApp.version %></p>
+              </div>
+            </div>
+          </div>
+          <p purpose="app-description"><%- thisApp.description %></p>
+          <div purpose="app-install">
+            <h3>Self-service install</h3>
+            <p>To install <%- thisApp.name %> on your work computer:</p>
+            <ol>
+              <li>Navigate to the <strong>Fleet Desktop</strong> icon in the OS menu bar and select <strong>My device</strong>.</li>
+              <li>From the <strong>Self-service</strong> tab, navigate to <%- thisApp.name %> and click <strong>Install</strong>.</li>
+            </ol>
+            <p>Don’t see <%- thisApp.name %> or the Fleet Desktop icon? Send a <a :href="'/app-library/'+thisApp.identifier">link to this page</a> to your IT team.</p>
+          </div>
+          <!-- <div purpose="app-uninstall">
+            <h3>Uninstall <%- thisApp.name %></h3>
+            <p>Run the following script in your terminal to uninstall <%- thisApp.name %>:</p>
+            <div purpose="codeblock">
+              <div purpose="copy-button"></div>
+              <pre><code class="hljs bash"><%= thisApp.uninstallScript %></code></pre>
+            </div>
+          </div> -->
+          <div purpose="app-check">
+            <h3>Is <%- thisApp.name %> up to date?</h3>
+            <p>Run this query in Fleet to find old versions of 1Password across all your computers:</p>
+            <div purpose="codeblock">
+              <div purpose="copy-button"></div>
+              <pre><code class="hljs sql">SELECT 1 FROM apps WHERE bundle_identifier = '<%= thisApp.bundleIdentifier %>' AND bundle_short_version <= '<%- thisApp.version %>';</code></pre>
+            </div>
+          </div>
+        </div>
+          <div purpose="right-sidebar" class="d-flex flex-column">
+            <div purpose="social-share-buttons" class="d-flex flex-column order-lg-2 order-1">
+              <p><strong>Share</strong></p>
+              <div class="d-flex flex-row">
+                <a :href="`https://news.ycombinator.com/submitlink?u=https://fleetdm.com/app-library/${encodeURIComponent(thisApp.identifier)}&t=${encodeURIComponent(thisApp.name)}`"><img src="/images/social-share-icon-hacker-news-20x20@2x.png" alt="Share this article on Hacker News"></a>
+                <a :href="`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://fleetdm.com/app-library/'+thisApp.identifier)}`"><img src="/images/social-share-icon-linkedin-20x20@2x.png" alt="Share this article on LinkedIn"></a>
+                <a :href="`https://twitter.com/intent/tweet?url=${encodeURIComponent('https://fleetdm.com/app-library/'+thisApp.identifier)}`"><img src="/images/social-share-icon-twitter-20x20@2x.png" alt="Share this article on Twitter"></a>
+              </div>
+            </div>
+            <div purpose="docs-links" class="order-3">
+              <a href="/docs">Docs</a>
+              <a href="/docs/rest-api">REST API</a>
+              <a href="/guides">Guides</a>
+              <!-- <a purpose="edit-button" class="d-flex align-items-center text-nowrap" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath"><img alt="A pencil icon" src="/images/pencil-16x16@2x.png">Edit page</a> -->
+            </div>
+          </div>
+      </div>
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

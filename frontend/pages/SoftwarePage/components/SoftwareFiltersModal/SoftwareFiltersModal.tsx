@@ -9,7 +9,6 @@ import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import {
   findOptionBySeverityRange,
-  ISoftwareVulnFilters,
   ISoftwareVulnFiltersParams,
   SEVERITY_DROPDOWN_OPTIONS,
 } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
