@@ -1,0 +1,2 @@
+* Bypass the setup experience UI if there is no setup experience item to process (no software to install, no script to execute), so that releasing the device is done without going through that window.
+* Fixed releasing a DEP-enrolled macOS device if mTLS is configured for `fleetd`.

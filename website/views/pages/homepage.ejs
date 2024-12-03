@@ -9,7 +9,7 @@
             <h1 class="mx-auto <%= primaryBuyingSituation%>"><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
             <p>Replace the sprawl with <%= primaryBuyingSituation === 'vm'? 'secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'open-source endpoint observability for every platform' : 'a modern device management platform that works the way you want' %>.</p>
             <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
-              <a purpose="cta-button" href="<%= primaryBuyingSituation === 'mdm' ? '/device-management' : primaryBuyingSituation === 'vm' ? '/vulnerability-management' : primaryBuyingSituation === 'eo-security' ? '/endpoint-ops' : primaryBuyingSituation === 'eo-it' ? '/endpoint-ops' : '/device-management' %>">Learn how</a>
+              <a purpose="cta-button" href="<%= primaryBuyingSituation === 'mdm' ? '/device-management' : primaryBuyingSituation === 'vm' ? '/vulnerability-management' : primaryBuyingSituation === 'eo-security' ? '/observability' : primaryBuyingSituation === 'eo-it' ? '/observability' : '/device-management' %>">Learn how</a>
               <animated-arrow-button href="/testimonials">What people are saying</animated-arrow-button>
             </div>
           </div>
@@ -21,17 +21,25 @@
   <div purpose="hero-logos" class="mx-auto">
     <logo-carousel></logo-carousel>
     <div purpose="statistics">
-      <div purpose="customers">
-        <h4>100+</h4>
-        <p>customers</p>
+      <div purpose="statistics-column">
+        <div purpose="customers">
+          <h4>100+</h4>
+          <p>customers</p>
+        </div>
+        <div purpose="devices">
+          <h4>2,000,000+</h4>
+          <p>computing devices</p>
+        </div>
       </div>
-      <div purpose="devices">
-        <h4>2,000,000+</h4>
-        <p>computing devices</p>
-      </div>
-      <div purpose="countries" >
-        <h4>90+</h4>
-        <p>countries</p>
+      <div purpose="statistics-column">
+        <div purpose="countries">
+          <h4>90+</h4>
+          <p>countries</p>
+        </div>
+        <div purpose="response-time">
+          <h4>8 minutes</h4>
+          <p>avg support response time</p>
+        </div>
       </div>
     </div>
   </div>
@@ -76,7 +84,7 @@
           <strong>Osquery on easy mode</strong>
           <p>Use "read-only" mode or enable remote scripting to automate anything on every operating system, including Linux.</p>
           <div>
-            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/endpoint-ops?purpose=it">Start with IT engineering</a>
+            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/observability?purpose=it">Start with IT engineering</a>
           </div>
         </div>
       </div>
@@ -94,7 +102,7 @@
           <strong>Ship data to any platform</strong>
           <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
           <div>
-            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/endpoint-ops?purpose=security">Start with security engineering</a>
+            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/observability?purpose=security">Start with security engineering</a>
           </div>
         </div>
       </div>
@@ -122,7 +130,7 @@
              <h2><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Talk to your computers'%></h2>
              <p>A <%= primaryBuyingSituation==='eo-security'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='eo-security'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
              <div>
-               <animated-arrow-button href="/endpoint-ops">Start with <%= primaryBuyingSituation==='eo-security' ? 'security engineering' : 'IT engineering'%></animated-arrow-button>
+               <animated-arrow-button href="/observability">Start with <%= primaryBuyingSituation==='eo-security' ? 'security engineering' : 'IT engineering'%></animated-arrow-button>
              </div>
            </div>
            <div purpose="endpoint-ops-image" class="right">
@@ -189,7 +197,7 @@
              <h2><%= primaryBuyingSituation==='vm'? 'Instrument your endpoints' : 'Talk to your computers'%></h2>
              <p>A <%= primaryBuyingSituation==='vm'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='vm'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
              <div>
-               <animated-arrow-button href="/endpoint-ops">Start with <%= primaryBuyingSituation==='mdm' ? 'IT engineering' : 'security engineering'%></animated-arrow-button>
+               <animated-arrow-button href="/observability">Start with <%= primaryBuyingSituation==='mdm' ? 'IT engineering' : 'security engineering'%></animated-arrow-button>
              </div>
            </div>
          </div>
@@ -391,7 +399,7 @@
         <h1 class="mx-auto <%= primaryBuyingSituation%>"><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
         <div purpose="button-row" style="margin-top: 40px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" href="/register">Try it yourself</a>
-          <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>
+          <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>
         </div>
       </div>
     </div>

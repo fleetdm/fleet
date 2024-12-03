@@ -136,6 +136,7 @@ module.exports.routes = {
       pageDescriptionForMeta: 'View and edit information about your Fleet Premium license.',
     }
   },
+  'GET /customers/update-subscription': { action: 'customers/redirect-to-stripe-billing-portal' },
   'GET /customers/forgot-password': {
     action: 'entrance/view-forgot-password',
     locals: {
@@ -227,10 +228,10 @@ module.exports.routes = {
     }
   },
 
-  'GET /endpoint-ops': {
-    action: 'view-endpoint-ops',
+  'GET /observability': {
+    action: 'view-observability',
     locals: {
-      pageTitleForMeta: 'Endpoint ops',
+      pageTitleForMeta: 'Observability',
       pageDescriptionForMeta: 'Pulse check anything, build reports, and ship data to any platform with Fleet.',
       currentSection: 'platform',
     }
@@ -292,12 +293,24 @@ module.exports.routes = {
     }
   },
 
-  'GET /customer-stories': {
+  'GET /testimonials': {
     action: 'view-testimonials',
     locals: {
-      pageTitleForMeta: 'Customer stories',
-      pageDescriptionForMeta: 'See what people are saying about Fleet'
+      pageTitleForMeta: 'What people are saying',
+      pageDescriptionForMeta: 'See what people are saying about Fleet.'
     }
+  },
+
+  'GET /app-library': {
+    action: 'view-app-library',
+    locals: {
+      pageTitleForMeta: 'App library',
+      pageDescriptionForMeta: 'Install Fleet-maintained apps on your hosts without the need for additional configuration. Activate self-service for your end users.',
+    }
+  },
+
+  'GET /app-library/:appIdentifier': {
+    action: 'view-app-details',// Meta title and description set in view action
   },
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
@@ -318,6 +331,7 @@ module.exports.routes = {
   // ```
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
+  'GET /customer-stories': '/testimonials',
   'GET /try': '/get-started',
   'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
   'GET /handbook/customer-experience': '/handbook/customers',
@@ -508,7 +522,6 @@ module.exports.routes = {
   //
   // For example, a clever user might try to visit fleetdm.com/documentation, not knowing that Fleet's website
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
-  'GET /testimonials':               '/customer-stories',
   'GET /admin':                      '/admin/email-preview',
   'GET /renew':                      'https://calendly.com/zayhanlon/fleet-renewal-discussion',
   'GET /documentation':              '/docs',
@@ -539,11 +552,12 @@ module.exports.routes = {
   'GET /endpoint-operations': '/endpoint-ops',// « just in case we type it the wrong way
   'GET /example-dep-profile': 'https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/automatic-enrollment.dep.json',
   'GET /vulnerability-management': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/software-management'+originalQueryString);},
+  'GET /endpoint-ops': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/observability'+originalQueryString);},
 
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
-  'GET /it': '/endpoint-ops?utm_content=eo-it',
-  'GET /seceng': '/endpoint-ops?utm_content=eo-security',
+  'GET /it': '/observability?utm_content=eo-it',
+  'GET /seceng': '/observability?utm_content=eo-security',
   'GET /vm': '/software-management?utm_content=vm',
 
   // Fleet UI
@@ -596,6 +610,7 @@ module.exports.routes = {
   'GET /learn-more-about/policy-automation-run-script': '/guides/policy-automation-run-script',
   'GET /learn-more-about/installing-fleetctl': '/guides/fleetctl#installing-fleetctl',
   'GET /learn-more-about/mdm-disk-encryption': '/guides/enforce-disk-encryption',
+  'GET /learn-more-about/encrypt-linux-device': '/guides/linux-disk-encryption-end-user',
   'GET /contribute-to/policies': 'https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml',
 
   // Sitemap
@@ -675,4 +690,5 @@ module.exports.routes = {
   'POST /api/v1/account/update-start-cta-visibility': { action: 'account/update-start-cta-visibility' },
   'POST /api/v1/deliver-deal-registration-submission': { action: 'deliver-deal-registration-submission' },
   '/api/v1/unsubscribe-from-marketing-emails': { action: 'unsubscribe-from-marketing-emails' },
+  'POST /api/v1/customers/get-stripe-checkout-session-url': { action: 'customers/get-stripe-checkout-session-url' },
 };

@@ -1274,6 +1274,22 @@ func (svc *Service) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error
 	return tokens, nil
 }
 
+func (svc *Service) CountABMTokens(ctx context.Context) (int, error) {
+	// Authorizing using the more general AppConfig object because:
+	// - this service method returns a count, which is not sensitive information
+	// - gitops role, which needs this info, is not authorized for AppleBM access (as of 2024/12/02)
+	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+		return 0, err
+	}
+
+	tokens, err := svc.ds.GetABMTokenCount(ctx)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count ABM tokens")
+	}
+
+	return tokens, nil
+}
+
 func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*fleet.ABMToken, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
 		return nil, err
