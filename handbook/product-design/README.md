@@ -54,7 +54,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 -  **Ready**: Use this page to communicate design reviews and development.
 -  **Scratchpad**: Use this page to keep "work in progress" designs that might be useful in the future.
 
-3. Add page names (ex. Host details page) to the user story's title and/or description to help contributors find Figma wireframes for the area of the UI you're making changes to.
+3. Add page names (e.g. "Host details" page) to the user story's title and/or description to help contributors find Figma wireframes for the area of the UI you're making changes to.
 
 4. If the story requires API or YAML file changes, open a pull request to the reference docs release branch (e.g. `docs-v4.58.0`) with the proposed design. Mark the PR ready for review as soon as it's ready for feedback from the [API design DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris).
 
