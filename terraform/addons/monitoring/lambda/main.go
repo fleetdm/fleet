@@ -83,21 +83,28 @@ func sendSNSMessage(msg string, topic string, sess *session.Session) {
 	}
 }
 
-func checkDB(sess *session.Session) (err error) {
+type CronStatsRow struct {
+	name       string
+	status     string
+	errors     string
+	created_at time.Time
+	updated_at time.Time
+}
+
+func setupDB(sess *session.Session) (db *sql.DB, err error) {
 	secretCache, err := secretcache.New()
 	if err != nil {
 		log.Printf(err.Error())
 		sendSNSMessage("Unable to initialise SecretsManager helper.  Cron status is unknown.", "cronSystem", sess)
-		return err
+		return db, err
 	}
 
 	secretCache.Client = secretsmanager.New(sess)
-
 	MySQLPassword, err := secretCache.GetSecretString(options.MySQLSMSecret)
 	if err != nil {
 		log.Printf(err.Error())
 		sendSNSMessage("Unable to retrieve SecretsManager secret.  Cron status is unknown.", "cronSystem", sess)
-		return err
+		return db, err
 	}
 
 	cfg := mysql.Config{
@@ -110,27 +117,25 @@ func checkDB(sess *session.Session) (err error) {
 		ParseTime:            true,
 	}
 
-	db, err := sql.Open("mysql", cfg.FormatDSN())
-	defer db.Close()
+	db, err = sql.Open("mysql", cfg.FormatDSN())
 	if err != nil {
 		log.Printf(err.Error())
 		sendSNSMessage("Unable to connect to database. Cron status unknown.", "cronSystem", sess)
-		return err
+		return db, err
 	}
 	if err = db.Ping(); err != nil {
 		log.Printf(err.Error())
 		sendSNSMessage("Unable to connect to database. Cron status unknown.", "cronSystem", sess)
-		return err
+		return db, err
 	}
 
 	log.Printf("Connected to database!")
 
-	type CronStatsRow struct {
-		name       string
-		status     string
-		updated_at time.Time
-	}
+	return db, err
+}
 
+// Check that the cron stats table is reachable, and that no cron jobs have been stuck for > 1 run time.
+func checkDB(db *sql.DB, sess *session.Session) (err error) {
 	rows, err := db.Query("SELECT b.name,IFNULL(status, 'missing cron'),IFNULL(updated_at, FROM_UNIXTIME(0)) AS updated_at FROM (SELECT 'vulnerabilities' AS name UNION ALL SELECT 'cleanups_then_aggregation') b LEFT JOIN (SELECT name, status, updated_at FROM cron_stats WHERE id IN (SELECT MAX(id) FROM cron_stats WHERE status = 'completed' GROUP BY name)) a ON a.name = b.name;")
 	defer rows.Close()
 	if err != nil {
@@ -164,6 +169,40 @@ func checkDB(sess *session.Session) (err error) {
 	return nil
 }
 
+// Check for errors in cron runs.
+func checkCrons(db *sql.DB, sess *session.Session) (err error) {
+	cronDelayDuration, err := time.ParseDuration(options.CronDelayTolerance)
+	if err != nil {
+		log.Printf(err.Error())
+		sendSNSMessage("Unable to parse cron-delay-tolerance. Check lambda settings.", "cronSystem", sess)
+		return err
+	}
+	cronAlertTimestamp := time.Now().Add(-1 * cronDelayDuration)
+
+	// Find all cron entries less than cronDelayDuration old that have errors.
+	rows, err := db.Query("SELECT name, created_at, IFNULL(updated_at, FROM_UNIXTIME(0)) AS updated_at, errors FROM cron_stats WHERE errors IS NOT NULL AND created_at > \"" + cronAlertTimestamp.Format("20060102150405") + "\"")
+	defer rows.Close()
+	if err != nil {
+		log.Printf(err.Error())
+		sendSNSMessage("Unable to SELECT cron_stats table.  Unable to continue.", "cronSystem", sess)
+		return err
+	}
+	for rows.Next() {
+		var row CronStatsRow
+		if err := rows.Scan(&row.name, &row.created_at, &row.updated_at, &row.errors); err != nil {
+			log.Printf(err.Error())
+			sendSNSMessage("Error scanning row in cron_stats table.  Unable to continue.", "cronSystem", sess)
+			return err
+		}
+		log.Printf("*** %s job had errors, alerting! (errors %s)", row.name, row.errors)
+		// Fire on the first match and return.  We only need to alert that the crons need looked at, not each cron.
+		sendSNSMessage(fmt.Sprintf("Fleet cron '%s' (last updated %s) raised errors during its run:\n%s.", row.name, row.updated_at.String(), row.errors), "cronSystem", sess)
+		return nil
+	}
+
+	return nil
+}
+
 func handler(ctx context.Context, name NullEvent) error {
 	sess := session.Must(session.NewSessionWithOptions(
 		session.Options{
@@ -174,7 +213,15 @@ func handler(ctx context.Context, name NullEvent) error {
 		},
 	))
 
-	checkDB(sess)
+	db, err := setupDB(sess)
+	defer db.Close()
+
+	if err != nil {
+		return nil
+	}
+
+	checkDB(db, sess)
+	checkCrons(db, sess)
 	return nil
 }
 
@@ -191,6 +238,14 @@ func main() {
 		}
 	}
 
+	snsTopics["cronSystem"] = options.SNSCronSystemTopicArns
+	snsTopics["cronJobFailure"] = options.SNSCronJobFailureTopicArns
+	// For backwards compatibility, fall back to sending cron failure alerts
+	// to the same SNS topic as cron system alerts.s
+	if snsTopics["cronJobFailure"] == "" {
+		snsTopics["cronJobFailure"] = options.SNSCronSystemTopicArns
+	}
+
 	// When running from Lambda, this should be read from the environment.
 	if options.LambdaRuntimeAPI != "" {
 		log.Printf("Starting Lambda handler.")
@@ -200,13 +255,5 @@ func main() {
 		if err = handler(context.Background(), NullEvent{}); err != nil {
 			log.Fatal(err)
 		}
-	}
-
-	snsTopics["cronSystem"] = options.SNSCronSystemTopicArns
-	snsTopics["cronJobFailure"] = options.SNSCronJobFailureTopicArns
-	// For backwards compatibility, fall back to sending cron failure alerts
-	// to the same SNS topic as cron system alerts.s
-	if snsTopics["cronJobFailure"] == "" {
-		snsTopics["cronJobFailure"] = options.SNSCronSystemTopicArns
 	}
 }
