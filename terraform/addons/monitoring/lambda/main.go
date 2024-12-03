@@ -45,7 +45,7 @@ type (
 type OptionsStruct struct {
 	LambdaRuntimeAPI           string `long:"lambda-runtime-api" env:"AWS_LAMBDA_RUNTIME_API"`
 	SNSCronSystemTopicArns     string `long:"sns-cron-system-topic-arn" env:"CRON_SYSTEM_MONITOR_SNS_TOPIC_ARNS" required:"true"`
-	SNSCronJobFailureTopicArns string `long:"sns-cron-job-failure-topic-arn" env:"CRON_JOB_FAILURE_MONITOR_SNS_TOPIC_ARNS" required:"true"`
+	SNSCronJobFailureTopicArns string `long:"sns-cron-job-failure-topic-arn" env:"CRON_JOB_FAILURE_MONITOR_SNS_TOPIC_ARNS"`
 	MySQLHost                  string `long:"mysql-host" env:"MYSQL_HOST" required:"true"`
 	MySQLUser                  string `long:"mysql-user" env:"MYSQL_USER" required:"true"`
 	MySQLSMSecret              string `long:"mysql-secretsmanager-secret" env:"MYSQL_SECRETSMANAGER_SECRET" required:"true"`
@@ -196,7 +196,7 @@ func checkCrons(db *sql.DB, sess *session.Session) (err error) {
 		}
 		log.Printf("*** %s job had errors, alerting! (errors %s)", row.name, row.errors)
 		// Fire on the first match and return.  We only need to alert that the crons need looked at, not each cron.
-		sendSNSMessage(fmt.Sprintf("Fleet cron '%s' (last updated %s) raised errors during its run:\n%s.", row.name, row.updated_at.String(), row.errors), "cronSystem", sess)
+		sendSNSMessage(fmt.Sprintf("Fleet cron '%s' (last updated %s) raised errors during its run:\n%s.", row.name, row.updated_at.String(), row.errors), "cronJobFailure", sess)
 		return nil
 	}
 
