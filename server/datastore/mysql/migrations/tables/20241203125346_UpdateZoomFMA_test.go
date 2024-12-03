@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20241121125346(t *testing.T) {
+func TestUp_20241203125346(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Insert a scheduled and a triggered job run for maintained_apps

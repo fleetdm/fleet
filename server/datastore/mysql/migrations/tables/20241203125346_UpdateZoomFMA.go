@@ -8,10 +8,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20241121125346, Down_20241121125346)
+	MigrationClient.AddMigration(Up_20241203125346, Down_20241203125346)
 }
 
-func Up_20241121125346(tx *sql.Tx) error {
+func Up_20241203125346(tx *sql.Tx) error {
 	// Remove the existing Zoom fleet-maintained app
 	_, err := tx.Exec(`DELETE FROM fleet_library_apps WHERE token = 'zoom' AND platform = 'darwin'`)
 	if err != nil {
@@ -28,6 +28,6 @@ func Up_20241121125346(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20241121125346(tx *sql.Tx) error {
+func Down_20241203125346(tx *sql.Tx) error {
 	return nil
 }
