@@ -111,8 +111,12 @@ func New(opts ...Option) (*MySQLStorage, error) {
 	}
 
 	mysqlStore := &MySQLStorage{db: cfg.db, logger: cfg.logger, rm: cfg.rm}
-	mysqlStore.reader = func(ctx context.Context) fleet.DBReader {
-		return sqlx.NewDb(mysqlStore.db, "mysql")
+	if cfg.reader == nil {
+		mysqlStore.reader = func(ctx context.Context) fleet.DBReader {
+			return sqlx.NewDb(mysqlStore.db, "mysql")
+		}
+	} else {
+		mysqlStore.reader = cfg.reader
 	}
 
 	if v := os.Getenv("FLEET_DISABLE_ASYNC_NANO_LAST_SEEN"); v != "1" {
