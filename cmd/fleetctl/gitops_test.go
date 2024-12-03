@@ -2861,7 +2861,7 @@ software:
 				return []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}, {OrganizationName: "Foo Inc."}}, nil
 			}
 			ds.CountABMTokensFunc = func(ctx context.Context) (uint32, error) {
-				return uint32(len(tt.tokens)), nil
+				return uint32(len(tt.tokens)), nil // nolint:gosec // dismiss G115
 			}
 
 			ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
