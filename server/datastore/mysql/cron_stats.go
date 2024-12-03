@@ -72,7 +72,7 @@ func (ds *Datastore) UpdateCronStats(ctx context.Context, id int, status fleet.C
 	if len(*cronErrors) > 0 {
 		b, err := json.Marshal(cronErrors)
 		if err == nil {
-			errorsJSON.String = string(b[:])
+			errorsJSON.String = string(b)
 			errorsJSON.Valid = true
 		}
 	}

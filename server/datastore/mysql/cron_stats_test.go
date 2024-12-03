@@ -51,7 +51,8 @@ func TestInsertUpdateCronStats(t *testing.T) {
 	// Compare the error JSON with the expected object.
 	expectedJSON := `{"some_job": "some error", "some_other_job": "some other error"}`
 	var expectedMap map[string]string
-	json.Unmarshal([]byte(expectedJSON), &expectedMap)
+	err = json.Unmarshal([]byte(expectedJSON), &expectedMap)
+	require.NoError(t, err)
 	require.Equal(t, actualMap, expectedMap)
 }
 
