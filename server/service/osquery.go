@@ -691,7 +691,8 @@ const alwaysTrueQuery = "SELECT 1"
 // list of detail queries that are returned when only the critical queries
 // should be returned (due to RefetchCriticalQueriesUntil timestamp being set).
 var criticalDetailQueries = map[string]bool{
-	"mdm": true,
+	"mdm":         true,
+	"mdm_windows": true,
 }
 
 // detailQueriesForHost returns the map of detail+additional queries that should be executed by

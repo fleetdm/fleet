@@ -85,11 +85,12 @@
     flex-direction: row;
     justify-content: center;
     margin-top: 64px;
+    margin-bottom: 64px;
     h4 {
       color: #515774;
       text-align: center;
 
-      /* Body LG (bold) */
+      text-transform: unset;
       font-family: Inter;
       font-size: 18px;
       font-style: normal;
@@ -115,26 +116,36 @@
     //   flex-direction: column;
     //   align-items: center;
     // }
+    [purpose='statistics-column'] {
+      display: flex;
+      flex-direction: row;
+    }
     [purpose='customers'] {
       border-right: 1px solid #E2E4EA;
       display: flex;
-      padding: 8px 64px;
+      padding: 8px 48px;
       flex-direction: column;
       align-items: center;
     }
     [purpose='devices'] {
       border-right: 1px solid #E2E4EA;
       display: flex;
-      padding: 8px 64px;
+      padding: 8px 48px;
       flex-direction: column;
       align-items: center;
     }
     [purpose='countries'] {
       display: flex;
-      padding: 8px 64px;
+      padding: 8px 48px;
       flex-direction: column;
       align-items: center;
-
+      border-right: 1px solid #E2E4EA;
+    }
+    [purpose='response-time'] {
+      display: flex;
+      padding: 8px 48px;
+      flex-direction: column;
+      align-items: center;
     }
 
   }
@@ -1099,6 +1110,31 @@
     [purpose='integrations-section'] {
       margin-top: 80px;
     }
+    [purpose='statistics'] {
+      [purpose='statistics-column'] {
+        display: flex;
+        flex-direction: column;
+        width: 227px;
+      }
+      [purpose='countries'] {
+        border-right: none;
+        padding: 16px 32px;
+
+      }
+      [purpose='customers'] {
+        padding: 16px 32px;
+      }
+      [purpose='devices'] {
+        padding: 16px 32px;
+      }
+      [purpose='response-time'] {
+        padding: 16px 32px;
+      }
+
+    }
+
+
+
     [purpose='homepage-text-block'] {
       margin-bottom: 80px;
       p {
@@ -1399,12 +1435,13 @@
       max-width: fit-content;
       margin-left: auto;
       margin-right: auto;
-      margin-top: 32px;
+      margin-top: 48px;
+      margin-bottom: 48px;
       h4 {
         margin-bottom: 0px;
       }
       [purpose='customers'] {
-        padding: 0px 64px 24px 64px;
+        padding: 0px 24px 24px 24px;
         border-right: none;
       }
       [purpose='devices'] {
@@ -1413,13 +1450,15 @@
         padding: 24px;
         border-right: none;
       }
-
+      [purpose='response-time'] {
+        padding: 24px;
+        border-bottom: 1px solid #E2E4EA;
+      }
       [purpose='countries'] {
-        padding: 24px 64px 0px 64px;
+        order: 1;
+        padding: 24px 24px 0px 24px;
         border-right: none;
       }
-
-
     }
     [purpose='hero-background-image'] {
       background-size: auto 320px;
@@ -1606,6 +1645,7 @@
       font-size: 12px;
     }
 
+
     [purpose='truncated-vulnerability-management-text'] {
       display: none;
     }
@@ -1624,6 +1664,11 @@
         font-size: 16px;
       }
     }
+    [purpose='statistics'] {
+      margin-top: 32px;
+      margin-bottom: 32px;
+    }
+
     [purpose='endpoints-banner'] {
       [purpose='endpoint-banner-text'] {
         padding-left: 24px;

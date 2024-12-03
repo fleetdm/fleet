@@ -6314,6 +6314,12 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	}`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "missing or invalid license")
+
+	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_migration_enabled": true }
+	}`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "missing or invalid license")
 }
 
 func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
