@@ -6,7 +6,7 @@ No requirements.
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | 4.60.0 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | 4.60.1 |
 
 ## Modules
 
