@@ -2748,7 +2748,15 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 			strings.TrimSuffix(valuePart, ","),
 		)
 
-		_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+		// We need to run with retry due to deadlocks.
+		// The INSERT/ON DUPLICATE KEY UPDATE pattern is prone to deadlocks when multiple
+		// threads are modifying nearby rows. That's because this statement uses gap locks.
+		// When two transactions acquire the same gap lock, they may deadlock.
+		// Two simultaneous transactions may happen when cron job runs and the user is updating via the UI at the same time.
+		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, stmt, args...)
+			return err
+		})
 		return err
 	}
 
