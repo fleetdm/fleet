@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"database/sql"
-	"encoding/base64"
 	"errors"
 	"html/template"
 	"strings"
@@ -67,11 +66,10 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 	}
 	inviter := v.User
 
-	random, err := server.GenerateRandomText(svc.config.App.TokenKeySize)
+	token, err := server.GenerateRandomURLSafeText(svc.config.App.TokenKeySize)
 	if err != nil {
 		return nil, err
 	}
-	token := base64.URLEncoding.EncodeToString([]byte(random))
 
 	invite := &fleet.Invite{
 		Email:      *payload.Email,

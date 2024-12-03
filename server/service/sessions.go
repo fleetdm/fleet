@@ -241,7 +241,7 @@ func (svc *Service) Login(ctx context.Context, email, password string, supportsE
 }
 
 func (svc *Service) makeSession(ctx context.Context, userID uint) (*fleet.Session, error) {
-	return svc.ds.NewSession(ctx, userID, uint(svc.config.Session.KeySize)) // nolint:gosec // dismiss G115
+	return svc.ds.NewSession(ctx, userID, svc.config.Session.KeySize)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -285,7 +285,7 @@ func (svc *Service) CompleteMFA(ctx context.Context, token string) (*fleet.Sessi
 		}
 	}(time.Now())
 
-	session, user, err := svc.ds.SessionByMFAToken(ctx, token, uint(svc.config.Session.KeySize)) //nolint:gosec // dismiss G115
+	session, user, err := svc.ds.SessionByMFAToken(ctx, token, svc.config.Session.KeySize)
 	if err != nil {
 		return nil, nil, fleet.NewAuthFailedError(err.Error())
 	}

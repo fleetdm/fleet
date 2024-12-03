@@ -307,7 +307,7 @@ type SessionByIDFunc func(ctx context.Context, id uint) (*fleet.Session, error)
 
 type ListSessionsForUserFunc func(ctx context.Context, id uint) ([]*fleet.Session, error)
 
-type NewSessionFunc func(ctx context.Context, userID uint, sessionKeySize uint) (*fleet.Session, error)
+type NewSessionFunc func(ctx context.Context, userID uint, sessionKeySize int) (*fleet.Session, error)
 
 type DestroySessionFunc func(ctx context.Context, session *fleet.Session) error
 
@@ -315,7 +315,7 @@ type DestroyAllSessionsForUserFunc func(ctx context.Context, id uint) error
 
 type MarkSessionAccessedFunc func(ctx context.Context, session *fleet.Session) error
 
-type SessionByMFATokenFunc func(ctx context.Context, token string, sessionKeySize uint) (*fleet.Session, *fleet.User, error)
+type SessionByMFATokenFunc func(ctx context.Context, token string, sessionKeySize int) (*fleet.Session, *fleet.User, error)
 
 type NewMFATokenFunc func(ctx context.Context, userID uint) (string, error)
 
@@ -3901,7 +3901,7 @@ func (s *DataStore) ListSessionsForUser(ctx context.Context, id uint) ([]*fleet.
 	return s.ListSessionsForUserFunc(ctx, id)
 }
 
-func (s *DataStore) NewSession(ctx context.Context, userID uint, sessionKeySize uint) (*fleet.Session, error) {
+func (s *DataStore) NewSession(ctx context.Context, userID uint, sessionKeySize int) (*fleet.Session, error) {
 	s.mu.Lock()
 	s.NewSessionFuncInvoked = true
 	s.mu.Unlock()
@@ -3929,7 +3929,7 @@ func (s *DataStore) MarkSessionAccessed(ctx context.Context, session *fleet.Sess
 	return s.MarkSessionAccessedFunc(ctx, session)
 }
 
-func (s *DataStore) SessionByMFAToken(ctx context.Context, token string, sessionKeySize uint) (*fleet.Session, *fleet.User, error) {
+func (s *DataStore) SessionByMFAToken(ctx context.Context, token string, sessionKeySize int) (*fleet.Session, *fleet.User, error) {
 	s.mu.Lock()
 	s.SessionByMFATokenFuncInvoked = true
 	s.mu.Unlock()

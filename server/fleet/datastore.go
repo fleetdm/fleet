@@ -408,7 +408,7 @@ type Datastore interface {
 	ListSessionsForUser(ctx context.Context, id uint) ([]*Session, error)
 
 	// NewSession creates a new session for the given user and stores it
-	NewSession(ctx context.Context, userID uint, sessionKeySize uint) (*Session, error)
+	NewSession(ctx context.Context, userID uint, sessionKeySize int) (*Session, error)
 
 	// DestroySession destroys the currently tracked session
 	DestroySession(ctx context.Context, session *Session) error
@@ -420,7 +420,7 @@ type Datastore interface {
 	MarkSessionAccessed(ctx context.Context, session *Session) error
 
 	// SessionByMFAToken redeems an MFA token for a session, and returns the associated user, if that MFA token is valid
-	SessionByMFAToken(ctx context.Context, token string, sessionKeySize uint) (*Session, *User, error)
+	SessionByMFAToken(ctx context.Context, token string, sessionKeySize int) (*Session, *User, error)
 
 	// NewMFAToken creates a new MFA token for a given user and stores it
 	NewMFAToken(ctx context.Context, userID uint) (string, error)

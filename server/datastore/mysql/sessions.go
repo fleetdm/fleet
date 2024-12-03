@@ -8,6 +8,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
@@ -16,7 +17,7 @@ import (
 const mfaLinkTTL = time.Minute * 15
 const mfaTokenEntropyInBytes = 32
 
-func (ds *Datastore) SessionByMFAToken(ctx context.Context, token string, sessionKeySize uint) (*fleet.Session, *fleet.User, error) {
+func (ds *Datastore) SessionByMFAToken(ctx context.Context, token string, sessionKeySize int) (*fleet.Session, *fleet.User, error) {
 	var userID uint
 	err := sqlx.GetContext(
 		ctx,
@@ -59,7 +60,7 @@ func (ds *Datastore) SessionByMFAToken(ctx context.Context, token string, sessio
 }
 
 func (ds *Datastore) NewMFAToken(ctx context.Context, userID uint) (string, error) {
-	token, err := randomBase64(mfaTokenEntropyInBytes)
+	token, err := server.GenerateRandomURLSafeText(mfaTokenEntropyInBytes)
 	if err != nil {
 		return "", err
 	}
@@ -137,12 +138,12 @@ func (ds *Datastore) ListSessionsForUser(ctx context.Context, id uint) ([]*fleet
 	return sessions, nil
 }
 
-func (ds *Datastore) NewSession(ctx context.Context, userID uint, sessionKeySize uint) (*fleet.Session, error) {
+func (ds *Datastore) NewSession(ctx context.Context, userID uint, sessionKeySize int) (*fleet.Session, error) {
 	return ds.makeSessionInTransaction(ctx, ds.writer(ctx), userID, sessionKeySize)
 }
 
-func (ds *Datastore) makeSessionInTransaction(ctx context.Context, tx sqlx.ExtContext, userID uint, sessionKeySize uint) (*fleet.Session, error) {
-	sessionKey, err := randomBase64(sessionKeySize)
+func (ds *Datastore) makeSessionInTransaction(ctx context.Context, tx sqlx.ExtContext, userID uint, sessionKeySize int) (*fleet.Session, error) {
+	sessionKey, err := server.GenerateRandomText(sessionKeySize)
 	if err != nil {
 		return nil, err
 	}
