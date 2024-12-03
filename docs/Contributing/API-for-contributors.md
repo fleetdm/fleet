@@ -980,7 +980,7 @@ Content-Type: application/octet-stream
 | team_id   | number | query | _Available in Fleet Premium_ The team ID to apply the custom settings to. Only one of `team_name`/`team_id` can be provided.          |
 | team_name | string | query | _Available in Fleet Premium_ The name of the team to apply the custom settings to. Only one of `team_name`/`team_id` can be provided. |
 | dry_run   | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
-| profiles  | json   | body  | An array of objects, consisting of a `profile` base64-encoded .mobileconfig or JSON for macOS and XML (Windows) file, `labels_include_all`, `labels_include_any` or `labels_exclude_any` array of strings (label names), and `name` display name (for Windows configuration profiles and macOS declaration profiles). |
+| profiles  | json   | body  | An array of objects, consisting of a `profile` base64-encoded .mobileconfig or JSON for macOS and XML (Windows) file, `labels_include_all`, `labels_include_any`, or `labels_exclude_any` array of strings (label names), and `name` display name (for Windows configuration profiles and macOS declaration profiles). |
 
 
 If no team (id or name) is provided, the profiles are applied for all hosts (for _Fleet Free_) or for hosts that are not assigned to any team (for _Fleet Premium_). After the call, the provided list of `profiles` will be the active profiles for that team (or no team) - that is, any existing profile that is not part of that list will be removed, and an existing profile with the same payload identifier (macOS) as a new profile will be edited. If the list of provided `profiles` is empty, all profiles are removed for that team (or no team).
