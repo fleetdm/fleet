@@ -136,7 +136,8 @@ const UserForm = ({
     newUserType: isNewUser ? NewUserType.AdminCreated : null,
     password: "",
     sso_enabled: isSsoEnabled || false,
-    two_factor_authentication_enabled: isTwoFactorAuthenticationEnabled,
+    two_factor_authentication_enabled:
+      isTwoFactorAuthenticationEnabled || false,
     global_role: defaultGlobalRole || null,
     teams: defaultTeams || [],
     currentUserId,
@@ -257,8 +258,12 @@ const UserForm = ({
     } else if (!validEmail(formData.email)) {
       newErrors.email = `${formData.email} is not a valid email`;
     }
-    // Only test password on new user or if sso not enabled
-    if (isNewUser && !formData.sso_enabled) {
+    // Only test password on new created user (not invited user) or if sso not enabled
+    if (
+      isNewUser &&
+      formData.newUserType === NewUserType.AdminCreated &&
+      !formData.sso_enabled
+    ) {
       if (formData.password !== null && !validPassword(formData.password)) {
         newErrors.password = "Password must meet the criteria below";
       }
@@ -563,20 +568,26 @@ const UserForm = ({
         onChange={onCheckboxChange("two_factor_authentication_enabled")}
         value={formData.two_factor_authentication_enabled}
         wrapperClassName={`${baseClass}__2fa`}
+        helpText="User will be asked to authenticate with a magic link that will be sent to their email."
+        disabled={!smtpConfigured && !sesConfigured}
       >
-        Enable two-factor authentication (
-        <TooltipWrapper
-          tipContent={
-            <>
-              User will be asked to authenticate with a
-              <br />
-              magic link that will be sent to their email.
-            </>
-          }
-        >
-          email
-        </TooltipWrapper>
-        )
+        {smtpConfigured || sesConfigured ? (
+          "Enable two-factor authentication (email)"
+        ) : (
+          <TooltipWrapper
+            tipContent={
+              <>
+                This feature requires that SMTP or SES is configured in order to
+                send authentication emails.
+                <br />
+                <br />
+                SMTP can be configured in Settings &gt; Organization settings.
+              </>
+            }
+          >
+            Enable two-factor authentication (email)
+          </TooltipWrapper>
+        )}
       </Checkbox>
     </div>
   );

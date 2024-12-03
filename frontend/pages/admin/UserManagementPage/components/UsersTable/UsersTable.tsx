@@ -226,13 +226,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       invitesAPI
         .create(requestData)
         .then(() => {
-          const senderAddressMessage = config?.smtp_settings?.sender_address
-            ? ` from ${config?.smtp_settings?.sender_address}`
-            : "";
-          renderFlash(
-            "success",
-            `An invitation email was sent${senderAddressMessage} to ${formData.email}.`
-          );
+          renderFlash("success", `${formData.name} has been invited!`);
           toggleAddUserModal();
           refetchInvites();
         })
@@ -270,7 +264,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       usersAPI
         .createUserWithoutInvitation(requestData)
         .then(() => {
-          renderFlash("success", `Successfully created ${requestData.name}.`);
+          renderFlash("success", `${requestData.name} has been created!`);
           toggleAddUserModal();
           refetchUsers();
         })
