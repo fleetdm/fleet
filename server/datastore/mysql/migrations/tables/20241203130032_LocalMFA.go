@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20241203110032, Down_20241203110032)
+	MigrationClient.AddMigration(Up_20241203130032, Down_20241203130032)
 }
 
-func Up_20241203110032(tx *sql.Tx) error {
+func Up_20241203130032(tx *sql.Tx) error {
 	_, err := tx.Exec(`ALTER TABLE users ADD COLUMN mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE`)
 	if err != nil {
 		return fmt.Errorf("failed to add mfa_enabled column to users: %w", err)
@@ -34,6 +34,6 @@ func Up_20241203110032(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20241203110032(tx *sql.Tx) error {
+func Down_20241203130032(tx *sql.Tx) error {
 	return nil
 }
