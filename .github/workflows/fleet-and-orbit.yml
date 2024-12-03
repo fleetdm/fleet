@@ -219,7 +219,7 @@ jobs:
     #
     # Note: Update this version to '13' once GitHub marks macOS 13 as stable
     # or if we revise our minimum supported macOS version.
-    runs-on: macos-12
+    runs-on: macos-13
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
