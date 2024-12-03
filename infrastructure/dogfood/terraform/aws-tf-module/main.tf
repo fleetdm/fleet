@@ -380,7 +380,6 @@ module "monitoring" {
   sns_topic_arns_map = {
     alb_httpcode_5xx = [module.notify_slack.slack_topic_arn]
     cron_monitoring  = [module.notify_slack.slack_topic_arn]
-    cron_job_failure_monitoring = [module.notify_slack_p2.slack_topic_arn]
   }
   mysql_cluster_members = module.main.byo-vpc.rds.cluster_members
   # The cloudposse module seems to have a nested list here.
@@ -461,21 +460,10 @@ module "notify_slack" {
   source  = "terraform-aws-modules/notify-slack/aws"
   version = "5.5.0"
 
-  sns_topic_name = "fleet-dogfood-p1-alerts"
+  sns_topic_name = "fleet-dogfood"
 
   slack_webhook_url = var.slack_webhook
   slack_channel     = "#help-p1"
-  slack_username    = "monitoring"
-}
-
-module "notify_slack_p2" {
-  source  = "terraform-aws-modules/notify-slack/aws"
-  version = "5.5.0"
-
-  sns_topic_name = "fleet-dogfood-p2-alerts"
-
-  slack_webhook_url = var.slack_webhook
-  slack_channel     = "#help-p2"
   slack_username    = "monitoring"
 }
 
