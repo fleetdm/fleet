@@ -117,6 +117,10 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 	return "", startProcessAsCurrentUser(path, "", "")
 }
 
+func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
+	return nil, 0, errors.New("not implemented")
+}
+
 // getCurrentUserSessionId will attempt to resolve
 // the session ID of the user currently active on
 // the system.

@@ -907,7 +907,8 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// GET /mdm/profiles/summary
+// GET /mdm/profiles/summary (deprecated)
+// GET /configuration_profiles/summary
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMProfilesSummaryRequest struct {
@@ -935,10 +936,15 @@ func getMDMProfilesSummaryEndpoint(ctx context.Context, request interface{}, svc
 		return &getMDMProfilesSummaryResponse{Err: err}, nil
 	}
 
-	res.Verified = as.Verified + ws.Verified
+	ls, err := svc.GetMDMLinuxProfilesSummary(ctx, req.TeamID)
+	if err != nil {
+		return &getMDMProfilesSummaryResponse{Err: err}, nil
+	}
+
+	res.Verified = as.Verified + ws.Verified + ls.Verified
 	res.Verifying = as.Verifying + ws.Verifying
-	res.Failed = as.Failed + ws.Failed
-	res.Pending = as.Pending + ws.Pending
+	res.Failed = as.Failed + ws.Failed + ls.Failed
+	res.Pending = as.Pending + ws.Pending + ls.Pending
 
 	return &res, nil
 }
@@ -2165,7 +2171,7 @@ func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 // Update MDM Disk encryption
 ////////////////////////////////////////////////////////////////////////////////
 
-type updateMDMDiskEncryptionRequest struct {
+type updateDiskEncryptionRequest struct {
 	TeamID               *uint `json:"team_id"`
 	EnableDiskEncryption bool  `json:"enable_disk_encryption"`
 }
@@ -2178,8 +2184,8 @@ func (r updateMDMDiskEncryptionResponse) error() error { return r.Err }
 
 func (r updateMDMDiskEncryptionResponse) Status() int { return http.StatusNoContent }
 
-func updateMDMDiskEncryptionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*updateMDMDiskEncryptionRequest)
+func updateDiskEncryptionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*updateDiskEncryptionRequest)
 	if err := svc.UpdateMDMDiskEncryption(ctx, req.TeamID, &req.EnableDiskEncryption); err != nil {
 		return updateMDMDiskEncryptionResponse{Err: err}, nil
 	}
@@ -2194,7 +2200,7 @@ func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, e
 	lic, _ := license.FromContext(ctx)
 	if lic == nil || !lic.IsPremium() {
 		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return ErrMissingLicense
+		return fleet.ErrMissingLicense
 	}
 
 	// for historical reasons (the deprecated PATCH /mdm/apple/settings
@@ -2606,9 +2612,52 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return ctxerr.Wrap(ctx, err, "retrieving app config")
 	}
 
+	wasEnabledAndConfigured := appCfg.MDM.EnabledAndConfigured
 	appCfg.MDM.EnabledAndConfigured = true
+	err = svc.ds.SaveAppConfig(ctx, appCfg)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "saving app config")
+	}
 
-	return svc.ds.SaveAppConfig(ctx, appCfg)
+	// Disk encryption can be enabled prior to Apple MDM being configured, but we need MDM to be set up to escrow
+	// FileVault keys. We handle the other order of operations elsewhere (on encryption enable, after checking to see
+	// if Mac MDM is already enabled). We skip this step if we were just re-uploading an APNs cert when MDM was already
+	// enabled.
+	if wasEnabledAndConfigured {
+		return nil
+	}
+
+	// Enable FileVault escrow if no-team already has disk encryption enforced
+	if appCfg.MDM.EnableDiskEncryption.Value {
+		if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "enable no-team FileVault escrow")
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEnabledMacosDiskEncryption{}); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for enabling no-team macOS disk encryption")
+		}
+	}
+	// Enable FileVault escrow for teams that already have disk encryption enforced
+	// For later: add a data store method to avoid making an extra query per team to check whether encryption is enforced
+	teams, err := svc.ds.TeamsSummary(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing teams")
+	}
+	for _, team := range teams {
+		isEncryptionEnforced, err := svc.ds.GetConfigEnableDiskEncryption(ctx, &team.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retrieving encryption enforcement status for team")
+		}
+		if isEncryptionEnforced {
+			if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, &team.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "enable FileVault escrow for team")
+			}
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for enabling macOS disk encryption for team")
+			}
+		}
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

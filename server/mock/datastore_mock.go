@@ -635,11 +635,13 @@ type GetHostEmailsFunc func(ctx context.Context, hostUUID string, source string)
 
 type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64) error
 
+type GetConfigEnableDiskEncryptionFunc func(ctx context.Context, teamID *uint) (bool, error)
+
 type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, encrypted bool) error
 
 type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint, encryptedBase64Key string, clientError string, decryptable *bool) error
 
-type SaveLUKSDataFunc func(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64SlotKey string) error
+type SaveLUKSDataFunc func(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error
 
 type GetUnverifiedDiskEncryptionKeysFunc func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error)
 
@@ -1140,6 +1142,8 @@ type UpdateSetupExperienceStatusResultFunc func(ctx context.Context, status *fle
 type EnqueueSetupExperienceItemsFunc func(ctx context.Context, hostUUID string, teamID uint) (bool, error)
 
 type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) (*fleet.Script, error)
+
+type GetSetupExperienceScriptByIDFunc func(ctx context.Context, scriptID uint) (*fleet.Script, error)
 
 type SetSetupExperienceScriptFunc func(ctx context.Context, script *fleet.Script) error
 
@@ -2085,6 +2089,9 @@ type DataStore struct {
 	SetOrUpdateHostDisksSpaceFunc        SetOrUpdateHostDisksSpaceFunc
 	SetOrUpdateHostDisksSpaceFuncInvoked bool
 
+	GetConfigEnableDiskEncryptionFunc        GetConfigEnableDiskEncryptionFunc
+	GetConfigEnableDiskEncryptionFuncInvoked bool
+
 	SetOrUpdateHostDisksEncryptionFunc        SetOrUpdateHostDisksEncryptionFunc
 	SetOrUpdateHostDisksEncryptionFuncInvoked bool
 
@@ -2843,6 +2850,9 @@ type DataStore struct {
 
 	GetSetupExperienceScriptFunc        GetSetupExperienceScriptFunc
 	GetSetupExperienceScriptFuncInvoked bool
+
+	GetSetupExperienceScriptByIDFunc        GetSetupExperienceScriptByIDFunc
+	GetSetupExperienceScriptByIDFuncInvoked bool
 
 	SetSetupExperienceScriptFunc        SetSetupExperienceScriptFunc
 	SetSetupExperienceScriptFuncInvoked bool
@@ -5029,6 +5039,13 @@ func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, 
 	return s.SetOrUpdateHostDisksSpaceFunc(ctx, hostID, gigsAvailable, percentAvailable, gigsTotal)
 }
 
+func (s *DataStore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error) {
+	s.mu.Lock()
+	s.GetConfigEnableDiskEncryptionFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetConfigEnableDiskEncryptionFunc(ctx, teamID)
+}
+
 func (s *DataStore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error {
 	s.mu.Lock()
 	s.SetOrUpdateHostDisksEncryptionFuncInvoked = true
@@ -5043,11 +5060,11 @@ func (s *DataStore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID
 	return s.SetOrUpdateHostDiskEncryptionKeyFunc(ctx, hostID, encryptedBase64Key, clientError, decryptable)
 }
 
-func (s *DataStore) SaveLUKSData(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64SlotKey string) error {
+func (s *DataStore) SaveLUKSData(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error {
 	s.mu.Lock()
 	s.SaveLUKSDataFuncInvoked = true
 	s.mu.Unlock()
-	return s.SaveLUKSDataFunc(ctx, hostID, encryptedBase64Passphrase, encryptedBase64SlotKey)
+	return s.SaveLUKSDataFunc(ctx, hostID, encryptedBase64Passphrase, encryptedBase64Salt, keySlot)
 }
 
 func (s *DataStore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
@@ -6798,6 +6815,13 @@ func (s *DataStore) GetSetupExperienceScript(ctx context.Context, teamID *uint) 
 	s.GetSetupExperienceScriptFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSetupExperienceScriptFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetSetupExperienceScriptByID(ctx context.Context, scriptID uint) (*fleet.Script, error) {
+	s.mu.Lock()
+	s.GetSetupExperienceScriptByIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSetupExperienceScriptByIDFunc(ctx, scriptID)
 }
 
 func (s *DataStore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) error {

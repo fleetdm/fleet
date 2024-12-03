@@ -18,7 +18,7 @@ where a host might have been lost or stolen, or to remotely prepare a device to 
 
 ## Wipe a host
 
-1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the device you want to lock. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.
+1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the device you want to wipe. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.
 2. Click the host to open the **Host Overview** page.
 3. Click the **Actions** dropdown, then click  **Wipe**.
 4. Confirm that you want to wipe the device in the dialog. The host will now be marked with a "Wipe pending" badge. Once the wipe command is acknowledged by the host, the badge will update to "Wiped".
@@ -29,12 +29,12 @@ where a host might have been lost or stolen, or to remotely prepare a device to 
 
 To unlock a locked host:
 
-1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the device you want to lock. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.
+1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the device you want to unlock. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.
 2. Click the host to open the **Host Overview** page.
 3. Click the **Actions** menu, then click **Unlock**.
     - **macOS**: A dialog with the PIN will appear. Type the PIN into the device to unlock it.
     - **Windows and Linux**: The command to unlock the host will be queued and the host will unlock once it receives the command (no PIN needed).
-5. When you click **Unlock**, the host will be marked with an "Unlock pending" badge. Once the host is unlocked and checks back in with Fleet, the "Unlock pending" badge will be removed.
+5. When you click **Unlock**, Windows and Linux hosts will be marked with an "Unlock pending" badge. Once the host is unlocked and checks back in with Fleet, the "Unlock pending" badge will be removed. macOS hosts do not have an "Unlock pending" badge as they cannot be remotely unlocked (the PIN has to be typed into the device).
 
 
 ## Lock and wipe using `fleetctl`

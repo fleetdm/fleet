@@ -174,7 +174,6 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	}, &mdm.CommandResults{
 		CommandUUID: appleCmdUUID,
 		Status:      "Acknowledged",
-		RequestType: "ProfileList",
 		Raw:         []byte(appleCmd),
 	})
 	require.NoError(t, err)

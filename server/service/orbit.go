@@ -235,19 +235,27 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 
 		if isConnectedToFleetMDM {
+			// If there is no software or script configured for setup experience and this is the
+			// first time orbit is calling the /config endpoint, then this host
+			// will not have a row in host_mdm_apple_awaiting_configuration.
+			// On subsequent calls to /config, the host WILL have a row in
+			// host_mdm_apple_awaiting_configuration.
 			inSetupAssistant, err := svc.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
-			if err != nil {
+			if err != nil && !fleet.IsNotFound(err) {
 				return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking if host is in setup experience")
 			}
 
 			if inSetupAssistant {
 				notifs.RunSetupExperience = true
+			}
 
-				// check if the client is running an old fleetd version that doesn't support the new
-				// setup experience flow.
+			if inSetupAssistant {
+				// If the client is running a fleetd that doesn't support setup
+				// experience, then we should fall back to the "old way" of releasing
+				// the device.
 				mp, ok := capabilities.FromContext(ctx)
 				if !ok || !mp.Has(fleet.CapabilitySetupExperience) {
-					level.Debug(svc.logger).Log("msg", "host doesn't support Setup experience, falling back to worker-based device release", "host_uuid", host.UUID)
+					level.Debug(svc.logger).Log("msg", "host doesn't support setup experience, falling back to worker-based device release", "host_uuid", host.UUID)
 					if err := svc.processReleaseDeviceForOldFleetd(ctx, host); err != nil {
 						return fleet.OrbitConfig{}, err
 					}
@@ -511,7 +519,7 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 
 		// Enroll reference arg is not used in the release device task, passing empty string.
 		if err := worker.QueueAppleMDMJob(ctx, svc.ds, svc.logger, worker.AppleMDMPostDEPReleaseDeviceTask,
-			host.UUID, host.Platform, host.TeamID, "", bootstrapCmdUUID, acctConfigCmdUUID); err != nil {
+			host.UUID, host.Platform, host.TeamID, "", false, bootstrapCmdUUID, acctConfigCmdUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue Apple Post-DEP release device job")
 		}
 	}
@@ -837,11 +845,20 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			}
 		}
 		var scriptName string
-		if hsr.ScriptID != nil {
+
+		switch {
+		case hsr.ScriptID != nil:
 			scr, err := svc.ds.Script(ctx, *hsr.ScriptID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "get saved script")
 			}
+			scriptName = scr.Name
+		case hsr.SetupExperienceScriptID != nil:
+			scr, err := svc.ds.GetSetupExperienceScriptByID(ctx, *hsr.SetupExperienceScriptID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get setup experience script")
+			}
+
 			scriptName = scr.Name
 		}
 
@@ -1025,7 +1042,8 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 type orbitPostLUKSRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
 	Passphrase   string `json:"passphrase"`
-	SlotKey      string `json:"slot_key"`
+	Salt         string `json:"salt"`
+	KeySlot      *uint  `json:"key_slot"`
 	ClientError  string `json:"client_error"`
 }
 
@@ -1048,13 +1066,13 @@ func (r orbitPostLUKSResponse) Status() int  { return http.StatusNoContent }
 
 func postOrbitLUKSEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*orbitPostLUKSRequest)
-	if err := svc.EscrowLUKSData(ctx, req.Passphrase, req.SlotKey, req.ClientError); err != nil {
+	if err := svc.EscrowLUKSData(ctx, req.Passphrase, req.Salt, req.KeySlot, req.ClientError); err != nil {
 		return orbitPostLUKSResponse{Err: err}, nil
 	}
 	return orbitPostLUKSResponse{}, nil
 }
 
-func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, slotKey string, clientError string) error {
+func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string) error {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
@@ -1066,36 +1084,34 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, slotK
 	if clientError != "" {
 		return svc.ds.ReportEscrowError(ctx, host.ID, clientError)
 	}
-	encryptedPassphrase, encryptedSlotKey, err := svc.validateAndEncrypt(ctx, passphrase, slotKey)
+
+	encryptedPassphrase, encryptedSalt, validatedKeySlot, err := svc.validateAndEncrypt(ctx, passphrase, salt, keySlot)
 	if err != nil {
 		_ = svc.ds.ReportEscrowError(ctx, host.ID, err.Error())
 		return err
 	}
 
-	return svc.ds.SaveLUKSData(ctx, host.ID, encryptedPassphrase, encryptedSlotKey)
+	return svc.ds.SaveLUKSData(ctx, host.ID, encryptedPassphrase, encryptedSalt, validatedKeySlot)
 }
 
-func (svc *Service) validateAndEncrypt(ctx context.Context, passphrase string, slotKey string) (string, string, error) {
-	if passphrase == "" {
-		return "", "", badRequest("Blank passphrase provided")
+func (svc *Service) validateAndEncrypt(ctx context.Context, passphrase string, salt string, keySlot *uint) (encryptedPassphrase string, encryptedSalt string, validatedKeySlot uint, err error) {
+	if passphrase == "" || salt == "" || keySlot == nil {
+		return "", "", 0, badRequest("passphrase, salt, and key_slot must be provided to escrow LUKS data")
 	}
 	if svc.config.Server.PrivateKey == "" {
-		return "", "", newOsqueryError("internal error: missing server private key")
+		return "", "", 0, newOsqueryError("internal error: missing server private key")
 	}
 
-	encryptedPassphrase, err := mdm.EncryptAndEncode(passphrase, svc.config.Server.PrivateKey)
+	encryptedPassphrase, err = mdm.EncryptAndEncode(passphrase, svc.config.Server.PrivateKey)
 	if err != nil {
-		return "", "", ctxerr.Wrap(ctx, err, "internal error: could not encrypt LUKS data")
+		return "", "", 0, ctxerr.Wrap(ctx, err, "internal error: could not encrypt LUKS data")
 	}
-	var encryptedSlotKey string
-	if slotKey != "" {
-		encryptedSlotKey, err = mdm.EncryptAndEncode(slotKey, svc.config.Server.PrivateKey)
-		if err != nil {
-			return "", "", ctxerr.Wrap(ctx, err, "internal error: could not encrypt LUKS data")
-		}
+	encryptedSalt, err = mdm.EncryptAndEncode(salt, svc.config.Server.PrivateKey)
+	if err != nil {
+		return "", "", 0, ctxerr.Wrap(ctx, err, "internal error: could not encrypt LUKS data")
 	}
 
-	return encryptedPassphrase, encryptedSlotKey, nil
+	return encryptedPassphrase, encryptedSalt, *keySlot, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////

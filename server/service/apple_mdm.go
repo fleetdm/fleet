@@ -1526,7 +1526,13 @@ func (svc *Service) needsOSUpdateForDEPEnrollment(ctx context.Context, m fleet.M
 		return false, nil
 	}
 
-	return apple_mdm.IsLessThanVersion(m.OSVersion, settings.MinimumVersion.Value)
+	needsUpdate, err := apple_mdm.IsLessThanVersion(m.OSVersion, settings.MinimumVersion.Value)
+	if err != nil {
+		level.Info(svc.logger).Log("msg", "checking os updates settings, cannot compare versions", "serial", m.Serial, "current_version", m.OSVersion, "minimum_version", settings.MinimumVersion.Value)
+		return false, nil
+	}
+
+	return needsUpdate, nil
 }
 
 func (svc *Service) getAppleSoftwareUpdateRequiredForDEPEnrollment(m fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error) {
@@ -1603,10 +1609,19 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return ctxerr.Wrap(ctx, err, "getting host info for mdm apple remove profile command")
 	}
 
-	if h.Platform == "ios" || h.Platform == "ipados" {
+	switch h.Platform {
+	case "ios":
+		fallthrough
+	case "ipados":
 		return &fleet.BadRequestError{
-			Message: "Can't turn off MDM for iOS or iPadOS hosts. Use wipe instead.",
+			Message: fleet.CantTurnOffMDMForIOSOrIPadOSMessage,
 		}
+	case "windows":
+		return &fleet.BadRequestError{
+			Message: fleet.CantTurnOffMDMForWindowsHostsMessage,
+		}
+	default:
+		// host is darwin, so continue
 	}
 
 	info, err := svc.ds.GetHostMDMCheckinInfo(ctx, h.UUID)
@@ -2137,12 +2152,15 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 		return err
 	}
 
-	var didUpdate, didUpdateMacOSDiskEncryption bool
+	var didUpdate bool
 	if enabled != nil {
 		if ac.MDM.EnableDiskEncryption.Value != *enabled {
+			if *enabled && svc.config.Server.PrivateKey == "" {
+				return ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+			}
+
 			ac.MDM.EnableDiskEncryption = optjson.SetBool(*enabled)
 			didUpdate = true
-			didUpdateMacOSDiskEncryption = true
 		}
 	}
 
@@ -2150,7 +2168,7 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err
 		}
-		if didUpdateMacOSDiskEncryption {
+		if ac.MDM.EnabledAndConfigured { // if macOS MDM is configured, set up FileVault escrow
 			var act fleet.ActivityDetails
 			if ac.MDM.EnableDiskEncryption.Value {
 				act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
@@ -2760,20 +2778,21 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		return ctxerr.Wrap(r.Context, err, "cleaning SCEP refs")
 	}
 
+	var hasSetupExpItems bool
 	if m.AwaitingConfiguration {
 		// Enqueue setup experience items and mark the host as being in setup experience
-		_, err := svc.ds.EnqueueSetupExperienceItems(r.Context, r.ID, info.TeamID)
+		hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, r.ID, info.TeamID)
 		if err != nil {
 			return ctxerr.Wrap(r.Context, err, "queueing setup experience tasks")
 		}
-
 	}
 
 	return svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
-		Action:          mdmlifecycle.HostActionTurnOn,
-		Platform:        info.Platform,
-		UUID:            r.ID,
-		EnrollReference: r.Params[mobileconfig.FleetEnrollReferenceKey],
+		Action:                  mdmlifecycle.HostActionTurnOn,
+		Platform:                info.Platform,
+		UUID:                    r.ID,
+		EnrollReference:         r.Params[mobileconfig.FleetEnrollReferenceKey],
+		HasSetupExperienceItems: hasSetupExpItems,
 	})
 }
 
@@ -2842,6 +2861,15 @@ func (svc *MDMAppleCheckinAndCommandService) UserAuthenticate(*mdm.Request, *mdm
 // [1]: https://developer.apple.com/documentation/devicemanagement/declarative_management_checkin
 func (svc *MDMAppleCheckinAndCommandService) DeclarativeManagement(r *mdm.Request, dm *mdm.DeclarativeManagement) ([]byte, error) {
 	// DeclarativeManagement is handled by the MDMAppleDDMService.
+	return nil, nil
+}
+
+// GetToken handles MDM [GetToken][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/get_token
+func (svc *MDMAppleCheckinAndCommandService) GetToken(_ *mdm.Request, _ *mdm.GetToken) (*mdm.GetTokenResponse, error) {
 	return nil, nil
 }
 
@@ -4745,7 +4773,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	// otherwise we might be in the second phase, check if the signing cert
 	// was issued by Fleet, only let the enrollment through if so.
 	certVerifier := mdmcrypto.NewSCEPVerifier(svc.ds)
-	if err := certVerifier.Verify(rootSigner); err != nil {
+	if err := certVerifier.Verify(ctx, rootSigner); err != nil {
 		return nil, authz.ForbiddenWithInternal(fmt.Sprintf("payload signed with invalid certificate: %s", err), nil, nil, nil)
 	}
 

@@ -394,7 +394,7 @@ type Service interface {
 	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
 	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
-	EscrowLUKSData(ctx context.Context, passphrase string, slotKey string, clientError string) error
+	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string) error
 
 	// AddLabelsToHost adds the given label names to the host's label membership.
 	//
@@ -1059,11 +1059,16 @@ type Service interface {
 	// Returns empty status if the host is not a supported Linux host
 	LinuxHostDiskEncryptionStatus(ctx context.Context, host Host) (HostMDMDiskEncryption, error)
 
+	// GetMDMLinuxProfilesSummary summarizes the current status of Linux disk encryption for
+	// the provided team (or hosts without a team if teamId is nil), or returns zeroes if disk
+	// encryption is not enforced on the selected team
+	GetMDMLinuxProfilesSummary(ctx context.Context, teamId *uint) (MDMProfilesSummary, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM
 
-	// GetMDMDiskEncryptionSummary returns the current disk encryption status of all macOS and
-	// Windows hosts in the specified team (or, if no team is specified, each host that is not
+	// GetMDMDiskEncryptionSummary returns the current disk encryption status of all macOS, Windows, and
+	// Linux hosts in the specified team (or, if no team is specified, each host that is not
 	// assigned to any team).
 	GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uint) (*MDMDiskEncryptionSummary, error)
 

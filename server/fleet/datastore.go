@@ -899,12 +899,14 @@ type Datastore interface {
 	GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error)
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error
 
+	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error)
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
 	// a host
 	SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key, clientError string, decryptable *bool) error
-	// SaveLUKSData sets base64'd encrypted LUKS passphrase and slot key data for a host
-	SaveLUKSData(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64SlotKey string) error
+	// SaveLUKSData sets base64'd encrypted LUKS passphrase, key slot, and salt data for a host that has successfully
+	// escrowed LUKS data
+	SaveLUKSData(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error
 
 	// GetUnverifiedDiskEncryptionKeys returns all the encryption keys that
 	// are collected but their decryptable status is not known yet (ie:
@@ -1795,14 +1797,46 @@ type Datastore interface {
 	// Setup Experience
 	//
 
+	// ListSetupExperienceResultsByHostUUID lists the setup experience results for a host by its UUID.
 	ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*SetupExperienceStatusResult, error)
+
+	// UpdateSetupExperienceStatusResult updates the given setup experience status result.
 	UpdateSetupExperienceStatusResult(ctx context.Context, status *SetupExperienceStatusResult) error
+
+	// EnqueueSetupExperienceItems enqueues the relevant setup experience items (software and
+	// script) for a given host. It first clears out any pre-existing setup experience items that
+	// were previously enqueued for the host (since the setup experience only happens once during
+	// the initial device setup). It then adds any software and script that have been configured for
+	// this team to the host's queue and sets their status to pending. If any items were enqueued,
+	// it returns true, otherwise it returns false.
 	EnqueueSetupExperienceItems(ctx context.Context, hostUUID string, teamID uint) (bool, error)
+
+	// GetSetupExperienceScript gets the setup experience script for a team. There can only be 1
+	// setup experience script per team.
 	GetSetupExperienceScript(ctx context.Context, teamID *uint) (*Script, error)
+
+	// GetSetupExperienceScriptByID gets the setup experience script by its ID.
+	GetSetupExperienceScriptByID(ctx context.Context, scriptID uint) (*Script, error)
+
+	// SetSetupExperienceScript sets the setup experience script to the given script.
 	SetSetupExperienceScript(ctx context.Context, script *Script) error
+
+	// DeleteSetupExperienceScript deletes the setup experience script for the given team.
 	DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error
+
+	// MaybeUpdateSetupExperienceScriptStatus updates the status of the setup experience script for
+	// the given host if the script result row exists. If there was an update, it returns true.
+	// Otherwise, it returns false.
 	MaybeUpdateSetupExperienceScriptStatus(ctx context.Context, hostUUID string, executionID string, status SetupExperienceStatusResultStatus) (bool, error)
+
+	// MaybeUpdateSetupExperienceSoftwareInstallStatus updates the status of the setup experience
+	// software installer for the given host if the software installer result row exists. If there
+	// was an update, it returns true. Otherwise, it returns false.
 	MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx context.Context, hostUUID string, executionID string, status SetupExperienceStatusResultStatus) (bool, error)
+
+	// MaybeUpdateSetupExperienceVPPStatus updates the status of the setup experience
+	// VPP app for the given host if the VPP app installer row exists. If there was an update, it
+	// returns true. Otherwise, it returns false.
 	MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hostUUID string, commandUUID string, status SetupExperienceStatusResultStatus) (bool, error)
 
 	// Fleet-maintained apps

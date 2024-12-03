@@ -45,6 +45,19 @@ Before a routine customer call, the CSM prepares an agenda including the followi
 6. Provide updates to open bug reports
 
 
+ ### Invite new customer DRI
+
+Sometimes there is a change in the champion within the customer's organization.
+1. Get an introduction to the new DRIs including names, roles, contact information.
+2. Make sure they're in the Slack channel.
+3. Invite them to the *Success* meetings.
+4. In the first meeting understand their proficiency level of osquery.
+    1. Make sure the meeting time is still convenient for their team. 
+    2. Understand their needs and goals for visibility.
+    3. Offer training to get them up to speed.
+    4. Provide a white glove experience.
+
+
 ### Generate an expansion opportunity in Salesforce
 
 [Customer Success Managers (CSMs)](https://fleetdm.com/handbook/customer-success#team) are responsible for developing customer expansion opportunities that are not being worked on in conjunction with an Account Executive (AE). An AE may be assigned by the [Chief Revenue Officer (CRO)](https://fleetdm.com/handbook/sales#team) for large-scale expansion opportunities such as bringing on a new Fleet use case or bringing on a new group of hosts to an existing Fleet use case. CSMs manage expansion opportunities for things like host count increases for customer growth and price increases on renewals. Discuss examples of these scenarios with your manager to learn more. Moving forward, CSM's are responsible for keeping the stage, next steps, and date of next steps fields updated as the opportunity progresses through the sales cycle. Take the steps below when creating an expansion opportunity in Salesforce:

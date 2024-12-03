@@ -585,7 +585,7 @@ AND (
 }
 
 func (ds *Datastore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error) {
-	enabled, err := ds.getConfigEnableDiskEncryption(ctx, teamID)
+	enabled, err := ds.GetConfigEnableDiskEncryption(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -655,7 +655,7 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 		return nil, nil
 	}
 
-	enabled, err := ds.getConfigEnableDiskEncryption(ctx, host.TeamID)
+	enabled, err := ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
 	if err != nil {
 		return nil, err
 	}
@@ -887,7 +887,7 @@ func subqueryHostsMDMWindowsOSSettingsStatusVerified() (string, []interface{}, e
 }
 
 func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
-	includeBitLocker, err := ds.getConfigEnableDiskEncryption(ctx, teamID)
+	includeBitLocker, err := ds.GetConfigEnableDiskEncryption(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}

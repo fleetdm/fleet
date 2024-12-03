@@ -1,6 +1,8 @@
 # Fleet 4.57.0 | Software improvements, policy automation, GitLab support.
 
-![Fleet 4.57.0](../website/assets/images/articles/fleet-4.57.0-1600x900@2x.png)
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/xcCmYm7eLZM?si=ZzrSy2lSo0DMdzq-" frameborder="0" allowfullscreen></iframe>
+</div>
 
 Fleet 4.57.0 is live. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) or continue reading to get the highlights.
 For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
