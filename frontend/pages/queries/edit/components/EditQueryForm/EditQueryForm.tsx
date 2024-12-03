@@ -503,9 +503,8 @@ const EditQueryForm = ({
             name="query-name"
             placeholder="Add name"
             value={lastEditedQueryName}
-            inputClassName={`${baseClass}__query-name ${
-              !lastEditedQueryName ? "no-value" : ""
-            }`}
+            inputClassName={`${baseClass}__query-name ${!lastEditedQueryName ? "no-value" : ""
+              }`}
             maxLength={160}
             hasError={errors && errors.name}
             onChange={setLastEditedQueryName}
@@ -547,9 +546,8 @@ const EditQueryForm = ({
             placeholder="Add description"
             value={lastEditedQueryDescription}
             maxLength={250}
-            inputClassName={`${baseClass}__query-description ${
-              !lastEditedQueryDescription ? "no-value" : ""
-            }`}
+            inputClassName={`${baseClass}__query-description ${!lastEditedQueryDescription ? "no-value" : ""
+              }`}
             onChange={setLastEditedQueryDescription}
             onKeyPress={onInputKeypress}
             isFocused={isEditingDescription}
@@ -607,39 +605,39 @@ const EditQueryForm = ({
       {(lastEditedQueryObserverCanRun ||
         isObserverPlus ||
         isAnyTeamObserverPlus) && (
-        <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
-          <div
-            data-tip
-            data-for="live-query-button"
-            // Tooltip shows when live queries are globally disabled
-            data-tip-disable={!disabledLiveQuery}
-          >
-            <Button
-              className={`${baseClass}__run`}
-              variant="blue-green"
-              onClick={() => {
-                router.push(
-                  PATHS.LIVE_QUERY(queryIdForEdit) +
-                    TAGGED_TEMPLATES.queryByHostRoute(hostId, apiTeamIdForQuery)
-                );
-              }}
-              disabled={disabledLiveQuery}
+          <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
+            <div
+              data-tip
+              data-for="live-query-button"
+              // Tooltip shows when live queries are globally disabled
+              data-tip-disable={!disabledLiveQuery}
             >
-              Live query
-            </Button>
+              <Button
+                className={`${baseClass}__run`}
+                variant="blue-green"
+                onClick={() => {
+                  router.push(
+                    PATHS.LIVE_QUERY(queryIdForEdit) +
+                    TAGGED_TEMPLATES.queryByHostRoute(hostId, apiTeamIdForQuery)
+                  );
+                }}
+                disabled={disabledLiveQuery}
+              >
+                Live query
+              </Button>
+            </div>
+            <ReactTooltip
+              className={`live-query-button-tooltip`}
+              place="top"
+              effect="solid"
+              backgroundColor={COLORS["tooltip-bg"]}
+              id="live-query-button"
+              data-html
+            >
+              Live queries are disabled in organization settings
+            </ReactTooltip>
           </div>
-          <ReactTooltip
-            className={`live-query-button-tooltip`}
-            place="top"
-            effect="solid"
-            backgroundColor={COLORS["tooltip-bg"]}
-            id="live-query-button"
-            data-html
-          >
-            Live queries are disabled in organization settings
-          </ReactTooltip>
-        </div>
-      )}
+        )}
     </form>
   );
 
@@ -668,7 +666,7 @@ const EditQueryForm = ({
   const changedPlatforms =
     storedQuery &&
     formatPlatformEquivalences(lastEditedQueryPlatforms) !==
-      formatPlatformEquivalences(storedQuery?.platform);
+    formatPlatformEquivalences(storedQuery?.platform);
 
   const changedMinOsqueryVersion =
     storedQuery &&
@@ -872,7 +870,7 @@ const EditQueryForm = ({
                   setEditingExistingQuery(true); // Persists edited query data through live query flow
                   router.push(
                     PATHS.LIVE_QUERY(queryIdForEdit) +
-                      TAGGED_TEMPLATES.queryByHostRoute(hostId, currentTeamId)
+                    TAGGED_TEMPLATES.queryByHostRoute(hostId, currentTeamId)
                   );
                 }}
                 disabled={disabledLiveQuery}
