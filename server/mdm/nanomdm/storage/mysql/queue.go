@@ -24,15 +24,30 @@ func enqueue(ctx context.Context, tx *sql.Tx, ids []string, cmd *mdm.Command) er
 	if err != nil {
 		return err
 	}
-	query := `INSERT INTO nano_enrollment_queue (id, command_uuid) VALUES (?, ?)`
-	query += strings.Repeat(", (?, ?)", len(ids)-1)
-	args := make([]interface{}, len(ids)*2)
-	for i, id := range ids {
-		args[i*2] = id
-		args[i*2+1] = cmd.CommandUUID
+	const mySQLPlaceholderLimit = 65536
+	const placeholdersPerInsert = 2
+	const batchSize = mySQLPlaceholderLimit / placeholdersPerInsert
+	for i := 0; i < len(ids); i += batchSize {
+		end := i + batchSize
+		if end > len(ids) {
+			end = len(ids)
+		}
+		idsBatch := ids[i:end]
+
+		// Process batch
+		query := `INSERT INTO nano_enrollment_queue (id, command_uuid) VALUES (?, ?)`
+		query += strings.Repeat(", (?, ?)", len(idsBatch)-1)
+		args := make([]interface{}, len(idsBatch)*placeholdersPerInsert)
+		for i, id := range idsBatch {
+			args[i*2] = id
+			args[i*2+1] = cmd.CommandUUID
+		}
+		_, err = tx.ExecContext(ctx, query+";", args...)
+		if err != nil {
+			return err
+		}
 	}
-	_, err = tx.ExecContext(ctx, query+";", args...)
-	return err
+	return nil
 }
 
 func (m *MySQLStorage) EnqueueCommand(ctx context.Context, ids []string, cmd *mdm.Command) (map[string]error, error) {
