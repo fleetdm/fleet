@@ -83,6 +83,8 @@ import SoftwareFleetMaintained from "pages/SoftwarePage/SoftwareAddPage/Software
 import SoftwareCustomPackage from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage";
 import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp";
 import FleetMaintainedAppDetailsPage from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage";
+import TwoFactorExpiredPage from "pages/TwoFactorAuthentication/TwoFactorExpiredPage";
+import CheckEmailPage from "pages/TwoFactorAuthentication/CheckEmailPage";
 
 import PATHS from "router/paths";
 
@@ -145,6 +147,8 @@ const routes = (
             component={ConfirmSSOInvitePage}
           />
           <Route path="login/forgot" component={ForgotPasswordPage} />
+          <Route path="login/expired" component={TwoFactorExpiredPage} />
+          <Route path="login/2fa" component={CheckEmailPage} />
           <Route path="login/reset" component={ResetPasswordPage} />
           <Route path="login/denied" component={NoAccessPage} />
           <Route path="mdm/sso/callback" component={MDMAppleSSOCallbackPage} />

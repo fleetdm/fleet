@@ -16,14 +16,14 @@ const CheckEmailPage = ({ router }: ICheckEmailPage) => {
   const [isLoading, setIsLoading] = useState(false);
   // TODO: pushing here instead of to the app
 
-  const baseClass = "two-factor-email-check";
+  const baseClass = "two-factor-check-email";
 
   const renderContent = () => {
     if (isLoading) {
       return <Spinner />;
     }
     return (
-      <div className={`${baseClass}__text-wrapper`}>
+      <div className={`${baseClass}__wrap`}>
         <BackLink text="Back to login" path={PATHS.LOGIN} />
         <h1>Check your email</h1>
         <p className={`${baseClass}__text`}>
