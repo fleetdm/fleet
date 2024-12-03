@@ -1217,7 +1217,7 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{}, nil
 	}
-	ds.CountABMTokensFunc = func(ctx context.Context) (uint32, error) {
+	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
 		return 0, nil
 	}
 	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
@@ -1818,7 +1818,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{}, nil
 	}
-	ds.CountABMTokensFunc = func(ctx context.Context) (uint32, error) {
+	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
 		return 0, nil
 	}
 
@@ -2860,8 +2860,8 @@ software:
 				}
 				return []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}, {OrganizationName: "Foo Inc."}}, nil
 			}
-			ds.CountABMTokensFunc = func(ctx context.Context) (uint32, error) {
-				return uint32(len(tt.tokens)), nil // nolint:gosec // dismiss G115
+			ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
+				return len(tt.tokens), nil
 			}
 
 			ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
@@ -3186,7 +3186,7 @@ software:
 			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 				return []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}, {OrganizationName: "Foo Inc."}}, nil
 			}
-			ds.CountABMTokensFunc = func(ctx context.Context) (uint32, error) {
+			ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
 				return 1, nil
 			}
 

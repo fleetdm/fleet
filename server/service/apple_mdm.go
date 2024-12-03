@@ -4485,8 +4485,8 @@ func (svc *Service) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error
 // //////////////////////////////////////////////////////////////////////////////
 
 type countABMTokensResponse struct {
-	Err   error  `json:"error,omitempty"`
-	Count uint32 `json:"count"`
+	Err   error `json:"error,omitempty"`
+	Count int   `json:"count"`
 }
 
 func (r countABMTokensResponse) error() error { return r.Err }
@@ -4500,7 +4500,7 @@ func countABMTokensEndpoint(ctx context.Context, _ interface{}, svc fleet.Servic
 	return &countABMTokensResponse{Count: tokenCount}, nil
 }
 
-func (svc *Service) CountABMTokens(ctx context.Context) (uint32, error) {
+func (svc *Service) CountABMTokens(ctx context.Context) (int, error) {
 	// Automatic enrollment (ABM/ADE/DEP) is a feature that requires a license.
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.

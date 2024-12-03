@@ -943,8 +943,6 @@ type InsertABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) (*fleet.A
 
 type ListABMTokensFunc func(ctx context.Context) ([]*fleet.ABMToken, error)
 
-type CountABMTokensFunc func(ctx context.Context) (uint32, error)
-
 type DeleteABMTokenFunc func(ctx context.Context, tokenID uint) error
 
 type GetABMTokenByIDFunc func(ctx context.Context, tokenID uint) (*fleet.ABMToken, error)
@@ -2552,9 +2550,6 @@ type DataStore struct {
 
 	ListABMTokensFunc        ListABMTokensFunc
 	ListABMTokensFuncInvoked bool
-
-	CountABMTokensFunc        CountABMTokensFunc
-	CountABMTokensFuncInvoked bool
 
 	DeleteABMTokenFunc        DeleteABMTokenFunc
 	DeleteABMTokenFuncInvoked bool
@@ -6120,13 +6115,6 @@ func (s *DataStore) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error
 	s.ListABMTokensFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListABMTokensFunc(ctx)
-}
-
-func (s *DataStore) CountABMTokens(ctx context.Context) (uint32, error) {
-	s.mu.Lock()
-	s.CountABMTokensFuncInvoked = true
-	s.mu.Unlock()
-	return s.CountABMTokensFunc(ctx)
 }
 
 func (s *DataStore) DeleteABMToken(ctx context.Context, tokenID uint) error {

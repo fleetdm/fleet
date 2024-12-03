@@ -160,7 +160,7 @@ func TestCountABMTokensAuth(t *testing.T) {
 	require.NoError(t, err)
 	svc := Service{ds: ds, authz: authorizer}
 
-	ds.CountABMTokensFunc = func(ctx context.Context) (uint32, error) {
+	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
 		return 5, nil
 	}
 

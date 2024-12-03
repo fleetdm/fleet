@@ -40,7 +40,7 @@ func (c *Client) GetAppleBM() (*fleet.AppleBM, error) {
 	return responseBody.AppleBM, err
 }
 
-func (c *Client) CountABMTokens() (uint32, error) {
+func (c *Client) CountABMTokens() (int, error) {
 	verb, path := "GET", "/api/latest/fleet/abm_tokens/count"
 	var responseBody countABMTokensResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
