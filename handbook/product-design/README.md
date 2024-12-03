@@ -56,7 +56,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 
 3. Add page names (e.g. "Host details" page) to the user story's title and/or description to help contributors find Figma wireframes for the area of the UI you're making changes to.
 
-4. If the story requires API or YAML file changes, open a pull request to the reference docs release branch (e.g. `docs-v4.58.0`) with the proposed design. Mark the PR ready for review as soon as it's ready for feedback from the [API design DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris).
+4. If the story requires API or YAML file changes, open a pull request to the reference docs release branch (e.g. `docs-v4.58.0`) with the proposed design. Mark the PR "Ready for review" as soon as it's ready for feedback from the [API design DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris).
 
 5. Add links to the user story as specified in the [issue template](https://github.com/fleetdm/fleet/issues/new?template=story.md).
 
