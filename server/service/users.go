@@ -149,6 +149,7 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 	// set the payload role property based on an existing invite.
 	p.GlobalRole = invite.GlobalRole.Ptr()
 	p.Teams = &invite.Teams
+	p.MFAEnabled = ptr.Bool(invite.MFAEnabled)
 
 	user, err := svc.NewUser(ctx, p)
 	if err != nil {
@@ -342,6 +343,16 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 	ownUser := vc.UserID() == userID
 	if err := p.VerifyModify(ownUser); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify user payload")
+	}
+
+	if p.MFAEnabled != nil && *p.MFAEnabled && !user.MFAEnabled {
+		lic, _ := license.FromContext(ctx)
+		if lic == nil {
+			return nil, ctxerr.New(ctx, "license not found")
+		}
+		if !lic.IsPremium() {
+			return nil, fleet.ErrMissingLicense
+		}
 	}
 
 	if p.GlobalRole != nil || p.Teams != nil {

@@ -90,6 +90,11 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 		invite.SSOEnabled = *payload.SSOEnabled
 	}
 
+	lic, err := svc.License(ctx)
+	if err == nil && lic != nil && lic.IsPremium() && !invite.SSOEnabled && payload.MFAEnabled != nil && *payload.MFAEnabled {
+		invite.MFAEnabled = true
+	}
+
 	invite, err = svc.ds.NewInvite(ctx, invite)
 	if err != nil {
 		return nil, err
@@ -230,6 +235,10 @@ func (svc *Service) UpdateInvite(ctx context.Context, id uint, payload fleet.Inv
 	}
 	if payload.SSOEnabled != nil {
 		invite.SSOEnabled = *payload.SSOEnabled
+	}
+	lic, err := svc.License(ctx)
+	if err == nil && lic != nil && lic.IsPremium() && !invite.SSOEnabled && payload.MFAEnabled != nil && *payload.MFAEnabled {
+		invite.MFAEnabled = true
 	}
 
 	if payload.GlobalRole.Valid || len(payload.Teams) > 0 {

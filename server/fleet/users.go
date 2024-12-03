@@ -156,6 +156,7 @@ type UserPayload struct {
 	Position                 *string     `json:"position,omitempty"`
 	InviteToken              *string     `json:"invite_token,omitempty"`
 	SSOInvite                *bool       `json:"sso_invite,omitempty"`
+	MFAEnabled               *bool       `json:"mfa_enabled,omitempty"`
 	SSOEnabled               *bool       `json:"sso_enabled,omitempty"`
 	GlobalRole               *string     `json:"global_role,omitempty"`
 	AdminForcedPasswordReset *bool       `json:"admin_forced_password_reset,omitempty"`
@@ -212,8 +213,13 @@ func (p *UserPayload) verifyCreateShared(invalid *InvalidArgumentError) {
 		}
 	}
 
-	if p.SSOEnabled != nil && *p.SSOEnabled && p.Password != nil && len(*p.Password) > 0 {
-		invalid.Append("password", "not allowed for SSO users")
+	if p.SSOEnabled != nil && *p.SSOEnabled {
+		if p.Password != nil && len(*p.Password) > 0 {
+			invalid.Append("password", "not allowed for SSO users")
+		}
+		if p.MFAEnabled != nil && *p.MFAEnabled {
+			invalid.Append("mfa_enabled", "not applicable for SSO users")
+		}
 	}
 
 	if p.Email == nil {
@@ -278,6 +284,9 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 		err := user.SetPassword(*p.Password, keySize, cost)
 		if err != nil {
 			return nil, err
+		}
+		if p.MFAEnabled != nil {
+			user.MFAEnabled = *p.MFAEnabled
 		}
 	}
 

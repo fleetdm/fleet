@@ -168,6 +168,7 @@ func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error
       	gravatar_url = ?,
       	position = ?,
         sso_enabled = ?,
+        mfa_enabled = ?,
         api_only = ?,
 		global_role = ?
       WHERE id = ?
@@ -181,6 +182,7 @@ func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error
 		user.GravatarURL,
 		user.Position,
 		user.SSOEnabled,
+		user.MFAEnabled,
 		user.APIOnly,
 		user.GlobalRole,
 		user.ID)
