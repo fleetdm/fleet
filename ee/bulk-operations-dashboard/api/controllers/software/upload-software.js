@@ -131,7 +131,7 @@ module.exports = {
           await sails.rm(sails.config.uploads.prefixForFileDeletion+uploadedSoftware.fd);
           sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, ${require('util').inspect(error, {depth: 3})}`);
           return {'softwareUploadFailed': error};
-        })
+        });
       }
       // Remove the file from the s3 bucket after it has been sent to the Fleet server.
       await sails.rm(sails.config.uploads.prefixForFileDeletion+uploadedSoftware.fd);
