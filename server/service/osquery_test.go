@@ -179,7 +179,7 @@ func TestGetClientConfig(t *testing.T) {
 	// Check scheduled queries are loaded properly
 	conf, err = svc.GetClientConfig(ctx3)
 	require.NoError(t, err)
-	assert.JSONEq(t, `{ 
+	assert.JSONEq(t, `{
 		"pack_by_label": {
 			"queries":{
 				"time":{"query":"select * from time","interval":30,"removed":false}
@@ -208,7 +208,7 @@ func TestGetClientConfig(t *testing.T) {
 					"version": ""
 				}
 			}
-		} 
+		}
 	}`,
 		string(conf["packs"].(json.RawMessage)),
 	)
@@ -1165,8 +1165,12 @@ func TestHostDetailQueries(t *testing.T) {
 	host.RefetchCriticalQueriesUntil = ptr.Time(mockClock.Now().Add(1 * time.Minute))
 	queries, discovery, err = svc.detailQueriesForHost(ctx, &host)
 	require.NoError(t, err)
-	require.Equal(t, len(criticalDetailQueries), len(queries), distQueriesMapKeys(queries))
+	// host is darwin so it gets only the darwin critical query
+	require.Equal(t, 1, len(queries), distQueriesMapKeys(queries))
 	for name := range criticalDetailQueries {
+		if strings.HasSuffix(name, "_windows") {
+			continue
+		}
 		assert.Contains(t, queries, hostDetailQueryPrefix+name)
 	}
 	verifyDiscovery(t, queries, discovery)

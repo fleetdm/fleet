@@ -15353,3 +15353,13 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.NoError(t, err)
 	require.Equal(t, req.PostInstallScript, string(postinstall))
 }
+
+func (s *integrationEnterpriseTestSuite) TestWindowsMigrateMDMNotEnabled() {
+	t := s.T()
+
+	res := s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_migration_enabled": true }
+	}`), http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Windows MDM is not enabled")
+}
