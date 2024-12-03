@@ -22,7 +22,7 @@ func enqueue(ctx context.Context, tx *sql.Tx, ids []string, cmd *mdm.Command) er
 	if err != nil {
 		return err
 	}
-	const mySQLPlaceholderLimit = 65536
+	const mySQLPlaceholderLimit = 65536 - 1
 	const placeholdersPerInsert = 2
 	const batchSize = mySQLPlaceholderLimit / placeholdersPerInsert
 	for i := 0; i < len(ids); i += batchSize {
