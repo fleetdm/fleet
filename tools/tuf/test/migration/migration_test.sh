@@ -18,8 +18,8 @@ if [ -z "$FLEET_URL" ]; then
     echo "Missing FLEET_URL"
     exit 1
 fi
-if [ -z "$ENROLL_SECRET" ]; then
-    echo "Missing ENROLL_SECRET"
+if [ -z "$NO_TEAM_ENROLL_SECRET" ]; then
+    echo "Missing NO_TEAM_ENROLL_SECRET"
     exit 1
 fi
 
@@ -67,6 +67,33 @@ rm -rf "$OLD_TUF_PATH"
 rm -rf "$NEW_TUF_PATH"
 pkill file-server || true
 
+echo "Restoring update_channels for \"No team\" to 'sstable' defaults..."
+cat << EOF > upgrade.yml
+---
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    config:
+      options:
+        pack_delimiter: /
+        distributed_plugin: tls
+        disable_distributed: false
+        logger_tls_endpoint: /api/v1/osquery/log
+        distributed_interval: 10
+        distributed_tls_max_attempts: 3
+        distributed_denylist_duration: 10
+      decorators:
+        load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    update_channels:
+      orbit: stable
+      desktop: stable
+      osqueryd: stable
+EOF
+fleetctl apply -f upgrade.yml
+
 echo "Generating a TUF repository on $OLD_TUF_PATH (aka \"old\")..."
 SYSTEMS="macos linux windows" \
 TUF_PATH=$OLD_TUF_PATH \
@@ -101,7 +128,7 @@ for pkgType in "${pkgTypes[@]}"; do
         --enable-scripts \
         --fleet-desktop \
         --fleet-url="$FLEET_URL" \
-        --enroll-secret="$ENROLL_SECRET" \
+        --enroll-secret="$NO_TEAM_ENROLL_SECRET" \
         --fleet-certificate=./tools/osquery/fleet.crt \
         --debug \
         --update-roots="$ROOT_KEYS1" \
@@ -208,7 +235,6 @@ prompt "Please restart fleetd on the Linux and Windows host."
 
 echo "Checking version of updated orbit..."
 THIS_HOSTNAME=$(hostname)
-declare -a hostnames=("$THIS_HOSTNAME" "$WINDOWS_HOST_HOSTNAME" "$LINUX_HOST_HOSTNAME")
 for host_hostname in "${hostnames[@]}"; do
     ORBIT_VERSION=""
     until [ "$ORBIT_VERSION" = "\"$NEW_FULL_VERSION\"" ]; do
@@ -245,7 +271,78 @@ CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build \
 ./build/fleetctl updates add --path $NEW_TUF_PATH --target ./orbit.exe --platform windows --name orbit --version $NEW_PATCH_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
 
 echo "Waiting until update happens..."
-declare -a hostnames=("$THIS_HOSTNAME" "$WINDOWS_HOST_HOSTNAME" "$LINUX_HOST_HOSTNAME")
+for host_hostname in "${hostnames[@]}"; do
+    ORBIT_VERSION=""
+    until [ "$ORBIT_VERSION" = "\"$NEW_PATCH_VERSION\"" ]; do
+        sleep 1
+        ORBIT_VERSION=$(fleetctl query --hosts "$host_hostname" --exit --query 'SELECT * FROM orbit_info;' 2>/dev/null | jq '.rows[0].version')
+    done
+done
+
+echo "Downgrading to $OLD_FULL_VERSION..."
+cat << EOF > downgrade.yml
+---
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    config:
+      options:
+        pack_delimiter: /
+        distributed_plugin: tls
+        disable_distributed: false
+        logger_tls_endpoint: /api/v1/osquery/log
+        distributed_interval: 10
+        distributed_tls_max_attempts: 3
+        distributed_denylist_duration: 10
+      decorators:
+        load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    update_channels:
+      orbit: '$OLD_FULL_VERSION'
+      desktop: stable
+      osqueryd: stable
+EOF
+fleetctl apply -f downgrade.yml
+
+echo "Waiting until downgrade happens..."
+for host_hostname in "${hostnames[@]}"; do
+    ORBIT_VERSION=""
+    until [ "$ORBIT_VERSION" = "\"$OLD_FULL_VERSION\"" ]; do
+        sleep 1
+        ORBIT_VERSION=$(fleetctl query --hosts "$host_hostname" --exit --query 'SELECT * FROM orbit_info;' 2>/dev/null | jq '.rows[0].version')
+    done
+done
+
+echo "Restoring to latest orbit version..."
+cat << EOF > upgrade.yml
+---
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    config:
+      options:
+        pack_delimiter: /
+        distributed_plugin: tls
+        disable_distributed: false
+        logger_tls_endpoint: /api/v1/osquery/log
+        distributed_interval: 10
+        distributed_tls_max_attempts: 3
+        distributed_denylist_duration: 10
+      decorators:
+        load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    update_channels:
+      orbit: stable
+      desktop: stable
+      osqueryd: stable
+EOF
+fleetctl apply -f upgrade.yml
+
+echo "Waiting until upgrade happens..."
 for host_hostname in "${hostnames[@]}"; do
     ORBIT_VERSION=""
     until [ "$ORBIT_VERSION" = "\"$NEW_PATCH_VERSION\"" ]; do
@@ -255,14 +352,12 @@ for host_hostname in "${hostnames[@]}"; do
 done
 
 echo "Building fleetd packages using old repository and old fleetctl version that should auto-update to new orbit that talks to new repository..."
-ROOT_KEYS1=$(./build/fleetctl-v4.60.0 updates roots --path $OLD_TUF_PATH)
-declare -a pkgTypes=("pkg" "deb" "msi")
 for pkgType in "${pkgTypes[@]}"; do
     ./build/fleetctl-v4.60.0 package --type="$pkgType" \
         --enable-scripts \
         --fleet-desktop \
         --fleet-url="$FLEET_URL" \
-        --enroll-secret="$ENROLL_SECRET" \
+        --enroll-secret="$NO_TEAM_ENROLL_SECRET" \
         --fleet-certificate=./tools/osquery/fleet.crt \
         --debug \
         --update-roots="$ROOT_KEYS1" \
@@ -279,7 +374,6 @@ CURRENT_DIR=$(pwd)
 prompt "Please install $CURRENT_DIR/fleet-osquery.msi and $CURRENT_DIR/fleet-osquery_${OLD_FULL_VERSION}_amd64.deb."
 
 echo "Waiting until installation and auto-update to new repository happens..."
-declare -a hostnames=("$THIS_HOSTNAME" "$WINDOWS_HOST_HOSTNAME" "$LINUX_HOST_HOSTNAME")
 for host_hostname in "${hostnames[@]}"; do
     ORBIT_VERSION=""
     until [ "$ORBIT_VERSION" = "\"$NEW_PATCH_VERSION\"" ]; do
@@ -288,15 +382,86 @@ for host_hostname in "${hostnames[@]}"; do
     done
 done
 
+echo "Downgrading to $OLD_FULL_VERSION..."
+cat << EOF > downgrade.yml
+---
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    config:
+      options:
+        pack_delimiter: /
+        distributed_plugin: tls
+        disable_distributed: false
+        logger_tls_endpoint: /api/v1/osquery/log
+        distributed_interval: 10
+        distributed_tls_max_attempts: 3
+        distributed_denylist_duration: 10
+      decorators:
+        load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    update_channels:
+      orbit: '$OLD_FULL_VERSION'
+      desktop: stable
+      osqueryd: stable
+EOF
+fleetctl apply -f downgrade.yml
+
+echo "Waiting until downgrade happens..."
+for host_hostname in "${hostnames[@]}"; do
+    ORBIT_VERSION=""
+    until [ "$ORBIT_VERSION" = "\"$OLD_FULL_VERSION\"" ]; do
+        sleep 1
+        ORBIT_VERSION=$(fleetctl query --hosts "$host_hostname" --exit --query 'SELECT * FROM orbit_info;' 2>/dev/null | jq '.rows[0].version')
+    done
+done
+
+echo "Restoring to latest orbit version..."
+cat << EOF > upgrade.yml
+---
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    config:
+      options:
+        pack_delimiter: /
+        distributed_plugin: tls
+        disable_distributed: false
+        logger_tls_endpoint: /api/v1/osquery/log
+        distributed_interval: 10
+        distributed_tls_max_attempts: 3
+        distributed_denylist_duration: 10
+      decorators:
+        load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    update_channels:
+      orbit: stable
+      desktop: stable
+      osqueryd: stable
+EOF
+fleetctl apply -f upgrade.yml
+
+echo "Waiting until upgrade happens..."
+for host_hostname in "${hostnames[@]}"; do
+    ORBIT_VERSION=""
+    until [ "$ORBIT_VERSION" = "\"$NEW_PATCH_VERSION\"" ]; do
+        sleep 1
+        ORBIT_VERSION=$(fleetctl query --hosts "$host_hostname" --exit --query 'SELECT * FROM orbit_info;' 2>/dev/null | jq '.rows[0].version')
+    done
+done
+
+
 echo "Building fleetd packages using new repository and new fleetctl version..."
-ROOT_KEYS1=$(./build/fleetctl updates roots --path $OLD_TUF_PATH)
-declare -a pkgTypes=("pkg" "deb" "msi")
 for pkgType in "${pkgTypes[@]}"; do
     ./build/fleetctl package --type="$pkgType" \
         --enable-scripts \
         --fleet-desktop \
         --fleet-url="$FLEET_URL" \
-        --enroll-secret="$ENROLL_SECRET" \
+        --enroll-secret="$NO_TEAM_ENROLL_SECRET" \
         --fleet-certificate=./tools/osquery/fleet.crt \
         --debug \
         --update-roots="$ROOT_KEYS2" \
@@ -313,10 +478,44 @@ CURRENT_DIR=$(pwd)
 prompt "Please install $CURRENT_DIR/fleet-osquery.msi and $CURRENT_DIR/fleet-osquery_${NEW_PATCH_VERSION}_amd64.deb."
 
 echo "Waiting until installation and auto-update to new repository happens..."
-declare -a hostnames=("$THIS_HOSTNAME" "$WINDOWS_HOST_HOSTNAME" "$LINUX_HOST_HOSTNAME")
 for host_hostname in "${hostnames[@]}"; do
     ORBIT_VERSION=""
     until [ "$ORBIT_VERSION" = "\"$NEW_PATCH_VERSION\"" ]; do
+        sleep 1
+        ORBIT_VERSION=$(fleetctl query --hosts "$host_hostname" --exit --query 'SELECT * FROM orbit_info;' 2>/dev/null | jq '.rows[0].version')
+    done
+done
+
+cat << EOF > downgrade.yml
+---
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    config:
+      options:
+        pack_delimiter: /
+        distributed_plugin: tls
+        disable_distributed: false
+        logger_tls_endpoint: /api/v1/osquery/log
+        distributed_interval: 10
+        distributed_tls_max_attempts: 3
+        distributed_denylist_duration: 10
+      decorators:
+        load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    update_channels:
+      orbit: '$OLD_FULL_VERSION'
+      desktop: stable
+      osqueryd: stable
+EOF
+fleetctl apply -f downgrade.yml
+
+echo "Waiting until downgrade happens..."
+for host_hostname in "${hostnames[@]}"; do
+    ORBIT_VERSION=""
+    until [ "$ORBIT_VERSION" = "\"$OLD_FULL_VERSION\"" ]; do
         sleep 1
         ORBIT_VERSION=$(fleetctl query --hosts "$host_hostname" --exit --query 'SELECT * FROM orbit_info;' 2>/dev/null | jq '.rows[0].version')
     done
