@@ -18,7 +18,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Responsibilities
 
-The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commision calculations, exspense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, and financial operations including bank accounts and cash flow management.
+The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commision calculations, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, and financial operations including bank accounts and cash flow management.
 
 
 ### Run payroll

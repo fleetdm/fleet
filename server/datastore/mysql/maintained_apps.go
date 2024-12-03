@@ -53,9 +53,12 @@ ON DUPLICATE KEY UPDATE
 		// upsert the maintained app
 		res, err := tx.ExecContext(ctx, upsertStmt, app.Name, app.Token, app.Version, app.Platform, app.InstallerURL,
 			app.SHA256, app.BundleIdentifier, installScriptID, uninstallScriptID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert maintained app")
+		}
 		id, _ := res.LastInsertId()
 		appID = uint(id) //nolint:gosec // dismiss G115
-		return ctxerr.Wrap(ctx, err, "upsert maintained app")
+		return nil
 	})
 	if err != nil {
 		return nil, err
