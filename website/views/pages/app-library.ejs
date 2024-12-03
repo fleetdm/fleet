@@ -23,6 +23,12 @@
           </div>
         </div> -->
       </div>
+      <div purpose="count-and-cta" class="d-flex flex-sm-row flex-column align-items-sm-center align-items-start justify-content-sm-between justify-content-center mb-3">
+        <div><p class="mb-sm-0"><strong>{{allApps.length}} and counting....</strong></p></div>
+        <div>
+          <a purpose="request-button" href="/contact?sendMessage">Request an app</a>
+        </div>
+      </div>
       <div purpose="app-cards" class="card-deck flex-wrap">
         <% for(let app of allApps) { %>
 
