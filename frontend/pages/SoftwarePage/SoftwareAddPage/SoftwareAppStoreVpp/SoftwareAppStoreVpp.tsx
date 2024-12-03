@@ -43,7 +43,8 @@ const SoftwareAppStoreVpp = ({
     }
   );
 
-  const hasVppToken = teamHasVPPToken(currentTeamId, vppInfo?.vpp_tokens);
+  const hasAnyVppToken = vppInfo?.vpp_tokens.length !== 0
+  const hasTeamVppToken = teamHasVPPToken(currentTeamId, vppInfo?.vpp_tokens);
 
   const {
     data: vppApps,
@@ -54,7 +55,7 @@ const SoftwareAppStoreVpp = ({
     () => mdmAppleAPI.getVppApps(currentTeamId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: hasVppToken,
+      enabled: hasTeamVppToken,
       staleTime: 30000,
       select: (res) => res.app_store_apps,
     }
@@ -80,7 +81,8 @@ const SoftwareAppStoreVpp = ({
         <AddSoftwareVppForm
           router={router}
           teamId={currentTeamId}
-          hasVppToken={hasVppToken}
+          hasAnyVppToken={hasAnyVppToken}
+          hasTeamVppToken={hasTeamVppToken}
           vppApps={vppApps}
         />
       </div>
