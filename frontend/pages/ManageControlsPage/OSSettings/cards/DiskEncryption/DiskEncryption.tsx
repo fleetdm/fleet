@@ -128,7 +128,7 @@ const DiskEncryption = ({
     if (platform === "linux") {
       return (
         <>
-          For Ubuntu and Fedora Linux.
+          For Ubuntu, Kubuntu, and Fedora Linux.
           <br />
           Currently, full disk encryption must be turned on{" "}
           <b>
