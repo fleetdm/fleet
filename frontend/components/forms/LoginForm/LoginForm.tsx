@@ -145,7 +145,7 @@ const LoginForm = ({
       <div className={`${baseClass}__actions`}>
         <div className={`${baseClass}__login-actions`}>
           <Button className={`login-btn button button--brand`} type="submit">
-            Login
+            Log in
           </Button>
           {ssoEnabled && renderSingleSignOnButton()}
         </div>
