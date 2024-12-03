@@ -5,4 +5,4 @@ APPDIR="/Applications/"
 TMPDIR=$(dirname "$(realpath $INSTALLER_PATH)")
 
 # install pkg files
-sudo installer -pkg "$TMPDIR/zoomusInstallerFull.pkg" -target /
+sudo installer -pkg "$TMPDIR/ZoomInstallerIT.pkg" -target /

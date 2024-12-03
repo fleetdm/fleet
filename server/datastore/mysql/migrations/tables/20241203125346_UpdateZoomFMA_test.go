@@ -63,6 +63,7 @@ func TestUp_20241203125346(t *testing.T) {
 	// Zoom should be deleted, only the Box Drive FMA should remain
 	var fmas []fleet.MaintainedApp
 	err = db.Select(&fmas, `SELECT name, token FROM fleet_library_apps`)
+	require.NoError(t, err)
 	require.Len(t, fmas, 1)
 	require.Equal(t, "Box Drive", fmas[0].Name)
 	require.Equal(t, "box-drive", fmas[0].Token)
