@@ -317,6 +317,8 @@ type MarkSessionAccessedFunc func(ctx context.Context, session *fleet.Session) e
 
 type SessionByMFATokenFunc func(ctx context.Context, token string, sessionKeySize uint) (*fleet.Session, *fleet.User, error)
 
+type NewMFATokenFunc func(ctx context.Context, userID uint) (string, error)
+
 type NewAppConfigFunc func(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error)
 
 type AppConfigFunc func(ctx context.Context) (*fleet.AppConfig, error)
@@ -1613,6 +1615,9 @@ type DataStore struct {
 
 	SessionByMFATokenFunc        SessionByMFATokenFunc
 	SessionByMFATokenFuncInvoked bool
+
+	NewMFATokenFunc        NewMFATokenFunc
+	NewMFATokenFuncInvoked bool
 
 	NewAppConfigFunc        NewAppConfigFunc
 	NewAppConfigFuncInvoked bool
@@ -3929,6 +3934,13 @@ func (s *DataStore) SessionByMFAToken(ctx context.Context, token string, session
 	s.SessionByMFATokenFuncInvoked = true
 	s.mu.Unlock()
 	return s.SessionByMFATokenFunc(ctx, token, sessionKeySize)
+}
+
+func (s *DataStore) NewMFAToken(ctx context.Context, userID uint) (string, error) {
+	s.mu.Lock()
+	s.NewMFATokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewMFATokenFunc(ctx, userID)
 }
 
 func (s *DataStore) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error) {

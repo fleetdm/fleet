@@ -14,6 +14,7 @@ import (
 )
 
 const mfaLinkTTL = time.Minute * 15
+const mfaTokenEntropyInBytes = 32
 
 func (ds *Datastore) SessionByMFAToken(ctx context.Context, token string, sessionKeySize uint) (*fleet.Session, *fleet.User, error) {
 	var userID uint
@@ -44,7 +45,7 @@ func (ds *Datastore) SessionByMFAToken(ctx context.Context, token string, sessio
 		}
 
 		// only delete token once we've successfully consumed it
-		if _, err = ds.writer(ctx).ExecContext(ctx, "DELETE FROM verification_tokens WHERE token = ?", token); err != nil {
+		if _, err = tx.ExecContext(ctx, "DELETE FROM verification_tokens WHERE token = ?", token); err != nil {
 			return err
 		}
 
@@ -55,6 +56,26 @@ func (ds *Datastore) SessionByMFAToken(ctx context.Context, token string, sessio
 	}
 
 	return session, user, nil
+}
+
+func (ds *Datastore) NewMFAToken(ctx context.Context, userID uint) (string, error) {
+	token, err := randomBase64(mfaTokenEntropyInBytes)
+	if err != nil {
+		return "", err
+	}
+
+	_, err = ds.writer(ctx).ExecContext(
+		ctx,
+		`INSERT INTO verification_tokens (user_id, token) VALUES (?, ?)`,
+		userID,
+		token,
+	)
+
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
 }
 
 func (ds *Datastore) SessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
@@ -121,12 +142,10 @@ func (ds *Datastore) NewSession(ctx context.Context, userID uint, sessionKeySize
 }
 
 func (ds *Datastore) makeSessionInTransaction(ctx context.Context, tx sqlx.ExtContext, userID uint, sessionKeySize uint) (*fleet.Session, error) {
-	key := make([]byte, sessionKeySize)
-	_, err := rand.Read(key)
+	sessionKey, err := randomBase64(sessionKeySize)
 	if err != nil {
 		return nil, err
 	}
-	sessionKey := base64.StdEncoding.EncodeToString(key)
 
 	sqlStatement := `
 		INSERT INTO sessions (
@@ -140,8 +159,17 @@ func (ds *Datastore) makeSessionInTransaction(ctx context.Context, tx sqlx.ExtCo
 		return nil, ctxerr.Wrap(ctx, err, "saving session")
 	}
 
-	id, _ := result.LastInsertId()                       // cannot fail with the mysql driver
-	return ds.sessionByID(ctx, ds.writer(ctx), uint(id)) //nolint:gosec // dismiss G115
+	id, _ := result.LastInsertId()           // cannot fail with the mysql driver
+	return ds.sessionByID(ctx, tx, uint(id)) //nolint:gosec // dismiss G115
+}
+
+func randomBase64(entropyInBytes uint) (string, error) {
+	raw := make([]byte, entropyInBytes)
+	_, err := rand.Read(raw)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(raw), nil
 }
 
 func (ds *Datastore) DestroySession(ctx context.Context, session *fleet.Session) error {

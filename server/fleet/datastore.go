@@ -422,6 +422,9 @@ type Datastore interface {
 	// SessionByMFAToken redeems an MFA token for a session, and returns the associated user, if that MFA token is valid
 	SessionByMFAToken(ctx context.Context, token string, sessionKeySize uint) (*Session, *User, error)
 
+	// NewMFAToken creates a new MFA token for a given user and stores it
+	NewMFAToken(ctx context.Context, userID uint) (string, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigStore contains method for saving and retrieving application configuration
 

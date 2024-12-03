@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mail"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/go-kit/log/level"
 )
@@ -218,7 +219,7 @@ func (svc *Service) Login(ctx context.Context, email, password string, supportsE
 			)
 		}
 
-		if err = svc.makeMFAEmail(ctx, user.ID); err != nil {
+		if err = svc.makeMFAEmail(ctx, *user); err != nil {
 			return nil, nil, fleet.NewAuthFailedError(err.Error())
 		}
 
@@ -669,8 +670,34 @@ func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SessionSSOSettings,
 }
 
 // makeMFAEmail sends an MFA email to the given user
-func (svc *Service) makeMFAEmail(ctx context.Context, userID uint) error {
-	return nil // TODO
+func (svc *Service) makeMFAEmail(ctx context.Context, user fleet.User) error {
+	token, err := svc.ds.NewMFAToken(ctx, user.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "creating MFA token")
+	}
+
+	config, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	var smtpSettings fleet.SMTPSettings
+	if config.SMTPSettings != nil {
+		smtpSettings = *config.SMTPSettings
+	}
+	email := fleet.Email{
+		Subject:      "Log in to Fleet",
+		To:           []string{user.Email},
+		ServerURL:    config.ServerSettings.ServerURL,
+		SMTPSettings: smtpSettings,
+		Mailer: &mail.MFAMailer{
+			FullName: user.Name,
+			Token:    token,
+			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix), //nolint:gosec // dismiss G203
+			AssetURL: getAssetURL(),
+		},
+	}
+
+	return svc.mailService.SendEmail(email)
 }
 
 func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
