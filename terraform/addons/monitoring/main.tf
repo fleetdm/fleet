@@ -376,7 +376,7 @@ resource "aws_lambda_function" "cron_monitoring" {
       MYSQL_DATABASE              = var.cron_monitoring.mysql_database
       MYSQL_USER                  = var.cron_monitoring.mysql_user
       MYSQL_SECRETSMANAGER_SECRET = data.aws_secretsmanager_secret.mysql_database_password[0].name
-      CRON_SYSTEM_MONITOR_SNS_TOPIC_ARNS              = join(",", lookup(var.sns_topic_arns_map, "cron_monitoring", var.default_sns_topic_arns))
+      CRON_SYSTEM_MONITOR_SNS_TOPIC_ARNS              = join(",", lookup(var.sns_topic_arns_map, "cron_system_monitoring", var.default_sns_topic_arns))
       CRON_JOB_FAILURE_MONITOR_SNS_TOPIC_ARNS              = join(",", lookup(var.sns_topic_arns_map, "cron_job_failure_monitoring", var.default_sns_topic_arns))
       FLEET_ENV                   = var.customer_prefix
       CRON_DELAY_TOLERANCE        = var.cron_monitoring.delay_tolerance

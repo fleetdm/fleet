@@ -204,4 +204,9 @@ func main() {
 
 	snsTopics["cronSystem"] = options.SNSCronSystemTopicArns
 	snsTopics["cronJobFailure"] = options.SNSCronJobFailureTopicArns
+	// For backwards compatibility, fall back to sending cron failure alerts
+	// to the same SNS topic as cron system alerts.s
+	if snsTopics["cronJobFailure"] == "" {
+		snsTopics["cronJobFailure"] = options.SNSCronSystemTopicArns
+	}
 }
