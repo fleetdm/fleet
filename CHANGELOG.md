@@ -1,3 +1,9 @@
+## Fleet 4.60.1 (Dec 03, 2024)
+
+### Bug fixes
+
+- Fixed a bug where breaking occurred with gitops user role running `fleetctl gitops` command when MDM was enabled.
+
 ## Fleet 4.60.0 (Nov 27, 2024)
 
 ### Endpoint operations
