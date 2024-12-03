@@ -36,7 +36,6 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | **Action**                                                                                                                                 | Observer | Observer+* | Maintainer | Admin | GitOps* |
 | ------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ---------- | ---------- | ----- | ------- |
 | View all [activity](https://fleetdm.com/docs/using-fleet/rest-api#activities)                                                              | ✅       | ✅         | ✅         | ✅    |         |
-| Cancel [host's upcoming activities](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-upcoming-activity)                                |         |           | ✅         | ✅    |         |
 | Manage [activity automations](https://fleetdm.com/docs/using-fleet/audit-logs)                                 |               |                |                 | ✅         | ✅          |
 | View all hosts                                                                                                                             | ✅       | ✅         | ✅         | ✅    |         |
 | View a host by identifier                                                                                                                  | ✅       | ✅         | ✅         | ✅    | ✅      |
