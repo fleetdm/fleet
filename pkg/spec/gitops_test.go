@@ -216,6 +216,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "ipados_updates not found")
 				_, ok = gitops.Controls.WindowsEnabledAndConfigured.(bool)
 				assert.True(t, ok, "windows_enabled_and_configured not found")
+				_, ok = gitops.Controls.WindowsMigrationEnabled.(bool)
+				assert.True(t, ok, "windows_migration_enabled not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
 

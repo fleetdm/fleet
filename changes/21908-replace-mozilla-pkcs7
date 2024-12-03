@@ -1,0 +1,1 @@
+* Replaced the internal use of the deprecated `go.mozilla.org/pkcs7` package with the maintained fork `github.com/smallstep/pkcs7`.
