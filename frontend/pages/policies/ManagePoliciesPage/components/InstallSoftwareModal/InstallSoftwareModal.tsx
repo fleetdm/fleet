@@ -20,6 +20,7 @@ import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import { ISoftwareTitle } from "interfaces/software";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const getPlatformDisplayFromPackageExtension = (ext: string | undefined) => {
   switch (ext) {
@@ -223,6 +224,16 @@ const InstallSoftwareModal = ({
       );
     }
 
+    const compatibleTipContent = (
+      <>
+        .pkg for macOS.
+        <br />
+        .msi or .exe for Windows.
+        <br />
+        .deb for Linux.
+      </>
+    );
+
     return (
       <div className={`${baseClass} form`}>
         <div className="form-field">
@@ -233,10 +244,11 @@ const InstallSoftwareModal = ({
             )}
           </ul>
           <span className="form-field__help-text">
-            Selected software will be installed when hosts fail the policy. Host
-            counts will reset when a new software is
-            <br />
-            selected.{" "}
+            Selected software, if{" "}
+            <TooltipWrapper tipContent={compatibleTipContent}>
+              compatible
+            </TooltipWrapper>{" "}
+            with the host, will be installed when hosts fail the chosen policy.{" "}
             <CustomLink
               url="https://fleetdm.com/learn-more-about/policy-automation-install-software"
               text="Learn more"

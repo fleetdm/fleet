@@ -7,7 +7,8 @@
 
   &__script-content-textarea {
     font-family: "SourceCodePro";
+    min-height: 150px;
     max-height: 572px;
-    overflow: auto;
+    overflow: scroll;
   }
 }

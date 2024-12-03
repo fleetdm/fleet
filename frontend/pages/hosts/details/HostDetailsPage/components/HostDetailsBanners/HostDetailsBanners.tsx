@@ -1,14 +1,18 @@
 import React, { useContext } from "react";
 import { AppContext } from "context/app";
 
-import { DiskEncryptionStatus, MdmEnrollmentStatus } from "interfaces/mdm";
 import { hasLicenseExpired } from "utilities/helpers";
-import InfoBanner from "components/InfoBanner";
+
+import { DiskEncryptionStatus, MdmEnrollmentStatus } from "interfaces/mdm";
 import { IOSSettings } from "interfaces/host";
 import {
   HostPlatform,
-  platformSupportsDiskEncryption,
+  isDiskEncryptionSupportedLinuxPlatform,
 } from "interfaces/platform";
+
+import InfoBanner from "components/InfoBanner";
+import CustomLink from "components/CustomLink";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 const baseClass = "host-details-banners";
 
@@ -104,15 +108,39 @@ const HostDetailsBanners = ({
       </div>
     );
   }
-  // setting applies
   if (
     hostPlatform &&
-    platformSupportsDiskEncryption(hostPlatform, hostOsVersion) &&
+    isDiskEncryptionSupportedLinuxPlatform(hostPlatform, hostOsVersion ?? "") &&
     diskEncryptionOSSetting?.status
   ) {
-    // host either not in compliance with setting, or is but Fleet doesn't yet have a disk
-    // encryption key escrowed for the host (possible for Linux hosts)
-    if (!diskIsEncrypted || !diskEncryptionKeyAvailable) {
+    // setting applies to a Linux host
+    if (!diskIsEncrypted) {
+      // linux host not in compliance with setting
+      return (
+        <div className={baseClass}>
+          <InfoBanner
+            color="yellow"
+            cta={
+              <CustomLink
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`}
+                text="Guide"
+                color="core-fleet-black"
+                iconColor="core-fleet-black"
+                newTab
+              />
+            }
+          >
+            Disk encryption: Disk encryption is off. Currently, to turn on{" "}
+            <b>full</b> disk encryption, the end user has to re-install their
+            operating system.
+          </InfoBanner>
+        </div>
+      );
+    }
+    if (!diskEncryptionKeyAvailable) {
+      // linux host's disk is encrypted, but Fleet doesn't yet have a disk
+      // encryption key escrowed (note that this state is also possible for Windows hosts, which we
+      // don't show this banner for currently)
       return (
         <div className={baseClass}>
           <InfoBanner color="yellow">
