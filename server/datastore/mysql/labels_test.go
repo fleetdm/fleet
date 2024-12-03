@@ -1568,14 +1568,14 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 	hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{}, 3)
 	checkHosts(t, hosts, []uint{h1.ID, h2.ID, h3.ID})
 
-	t.Run("os_settings", func(t *testing.T) {
+	t.Run("os_settings_disk_encryption", func(t *testing.T) {
 		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 1)
 		checkHosts(t, hosts, []uint{h1.ID})
 		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1)
 		checkHosts(t, hosts, []uint{h2.ID})
 	})
 
-	t.Run("os_settings_disk_encryption", func(t *testing.T) {
+	t.Run("os_settings", func(t *testing.T) {
 		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsVerified}, 1)
 		checkHosts(t, hosts, []uint{h1.ID})
 		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsPending}, 1)

@@ -293,12 +293,24 @@ module.exports.routes = {
     }
   },
 
-  'GET /customer-stories': {
+  'GET /testimonials': {
     action: 'view-testimonials',
     locals: {
-      pageTitleForMeta: 'Customer stories',
-      pageDescriptionForMeta: 'See what people are saying about Fleet'
+      pageTitleForMeta: 'What people are saying',
+      pageDescriptionForMeta: 'See what people are saying about Fleet.'
     }
+  },
+
+  'GET /app-library': {
+    action: 'view-app-library',
+    locals: {
+      pageTitleForMeta: 'App library',
+      pageDescriptionForMeta: 'Install Fleet-maintained apps on your hosts without the need for additional configuration. Activate self-service for your end users.',
+    }
+  },
+
+  'GET /app-library/:appIdentifier': {
+    action: 'view-app-details',// Meta title and description set in view action
   },
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
@@ -319,6 +331,7 @@ module.exports.routes = {
   // ```
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
+  'GET /customer-stories': '/testimonials',
   'GET /try': '/get-started',
   'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
   'GET /handbook/customer-experience': '/handbook/customers',
@@ -509,7 +522,6 @@ module.exports.routes = {
   //
   // For example, a clever user might try to visit fleetdm.com/documentation, not knowing that Fleet's website
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
-  'GET /testimonials':               '/customer-stories',
   'GET /admin':                      '/admin/email-preview',
   'GET /renew':                      'https://calendly.com/zayhanlon/fleet-renewal-discussion',
   'GET /documentation':              '/docs',
@@ -598,6 +610,7 @@ module.exports.routes = {
   'GET /learn-more-about/policy-automation-run-script': '/guides/policy-automation-run-script',
   'GET /learn-more-about/installing-fleetctl': '/guides/fleetctl#installing-fleetctl',
   'GET /learn-more-about/mdm-disk-encryption': '/guides/enforce-disk-encryption',
+  'GET /learn-more-about/encrypt-linux-device': '/guides/linux-disk-encryption-end-user',
   'GET /contribute-to/policies': 'https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml',
 
   // Sitemap
