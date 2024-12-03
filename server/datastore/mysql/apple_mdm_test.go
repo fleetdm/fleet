@@ -6545,6 +6545,14 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	tm3, err := ds.NewTeam(ctx, &fleet.Team{Name: "team3"})
 	require.NoError(t, err)
 
+	toks, err := ds.ListABMTokens(ctx)
+	require.NoError(t, err)
+	require.Empty(t, toks)
+
+	tokCount, err := ds.GetABMTokenCount(ctx)
+	require.NoError(t, err)
+	assert.EqualValues(t, 0, tokCount)
+
 	// create a token with an empty name and no team set, and another that will be unused
 	encTok := uuid.NewString()
 
@@ -6555,9 +6563,13 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotEmpty(t, t2.ID)
 
-	toks, err := ds.ListABMTokens(ctx)
+	toks, err = ds.ListABMTokens(ctx)
 	require.NoError(t, err)
 	require.Len(t, toks, 2)
+
+	tokCount, err = ds.GetABMTokenCount(ctx)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, tokCount)
 
 	// get that token
 	tok, err = ds.GetABMTokenByOrgName(ctx, "")
@@ -6654,6 +6666,10 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), expTok.MacOSTeam.ID)
 	require.Equal(t, tm2.Name, expTok.IOSTeamName)
 	require.Equal(t, tm3.Name, expTok.IPadOSTeamName)
+
+	tokCount, err = ds.GetABMTokenCount(ctx)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, tokCount)
 }
 
 func testMDMAppleABMTokensTermsExpired(t *testing.T, ds *Datastore) {
