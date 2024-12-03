@@ -1,0 +1,1 @@
+Fixed breaking with gitops user role running `fleetctl gitops` command when MDM is enabled.

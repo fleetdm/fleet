@@ -299,12 +299,12 @@ func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 				return nil, false, false, errors.New(fleet.AppleABMDefaultTeamDeprecatedMessage)
 			}
 
-			abmToks, err := fleetClient.ListABMTokens()
+			abmToks, err := fleetClient.CountABMTokens()
 			if err != nil {
 				return nil, false, false, err
 			}
 
-			if hasLegacyConfig && len(abmToks) > 1 {
+			if hasLegacyConfig && abmToks > 1 {
 				return nil, false, false, errors.New(fleet.AppleABMDefaultTeamDeprecatedMessage)
 			}
 
