@@ -1883,7 +1883,9 @@ ON DUPLICATE KEY UPDATE
 }
 
 func (ds *Datastore) BulkDeleteMDMAppleHostsConfigProfiles(ctx context.Context, profs []*fleet.MDMAppleProfilePayload) error {
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	// We need to run with retry due to deadlocks.
+	// Two simultaneous transactions may happen when cron job runs and the user is updating via the UI at the same time.
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		return ds.bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, profs)
 	})
 }
