@@ -220,13 +220,11 @@ const PlatformWrapper = ({
   const renderInstallerString = (packageType: string) => {
     return packageType === "advanced"
       ? `fleetctl package --type=YOUR_TYPE --fleet-url=${config?.server_settings.server_url} --enroll-secret=${enrollSecret} --fleet-certificate=PATH_TO_YOUR_CERTIFICATE/fleet.pem`
-      : `fleetctl package --type=${packageType} ${
-          config && !config.server_settings.scripts_disabled
-            ? "--enable-scripts "
-            : ""
-        }${includeFleetDesktop ? "--fleet-desktop " : ""}--fleet-url=${
-          config?.server_settings.server_url
-        } --enroll-secret=${enrollSecret}`;
+      : `fleetctl package --type=${packageType} ${config && !config.server_settings.scripts_disabled
+        ? "--enable-scripts "
+        : ""
+      }${includeFleetDesktop ? "--fleet-desktop " : ""}--fleet-url=${config?.server_settings.server_url
+      } --enroll-secret=${enrollSecret}`;
   };
 
   const renderLabel = (packageType: string, installerString: string) => {
@@ -254,7 +252,7 @@ const PlatformWrapper = ({
       <>
         {packageType !== "plain-osquery" && (
           <span className={`${baseClass}__cta`}>
-            Run this command with the{" "}
+            Run this command to generate an install package with the updated{" "}
             <a
               className={`${baseClass}__command-line-tool`}
               href="https://fleetdm.com/learn-more-about/installing-fleetctl"
@@ -545,11 +543,10 @@ const PlatformWrapper = ({
           label={renderLabel(packageType, renderInstallerString(packageType))}
           type="textarea"
           value={renderInstallerString(packageType)}
-          helpText={`Distribute your package to add hosts to Fleet.${
-            packageType === "deb"
+          helpText={`Distribute your package to add hosts to Fleet.${packageType === "deb"
               ? " For CentOS, Red Hat, and Fedora Linux, use --type=rpm."
               : ""
-          }`}
+            }`}
         />
       </>
     );
