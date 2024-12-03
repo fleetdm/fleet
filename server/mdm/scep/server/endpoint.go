@@ -3,11 +3,13 @@ package scepserver
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/go-kit/kit/endpoint"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
@@ -112,7 +114,7 @@ func MakeServerEndpointsWithIdentifier(svc ServiceWithIdentifier) *Endpoints {
 // MakeClientEndpoints returns an Endpoints struct where each endpoint invokes
 // the corresponding method on the remote instance, via a transport/http.Client.
 // Useful in a SCEP client.
-func MakeClientEndpoints(instance string) (*Endpoints, error) {
+func MakeClientEndpoints(instance string, timeout *time.Duration) (*Endpoints, error) {
 	if !strings.HasPrefix(instance, "http") {
 		instance = "http://" + instance
 	}
@@ -121,7 +123,11 @@ func MakeClientEndpoints(instance string) (*Endpoints, error) {
 		return nil, err
 	}
 
-	options := []httptransport.ClientOption{}
+	var fleetOpts []fleethttp.ClientOpt
+	if timeout != nil {
+		fleetOpts = append(fleetOpts, fleethttp.WithTimeout(*timeout))
+	}
+	options := []httptransport.ClientOption{httptransport.SetClient(fleethttp.NewClient(fleetOpts...))}
 
 	return &Endpoints{
 		GetEndpoint: httptransport.NewClient(
@@ -178,6 +184,9 @@ func MakeSCEPEndpointWithIdentifier(svc ServiceWithIdentifier) endpoint.Endpoint
 			resp.Data, resp.Err = svc.PKIOperation(ctx, req.Message, req.Identifier)
 		default:
 			return nil, &BadRequestError{Message: "operation not implemented"}
+		}
+		if errors.Is(resp.Err, context.DeadlineExceeded) {
+			return nil, &TimeoutError{Message: resp.Err.Error()}
 		}
 		return resp, resp.Err
 	}

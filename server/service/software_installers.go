@@ -152,7 +152,14 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 			return uploadSoftwareInstallerResponse{Err: err}, nil
 		}
 		defer ff.Close()
-		payload.InstallerFile = ff
+
+		tfr, err := fleet.NewTempFileReader(ff, nil)
+		if err != nil {
+			return uploadSoftwareInstallerResponse{Err: err}, nil
+		}
+		defer tfr.Close()
+
+		payload.InstallerFile = tfr
 		payload.Filename = req.File.Filename
 	}
 
@@ -267,12 +274,18 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 	}
 	defer ff.Close()
 
+	tfr, err := fleet.NewTempFileReader(ff, nil)
+	if err != nil {
+		return uploadSoftwareInstallerResponse{Err: err}, nil
+	}
+	defer tfr.Close()
+
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		TeamID:            req.TeamID,
 		InstallScript:     req.InstallScript,
 		PreInstallQuery:   req.PreInstallQuery,
 		PostInstallScript: req.PostInstallScript,
-		InstallerFile:     ff,
+		InstallerFile:     tfr,
 		Filename:          req.File.Filename,
 		SelfService:       req.SelfService,
 		UninstallScript:   req.UninstallScript,
@@ -547,6 +560,7 @@ type batchSetSoftwareInstallersResponse struct {
 }
 
 func (r batchSetSoftwareInstallersResponse) error() error { return r.Err }
+func (r batchSetSoftwareInstallersResponse) Status() int  { return http.StatusAccepted }
 
 func batchSetSoftwareInstallersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*batchSetSoftwareInstallersRequest)

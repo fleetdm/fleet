@@ -39,8 +39,8 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 
 func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 	const (
-		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, script_id, policy_id, user_id, sync_request) VALUES (?, ?, ?, '', ?, ?, ?, ?)`
-		getStmt = `SELECT hsr.id, hsr.host_id, hsr.execution_id, hsr.created_at, hsr.script_id, hsr.policy_id, hsr.user_id, hsr.sync_request, sc.contents as script_contents FROM host_script_results hsr JOIN script_contents sc WHERE sc.id = hsr.script_content_id AND hsr.id = ?`
+		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, script_id, policy_id, user_id, sync_request, setup_experience_script_id) VALUES (?, ?, ?, '', ?, ?, ?, ?, ?)`
+		getStmt = `SELECT hsr.id, hsr.host_id, hsr.execution_id, hsr.created_at, hsr.script_id, hsr.policy_id, hsr.user_id, hsr.sync_request, sc.contents as script_contents, hsr.setup_experience_script_id FROM host_script_results hsr JOIN script_contents sc WHERE sc.id = hsr.script_content_id AND hsr.id = ?`
 	)
 
 	execID := uuid.New().String()
@@ -52,6 +52,7 @@ func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, requ
 		request.PolicyID,
 		request.UserID,
 		request.SyncRequest,
+		request.SetupExperienceScriptID,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "new host script execution request")
@@ -269,7 +270,8 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
     hsr.created_at,
     hsr.user_id,
     hsr.sync_request,
-    hsr.host_deleted_at
+    hsr.host_deleted_at,
+	hsr.setup_experience_script_id
   FROM
     host_script_results hsr
   JOIN

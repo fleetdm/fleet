@@ -197,6 +197,7 @@ const CalendarEventsModal = ({
                   onChange={() => {
                     onPolicyEnabledChange({ name, value: !isChecked });
                   }}
+                  disabled={!formData.enabled}
                 >
                   <TooltipTruncatedText value={name} />
                 </Checkbox>
@@ -223,6 +224,7 @@ const CalendarEventsModal = ({
             url="https://www.fleetdm.com/learn-more-about/calendar-events"
             text="Learn more"
             newTab
+            disableKeyboardNavigation={!formData.enabled}
           />
         </span>
       </div>
@@ -289,6 +291,7 @@ const CalendarEventsModal = ({
           error={formErrors.url}
           tooltip="Provide a URL to deliver a webhook request to."
           helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remediation."
+          disabled={!formData.enabled}
         />
         <RevealButton
           isShowing={showExamplePayload}
@@ -299,6 +302,7 @@ const CalendarEventsModal = ({
           onClick={() => {
             setShowExamplePayload(!showExamplePayload);
           }}
+          disabled={!formData.enabled}
         />
         {showExamplePayload && renderExamplePayload()}
         {renderPolicies()}

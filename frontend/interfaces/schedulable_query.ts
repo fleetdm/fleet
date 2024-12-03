@@ -100,6 +100,7 @@ export interface IModifyQueryRequestBody
   frequency?: number;
   platform?: SelectedPlatformString;
   min_osquery_version?: string;
+  automations_enabled?: boolean;
 }
 
 // response is ISchedulableQuery // better way to indicate this?
@@ -131,6 +132,7 @@ export interface IEditQueryFormFields {
   observer_can_run: IFormField<boolean>;
   discard_data: IFormField<boolean>;
   frequency: IFormField<number>;
+  automations_enabled: IFormField<boolean>;
   platforms: IFormField<SelectedPlatformString>;
   min_osquery_version: IFormField<string>;
   logging: IFormField<QueryLoggingOption>;

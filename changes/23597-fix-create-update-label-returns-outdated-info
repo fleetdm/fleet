@@ -1,0 +1,1 @@
+* Fixed a bug where the create and update label endpoints could return outdated information in a deployment using a mysql replica.

@@ -248,16 +248,23 @@ func main() {
 
 				for {
 					refetchToken()
-					_, err := client.DesktopSummary(tokenReader.GetCached())
+					summary, err := client.DesktopSummary(tokenReader.GetCached())
 
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						log.Debug().Msg("enabling tray items")
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
 						transparencyItem.Enable()
+
 						// Hide Self-Service for Free tier
-						selfServiceItem.Disable()
-						selfServiceItem.Hide()
+						if errors.Is(err, service.ErrMissingLicense) || (summary.SelfService != nil && !*summary.SelfService) {
+							selfServiceItem.Disable()
+							selfServiceItem.Hide()
+						} else {
+							selfServiceItem.Enable()
+							selfServiceItem.Show()
+						}
+
 						return
 					}
 

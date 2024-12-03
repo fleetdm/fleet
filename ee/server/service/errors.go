@@ -41,3 +41,15 @@ func (e NDESPasswordCacheFullError) Error() string {
 func NewNDESPasswordCacheFullError(msg string) NDESPasswordCacheFullError {
 	return NDESPasswordCacheFullError{msg: msg}
 }
+
+type NDESInsufficientPermissionsError struct {
+	msg string
+}
+
+func (e NDESInsufficientPermissionsError) Error() string {
+	return e.msg
+}
+
+func NewNDESInsufficientPermissionsError(msg string) NDESInsufficientPermissionsError {
+	return NDESInsufficientPermissionsError{msg: msg}
+}

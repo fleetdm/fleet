@@ -159,27 +159,28 @@ type distributionApp struct {
 
 // ExtractXARMetadata extracts the name and version metadata from a .pkg file
 // in the XAR format.
-func ExtractXARMetadata(r io.Reader) (*InstallerMetadata, error) {
+func ExtractXARMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 	var hdr xarHeader
 
 	h := sha256.New()
-	r = io.TeeReader(r, h)
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read all content: %w", err)
+	size, _ := io.Copy(h, tfr) // writes to a hash cannot fail
+
+	if err := tfr.Rewind(); err != nil {
+		return nil, fmt.Errorf("rewind reader: %w", err)
 	}
 
-	rr := bytes.NewReader(b)
-	if err := binary.Read(rr, binary.BigEndian, &hdr); err != nil {
+	// read the file header
+	if err := binary.Read(tfr, binary.BigEndian, &hdr); err != nil {
 		return nil, fmt.Errorf("decode xar header: %w", err)
 	}
 
-	zr, err := zlib.NewReader(io.LimitReader(rr, hdr.CompressedSize))
+	zr, err := zlib.NewReader(io.LimitReader(tfr, hdr.CompressedSize))
 	if err != nil {
 		return nil, fmt.Errorf("create zlib reader: %w", err)
 	}
 	defer zr.Close()
 
+	// decode the TOC data (in XML inside the zlib-compressed data)
 	var root xmlXar
 	decoder := xml.NewDecoder(zr)
 	decoder.Strict = false
@@ -187,12 +188,13 @@ func ExtractXARMetadata(r io.Reader) (*InstallerMetadata, error) {
 		return nil, fmt.Errorf("decode xar xml: %w", err)
 	}
 
+	// look for the distribution file, with the metadata information
 	heapOffset := xarHeaderSize + hdr.CompressedSize
 	var packageInfoFile *xmlFile
 	for _, f := range root.TOC.Files {
 		switch f.Name {
 		case "Distribution":
-			contents, err := readCompressedFile(rr, heapOffset, int64(len(b)), f)
+			contents, err := readCompressedFile(tfr, heapOffset, size, f)
 			if err != nil {
 				return nil, err
 			}
@@ -203,6 +205,7 @@ func ExtractXARMetadata(r io.Reader) (*InstallerMetadata, error) {
 			}
 			meta.SHASum = h.Sum(nil)
 			return meta, nil
+
 		case "PackageInfo":
 			// If Distribution archive was not found, we will use the top-level PackageInfo archive
 			packageInfoFile = f
@@ -210,7 +213,7 @@ func ExtractXARMetadata(r io.Reader) (*InstallerMetadata, error) {
 	}
 
 	if packageInfoFile != nil {
-		contents, err := readCompressedFile(rr, heapOffset, int64(len(b)), packageInfoFile)
+		contents, err := readCompressedFile(tfr, heapOffset, size, packageInfoFile)
 		if err != nil {
 			return nil, err
 		}
@@ -226,9 +229,9 @@ func ExtractXARMetadata(r io.Reader) (*InstallerMetadata, error) {
 	return &InstallerMetadata{SHASum: h.Sum(nil)}, nil
 }
 
-func readCompressedFile(rr *bytes.Reader, heapOffset int64, sectionLength int64, f *xmlFile) ([]byte, error) {
+func readCompressedFile(rat io.ReaderAt, heapOffset int64, sectionLength int64, f *xmlFile) ([]byte, error) {
 	var fileReader io.Reader
-	heapReader := io.NewSectionReader(rr, heapOffset, sectionLength-heapOffset)
+	heapReader := io.NewSectionReader(rat, heapOffset, sectionLength-heapOffset)
 	fileReader = io.NewSectionReader(heapReader, f.Data.Offset, f.Data.Length)
 
 	// the distribution file can be compressed differently than the TOC, the
