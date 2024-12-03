@@ -234,6 +234,10 @@ controls:
       - path: ../lib/macos-profile2.json
         labels_include_all:
           - Macs on Sonoma
+      - path: ../lib/macos-profile3.mobileconfig
+        labels_include_any:
+          - Engineering
+          - Product
   windows_settings:
     custom_settings:
       - path: ../lib/windows-profile.xml
@@ -279,7 +283,7 @@ controls:
 
 Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format. Variables beginning with `$FLEET_VAR_` are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. See supported variables in the guide [here](https://fleetdm.com/guides/ndes-scep-proxy).
 
-Use `labels_include_all` to only apply (scope) profiles to hosts that have all those labels or `labels_exclude_any` to apply profiles to hosts that don't have any of those labels.
+Use `labels_include_all` to only apply (scope) profiles to hosts that have all those labels, `labels_include_any` to apply profiles to hosts that have any of those labels, or `labels_exclude_any` to apply profiles to hosts that don't have any of those labels.
 
 ### macos_setup
 
