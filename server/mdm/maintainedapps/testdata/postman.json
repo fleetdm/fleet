@@ -6,7 +6,7 @@
 	"name": [
 		"Postman"
 	],
-	"desc": "Collaboration platform for API development",
+	"desc": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs.",
 	"homepage": "https://www.postman.com/",
 	"url": "https://dl.pstmn.io/download/version/11.12.0/osx_arm64",
 	"url_specs": {

@@ -7,7 +7,7 @@
 		"Microsoft Visual Studio Code",
 		"VS Code"
 	],
-	"desc": "Open-source code editor",
+	"desc": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor.",
 	"homepage": "https://code.visualstudio.com/",
 	"url": "https://update.code.visualstudio.com/1.93.0/darwin-arm64/stable",
 	"url_specs": {},
