@@ -3507,7 +3507,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 }
 ```
 
-### Post Orbit script result
+### Upload Orbit script result
 
 `POST /api/fleet/orbit/scripts/result`
 
@@ -3545,7 +3545,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 `Status: 200`
 
-### Put Orbit device mapping
+### Set Orbit device mapping
 
 `POST /api/fleet/orbit/device_mapping`
 
@@ -3573,7 +3573,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 `Status: 200`
 
-### Post Orbit software install result
+### Upload Orbit software install result
 
 `POST /api/fleet/orbit/software_install/result`
 
@@ -3611,7 +3611,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 ##### Default response
 
-`Status: 200`
+`Status: 204`
 
 ### Download software installer
 
@@ -3690,7 +3690,7 @@ Body: <blob>
 }
 ```
 
-### Post disk encryption key
+### Upload disk encryption key
 
 `POST /api/fleet/orbit/disk_encryption_key`
 
@@ -3718,7 +3718,7 @@ Body: <blob>
 
 ##### Default response
 
-`Status: 200`
+`Status: 204`
 
 ---
 
