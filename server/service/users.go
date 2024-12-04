@@ -95,6 +95,23 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		p.AdminForcedPasswordReset = ptr.Bool(true)
 	}
 
+	// make sure we can send email before requiring email sending to log in
+	if p.MFAEnabled != nil && *p.MFAEnabled {
+		config, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		var smtpSettings fleet.SMTPSettings
+		if config.SMTPSettings != nil {
+			smtpSettings = *config.SMTPSettings
+		}
+
+		if !svc.mailService.CanSendEmail(smtpSettings) {
+			return nil, nil, badRequest("Email must be set up to enable local MFA")
+		}
+	}
+
 	user, err := svc.NewUser(ctx, p)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "create user")
@@ -352,6 +369,20 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		}
 		if !lic.IsPremium() {
 			return nil, fleet.ErrMissingLicense
+		}
+		// make sure we can send email before requiring email sending to log in
+		config, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		var smtpSettings fleet.SMTPSettings
+		if config.SMTPSettings != nil {
+			smtpSettings = *config.SMTPSettings
+		}
+
+		if !svc.mailService.CanSendEmail(smtpSettings) {
+			return nil, badRequest("Email must be set up to enable MFA")
 		}
 	}
 
