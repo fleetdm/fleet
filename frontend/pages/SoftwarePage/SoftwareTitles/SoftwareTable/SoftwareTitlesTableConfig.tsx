@@ -70,10 +70,19 @@ const getSoftwareNameCellData = (
   const { software_package, app_store_app } = softwareTitle;
   let hasPackage = false;
   let isSelfService = false;
+  let installType: "manual" | "automatic" | undefined;
   let iconUrl: string | null = null;
   if (software_package) {
     hasPackage = true;
     isSelfService = software_package.self_service;
+    if (
+      software_package.automatic_install_policies &&
+      software_package.automatic_install_policies.length > 0
+    ) {
+      installType = "automatic";
+    } else {
+      installType = "manual";
+    }
   } else if (app_store_app) {
     hasPackage = true;
     isSelfService = app_store_app.self_service;
@@ -88,6 +97,7 @@ const getSoftwareNameCellData = (
     path: softwareTitleDetailsPath,
     hasPackage: hasPackage && !isAllTeams,
     isSelfService,
+    installType,
     iconUrl,
   };
 };
@@ -117,6 +127,7 @@ const generateTableHeaders = (
             router={router}
             hasPackage={nameCellData.hasPackage}
             isSelfService={nameCellData.isSelfService}
+            installType={nameCellData.installType}
             iconUrl={nameCellData.iconUrl ?? undefined}
           />
         );

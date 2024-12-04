@@ -7,11 +7,8 @@ import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 
 import paths from "router/paths";
-
 import useTeamIdParam from "hooks/useTeamIdParam";
-
 import { AppContext } from "context/app";
-
 import {
   ISoftwareTitleDetails,
   formatSoftwareType,

@@ -220,18 +220,17 @@ module.exports.custom = {
 
     // Articles and release notes
     'CHANGELOG.md': ['mikermcneil', 'noahtalerman', 'lukeheath'],
-    'articles': ['mike-j-thomas', 'mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw'],
-    'website/assets/images/articles': ['mike-j-thomas', 'mike-j-thomas', 'eashaw', 'mikermcneil'],
+    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw'],
+    'website/assets/images/articles': ['mike-j-thomas', 'eashaw', 'mikermcneil'],
 
     // Website (fleetdm.com)
     'website': ['mikermcneil', 'eashaw'],// (default for website)
-    'website/views': 'eashaw',
+    'website/views': ['eashaw', 'mike-j-thomas'],
     'website/generators': 'eashaw',
     'website/assets': 'eashaw',
     'website/package.json': 'eashaw',
     'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
     'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
-    'website/api/controllers/imagine': ['eashaw', 'mike-j-thomas'],// landing pages
 
     // 🫧 Vulnerability dashboard
     'ee/vulnerability-dashboard': ['eashaw', 'mikermcneil'],// (catch-all)

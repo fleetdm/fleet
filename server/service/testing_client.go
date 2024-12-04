@@ -159,6 +159,11 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, err)
 	}
 
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM policies;`)
+		return err
+	})
+
 	// Clean software installers in "No team" (the others are deleted in ts.ds.DeleteTeam above).
 	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)

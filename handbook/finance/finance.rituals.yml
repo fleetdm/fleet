@@ -90,7 +90,7 @@
     repo: "confidential"
 -
   task: "Run US contractor payroll" 
-  startedOn: "2024-02-28" 
+  startedOn: "2024-02-27" 
   frequency: "Monthly"
   description: "Manually process US contractor payroll by verifying and syncing time contractor worked, then processing payment." 
   moreInfoUrl: "https://fleetdm.com/handbook/finance#run-us-contractor-payroll"

@@ -58,4 +58,6 @@ module.exports.policies = {
   'deliver-deal-registration-submission': true,
   'get-est-device-certificate': true,
   'view-testimonials': true,
+  'view-app-library': true,
+  'view-app-details': true,
 };
