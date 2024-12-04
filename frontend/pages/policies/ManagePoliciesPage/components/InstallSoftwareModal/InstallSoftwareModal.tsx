@@ -25,6 +25,8 @@ import TooltipWrapper from "components/TooltipWrapper";
 const getPlatformDisplayFromPackageExtension = (ext: string | undefined) => {
   switch (ext) {
     case "pkg":
+    case "zip":
+    case "dmg":
       return "macOS";
     case "deb":
     case "rpm":
