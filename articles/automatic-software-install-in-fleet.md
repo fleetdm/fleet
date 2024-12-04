@@ -129,3 +129,4 @@ By automating software deployment, you can gain greater control over what's inst
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2024-09-23">
 <meta name="description" value="A guide to workflows using automatic software installation in Fleet.">
+
