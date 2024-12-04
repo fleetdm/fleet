@@ -21,7 +21,7 @@ If you are interested in gathering information from Fleet in a production enviro
 
 ## Authentication
 
-### Create Session
+### Create session
 
 `POST /api/v1/fleet/sessions`
 
