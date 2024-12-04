@@ -2,7 +2,6 @@ package zenity
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 
@@ -14,7 +13,7 @@ const zenityProcessName = "zenity"
 
 type Zenity struct {
 	// cmdWithOutput can be set in tests to mock execution of the dialog.
-	cmdWithOutput func(ctx context.Context, args ...string) ([]byte, int, error)
+	cmdWithOutput func(args ...string) ([]byte, int, error)
 	// cmdWithWait can be set in tests to mock execution of the dialog.
 	cmdWithCancel func(args ...string) (func() error, error)
 }
@@ -45,7 +44,7 @@ func (z *Zenity) ShowEntry(opts dialog.EntryOptions) ([]byte, error) {
 		args = append(args, fmt.Sprintf("--timeout=%d", int(opts.TimeOut.Seconds())))
 	}
 
-	output, statusCode, err := z.cmdWithOutput(context.Background(), args...)
+	output, statusCode, err := z.cmdWithOutput(args...)
 	if err != nil {
 		switch statusCode {
 		case 1:
@@ -73,7 +72,7 @@ func (z *Zenity) ShowInfo(opts dialog.InfoOptions) error {
 		args = append(args, fmt.Sprintf("--timeout=%d", int(opts.TimeOut.Seconds())))
 	}
 
-	_, statusCode, err := z.cmdWithOutput(context.Background(), args...)
+	_, statusCode, err := z.cmdWithOutput(args...)
 	if err != nil {
 		switch statusCode {
 		case 5:
@@ -114,13 +113,13 @@ func (z *Zenity) ShowProgress(opts dialog.ProgressOptions) (func() error, error)
 	return cancel, nil
 }
 
-func execCmdWithOutput(ctx context.Context, args ...string) ([]byte, int, error) {
+func execCmdWithOutput(args ...string) ([]byte, int, error) {
 	var opts []execuser.Option
 	for _, arg := range args {
 		opts = append(opts, execuser.WithArg(arg, "")) // Using empty value for positional args
 	}
 
-	output, exitCode, err := execuser.RunWithOutput(ctx, zenityProcessName, opts...)
+	output, exitCode, err := execuser.RunWithOutput(zenityProcessName, opts...)
 
 	// Trim the newline from zenity output
 	output = bytes.TrimSuffix(output, []byte("\n"))

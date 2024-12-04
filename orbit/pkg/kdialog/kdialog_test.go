@@ -16,7 +16,7 @@ type mockExecCmd struct {
 	err          error
 }
 
-func (m *mockExecCmd) runWithOutput(ctx context.Context, args ...string) ([]byte, int, error) {
+func (m *mockExecCmd) runWithOutput(args ...string) ([]byte, int, error) {
 	m.capturedArgs = append(m.capturedArgs, args...)
 
 	if m.exitCode != 0 {
