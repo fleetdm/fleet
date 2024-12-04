@@ -1799,6 +1799,8 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 
 	// TODO: azure enrollments come with an empty uuid, I haven't figured
 	// out a good way to identify the device.
+	displayName := reqDeviceName
+	var serial string
 	if hostUUID != "" {
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
@@ -1809,29 +1811,27 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		if err != nil {
 			return err
 		}
-	}
 
-	// Get the host in order to get the correct display name and serial number for the activity
-	adminTeamFilter := fleet.TeamFilter{
-		User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-	}
+		// Get the host in order to get the correct display name and serial number for the activity
+		adminTeamFilter := fleet.TeamFilter{
+			User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+		}
 
-	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, adminTeamFilter, []string{hostUUID})
-	if err != nil {
-		// Do not abort; this call was only made to get better data for the activity, so shouldn't
-		// fail the request. We fall back to `reqDeviceName` for the display name in this case.
-		logging.WithExtras(logging.WithNoUser(ctx),
-			"msg", "failed to get host data for windows MDM enrollment activity",
-		)
-	}
+		hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, adminTeamFilter, []string{hostUUID})
+		if err != nil {
+			// Do not abort; this call was only made to get better data for the activity, so shouldn't
+			// fail the request. We fall back to `reqDeviceName` for the display name in this case.
+			logging.WithExtras(logging.WithNoUser(ctx),
+				"msg", "failed to get host data for windows MDM enrollment activity",
+			)
+		}
 
-	displayName := reqDeviceName
-	var serial string
+		if len(hosts) == 1 {
+			// then we found the host, so use the data from there for the activity
+			displayName = hosts[0].DisplayName()
+			serial = hosts[0].HardwareSerial
+		}
 
-	if len(hosts) == 1 {
-		// then we found the host, so use the data from there for the activity
-		displayName = hosts[0].DisplayName()
-		serial = hosts[0].HardwareSerial
 	}
 
 	err = svc.NewActivity(
