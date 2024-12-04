@@ -95,7 +95,7 @@ module.exports = {
 
     let userForThisSubscription = await User.findOne({stripeCustomerId: stripeEventData.customer});
     if(!userForThisSubscription){
-      throw new Error(`The stripe subscription events webhook received a tpye ${type} event for a user with stripeCustomerId: ${stripeEventData.customer}, but no matching user was found in the databse. Stripe event ID: ${id}`);
+      throw new Error(`The stripe subscription events webhook received a type ${type} event for a user with stripeCustomerId: ${stripeEventData.customer}, but no matching user was found in the databse. Stripe event ID: ${id}`);
     }
     //  ┬ ┬┌─┐┌─┐┌─┐┌┬┐┬┌┐┌┌─┐  ┬─┐┌─┐┌┐┌┌─┐┬ ┬┌─┐┬
     //  │ │├─┘│  │ │││││││││ ┬  ├┬┘├┤ │││├┤ │││├─┤│
@@ -233,6 +233,35 @@ module.exports = {
         fleetLicenseKey: newLicenseKey,
         user: userForThisSubscription.id,
       });
+
+      await sails.helpers.sendTemplateEmail.with({
+        to: userForThisSubscription.emailAddress,
+        from: sails.config.custom.fromEmail,
+        fromName: sails.config.custom.fromName,
+        subject: 'Your Fleet Premium order',
+        template: 'email-order-confirmation',
+        templateData: {
+          firstName: userForThisSubscription.firstName,
+          lastName: userForThisSubscription.lastName,
+        }
+      });
+
+      let todayOn = new Date();
+      let isoTimestampForDescription = todayOn.toISOString();
+      sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+        emailAddress: userForThisSubscription.emailAddress,
+        firstName: userForThisSubscription.firstName,
+        lastName: userForThisSubscription.lastName,
+        organization: userForThisSubscription.organization,
+        contactSource: 'Website - Sign up',// Note: this is only set on new contacts.
+        description: `Purchased a self-service Fleet Premium license on ${isoTimestampForDescription.split('T')[0]} for ${numberOfHosts} host${numberOfHosts > 1 ? 's' : ''}.`
+      }).exec((err)=>{
+        if(err){
+          sails.log.warn(`Background task failed: When a user (email: ${userForThisSubscription.emailAddress} purchased a self-service Fleet premium subscription, a Contact and Account record could not be created/updated in the CRM.`, err);
+        }
+        return;
+      });
+
     }
     // FUTURE: send emails about failed payments. (type === 'invoice.payment_failed' && stripeEventData.billing_reason === 'subscription_cycle')
 
