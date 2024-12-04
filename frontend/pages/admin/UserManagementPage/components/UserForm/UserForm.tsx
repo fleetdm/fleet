@@ -44,14 +44,14 @@ enum UserTeamType {
   AssignTeams = "ASSIGN_TEAMS",
 }
 
-export interface IFormData {
+export interface IUserFormData {
   email: string;
   name: string;
   newUserType?: NewUserType | null;
   password?: string | null;
   new_password?: string | null; // if a new password is being set for an existing user, the API expects `new_password` rather than `password`
   sso_enabled: boolean;
-  two_factor_authentication_enabled?: boolean;
+  mfa_enabled?: boolean;
   global_role: UserRole | null;
   teams: ITeam[];
   currentUserId?: number;
@@ -59,10 +59,10 @@ export interface IFormData {
   role?: UserRole;
 }
 
-interface IAddUserFormProps {
+interface IUserFormProps {
   availableTeams: ITeam[];
   onCancel: () => void;
-  onSubmit: (formData: IFormData) => void;
+  onSubmit: (formData: IUserFormData) => void;
   submitText: string;
   defaultName?: string;
   defaultEmail?: string;
@@ -77,12 +77,12 @@ interface IAddUserFormProps {
   sesConfigured?: boolean;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
-  isTwoFactorAuthenticationEnabled?: boolean; // corresponds to whether 2fa is enabled for the individual user
+  isMfaEnabled?: boolean; // corresponds to whether MFA is enabled for the individual user
   isApiOnly?: boolean;
   isNewUser?: boolean;
   isInvitePending?: boolean;
   serverErrors?: { base: string; email: string }; // "server" because this form does its own client validation
-  addOrEditUserErrors?: IUserFormErrors;
+  userFormErrors: IUserFormErrors;
   isUpdatingUsers?: boolean;
 }
 
@@ -104,14 +104,14 @@ const UserForm = ({
   sesConfigured,
   canUseSso,
   isSsoEnabled,
-  isTwoFactorAuthenticationEnabled,
+  isMfaEnabled,
   isApiOnly,
   isNewUser = false,
   isInvitePending,
   serverErrors,
-  addOrEditUserErrors,
+  userFormErrors,
   isUpdatingUsers,
-}: IAddUserFormProps): JSX.Element => {
+}: IUserFormProps): JSX.Element => {
   // For scrollable modal
   const [isTopScrolling, setIsTopScrolling] = useState(false);
   const topDivRef = useRef<HTMLDivElement>(null);
@@ -125,19 +125,14 @@ const UserForm = ({
 
   const { renderFlash } = useContext(NotificationContext);
 
-  const [errors, setErrors] = useState<IUserFormErrors>({
-    name: null,
-    email: null,
-    password: null,
-  });
-  const [formData, setFormData] = useState<IFormData>({
+  const [errors, setErrors] = useState<IUserFormErrors>(userFormErrors);
+  const [formData, setFormData] = useState<IUserFormData>({
     email: defaultEmail || "",
     name: defaultName || "",
     newUserType: isNewUser ? NewUserType.AdminCreated : null,
     password: "",
     sso_enabled: isSsoEnabled || false,
-    two_factor_authentication_enabled:
-      isTwoFactorAuthenticationEnabled || false,
+    mfa_enabled: isMfaEnabled || false,
     global_role: defaultGlobalRole || null,
     teams: defaultTeams || [],
     currentUserId,
@@ -151,12 +146,6 @@ const UserForm = ({
     window.addEventListener("resize", checkScroll);
     return () => window.removeEventListener("resize", checkScroll);
   }, [formData]);
-
-  useEffect(() => {
-    if (addOrEditUserErrors) {
-      setErrors(addOrEditUserErrors);
-    }
-  }, [addOrEditUserErrors]);
 
   const onInputChange = (formField: string): ((value: string) => void) => {
     return (value: string) => {
@@ -199,6 +188,13 @@ const UserForm = ({
     });
   };
 
+  const onSsoChange = (value: boolean): void => {
+    setFormData({
+      ...formData,
+      sso_enabled: value,
+    });
+  };
+
   const onSelectedTeamChange = (teams: ITeam[]): void => {
     setFormData({
       ...formData,
@@ -213,15 +209,8 @@ const UserForm = ({
     });
   };
 
-  const onSsoDisable = (): void => {
-    setFormData({
-      ...formData,
-      sso_enabled: false,
-    });
-  };
-
   // UserForm component can be used to add a new user or edit an existing user so submitData will be assembled accordingly
-  const addSubmitData = (): IFormData => {
+  const addSubmitData = (): IUserFormData => {
     const submitData = formData;
 
     if (!isNewUser && !isInvitePending) {
@@ -482,10 +471,10 @@ const UserForm = ({
         className={`${baseClass}__radio-input`}
         label="Enable single sign-on"
         id="enable-single-sign-on"
-        checked={formData.sso_enabled}
-        value={formData.sso_enabled.toString()}
+        checked={!!formData.sso_enabled}
+        value="true"
         name="authentication-type"
-        onChange={onRadioChange("sso_enabled")}
+        onChange={() => onSsoChange(true)}
       />
       <Radio
         className={`${baseClass}__radio-input`}
@@ -493,9 +482,9 @@ const UserForm = ({
         id="require-password"
         disabled={!(smtpConfigured || sesConfigured)}
         checked={!formData.sso_enabled}
-        value={formData.sso_enabled.toString()}
+        value="false"
         name="authentication-type"
-        onChange={onSsoDisable}
+        onChange={() => onSsoChange(false)}
         /** Note: This was a checkbox that is now a radio button, waiting on
          * product to confirm if we're adding help text to radio buttons as
          * it's not in Figma design system, the Figma here, or in the Radio
@@ -564,9 +553,9 @@ const UserForm = ({
         <div className="form-field__label">Password</div>
       )}
       <Checkbox
-        name="two_factor_authentication_enabled"
-        onChange={onCheckboxChange("two_factor_authentication_enabled")}
-        value={formData.two_factor_authentication_enabled}
+        name="mfa_enabled"
+        onChange={onCheckboxChange("mfa_enabled")}
+        value={formData.mfa_enabled}
         wrapperClassName={`${baseClass}__2fa`}
         helpText="User will be asked to authenticate with a magic link that will be sent to their email."
         disabled={!smtpConfigured && !sesConfigured}
@@ -638,7 +627,7 @@ const UserForm = ({
             (!isNewUser && !isInvitePending && isModifiedByGlobalAdmin)) &&
             !formData.sso_enabled &&
             renderPasswordSection()}
-          {(isPremiumTier || isTwoFactorAuthenticationEnabled) &&
+          {(isPremiumTier || isMfaEnabled) &&
             renderTwoFactorAuthenticationOption()}
           {isPremiumTier ? renderPremiumRoleOptions() : renderGlobalRoleForm()}
         </form>

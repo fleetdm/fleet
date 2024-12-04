@@ -9,7 +9,7 @@ export interface IInvite {
   email: string;
   name: string;
   sso_enabled: boolean;
-  two_factor_authentication_enabled?: boolean;
+  mfa_enabled?: boolean;
   global_role: UserRole | null;
   teams: ITeam[];
   api_only?: boolean;
@@ -21,7 +21,7 @@ export interface ICreateInviteFormData {
   invited_by?: number;
   name: string;
   sso_enabled?: boolean;
-  two_factor_authentication_enabled?: boolean;
+  mfa_enabled?: boolean;
   teams: ITeam[];
 }
 
@@ -32,6 +32,6 @@ export interface IEditInviteFormData {
   name?: string;
   password: null;
   sso_enabled: boolean;
-  two_factor_authentication_enabled?: boolean;
+  mfa_enabled?: boolean;
   teams?: ITeam[];
 }

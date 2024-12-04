@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
 import { renderWithSetup, createMockRouter } from "test/test-utils";
+import { DEFAULT_USER_FORM_ERRORS } from "utilities/constants";
 import UserForm from "./UserForm";
 
 // Note: Happy path is tested e2e so these integration tests are only edge cases
@@ -18,6 +19,7 @@ describe("UserForm - component", () => {
     canUseSso: false,
     isNewUser: true,
     router: createMockRouter(),
+    userFormErrors: DEFAULT_USER_FORM_ERRORS,
   };
 
   it("displays error messages for invalid inputs", async () => {

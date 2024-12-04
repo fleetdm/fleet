@@ -25,7 +25,7 @@ import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
 import DeleteUserModal from "../DeleteUserModal";
 import ResetPasswordModal from "../ResetPasswordModal";
 import ResetSessionsModal from "../ResetSessionsModal";
-import { NewUserType, IFormData } from "../UserForm/UserForm";
+import { NewUserType, IUserFormData } from "../UserForm/UserForm";
 import AddUserModal from "../AddUserModal";
 import EditUserModal from "../EditUserModal";
 
@@ -211,7 +211,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     return userData;
   };
 
-  const onAddUserSubmit = (formData: IFormData) => {
+  const onAddUserSubmit = (formData: IUserFormData) => {
     setIsUpdatingUsers(true);
 
     if (formData.newUserType === NewUserType.AdminInvited) {
@@ -295,7 +295,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     }
   };
 
-  const onEditUser = (formData: IFormData) => {
+  const onEditUser = (formData: IUserFormData) => {
     const userData = getUser(userEditing.type, userEditing.id);
 
     let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
@@ -474,9 +474,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         sesConfigured={config?.email?.backend === "ses" || false}
         canUseSso={config?.sso_settings.enable_sso || false}
         isSsoEnabled={userData?.sso_enabled}
-        isTwoFactorAuthenticationEnabled={
-          userData?.two_factor_authentication_enabled
-        }
+        isMfaEnabled={userData?.mfa_enabled}
         isApiOnly={userData?.api_only || false}
         isModifiedByGlobalAdmin
         isInvitePending={userEditing.type === "invite"}

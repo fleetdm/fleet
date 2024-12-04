@@ -22,7 +22,7 @@ import TableCount from "components/TableContainer/TableCount";
 import AddUserModal from "pages/admin/UserManagementPage/components/AddUserModal";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import {
-  IFormData,
+  IUserFormData,
   NewUserType,
 } from "../../../UserManagementPage/components/UserForm/UserForm";
 import userManagementHelpers from "../../../UserManagementPage/helpers";
@@ -204,7 +204,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     ]
   );
 
-  const onCreateUserSubmit = (formData: IFormData) => {
+  const onCreateUserSubmit = (formData: IUserFormData) => {
     setIsUpdatingUsers(true);
 
     if (formData.newUserType === NewUserType.AdminInvited) {
@@ -292,7 +292,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   };
 
   const onEditUserSubmit = useCallback(
-    (formData: IFormData) => {
+    (formData: IUserFormData) => {
       const updatedAttrs: IUpdateUserFormData = userManagementHelpers.generateUpdateData(
         userEditing as IUser,
         formData
@@ -463,9 +463,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           sesConfigured={sesConfigured}
           canUseSso={canUseSso}
           isSsoEnabled={userEditing?.sso_enabled}
-          isTwoFactorAuthenticationEnabled={
-            userEditing?.two_factor_authentication_enabled
-          }
+          isMfaEnabled={userEditing?.mfa_enabled}
           isModifiedByGlobalAdmin={isGlobalAdmin}
           currentTeam={currentTeamDetails}
           isUpdatingUsers={isUpdatingUsers}

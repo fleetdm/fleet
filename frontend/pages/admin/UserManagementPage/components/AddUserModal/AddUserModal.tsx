@@ -4,11 +4,11 @@ import { ITeam } from "interfaces/team";
 import { IUserFormErrors, UserRole } from "interfaces/user";
 import Modal from "components/Modal";
 import UserForm from "../UserForm";
-import { IFormData } from "../UserForm/UserForm";
+import { IUserFormData } from "../UserForm/UserForm";
 
 interface IAddUserModalProps {
   onCancel: () => void;
-  onSubmit: (formData: IFormData) => void;
+  onSubmit: (formData: IUserFormData) => void;
   defaultGlobalRole?: UserRole | null;
   defaultTeamRole?: UserRole;
   defaultTeams?: ITeam[];
@@ -21,7 +21,7 @@ interface IAddUserModalProps {
   isModifiedByGlobalAdmin?: boolean | false;
   isUpdatingUsers?: boolean | false;
   serverErrors?: { base: string; email: string };
-  addUserErrors?: IUserFormErrors;
+  addUserErrors: IUserFormErrors;
 }
 
 const baseClass = "add-user-modal";
@@ -52,7 +52,7 @@ const AddUserModal = ({
     >
       <UserForm
         serverErrors={serverErrors}
-        addOrEditUserErrors={addUserErrors}
+        userFormErrors={addUserErrors}
         defaultGlobalRole={defaultGlobalRole}
         defaultTeamRole={defaultTeamRole}
         defaultTeams={defaultTeams}
