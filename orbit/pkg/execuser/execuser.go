@@ -2,7 +2,10 @@
 // SYSTEM service on Windows) as the current login user.
 package execuser
 
-import "io"
+import (
+	"context"
+	"io"
+)
 
 type eopts struct {
 	env        [][2]string
@@ -58,4 +61,12 @@ func RunWithStdin(path string, opts ...Option) (io.WriteCloser, error) {
 		fn(&o)
 	}
 	return runWithStdin(path, o)
+}
+
+func RunWithContext(ctx context.Context, path string, opts ...Option) error {
+	var o eopts
+	for _, fn := range opts {
+		fn(&o)
+	}
+	return runWithContext(ctx, path, o)
 }

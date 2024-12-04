@@ -81,7 +81,7 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 		}
 
 		// Show error in dialog
-		if err := lr.infoPrompt(ctx, infoTitle, infoFailedText); err != nil {
+		if err := lr.infoPrompt(infoTitle, infoFailedText); err != nil {
 			log.Info().Err(err).Msg("failed to show failed escrow key dialog")
 		}
 
@@ -89,14 +89,14 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	}
 
 	if response.Err != "" {
-		if err := lr.infoPrompt(ctx, infoTitle, response.Err); err != nil {
+		if err := lr.infoPrompt(infoTitle, response.Err); err != nil {
 			log.Info().Err(err).Msg("failed to show response error dialog")
 		}
 		return fmt.Errorf("error getting linux escrow key: %s", response.Err)
 	}
 
 	// Show success dialog
-	if err := lr.infoPrompt(ctx, infoTitle, infoSuccessText); err != nil {
+	if err := lr.infoPrompt(infoTitle, infoSuccessText); err != nil {
 		log.Info().Err(err).Msg("failed to show success escrow key dialog")
 	}
 
@@ -251,7 +251,7 @@ func generateRandomPassphrase() ([]byte, error) {
 }
 
 func (lr *LuksRunner) entryPrompt(ctx context.Context, title, text string) ([]byte, error) {
-	passphrase, err := lr.notifier.ShowEntry(ctx, dialog.EntryOptions{
+	passphrase, err := lr.notifier.ShowEntry(dialog.EntryOptions{
 		Title:    title,
 		Text:     text,
 		HideText: true,
@@ -264,7 +264,7 @@ func (lr *LuksRunner) entryPrompt(ctx context.Context, title, text string) ([]by
 			return nil, nil
 		case errors.Is(err, dialog.ErrTimeout):
 			log.Debug().Msg("key escrow dialog timed out")
-			err := lr.infoPrompt(ctx, infoTitle, timeoutMessage)
+			err := lr.infoPrompt(infoTitle, timeoutMessage)
 			if err != nil {
 				log.Info().Err(err).Msg("failed to show timeout dialog")
 			}
@@ -279,8 +279,8 @@ func (lr *LuksRunner) entryPrompt(ctx context.Context, title, text string) ([]by
 	return passphrase, nil
 }
 
-func (lr *LuksRunner) infoPrompt(ctx context.Context, title, text string) error {
-	err := lr.notifier.ShowInfo(ctx, dialog.InfoOptions{
+func (lr *LuksRunner) infoPrompt(title, text string) error {
+	err := lr.notifier.ShowInfo(dialog.InfoOptions{
 		Title:   title,
 		Text:    text,
 		TimeOut: 1 * time.Minute,

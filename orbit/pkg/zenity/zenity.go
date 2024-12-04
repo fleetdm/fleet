@@ -2,19 +2,18 @@ package zenity
 
 import (
 	"bytes"
-	"context"
+	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
 const zenityProcessName = "zenity"
 
 type Zenity struct {
 	// cmdWithOutput can be set in tests to mock execution of the dialog.
-	cmdWithOutput func(ctx context.Context, args ...string) ([]byte, int, error)
+	cmdWithOutput func(args ...string) ([]byte, int, error)
 	// cmdWithWait can be set in tests to mock execution of the dialog.
 	cmdWithCancel func(args ...string) (func() error, error)
 }
@@ -30,7 +29,7 @@ func New() *Zenity {
 
 // ShowEntry displays an dialog that accepts end user input. It returns the entered
 // text or errors ErrCanceled, ErrTimeout, or ErrUnknown.
-func (z *Zenity) ShowEntry(ctx context.Context, opts dialog.EntryOptions) ([]byte, error) {
+func (z *Zenity) ShowEntry(opts dialog.EntryOptions) ([]byte, error) {
 	args := []string{"--entry"}
 	if opts.Title != "" {
 		args = append(args, fmt.Sprintf("--title=%s", opts.Title))
@@ -45,7 +44,7 @@ func (z *Zenity) ShowEntry(ctx context.Context, opts dialog.EntryOptions) ([]byt
 		args = append(args, fmt.Sprintf("--timeout=%d", int(opts.TimeOut.Seconds())))
 	}
 
-	output, statusCode, err := z.cmdWithOutput(ctx, args...)
+	output, statusCode, err := z.cmdWithOutput(args...)
 	if err != nil {
 		switch statusCode {
 		case 1:
@@ -53,7 +52,7 @@ func (z *Zenity) ShowEntry(ctx context.Context, opts dialog.EntryOptions) ([]byt
 		case 5:
 			return nil, dialog.ErrTimeout
 		default:
-			return nil, ctxerr.Wrap(ctx, dialog.ErrUnknown, err.Error())
+			return nil, errors.Join(dialog.ErrUnknown, err)
 		}
 	}
 
@@ -61,7 +60,7 @@ func (z *Zenity) ShowEntry(ctx context.Context, opts dialog.EntryOptions) ([]byt
 }
 
 // ShowInfo displays an information dialog. It returns errors ErrTimeout or ErrUnknown.
-func (z *Zenity) ShowInfo(ctx context.Context, opts dialog.InfoOptions) error {
+func (z *Zenity) ShowInfo(opts dialog.InfoOptions) error {
 	args := []string{"--info"}
 	if opts.Title != "" {
 		args = append(args, fmt.Sprintf("--title=%s", opts.Title))
@@ -73,13 +72,13 @@ func (z *Zenity) ShowInfo(ctx context.Context, opts dialog.InfoOptions) error {
 		args = append(args, fmt.Sprintf("--timeout=%d", int(opts.TimeOut.Seconds())))
 	}
 
-	_, statusCode, err := z.cmdWithOutput(ctx, args...)
+	_, statusCode, err := z.cmdWithOutput(args...)
 	if err != nil {
 		switch statusCode {
 		case 5:
-			return ctxerr.Wrap(ctx, dialog.ErrTimeout)
+			return dialog.ErrTimeout
 		default:
-			return ctxerr.Wrap(ctx, dialog.ErrUnknown, err.Error())
+			return errors.Join(dialog.ErrUnknown, err)
 		}
 	}
 
@@ -114,7 +113,7 @@ func (z *Zenity) ShowProgress(opts dialog.ProgressOptions) (func() error, error)
 	return cancel, nil
 }
 
-func execCmdWithOutput(ctx context.Context, args ...string) ([]byte, int, error) {
+func execCmdWithOutput(args ...string) ([]byte, int, error) {
 	var opts []execuser.Option
 	for _, arg := range args {
 		opts = append(opts, execuser.WithArg(arg, "")) // Using empty value for positional args

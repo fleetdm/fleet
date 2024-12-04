@@ -3,6 +3,7 @@ package execuser
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -47,6 +48,41 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 		return "", fmt.Errorf("open path %q: %w", path, err)
 	}
 	return "", nil
+}
+
+// run uses sudo to run the given path as login user.
+func runWithContext(ctx context.Context, path string, opts eopts) error {
+	args, err := getUserAndDisplayArgs(path, opts)
+	if err != nil {
+		return fmt.Errorf("get args: %w", err)
+	}
+
+	args = append(args, path)
+
+	if len(opts.args) > 0 {
+		for _, arg := range opts.args {
+			args = append(args, arg[0], arg[1])
+		}
+	}
+
+	cmd := exec.CommandContext(ctx, "sudo", args...)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	log.Printf("cmd=%s", cmd.String())
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("open path %q: %w", path, err)
+	}
+
+	// Wait for the process to finish.
+	if err := cmd.Wait(); err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return fmt.Errorf("%q exited with code %d: %w", path, exitErr.ExitCode(), err)
+		}
+		return fmt.Errorf("%q error: %w", path, err)
+	}
+	
+	return nil
 }
 
 // run uses sudo to run the given path as login user and waits for the process to finish.
