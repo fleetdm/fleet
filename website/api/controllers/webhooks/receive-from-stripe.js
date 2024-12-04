@@ -221,7 +221,7 @@ module.exports = {
       // Generate a new license key.
       let newLicenseKey = await sails.helpers.createLicenseKey.with({
         numberOfHosts,
-        organization: userForThisSubscription.organization,
+        organization: userForThisSubscription.organization ? userForThisSubscription.organization : 'Unknown',
         expiresAt: nextBillingAt,
       });
       // Create the database record for this subscription.
@@ -241,8 +241,8 @@ module.exports = {
         subject: 'Your Fleet Premium order',
         template: 'email-order-confirmation',
         templateData: {
-          firstName: userForThisSubscription.firstName,
-          lastName: userForThisSubscription.lastName,
+          firstName: userForThisSubscription.firstName ? userForThisSubscription.firstName : '',
+          lastName: userForThisSubscription.lastName ? userForThisSubscription.lastName : '',
         }
       });
 
