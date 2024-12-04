@@ -56,13 +56,7 @@ Authenticates the user with the specified credentials. Use the token returned fr
 
 `POST /api/v1/fleet/login`
 
-> This API endpoint is not available to SSO users, since email/password login is disabled for SSO
-> users. To get an API token for an SSO user, you can use the Fleet UI.
-
-> While this endpoint is used by the Fleet UI to log users in with MFA (via email verification)
-> enabled (by setting the `supports_email_verification` body parameter to `true`), clients other than
-> the Fleet UI won't be able to finish the MFA process. Users with MFA, similar to SSO users, should
-> log into the Fleet UI and retrieve an API token from there instead of using the login endpoint.
+> Logging in via the API is not supported for SSO and MFA users. The API token can instead be retrieved from the "My account" page in the UI (/profile). On this page, choose "Get API token".
 
 #### Parameters
 
