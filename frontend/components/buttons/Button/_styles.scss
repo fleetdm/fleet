@@ -1,7 +1,7 @@
 $base-class: "button";
 
 @mixin button-focus-outline($offset: 2px) {
-  outline-color: #d9d9fe;
+  outline-color: $core-focused-outline;
   outline-offset: $offset;
   outline-style: solid;
   outline-width: 2px;

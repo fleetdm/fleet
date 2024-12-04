@@ -1,8 +1,8 @@
 import { isEqual } from "lodash";
 
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import { IInvite } from "interfaces/invite";
 import { IUser, IUserUpdateBody, IUpdateUserFormData } from "interfaces/user";
-import { IRole } from "interfaces/role";
 import { IFormData } from "../components/UserForm/UserForm";
 
 type ICurrentUserData = Pick<
@@ -10,7 +10,7 @@ type ICurrentUserData = Pick<
   "global_role" | "teams" | "name" | "email" | "sso_enabled"
 >;
 
-interface IRoleOptionsParams {
+export interface IRoleOptionsParams {
   isPremiumTier?: boolean;
   isApiOnly?: boolean;
 }
@@ -58,20 +58,17 @@ const generateUpdateData = (
 export const roleOptions = ({
   isPremiumTier,
   isApiOnly,
-}: IRoleOptionsParams): IRole[] => {
-  const roles: IRole[] = [
+}: IRoleOptionsParams): CustomOptionType[] => {
+  const roles: CustomOptionType[] = [
     {
-      disabled: false,
       label: "Observer",
       value: "observer",
     },
     {
-      disabled: false,
       label: "Maintainer",
       value: "maintainer",
     },
     {
-      disabled: false,
       label: "Admin",
       value: "admin",
     },
@@ -79,14 +76,12 @@ export const roleOptions = ({
 
   if (isPremiumTier) {
     roles.splice(1, 0, {
-      disabled: false,
       label: "Observer+",
       value: "observer_plus",
     });
 
     if (isApiOnly) {
       roles.splice(3, 0, {
-        disabled: false,
         label: "GitOps",
         value: "gitops",
       });

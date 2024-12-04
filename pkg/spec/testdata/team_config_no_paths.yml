@@ -60,6 +60,7 @@ controls:
     mode: ""
     webhook_url: ""
   windows_enabled_and_configured: true
+  windows_migration_enabled: false
 queries:
   - name: Scheduled query stats
     description: Collect osquery performance stats directly from osquery

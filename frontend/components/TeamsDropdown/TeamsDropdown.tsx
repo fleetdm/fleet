@@ -18,7 +18,7 @@ import {
 
 import Icon from "components/Icon";
 
-interface INumberDropdownOption extends Omit<IDropdownOption, "value"> {
+export interface INumberDropdownOption extends Omit<IDropdownOption, "value"> {
   value: number; // Redefine the value property to be just number
 }
 
