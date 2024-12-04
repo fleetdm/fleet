@@ -67,7 +67,7 @@ rm -rf "$OLD_TUF_PATH"
 rm -rf "$NEW_TUF_PATH"
 pkill file-server || true
 
-echo "Restoring update_channels for \"No team\" to 'sstable' defaults..."
+echo "Restoring update_channels for \"No team\" to 'stable' defaults..."
 cat << EOF > upgrade.yml
 ---
 apiVersion: v1
@@ -371,7 +371,7 @@ echo "Installing fleetd package on macOS..."
 sudo installer -pkg fleet-osquery.pkg -verbose -target /
 
 CURRENT_DIR=$(pwd)
-prompt "Please install $CURRENT_DIR/fleet-osquery.msi and $CURRENT_DIR/fleet-osquery_${OLD_FULL_VERSION}_amd64.deb."
+prompt "Please install $CURRENT_DIR/fleet-osquery.msi and $CURRENT_DIR/fleet-osquery_${NEW_FULL_VERSION}_amd64.deb."
 
 echo "Waiting until installation and auto-update to new repository happens..."
 for host_hostname in "${hostnames[@]}"; do
@@ -456,6 +456,13 @@ done
 
 
 echo "Building fleetd packages using new repository and new fleetctl version..."
+
+CGO_ENABLED=0 go build \
+    -o ./build/fleetctl \
+    -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultRootMetadata=$ROOT_KEYS2 \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.DefaultURL=$NEW_TUF_URL" \
+    ./cmd/fleetctl
+
 for pkgType in "${pkgTypes[@]}"; do
     ./build/fleetctl package --type="$pkgType" \
         --enable-scripts \
@@ -464,8 +471,6 @@ for pkgType in "${pkgTypes[@]}"; do
         --enroll-secret="$NO_TEAM_ENROLL_SECRET" \
         --fleet-certificate=./tools/osquery/fleet.crt \
         --debug \
-        --update-roots="$ROOT_KEYS2" \
-        --update-url=$NEW_TUF_URL \
         --disable-open-folder \
         --disable-keystore \
         --update-interval=30s
