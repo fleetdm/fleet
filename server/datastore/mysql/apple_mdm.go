@@ -2135,18 +2135,18 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		return false, nil
 	}
 
-	// delete all host profiles to start from a clean slate, new entries will be added next
-	// TODO(roberto): is this really necessary? this was pre-existing
-	// behavior but I think it can be refactored. For now leaving it as-is.
-	//
-	// TODO part II(roberto): we found this call to be a major bottleneck during load testing
-	// https://github.com/fleetdm/fleet/issues/21338
-	if len(wantedProfiles) > 0 {
-		if err := ds.bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, wantedProfiles); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "bulk delete all profiles")
-		}
-		updatedDB = true
-	}
+	// // delete all host profiles to start from a clean slate, new entries will be added next
+	// // TODO(roberto): is this really necessary? this was pre-existing
+	// // behavior but I think it can be refactored. For now leaving it as-is.
+	// //
+	// // TODO part II(roberto): we found this call to be a major bottleneck during load testing
+	// // https://github.com/fleetdm/fleet/issues/21338
+	// if len(wantedProfiles) > 0 {
+	// 	if err := ds.bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, wantedProfiles); err != nil {
+	// 		return false, ctxerr.Wrap(ctx, err, "bulk delete all profiles")
+	// 	}
+	// 	updatedDB = true
+	// }
 
 	// profileIntersection tracks profilesToAdd ∩ profilesToRemove, this is used to avoid:
 	//
