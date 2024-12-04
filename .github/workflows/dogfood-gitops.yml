@@ -5,15 +5,15 @@ on:
     branches:
       - main
     paths:
-      - "it-and-security/**"
-      - ".github/workflows/dogfood-gitops.yml"
+      - 'it-and-security/**'
+      - '.github/workflows/dogfood-gitops.yml'
   pull_request:
     paths:
-      - "it-and-security/**"
-      - ".github/workflows/dogfood-gitops.yml"
+      - 'it-and-security/**'
+      - '.github/workflows/dogfood-gitops.yml'
   workflow_dispatch: # allows manual triggering
   schedule:
-    - cron: "0 6 * * *" # Nightly 6AM UTC
+  - cron: "0 6 * * *" # Nightly 6AM UTC
 
 # Prevent concurrent runs of this workflow, but allow all runs to finish.
 concurrency:
