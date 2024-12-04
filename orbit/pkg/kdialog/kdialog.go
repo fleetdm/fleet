@@ -2,14 +2,12 @@ package kdialog
 
 import (
 	"errors"
-	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
-
-	"github.com/godbus/dbus/v5"
 )
 
 const kdialogProcessName = "kdialog"
@@ -47,34 +45,9 @@ func (k *KDialog) ShowEntry(opts dialog.EntryOptions) ([]byte, error) {
 		}
 	}
 
+	output = []byte(strings.TrimSuffix(string(output), "\n"))
+
 	return output, nil
-}
-
-type ProgressBar struct {
-	serviceName string
-	objectPath  dbus.ObjectPath
-	conn        *dbus.Conn
-}
-
-// Update sets the progress value of the progress bar.
-func (p *ProgressBar) Update(value int) error {
-	obj := p.conn.Object(p.serviceName, p.objectPath)
-	call := obj.Call("org.freedesktop.DBus.Properties.Set", 0,
-		"org.kde.kdialog.ProgressDialog", "value", dbus.MakeVariant(value))
-	if call.Err != nil {
-		return fmt.Errorf("error updating progress: %w", call.Err)
-	}
-	return nil
-}
-
-// Close closes the progress bar.
-func (p *ProgressBar) Close() error {
-	obj := p.conn.Object(p.serviceName, p.objectPath)
-	call := obj.Call("org.kde.kdialog.ProgressDialog.close", 0)
-	if call.Err != nil {
-		return fmt.Errorf("error closing progress bar: %w", call.Err)
-	}
-	return p.conn.Close()
 }
 
 func (k *KDialog) ShowProgress(opts dialog.ProgressOptions) (func() error, error) {
