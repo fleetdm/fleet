@@ -28,6 +28,7 @@ import (
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 
@@ -1810,10 +1811,34 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		}
 	}
 
+	// Get the host in order to get the correct display name and serial number for the activity
+	adminTeamFilter := fleet.TeamFilter{
+		User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+	}
+
+	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, adminTeamFilter, []string{hostUUID})
+	if err != nil {
+		// Do not abort; this call was only made to get better data for the activity, so shouldn't
+		// fail the request. We fall back to `reqDeviceName` for the display name in this case.
+		logging.WithExtras(logging.WithNoUser(ctx),
+			"msg", "failed to get host data for windows MDM enrollment activity",
+		)
+	}
+
+	displayName := reqDeviceName
+	var serial string
+
+	if len(hosts) == 1 {
+		// then we found the host, so use the data from there for the activity
+		displayName = hosts[0].DisplayName()
+		serial = hosts[0].HardwareSerial
+	}
+
 	err = svc.NewActivity(
 		ctx, nil, &fleet.ActivityTypeMDMEnrolled{
-			HostDisplayName: reqDeviceName,
+			HostDisplayName: displayName,
 			MDMPlatform:     fleet.MDMPlatformMicrosoft,
+			HostSerial:      serial,
 		})
 	if err != nil {
 		// only logging, the device is enrolled at this point, and we
