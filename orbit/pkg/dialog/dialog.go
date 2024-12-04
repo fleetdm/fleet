@@ -62,7 +62,4 @@ type ProgressOptions struct {
 
 	// Text sets the text of the dialog.
 	Text string
-
-	// Value sets the percentage of the progress bar (0-100).
-	Value int
 }
