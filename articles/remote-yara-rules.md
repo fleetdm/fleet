@@ -65,7 +65,7 @@ Now the provided rules may be referenced in queries utilizing the `yara` table. 
 `https://<FLEET_SERVER_URL>/api/osquery/yara/<RULE_FILENAME>`. For example:
 
 ```
-SELECT * FROM yara WHERE path="/bin/ls" AND sigurl='https://example.fleetdm.com/api/osquery/yara/test1.yar'
+SELECT * FROM yara WHERE path="/bin/ls" AND sigurl='https://example.fleetdm.com/api/osquery/yara/rule1.yar'
 ```
 
 This works for both live and saved queries. Each time osquery runs the query, an authenticated HTTP
