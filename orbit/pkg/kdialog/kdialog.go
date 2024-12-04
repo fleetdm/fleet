@@ -1,13 +1,13 @@
 package kdialog
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 
 	"github.com/godbus/dbus/v5"
 )
@@ -15,14 +15,14 @@ import (
 const kdialogProcessName = "kdialog"
 
 type KDialog struct {
-	cmdWithOutput  func(args ...string) ([]byte, int, error)
-	cmdWithContext func(ctx context.Context, args ...string) error
+	cmdWithOutput func(timeout time.Duration, args ...string) ([]byte, int, error)
+	cmdWithCancel func(args ...string) (cancelFunc func() error, err error)
 }
 
 func New() *KDialog {
 	return &KDialog{
-		cmdWithOutput:  cmdWithOutput,
-		cmdWithContext: cmdWithContext,
+		cmdWithOutput: execCmdWithOutput,
+		cmdWithCancel: execCmdWithCancel,
 	}
 }
 
@@ -35,9 +35,16 @@ func (k *KDialog) ShowEntry(opts dialog.EntryOptions) ([]byte, error) {
 		args = append(args, "--title", opts.Title)
 	}
 
-	output, _, err := k.cmdWithOutput(args...)
+	output, statusCode, err := k.cmdWithOutput(opts.TimeOut, args...)
 	if err != nil {
-		return nil, errors.Join(dialog.ErrUnknown, err)
+		switch statusCode {
+		case 1:
+			return nil, dialog.ErrCanceled
+		case 124:
+			return nil, dialog.ErrTimeout
+		default:
+			return nil, errors.Join(dialog.ErrUnknown, err)
+		}
 	}
 
 	return output, nil
@@ -71,7 +78,7 @@ func (p *ProgressBar) Close() error {
 }
 
 func (k *KDialog) ShowProgress(opts dialog.ProgressOptions) (func() error, error) {
-	args := []string{"--progressbar"}
+	args := []string{"--msgbox"}
 	if opts.Text != "" {
 		args = append(args, opts.Text)
 	}
@@ -79,37 +86,12 @@ func (k *KDialog) ShowProgress(opts dialog.ProgressOptions) (func() error, error
 		args = append(args, "--title", opts.Title)
 	}
 
-	output, _, err := k.cmdWithOutput(args...)
+	cancel, err := k.cmdWithCancel(args...)
 	if err != nil {
-		return nil, errors.Join(dialog.ErrUnknown, err)
+		return nil, err
 	}
 
-	outputParts := strings.Split(string(output), " ")
-	if len(outputParts) != 2 {
-		return nil, errors.New("invalid output from kdialog")
-	}
-	serviceName := outputParts[0]
-	objectPath := outputParts[1]
-
-	conn, err := dbus.SessionBus()
-	if err != nil {
-		return nil, errors.Join(dialog.ErrUnknown, err)
-	}
-
-	progressBar := &ProgressBar{
-		serviceName: serviceName,
-		objectPath:  dbus.ObjectPath(objectPath),
-		conn:        conn,
-	}
-
-	// set the progress value
-	if opts.Value > 0 {
-		if err := progressBar.Update(opts.Value); err != nil {
-			return nil, err
-		}
-	}
-
-	return progressBar.Close, nil
+	return cancel, nil
 }
 
 func (k *KDialog) ShowInfo(opts dialog.InfoOptions) error {
@@ -121,12 +103,10 @@ func (k *KDialog) ShowInfo(opts dialog.InfoOptions) error {
 		args = append(args, "--title", opts.Title)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), opts.TimeOut)
-	defer cancel()
-	err := k.cmdWithContext(ctx, args...)
+	_, statusCode, err := k.cmdWithOutput(opts.TimeOut, args...)
 	if err != nil {
-		switch {
-		case ctx.Err() != nil:
+		switch statusCode {
+		case 124:
 			return dialog.ErrTimeout
 		default:
 			return errors.Join(dialog.ErrUnknown, err)
@@ -136,10 +116,14 @@ func (k *KDialog) ShowInfo(opts dialog.InfoOptions) error {
 	return nil
 }
 
-func cmdWithOutput(args ...string) ([]byte, int, error) {
+func execCmdWithOutput(timeout time.Duration, args ...string) ([]byte, int, error) {
 	var opts []execuser.Option
 	for _, arg := range args {
 		opts = append(opts, execuser.WithArg(arg, "")) // using empty value for positional args
+	}
+
+	if timeout > 0 {
+		opts = append(opts, execuser.WithTimeout(timeout))
 	}
 
 	output, exitCode, err := execuser.RunWithOutput(kdialogProcessName, opts...)
@@ -150,11 +134,23 @@ func cmdWithOutput(args ...string) ([]byte, int, error) {
 	return output, exitCode, nil
 }
 
-func cmdWithContext(ctx context.Context, args ...string) error {
+func execCmdWithCancel(args ...string) (func() error, error) {
 	var opts []execuser.Option
 	for _, arg := range args {
 		opts = append(opts, execuser.WithArg(arg, "")) // using empty value for positional args
 	}
 
-	return execuser.RunWithContext(ctx, kdialogProcessName, opts...)
+	_, err := execuser.Run(kdialogProcessName, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	killFunc := func() error {
+		if _, err := platform.KillAllProcessByName(kdialogProcessName); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	return killFunc, nil
 }

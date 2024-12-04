@@ -5,12 +5,14 @@ package execuser
 import (
 	"context"
 	"io"
+	"time"
 )
 
 type eopts struct {
 	env        [][2]string
 	args       [][2]string
 	stderrPath string //nolint:structcheck,unused
+	timeout    time.Duration
 }
 
 // Option allows configuring the application.
@@ -27,6 +29,12 @@ func WithEnv(name, value string) Option {
 func WithArg(name, value string) Option {
 	return func(a *eopts) {
 		a.args = append(a.args, [2]string{name, value})
+	}
+}
+
+func WithTimeout(duration time.Duration) Option {
+	return func(a *eopts) {
+		a.timeout = duration
 	}
 }
 
