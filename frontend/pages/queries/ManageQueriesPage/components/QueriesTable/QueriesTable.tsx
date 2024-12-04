@@ -32,7 +32,7 @@ export interface IQueriesTableProps {
   isAnyTeamObserverPlus: boolean;
   router?: InjectedRouter;
   queryParams?: {
-    compatible_platform?: string;
+    targeted_platform?: string;
     page?: string;
     query?: string;
     order_key?: string;
@@ -115,9 +115,9 @@ const QueriesTable = ({
   const sortDirection = initialSortDirection;
   const sortHeader = initialSortHeader;
 
-  const compatPlatformParam = queryParams?.compatible_platform;
-  const curCompatiblePlatformFilter = isQueryablePlatform(compatPlatformParam)
-    ? compatPlatformParam
+  const targetedPlatformParam = queryParams?.targeted_platform;
+  const curTargetedPlatformFilter = isQueryablePlatform(targetedPlatformParam)
+    ? targetedPlatformParam
     : DEFAULT_PLATFORM;
 
   // TODO: Look into useDebounceCallback with dependencies
@@ -133,10 +133,10 @@ const QueriesTable = ({
       const newQueryParams: Record<string, string | number | undefined> = {};
       newQueryParams.order_key = newSortHeader;
       newQueryParams.order_direction = newSortDirection;
-      newQueryParams.compatible_platform =
-        curCompatiblePlatformFilter === "all"
+      newQueryParams.targeted_platform =
+        curTargetedPlatformFilter === "all"
           ? undefined
-          : curCompatiblePlatformFilter;
+          : curTargetedPlatformFilter;
       newQueryParams.page = newPageIndex;
       newQueryParams.query = newSearchQuery;
       // Reset page number to 0 for new filters
@@ -160,7 +160,7 @@ const QueriesTable = ({
       sortHeader,
       sortDirection,
       searchQuery,
-      curCompatiblePlatformFilter,
+      curTargetedPlatformFilter,
       router,
       page,
     ]
@@ -171,7 +171,7 @@ const QueriesTable = ({
       graphicName: "empty-queries",
       header: "You don't have any queries",
     };
-    if (searchQuery || curCompatiblePlatformFilter !== "all") {
+    if (searchQuery || curTargetedPlatformFilter !== "all") {
       delete emptyParams.graphicName;
       emptyParams.header = "No matching queries";
       emptyParams.info = "No queries match the current filters.";
@@ -207,19 +207,19 @@ const QueriesTable = ({
   ]);
 
   const handlePlatformFilterDropdownChange = useCallback(
-    (selectedCompatiblePlatform: string) => {
+    (selectedTargetedPlatform: string) => {
       router?.push(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_QUERIES,
           queryParams: {
             ...queryParams,
             page: 0,
-            compatible_platform:
-              // separate URL & API 0-values of "compatible_platform" (undefined) from dropdown
+            targeted_platform:
+              // separate URL & API 0-values of "targeted_platform" (undefined) from dropdown
               // 0-value of "all"
-              selectedCompatiblePlatform === "all"
+              selectedTargetedPlatform === "all"
                 ? undefined
-                : selectedCompatiblePlatform,
+                : selectedTargetedPlatform,
           },
         })
       );
@@ -230,7 +230,7 @@ const QueriesTable = ({
   const renderPlatformDropdown = useCallback(() => {
     return (
       <Dropdown
-        value={curCompatiblePlatformFilter}
+        value={curTargetedPlatformFilter}
         className={`${baseClass}__platform-dropdown`}
         options={PLATFORM_FILTER_OPTIONS}
         searchable={false}
@@ -238,7 +238,7 @@ const QueriesTable = ({
         iconName="filter"
       />
     );
-  }, [curCompatiblePlatformFilter, queryParams, router]);
+  }, [curTargetedPlatformFilter, queryParams, router]);
 
   const columnConfigs = useMemo(
     () =>
@@ -253,7 +253,7 @@ const QueriesTable = ({
 
   const searchable =
     (totalQueriesCount ?? 0) > 0 ||
-    !!curCompatiblePlatformFilter ||
+    !!curTargetedPlatformFilter ||
     !!searchQuery;
 
   const emptyComponent = useCallback(() => {
@@ -305,7 +305,7 @@ const QueriesTable = ({
           onQueryChange={onQueryChange}
           searchable={searchable}
           customControl={searchable ? renderPlatformDropdown : undefined}
-          selectedDropdownFilter={curCompatiblePlatformFilter}
+          selectedDropdownFilter={curTargetedPlatformFilter}
         />
       </div>
     )

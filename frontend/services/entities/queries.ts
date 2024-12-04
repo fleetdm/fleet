@@ -23,7 +23,7 @@ export interface ILoadQueriesParams {
   orderDirection?: "asc" | "desc";
   orderKey?: string;
   mergeInherited?: boolean;
-  compatiblePlatform?: SelectedPlatform;
+  targetedPlatform?: SelectedPlatform;
 }
 export interface IQueryKeyLoadQueries extends ILoadQueriesParams {
   scope: "queries";
@@ -72,7 +72,7 @@ export default {
     orderDirection,
     orderKey,
     mergeInherited,
-    compatiblePlatform,
+    targetedPlatform,
   }: IQueryKeyQueriesLoadAll): Promise<IQueriesResponse> => {
     const { QUERIES } = endpoints;
 
@@ -84,12 +84,12 @@ export default {
       orderDirection,
       orderKey,
       mergeInherited,
-      compatiblePlatform,
+      targetedPlatform,
     });
 
     // API expects "macos" instead of "darwin"
-    if (snakeCaseParams.compatible_platform === "darwin") {
-      snakeCaseParams.compatible_platform = "macos";
+    if (snakeCaseParams.targeted_platform === "darwin") {
+      snakeCaseParams.targeted_platform = "macos";
     }
 
     const queryString = buildQueryStringFromParams(snakeCaseParams);

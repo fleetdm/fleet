@@ -78,7 +78,7 @@ export interface IQueryKeyQueriesLoadAll {
   orderDirection?: "asc" | "desc";
   orderKey?: string;
   mergeInherited?: boolean;
-  compatiblePlatform?: SelectedPlatform;
+  targetedPlatform?: SelectedPlatform;
 }
 // Create a new query
 /** POST /api/v1/fleet/queries */
