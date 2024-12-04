@@ -60,7 +60,7 @@ Authenticates the user with the specified credentials. Use the token returned fr
 > users. To get an API token for an SSO user, you can use the Fleet UI.
 
 > While this endpoint is used by the Fleet UI to log users in with MFA (via email verification)
-> enabled (by setting the `supports_email_verification` body paramter to `true`), clients other than
+> enabled (by setting the `supports_email_verification` body parameter to `true`), clients other than
 > the Fleet UI won't be able to finish the MFA process. Users with MFA, similar to SSO users, should
 > log into the Fleet UI and retrieve an API token from there instead of using the login endpoint.
 
