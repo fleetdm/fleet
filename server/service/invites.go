@@ -112,7 +112,7 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 		smtpSettings = *config.SMTPSettings
 	}
 	inviteEmail := fleet.Email{
-		Subject:      "You have been Invited to Fleet!",
+		Subject:      "You have been invited to Fleet!",
 		To:           []string{invite.Email},
 		ServerURL:    config.ServerSettings.ServerURL,
 		SMTPSettings: smtpSettings,

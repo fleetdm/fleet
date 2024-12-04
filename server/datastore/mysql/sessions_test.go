@@ -8,6 +8,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,6 +21,7 @@ func TestSessions(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"Getters", testSessionsGetters},
+		{"MFA", testMFA},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -27,6 +29,55 @@ func TestSessions(t *testing.T) {
 			c.fn(t, ds)
 		})
 	}
+}
+
+func testMFA(t *testing.T, ds *Datastore) {
+	user, err := ds.NewUser(context.Background(), &fleet.User{
+		Password:   []byte("supersecret"),
+		Email:      "me@example.com",
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	})
+	require.NoError(t, err)
+
+	token, err := ds.NewMFAToken(context.Background(), user.ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+
+	// invalid token
+	session, mfaUser, err := ds.SessionByMFAToken(context.Background(), "notreal", 8)
+	require.Error(t, err)
+	require.Nil(t, mfaUser)
+	require.Nil(t, session)
+
+	// valid token
+	session, mfaUser, err = ds.SessionByMFAToken(context.Background(), token, 6)
+	require.NoError(t, err)
+	require.Equal(t, user.ID, session.UserID)
+	require.Equal(t, user.ID, mfaUser.ID)
+	require.Len(t, session.Key, 8) // 48 base64-encoded bits
+
+	// used token
+	session, mfaUser, err = ds.SessionByMFAToken(context.Background(), token, 8)
+	require.Error(t, err)
+	require.Nil(t, mfaUser)
+	require.Nil(t, session)
+
+	// expired token
+	token, err = ds.NewMFAToken(context.Background(), user.ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(
+			context.Background(),
+			"UPDATE verification_tokens SET created_at = NOW() - INTERVAL ? SECOND - INTERVAL 0.5 SECOND",
+			mfaLinkTTL.Seconds(),
+		)
+		return err
+	})
+	session, mfaUser, err = ds.SessionByMFAToken(context.Background(), token, 8)
+	require.Error(t, err)
+	require.Nil(t, mfaUser)
+	require.Nil(t, session)
 }
 
 func testSessionsGetters(t *testing.T, ds *Datastore) {

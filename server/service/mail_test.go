@@ -154,7 +154,7 @@ func TestMailService(t *testing.T) {
 	require.NoError(t, err)
 
 	lastMessage = getLastMailPitMessage()
-	require.Equal(t, "You have been Invited to Fleet!", lastMessage["Subject"])
+	require.Equal(t, "You have been invited to Fleet!", lastMessage["Subject"])
 
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		if id == 1 {

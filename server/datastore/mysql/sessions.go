@@ -20,7 +20,7 @@ func (ds *Datastore) SessionByMFAToken(ctx context.Context, token string, sessio
 	err := sqlx.GetContext(
 		ctx,
 		ds.reader(ctx),
-		userID,
+		&userID,
 		"SELECT user_id FROM verification_tokens WHERE token = ? AND created_at >= NOW() - INTERVAL ? SECOND",
 		token,
 		mfaLinkTTL.Seconds(),
