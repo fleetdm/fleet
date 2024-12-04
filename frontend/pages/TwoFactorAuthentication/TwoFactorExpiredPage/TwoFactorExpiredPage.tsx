@@ -43,8 +43,8 @@ const TwoFactorExpiredPage = ({ router }: ITwoFactorExpiredPage) => {
 
   return (
     <AuthenticationFormWrapper>
-      <StackedWhiteBoxes previousLocation={PATHS.LOGIN} router={router}>
-        <div className={`${baseClass}__wrap`}> {renderContent()}</div>
+      <StackedWhiteBoxes router={router} className={baseClass}>
+        {renderContent()}
       </StackedWhiteBoxes>
     </AuthenticationFormWrapper>
   );

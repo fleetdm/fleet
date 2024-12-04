@@ -23,7 +23,7 @@ const CheckEmailPage = ({ router }: ICheckEmailPage) => {
       return <Spinner />;
     }
     return (
-      <div className={`${baseClass}__wrap`}>
+      <>
         <BackLink text="Back to login" path={PATHS.LOGIN} />
         <h1>Check your email</h1>
         <p className={`${baseClass}__text`}>
@@ -31,14 +31,14 @@ const CheckEmailPage = ({ router }: ICheckEmailPage) => {
           We sent an email to you at <b>TODO</b>. <br />
           Please click the magic link in the email to sign in.
         </p>
-      </div>
+      </>
     );
   };
 
   return (
     <AuthenticationFormWrapper>
-      <StackedWhiteBoxes previousLocation={PATHS.LOGIN} router={router}>
-        <div className={baseClass}>{renderContent()}</div>
+      <StackedWhiteBoxes className={baseClass} router={router}>
+        {renderContent()}
       </StackedWhiteBoxes>
     </AuthenticationFormWrapper>
   );
