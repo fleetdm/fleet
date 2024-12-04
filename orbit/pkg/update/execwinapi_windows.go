@@ -175,7 +175,8 @@ func generateWindowsMDMAccessTokenPayload(args WindowsMDMEnrollmentArgs) ([]byte
 	return json.Marshal(pld)
 }
 
-// IsRunningOnWindowsServer determines if the process is running on a Windows server. Exported so it can be used across packages.
+// IsRunningOnWindowsServer determines if the process is running on a Windows
+// server. Exported so it can be used across packages.
 func IsRunningOnWindowsServer() (bool, error) {
 	installType, err := readInstallationType()
 	if err != nil {

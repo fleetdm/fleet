@@ -15132,7 +15132,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	installerBytes := []byte("abc")
 
 	// Mock server to serve the "installers"
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/badinstaller":
 			_, _ = w.Write([]byte("badinstaller"))
@@ -15143,7 +15143,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 			_, _ = w.Write(installerBytes)
 		}
 	}))
-	defer srv.Close()
+	defer installerServer.Close()
 
 	getSoftwareInstallerIDByMAppID := func(mappID uint) uint {
 		var id uint
@@ -15166,11 +15166,11 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		_, err := h.Write(installerBytes)
 		require.NoError(t, err)
 		spoofedSHA := hex.EncodeToString(h.Sum(nil))
-		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET sha256 = ?, installer_url = ?", spoofedSHA, srv.URL+"/installer.zip")
+		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET sha256 = ?, installer_url = ?", spoofedSHA, installerServer.URL+"/installer.zip")
 		require.NoError(t, err)
-		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET installer_url = ? WHERE id = 2", srv.URL+"/badinstaller")
+		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET installer_url = ? WHERE id = 2", installerServer.URL+"/badinstaller")
 		require.NoError(t, err)
-		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET installer_url = ? WHERE id = 3", srv.URL+"/timeout")
+		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET installer_url = ? WHERE id = 3", installerServer.URL+"/timeout")
 		return err
 	})
 
@@ -15352,4 +15352,111 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	postinstall, err = s.ds.GetAnyScriptContents(ctx, *i.PostInstallScriptContentID)
 	require.NoError(t, err)
 	require.Equal(t, req.PostInstallScript, string(postinstall))
+
+	// ===========================================================================================
+	// Adding an automatically installed FMA
+	// ===========================================================================================
+
+	// Add another FMA
+	req = &addFleetMaintainedAppRequest{
+		AppID:             5,
+		SelfService:       false,
+		PreInstallQuery:   "SELECT 1",
+		InstallScript:     "echo foo",
+		PostInstallScript: "echo done",
+		TeamID:            ptr.Uint(0),
+	}
+
+	addMAResp = addFleetMaintainedAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAResp)
+	require.NoError(t, addMAResp.Err)
+	require.NotEmpty(t, addMAResp.SoftwareTitleID)
+
+	// Add the automatic install policy
+	tpParams := teamPolicyRequest{
+		Name:            "[Install software]",
+		Query:           "select * from osquery;",
+		Description:     "Some description",
+		Platform:        "darwin",
+		SoftwareTitleID: &addMAResp.SoftwareTitleID,
+	}
+	tpResp := teamPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", tpParams, http.StatusOK, &tpResp)
+	require.NotNil(t, tpResp.Policy)
+	require.NotEmpty(t, tpResp.Policy.ID)
+
+	// List software titles; we should see the policy on the software title object
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"per_page", "2",
+		"order_key", "id",
+		"order_direction", "desc",
+		"available_for_install", "true",
+		"team_id", "0",
+	)
+
+	require.Len(t, resp.SoftwareTitles, 2)
+	// most recently added FMA should have 1 automatic install policy
+	st := resp.SoftwareTitles[0] // sorted by ID above
+	require.NotNil(t, st.SoftwarePackage)
+	require.Len(t, st.SoftwarePackage.AutomaticInstallPolicies, 1)
+	gotPolicy := st.SoftwarePackage.AutomaticInstallPolicies[0]
+	require.Equal(t, tpResp.Policy.Name, gotPolicy.Name)
+	require.Equal(t, tpResp.Policy.ID, gotPolicy.ID)
+
+	// First FMA added doesn't have automatic install policies
+	st = resp.SoftwareTitles[1] // sorted by ID above
+	require.NotNil(t, st.SoftwarePackage)
+	require.Empty(t, st.SoftwarePackage.AutomaticInstallPolicies)
+
+	// Get the specific app that we set to be installed automatically
+	var titleResp getSoftwareTitleResponse
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addMAResp.SoftwareTitleID),
+		getSoftwareTitleRequest{},
+		http.StatusOK, &titleResp,
+		"team_id", "0",
+	)
+	require.NotNil(t, titleResp.SoftwareTitle)
+	swTitle := titleResp.SoftwareTitle
+	require.NotNil(t, swTitle.SoftwarePackage)
+	require.Len(t, swTitle.SoftwarePackage.AutomaticInstallPolicies, 1)
+	gotPolicy = swTitle.SoftwarePackage.AutomaticInstallPolicies[0]
+	require.Equal(t, tpResp.Policy.Name, gotPolicy.Name)
+	require.Equal(t, tpResp.Policy.ID, gotPolicy.ID)
+
+	// Policy should appear in the list of policies
+	var listPolResp listTeamPoliciesResponse
+	s.DoJSON(
+		"GET", "/api/latest/fleet/teams/0/policies",
+		listTeamPoliciesRequest{},
+		http.StatusOK, &listPolResp,
+		"page", "0",
+	)
+
+	require.Len(t, listPolResp.Policies, 1)
+	policies := listPolResp.Policies
+	require.Equal(t, tpResp.Policy.Name, policies[0].Name)
+	require.Equal(t, tpResp.Policy.ID, policies[0].ID)
+	require.Equal(t, tpResp.Policy.Description, policies[0].Description)
+	require.Equal(t, tpResp.Policy.Query, policies[0].Query)
+	require.Equal(t, "darwin", policies[0].Platform)
+	require.False(t, policies[0].Critical)
+	require.NotNil(t, policies[0].InstallSoftware)
+	require.Equal(t, tpResp.Policy.InstallSoftware.Name, policies[0].InstallSoftware.Name)
+	require.Equal(t, tpResp.Policy.InstallSoftware.SoftwareTitleID, policies[0].InstallSoftware.SoftwareTitleID)
+}
+
+func (s *integrationEnterpriseTestSuite) TestWindowsMigrateMDMNotEnabled() {
+	t := s.T()
+
+	res := s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_migration_enabled": true }
+	}`), http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Windows MDM is not enabled")
 }

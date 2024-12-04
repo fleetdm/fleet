@@ -615,12 +615,20 @@ func NewCertStoreProvisioningData(enrollmentType string, identityFingerprint str
 	return certStore
 }
 
-// IsEligibleForWindowsMDMEnrollment returns true if the host can be enrolled
+// isEligibleForWindowsMDMEnrollment returns true if the host can be enrolled
 // in Fleet's Windows MDM (if it was enabled).
-func IsEligibleForWindowsMDMEnrollment(host *fleet.Host, mdmInfo *fleet.HostMDM) bool {
+func isEligibleForWindowsMDMEnrollment(host *fleet.Host, mdmInfo *fleet.HostMDM) bool {
 	return host.FleetPlatform() == "windows" &&
 		host.IsOsqueryEnrolled() &&
 		(mdmInfo == nil || (!mdmInfo.IsServer && !mdmInfo.Enrolled))
+}
+
+// isEligibleForWindowsMDMMigration returns true if the host can be migrated to
+// Fleet's Windows MDM (if it was enabled).
+func isEligibleForWindowsMDMMigration(host *fleet.Host, mdmInfo *fleet.HostMDM) bool {
+	return host.FleetPlatform() == "windows" &&
+		host.IsOsqueryEnrolled() &&
+		(mdmInfo != nil && !mdmInfo.IsServer && mdmInfo.Enrolled && mdmInfo.Name != fleet.WellKnownMDMFleet)
 }
 
 // NewApplicationProvisioningData returns a new ApplicationProvisioningData Characteristic
@@ -976,7 +984,7 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 			}
 
 			// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
-			if !IsEligibleForWindowsMDMEnrollment(host, mdmInfo) {
+			if !isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
 				return "", "", errors.New("host is not elegible for Windows MDM enrollment")
 			}
 
