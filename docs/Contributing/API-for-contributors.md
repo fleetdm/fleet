@@ -3397,7 +3397,69 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 ```json
 {
-  "notifications ": {}
+  "script_execution_timeout": 3600,
+  "command_line_startup_flags": {
+    "--verbose": true
+  },
+  "extensions": {
+    "hello_world_linux": {
+      "channel": "stable",
+      "platform": "linux"
+    }
+  },
+  "nudge_config": {
+    "osVersionRequirements": [
+      {
+        "requiredInstallationDate": "2024-12-04T20:00:00Z",
+        "requiredMinimumOSVersion": "15.1.1",
+        "aboutUpdateURLs": [
+          {
+            "_language": "en",
+            "aboutUpdateURL": "https://fleetdm.com/learn-more-about/os-updates"
+          }
+        ]
+      }
+    ],
+    "userInterface": {
+      "simpleMode": true,
+      "showDeferralCount": false,
+      "updateElements": [
+        {
+          "_language": "en",
+          "actionButtonText": "Update",
+          "mainHeader": "Your device requires an update"
+        }
+      ]
+    },
+    "userExperience": {
+      "initialRefreshCycle": 86400,
+      "approachingRefreshCycle": 86400,
+      "imminentRefreshCycle": 7200,
+      "elapsedRefreshCycle": 3600
+    }
+  },
+  "notifications": {
+    "renew_enrollment_profile": true,
+    "rotate_disk_encryption_key": true,
+    "needs_mdm_migration": true,
+    "needs_programmatic_windows_mdm_enrollment": true,
+    "windows_mdm_discovery_endpoint": "/some/path/here",
+    "needs_programmatic_windows_mdm_unenrollment": true,
+    "pending_script_execution_ids": [
+      "a129a440-4cfb-48af-804b-d52224a05e1b"
+    ],
+    "enforce_bitlocker_encryption": true,
+    "pending_software_installer_ids": [
+      "2267a440-4cfb-48af-804b-d52224a05e1b"
+    ],
+    "run_setup_experience": true,
+    "run_disk_encryption_escrow": true
+  },
+  "update_channels": {
+    "orbit": "stable",
+    "osqueryd": "stable",
+    "desktop": "stable"
+  }
 }
 ```
 
@@ -3637,7 +3699,7 @@ Body: <blob>
 | Name           | Type   | In   | Description                               |
 | -------------- | ------ | ---- | ----------------------------------------- |
 | orbit_node_key | string | body | The Orbit node key for authentication.    |
-| encryption_key | bytes  | body | The encryption key bytes.                 |
+| encryption_key | string | body | The encryption key bytes.                 |
 | client_error   | string | body | The error reported by the client, if any. |
 
 ##### Example
