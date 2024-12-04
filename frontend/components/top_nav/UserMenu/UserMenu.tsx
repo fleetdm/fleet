@@ -7,7 +7,6 @@ import Select, {
   components,
   GroupBase,
 } from "react-select-5";
-import { noop } from "lodash";
 import { IUser } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -40,9 +39,7 @@ const bounceDownAnimation = keyframes`
 `;
 
 const getOptionBackgroundColor = (state: any) => {
-  return state.isSelected || state.isFocused
-    ? COLORS["ui-vibrant-blue-10"]
-    : "transparent";
+  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
 };
 
 const CustomDropdownIndicator = (
@@ -73,9 +70,6 @@ const CustomOption: React.FC<OptionProps<IDropdownOption, false>> = (props) => {
       ref={innerRef}
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
       tabIndex={0}
-      onClick={() => {
-        data.onClick && data.onClick();
-      }}
     >
       {data.label}
     </div>
@@ -271,7 +265,9 @@ const UserMenu = ({
         className={baseClass}
         classNamePrefix={`${baseClass}-select`}
         menuPlacement="bottom"
-        onChange={noop}
+        onChange={(option) => {
+          option?.onClick && option?.onClick();
+        }}
         isSearchable={false}
       />
     </div>
