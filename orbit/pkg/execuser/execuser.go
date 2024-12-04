@@ -47,12 +47,12 @@ func Run(path string, opts ...Option) (lastLogs string, err error) {
 //
 // It blocks until the child process exits.
 // Non ExitError errors return with a -1 exitCode.
-func RunWithOutput(path string, opts ...Option) (output []byte, exitCode int, err error) {
+func RunWithOutput(ctx context.Context, path string, opts ...Option) (output []byte, exitCode int, err error) {
 	var o eopts
 	for _, fn := range opts {
 		fn(&o)
 	}
-	return runWithOutput(path, o)
+	return runWithOutput(ctx, path, o)
 }
 
 func RunWithStdin(path string, opts ...Option) (io.WriteCloser, error) {

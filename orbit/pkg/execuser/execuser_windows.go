@@ -119,7 +119,7 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 	return "", startProcessAsCurrentUser(path, "", "")
 }
 
-func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
+func runWithOutput(ctx context.Context, path string, opts eopts) (output []byte, exitCode int, err error) {
 	return nil, 0, errors.New("not implemented")
 }
 

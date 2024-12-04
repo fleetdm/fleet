@@ -75,18 +75,18 @@ func runWithContext(ctx context.Context, path string, opts eopts) error {
 	}
 
 	// Wait for the process to finish.
-	if err := cmd.Wait(); err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return fmt.Errorf("%q exited with code %d: %w", path, exitErr.ExitCode(), err)
-		}
-		return fmt.Errorf("%q error: %w", path, err)
-	}
-	
+	// if err := cmd.Wait(); err != nil {
+	// 	if exitErr, ok := err.(*exec.ExitError); ok {
+	// 		return fmt.Errorf("%q exited with code %d: %w", path, exitErr.ExitCode(), err)
+	// 	}
+	// 	return fmt.Errorf("%q error: %w", path, err)
+	// }
+
 	return nil
 }
 
 // run uses sudo to run the given path as login user and waits for the process to finish.
-func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
+func runWithOutput(ctx context.Context, path string, opts eopts) (output []byte, exitCode int, err error) {
 	args, err := getUserAndDisplayArgs(path, opts)
 	if err != nil {
 		return nil, -1, fmt.Errorf("get args: %w", err)
@@ -100,7 +100,7 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 		}
 	}
 
-	cmd := exec.Command("sudo", args...)
+	cmd := exec.CommandContext(ctx, "sudo", args...)
 	log.Printf("cmd=%s", cmd.String())
 
 	output, err = cmd.Output()

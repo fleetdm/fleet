@@ -1,6 +1,7 @@
 package zenity
 
 import (
+	"context"
 	"os/exec"
 	"testing"
 	"time"
@@ -17,7 +18,7 @@ type mockExecCmd struct {
 }
 
 // MockCommandContext simulates exec.CommandContext and captures arguments
-func (m *mockExecCmd) runWithOutput(args ...string) ([]byte, int, error) {
+func (m *mockExecCmd) runWithOutput(ctx context.Context, args ...string) ([]byte, int, error) {
 	m.capturedArgs = append(m.capturedArgs, args...)
 
 	if m.exitCode != 0 {
