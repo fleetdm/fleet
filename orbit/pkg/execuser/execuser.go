@@ -3,7 +3,6 @@
 package execuser
 
 import (
-	"context"
 	"io"
 	"time"
 )
@@ -32,6 +31,7 @@ func WithArg(name, value string) Option {
 	}
 }
 
+// WithTimeout sets the timeout for the application. Currently only supported on Linux.
 func WithTimeout(duration time.Duration) Option {
 	return func(a *eopts) {
 		a.timeout = duration
@@ -69,12 +69,4 @@ func RunWithStdin(path string, opts ...Option) (io.WriteCloser, error) {
 		fn(&o)
 	}
 	return runWithStdin(path, o)
-}
-
-func RunWithContext(ctx context.Context, path string, opts ...Option) error {
-	var o eopts
-	for _, fn := range opts {
-		fn(&o)
-	}
-	return runWithContext(ctx, path, o)
 }
