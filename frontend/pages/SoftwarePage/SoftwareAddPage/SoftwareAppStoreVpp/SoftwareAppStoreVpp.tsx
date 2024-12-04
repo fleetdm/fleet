@@ -46,7 +46,6 @@ const SoftwareAppStoreVpp = ({
   const noVppTokenUploaded = !vppInfo || !vppInfo.vpp_tokens.length;
   const hasVppToken = teamHasVPPToken(currentTeamId, vppInfo?.vpp_tokens);
 
-
   const {
     data: vppApps,
     isLoading: isLoadingVppApps,
