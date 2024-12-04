@@ -39,6 +39,8 @@ func createInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	return createInviteResponse{invite, nil}, nil
 }
 
+var ssoMFAConflict = &fleet.ConflictError{Message: "Fleet MFA is is not applicable to SSO users"}
+
 func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePayload) (*fleet.Invite, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Invite{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -87,10 +89,12 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 	if payload.SSOEnabled != nil {
 		invite.SSOEnabled = *payload.SSOEnabled
 	}
+	if payload.MFAEnabled != nil {
+		invite.MFAEnabled = *payload.MFAEnabled
+	}
 
-	lic, err := svc.License(ctx)
-	if err == nil && lic != nil && lic.IsPremium() && !invite.SSOEnabled && payload.MFAEnabled != nil && *payload.MFAEnabled {
-		invite.MFAEnabled = true
+	if err = svc.ValidateInvite(ctx, *invite); err != nil {
+		return nil, err
 	}
 
 	invite, err = svc.ds.NewInvite(ctx, invite)
@@ -130,6 +134,25 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 		return nil, err
 	}
 	return invite, nil
+}
+
+func (svc *Service) ValidateInvite(ctx context.Context, invite fleet.Invite) error {
+	if !invite.MFAEnabled {
+		return nil
+	}
+
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return err
+	}
+	if lic == nil || !lic.IsPremium() {
+		return fleet.ErrMissingLicense
+	}
+	if invite.SSOEnabled {
+		return ssoMFAConflict
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -234,9 +257,12 @@ func (svc *Service) UpdateInvite(ctx context.Context, id uint, payload fleet.Inv
 	if payload.SSOEnabled != nil {
 		invite.SSOEnabled = *payload.SSOEnabled
 	}
-	lic, err := svc.License(ctx)
-	if err == nil && lic != nil && lic.IsPremium() && !invite.SSOEnabled && payload.MFAEnabled != nil && *payload.MFAEnabled {
-		invite.MFAEnabled = true
+	if payload.MFAEnabled != nil {
+		invite.MFAEnabled = *payload.MFAEnabled
+	}
+
+	if err = svc.ValidateInvite(ctx, *invite); err != nil {
+		return nil, err
 	}
 
 	if payload.GlobalRole.Valid || len(payload.Teams) > 0 {
