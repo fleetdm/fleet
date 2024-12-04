@@ -81,7 +81,7 @@ func runWithContext(ctx context.Context, path string, opts eopts) error {
 		}
 		return fmt.Errorf("%q error: %w", path, err)
 	}
-	
+
 	return nil
 }
 
@@ -100,7 +100,16 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 		}
 	}
 
-	cmd := exec.Command("sudo", args...)
+	// Prefix with "timeout" and "sudo" if applicable
+	var cmdArgs []string
+	if opts.timeout > 0 {
+		cmdArgs = append(cmdArgs, "timeout", fmt.Sprintf("%ds", int(opts.timeout.Seconds())))
+	}
+	cmdArgs = append(cmdArgs, "sudo")
+	cmdArgs = append(cmdArgs, args...)
+
+	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
+
 	log.Printf("cmd=%s", cmd.String())
 
 	output, err = cmd.Output()
