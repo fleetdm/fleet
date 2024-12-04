@@ -380,6 +380,7 @@ resource "aws_lambda_function" "cron_monitoring" {
       CRON_JOB_FAILURE_MONITOR_SNS_TOPIC_ARNS              = join(",", lookup(var.sns_topic_arns_map, "cron_job_failure_monitoring", var.default_sns_topic_arns))
       FLEET_ENV                   = var.customer_prefix
       CRON_DELAY_TOLERANCE        = var.cron_monitoring.delay_tolerance
+      CRON_MONITOR_RUN_INTERVAL        = var.cron_monitoring.run_interval
     }
   }
 

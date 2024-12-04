@@ -53,6 +53,7 @@ type OptionsStruct struct {
 	FleetEnv                   string `long:"fleet-environment" env:"FLEET_ENV" required:"true"`
 	AWSRegion                  string `long:"aws-region" env:"AWS_REGION" required:"true"`
 	CronDelayTolerance         string `long:"cron-delay-tolerance" env:"CRON_DELAY_TOLERANCE" default:"2h"`
+	CronMonitorInterval        string `long:"monitor-run-interval" env:"CRON_MONITOR_RUN_INTERVAL" default:"1 hour"`
 }
 
 var (
@@ -81,6 +82,28 @@ func sendSNSMessage(msg string, topic string, sess *session.Session) {
 		}
 		log.Printf(result.GoString())
 	}
+}
+
+func parseLambdaIntervalToDuration(intervalString string) (duration time.Duration, err error) {
+	var number int
+	var unit string
+
+	_, err = fmt.Sscanf(intervalString, "%d %s", &number, &unit)
+	if err != nil {
+		return 0, err
+	}
+
+	switch unit {
+	case "hour", "hours":
+		unit = "h"
+	case "minute", "minutes":
+		unit = "m"
+	case "day", "days":
+		unit = "h"
+		number *= 24
+	}
+
+	return time.ParseDuration(string(number) + unit)
 }
 
 type CronStatsRow struct {
@@ -171,15 +194,15 @@ func checkDB(db *sql.DB, sess *session.Session) (err error) {
 
 // Check for errors in cron runs.
 func checkCrons(db *sql.DB, sess *session.Session) (err error) {
-	cronDelayDuration, err := time.ParseDuration(options.CronDelayTolerance)
+	cronMonitorInterval, err := time.ParseDuration(options.CronMonitorInterval)
 	if err != nil {
 		log.Printf(err.Error())
 		sendSNSMessage("Unable to parse cron-delay-tolerance. Check lambda settings.", "cronSystem", sess)
 		return err
 	}
-	cronAlertTimestamp := time.Now().Add(-1 * cronDelayDuration)
+	cronAlertTimestamp := time.Now().Add(-1 * cronMonitorInterval)
 
-	// Find all cron entries less than cronDelayDuration old that have errors.
+	// Find all cron entries less than cronMonitorInterval old that have errors.
 	rows, err := db.Query("SELECT name, created_at, IFNULL(updated_at, FROM_UNIXTIME(0)) AS updated_at, errors FROM cron_stats WHERE errors IS NOT NULL AND created_at > \"" + cronAlertTimestamp.Format("20060102150405") + "\"")
 	defer rows.Close()
 	if err != nil {
