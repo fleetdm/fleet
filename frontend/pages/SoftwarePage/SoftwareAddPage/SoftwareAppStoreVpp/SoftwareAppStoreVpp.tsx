@@ -17,7 +17,7 @@ import AddSoftwareVppForm from "./AddSoftwareVppForm";
 import { teamHasVPPToken } from "./helpers";
 
 const baseClass = "software-app-store-vpp";
-
+//
 interface ISoftwareAppStoreProps {
   currentTeamId: number;
   router: InjectedRouter;
@@ -43,6 +43,7 @@ const SoftwareAppStoreVpp = ({
     }
   );
 
+  const noVppTokenUploaded = !vppInfo || !vppInfo.vpp_tokens.length;
   const hasVppToken = teamHasVPPToken(currentTeamId, vppInfo?.vpp_tokens);
 
   const {
@@ -81,6 +82,7 @@ const SoftwareAppStoreVpp = ({
           router={router}
           teamId={currentTeamId}
           hasVppToken={hasVppToken}
+          noVppTokenUploaded={noVppTokenUploaded}
           vppApps={vppApps}
         />
       </div>
