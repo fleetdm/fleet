@@ -24,6 +24,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -103,7 +104,7 @@ func parseLambdaIntervalToDuration(intervalString string) (duration time.Duratio
 		number *= 24
 	}
 
-	return time.ParseDuration(string(number) + unit)
+	return time.ParseDuration(strconv.Itoa(number) + unit)
 }
 
 type CronStatsRow struct {
@@ -194,7 +195,7 @@ func checkDB(db *sql.DB, sess *session.Session) (err error) {
 
 // Check for errors in cron runs.
 func checkCrons(db *sql.DB, sess *session.Session) (err error) {
-	cronMonitorInterval, err := time.ParseDuration(options.CronMonitorInterval)
+	cronMonitorInterval, err := parseLambdaIntervalToDuration(options.CronMonitorInterval)
 	if err != nil {
 		log.Printf(err.Error())
 		sendSNSMessage("Unable to parse cron-delay-tolerance. Check lambda settings.", "cronSystem", sess)
@@ -220,7 +221,6 @@ func checkCrons(db *sql.DB, sess *session.Session) (err error) {
 		log.Printf("*** %s job had errors, alerting! (errors %s)", row.name, row.errors)
 		// Fire on the first match and return.  We only need to alert that the crons need looked at, not each cron.
 		sendSNSMessage(fmt.Sprintf("Fleet cron '%s' (last updated %s) raised errors during its run:\n%s.", row.name, row.updated_at.String(), row.errors), "cronJobFailure", sess)
-		return nil
 	}
 
 	return nil
