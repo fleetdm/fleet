@@ -1,6 +1,7 @@
 package execuser
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -57,4 +58,8 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 
 func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
 	return nil, errors.New("not implemented")
+}
+
+func runWithContext(ctx context.Context, path string, opts eopts) error {
+	return errors.New("not implemented")
 }
