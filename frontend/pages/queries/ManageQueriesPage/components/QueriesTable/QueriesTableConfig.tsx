@@ -181,11 +181,13 @@ const generateTableHeaders = ({
     },
     {
       title: "Platform",
-      Header: "Compatible with",
+      Header: "Targeted platforms",
       disableSortBy: true,
-      accessor: "platforms",
+      accessor: "targetedPlatforms",
       Cell: (cellProps: IPlatformCellProps): JSX.Element => {
-        return <PlatformCell platforms={cellProps.row.original.platforms} />;
+        return (
+          <PlatformCell platforms={cellProps.row.original.targetedPlatforms} />
+        );
       },
     },
     {

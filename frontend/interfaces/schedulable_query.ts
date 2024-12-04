@@ -19,7 +19,7 @@ export interface ISchedulableQuery {
   query: string;
   team_id: number | null;
   interval: number;
-  platform: SelectedPlatformString; // Might more accurately be called `platforms_to_query` – comma-sepparated string of platforms to query, default all platforms if ommitted
+  platform: SelectedPlatformString; // Might more accurately be called `platforms_to_query` or `targeted_platforms` – comma-sepparated string of platforms to query, default all platforms if ommitted
   min_osquery_version: string;
   automations_enabled: boolean;
   logging: QueryLoggingOption;
@@ -36,7 +36,7 @@ export interface ISchedulableQuery {
 
 export interface IEnhancedQuery extends ISchedulableQuery {
   performance: string;
-  platforms: QueryablePlatform[];
+  targetedPlatforms: QueryablePlatform[];
 }
 export interface ISchedulableQueryStats {
   user_time_p50?: number | null;

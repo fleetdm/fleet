@@ -14,7 +14,11 @@ import { QueryContext } from "context/query";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import { getPerformanceImpactDescription } from "utilities/helpers";
-import { QueryablePlatform, SelectedPlatform } from "interfaces/platform";
+import {
+  isQueryablePlatform,
+  QueryablePlatform,
+  SelectedPlatform,
+} from "interfaces/platform";
 import {
   IEnhancedQuery,
   IQueryKeyQueriesLoadAll,
@@ -25,7 +29,6 @@ import { API_ALL_TEAMS_ID } from "interfaces/team";
 import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 import PATHS from "router/paths";
 import { DEFAULT_QUERY } from "utilities/constants";
-import { checkPlatformCompatibility } from "utilities/sql_tools";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
@@ -57,10 +60,9 @@ interface IManageQueriesPageProps {
   };
 }
 
-const getPlatforms = (queryString: string): QueryablePlatform[] => {
-  const { platforms } = checkPlatformCompatibility(queryString);
-
-  return platforms ?? [];
+const getTargetedPlatforms = (platformString: string): QueryablePlatform[] => {
+  const platforms = platformString.split(",");
+  return platforms.filter(isQueryablePlatform);
 };
 
 export const enhanceQuery = (q: ISchedulableQuery): IEnhancedQuery => {
@@ -69,9 +71,7 @@ export const enhanceQuery = (q: ISchedulableQuery): IEnhancedQuery => {
     performance: getPerformanceImpactDescription(
       pick(q.stats, ["user_time_p50", "system_time_p50", "total_executions"])
     ),
-    // TODO - once we are storing platform compatibility in a db column, remove this processing and
-    // rely on that instead
-    platforms: getPlatforms(q.query),
+    targetedPlatforms: getTargetedPlatforms(q.platform),
   };
 };
 
