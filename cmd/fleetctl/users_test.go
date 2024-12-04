@@ -88,7 +88,7 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 		return nil, &notFoundError{}
 	}
 	var apiOnlyUserSessionKey string
-	ds.NewSessionFunc = func(ctx context.Context, userID uint, sessionKeySize uint) (*fleet.Session, error) {
+	ds.NewSessionFunc = func(ctx context.Context, userID uint, sessionKeySize int) (*fleet.Session, error) {
 		key := make([]byte, sessionKeySize)
 		_, err := rand.Read(key)
 		if err != nil {

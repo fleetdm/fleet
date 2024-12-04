@@ -2,9 +2,7 @@ package mysql
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/base64"
 	"errors"
 	"time"
 
@@ -162,15 +160,6 @@ func (ds *Datastore) makeSessionInTransaction(ctx context.Context, tx sqlx.ExtCo
 
 	id, _ := result.LastInsertId()           // cannot fail with the mysql driver
 	return ds.sessionByID(ctx, tx, uint(id)) //nolint:gosec // dismiss G115
-}
-
-func randomBase64(entropyInBytes uint) (string, error) {
-	raw := make([]byte, entropyInBytes)
-	_, err := rand.Read(raw)
-	if err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(raw), nil
 }
 
 func (ds *Datastore) DestroySession(ctx context.Context, session *fleet.Session) error {

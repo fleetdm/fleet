@@ -164,7 +164,7 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 		user := usersMap[email]
 		return &user, nil
 	}
-	ds.NewSessionFunc = func(ctx context.Context, userID uint, sessionKeySize uint) (*fleet.Session, error) {
+	ds.NewSessionFunc = func(ctx context.Context, userID uint, sessionKeySize int) (*fleet.Session, error) {
 		key := make([]byte, sessionKeySize)
 		_, err := rand.Read(key)
 		if err != nil {
