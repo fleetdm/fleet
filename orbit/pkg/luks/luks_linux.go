@@ -14,7 +14,9 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/kdialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/lvm"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/zenity"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 	"github.com/siderolabs/go-blockdevice/v2/encryption"
@@ -35,11 +37,32 @@ const (
 
 var ErrKeySlotFull = regexp.MustCompile(`Key slot \d+ is full`)
 
+func isInstalled(toolName string) bool {
+	path, err := exec.LookPath(toolName)
+	if err != nil {
+		return false
+	}
+	return path != ""
+}
+
 func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	ctx := context.Background()
 
 	if !oc.Notifications.RunDiskEncryptionEscrow {
 		return nil
+	}
+
+	if !isInstalled("cryptsetup") {
+		return errors.New("cryptsetup is not installed")
+	}
+
+	switch {
+	case isInstalled("zenity"):
+		lr.notifier = zenity.New()
+	case isInstalled("kdialog"):
+		lr.notifier = kdialog.New()
+	default:
+		return errors.New("No supported dialog tool found")
 	}
 
 	devicePath, err := lvm.FindRootDisk()
