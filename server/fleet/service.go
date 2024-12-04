@@ -66,6 +66,7 @@ type OsqueryService interface {
 	) (err error)
 	SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) (err error)
 	SubmitResultLogs(ctx context.Context, logs []json.RawMessage) (err error)
+	YaraRuleByName(ctx context.Context, name string) (*YaraRule, error)
 }
 
 type Service interface {
@@ -393,6 +394,7 @@ type Service interface {
 	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
 	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
+	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string) error
 
 	// AddLabelsToHost adds the given label names to the host's label membership.
 	//
@@ -758,9 +760,9 @@ type Service interface {
 	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
-	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string, labelsExcludeMode bool) (*MDMAppleConfigProfile, error)
+	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string, labelsMembershipMode MDMLabelsMode) (*MDMAppleConfigProfile, error)
 	// NewMDMAppleConfigProfileWithPayload creates a new declaration for the specified team.
-	NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string, labelsExcludeMode bool) (*MDMAppleDeclaration, error)
+	NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string, labelsMembershipMode MDMLabelsMode) (*MDMAppleDeclaration, error)
 
 	// GetMDMAppleConfigProfileByDeprecatedID retrieves the specified Apple
 	// configuration profile via its numeric ID. This method is deprecated and
@@ -848,6 +850,9 @@ type Service interface {
 
 	// ListABMTokens lists all the ABM tokens in Fleet.
 	ListABMTokens(ctx context.Context) ([]*ABMToken, error)
+
+	// CountABMTokens counts the ABM tokens in Fleet.
+	CountABMTokens(ctx context.Context) (int, error)
 
 	// UpdateABMTokenTeams updates the default macOS, iOS, and iPadOS team IDs for a given ABM token.
 	UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*ABMToken, error)
@@ -963,6 +968,8 @@ type Service interface {
 
 	GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error)
 
+	TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *Host) error
+
 	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
 	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
 
@@ -1032,7 +1039,7 @@ type Service interface {
 
 	// NewMDMWindowsConfigProfile creates a new Windows configuration profile for
 	// the specified team.
-	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader, labels []string, labelsExcludeMode bool) (*MDMWindowsConfigProfile, error)
+	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader, labels []string, labelsMembershipMode MDMLabelsMode) (*MDMWindowsConfigProfile, error)
 
 	// NewMDMUnsupportedConfigProfile is called when a profile with an
 	// unsupported extension is uploaded.
@@ -1049,10 +1056,22 @@ type Service interface {
 	) error
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Linux MDM
+
+	// LinuxHostDiskEncryptionStatus returns the current disk encryption status of the specified Linux host
+	// Returns empty status if the host is not a supported Linux host
+	LinuxHostDiskEncryptionStatus(ctx context.Context, host Host) (HostMDMDiskEncryption, error)
+
+	// GetMDMLinuxProfilesSummary summarizes the current status of Linux disk encryption for
+	// the provided team (or hosts without a team if teamId is nil), or returns zeroes if disk
+	// encryption is not enforced on the selected team
+	GetMDMLinuxProfilesSummary(ctx context.Context, teamId *uint) (MDMProfilesSummary, error)
+
+	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM
 
-	// GetMDMDiskEncryptionSummary returns the current disk encryption status of all macOS and
-	// Windows hosts in the specified team (or, if no team is specified, each host that is not
+	// GetMDMDiskEncryptionSummary returns the current disk encryption status of all macOS, Windows, and
+	// Linux hosts in the specified team (or, if no team is specified, each host that is not
 	// assigned to any team).
 	GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uint) (*MDMDiskEncryptionSummary, error)
 
@@ -1143,7 +1162,7 @@ type Service interface {
 	// Fleet-maintained apps
 
 	// AddFleetMaintainedApp adds a Fleet-maintained app to the given team.
-	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool) error
+	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool) (uint, error)
 	// ListFleetMaintainedApps lists Fleet-maintained apps available to a specific team
 	ListFleetMaintainedApps(ctx context.Context, teamID uint, opts ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 	// GetFleetMaintainedApp returns a Fleet-maintained app by ID
@@ -1168,4 +1187,6 @@ const (
 	BatchSetSoftwareInstallersStatusCompleted = "completed"
 	// BatchSetSoftwareInstallerStatusFailed is the value returned for a failed BatchSetSoftwareInstallers operation.
 	BatchSetSoftwareInstallersStatusFailed = "failed"
+	// MinOrbitLUKSVersion is the earliest version of Orbit that can escrow LUKS passphrases
+	MinOrbitLUKSVersion = "1.36.0"
 )

@@ -28,7 +28,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 | Product group                            | Goal _(value for customers and/or community)_                         | Capacity\*   |
 |:-----------------------------------------|:----------------------------------------------------------------------|:-------------|
-| [Endpoint ops](#endpoint-ops-group)      | Increase and exceed maturity in the "Endpoint operations" category.   | 130          |
+| [Endpoint ops](#endpoint-ops-group)      | Increase and exceed maturity in the "Endpoint operations" category.   | 156          |
 | [MDM](#mdm-group)                        | Reach maturity in the "MDM" product category.                         | 156          |
 
 \* The number of [estimated story points](https://fleetdm.com/handbook/company/communications#estimation-points) this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
@@ -350,7 +350,7 @@ The relevant release page on GitHub is updated to indicate that the release cont
 
 When a critical bug is identified, we will then follow the patch release process in [our documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#patch-releases).
 
-> After a critical bug is fixed, [an incident postmortem](https://fleetdm.com/handbook/engineering#preform-an-incident-postmortem) is scheduled by the EM of the product group that fixed the bug.
+> After a critical bug is fixed, [an incident postmortem](https://fleetdm.com/handbook/engineering#perform-an-incident-postmortem) is scheduled by the EM of the product group that fixed the bug.
 
 
 ## Feature fest
@@ -373,13 +373,13 @@ To prioritize a new feature, it must meet one of these criteria:
 
 1. Bug
 2. Small UX improvement that isn't quite a bug but it's so small that it's worthwhile
-3. Contributes to Fleet's [quarterly objectives (OKRs)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1846478041#gid=1846478041&range=A1)
+3. Contributes to Fleet's [quarterly key results (KRs)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1846478041#gid=1846478041&range=A1)
 4. High priority customer request (customer request, workflow blocking, etc.)
 5. Prospect request in an order form 
 
 If an issue has the `~feature fest` label, then it's a new feature request that will be weighed at the next 🎁🗣 Feature Fest meeting.
 
-If an issue is on the [roadmap board](https://github.com/fleetdm/fleet#workspaces/drafting-6192dd66ea2562000faea25c/roadmap), then it's a feature request that's already been prioritized. It will have one or more user stories that will be worked on in the current quarter.
+If an issue has the `~customer request` label, then it's a feature request that's already been prioritized. It will have one or more user stories that will be worked on in the current quarter.
 
 If an issue has the `:product` and `story` label, then it's a user story that is currently in progress ([drafting](https://fleetdm.com/handbook/company/development-groups#drafting)). The user story will include a link to the original feature request issue.
 
@@ -402,12 +402,12 @@ If a feature is not prioritized during a 🎁🗣 Feature Fest meeting, it only 
 ### After the feature is accepted
 
 After the 🎁🗣 Feature fest meeting, the feature prioritization DRI will clear the 🎁 Feature fest board as follows:
-- Prioritized features: Remove the `~feature fest` label, add the issue to the [roadmap board](https://github.com/fleetdm/fleet#workspaces/drafting-6192dd66ea2562000faea25c/roadmap), create a new user story with the `:product` label, add a link from the original request to the user story, notify the requester, and move the user story to the "Ready" column in the drafting board. The user story will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
+- Prioritized features: Remove the `~feature fest` label, add the `~customer request` label, create a new user story with the `:product` label, add a link from the original request to the user story, notify the requester, and move the user story to the "Ready" column in the drafting board. The user story will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
 - Put to the side features: Remove `~feature fest` label and notify the requestor.
 
 > The product team's commitment to the requester is that the prioritized user story will be delivered or the requester will be notified within 1 business day of the decision to de-prioritize the story.
 
-A story may be de-prioritized when it's relative priority falls below new requests and there is not enough room in the upcoming engineering sprint. Since Fleet does not maintain a feature backlog, a story is only prioritized if it seems like it can be shipped in the upcoming 3 week engineering sprint. The relative priority of a story and engineering capacity may change over the course of a design sprint.
+A story may be de-prioritized when its relative priority falls below new requests and there is not enough room in the upcoming engineering sprint. Since Fleet does not maintain a feature backlog, a story is only prioritized if it seems like it can be shipped in the upcoming 3 week engineering sprint. The relative priority of a story and engineering capacity may change over the course of a design sprint.
   - This may be because new higher-priority work (bugs or stories) was prioritized and/or the work in the current engineering sprint took longer than expected.
 
 Just as when a feature request is not accepted in the 🎁🗣 Feature Fest meeting, whenever a feature is de-prioritized after it has been accepted, it only means that the feature has been _de-prioritized at this time_. It is up to the requester to bring the request back again at another 🎁🗣 Feature Fest meeting.

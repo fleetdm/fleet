@@ -497,7 +497,20 @@ for pagination. For a comprehensive list of activity types and detailed informat
         "host_display_name": "Marko's MacBook Pro",
         "software_title": "Adobe Acrobat.app",
         "script_execution_id": "eeeddb94-52d3-4071-8b18-7322cd382abb",
-        "status": "failed"
+        "status": "failed_install"
+      }
+    },
+    {
+      "created_at": "2021-07-29T14:40:27Z",
+      "id": 21,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "created_team",
+      "details": {
+        "team_id": 2,
+        "team_name": "Apples"
       }
     },
     {
@@ -539,80 +552,6 @@ for pagination. For a comprehensive list of activity types and detailed informat
       "details": {
         "team_id": 3,
         "team_name": "Oranges"
-      }
-    },
-    {
-      "created_at": "2021-07-29T14:40:27Z",
-      "id": 21,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "created_team",
-      "details": {
-        "team_id": 2,
-        "team_name": "Apples"
-      }
-    },
-    {
-      "created_at": "2021-07-27T14:35:08Z",
-      "id": 20,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "created_pack",
-      "details": {
-        "pack_id": 2,
-        "pack_name": "New pack"
-      }
-    },
-    {
-      "created_at": "2021-07-27T13:25:21Z",
-      "id": 19,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "targets_count": 14
-      }
-    },
-    {
-      "created_at": "2021-07-27T13:25:14Z",
-      "id": 18,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "targets_count": 14
-      }
-    },
-    {
-      "created_at": "2021-07-26T19:28:24Z",
-      "id": 17,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "target_counts": 1
-      }
-    },
-    {
-      "created_at": "2021-07-26T17:27:37Z",
-      "id": 16,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "target_counts": 14
       }
     },
     {
@@ -848,7 +787,7 @@ None.
     "contact_url": "https://fleetdm.com/company/contact"
   },
   "server_settings": {
-    "server_url": "https://localhost:8080",
+    "server_url": "https://instance.fleet.com",
     "enable_analytics": true,
     "live_query_disabled": false,
     "query_reports_disabled": false,
@@ -946,7 +885,8 @@ None.
       "enable_end_user_authentication": false,
       "macos_setup_assistant": "path/to/config.json",
       "enable_release_device_manually": true
-    }
+    },
+    "client_url": "https://instance.fleet.com"
   },
   "agent_options": {
     "spec": {
@@ -1023,7 +963,6 @@ None.
     }
   },
   "integrations": {
-    "jira": null,
     "google_calendar": [
       {
         "domain": "example.com",
@@ -1041,7 +980,15 @@ None.
            "universe_domain": "googleapis.com"
          }
       }
-    ]
+    ],
+    "jira": [],
+    "ndes_scep_proxy": {
+      "admin_url": "https://example.com/certsrv/mscep_admin/",
+      "password": "********",
+      "url": "https://example.com/certsrv/mscep/mscep.dll",
+      "username": "Administrator@example.com"
+    },
+    "zendesk": []
   },
   "logging": {
     "debug": false,
@@ -1100,7 +1047,7 @@ Modifies the Fleet's configuration with the supplied information.
 | agent_options            | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.  |
 | fleet_desktop            | object  | body  | See [fleet_desktop](#fleet-desktop).                                                                                                 |
 | webhook_settings         | object  | body  | See [webhook_settings](#webhook-settings).                                                                                           |
-| integrations             | object  | body  | Includes `jira`, `zendesk`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
+| integrations             | object  | body  | Includes `ndes_scep_proxy` object and `jira`, `zendesk`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
 | scripts                  | array   | body  | A list of script files to add so they can be executed at a later time.                                                               |
@@ -1133,7 +1080,7 @@ Modifies the Fleet's configuration with the supplied information.
     "contact_url": "https://fleetdm.com/company/contact"
   },
   "server_settings": {
-    "server_url": "https://localhost:8080",
+    "server_url": "https://instance.fleet.com",
     "enable_analytics": true,
     "live_query_disabled": false,
     "query_reports_disabled": false,
@@ -1212,6 +1159,10 @@ Modifies the Fleet's configuration with the supplied information.
           "path": "path/to/profile2.json",
           "labels_include_all": ["Label 3", "Label 4"]
         },
+	{
+          "path": "path/to/profile3.json",
+          "labels_include_any": ["Label 5", "Label 6"]
+        },
       ]
     },
     "windows_settings": {
@@ -1238,7 +1189,8 @@ Modifies the Fleet's configuration with the supplied information.
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
       "macos_setup_assistant": "path/to/config.json"
-    }
+    },
+    "apple_server_url": "https://instance.fleet.com"
   },
   "agent_options": {
     "config": {
@@ -1291,6 +1243,12 @@ Modifies the Fleet's configuration with the supplied information.
     }
   },
   "integrations": {
+    "google_calendar": [
+      {
+        "domain": "",
+        "api_key_json": null
+      }
+    ],
     "jira": [
       {
         "url": "https://jiraserver.com",
@@ -1300,12 +1258,8 @@ Modifies the Fleet's configuration with the supplied information.
         "enable_software_vulnerabilities": false
       }
     ],
-    "google_calendar": [
-      {
-        "domain": "",
-        "api_key_json": null
-      }
-    ]
+    "ndes_scep_proxy": null,
+    "zendesk": []
   },
   "logging": {
       "debug": false,
@@ -1620,16 +1574,15 @@ _Available in Fleet Premium._
 + [`integrations.jira`](#integrations-jira)
 + [`integrations.zendesk`](#integrations-zendesk)
 + [`integrations.google_calendar`](#integrations-google-calendar)
++ [`integrations.ndes_scep_proxy`](#integrations-ndes_scep_proxy)
 -->
 
-| Name                  | Type  | Description   |
-| --------------------- | ----- | -------------------------------------------------------------------- |
-| jira                  | array | See [`integrations.jira`](#integrations-jira).                       |
-| zendesk               | array | See [`integrations.zendesk`](#integrations-zendesk).                 |
-| google_calendar       | array | See [`integrations.google_calendar`](#integrations-google-calendar). |
-
-
-> Note that when making changes to the `integrations` object, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
+| Name            | Type   | Description                                                          |
+|-----------------|--------|----------------------------------------------------------------------|
+| jira            | array  | See [`integrations.jira`](#integrations-jira).                       |
+| zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk).                 |
+| google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
+| ndes_scep_proxy | object | See [`integrations.ndes_scep_proxy`](#integrations-ndes-scep-proxy). |
 
 <br/>
 
@@ -1648,6 +1601,8 @@ _Available in Fleet Premium._
 
 <br/>
 
+> Note that when making changes to the `integrations.jira` array, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
+
 ##### integrations.zendesk
 
 `integrations.zendesk` is an array of objects with the following structure:
@@ -1663,6 +1618,8 @@ _Available in Fleet Premium._
 
 <br/>
 
+> Note that when making changes to the `integrations.zendesk` array, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
+
 ##### integrations.google_calendar
 
 `integrations.google_calendar` is an array of objects with the following structure:
@@ -1673,6 +1630,22 @@ _Available in Fleet Premium._
 | api_key_json                      | object  | The private key JSON downloaded when generating the service account API key to be used for this calendar integration. |
 
 <br/>
+
+##### integrations.ndes_scep_proxy
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+`integrations.ndes_scep_proxy` is an object with the following structure:
+
+| Name      | Type   | Description                                             |
+|-----------|--------|---------------------------------------------------------|
+| url       | string | **Required**. The URL of the NDES SCEP endpoint.        |
+| admin_url | string | **Required**. The URL of the NDES admin endpoint.       |
+| password  | string | **Required**. The password for the NDES admin endpoint. |
+| username  | string | **Required**. The username for the NDES admin endpoint. |
+
+Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. Not specifying `integrations.ndes_scep_proxy` in the payload will not change the existing settings.
+
+
 
 ##### Example request body
 
@@ -1695,7 +1668,13 @@ _Available in Fleet Premium._
         "domain": "https://domain.com",
         "api_key_json": "<API KEY JSON>"
       }
-    ]
+    ],
+    "ndes_scep_proxy": {
+      "admin_url": "https://example.com/certsrv/mscep_admin/",
+      "password": "abc123",
+      "url": "https://example.com/certsrv/mscep/mscep.dll",
+      "username": "Administrator@example.com"
+    }
   }
 }
 ```
@@ -1714,6 +1693,9 @@ _Available in Fleet Premium._
 | macos_setup         | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
+| apple_server_url         | string  | Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)  |
+
+> Note: If `apple_server_url` changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
 
 <br/>
 
@@ -1915,18 +1897,18 @@ None.
 
 ```json
 {
-    "spec": {
-        "secrets": [
-            {
-                "secret": "vhPzPOnCMOMoqSrLxKxzSADyqncayacB",
-                "created_at": "2021-11-12T20:24:57Z"
-            },
-            {
-                "secret": "jZpexWGiXmXaFAKdrdttFHdJBqEnqlVF",
-                "created_at": "2021-11-12T20:24:57Z"
-            }
-        ]
-    }
+  "spec": {
+    "secrets": [
+      {
+        "secret": "vhPzPOnCMOMoqSrLxKxzSADyqncayacB",
+        "created_at": "2021-11-12T20:24:57Z"
+      },
+      {
+        "secret": "jZpexWGiXmXaFAKdrdttFHdJBqEnqlVF",
+        "created_at": "2021-11-12T20:24:57Z"
+      }
+    ]
+  }
 }
 ```
 
@@ -1952,13 +1934,13 @@ Replace all global enroll secrets with a new enroll secret.
 
 ```json
 {
-    "spec": {
-        "secrets": [
-            {
-                "secret": "KuSkYFsHBQVlaFtqOLwoUIWniHhpvEhP"
-            }
-        ]
-    }
+  "spec": {
+    "secrets": [
+      {
+        "secret": "KuSkYFsHBQVlaFtqOLwoUIWniHhpvEhP"
+      }
+    ]
+  }
 }
 ```
 
@@ -1980,9 +1962,9 @@ Delete all global enroll secrets.
 
 ```json
 {
-    "spec": {
-        "secrets": []
-    }
+  "spec": {
+    "secrets": []
+  }
 }
 ```
 
@@ -2266,16 +2248,16 @@ Verify the specified invite.
 
 ```json
 {
-    "invite": {
-        "created_at": "2021-01-15T00:58:33Z",
-        "updated_at": "2021-01-15T00:58:33Z",
-        "id": 4,
-        "email": "steve@example.com",
-        "name": "Steve",
-        "sso_enabled": false,
-        "global_role": "admin",
-        "teams": []
-    }
+  "invite": {
+    "created_at": "2021-01-15T00:58:33Z",
+    "updated_at": "2021-01-15T00:58:33Z",
+    "id": 4,
+    "email": "steve@example.com",
+    "name": "Steve",
+    "sso_enabled": false,
+    "global_role": "admin",
+    "teams": []
+  }
 }
 ```
 
@@ -2285,13 +2267,13 @@ Verify the specified invite.
 
 ```json
 {
-    "message": "Resource Not Found",
-    "errors": [
-        {
-            "name": "base",
-            "reason": "Invite with token <token> was not found in the datastore"
-        }
-    ]
+  "message": "Resource Not Found",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Invite with token <token> was not found in the datastore"
+    }
+  ]
 }
 ```
 
@@ -2504,10 +2486,12 @@ the `software` table.
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
-| populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. (Note that software lists can be large, so this may cause significant CPU and RAM usage depending on page size and request concurrency.) |
+| populate_software     | string | query | If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. See notes below on performance. |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host. |
 
 > `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
+
+> `populate_software` returns a lot of data per host when set, and drastically more data when set to `true` on Fleet Premium. If you need vulnerability details for a large number of hosts, consider setting `populate_software` to `without_vulnerability_details` and pulling vulnerability details from the [Get vulnerability](#get-vulnerability) endpoint, as this returns details once per vulnerability rather than once per vulnerability per host.
 
 If `software_title_id` is specified, an additional top-level key `"software_title"` is returned with the software title object corresponding to the `software_title_id`. See [List software](#list-software) response payload for details about this object.
 
@@ -3151,6 +3135,8 @@ Returns the information of the specified host.
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
+
+> Note: `signature_information` is only set for macOS (.app) applications.
 
 > Note:
 > - `orbit_version: null` means this agent is not a fleetd agent
@@ -4237,7 +4223,7 @@ Resends a configuration profile for the specified host.
 | ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required**. The host's ID. |
 | query   | string | query | Search query keywords. Searchable fields include `name`. |
-| available_for_install | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.  
+| available_for_install | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
 
@@ -4265,15 +4251,22 @@ Resends a configuration profile for the specified host.
           "installed_at": "2024-05-15T15:23:57Z"
         }
       },
-      "app_store_app": null
+      "app_store_app": null,
       "source": "apps",
-      "status": "failed",
+      "status": "failed_install",
       "installed_versions": [
         {
           "version": "121.0",
+          "bundle_identifier": "com.google.Chrome",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
-          "installed_paths": ["/Applications/Google Chrome.app"]
+          "installed_paths": ["/Applications/Google Chrome.app"],
+          "signature_information": [
+            {
+              "installed_path": "/Applications/Google Chrome.app",
+              "team_identifier": "EQHXZ8M8AV"
+            }
+          ]
         }
       ]
     },
@@ -4281,28 +4274,26 @@ Resends a configuration profile for the specified host.
       "id": 134,
       "name": "Falcon.app",
       "software_package": {
-        "name": "FalconSensor-6.44.pkg"
+        "name": "FalconSensor-6.44.pkg",
         "self_service": false,
-        "last_install": null
         "last_install": null,
         "last_uninstall": {
           "script_execution_id": "ed579e73-0f41-46c8-aaf4-3c1e5880ed27",
           "uninstalled_at": "2024-05-15T15:23:57Z"
         }
       },
-      "app_store_app": null    
+      "app_store_app": null,    
       "source": "",
-      "status": null,
       "status": "pending_uninstall",
       "installed_versions": [],
     },
     {
       "id": 147,
       "name": "Logic Pro",
-      "software_package": null
+      "software_package": null,
       "app_store_app": {
         "app_store_id": "1091189122",
-        "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f4/25/1f/f4251f60-e27a-6f05-daa7-9f3a63aac929/AppIcon-0-0-85-220-0-0-4-0-0-2x-0-0-0-0-0.png/512x512bb.png"
+        "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f4/25/1f/f4251f60-e27a-6f05-daa7-9f3a63aac929/AppIcon-0-0-85-220-0-0-4-0-0-2x-0-0-0-0-0.png/512x512bb.png",
         "version": "2.04",
         "self_service": false,
         "last_install": {
@@ -4315,9 +4306,16 @@ Resends a configuration profile for the specified host.
       "installed_versions": [
         {
           "version": "118.0",
+          "bundle_identifier": "com.apple.logic10",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-1234"],
-          "installed_paths": ["/Applications/Logic Pro.app"]
+          "installed_paths": ["/Applications/Logic Pro.app"],
+          "signature_information": [
+            {
+              "installed_path": "/Applications/Logic Pro.app",
+              "team_identifier": ""
+            }
+          ]
         }
       ]
     },
@@ -4589,7 +4587,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
         "host_display_name": "Marko’s MacBook Pro",
         "software_title": "Adobe Acrobat.app",
         "script_execution_id": "ecf22dba-07dc-40a9-b122-5480e948b756",
-        "status": "failed"
+        "status": "failed_uninstall"
       }
     }, 
     {
@@ -5363,8 +5361,9 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | profile                   | file     | form | **Required.** The .mobileconfig and JSON for macOS or XML for Windows file containing the profile. |
 | team_id                   | string   | form | _Available in Fleet Premium_. The team ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
-| labels_include_all        | array     | form | _Available in Fleet Premium_. Profile will only be applied to hosts that have all of these labels. Only one of either `labels_include_all` or `labels_exclude_any` can be included in the request. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Profile will be applied to hosts that don’t have any of these labels. Only one of either `labels_include_all` or `labels_exclude_any` can be included in the request. |
+| labels_include_all        | array     | form | _Available in Fleet Premium_. Profile will only be applied to hosts that have all of these labels. Only one of either `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| labels_include_any        | array     | form | _Available in Fleet Premium_. Profile will only be applied to hosts that have any of these labels. Only one of either `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Profile will be applied to hosts that don’t have any of these labels. Only one of either `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be included in the request. |
 
 #### Example
 
@@ -5549,7 +5548,7 @@ If one or more assigned labels are deleted the profile is considered broken (`br
   "labels_include_all": [
     {
       "name": "Label name 1",
-      "id": 1
+      "id": 1,
       "broken": true
     },
     {
@@ -5676,12 +5675,12 @@ Get aggregate disk encryption status counts of macOS and Windows hosts enrolled 
 
 ```json
 {
-  "verified": {"macos": 123, "windows": 123},
-  "verifying": {"macos": 123, "windows": 0},
-  "action_required": {"macos": 123, "windows": 0},
-  "enforcing": {"macos": 123, "windows": 123},
-  "failed": {"macos": 123, "windows": 123},
-  "removing_enforcement": {"macos": 123, "windows": 0},
+  "verified": {"macos": 123, "windows": 123, "linux": 13},
+  "verifying": {"macos": 123, "windows": 0, "linux": 0},
+  "action_required": {"macos": 123, "windows": 0, "linux": 37},
+  "enforcing": {"macos": 123, "windows": 123, "linux": 0},
+  "failed": {"macos": 123, "windows": 123, "linux": 0},
+  "removing_enforcement": {"macos": 123, "windows": 0, "linux": 0}
 }
 ```
 
@@ -5741,6 +5740,11 @@ Get aggregate status counts of profiles for to macOS and Windows hosts that are 
 - [Get metadata about an EULA file](#get-metadata-about-an-eula-file)
 - [Delete an EULA file](#delete-an-eula-file)
 - [Download an EULA file](#download-an-eula-file)
+- [List software (setup experience)](#list-software-setup-experience)
+- [Update software (setup experience)](#update-software-setup-experience)
+- [Add script (setup experience)](#add-script-setup-experience)
+- [Get or download script (setup experience)](#get-or-download-script-setup-experience)
+- [Delete script (setup experience)](#delete-script-setup-experience)
 
 
 
@@ -5779,6 +5783,8 @@ Sets the custom MDM setup enrollment profile for a team or no team.
   }
 }
 ```
+
+> NOTE: The `ConfigurationWebURL` and `URL` values in the custom MDM setup enrollment profile are automatically populated. Attempting to populate them with custom values may generate server response errors.
 
 ### Get custom MDM setup enrollment profile
 
@@ -6260,6 +6266,219 @@ Content-Length: <length>
 Body: <blob>
 ```
 
+### List software (setup experience)
+
+_Available in Fleet Premium_
+
+List software that can or will be automatically installed during macOS setup. If `install_during_setup` is `true` it will be installed during setup.
+
+`GET /api/v1/fleet/setup_experience/software`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to filter software by. If not specified, it will filter only software that's available to hosts with no team. |
+| page | integer | query | Page number of the results to fetch. |
+| per_page | integer | query | Results per page. |
+
+
+#### Example
+
+`GET /api/v1/fleet/setup_experience/software?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_titles": [
+    {
+      "id": 12,
+      "name": "Firefox.app",
+      "software_package": {
+        "name": "FirefoxInsall.pkg",
+        "version": "125.6",
+        "self_service": true,
+        "install_during_setup": true
+      },
+      "app_store_app": null,
+      "versions_count": 3,
+      "source": "apps",
+      "browser": "",
+      "hosts_count": 48,
+      "versions": [
+        {
+          "id": 123,
+          "version": "1.12",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+        },
+        {
+          "id": 124,
+          "version": "3.4",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+        },
+        {
+          "id": 12
+          "version": "1.13",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+        }
+      ]
+    }
+  ],
+  {
+    "count": 2,
+    "counts_updated_at": "2024-10-04T10:00:00Z",
+    "meta": {
+      "has_next_results": false,
+      "has_previous_results": false
+    }
+  },
+}
+```
+
+### Update software (setup experience)
+
+_Available in Fleet Premium_
+
+Set software that will be automatically installed during macOS setup. Software that isn't included in the request will be unset.
+
+`PUT /api/v1/fleet/setup_experience/software`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to set the software for. If not specified, it will set the software for hosts with no team. |
+| software_title_ids | array | body | The ID of software titles to install during macOS setup. |
+
+#### Example
+
+`PUT /api/v1/fleet/setup_experience/software?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title_ids": [23,3411,5032]
+}
+```
+
+### Add script (setup experience)
+
+_Available in Fleet Premium_
+
+Add a script that will automatically run during macOS setup.
+
+`POST /api/v1/fleet/setup_experience/script`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | form | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
+| script | file | form | The ID of software titles to install during macOS setup. |
+
+#### Example
+
+`POST /api/v1/fleet/setup_experience/script`
+
+##### Default response
+
+`Status: 200`
+
+##### Request headers
+
+```http
+Content-Length: 306
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="team_id"
+
+1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="script"; filename="myscript.sh"
+Content-Type: application/octet-stream
+
+echo "hello"
+--------------------------f02md47480und42y--
+
+```
+
+### Get or download script (setup experience)
+
+_Available in Fleet Premium_
+
+Get a script that will automatically run during macOS setup.
+
+`GET /api/v1/fleet/setup_experience/script`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to get the script for. If not specified, script will be returned for hosts with no team. |
+| alt  | string | query | If specified and set to "media", downloads the script's contents. |
+
+
+#### Example (get script)
+
+`GET /api/v1/fleet/setup_experience/script?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 1,
+  "team_id": 3,
+  "name": "setup-experience-script.sh",
+  "created_at": "2023-07-30T13:41:07Z",
+  "updated_at": "2023-07-30T13:41:07Z"
+}
+```
+
+#### Example (download script)
+
+`GET /api/v1/fleet/setup_experience/script?team_id=3?alt=media`
+
+##### Example response headers
+
+```http
+Content-Length: 13
+Content-Type: application/octet-stream
+Content-Disposition: attachment;filename="2023-09-27 script_1.sh"
+```
+
+###### Example response body
+
+`Status: 200`
+
+```
+echo "hello"
+```
+
+### Delete script (setup experience)
+
+_Available in Fleet Premium_
+
+Delete a script that will automatically run during macOS setup.
+
+`DELETE /api/v1/fleet/setup_experience/script`
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to get the script for. If not specified, script will be returned for hosts with no team. |
+
+#### Example
+
+`DELETE /api/v1/fleet/setup_experience/script?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
 ---
 
 ## Commands
@@ -6465,7 +6684,7 @@ None.
     "terms_expired": false,
     "macos_team": {
       "name": "💻 Workstations",
-      "id" 1
+      "id": 1
     },
     "ios_team": {
       "name": "📱🏢 Company-owned iPhones",
@@ -6519,7 +6738,7 @@ None.
       },
       {
         "name": "🔳🏢 Company-owned iPads",
-        "id" 4
+        "id": 4
       }
     ],
   }
@@ -7384,7 +7603,10 @@ Returns a list of global queries or team queries.
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 | team_id         | integer | query | _Available in Fleet Premium_. The ID of the parent team for the queries to be listed. When omitted, returns global queries.                  |
 | query           | string  | query | Search query keywords. Searchable fields include `name`.                                                                      |
-| merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global queries in addition to team queries when filtering by `team_id`. (If no `team_id` is provided, this parameter is ignored.)
+| merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global queries in addition to team queries when filtering by `team_id`. (If no `team_id` is provided, this parameter is ignored.) |
+| compatible_platform | string | query | Return queries that only reference tables compatible with this platform (not a strict compatibility check). One of: `"macos"`, `"windows"`, `"linux"`, `"chrome"` (case-insensitive). |
+| page                    | integer | query | Page number of the results to fetch. |
+| per_page                | integer | query | Results per page. |
 
 #### Example
 
@@ -7396,84 +7618,90 @@ Returns a list of global queries or team queries.
 
 ```json
 {
-"queries": [
-  {
-    "created_at": "2021-01-04T21:19:57Z",
-    "updated_at": "2021-01-04T21:19:57Z",
-    "id": 1,
-    "name": "query1",
-    "description": "query",
-    "query": "SELECT * FROM osquery_info",
-    "team_id": null,
-    "interval": 3600,
-    "platform": "darwin,windows,linux",
-    "min_osquery_version": "",
-    "automations_enabled": true,
-    "logging": "snapshot",
-    "saved": true,
-    "observer_can_run": true,
-    "discard_data": false,
-    "author_id": 1,
-    "author_name": "noah",
-    "author_email": "noah@example.com",
-    "packs": [
-      {
-        "created_at": "2021-01-05T21:13:04Z",
-        "updated_at": "2021-01-07T19:12:54Z",
-        "id": 1,
-        "name": "Pack",
-        "description": "Pack",
-        "platform": "",
-        "disabled": true
+  "queries": [
+    {
+      "created_at": "2021-01-04T21:19:57Z",
+      "updated_at": "2021-01-04T21:19:57Z",
+      "id": 1,
+      "name": "query1",
+      "description": "query",
+      "query": "SELECT * FROM osquery_info",
+      "team_id": null,
+      "interval": 3600,
+      "platform": "darwin,windows,linux",
+      "min_osquery_version": "",
+      "automations_enabled": true,
+      "logging": "snapshot",
+      "saved": true,
+      "observer_can_run": true,
+      "discard_data": false,
+      "author_id": 1,
+      "author_name": "noah",
+      "author_email": "noah@example.com",
+      "packs": [
+        {
+          "created_at": "2021-01-05T21:13:04Z",
+          "updated_at": "2021-01-07T19:12:54Z",
+          "id": 1,
+          "name": "Pack",
+          "description": "Pack",
+          "platform": "",
+          "disabled": true
+        }
+      ],
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p95": 3.00,
+        "total_executions": 3920
       }
-    ],
-    "stats": {
-      "system_time_p50": 1.32,
-      "system_time_p95": 4.02,
-      "user_time_p50": 3.55,
-      "user_time_p95": 3.00,
-      "total_executions": 3920
+    },
+    {
+      "created_at": "2021-01-19T17:08:24Z",
+      "updated_at": "2021-01-19T17:08:24Z",
+      "id": 3,
+      "name": "osquery_schedule",
+      "description": "Report performance stats for each file in the query schedule.",
+      "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;",
+      "team_id": null,
+      "interval": 3600,
+      "platform": "",
+      "version": "",
+      "automations_enabled": true,
+      "logging": "differential",
+      "saved": true,
+      "observer_can_run": true,
+      "discard_data": true,
+      "author_id": 1,
+      "author_name": "noah",
+      "author_email": "noah@example.com",
+      "packs": [
+        {
+          "created_at": "2021-01-19T17:08:31Z",
+          "updated_at": "2021-01-19T17:08:31Z",
+          "id": 14,
+          "name": "test_pack",
+          "description": "",
+          "platform": "",
+          "disabled": false
+        }
+      ],
+      "stats": {
+        "system_time_p50": null,
+        "system_time_p95": null,
+        "user_time_p50": null,
+        "user_time_p95": null,
+        "total_executions": null
+      }
     }
+  ],
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
   },
-  {
-    "created_at": "2021-01-19T17:08:24Z",
-    "updated_at": "2021-01-19T17:08:24Z",
-    "id": 3,
-    "name": "osquery_schedule",
-    "description": "Report performance stats for each file in the query schedule.",
-    "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;",
-    "team_id": null,
-    "interval": 3600,
-    "platform": "",
-    "version": "",
-    "automations_enabled": true,
-    "logging": "differential",
-    "saved": true,
-    "observer_can_run": true,
-    "discard_data": true,
-    "author_id": 1,
-    "author_name": "noah",
-    "author_email": "noah@example.com",
-    "packs": [
-      {
-        "created_at": "2021-01-19T17:08:31Z",
-        "updated_at": "2021-01-19T17:08:31Z",
-        "id": 14,
-        "name": "test_pack",
-        "description": "",
-        "platform": "",
-        "disabled": false
-      }
-    ],
-    "stats": {
-      "system_time_p50": null,
-      "system_time_p95": null,
-      "user_time_p50": null,
-      "user_time_p95": null,
-      "total_executions": null
-    }
-  }
-]}
+  "count": 200
+}
 ```
 
 ### Get query
@@ -8794,6 +9022,7 @@ Get a list of all software.
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
+| platform | string | query | Filter software by platform. Supported values are `darwin`, `windows`, and `linux`.  |
 
 #### Example
 
@@ -8833,7 +9062,7 @@ Get a list of all software.
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         },
         {
-          "id": 12
+          "id": 12,
           "version": "1.13",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         }
@@ -8999,7 +9228,7 @@ Returns a list of all operating systems.
 
 ```json
 {
-  "count": 1
+  "count": 1,
   "counts_updated_at": "2023-12-06T22:17:30Z",
   "os_versions": [
     {
@@ -9094,6 +9323,7 @@ Returns information about the specified software. By default, `versions` are sor
       }
     },
     "app_store_app": null,
+    "counts_updated_at": "2024-11-03T22:39:36Z",
     "source": "apps",
     "browser": "",
     "hosts_count": 48,
@@ -9303,6 +9533,7 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Li
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
 
+
 #### Example
 
 `POST /api/v1/fleet/software/package`
@@ -9505,7 +9736,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 {
   "app_store_id": "497799835",
   "team_id": 2,
-  "platform": "ipados"
+  "platform": "ipados",
   "self_service": true
 }
 ```
@@ -9755,7 +9986,7 @@ To get the results of an App Store app install, use the [List MDM commands](#lis
    "software_package": "FalconSensor-6.44.pkg",
    "host_id": 123,
    "host_display_name": "Marko's MacBook Pro",
-   "status": "failed",
+   "status": "failed_install",
    "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
    "pre_install_query_output": "Query returned result\nSuccess",
    "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"

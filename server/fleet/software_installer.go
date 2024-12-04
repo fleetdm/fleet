@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -123,6 +124,9 @@ type SoftwareInstaller struct {
 	URL string `json:"url" db:"url"`
 	// FleetLibraryAppID is the related Fleet-maintained app for this installer (if not nil).
 	FleetLibraryAppID *uint `json:"-" db:"fleet_library_app_id"`
+	// AutomaticInstallPolicies is the list of policies that trigger automatic
+	// installation of this software.
+	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -312,7 +316,7 @@ type UploadSoftwareInstallerPayload struct {
 	InstallScript      string
 	PreInstallQuery    string
 	PostInstallScript  string
-	InstallerFile      io.ReadSeeker // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
+	InstallerFile      *TempFileReader // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
 	StorageID          string
 	Filename           string
 	Title              string
@@ -338,7 +342,7 @@ type UpdateSoftwareInstallerPayload struct {
 	// used for authorization and persisted as author
 	UserID uint
 	// optional; used for pulling metadata + persisting new installer package to file system
-	InstallerFile io.ReadSeeker
+	InstallerFile *TempFileReader
 	// update the installer with these fields (*not* PATCH semantics at that point; while the
 	// associated endpoint is a PATCH, the entire row will be updated to these values, including
 	// blanks, so make sure they're set from either user input or the existing installer row
@@ -413,6 +417,12 @@ type HostSoftwareWithInstaller struct {
 	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
 }
 
+type AutomaticInstallPolicy struct {
+	ID      uint   `json:"id" db:"id"`
+	Name    string `json:"name" db:"name"`
+	TitleID uint   `json:"-" db:"software_title_id"`
+}
+
 // SoftwarePackageOrApp provides information about a software installer
 // package or a VPP app.
 type SoftwarePackageOrApp struct {
@@ -420,6 +430,9 @@ type SoftwarePackageOrApp struct {
 	AppStoreID string `json:"app_store_id,omitempty"`
 	// Name is only present for software installer packages.
 	Name string `json:"name,omitempty"`
+	// AutomaticInstallPolicies is only present for Fleet maintained apps
+	// installed automatically with a policy.
+	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies"`
 
 	Version       string                 `json:"version"`
 	SelfService   *bool                  `json:"self_service,omitempty"`
@@ -479,15 +492,18 @@ type HostSoftwareUninstall struct {
 	UninstalledAt time.Time `json:"uninstalled_at"`
 }
 
-// HostSoftwareInstalledVersion represents a version of software installed on a
-// host.
+// HostSoftwareInstalledVersion represents a version of software installed on a host.
 type HostSoftwareInstalledVersion struct {
-	SoftwareID      uint       `json:"-" db:"software_id"`
-	SoftwareTitleID uint       `json:"-" db:"software_title_id"`
-	Version         string     `json:"version" db:"version"`
-	LastOpenedAt    *time.Time `json:"last_opened_at" db:"last_opened_at"`
-	Vulnerabilities []string   `json:"vulnerabilities" db:"vulnerabilities"`
-	InstalledPaths  []string   `json:"installed_paths" db:"installed_paths"`
+	SoftwareID       uint       `json:"-" db:"software_id"`
+	SoftwareTitleID  uint       `json:"-" db:"software_title_id"`
+	Source           string     `json:"-" db:"source"`
+	Version          string     `json:"version" db:"version"`
+	BundleIdentifier string     `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
+	LastOpenedAt     *time.Time `json:"last_opened_at" db:"last_opened_at"`
+
+	Vulnerabilities      []string                   `json:"vulnerabilities" db:"vulnerabilities"`
+	InstalledPaths       []string                   `json:"installed_paths"`
+	SignatureInformation []PathSignatureInformation `json:"signature_information,omitempty"`
 }
 
 // HostSoftwareInstallResultPayload is the payload provided by fleetd to record
@@ -533,3 +549,70 @@ type SoftwareInstallerTokenMetadata struct {
 }
 
 const SoftwareInstallerURLMaxLength = 255
+
+// TempFileReader is an io.Reader with all extra io interfaces supported by a
+// file on disk reader (e.g. io.ReaderAt, io.Seeker, etc.). When created with
+// NewTempFileReader, it is backed by a temporary file on disk, and that file
+// is deleted when Close is called.
+type TempFileReader struct {
+	*os.File
+	keepFile bool
+}
+
+// Rewind seeks to the beginning of the file so the next read will read from
+// the start of the bytes.
+func (r *TempFileReader) Rewind() error {
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Close closes the TempFileReader and deletes the underlying temp file unless
+// it was instructed not to do so at creation time.
+func (r *TempFileReader) Close() error {
+	cerr := r.File.Close()
+	var rerr error
+	if !r.keepFile {
+		rerr = os.Remove(r.File.Name())
+	}
+	if cerr != nil {
+		return cerr
+	}
+	return rerr
+}
+
+// NewKeepFileReader creates a TempFileReader from a file path and keeps the
+// file on Close, instead of deleting it.
+func NewKeepFileReader(filename string) (*TempFileReader, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	return &TempFileReader{File: f, keepFile: true}, nil
+}
+
+// NewTempFileReader creates a temp file to store the data from the provided
+// reader and returns a TempFileReader that reads from that temp file, deleting
+// it on close.
+func NewTempFileReader(from io.Reader, tempDirFn func() string) (*TempFileReader, error) {
+	if tempDirFn == nil {
+		tempDirFn = os.TempDir
+	}
+
+	tempFile, err := os.CreateTemp(tempDirFn(), "fleet-temp-file-*")
+	if err != nil {
+		return nil, err
+	}
+	tfr := &TempFileReader{File: tempFile}
+
+	if _, err := io.Copy(tempFile, from); err != nil {
+		_ = tfr.Close() // best-effort close/delete
+		return nil, err
+	}
+	if err := tfr.Rewind(); err != nil {
+		_ = tfr.Close() // best-effort close/delete
+		return nil, err
+	}
+	return tfr, nil
+}

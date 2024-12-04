@@ -162,6 +162,7 @@ func gitopsCommand() *cli.Command {
 				// name.) Because teams can be created/deleted during the same gitops run, we
 				// grab some information to help us determine allowed/restricted actions and
 				// when to perform the associations.
+
 				if isGlobalConfig && totalFilenames > 1 && !(totalFilenames == 2 && noTeamPresent) && isPremium {
 					abmTeams, hasMissingABMTeam, usesLegacyABMConfig, err = checkABMTeamAssignments(config, fleetClient)
 					if err != nil {
@@ -295,6 +296,15 @@ func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 			appleBM, hasNewConfig := mdmMap["apple_business_manager"]
 
 			if hasLegacyConfig && hasNewConfig {
+				return nil, false, false, errors.New(fleet.AppleABMDefaultTeamDeprecatedMessage)
+			}
+
+			abmToks, err := fleetClient.CountABMTokens()
+			if err != nil {
+				return nil, false, false, err
+			}
+
+			if hasLegacyConfig && abmToks > 1 {
 				return nil, false, false, errors.New(fleet.AppleABMDefaultTeamDeprecatedMessage)
 			}
 

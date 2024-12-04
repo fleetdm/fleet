@@ -37,6 +37,8 @@ const PREMIUM_ACTIVITIES = new Set([
   "enabled_macos_setup_end_user_auth",
   "disabled_macos_setup_end_user_auth",
   "tranferred_hosts",
+  "enabled_windows_mdm_migration",
+  "disabled_windows_mdm_migration",
 ]);
 
 const getProfileMessageSuffix = (
@@ -278,6 +280,14 @@ const TAGGED_TEMPLATES = {
         <b>{activity.details?.team_name}</b> team.
       </>
     );
+  },
+  fleetEnrolled: (activity: IActivity) => {
+    const hostDisplayName = activity.details?.host_display_name ? (
+      <b>{activity.details.host_display_name}</b>
+    ) : (
+      "A host"
+    );
+    return <>{hostDisplayName} enrolled in Fleet.</>;
   },
   mdmEnrolled: (activity: IActivity) => {
     if (activity.details?.mdm_platform === "microsoft") {
@@ -654,6 +664,24 @@ const TAGGED_TEMPLATES = {
   },
   disabledWindowsMdm: () => {
     return <> told Fleet to turn off Windows MDM features.</>;
+  },
+  enabledWindowsMdmMigration: () => {
+    return (
+      <>
+        {" "}
+        told Fleet to automatically migrate Windows hosts connected to another
+        MDM solution.
+      </>
+    );
+  },
+  disabledWindowsMdmMigration: () => {
+    return (
+      <>
+        {" "}
+        told Fleet to stop migrating Windows hosts connected to another MDM
+        solution.
+      </>
+    );
   },
   // TODO: Combine ranScript template with host details page templates
   // frontend/pages/hosts/details/cards/Activity/PastActivity/PastActivity.tsx and
@@ -1167,6 +1195,9 @@ const getDetail = (
     case ActivityType.UserDeletedTeamRole: {
       return TAGGED_TEMPLATES.userDeletedTeamRole(activity);
     }
+    case ActivityType.FleetEnrolled: {
+      return TAGGED_TEMPLATES.fleetEnrolled(activity);
+    }
     case ActivityType.MdmEnrolled: {
       return TAGGED_TEMPLATES.mdmEnrolled(activity);
     }
@@ -1250,6 +1281,12 @@ const getDetail = (
     }
     case ActivityType.DisabledWindowsMdm: {
       return TAGGED_TEMPLATES.disabledWindowsMdm();
+    }
+    case ActivityType.EnabledWindowsMdmMigration: {
+      return TAGGED_TEMPLATES.enabledWindowsMdmMigration();
+    }
+    case ActivityType.DisabledWindowsMdmMigration: {
+      return TAGGED_TEMPLATES.disabledWindowsMdmMigration();
     }
     case ActivityType.RanScript: {
       return TAGGED_TEMPLATES.ranScript(activity, onDetailsClick);
@@ -1373,6 +1410,14 @@ const ActivityItem = ({
   const { gravatar_url } = actor_email
     ? addGravatarUrlToResource({ email: actor_email })
     : { gravatar_url: DEFAULT_GRAVATAR_LINK };
+
+  if (
+    !activity.actor_email &&
+    !activity.actor_full_name &&
+    !activity.actor_id
+  ) {
+    activity.actor_full_name = "Fleet";
+  }
 
   const activityCreatedAt = new Date(activity.created_at);
   const indicatePremiumFeature =

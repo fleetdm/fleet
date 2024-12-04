@@ -46,6 +46,7 @@ interface IHostSoftwareProps {
   isSoftwareEnabled?: boolean;
   hostScriptsEnabled?: boolean;
   isMyDevicePage?: boolean;
+  hostMDMEnrolled?: boolean;
 }
 
 const DEFAULT_SEARCH_QUERY = "";
@@ -96,6 +97,7 @@ const HostSoftware = ({
   onShowSoftwareDetails,
   isSoftwareEnabled = false,
   isMyDevicePage = false,
+  hostMDMEnrolled,
 }: IHostSoftwareProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const vulnFilterAndNotSupported =
@@ -251,6 +253,7 @@ const HostSoftware = ({
           userHasSWWritePermission,
           hostScriptsEnabled,
           hostCanWriteSoftware,
+          hostMDMEnrolled,
           softwareIdActionPending,
           router,
           teamId: hostTeamId,
@@ -265,6 +268,7 @@ const HostSoftware = ({
     onSelectAction,
     hostTeamId,
     hostCanWriteSoftware,
+    hostMDMEnrolled,
   ]);
 
   const isLoading = isMyDevicePage

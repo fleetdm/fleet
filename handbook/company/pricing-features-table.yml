@@ -109,7 +109,7 @@
   usualDepartment: IT
   waysToUse:
     - description: Supply-chain Levels for Software Artifacts (SLSA) attestations for the fleetd binary artifacts and server container image to enable verification that the binaries are built and uploaded using GitHub Actions from the Fleet repository at a particular commit SHA coming soon (2024-12-31).
-    - moreInfoUrl: https://github.com/fleetdm/fleet/issues/20219 #customer-figali
+    - moreInfoUrl: https://github.com/fleetdm/fleet/issues/20219
 #
 #  ╔═╗╔═╗╔╦╗╔╦╗╔═╗╔╗╔╔╦╗  ╦  ╦╔╗╔╔═╗  ╔╦╗╔═╗╔═╗╦    ┌─  ╔═╗╦  ╦  ─┐
 #  ║  ║ ║║║║║║║╠═╣║║║ ║║  ║  ║║║║║╣    ║ ║ ║║ ║║    │   ║  ║  ║   │
@@ -150,12 +150,12 @@
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Configuration]
   usualDepartment: IT
-  tier: Free
+  tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
   waysToUse:
     - description: Enforce two-factor authentication when logging in to Fleet for added security.
-  comingSoonOn: 2024-12-31 #customer-rosner
+  comingSoonOn: 2024-12-31
 #  
 #  ╦═╗╔═╗╦  ╔═╗  ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ╔═╗╔═╗╔╗╔╔╦╗╦═╗╔═╗╦  
 #  ╠╦╝║ ║║  ║╣───╠╩╗╠═╣╚═╗║╣  ║║  ╠═╣║  ║  ║╣ ╚═╗╚═╗  ║  ║ ║║║║ ║ ╠╦╝║ ║║  
@@ -268,7 +268,7 @@
   productCategories: [Device management]
   pricingTableCategories: [Devices]
   waysToUse:
-    - description: Support ACME as a protocol for MDM certificate generation. Coming soon (2025-03-31) #customer-rosner
+    - description: Support ACME as a protocol for MDM certificate generation. Coming soon (2025-03-31)
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15611 
 #  
 #  ╦ ╦╔═╗╔═╗╦═╗  ╔═╗╔═╗╔═╗╔═╗╦ ╦╔╗╔╔╦╗  ╔═╗╦ ╦╔╗╔╔═╗
@@ -377,7 +377,7 @@
 #  ║╣ ║║║╠╣ ║ ║╠╦╝║  ║╣    ║║║╚═╗╠╩╗  ║╣ ║║║║  ╠╦╝╚╦╝╠═╝ ║ ║║ ║║║║
 #  ╚═╝╝╚╝╚  ╚═╝╩╚═╚═╝╚═╝  ═╩╝╩╚═╝╩ ╩  ╚═╝╝╚╝╚═╝╩╚═ ╩ ╩   ╩ ╩╚═╝╝╚╝
 - industryName: Enforce disk encryption
-  description: Encrypt system drives on macOS, Windows, and Linux (coming soon) computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker, LUKS).
+  description: Encrypt system drives on macOS, Windows, and Linux, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker, LUKS).
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
   friendlyName: Ensure hard disks are encrypted
   productCategories: [Device management]
@@ -608,7 +608,7 @@
 #   ║║║╣ ╚╗╔╝║║  ║╣   ╠╦╝║╣ ║║║║╣  ║║║╠═╣ ║ ║║ ║║║║
 #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩╚═╚═╝╩ ╩╚═╝═╩╝╩╩ ╩ ╩ ╩╚═╝╝╚╝
 - industryName: Device remediation
-  description: Use Fleet Policies to detect the device state. Automate remediations for issues or allow users to remediate problems in self-service.
+  description: Use Fleet Policies to detect the device state. Automate remediations for issues or allow users to remediate problems in self-service (Fleet Desktop > My device page).
   documentationUrl: https://fleetdm.com/securing/end-user-self-remediation # « NOTE: This link will change when auto-remediation is delivered.
   tier: Premium
   jamfProHasFeature: yes
@@ -1108,7 +1108,16 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  # System for Cross-domain Identity Management (SCIM) provisioning comingSoonOn: 2024-12-31 #customer-rosner, https://github.com/fleetdm/fleet/issues/15671
+- industryName: Grant Wi-Fi access
+  description: Help your end users connect to Wi-Fi by adding your Simple Certificate Enrollment Protocol (SCEP) server.                
+  documentationUrl: https://fleetdm.com/guides/ndes-scep-proxy
+  isExperimental: yes
+  productCategories: [Device management]
+  pricingTableCategories: [Integrations]
+  usualDepartment: IT
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
 #
 #  ╔╦╗╦ ╦╦╦═╗╔╦╗   ╔═╗╔═╗╦═╗╔╦╗╦ ╦  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╗╔
 #   ║ ╠═╣║╠╦╝ ║║───╠═╝╠═╣╠╦╝ ║ ╚╦╝  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║ ║║║║

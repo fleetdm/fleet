@@ -79,7 +79,7 @@ variable "alb_config" {
     extra_target_groups  = optional(any, [])
     https_listener_rules = optional(any, [])
     tls_policy           = optional(string, "ELBSecurityPolicy-TLS-1-2-2017-01")
-    idle_timeout         = optional(number, 60)
+    idle_timeout         = optional(number, 905)
   })
 }
 

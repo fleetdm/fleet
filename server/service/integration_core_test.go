@@ -6299,10 +6299,8 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Fleet MDM is not configured")
 
-	// update MDM disk encryption, the endpoint returns an error if MDM is not enabled
-	res = s.Do("POST", "/api/latest/fleet/disk_encryption", fleet.MDMAppleSettingsPayload{}, fleet.ErrMDMNotConfigured.StatusCode())
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+	// update MDM disk encryption
+	_ = s.Do("POST", "/api/latest/fleet/disk_encryption", fleet.MDMAppleSettingsPayload{}, http.StatusPaymentRequired)
 
 	// device migrate mdm endpoint returns an error if not premium
 	createHostAndDeviceToken(t, s.ds, "some-token")
@@ -6389,6 +6387,12 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 
 	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
 		"mdm": { "macos_setup": { "enable_release_device_manually": true } }
+	}`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "missing or invalid license")
+
+	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_migration_enabled": true }
 	}`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "missing or invalid license")
@@ -8716,6 +8720,11 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
 	require.True(t, *getHostResp.Host.DiskEncryptionEnabled)
 
+	// should succeed as we no longer require MDM to access this endpoint, as Linux encryption doesn't require MDM
+	var profiles getMDMProfilesSummaryResponse
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &profiles)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &profiles)
+
 	// set unencrypted for all hosts
 	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostWin.ID, false))
 	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostMac.ID, false))
@@ -8731,7 +8740,7 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	require.Equal(t, hostMac.ID, getHostResp.Host.ID)
 	require.False(t, *getHostResp.Host.DiskEncryptionEnabled)
 
-	// Linux does not return false, it omits the field when false
+	// Linux may omit the field when false
 	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
@@ -11773,9 +11782,11 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	h1E := hsr.ExecutionID
 
 	// create a software installation request
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
+	require.NoError(t, err)
 	sw1, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install foo",
-		InstallerFile: strings.NewReader("echo"),
+		InstallerFile: tfr1,
 		StorageID:     uuid.NewString(),
 		Filename:      "foo.pkg",
 		Title:         "foo",
@@ -12365,4 +12376,109 @@ func (s *integrationTestSuite) TestHostWithNoPoliciesClearsPolicyCounts() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 1)
 	require.Equal(t, uint64(0), listHostsResp.Hosts[0].FailingPoliciesCount)
+}
+
+func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
+	t := s.T()
+	ctx := context.Background()
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		NodeKey:       ptr.String(t.Name()),
+		OsqueryHostID: ptr.String(t.Name()),
+		UUID:          t.Name(),
+		Hostname:      t.Name() + "foo.local",
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	safariApp := fleet.Software{
+		Name:             "Safari.app",
+		BundleIdentifier: "com.apple.safari",
+		Version:          "18.1",
+		Source:           "apps",
+	}
+	googleChromeApp := fleet.Software{
+		Name:             "Google Chrome.app",
+		BundleIdentifier: "com.google.Chrome",
+		Version:          "130.0.6723.117",
+		Source:           "apps",
+	}
+	ghCli := fleet.Software{
+		Name:   "gh",
+		Source: "homebrew_packages",
+	}
+
+	// Update the host's software.
+	software := []fleet.Software{
+		safariApp, googleChromeApp, ghCli,
+	}
+	hostSoftware, err := s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	require.NoError(t, err)
+	require.Len(t, hostSoftware.CurrInstalled(), 3)
+
+	// Update the host's software installed paths for the software above.
+	// Google Chrome.app will have two installed paths one with team identifier set
+	// the other one set to empty.
+	swPaths := map[string]struct{}{}
+	for _, s := range software {
+		pathItems := [][2]string{{fmt.Sprintf("/some/path/%s", s.Name), ""}}
+		if s.Name == "Google Chrome.app" {
+			pathItems = [][2]string{
+				{fmt.Sprintf("/some/path/%s", s.Name), "EQHXZ8M8AV"},
+				{fmt.Sprintf("/some/other/path/%s", s.Name), ""},
+			}
+		}
+		for _, pathItem := range pathItems {
+			path := pathItem[0]
+			teamIdentifier := pathItem[1]
+			key := fmt.Sprintf(
+				"%s%s%s%s%s",
+				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+			)
+			swPaths[key] = struct{}{}
+		}
+	}
+	err = s.ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, hostSoftware)
+	require.NoError(t, err)
+
+	hostsCountTs := time.Now().UTC()
+	err = s.ds.SyncHostsSoftware(context.Background(), hostsCountTs)
+	require.NoError(t, err)
+
+	getHostSoftwareResp := getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID),
+		nil, http.StatusOK, &getHostSoftwareResp,
+		"per_page", "5", "page", "0", "order_key", "name", "order_direction", "desc",
+	)
+	require.Len(t, getHostSoftwareResp.Software, 3)
+	require.Equal(t, "Safari.app", getHostSoftwareResp.Software[0].Name)
+	require.Len(t, getHostSoftwareResp.Software[0].InstalledVersions, 1)
+	require.Len(t, getHostSoftwareResp.Software[0].InstalledVersions[0].InstalledPaths, 1)
+	require.Equal(t, "/some/path/Safari.app", getHostSoftwareResp.Software[0].InstalledVersions[0].InstalledPaths[0])
+	require.Len(t, getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation, 1)
+	require.Equal(t, "/some/path/Safari.app", getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].InstalledPath)
+	require.Empty(t, getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].TeamIdentifier)
+
+	require.Equal(t, "Google Chrome.app", getHostSoftwareResp.Software[1].Name)
+	require.Len(t, getHostSoftwareResp.Software[1].InstalledVersions, 1)
+	require.Len(t, getHostSoftwareResp.Software[1].InstalledVersions[0].InstalledPaths, 2)
+	sort.Slice(getHostSoftwareResp.Software[1].InstalledVersions[0].InstalledPaths, func(i, j int) bool {
+		return getHostSoftwareResp.Software[1].InstalledVersions[0].InstalledPaths[i] < getHostSoftwareResp.Software[1].InstalledVersions[0].InstalledPaths[j]
+	})
+	require.Equal(t, "/some/other/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].InstalledPaths[0])
+	require.Equal(t, "/some/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].InstalledPaths[1])
+	require.Len(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation, 2)
+	sort.Slice(getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation, func(i, j int) bool {
+		return getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[i].InstalledPath < getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[j].InstalledPath
+	})
+	require.Equal(t, "/some/other/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].InstalledPath)
+	require.Equal(t, "", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].TeamIdentifier)
+	require.Equal(t, "/some/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].InstalledPath)
+	require.Equal(t, "EQHXZ8M8AV", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].TeamIdentifier)
+
+	require.Equal(t, "gh", getHostSoftwareResp.Software[2].Name)
+	require.Len(t, getHostSoftwareResp.Software[2].InstalledVersions, 1)
+	require.Len(t, getHostSoftwareResp.Software[2].InstalledVersions[0].InstalledPaths, 1)
+	require.Equal(t, "/some/path/gh", getHostSoftwareResp.Software[2].InstalledVersions[0].InstalledPaths[0])
+	require.Nil(t, getHostSoftwareResp.Software[2].InstalledVersions[0].SignatureInformation)
 }

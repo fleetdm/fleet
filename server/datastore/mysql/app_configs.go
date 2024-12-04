@@ -274,7 +274,7 @@ func (ds *Datastore) AggregateEnrollSecretPerTeam(ctx context.Context) ([]*fleet
 	return secrets, nil
 }
 
-func (ds *Datastore) getConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error) {
+func (ds *Datastore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error) {
 	if teamID != nil && *teamID > 0 {
 		tc, err := ds.TeamMDMConfig(ctx, *teamID)
 		if err != nil {
@@ -287,4 +287,53 @@ func (ds *Datastore) getConfigEnableDiskEncryption(ctx context.Context, teamID *
 		return false, err
 	}
 	return ac.MDM.EnableDiskEncryption.Value, nil
+}
+
+func (ds *Datastore) ApplyYaraRules(ctx context.Context, rules []fleet.YaraRule) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return applyYaraRulesDB(ctx, tx, rules)
+	})
+}
+
+func applyYaraRulesDB(ctx context.Context, q sqlx.ExtContext, rules []fleet.YaraRule) error {
+	const delStmt = "DELETE FROM yara_rules"
+	if _, err := q.ExecContext(ctx, delStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear before insert")
+	}
+
+	if len(rules) > 0 {
+		const insStmt = `INSERT INTO yara_rules (name, contents) VALUES %s`
+		var args []interface{}
+		sql := fmt.Sprintf(insStmt, strings.TrimSuffix(strings.Repeat(`(?, ?),`, len(rules)), ","))
+		for _, r := range rules {
+			args = append(args, r.Name, r.Contents)
+		}
+
+		if _, err := q.ExecContext(ctx, sql, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert yara rules")
+		}
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetYaraRules(ctx context.Context) ([]fleet.YaraRule, error) {
+	sql := "SELECT name, contents FROM yara_rules"
+	rules := []fleet.YaraRule{}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rules, sql); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get yara rules")
+	}
+	return rules, nil
+}
+
+func (ds *Datastore) YaraRuleByName(ctx context.Context, name string) (*fleet.YaraRule, error) {
+	query := "SELECT name, contents FROM yara_rules WHERE name = ?"
+	rule := fleet.YaraRule{}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &rule, query, name); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("YaraRule"), "no yara rule with provided name")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get yara rule by name")
+	}
+	return &rule, nil
 }

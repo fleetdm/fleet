@@ -340,7 +340,10 @@ export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
     </span>
   ),
   "On (manual)": (
-    <span>MDM was turned on manually. End users can turn MDM off.</span>
+    <span>
+      MDM was turned on manually (macOS), or hosts were automatically migrated
+      with fleetd (Windows). End users can turn MDM off.
+    </span>
   ),
   Off: undefined, // no tooltip specified
   Pending: (
