@@ -5,6 +5,20 @@ import { AppContext } from "context/app";
 
 import useDeepEffect from "hooks/useDeepEffect";
 
+import {
+  FREQUENCY_DROPDOWN_OPTIONS,
+  LOGGING_TYPE_OPTIONS,
+  MIN_OSQUERY_VERSION_OPTIONS,
+  SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
+} from "utilities/constants";
+
+import { SelectedPlatformString } from "interfaces/platform";
+import {
+  ICreateQueryRequestBody,
+  ISchedulableQuery,
+  QueryLoggingOption,
+} from "interfaces/schedulable_query";
+
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -15,19 +29,9 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import {
-  FREQUENCY_DROPDOWN_OPTIONS,
-  LOGGING_TYPE_OPTIONS,
-  MIN_OSQUERY_VERSION_OPTIONS,
-  SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
-} from "utilities/constants";
 import RevealButton from "components/buttons/RevealButton";
-import { SelectedPlatformString } from "interfaces/platform";
-import {
-  ICreateQueryRequestBody,
-  ISchedulableQuery,
-  QueryLoggingOption,
-} from "interfaces/schedulable_query";
+import LogDestinationIndicator from "components/LogDestinationIndicator";
+
 import DiscardDataOption from "../DiscardDataOption";
 
 const baseClass = "save-query-modal";
@@ -236,7 +240,11 @@ const SaveQueryModal = ({
           helpText={
             <>
               Historical results will {!automationsEnabled ? "not " : ""}be sent
-              to your log destination: <b>{logDestination}</b>.
+              to your log destination:{" "}
+              <b>
+                <LogDestinationIndicator logDestination={logDestination} />
+              </b>
+              .
             </>
           }
         />
