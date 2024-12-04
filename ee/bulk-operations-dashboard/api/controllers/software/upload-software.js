@@ -84,7 +84,7 @@ module.exports = {
                     contentType: 'application/octet-stream'
                   });
                   (async ()=>{
-                    await axios.post(`${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/package`, form, {
+                    await axios.postForm(`${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/package`, form, {
                       headers: {
                         Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
                         ...form.getHeaders()
