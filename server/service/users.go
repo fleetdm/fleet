@@ -53,6 +53,8 @@ func createUserEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	}, nil
 }
 
+var errMailerRequiredForMFA = badRequest("Email must be set up to enable Fleet MFA")
+
 func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, *string, error) {
 	var teams []fleet.UserTeam
 	if p.Teams != nil {
@@ -108,7 +110,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		}
 
 		if !svc.mailService.CanSendEmail(smtpSettings) {
-			return nil, nil, badRequest("Email must be set up to enable local MFA")
+			return nil, nil, errMailerRequiredForMFA
 		}
 	}
 
@@ -382,7 +384,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		}
 
 		if !svc.mailService.CanSendEmail(smtpSettings) {
-			return nil, badRequest("Email must be set up to enable MFA")
+			return nil, errMailerRequiredForMFA
 		}
 	}
 
