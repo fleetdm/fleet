@@ -133,6 +133,38 @@ func TestShowInfoArgs(t *testing.T) {
 	}
 }
 
+func TestShowInfoError(t *testing.T) {
+	testcases := []struct {
+		name        string
+		exitCode    int
+		expectedErr error
+	}{
+		{
+			name:        "Dialog Timed Out",
+			exitCode:    124,
+			expectedErr: dialog.ErrTimeout,
+		},
+		{
+			name:        "Unknown Error",
+			exitCode:    99,
+			expectedErr: dialog.ErrUnknown,
+		},
+	}
+
+	for _, tt := range testcases {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := &mockExecCmd{
+				exitCode: tt.exitCode,
+			}
+			k := &KDialog{
+				cmdWithOutput: mock.runWithOutput,
+			}
+			err := k.ShowInfo(dialog.InfoOptions{})
+			assert.ErrorIs(t, err, tt.expectedErr)
+		})
+	}
+}
+
 func TestShowProgressArgs(t *testing.T) {
 	testCases := []struct {
 		name         string
