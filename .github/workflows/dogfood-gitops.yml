@@ -78,7 +78,7 @@ jobs:
           MANAGED_CHROME_ENROLLMENT_TOKEN: ${{ secrets.CLOUD_MANAGEMENT_ENROLLMENT_TOKEN }}
 
       - name: Notify on Gitops failure
-        if: failure()
+        if: failure() && github.ref_name == 'main'
         uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
         with:
           payload: |
