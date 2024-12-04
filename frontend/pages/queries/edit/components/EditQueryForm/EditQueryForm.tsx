@@ -188,8 +188,6 @@ const EditQueryForm = ({
   const platformCompatibility = usePlatformCompatibility();
   const { setCompatiblePlatforms } = platformCompatibility;
 
-  const logDestination = config?.logging.result.plugin || "";
-
   const debounceSQL = useDebouncedCallback((sql: string) => {
     const { errors: newErrors } = validateQuerySQL(sql);
 
@@ -777,7 +775,8 @@ const EditQueryForm = ({
                     to your log destination:{" "}
                     <b>
                       <LogDestinationIndicator
-                        logDestination={logDestination}
+                        logDestination={config?.logging.result.plugin || ""}
+                        excludeTooltip
                       />
                     </b>
                     .

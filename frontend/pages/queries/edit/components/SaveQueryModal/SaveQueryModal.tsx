@@ -94,8 +94,6 @@ const SaveQueryModal = ({
   );
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
-  const logDestination = config?.logging.result.plugin || "";
-
   const toggleAdvancedOptions = () => {
     setShowAdvancedOptions(!showAdvancedOptions);
   };
@@ -242,7 +240,10 @@ const SaveQueryModal = ({
               Historical results will {!automationsEnabled ? "not " : ""}be sent
               to your log destination:{" "}
               <b>
-                <LogDestinationIndicator logDestination={logDestination} />
+                <LogDestinationIndicator
+                  logDestination={config?.logging.result.plugin || ""}
+                  excludeTooltip
+                />
               </b>
               .
             </>

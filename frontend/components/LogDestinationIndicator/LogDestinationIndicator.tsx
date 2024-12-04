@@ -2,9 +2,11 @@ import React from "react";
 import classnames from "classnames";
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { read } from "fs";
 
 interface ILogDestinationIndicatorProps {
   logDestination: string;
+  excludeTooltip?: boolean;
 }
 
 const generateClassTag = (rawValue: string): string => {
@@ -16,7 +18,8 @@ const generateClassTag = (rawValue: string): string => {
 
 const LogDestinationIndicator = ({
   logDestination,
-}: ILogDestinationIndicatorProps): JSX.Element => {
+  excludeTooltip = false,
+}: ILogDestinationIndicatorProps) => {
   const classTag = generateClassTag(logDestination);
   const statusClassName = classnames(
     "log-destination-indicator",
@@ -108,7 +111,9 @@ const LogDestinationIndicator = ({
     }
   };
 
-  return (
+  return excludeTooltip ? (
+    readableLogDestination()
+  ) : (
     <TooltipWrapper tipContent={tooltipText()} className={statusClassName}>
       {readableLogDestination()}
     </TooltipWrapper>
