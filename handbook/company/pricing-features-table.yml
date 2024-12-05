@@ -254,6 +254,11 @@
     - description: Customize the out-of-the-box setup experience for your end users.
     - description: Install a bootstrap package to run custom scripts during the setup experience.
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
+    demos:
+    - description: Install a bootstrap package to run custom scripts during the setup experience to enforce required configurations.
+    - moreInfoUrl: https://www.youtube.com/watch?v=gt7_dAU0VMY
+    - description: Connect end users to Wi-Fi by adding your SCEP server.
+    - moreInfoUrl: https://www.youtube.com/watch?v=secV4NCGYPg
 #  
 #  ╔╗ ╦ ╦╔═╗╔╦╗  ╔═╗╔╗╔╦═╗╔═╗╦  ╦  ╔╦╗╔═╗╔╗╔╔╦╗
 #  ╠╩╗╚╦╝║ ║ ║║  ║╣ ║║║╠╦╝║ ║║  ║  ║║║║╣ ║║║ ║ 
@@ -478,6 +483,9 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14920
     - description: Control and restore access to applications by automatically restricting access when devices do not meet particular security requirements.
       moreInfoUrl: https://duo.com/docs/device-health
+      demos:
+    - description: See activity logs when the activities webhook is enabled/disabled and when the destination URL is edited
+      moreInfoUrl: https://youtu.be/3Fndgrsk-Ss 
     - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems. Coming soon (2024-09-30).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/16236
     - description: Implement multivariate device trust
@@ -583,7 +591,7 @@
   usualDepartment: IT
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Devices]
-  demos:
+  demos: https://www.youtube.com/watch?v=o1G0YZAsWzI 
     - description: A large tech company used scripts to fix issues with their security and compliance agents on workstations.
   buzzwords: [Remote script execution,PowerShell scripts,Bash scripts]
   waysToUse:
