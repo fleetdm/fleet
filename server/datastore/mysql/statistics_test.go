@@ -139,7 +139,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	// Create a session for user baz, but not qux (so only 1 is active)
-	_, err = ds.NewSession(ctx, u1.ID, "session_key")
+	_, err = ds.NewSession(ctx, u1.ID, 8)
 	require.NoError(t, err)
 
 	// Create new team for test
@@ -349,11 +349,11 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, stats.NumHostsFleetDesktopEnabled)
 
 	// Create multiple new sessions for a single user
-	_, err = ds.NewSession(ctx, u1.ID, "session_key2")
+	_, err = ds.NewSession(ctx, u1.ID, 8)
 	require.NoError(t, err)
-	_, err = ds.NewSession(ctx, u1.ID, "session_key3")
+	_, err = ds.NewSession(ctx, u1.ID, 8)
 	require.NoError(t, err)
-	_, err = ds.NewSession(ctx, u1.ID, "session_key4")
+	_, err = ds.NewSession(ctx, u1.ID, 8)
 	require.NoError(t, err)
 
 	// CleanupStatistics resets policy violation days
