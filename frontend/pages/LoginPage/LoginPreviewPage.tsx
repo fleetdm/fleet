@@ -1,3 +1,5 @@
+// TODO: Clean up/remove isPreviewMode
+
 import React, { useEffect, useContext } from "react";
 import { InjectedRouter } from "react-router";
 
@@ -61,8 +63,8 @@ const LoginPreviewPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
       <LoginSuccessfulPage />
       <LoginForm
         handleSubmit={onSubmit}
-        isSubmitting={false} // TODO fix
-        pendingEmail={false} // TODO fix
+        isSubmitting={false}
+        pendingEmail={false}
       />
     </AuthenticationFormWrapper>
   );
