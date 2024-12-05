@@ -127,7 +127,7 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 	}
 	defer func() {
 		if err := cancelProgress(); err != nil {
-			log.Error().Err(err).Msg("failed to cancel progress dialog")
+			log.Debug().Err(err).Msg("failed to cancel progress dialog")
 		}
 	}()
 
