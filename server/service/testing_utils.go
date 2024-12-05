@@ -309,7 +309,7 @@ func (svc *mockMailService) SendEmail(e fleet.Email) error {
 }
 
 func (svc *mockMailService) CanSendEmail(smtpSettings fleet.SMTPSettings) bool {
-	return true
+	return smtpSettings.SMTPConfigured
 }
 
 type TestNewScheduleFunc func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc

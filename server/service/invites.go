@@ -39,7 +39,7 @@ func createInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	return createInviteResponse{invite, nil}, nil
 }
 
-var ssoMFAConflict = &fleet.ConflictError{Message: "Fleet MFA is is not applicable to SSO users"}
+var SSOMFAConflict = &fleet.ConflictError{Message: "Fleet MFA is is not applicable to SSO users"}
 
 func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePayload) (*fleet.Invite, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Invite{}, fleet.ActionWrite); err != nil {
@@ -149,7 +149,7 @@ func (svc *Service) ValidateInvite(ctx context.Context, invite fleet.Invite) err
 		return fleet.ErrMissingLicense
 	}
 	if invite.SSOEnabled {
-		return ssoMFAConflict
+		return SSOMFAConflict
 	}
 
 	return nil

@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -533,6 +534,96 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	require.Len(t, iae.Errors, 1)
 	assert.False(t, ms.PendingEmailChangeFuncInvoked)
 	assert.False(t, ms.SaveUserFuncInvoked)
+}
+
+func TestMFAHandling(t *testing.T) {
+	admin := &fleet.User{
+		Name:       "Fleet Admin",
+		Email:      "admin@foo.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+
+	ms := new(mock.Store)
+	svc, ctx := newTestService(t, ms, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+	payload := fleet.UserPayload{
+		Email:      ptr.String("foo@example.com"),
+		Name:       ptr.String("Full Name"),
+		Password:   ptr.String(test.GoodPassword),
+		MFAEnabled: ptr.Bool(true),
+		SSOEnabled: ptr.Bool(true),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+
+	// test creation
+
+	_, _, err := svc.CreateUser(ctx, payload)
+	require.ErrorContains(t, err, "SSO")
+
+	appConfig := &fleet.AppConfig{SMTPSettings: &fleet.SMTPSettings{}}
+	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return appConfig, nil
+	}
+
+	payload.SSOEnabled = nil
+	ms.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
+		return nil, notFoundErr{}
+	}
+	_, _, err = svc.CreateUser(ctx, payload)
+	require.ErrorContains(t, err, "mail")
+
+	appConfig.SMTPSettings.SMTPConfigured = true
+	ms.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+		user.ID = 4
+		return user, nil
+	}
+	ms.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+		return nil
+	}
+	user, _, err := svc.CreateUser(ctx, payload)
+	require.NoError(t, err)
+	require.False(t, user.MFAEnabled)
+
+	premiumCtx := license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	user, _, err = svc.CreateUser(premiumCtx, payload)
+	require.NoError(t, err)
+	require.True(t, user.MFAEnabled)
+
+	// test modification
+
+	appConfig.SMTPSettings.SMTPConfigured = false
+	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		return user, nil
+	}
+	_, err = svc.ModifyUser(ctx, user.ID, fleet.UserPayload{SSOEnabled: ptr.Bool(true)})
+	require.ErrorContains(t, err, "SSO")
+
+	user.SSOEnabled = true
+	user.MFAEnabled = false
+	_, err = svc.ModifyUser(ctx, user.ID, fleet.UserPayload{MFAEnabled: ptr.Bool(true)})
+	require.ErrorContains(t, err, "license")
+
+	_, err = svc.ModifyUser(premiumCtx, user.ID, fleet.UserPayload{MFAEnabled: ptr.Bool(true)})
+	require.ErrorContains(t, err, "SSO")
+
+	user.SSOEnabled = false
+	_, err = svc.ModifyUser(premiumCtx, user.ID, fleet.UserPayload{MFAEnabled: ptr.Bool(true)})
+	require.ErrorContains(t, err, "mail")
+
+	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
+		return nil
+	}
+	user.MFAEnabled = true // allow keeping MFA on when modifying a user with MFA already on
+	_, err = svc.ModifyUser(ctx, user.ID, fleet.UserPayload{MFAEnabled: ptr.Bool(true), Name: ptr.String("Joe Bob")})
+	require.NoError(t, err)
+	_, err = svc.ModifyUser(ctx, user.ID, fleet.UserPayload{Name: ptr.String("Joe Bob")})
+	require.NoError(t, err)
+
+	user.MFAEnabled = false
+	appConfig.SMTPSettings.SMTPConfigured = true
+	_, err = svc.ModifyUser(premiumCtx, user.ID, fleet.UserPayload{MFAEnabled: ptr.Bool(true)})
+	require.NoError(t, err)
 }
 
 func TestModifyAdminUserEmailNoPassword(t *testing.T) {

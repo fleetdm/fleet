@@ -372,6 +372,10 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		if !lic.IsPremium() {
 			return nil, fleet.ErrMissingLicense
 		}
+		if (p.SSOEnabled != nil && *p.SSOEnabled) || (p.SSOEnabled == nil && user.SSOEnabled) {
+			return nil, SSOMFAConflict
+		}
+
 		// make sure we can send email before requiring email sending to log in
 		config, err := svc.ds.AppConfig(ctx)
 		if err != nil {
@@ -386,6 +390,10 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		if !svc.mailService.CanSendEmail(smtpSettings) {
 			return nil, errMailerRequiredForMFA
 		}
+	}
+
+	if (p.SSOEnabled != nil && *p.SSOEnabled) && user.MFAEnabled {
+		return nil, SSOMFAConflict
 	}
 
 	if p.GlobalRole != nil || p.Teams != nil {
