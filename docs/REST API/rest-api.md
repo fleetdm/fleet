@@ -9143,7 +9143,7 @@ Get a list of all software versions.
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
 | without_vulnerability_details | boolean | query | _Available in Fleet Premium_. If `true` only vulnerability name is included in response. If `false` (or omitted), adds vulnerability description, CVSS score, and other details available in Fleet Premium. See notes below on performance. |
 
-> `without_vulnerability_details` should be set to `true` whenever possible. If set to `false` a large amount of data will be included in the response and this can cause performance issues. If you need vulnerability details consider using the [Get vulnerability](#get-vulnerability) endpoint.
+> For optimal performance, we recommend Fleet Premium users set `without_vulnerability_details` to `true` whenever possible. If set to `false` a large amount of data will be included in the response. If you need vulnerability details, consider using the [Get vulnerability](#get-vulnerability) endpoint.
 
 #### Example
 
