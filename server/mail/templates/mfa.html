@@ -110,21 +110,15 @@
                   font-family: 'Nunito Sans', sans-serif;
                 "
               >
-                <h1>You have been invited to Fleet!</h1>
-                <p>Hello {{.Name}},</p>
+                <h1>Log in to Fleet</h1>
+                <p>Hello <b>{{.FullName}}</b>,</p>
                 <p>
-                  <strong style="text-transform: capitalize"
-                    >{{.InvitedBy}} </strong
-                  >has invited you to join <strong>{{.OrgName}}</strong>.
-                </p>
-                <p>
-                  Please click the button below to accept the invitation and
-                  setup your account.
+                  Please click the personalized link below to log into your
+                  account.
                 </p>
 
-                {{if .SSOEnabled}}
                 <a
-                  href="{{.BaseURL}}/login/ssoinvites/{{.Token}}?name={{.Name}}&email={{.Email}}"
+                  href="{{.BaseURL}}/login/mfa/{{.Token}}"
                   target="_blank"
                   style="
                     font-weight: 700;
@@ -140,29 +134,11 @@
                     display: inline-block;
                   "
                 >
-                  Accept invitation
+                  Log in
                 </a>
-                {{else}}
-                <a
-                  href="{{.BaseURL}}/login/invites/{{.Token}}?name={{.Name}}&email={{.Email}}"
-                  target="_blank"
-                  style="
-                    font-weight: 700;
-                    color: #fff;
-                    text-decoration: none;
-                    border-radius: 4px;
-                    -webkit-border-radius: 4px;
-                    background-color: #6a67fe;
-                    border-top: 8px solid #6a67fe;
-                    border-bottom: 8px solid #6a67fe;
-                    border-right: 16px solid #6a67fe;
-                    border-left: 16px solid #6a67fe;
-                    display: inline-block;
-                  "
-                >
-                  Accept invitation
-                </a>
-                {{end}}
+                <p style="font-size: 14px; color: #515774; padding-top: 32px">
+                  Please do not reply to this automated message.
+                </p>
 
                 <div
                   style="border-bottom: 1px solid #e2e4ea; padding-top: 32px"
