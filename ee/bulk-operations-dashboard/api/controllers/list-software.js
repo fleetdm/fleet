@@ -86,17 +86,17 @@ module.exports = {
         .retry(['requestFailed', {name: 'TimeoutError'}]);
         let packageInformation = softwareWithInstallerResponse.software_title.software_package;
         let packageInfo = {
-          software_title_name: softwareWithInstaller.name,
-          software_title_id: softwareWithInstaller.id,
-          installer_name: packageInformation.name,
-          installer_version: packageInformation.version,
+          software_title_name: softwareWithInstaller.name,// eslint-disable-line camelcase
+          software_title_id: softwareWithInstaller.id,// eslint-disable-line camelcase
+          installer_name: packageInformation.name,// eslint-disable-line camelcase
+          installer_version: packageInformation.version,// eslint-disable-line camelcase
           platform: _.endsWith(packageInformation.name, 'deb') ? 'linux' : _.endsWith(packageInformation.name, 'pkg') ? 'darwin' : 'windows',
           teams: [],
         };
         let teamInfo = {
           softwareFleetApid: softwareWithInstaller.id,
           id: teamApid,
-          team_name: _.find(teams, {fleetApid: teamApid}).teamName,
+          team_name: _.find(teams, {fleetApid: teamApid}).teamName,// eslint-disable-line camelcase
         };
         teamsinformationForSoftware.push(teamInfo);
         allSoftwareWithPackages.push(packageInfo);
@@ -104,7 +104,7 @@ module.exports = {
     }
     for(let software of allSoftwareWithPackages) {
       software.teams = _.where(teamsinformationForSoftware, {'softwareFleetApid': software.software_title_id});
-      software.teams = _.map(software.teams, function(team) {
+      software.teams = _.map(software.teams, (team)=>{
         return _.omit(team, 'softwareFleetApid');
       });
       allSoftware.push(software);
