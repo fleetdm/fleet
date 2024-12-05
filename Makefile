@@ -165,7 +165,7 @@ ifeq ($(pkg_to_test), "")
 		@echo "Please specify one or more packages to test with argument pkg_to_test=\"/path/to/pkg/1 /path/to/pkg/2\"..."; 
 else
 		@echo Running Go tests with command:
-		$(GO_TEST_ENV) go test -tags full,fts5,netgo -run=${tests_to_run} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... $(go_test_pkg_to_test)
+		go test -tags full,fts5,netgo -run=${tests_to_run} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... $(go_test_pkg_to_test)
 endif
 
 .debug-go-tests:
@@ -173,22 +173,19 @@ ifeq ($(pkg_to_test), "")
 		@echo "Please specify one or more packages to debug with argument pkg_to_test=\"/path/to/pkg/1 /path/to/pkg/2\"..."; 
 else
 		@echo Debugging tests with command:
-		$(GO_TEST_ENV) dlv test ${dlv_test_pkg_to_test} --api-version=2 --listen=127.0.0.1:61179 -- -test.v -test.run=${tests_to_run}
+		dlv test ${dlv_test_pkg_to_test} --api-version=2 --listen=127.0.0.1:61179 -- -test.v -test.run=${tests_to_run}
 endif
 
 # Command to run specific tests in development.  Can run all tests for one or more packages, or specific tests within packages.
 run-go-tests:
-	@make .run-go-tests GO_TEST_ENV="MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1" GO_TEST_MAKE_FLAGS="-v"
+	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .run-go-tests GO_TEST_MAKE_FLAGS="-v"
 
 debug-go-tests:
-	@make .debug-go-tests GO_TEST_ENV="MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1" 
+	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests 
 
 # Command used in CI to run all tests.
 test-go: #dump-test-schema generate-mock 
 	make .run-go-tests pkg_to_test="./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/..."
-
-test-test:
-	make .run-go-tests pkg_to_test="./server/datastore/mysql"
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...
