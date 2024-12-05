@@ -1,6 +1,6 @@
 # Remote deployment of YARA rules
 
-Fleetd with osquery can scan files on macOS and Linux systems using
+Fleetd with osquery can scan files using
 [YARA](https://virustotal.github.io/yara/), a matching engine particularly useful for
 identifying malicious patterns in binary files. The rule contents have typically been provided
 either through files placed on the filesystem, or in unauthenticated HTTP endpoints such as public
