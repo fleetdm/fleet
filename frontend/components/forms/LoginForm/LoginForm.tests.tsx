@@ -47,7 +47,7 @@ describe("LoginForm - component", () => {
     await user.type(screen.getByPlaceholderText("Password"), password);
 
     // try to log in
-    await user.click(screen.getByRole("button", { name: "Login" }));
+    await user.click(screen.getByRole("button", { name: "Log in" }));
     expect(
       screen.getByText("Email field must be completed")
     ).toBeInTheDocument();
@@ -57,7 +57,7 @@ describe("LoginForm - component", () => {
     await user.type(screen.getByPlaceholderText("Email"), invalidEmail);
 
     // try to log in again
-    await user.click(screen.getByRole("button", { name: "Login" }));
+    await user.click(screen.getByRole("button", { name: "Log in" }));
     expect(
       screen.getByText("Email must be a valid email address")
     ).toBeInTheDocument();
@@ -72,7 +72,7 @@ describe("LoginForm - component", () => {
     await user.type(screen.getByPlaceholderText("Email"), validEmail);
 
     // try to log in without entering a password
-    await user.click(screen.getByRole("button", { name: "Login" }));
+    await user.click(screen.getByRole("button", { name: "Log in" }));
 
     expect(
       screen.getByText("Password field must be completed")
@@ -85,7 +85,7 @@ describe("LoginForm - component", () => {
       <LoginForm handleSubmit={submitSpy} ssoSettings={settings} />
     );
 
-    await user.click(screen.getByRole("button", { name: "Login" }));
+    await user.click(screen.getByRole("button", { name: "Log in" }));
 
     expect(submitSpy).not.toHaveBeenCalled();
   });
@@ -97,7 +97,7 @@ describe("LoginForm - component", () => {
 
     await user.type(screen.getByPlaceholderText("Email"), validEmail);
     await user.type(screen.getByPlaceholderText("Password"), password);
-    await user.click(screen.getByRole("button", { name: "Login" }));
+    await user.click(screen.getByRole("button", { name: "Log in" }));
 
     expect(submitSpy).toHaveBeenCalledWith({
       email: validEmail,
