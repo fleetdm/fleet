@@ -1,6 +1,9 @@
 package luks
 
 import (
+	"errors"
+	"regexp"
+
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 )
 
@@ -33,4 +36,14 @@ func New(escrower KeyEscrower) *LuksRunner {
 	return &LuksRunner{
 		escrower: escrower,
 	}
+}
+
+func extractJSON(input []byte) ([]byte, error) {
+	// Regular expression to extract JSON
+	re := regexp.MustCompile(`(?s)\{.*\}`)
+	match := re.FindString(string(input))
+	if match == "" {
+		return nil, errors.New("no JSON found")
+	}
+	return []byte(match), nil
 }
