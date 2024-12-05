@@ -376,10 +376,10 @@ export const BATTERY_TOOLTIP: Record<string, string | React.ReactNode> = {
   ),
 };
 
-export const DEFAULT_CREATE_USER_ERRORS = {
-  email: "",
-  name: "",
-  password: "",
+export const DEFAULT_USER_FORM_ERRORS = {
+  email: null,
+  name: null,
+  password: null,
   sso_enabled: null,
 };
 

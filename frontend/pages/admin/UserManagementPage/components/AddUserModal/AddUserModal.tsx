@@ -4,11 +4,11 @@ import { ITeam } from "interfaces/team";
 import { IUserFormErrors, UserRole } from "interfaces/user";
 import Modal from "components/Modal";
 import UserForm from "../UserForm";
-import { IFormData } from "../UserForm/UserForm";
+import { IUserFormData } from "../UserForm/UserForm";
 
-interface ICreateUserModalProps {
+interface IAddUserModalProps {
   onCancel: () => void;
-  onSubmit: (formData: IFormData) => void;
+  onSubmit: (formData: IUserFormData) => void;
   defaultGlobalRole?: UserRole | null;
   defaultTeamRole?: UserRole;
   defaultTeams?: ITeam[];
@@ -21,12 +21,12 @@ interface ICreateUserModalProps {
   isModifiedByGlobalAdmin?: boolean | false;
   isUpdatingUsers?: boolean | false;
   serverErrors?: { base: string; email: string };
-  createUserErrors?: IUserFormErrors;
+  addUserErrors: IUserFormErrors;
 }
 
-const baseClass = "create-user-modal";
+const baseClass = "add-user-modal";
 
-const CreateUserModal = ({
+const AddUserModal = ({
   onCancel,
   onSubmit,
   currentTeam,
@@ -41,20 +41,25 @@ const CreateUserModal = ({
   isModifiedByGlobalAdmin,
   isUpdatingUsers,
   serverErrors,
-  createUserErrors,
-}: ICreateUserModalProps): JSX.Element => {
+  addUserErrors,
+}: IAddUserModalProps): JSX.Element => {
   return (
-    <Modal title="Create user" onExit={onCancel} className={baseClass}>
+    <Modal
+      title="Add user"
+      onExit={onCancel}
+      className={baseClass}
+      width="large"
+    >
       <UserForm
         serverErrors={serverErrors}
-        createOrEditUserErrors={createUserErrors}
+        userFormErrors={addUserErrors}
         defaultGlobalRole={defaultGlobalRole}
         defaultTeamRole={defaultTeamRole}
         defaultTeams={defaultTeams}
         onCancel={onCancel}
         onSubmit={onSubmit}
         availableTeams={availableTeams || []}
-        submitText="Create"
+        submitText="Add"
         isPremiumTier={isPremiumTier}
         smtpConfigured={smtpConfigured}
         sesConfigured={sesConfigured}
@@ -68,4 +73,4 @@ const CreateUserModal = ({
   );
 };
 
-export default CreateUserModal;
+export default AddUserModal;
