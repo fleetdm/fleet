@@ -2078,8 +2078,6 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		hmap.host_uuid IN (?) %s AND
 		-- profiles that are in B but not in A
 		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
-		-- except "remove" operations in any state
-		( hmap.operation_type IS NULL OR hmap.operation_type != ? ) AND
 		-- except "would be removed" profiles if they are a broken label-based profile
 		-- (regardless of if it is an include-all or exclude-any label)
 		NOT EXISTS (
@@ -2113,10 +2111,9 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 				onlyProfileUUIDs, batchUUIDs,
 				onlyProfileUUIDs, batchUUIDs,
 				batchUUIDs, onlyProfileUUIDs,
-				fleet.MDMOperationTypeRemove,
 			)
 		} else {
-			stmt, args, err = sqlx.In(toRemoveStmt, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
+			stmt, args, err = sqlx.In(toRemoveStmt, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs)
 		}
 
 		if err != nil {
@@ -2161,11 +2158,14 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 
 	// start by deleting any that are already in the desired state
 	var hostProfilesToClean []*fleet.MDMAppleProfilePayload
-	for _, p := range currentProfiles {
-		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
-			hostProfilesToClean = append(hostProfilesToClean, p)
+	for _, cp := range currentProfiles {
+		if dp, ok := profileIntersection.GetMatchingProfileInDesiredState(cp); ok {
+			if cp.ProfileUUID != dp.ProfileUUID {
+				hostProfilesToClean = append(hostProfilesToClean, cp)
+			}
 		}
 	}
+
 	if len(hostProfilesToClean) > 0 {
 		if err := ds.bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, hostProfilesToClean); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "bulk delete profiles to clean")
@@ -2263,7 +2263,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 
 	for _, p := range wantedProfiles {
 		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
-			if pp.Status != &fleet.MDMDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) {
+			if pp.OperationType != fleet.MDMOperationTypeRemove && pp.Status != &fleet.MDMDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) {
 				profilesToInsert[fmt.Sprintf("%s\n%s", p.HostUUID, p.ProfileUUID)] = &fleet.MDMAppleProfilePayload{
 					ProfileUUID:       p.ProfileUUID,
 					ProfileIdentifier: p.ProfileIdentifier,
@@ -2317,9 +2317,14 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	}
 
 	for _, p := range currentProfiles {
+		if p.OperationType == fleet.MDMOperationTypeRemove {
+			continue
+		}
+
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
 			continue
 		}
+
 		// If the profile wasn't installed, then we do not want to change the operation to "Remove".
 		// Doing so will result in Fleet attempting to remove a profile that doesn't exist on the
 		// host (since the installation failed). Skipping it here will lead to it being removed from
