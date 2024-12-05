@@ -54,6 +54,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	googleCalendar "google.golang.org/api/calendar/v3"
+	"gopkg.in/guregu/null.v3"
 )
 
 func TestIntegrationsEnterprise(t *testing.T) {
@@ -3684,6 +3685,62 @@ func (s *integrationEnterpriseTestSuite) TestMDMAppleOSUpdates() {
 	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetMacOSUpdatesProfileName, nil)
 	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetIOSUpdatesProfileName, nil)
 	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetIPadOSUpdatesProfileName, nil)
+}
+
+// Skipping admin-created users because we don't have email fully set up in integration tests
+func (s *integrationEnterpriseTestSuite) TestInvitedUserMFA() {
+	t := s.T()
+
+	// create valid invite
+	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String("some email"),
+		Name:       ptr.String("some name"),
+		GlobalRole: null.StringFrom(fleet.RoleAdmin),
+		MFAEnabled: ptr.Bool(true),
+		SSOEnabled: ptr.Bool(true),
+	}}
+	createInviteResp := createInviteResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusConflict, &createInviteResp)
+	createInviteReq.SSOEnabled = nil
+	s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
+	require.NotNil(t, createInviteResp.Invite)
+	require.NotZero(t, createInviteResp.Invite.ID)
+	validInvite := *createInviteResp.Invite
+
+	// create user from valid invite - the token was not returned via the
+	// response's json, must get it from the db
+	inv, err := s.ds.Invite(context.Background(), validInvite.ID)
+	require.NoError(t, err)
+	validInviteToken := inv.Token
+
+	// verify the token with valid invite
+	var verifyInvResp verifyInviteResponse
+	s.DoJSON("GET", "/api/latest/fleet/invites/"+validInviteToken, nil, http.StatusOK, &verifyInvResp)
+	require.Equal(t, validInvite.ID, verifyInvResp.Invite.ID)
+
+	var createFromInviteResp createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+		Name:        ptr.String("Full Name"),
+		Password:    ptr.String(test.GoodPassword),
+		Email:       ptr.String("a@b.c"),
+		InviteToken: ptr.String(validInviteToken),
+	}, http.StatusOK, &createFromInviteResp)
+	require.True(t, createFromInviteResp.User.MFAEnabled)
+
+	// create an invite with SSO, swap to MFA
+	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String("a@b.d"),
+		Name:       ptr.String("some other name"),
+		GlobalRole: null.StringFrom(fleet.RoleAdmin),
+		SSOEnabled: ptr.Bool(true),
+	}}
+	s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
+	validInvite = *createInviteResp.Invite
+	var updateInviteResp updateInviteResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/invites/%d", validInvite.ID), updateInviteRequest{
+		InvitePayload: fleet.InvitePayload{MFAEnabled: ptr.Bool(true), SSOEnabled: ptr.Bool(false)},
+	}, http.StatusOK, &updateInviteResp)
+	require.True(t, updateInviteResp.Invite.MFAEnabled)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {

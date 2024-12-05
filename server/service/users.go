@@ -364,32 +364,35 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		return nil, ctxerr.Wrap(ctx, err, "verify user payload")
 	}
 
-	if p.MFAEnabled != nil && *p.MFAEnabled && !user.MFAEnabled {
-		lic, _ := license.FromContext(ctx)
-		if lic == nil {
-			return nil, ctxerr.New(ctx, "license not found")
-		}
-		if !lic.IsPremium() {
-			return nil, fleet.ErrMissingLicense
-		}
-		if (p.SSOEnabled != nil && *p.SSOEnabled) || (p.SSOEnabled == nil && user.SSOEnabled) {
-			return nil, SSOMFAConflict
-		}
+	if p.MFAEnabled != nil {
+		if *p.MFAEnabled && !user.MFAEnabled {
+			lic, _ := license.FromContext(ctx)
+			if lic == nil {
+				return nil, ctxerr.New(ctx, "license not found")
+			}
+			if !lic.IsPremium() {
+				return nil, fleet.ErrMissingLicense
+			}
+			if (p.SSOEnabled != nil && *p.SSOEnabled) || (p.SSOEnabled == nil && user.SSOEnabled) {
+				return nil, SSOMFAConflict
+			}
 
-		// make sure we can send email before requiring email sending to log in
-		config, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			return nil, err
-		}
+			// make sure we can send email before requiring email sending to log in
+			config, err := svc.ds.AppConfig(ctx)
+			if err != nil {
+				return nil, err
+			}
 
-		var smtpSettings fleet.SMTPSettings
-		if config.SMTPSettings != nil {
-			smtpSettings = *config.SMTPSettings
-		}
+			var smtpSettings fleet.SMTPSettings
+			if config.SMTPSettings != nil {
+				smtpSettings = *config.SMTPSettings
+			}
 
-		if !svc.mailService.CanSendEmail(smtpSettings) {
-			return nil, errMailerRequiredForMFA
+			if !svc.mailService.CanSendEmail(smtpSettings) {
+				return nil, errMailerRequiredForMFA
+			}
 		}
+		user.MFAEnabled = *p.MFAEnabled
 	}
 
 	if (p.SSOEnabled != nil && *p.SSOEnabled) && user.MFAEnabled {
