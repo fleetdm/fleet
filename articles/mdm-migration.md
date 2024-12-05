@@ -71,7 +71,7 @@ Fleet UI:
 3. Under **Mode**, choose a mode, enter the webhook URL for your automation tool (e.g., Tines) under **Webhook URL**, and select **Save**.
 4. During the end user migration workflow, an end user's device will have its selected system theme (light or dark) applied. If your logo is not easy to see on both light and dark backgrounds, you can optionally set a logo for each theme:
 Head to **Settings** > **Organization settings** > **Organization info**, add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields, and select **Save**.
-5. During migration, end users will see a button that says "Unsure? Contact IT". Updating the field **Organization support URL** will direct users to your help desk if they have any questions. 
+5. During migration, end users will see a button that says "Unsure? Contact IT". Head to **Settings** > **Organization settings** > **Organization info** > **Organization support URL** to direct users to your help desk if they have any questions. 
 
 Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#mdm-macos-migration)
 
