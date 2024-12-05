@@ -22,6 +22,7 @@ import TeamDetailsWrapper from "pages/admin/TeamManagementPage/TeamDetailsWrappe
 import App from "components/App";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
 import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
+import MfaPage from "pages/MfaPage";
 import CoreLayout from "layouts/CoreLayout";
 import DashboardPage from "pages/DashboardPage";
 import DeviceUserPage from "pages/hosts/details/DeviceUserPage";
@@ -83,8 +84,6 @@ import SoftwareFleetMaintained from "pages/SoftwarePage/SoftwareAddPage/Software
 import SoftwareCustomPackage from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage";
 import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp";
 import FleetMaintainedAppDetailsPage from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage";
-import TwoFactorExpiredPage from "pages/TwoFactorAuthentication/TwoFactorExpiredPage";
-import CheckEmailPage from "pages/TwoFactorAuthentication/CheckEmailPage";
 
 import PATHS from "router/paths";
 
@@ -146,9 +145,8 @@ const routes = (
             path="login/ssoinvites/:invite_token"
             component={ConfirmSSOInvitePage}
           />
+          <Route path="login/mfa/:token" component={MfaPage} />
           <Route path="login/forgot" component={ForgotPasswordPage} />
-          <Route path="login/expired" component={TwoFactorExpiredPage} />
-          <Route path="login/2fa" component={CheckEmailPage} />
           <Route path="login/reset" component={ResetPasswordPage} />
           <Route path="login/denied" component={NoAccessPage} />
           <Route path="mdm/sso/callback" component={MDMAppleSSOCallbackPage} />
