@@ -2380,7 +2380,7 @@ None.
   "branch": "version",
   "revision": "1b67826fe4bf40b2f45ec53e01db9bf467752e74",
   "go_version": "go1.15.7",
-  "build_date": "2021-03-27T00:28:48Z",
+  "build_date": "2021-03-27",
   "build_user": "zwass"
 }
 ```
