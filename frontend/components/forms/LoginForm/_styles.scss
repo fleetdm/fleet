@@ -53,24 +53,3 @@
     gap: $pad-large;
   }
 }
-
-.two-factor-check-email {
-  .stacked-white-boxes__box {
-    align-items: start;
-    gap: $pad-xlarge;
-
-    h1 {
-      font-size: $large;
-      font-weight: $bold;
-      margin: 0;
-    }
-
-    .back-link {
-      svg {
-        path {
-          fill: transparent;
-        }
-      }
-    }
-  }
-}

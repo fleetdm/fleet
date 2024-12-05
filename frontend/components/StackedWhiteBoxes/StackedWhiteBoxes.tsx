@@ -14,7 +14,7 @@ interface IStackedWhiteBoxesProps {
   className?: string;
   leadText?: string;
   previousLocation?: string;
-  router?: InjectedRouter;
+  router: InjectedRouter;
 }
 
 const StackedWhiteBoxes = ({
@@ -29,7 +29,7 @@ const StackedWhiteBoxes = ({
 
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && router) {
+      if (e.key === "Escape") {
         router.push(paths.LOGIN);
       }
     };

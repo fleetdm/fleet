@@ -18,8 +18,6 @@ describe("LoginForm - component", () => {
       <LoginForm
         baseError={baseError}
         handleSubmit={submitSpy}
-        isSubmitting={false}
-        pendingEmail={false}
         ssoSettings={settings}
       />
     );
@@ -28,27 +26,13 @@ describe("LoginForm - component", () => {
   });
 
   it("should not render the base error", () => {
-    render(
-      <LoginForm
-        handleSubmit={submitSpy}
-        isSubmitting={false}
-        pendingEmail={false}
-        ssoSettings={settings}
-      />
-    );
+    render(<LoginForm handleSubmit={submitSpy} ssoSettings={settings} />);
 
     expect(screen.queryByText(baseError)).not.toBeInTheDocument();
   });
 
   it("renders 2 InputField components", () => {
-    render(
-      <LoginForm
-        handleSubmit={submitSpy}
-        isSubmitting={false}
-        pendingEmail={false}
-        ssoSettings={settings}
-      />
-    );
+    render(<LoginForm handleSubmit={submitSpy} ssoSettings={settings} />);
 
     expect(screen.getByPlaceholderText("Email")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Password")).toBeInTheDocument();
@@ -56,12 +40,7 @@ describe("LoginForm - component", () => {
 
   it("rejects an empty or invalid email field without submitting", async () => {
     const { user } = renderWithSetup(
-      <LoginForm
-        handleSubmit={submitSpy}
-        isSubmitting={false}
-        pendingEmail={false}
-        ssoSettings={settings}
-      />
+      <LoginForm handleSubmit={submitSpy} ssoSettings={settings} />
     );
 
     // enter a valid password
@@ -87,12 +66,7 @@ describe("LoginForm - component", () => {
 
   it("rejects an empty password field without submitting", async () => {
     const { user } = renderWithSetup(
-      <LoginForm
-        handleSubmit={submitSpy}
-        isSubmitting={false}
-        pendingEmail={false}
-        ssoSettings={settings}
-      />
+      <LoginForm handleSubmit={submitSpy} ssoSettings={settings} />
     );
 
     await user.type(screen.getByPlaceholderText("Email"), validEmail);
@@ -108,12 +82,7 @@ describe("LoginForm - component", () => {
 
   it("does not submit the form when both fields are empty", async () => {
     const { user } = renderWithSetup(
-      <LoginForm
-        handleSubmit={submitSpy}
-        isSubmitting={false}
-        pendingEmail={false}
-        ssoSettings={settings}
-      />
+      <LoginForm handleSubmit={submitSpy} ssoSettings={settings} />
     );
 
     await user.click(screen.getByRole("button", { name: "Log in" }));
@@ -123,12 +92,7 @@ describe("LoginForm - component", () => {
 
   it("submits the form data when valid form data is submitted", async () => {
     const { user } = renderWithSetup(
-      <LoginForm
-        handleSubmit={submitSpy}
-        isSubmitting={false}
-        pendingEmail={false}
-        ssoSettings={settings}
-      />
+      <LoginForm handleSubmit={submitSpy} ssoSettings={settings} />
     );
 
     await user.type(screen.getByPlaceholderText("Email"), validEmail);

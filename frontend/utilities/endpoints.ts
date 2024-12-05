@@ -73,7 +73,6 @@ export default {
   },
 
   LOGIN: `/${API_VERSION}/fleet/login`,
-  CREATE_SESSION: `/${API_VERSION}/fleet/sessions`,
   LOGOUT: `/${API_VERSION}/fleet/logout`,
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
 
