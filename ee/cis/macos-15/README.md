@@ -16,6 +16,12 @@ The following CIS benchmarks cannot be checked with a policy in Fleet:
 7. 3.7 Audit Software Inventory
 8. 6.2.1 Ensure Protect Mail Activity in Mail Is Enabled
 
+Missing items:
+1. 2.6.3.1 Ensure Share Mac Analytics Is Disabled
+2. 2.6.3.3 Ensure Improve Assistive Voice Features Is Disabled
+3. 2.6.3.4 Ensure 'Share with app developers' Is Disabled
+4. 5.11 Ensure Logging Is Enabled for Sudo
+
 ### Checks that require decision
 
 CIS has left the parameters of the following checks up to the benchmark implementer. CIS recommends that an organization make a conscious decision for these benchmarks, but does not make a specific recommendation.
