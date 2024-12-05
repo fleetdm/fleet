@@ -50,7 +50,7 @@
       <div purpose="category-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
         <div purpose="category-switch-option" :class="[selectedCategory === 'mdm' ? 'selected' : '']" @click="selectedCategory = 'mdm'">Device management</div>
         <div purpose="category-switch-option" :class="[selectedCategory === 'eo-it' ? 'selected' : '']" @click="selectedCategory = 'eo-it'">IT engineering</div>
-        <div purpose="category-switch-option" :class="[selectedCategory === 'eo-security' ? 'selected' : '']" @click="selectedCategory = 'eo-security'">Security engineering</div>
+        <div purpose="category-switch-option" :class="[selectedCategory === 'eo-security' ? 'selected' : '']" @click="selectedCategory = 'eo-security'">Software management</div>
         <div purpose="category-tier-switch" :class="[selectedCategory === 'eo-it' ? 'it-selected' : selectedCategory === 'eo-security' ? 'security-selected' : selectedCategory === 'mdm' ? 'mdm-selected' : 'mdm-selected']"></div>
       </div>
       <%/* Device management block */%>
@@ -59,14 +59,14 @@
           <img alt="Operating systems entering a glass device management dome" src="/images/device-management-hero-380x293@2x.png">
         </div>
         <div purpose="category-text-block" class="d-flex flex-column">
-          <strong>Everything in one place - even Linux</strong>
-          <p>Enroll all your computing devices from a single system. Going only Apple or 50/50 Mac and Windows? What about Linux? It’s up to you. </p>
-          <strong>Debunk the cross-platform myth</strong>
-          <p>Fleet exposes familiar concepts from traditional MDMs like custom attributes and dynamic grouping, but in a way that lets you work directly with data and events from each native operating system.</p>
-          <strong>Less friction</strong>
-          <p>Automatically manage updates and apps on Apple, Windows, and Linux computers.</p>
+          <strong>Real employee choice — even Linux</strong>
+          <p>Enroll all your computing devices. Going only Apple or 50/50 Mac and Windows? What about Linux? Speak to them all in one language.</p>
+          <strong>Users have choice, you should too</strong>
+          <p>Love working in the UI? Check. Want to work in GitOps? Double check. Don't use GitOps? That's ok, plenty of people use Fleet without it.</p>
+          <strong>Know the state of your devices in seconds</strong>
+          <p>Collect and normalize the latest details about any device, like hardware specs, installed software, and security configurations.</p>
           <div>
-            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/device-management">Start with device management</a>
+            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/device-management">See how we compare</a>
           </div>
         </div>
       </div>
@@ -77,14 +77,14 @@
           <img alt="Endpoint ops" src="/images/endpoint-operations-hero-image-380x380@2x.png">
         </div>
         <div purpose="category-text-block" class="d-flex flex-column">
-          <strong>Automate anything</strong>
-          <p>Remotely run scripts and prompts to complete tasks on every kind of computer, including Linux.</p>
-          <strong>Ship data to any platform</strong>
-          <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
-          <strong>Osquery on easy mode</strong>
-          <p>Use "read-only" mode or enable remote scripting to automate anything on every operating system, including Linux.</p>
+          <strong>Orchestrate anything</strong>
+          <p>Use a robust API to remotely run scripts, verify configs, or create webhooks for every kind of device — including servers.</p>
+          <strong>Democratize change with GitOps</strong>
+          <p>Maintain reliable employee experiences with version-controlled changes and enhancements. Use CI/CD and peer reviews to look before you leap.</p>
+          <strong>In the cloud or on-prem</strong>
+          <p>Fleet uses the same open-source code base regardless of where it’s installed. You can deploy and configure it to fit your needs.</p>
           <div>
-            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/observability?purpose=it">Start with IT engineering</a>
+            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/observability?purpose=it">More about IT engineering</a>
           </div>
         </div>
       </div>
@@ -95,14 +95,14 @@
           <img  alt="An orb being scanned for vulnerabilities" src="/images/vulnerability-management-hero-image-345x380@2x.png">
         </div>
         <div purpose="category-text-block" class="d-flex flex-column">
-          <strong>Osquery on easy mode</strong>
-          <p>Use "read-only" mode or enable remote scripting to automate anything on every operating system, including Linux.</p>
-          <strong>Pulse check anything</strong>
-          <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
-          <strong>Ship data to any platform</strong>
-          <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
+          <strong>Comprehensive software inventory</strong>
+          <p>Everything, everywhere, all at once.</p>
+          <strong>Patch software automatically</strong>
+          <p>Enforce specific updates and automations to run scripts or install software.</p>
+          <strong>Head to head with the big players</strong>
+          <p>Fleet has the features you're used to for zero-touch installs and self service.</p>
           <div>
-            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/observability?purpose=security">Start with security engineering</a>
+            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/software-management">See how we compare</a>
           </div>
         </div>
       </div>
