@@ -146,35 +146,35 @@ dump-test-schema:
 
 # This is the base command to run Go tests.
 # Wrap this to run tests with presets (see `run-go-tests` and `test-go` targets).
-# pkg_to_test: Go packages to test, e.g. "server/datastore/mysql".  Separate multiple packages with spaces.
-# run_tests: Name specific tests to run in the specified packages.  Leave blank to run all tests in the specified packages.
+# PKG_TO_TEST: Go packages to test, e.g. "server/datastore/mysql".  Separate multiple packages with spaces.
+# TESTS_TO_RUN: Name specific tests to run in the specified packages.  Leave blank to run all tests in the specified packages.
 # GO_TEST_EXTRA_FLAGS: Used to specify other arguments to `go test`.
 # GO_TEST_MAKE_FLAGS: Internal var used by other targets to add arguments to `go test`.
 #						 
-pkg_to_test := "" # default to empty string; can be overridden on command line.
-go_test_pkg_to_test := $(addprefix ./,$(pkg_to_test)) # set paths for packages to test
-dlv_test_pkg_to_test := $(addprefix github.com/fleetdm/fleet/v4/,$(pkg_to_test)) # set URIs for packages to debug
+PKG_TO_TEST := "" # default to empty string; can be overridden on command line.
+go_test_pkg_to_test := $(addprefix ./,$(PKG_TO_TEST)) # set paths for packages to test
+dlv_test_pkg_to_test := $(addprefix github.com/fleetdm/fleet/v4/,$(PKG_TO_TEST)) # set URIs for packages to debug
 
 .run-go-tests:
-ifeq ($(pkg_to_test), "")
-		@echo "Please specify one or more packages to test with argument pkg_to_test=\"/path/to/pkg/1 /path/to/pkg/2\"..."; 
+ifeq ($(PKG_TO_TEST), "")
+		@echo "Please specify one or more packages to test with argument PKG_TO_TEST=\"/path/to/pkg/1 /path/to/pkg/2\"..."; 
 else
 		@echo Running Go tests with command:
-		go test -tags full,fts5,netgo -run=${tests_to_run} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... $(go_test_pkg_to_test)
+		go test -tags full,fts5,netgo -run=${TESTS_TO_RUN} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... $(go_test_pkg_to_test)
 endif
 
 # This is the base command to debug Go tests.
 # Wrap this to run tests with presets (see `debug-go-tests`)
-# pkg_to_test: Go packages to test, e.g. "server/datastore/mysql".  Separate multiple packages with spaces.
-# run_tests: Name specific tests to debug in the specified packages.  Leave blank to debug all tests in the specified packages.
+# PKG_TO_TEST: Go packages to test, e.g. "server/datastore/mysql".  Separate multiple packages with spaces.
+# TESTS_TO_RUN: Name specific tests to debug in the specified packages.  Leave blank to debug all tests in the specified packages.
 # DEBUG_TEST_EXTRA_FLAGS: Internal var used by other targets to add arguments to `dlv test`.
 # GO_TEST_EXTRA_FLAGS: Used to specify other arguments to `go test`.
 .debug-go-tests:
-ifeq ($(pkg_to_test), "")
-		@echo "Please specify one or more packages to debug with argument pkg_to_test=\"/path/to/pkg/1 /path/to/pkg/2\"..."; 
+ifeq ($(PKG_TO_TEST), "")
+		@echo "Please specify one or more packages to debug with argument PKG_TO_TEST=\"/path/to/pkg/1 /path/to/pkg/2\"..."; 
 else
 		@echo Debugging tests with command:
-		dlv test ${dlv_test_pkg_to_test} --api-version=2 --listen=127.0.0.1:61179 ${DEBUG_TEST_EXTRA_FLAGS} -- -test.v -test.run=${tests_to_run} ${GO_TEST_EXTRA_FLAGS} 
+		dlv test ${dlv_test_pkg_to_test} --api-version=2 --listen=127.0.0.1:61179 ${DEBUG_TEST_EXTRA_FLAGS} -- -test.v -test.run=${TESTS_TO_RUN} ${GO_TEST_EXTRA_FLAGS} 
 endif
 
 # Command to run specific tests in development.  Can run all tests for one or more packages, or specific tests within packages.
@@ -186,7 +186,7 @@ debug-go-tests:
 
 # Command used in CI to run all tests.
 test-go: dump-test-schema generate-mock 
-	make .run-go-tests pkg_to_test="./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/..."
+	make .run-go-tests PKG_TO_TEST="./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/..."
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...
