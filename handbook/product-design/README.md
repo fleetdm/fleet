@@ -60,13 +60,10 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 
 5. Add links to the user story as specified in the [issue template](https://github.com/fleetdm/fleet/issues/new?template=story.md).
 
-6. Reach out to sales, customer success, and demand for a business perspective.
-
-7. Engage engineering to gain insight into technical costs and feasibility.
-
-6. Draft changes to the Fleet product that solve the problem specified in the story. Constantly place yourself in the shoes of a user while drafting changes. Place these drafts in the appropriate Figma file in Fleet product project.
-
-7. Use dev notes (component available in our library) to highlight important information to engineers and other teammates.
+6. Draft changes to the Fleet product that solve the problem specified in the story.
+- Constantly place yourself in the shoes of a user while drafting changes.
+- Use dev notes (component available in our library) to highlight important information to engineers and other teammates. - Reach out to sales, customer success, and demand for a business perspective.
+- Engage engineering to gain insight into technical costs and feasibility.
 
 Additionally:
 
