@@ -1,6 +1,6 @@
 import React from "react";
 
-import { IHostUpcomingActivity } from "interfaces/activity";
+import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
 import { IHostUpcomingActivitiesResponse } from "services/entities/activities";
 
 // @ts-ignore
@@ -58,7 +58,10 @@ const UpcomingActivityFeed = ({
           if (
             !activity.actor_email &&
             !activity.actor_full_name &&
-            !activity.actor_id
+            !activity.actor_id &&
+            (activity.type === ActivityType.InstalledSoftware ||
+              activity.type === ActivityType.InstalledAppStoreApp ||
+              activity.type === ActivityType.RanScript)
           ) {
             activity.actor_full_name = "Fleet";
           }
