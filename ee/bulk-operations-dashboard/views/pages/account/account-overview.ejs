@@ -1,5 +1,4 @@
 <div id="account-overview" v-cloak>
-  <account-notification-banner></account-notification-banner>
   <div class="container pt-5 pb-5">
     <h1>My account</h1>
     <hr/>
@@ -14,11 +13,11 @@
       </div>
     </div>
     <div class="row">
-      <div class="col-3">Name:</div>
+      <div class="col-2">Name:</div>
       <div class="col"><strong>{{me.fullName}}</strong></div>
     </div>
     <div class="row">
-      <div class="col-3">Email:</div>
+      <div class="col-2">Email:</div>
       <div class="col">
         <strong :class="[me.emailStatus === 'unconfirmed' || me.emailStatus === 'change-requested' ? 'text-muted' : '']">{{me.emailChangeCandidate ? me.emailChangeCandidate : me.emailAddress}}</strong>
         <span v-if="me.emailStatus === 'unconfirmed' || me.emailStatus === 'change-requested'" class="badge badge-pill badge-warning">Unverified</span>
@@ -36,8 +35,18 @@
       </div>
     </div>
     <div class="row">
-      <div class="col-3">Password:</div>
+      <div class="col-2">Password:</div>
       <div class="col"><strong>••••••••••</strong></div>
+    </div>
+    <div class="row">
+      <div class="col-2">API token:</div>
+      <div class="col-6"><p class="mb-0">{{apiToken}}</p></div>
+      <div class="col-4 justify-content-end d-flex">
+        <a style="width: 150px; height: 31px;" class="btn btn-sm btn-outline-info" @click="clickCopyApiToken()">Copy</a>
+        <a style="width: 150px; height: 31px;" class="btn btn-sm btn-outline-info ml-2" @click="clickRegenerateApiToken()">Regenerate</a>
+      </div>
+      </div>
+
     </div>
     <hr/>
     <div class="row mb-3" v-if="isBillingEnabled">
