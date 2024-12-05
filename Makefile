@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner help
 
 export GO111MODULE=on
 
@@ -87,15 +87,20 @@ define HELP_TEXT
 	make build        - Build the code
 	make package 	  - Build rpm and deb packages for linux
 
-	make test         - Run the full test suite
-	make test-go      - Run the Go tests
-	make test-js      - Run the JavaScript tests
+	make run-go-tests   - Run Go tests in specific packages
+	make debug-go-tests - Debug Go tests in specific packages (with Delve)
+	make test-js        - Run the JavaScript tests
 
 	make lint         - Run all linters
 	make lint-go      - Run the Go linters
 	make lint-js      - Run the JavaScript linters
 	make lint-scss    - Run the SCSS linters
 	make lint-ts      - Run the TypeScript linters
+
+	For use in CI:
+
+	make test         - Run the full test suite (lint, Go and Javascript)
+	make test-go      - Run the Go tests (all packages and tests)
 
 endef
 
@@ -155,7 +160,7 @@ dump-test-schema:
 pkg_to_test := ""
 go_test_pkg_to_test := $(addprefix ./,$(pkg_to_test))
 dlv_test_pkg_to_test := $(addprefix github.com/fleetdm/fleet/v4/,$(pkg_to_test))
-.run-tests:
+.run-go-tests:
 ifeq ($(pkg_to_test), "")
 		@echo "Please specify one or more packages to test with argument pkg_to_test=\"/path/to/pkg/1 /path/to/pkg/2\"..."; 
 else
@@ -163,7 +168,7 @@ else
 		$(GO_TEST_ENV) go test -tags full,fts5,netgo -run=${tests_to_run} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... $(go_test_pkg_to_test)
 endif
 
-.debug-tests:
+.debug-go-tests:
 ifeq ($(pkg_to_test), "")
 		@echo "Please specify one or more packages to debug with argument pkg_to_test=\"/path/to/pkg/1 /path/to/pkg/2\"..."; 
 else
@@ -172,17 +177,18 @@ else
 endif
 
 # Command to run specific tests in development.  Can run all tests for one or more packages, or specific tests within packages.
-run-tests:
-	@make .run-tests GO_TEST_ENV="MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1" GO_TEST_MAKE_FLAGS="-v"
+run-go-tests:
+	@make .run-go-tests GO_TEST_ENV="MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1" GO_TEST_MAKE_FLAGS="-v"
 
-debug-tests:
-	@make .debug-tests GO_TEST_ENV="MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1" 
-
-
+debug-go-tests:
+	@make .debug-go-tests GO_TEST_ENV="MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1" 
 
 # Command used in CI to run all tests.
-test-go: dump-test-schema generate-mock 
-	make .run-tests pkg_to_test="./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/..."
+test-go: #dump-test-schema generate-mock 
+	make .run-go-tests pkg_to_test="./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/..."
+
+test-test:
+	make .run-go-tests pkg_to_test="./server/datastore/mysql"
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...
