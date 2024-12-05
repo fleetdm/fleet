@@ -7,28 +7,47 @@
           <h1>Manage everything in one place</h1>
         </div>
         <div purpose="testimonials" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
+        <%if(['eo-security','vm'].includes(primaryBuyingSituation)) { %>
           <div purpose="testimonial-quote">
             <div purpose="quote">
-              <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
-              <p>
-                <% if(['eo-security','vm'].includes(primaryBuyingSituation)) { %>Having the freedom to take full advantage of the product is one of the reasons why I always support open-source products with a commercially-backed company, like Fleet.
-                <% } else if (['eo-it'].includes(primaryBuyingSituation)) { %>This is not just production osquery, but actually a way bigger opportunity than even something like Airwatch or Jamf.
-                <% } else { %>We wanted an open-source MDM to easily use configuration-as-code, deliver the best possible experience for our employees, and make security happy.
-                <% } %>
-              </p>
+              <img alt="Deloitte logo" purpose="quote-logo" src="/images/social-proof-logo-deloitte-130x32@2x.png">
+              <p>“Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.”</p>
             </div>
-            <a href="<%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'https://www.linkedin.com/posts/nwaisman_movingtofleet-activity-7156319785981509632-bk_W' : ['eo-it'].includes(primaryBuyingSituation) ? 'https://www.linkedin.com/in/mrerictan/' : 'https://www.linkedin.com/in/kennybotelho/'%>" target="_blank">
+            <a href="https://www.linkedin.com/in/cmajumdar/" class="d-inline-block" target="_blank">
             <div purpose="quote-attribution" class="d-flex flex-row align-items-center">
-              <div purpose="quote-image"><img src="/images/<%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'testimonial-author-nico-waisman-48x48@2x.png' : ['eo-it'].includes(primaryBuyingSituation) ? 'testimonial-author-eric-tan-99x99@2x.png' : 'testimonial-author-kenny-botelho-48x48@2x.png'%>" alt="<%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'Nico Waisman' : ['eo-it'].includes(primaryBuyingSituation) ? 'Eric Tan' : 'Kenny Botelho'%>"></div>
+              <div purpose="quote-image"><img src="/images/testimonial-author-chandra-majumdar-48x48@2x.png" alt="Chandra Majumdar"></div>
               <div class="d-flex flex-column">
-                <p purpose="name"><%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'Nico Waisman' : ['eo-it'].includes(primaryBuyingSituation) ? 'Eric Tan' : 'Kenny Botelho'%></p>
-                <p purpose="title"><%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'CISO of Lyft' : ['eo-it'].includes(primaryBuyingSituation) ? 'CIO & Chief Security Officer at Flock Safety' : 'Lead Client Platform Engineer'%></p>
+                <p purpose="name">Chandra Majumdar</p>
+                <p purpose="title">Partner - Cyber and Strategic Risk</p>
               </div>
             </div>
             </a>
           </div>
+        <%} else {%>
+          <div purpose="testimonial-quote">
+            <div purpose="quote">
+              <img purpose="quote-logo" alt="Nividia logo" src="/images/social-proof-nvidia-125x32@2x.png">
+              <p>“We wanted an open-source MDM to easily use configuration-as-code, deliver the best possible experience for our employees, and make security happy.”</p>
+            </div>
+            <a href="https://www.linkedin.com/in/kennybotelho/" class="d-inline-block" target="_blank">
+            <div purpose="quote-attribution" class="d-flex flex-row align-items-center">
+              <div purpose="quote-image"><img src="/images/testimonial-author-kenny-botelho-48x48@2x.png" alt="Kenny Botelho"></div>
+              <div class="d-flex flex-column">
+                <p purpose="name">Kenny Botelho</p>
+                <p purpose="title">Lead Client Platform Engineer</p>
+              </div>
+            </div>
+            </a>
+          </div>
+
+
+        <% } %>
+
         </div>
-        <div purpose="button-row" class="d-flex flex-row align-items-center">
+
+
+
+        <div purpose="button-row" class="d-flex flex-row align-items-center pt-3">
           <a purpose="cta-button" href="/contact">Talk to an engineer</a>
           <animated-arrow-button  href="/register">Try it yourself</animated-arrow-button>
         </div>
