@@ -3247,6 +3247,14 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 - [Escrow LUKS data](#escrow-luks-data)
 - [Get the status of a device in the setup experience](#get-the-status-of-a-device-in-the-setup-experience)
+- [Set or update device token](#set-or-update-device-token)
+- [Get orbit script](#get-orbit-script)
+- [Post orbit script result](#post-orbit-script-result)
+- [Put orbit device mapping](#put-orbit-device-mapping)
+- [Post orbit software install result](#post-orbit-software-install-result)
+- [Download software installer](#download-software-installer)
+- [Get orbit software install details](#get-orbit-software-install-details)
+- [Post disk encryption key](#post-disk-encryption-key)
 
 ---
 
@@ -3258,7 +3266,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
-| orbit_node_key | string | body | The Orbit's node key for authentication. |
+| orbit_node_key | string | body | The Orbit node key for authentication. |
 | client_error | string | body | An error description if the LUKS key escrow process fails client-side. If provided, passphrase/salt/key slot request parameters are ignored and may be omitted. |
 | passphrase | string | body | The LUKS passphrase generated for Fleet (the end user's existing passphrase is not transmitted) |
 | key_slot | int | body | The LUKS key slot ID corresponding to the provided passphrase |
@@ -3294,13 +3302,13 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
-| orbit_node_key | string | body | The Orbit's node key for authentication. |
+| orbit_node_key | string | body | The Orbit node key for authentication. |
 | force_release | boolean | body | Force a host release from ADE flow, in case the setup is taking too long. |
 
 
 ##### Example
 
-`POST /api/v1/fleet/device/8b49859b-1ffa-483d-ad27-85b30aa3c55f/setup_experience/status`
+`POST /api/v1/fleet/orbit/setup_experience/status`
 
 ##### Request body
 
@@ -3357,6 +3365,387 @@ Notifies the server about an agent error, resulting in two outcomes:
 }
 
 ```
+
+### Set or update device token
+
+`POST /api/fleet/orbit/device_token`
+
+##### Parameters
+
+| Name              | Type   | In   | Description                                 |
+| ----------------- | ------ | ---- | ------------------------------------------- |
+| orbit_node_key    | string | body | The Orbit node key for authentication.      |
+| device_auth_token | string | body | The device auth token to set for this host. |
+
+##### Example
+
+`POST /api/v1/fleet/orbit/device_token`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "device_auth_token": "2267a440-4cfb-48af-804b-d52224a05e1b"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Get Orbit config
+
+`POST /api/fleet/orbit/config`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                            |
+| -------------- | ------ | ---- | -------------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication. |
+
+##### Example
+
+`POST /api/fleet/orbit/config`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "script_execution_timeout": 3600,
+  "command_line_startup_flags": {
+    "--verbose": true
+  },
+  "extensions": {
+    "hello_world_linux": {
+      "channel": "stable",
+      "platform": "linux"
+    }
+  },
+  "nudge_config": {
+    "osVersionRequirements": [
+      {
+        "requiredInstallationDate": "2024-12-04T20:00:00Z",
+        "requiredMinimumOSVersion": "15.1.1",
+        "aboutUpdateURLs": [
+          {
+            "_language": "en",
+            "aboutUpdateURL": "https://fleetdm.com/learn-more-about/os-updates"
+          }
+        ]
+      }
+    ],
+    "userInterface": {
+      "simpleMode": true,
+      "showDeferralCount": false,
+      "updateElements": [
+        {
+          "_language": "en",
+          "actionButtonText": "Update",
+          "mainHeader": "Your device requires an update"
+        }
+      ]
+    },
+    "userExperience": {
+      "initialRefreshCycle": 86400,
+      "approachingRefreshCycle": 86400,
+      "imminentRefreshCycle": 7200,
+      "elapsedRefreshCycle": 3600
+    }
+  },
+  "notifications": {
+    "renew_enrollment_profile": true,
+    "rotate_disk_encryption_key": true,
+    "needs_mdm_migration": true,
+    "needs_programmatic_windows_mdm_enrollment": true,
+    "windows_mdm_discovery_endpoint": "/some/path/here",
+    "needs_programmatic_windows_mdm_unenrollment": true,
+    "pending_script_execution_ids": [
+      "a129a440-4cfb-48af-804b-d52224a05e1b"
+    ],
+    "enforce_bitlocker_encryption": true,
+    "pending_software_installer_ids": [
+      "2267a440-4cfb-48af-804b-d52224a05e1b"
+    ],
+    "run_setup_experience": true,
+    "run_disk_encryption_escrow": true
+  },
+  "update_channels": {
+    "orbit": "stable",
+    "osqueryd": "stable",
+    "desktop": "stable"
+  }
+}
+```
+
+### Get script execution result by execution ID
+
+`POST /api/fleet/orbit/scripts/request`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                            |
+| -------------- | ------ | ---- | -------------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication. |
+| execution_id   | string | body | The UUID of the script execution.      |
+
+##### Example
+
+`POST /api/fleet/orbit/scripts/request`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "execution_id": "006112E7-7383-4F21-999C-8FA74BB3F573"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 12,
+  "execution_id": "006112E7-7383-4F21-999C-8FA74BB3F573",
+  "script_contents": "echo hello",
+  "output": "hello",
+  "runtime": 1,
+  "exit_code": 0,
+  "timeout": 30,
+  "script_id": 42,
+  "policy_id": 10,
+  "team_id": 1,
+  "message": ""
+}
+```
+
+### Upload Orbit script result
+
+`POST /api/fleet/orbit/scripts/result`
+
+##### Parameters
+
+| Name           | Type   | In     | Description                                                             |
+| -------------- | ------ | ------ | ----------------------------------------------------------------------- |
+| orbit_node_key | string | body   | The Orbit node key for authentication.                                  |
+| host_id        | number | body   | The ID of the host on which the script ran.                             |
+| execution_id   | string | body   | The UUID of the script execution.                                       |
+| output         | string | body   | The output of the script.                                               |
+| runtime        | string | number | The amount of time the script ran for (in seconds).                     |
+| exit_code      | string | number | The exit code of the script.                                            |
+| timeout        | string | number | The maximum amount of time this script was allowed to run (in seconds). |
+
+##### Example
+
+`POST /api/fleet/orbit/scripts/result`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "host_id": 12,
+  "execution_id": "006112E7-7383-4F21-999C-8FA74BB3F573",
+  "output": "hello",
+  "runtime": 1,
+  "exit_code": 0,
+  "timeout": 30
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Set Orbit device mapping
+
+`POST /api/fleet/orbit/device_mapping`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                              |
+| -------------- | ------ | ---- | ---------------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication.   |
+| email          | string | body | The email to use for the device mapping. |
+
+##### Example
+
+`POST /api/fleet/orbit/device_mapping`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "email": "test@example.com"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Upload Orbit software install result
+
+`POST /api/fleet/orbit/software_install/result`
+
+##### Parameters
+
+| Name                          | Type   | In   | Description                                             |
+| ----------------------------- | ------ | ---- | ------------------------------------------------------- |
+| orbit_node_key                | string | body | The Orbit node key for authentication.                  |
+| host_id                       | number | body | The ID of the host on which the software was installed. |
+| install_uuid                  | string | body | The UUID of the installation attempt.                   |
+| pre_install_condition_output  | string | body | The output from the pre-install condition query.        |
+| install_script_exit_code      | number | body | The exit code from the install script.                  |
+| install_script_output         | string | body | The output from the install script.                     |
+| post_install_script_exit_code | number | body | The exit code from the post-install script.             |
+| post_install_script_output    | string | body | The output from the post-install script.                |
+
+##### Example
+
+`POST /api/fleet/orbit/software_install/result`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "host_id ": 12,
+  "install_uuid ": "4D91F9C3-919B-4D5B-ABFC-528D648F27D1",
+  "pre_install_condition_output ": "example",
+  "install_script_exit_code ": 0,
+  "install_script_output ": "software installed",
+  "post_install_script_exit_code ": 1,
+  "post_install_script_output ": "error: post-install script failed"
+}
+```
+
+##### Default response
+
+`Status: 204`
+
+### Download software installer
+
+`POST /api/fleet/orbit/software_install/package`
+
+##### Parameters
+
+| Name           | Type   | In    | Description                                                          |
+| -------------- | ------ | ----- | -------------------------------------------------------------------- |
+| orbit_node_key | string | body  | The Orbit node key for authentication.                               |
+| installer_id   | number | body  | The ID of the software installer to download.                        |
+| alt            | string | query | Indicates whether to download the package. Must be set to `"media"`. |
+
+##### Example
+
+`POST /api/fleet/orbit/software_install/package`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "installer_id": 15
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
+
+### Get orbit software install details
+
+`POST /api/fleet/orbit/software_install/details`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                                    |
+| -------------- | ------ | ---- | ---------------------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication.         |
+| install_uuid   | string | body | The UUID of the software installation attempt. |
+
+##### Example
+
+`POST /api/fleet/orbit/software_install/details`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "install_uuid": "1652210E-619E-43BA-B3CC-17F4247823F3"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "install_id": "1652210E-619E-43BA-B3CC-17F4247823F3",
+  "installer_id": 12,
+  "pre_install_condition": "SELECT * FROM osquery_info;",
+  "install_script": "sudo run-installer",
+  "uninstall_script": "sudo run-uninstaller",
+  "post_install_script": "echo done",
+  "self_service": true,
+}
+```
+
+### Upload disk encryption key
+
+`POST /api/fleet/orbit/disk_encryption_key`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                               |
+| -------------- | ------ | ---- | ----------------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication.    |
+| encryption_key | string | body | The encryption key bytes.                 |
+| client_error   | string | body | The error reported by the client, if any. |
+
+##### Example
+
+`POST /api/fleet/orbit/disk_encryption_key`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "encryption_key": "Zm9vYmFyem9vYmFyZG9vYmFybG9vYmFy",
+  "client_error": "example error",
+}
+```
+
+##### Default response
+
+`Status: 204`
+
+---
 
 ## Downloadable installers
 
