@@ -72,7 +72,9 @@ export default {
     orderDirection,
     orderKey,
     mergeInherited,
-    targetedPlatform,
+    // FE logic uses less ambiguous `targetedPlatform`, while API expects `platform` for alignment
+    // with other API conventions and database `queries.platform` column
+    targetedPlatform: platform,
   }: IQueryKeyQueriesLoadAll): Promise<IQueriesResponse> => {
     const { QUERIES } = endpoints;
 
@@ -84,12 +86,12 @@ export default {
       orderDirection,
       orderKey,
       mergeInherited,
-      targetedPlatform,
+      platform,
     });
 
     // API expects "macos" instead of "darwin"
-    if (snakeCaseParams.targeted_platform === "darwin") {
-      snakeCaseParams.targeted_platform = "macos";
+    if (snakeCaseParams.platform === "darwin") {
+      snakeCaseParams.platform = "macos";
     }
 
     const queryString = buildQueryStringFromParams(snakeCaseParams);

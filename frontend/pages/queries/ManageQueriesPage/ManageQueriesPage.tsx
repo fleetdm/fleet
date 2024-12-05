@@ -49,7 +49,7 @@ interface IManageQueriesPageProps {
     pathname: string;
     query: {
       // note that the URL value "darwin" will correspond to the request query param "macos"
-      targeted_platform?: SelectedPlatform;
+      platform?: SelectedPlatform; // which targeted platform to filter queries by
       page?: string;
       query?: string;
       order_key?: string;
@@ -150,7 +150,7 @@ const ManageQueriesPage = ({
         orderDirection: location.query.order_direction,
         orderKey: location.query.order_key,
         mergeInherited: teamIdForApi !== API_ALL_TEAMS_ID,
-        targetedPlatform: location.query.targeted_platform,
+        targetedPlatform: location.query.platform,
       },
     ],
     ({ queryKey }) => queriesAPI.loadAll(queryKey[0]),
@@ -386,7 +386,7 @@ const ManageQueriesPage = ({
 
   const hideQueryActions =
     // there are no filters and no returned queries, indicating there are no global/team queries at all
-    !(!!location.query.query || !!location.query.targeted_platform) &&
+    !(!!location.query.query || !!location.query.platform) &&
     !queriesResponse?.count &&
     // the user has permission
     (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus);

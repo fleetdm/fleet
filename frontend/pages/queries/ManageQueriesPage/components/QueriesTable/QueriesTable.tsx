@@ -32,7 +32,7 @@ export interface IQueriesTableProps {
   isAnyTeamObserverPlus: boolean;
   router?: InjectedRouter;
   queryParams?: {
-    targeted_platform?: string;
+    platform?: string; // which targeted platform to filter queries by
     page?: string;
     query?: string;
     order_key?: string;
@@ -115,7 +115,7 @@ const QueriesTable = ({
   const sortDirection = initialSortDirection;
   const sortHeader = initialSortHeader;
 
-  const targetedPlatformParam = queryParams?.targeted_platform;
+  const targetedPlatformParam = queryParams?.platform;
   const curTargetedPlatformFilter = isQueryablePlatform(targetedPlatformParam)
     ? targetedPlatformParam
     : DEFAULT_PLATFORM;
@@ -133,7 +133,7 @@ const QueriesTable = ({
       const newQueryParams: Record<string, string | number | undefined> = {};
       newQueryParams.order_key = newSortHeader;
       newQueryParams.order_direction = newSortDirection;
-      newQueryParams.targeted_platform =
+      newQueryParams.platform =
         curTargetedPlatformFilter === "all"
           ? undefined
           : curTargetedPlatformFilter;
@@ -214,8 +214,8 @@ const QueriesTable = ({
           queryParams: {
             ...queryParams,
             page: 0,
-            targeted_platform:
-              // separate URL & API 0-values of "targeted_platform" (undefined) from dropdown
+            platform:
+              // separate URL & API 0-values of `platform` (undefined) from dropdown
               // 0-value of "all"
               selectedTargetedPlatform === "all"
                 ? undefined
