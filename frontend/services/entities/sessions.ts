@@ -26,7 +26,7 @@ export default {
       {
         email,
         password,
-        supports_email_verification: true,
+        supports_email_verification: true, // Allows MFA
       },
       "json",
       undefined,
