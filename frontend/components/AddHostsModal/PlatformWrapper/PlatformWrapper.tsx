@@ -254,7 +254,7 @@ const PlatformWrapper = ({
       <>
         {packageType !== "plain-osquery" && (
           <span className={`${baseClass}__cta`}>
-            Run this command to generate an install package with the updated{" "}
+            Run this command with the{" "}
             <a
               className={`${baseClass}__command-line-tool`}
               href="https://fleetdm.com/learn-more-about/installing-fleetctl"
@@ -263,7 +263,7 @@ const PlatformWrapper = ({
             >
               Fleet command-line tool
             </a>{" "}
-            installed:
+            installed to generate an install package:
           </span>
         )}{" "}
         <span className="buttons">
