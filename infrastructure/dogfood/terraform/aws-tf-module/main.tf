@@ -467,7 +467,11 @@ resource "aws_kms_key" "ecr" {
   enable_key_rotation     = true
 }
 
-variable "slack_webhook" {
+variable "slack_p1_webhook" {
+  type = string
+}
+
+variable "slack_p2_webhook" {
   type = string
 }
 
@@ -477,7 +481,7 @@ module "notify_slack" {
 
   sns_topic_name = "fleet-dogfood-p1-alerts"
 
-  slack_webhook_url = var.slack_webhook
+  slack_webhook_url = var.slack_p1_webhook
   slack_channel     = "#help-p1"
   slack_username    = "monitoring"
 }
@@ -488,7 +492,7 @@ module "notify_slack_p2" {
 
   sns_topic_name = "fleet-dogfood-p2-alerts"
 
-  slack_webhook_url = var.slack_webhook
+  slack_webhook_url = var.slack_p2_webhook
   slack_channel     = "#help-p2"
   slack_username    = "monitoring"
 }
