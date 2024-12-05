@@ -286,8 +286,9 @@ Every three weeks there's a sprint demos meeting on the office hours calendar. D
 1. Download the most recent Sprint demos video from [Gong](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22sprint%20demos%22%7D%5D%7D%7D)
 2. Use video editing software to ensure there are no mentions of current customers, private information, or irrelevant conversation. (Private IP addresses, sensitive information, etc.)
 3. Split out key features into smaller clips based on the ["Key feature sync doc".](https://docs.google.com/document/d/1NCewdIsVP1ghPv-WJrQ66Ni0KjMaGv_PXjM1ToEVDWc/edit?tab=t.0#heading=h.iumgpdfepucr)
-4. Render the clips and final sprint demos video to YouTube.
-5. 
+4. Render the clips and final sprint demos then upload video to YouTube as private.
+5. Edit the title and discription using the prior videos format then make it public. 
+6. Embed the youtube video to the related release on [Fleet](https://fleetdm.com/releases)
 
 ### Upload to YouTube
 
