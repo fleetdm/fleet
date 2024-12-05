@@ -14,25 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-func getCompatiblePlatformsFromSQL(query string) ([]string, error) {
-	// TODO!
-	return []string{"macos", "linux", "windows"}, nil
-}
-
-func filterQueriesByCompatiblePlatform(queries []*fleet.Query, compatiblePlatform *string) ([]*fleet.Query, error) {
-	var filteredQueries []*fleet.Query
-	for _, query := range queries {
-		compatiblePlatforms, err := getCompatiblePlatformsFromSQL(query.Query)
-		if err != nil {
-			return nil, err
-		}
-		if slices.Contains(compatiblePlatforms, *compatiblePlatform) {
-			filteredQueries = append(filteredQueries, query)
-		}
-	}
-	return filteredQueries, nil
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Get Query
 ////////////////////////////////////////////////////////////////////////////////
@@ -77,9 +58,10 @@ func (svc *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error)
 type listQueriesRequest struct {
 	ListOptions fleet.ListOptions `url:"list_options"`
 	// TeamID url argument set to 0 means global.
-	TeamID             uint   `query:"team_id,optional"`
-	MergeInherited     bool   `query:"merge_inherited,optional"`
-	CompatiblePlatform string `query:"compatible_platform,optional"`
+	TeamID         uint `query:"team_id,optional"`
+	MergeInherited bool `query:"merge_inherited,optional"`
+	// only return queries targeted to run on this platform
+	Platform string `query:"platform,optional"`
 }
 
 type listQueriesResponse struct {
@@ -99,12 +81,12 @@ func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		teamID = &req.TeamID
 	}
 
-	var compatiblePlaform *string
-	if req.CompatiblePlatform != "" {
-		compatiblePlaform = &req.CompatiblePlatform
+	var urlPlatform *string
+	if req.Platform != "" {
+		urlPlatform = &req.Platform
 	}
 
-	queries, count, meta, err := svc.ListQueries(ctx, req.ListOptions, teamID, nil, req.MergeInherited, compatiblePlaform)
+	queries, count, meta, err := svc.ListQueries(ctx, req.ListOptions, teamID, nil, req.MergeInherited, urlPlatform)
 	if err != nil {
 		return listQueriesResponse{Err: err}, nil
 	}
@@ -121,7 +103,7 @@ func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	}, nil
 }
 
-func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, compatiblePlatform *string) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, urlPlatform *string) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 	// Check the user is allowed to list queries on the given team.
 	if err := svc.authz.Authorize(ctx, &fleet.Query{
 		TeamID: teamID,
@@ -132,25 +114,33 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 	// always include metadata for queries
 	opt.IncludeMetadata = true
 
+	var dbPlatform *string
+	if urlPlatform != nil {
+		// validate platform filter
+		if *urlPlatform == "macos" {
+			// More user-friendly API param "macos" is called "darwin" in the datastore
+			dbPlatform = ptr.String("darwin")
+		} else {
+			dbPlatform = urlPlatform
+		}
+		if strings.Contains(*urlPlatform, ",") {
+			return nil, 0, nil, &fleet.BadRequestError{Message: "queries can only be filtered by one platform at a time"}
+		}
+		targetableDBPlatforms := []string{"darwin", "windows", "linux"}
+		if !slices.Contains(targetableDBPlatforms, *dbPlatform) {
+			return nil, 0, nil, &fleet.BadRequestError{Message: "provided platform param cannot be a scheduled query target"}
+		}
+	}
+
 	queries, count, meta, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
 		ListOptions:    opt,
 		TeamID:         teamID,
 		IsScheduled:    scheduled,
 		MergeInherited: mergeInherited,
+		Platform:       dbPlatform,
 	})
 	if err != nil {
 		return nil, 0, nil, err
-	}
-
-	if compatiblePlatform != nil {
-		// TODO on future iteration - instead of filtering per call like this, calculate each query's compatible platform
-		// and store it in the db on save/edit (query.compatible_platform, different from
-		// query.platform), then update svc.ds.ListQueries to filter by compatible platform.
-		// This avoids overhead of a migration for now
-		queries, err = filterQueriesByCompatiblePlatform(queries, compatiblePlatform)
-		if err != nil {
-			return nil, 0, nil, err
-		}
 	}
 
 	return queries, count, meta, nil
