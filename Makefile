@@ -151,8 +151,8 @@ dump-test-schema:
 
 
 # This is the base command to run Go tests.
-# Wrap this to run tests with presets (see `dev-tests` and `test-go` targets).
-# pkg_to_test: Paths to Go packages to test, e.g. "./server/datastore/mysql".  Separate multiple paths with spaces.
+# Wrap this to run tests with presets (see `run-go-tests` and `test-go` targets).
+# pkg_to_test: Go packages to test, e.g. "server/datastore/mysql".  Separate multiple packages with spaces.
 # run_tests: Name specific tests to run in the specified packages.  Leave blank to run all tests in the specified packages.
 # GO_TEST_EXTRA_FLAGS_VAR: Set by GO_TEST_EXTRA_FLAGS; used to specify other arguments to `go test`.
 # GO_TEST_MAKE_FLAGS: Internal var used by other targets to add arguments to `go test`.
@@ -168,6 +168,10 @@ else
 		go test -tags full,fts5,netgo -run=${tests_to_run} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... $(go_test_pkg_to_test)
 endif
 
+# This is the base command to debug Go tests.
+# Wrap this to run tests with presets (see `debug-go-tests`)
+# pkg_to_test: Go packages to test, e.g. "server/datastore/mysql".  Separate multiple packages with spaces.
+# run_tests: Name specific tests to debug in the specified packages.  Leave blank to debug all tests in the specified packages.
 .debug-go-tests:
 ifeq ($(pkg_to_test), "")
 		@echo "Please specify one or more packages to debug with argument pkg_to_test=\"/path/to/pkg/1 /path/to/pkg/2\"..."; 
@@ -184,7 +188,7 @@ debug-go-tests:
 	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests 
 
 # Command used in CI to run all tests.
-test-go: #dump-test-schema generate-mock 
+test-go: dump-test-schema generate-mock 
 	make .run-go-tests pkg_to_test="./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/..."
 
 analyze-go:
