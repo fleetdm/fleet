@@ -24,7 +24,7 @@ func main() {
 	prompt := zenity.New()
 
 	// Prompt existing passphrase from the user.
-	currentPassphrase, err := prompt.ShowEntry(context.Background(), dialog.EntryOptions{
+	currentPassphrase, err := prompt.ShowEntry(dialog.EntryOptions{
 		Title:    "Enter Existing LUKS Passphrase",
 		Text:     "Enter your existing LUKS passphrase:",
 		HideText: true,
@@ -49,7 +49,7 @@ func main() {
 
 		if err := device.AddKey(context.Background(), devicePath, userKey, escrowKey); err != nil {
 			if errors.Is(err, encryption.ErrEncryptionKeyRejected) {
-				currentPassphrase, err = prompt.ShowEntry(context.Background(), dialog.EntryOptions{
+				currentPassphrase, err = prompt.ShowEntry(dialog.EntryOptions{
 					Title:    "Enter Existing LUKS Passphrase",
 					Text:     "Bad password. Enter your existing LUKS passphrase:",
 					HideText: true,
