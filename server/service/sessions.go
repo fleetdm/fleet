@@ -170,6 +170,10 @@ func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) 
 //goland:noinspection GoErrorStringFormat
 var sendingMFAEmail = errors.New("sending MFA email")
 var noMFASupported = errors.New("client with no MFA email support")
+var mfaNotSupportedForClient = badRequestErr(
+	"Your login client does not support MFA. Please log in via the web, then use an API token to authenticate.",
+	noMFASupported,
+)
 
 func (svc *Service) Login(ctx context.Context, email, password string, supportsEmailVerification bool) (*fleet.User, *fleet.Session, error) {
 	// skipauth: No user context available yet to authorize against.
@@ -186,7 +190,7 @@ func (svc *Service) Login(ctx context.Context, email, password string, supportsE
 	// take ~1s and frustrate a timing attack.
 	var err error
 	defer func(start time.Time) {
-		if err != nil {
+		if err != nil && !errors.Is(err, sendingMFAEmail) && !errors.Is(err, mfaNotSupportedForClient) {
 			if err := svc.NewActivity(
 				ctx, nil, fleet.ActivityTypeUserFailedLogin{
 					Email:    email,
@@ -217,10 +221,7 @@ func (svc *Service) Login(ctx context.Context, email, password string, supportsE
 		return nil, nil, fleet.NewAuthFailedError("password login disabled for sso users")
 	} else if user.MFAEnabled {
 		if !supportsEmailVerification {
-			return nil, nil, badRequestErr(
-				"Your login client does not support MFA. Please log in via the web, then use an API token to authenticate.",
-				noMFASupported,
-			)
+			return nil, nil, mfaNotSupportedForClient
 		}
 
 		if err = svc.makeMFAEmail(ctx, *user); err != nil {
