@@ -42,7 +42,7 @@ interface IHostSoftwareProps {
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   pathname: string;
   hostTeamId: number;
-  onShowSoftwareDetails?: (software: IHostSoftware) => void;
+  onShowSoftwareDetails: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
   hostScriptsEnabled?: boolean;
   isMyDevicePage?: boolean;
@@ -248,7 +248,7 @@ const HostSoftware = ({
 
   const tableConfig = useMemo(() => {
     return isMyDevicePage
-      ? generateDeviceSoftwareTableConfig()
+      ? generateDeviceSoftwareTableConfig(onShowSoftwareDetails)
       : generateHostSoftwareTableConfig({
           userHasSWWritePermission,
           hostScriptsEnabled,
@@ -329,6 +329,9 @@ const HostSoftware = ({
             pagePath={pathname}
             hostSoftwareFilter={getHostSoftwareFilterFromQueryParams()}
             pathPrefix={pathname}
+            // for my device software details modal toggling
+            isMyDevicePage={isMyDevicePage}
+            onShowSoftwareDetails={onShowSoftwareDetails}
           />
         )}
       </>

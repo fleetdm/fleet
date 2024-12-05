@@ -38,7 +38,9 @@ export const generateSoftwareTableData = (
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
+export const generateSoftwareTableHeaders = (
+  onShowSoftwareDetails: (software: IHostSoftware) => void
+): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
       Header: (cellProps: ITableHeaderProps) => (
@@ -82,6 +84,27 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
         const vulnerabilities = getVulnerabilities(cellProps.cell.value ?? []);
         return <VulnerabilitiesCell vulnerabilities={vulnerabilities} />;
+      },
+    },
+    {
+      Header: "",
+      // the accessor here is insignificant, we just need it as its required
+      // but we don't use it.
+      accessor: "id",
+      disableSortBy: true,
+      Cell: (cellProps) => {
+        return (
+          <span className="link">
+            <span className="link-text">Show details</span>
+          </span>
+          // <Button
+          //   onClick={() => {
+          //     onShowSoftwareDetails(cellProps.row.original);
+          //   }}
+          // >
+          //   Show details
+          // </Button>
+        );
       },
     },
   ];

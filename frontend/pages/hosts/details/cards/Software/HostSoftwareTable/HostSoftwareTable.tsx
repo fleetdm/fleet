@@ -23,6 +23,8 @@ import Dropdown from "components/forms/fields/Dropdown";
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
 import { VulnsNotSupported } from "pages/SoftwarePage/components/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
+import { Row } from "react-table";
+import { IHostSoftware } from "interfaces/software";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -50,6 +52,12 @@ export const DROPDOWN_OPTIONS = [
   },
 ] as const;
 
+interface IHostSoftwareRowProps extends Row {
+  original: {
+    id?: number;
+    hostSoftware: IHostSoftware;
+  };
+}
 interface IHostSoftwareTableProps {
   tableConfig: any; // TODO: type
   data?: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
@@ -64,6 +72,8 @@ interface IHostSoftwareTableProps {
   routeTemplate?: string;
   pathPrefix: string;
   hostSoftwareFilter: IHostSoftwareDropdownFilterVal;
+  isMyDevicePage?: boolean;
+  onShowSoftwareDetails: (software: IHostSoftware) => void;
 }
 
 const HostSoftwareTable = ({
@@ -80,6 +90,8 @@ const HostSoftwareTable = ({
   routeTemplate,
   pathPrefix,
   hostSoftwareFilter,
+  isMyDevicePage,
+  onShowSoftwareDetails,
 }: IHostSoftwareTableProps) => {
   const handleFilterDropdownChange = useCallback(
     (val: IHostSoftwareDropdownFilterVal) => {
@@ -221,6 +233,14 @@ const HostSoftwareTable = ({
 
   const showFilterHeaders = hasData || hasQuery || hasSoftwareFilter;
 
+  // my device page row clickability
+  const onSelectSingleRow = useCallback(
+    (row: IHostSoftwareRowProps) => {
+      onShowSoftwareDetails(row.original.hostSoftware);
+    },
+    [onShowSoftwareDetails]
+  );
+
   return (
     <div className={baseClass}>
       <TableContainer
@@ -242,6 +262,10 @@ const HostSoftwareTable = ({
         isAllPagesSelected={false}
         searchable={showFilterHeaders}
         manualSortBy
+        // my device page row clickability
+        disableMultiRowSelect={isMyDevicePage}
+        // @ts-ignore
+        onSelectSingleRow={onSelectSingleRow}
       />
     </div>
   );
