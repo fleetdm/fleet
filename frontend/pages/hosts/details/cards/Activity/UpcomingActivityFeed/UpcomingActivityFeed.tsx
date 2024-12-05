@@ -54,11 +54,11 @@ const UpcomingActivityFeed = ({
       <div>
         {activitiesList.map((activity: IHostUpcomingActivity) => {
           // TODO: remove this once we have a proper way of handling "Fleet-initiated" activities in
-          // the backend. For now, if all these fields are empty, then we assume it was Fleet-initiated.
+          // the backend. For now, if all these fields are empty, then we assume it was
+          // Fleet-initiated.
           if (
             !activity.actor_email &&
             !activity.actor_full_name &&
-            !activity.actor_id &&
             (activity.type === ActivityType.InstalledSoftware ||
               activity.type === ActivityType.InstalledAppStoreApp ||
               activity.type === ActivityType.RanScript)
