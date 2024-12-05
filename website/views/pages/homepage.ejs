@@ -49,9 +49,9 @@
     <% if(!primaryBuyingSituation){ %>
       <div purpose="category-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
         <div purpose="category-switch-option" :class="[selectedCategory === 'mdm' ? 'selected' : '']" @click="selectedCategory = 'mdm'">Device management</div>
+        <div purpose="category-switch-option" :class="[selectedCategory === 'software-management' ? 'selected' : '']" @click="selectedCategory = 'software-management'">Software management</div>
         <div purpose="category-switch-option" :class="[selectedCategory === 'eo-it' ? 'selected' : '']" @click="selectedCategory = 'eo-it'">IT engineering</div>
-        <div purpose="category-switch-option" :class="[selectedCategory === 'eo-security' ? 'selected' : '']" @click="selectedCategory = 'eo-security'">Software management</div>
-        <div purpose="category-tier-switch" :class="[selectedCategory === 'eo-it' ? 'it-selected' : selectedCategory === 'eo-security' ? 'security-selected' : selectedCategory === 'mdm' ? 'mdm-selected' : 'mdm-selected']"></div>
+        <div purpose="category-tier-switch" :class="[selectedCategory === 'eo-it' ? 'it-selected' : selectedCategory === 'software-management' ? 'software-management-selected' : selectedCategory === 'mdm' ? 'mdm-selected' : 'mdm-selected']"></div>
       </div>
       <%/* Device management block */%>
       <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" :class="[selectedCategory === 'mdm' ? 'visible' : '']" v-if="selectedCategory === 'mdm'">
@@ -90,7 +90,7 @@
       </div>
 
       <%/* Security engineering block */%>
-      <div purpose="platform-block" :class="[selectedCategory === 'eo-security' ? 'visible' : '']" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'eo-security'">
+      <div purpose="platform-block" :class="[selectedCategory === 'software-management' ? 'visible' : '']" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'software-management'">
         <div purpose="vuln-management-image" class="left">
           <img  alt="An orb being scanned for vulnerabilities" src="/images/vulnerability-management-hero-image-345x380@2x.png">
         </div>
