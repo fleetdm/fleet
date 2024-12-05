@@ -5,7 +5,7 @@ sequenceDiagram
     participant MyDevicePage as My Device Page
     participant Backend as Backend
     participant Orbit as Orbit
-    participant Zenity as Zenity
+    participant Dialog as Dialog (zenity/kdialog)
 
     MyDevicePage->>Backend: Initiate escrow flow
     Backend->>Orbit: Update configuration (includes escrow flow start)
@@ -15,17 +15,17 @@ sequenceDiagram
     end
     
     Note right of Orbit: Orbit detects new config<br>and initiates escrow flow
-    Orbit->>Zenity: Prompt for disk encryption password
+    Orbit->>Dialog: Prompt for disk encryption password
     
     alt Password returned
-        Zenity->>Orbit: 
+        Dialog->>Dialog: 
         loop 
             Orbit->>Zenity: reprompt on incorrect password
         end
     else Timeout returned (1m)
-        Zenity->>Orbit: 
+        Dialog->>Orbit: 
     else Error returned
-        Zenity->>Orbit: 
+        Dialog->>Orbit: 
     end
 
     alt Successful key add
