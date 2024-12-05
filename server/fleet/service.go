@@ -193,8 +193,9 @@ type Service interface {
 
 	// SSOSettings returns non-sensitive single sign on information used before authentication
 	SSOSettings(ctx context.Context) (*SessionSSOSettings, error)
-	Login(ctx context.Context, email, password string) (user *User, session *Session, err error)
+	Login(ctx context.Context, email, password string, supportsEmailVerification bool) (user *User, session *Session, err error)
 	Logout(ctx context.Context) (err error)
+	CompleteMFA(ctx context.Context, token string) (*Session, *User, error)
 	DestroySession(ctx context.Context) (err error)
 	GetInfoAboutSessionsForUser(ctx context.Context, id uint) (sessions []*Session, err error)
 	DeleteSessionsForUser(ctx context.Context, id uint) (err error)

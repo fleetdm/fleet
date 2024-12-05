@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"database/sql"
-	"encoding/base64"
 	"errors"
 	"html/template"
 	"strings"
@@ -40,6 +39,8 @@ func createInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	return createInviteResponse{invite, nil}, nil
 }
 
+var SSOMFAConflict = &fleet.ConflictError{Message: "Fleet MFA is is not applicable to SSO users"}
+
 func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePayload) (*fleet.Invite, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Invite{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -67,11 +68,10 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 	}
 	inviter := v.User
 
-	random, err := server.GenerateRandomText(svc.config.App.TokenKeySize)
+	token, err := server.GenerateRandomURLSafeText(svc.config.App.TokenKeySize)
 	if err != nil {
 		return nil, err
 	}
-	token := base64.URLEncoding.EncodeToString([]byte(random))
 
 	invite := &fleet.Invite{
 		Email:      *payload.Email,
@@ -88,6 +88,13 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 	}
 	if payload.SSOEnabled != nil {
 		invite.SSOEnabled = *payload.SSOEnabled
+	}
+	if payload.MFAEnabled != nil {
+		invite.MFAEnabled = *payload.MFAEnabled
+	}
+
+	if err = svc.ValidateInvite(ctx, *invite); err != nil {
+		return nil, err
 	}
 
 	invite, err = svc.ds.NewInvite(ctx, invite)
@@ -109,7 +116,7 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 		smtpSettings = *config.SMTPSettings
 	}
 	inviteEmail := fleet.Email{
-		Subject:      "You are Invited to Fleet",
+		Subject:      "You have been invited to Fleet!",
 		To:           []string{invite.Email},
 		ServerURL:    config.ServerSettings.ServerURL,
 		SMTPSettings: smtpSettings,
@@ -127,6 +134,25 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 		return nil, err
 	}
 	return invite, nil
+}
+
+func (svc *Service) ValidateInvite(ctx context.Context, invite fleet.Invite) error {
+	if !invite.MFAEnabled {
+		return nil
+	}
+
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return err
+	}
+	if lic == nil || !lic.IsPremium() {
+		return fleet.ErrMissingLicense
+	}
+	if invite.SSOEnabled {
+		return SSOMFAConflict
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -230,6 +256,13 @@ func (svc *Service) UpdateInvite(ctx context.Context, id uint, payload fleet.Inv
 	}
 	if payload.SSOEnabled != nil {
 		invite.SSOEnabled = *payload.SSOEnabled
+	}
+	if payload.MFAEnabled != nil {
+		invite.MFAEnabled = *payload.MFAEnabled
+	}
+
+	if err = svc.ValidateInvite(ctx, *invite); err != nil {
+		return nil, err
 	}
 
 	if payload.GlobalRole.Valid || len(payload.Teams) > 0 {
