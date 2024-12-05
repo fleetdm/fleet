@@ -155,6 +155,12 @@ without necessarily having a billing card.`
       example: 1502844074211
     },
 
+    apiToken: {
+      type: 'string',
+      description: 'A random string that is used to authorize external requests to api endpoints in this app.',
+      example: '3339b750-3381-4df3-ba34-7b598c3dfb52'
+    }
+
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝
