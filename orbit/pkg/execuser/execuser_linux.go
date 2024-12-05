@@ -72,7 +72,7 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 	cmdArgs = append(cmdArgs, "sudo")
 	cmdArgs = append(cmdArgs, args...)
 
-	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...) //nosec G204
+	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...) // #nosec G204
 
 	log.Printf("cmd=%s", cmd.String())
 
