@@ -148,6 +148,7 @@ describe("QueriesTable", () => {
       {
         queries: [],
         totalQueriesCount: 0,
+        hasNextResults: false,
         onlyInheritedQueries: false,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
@@ -172,6 +173,7 @@ describe("QueriesTable", () => {
       {
         queries: [...testGlobalQueries, ...testTeamQueries],
         totalQueriesCount: 4,
+        hasNextResults: false,
         onlyInheritedQueries: false,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
@@ -232,6 +234,7 @@ describe("QueriesTable", () => {
       <QueriesTable
         queries={testQueries}
         totalQueriesCount={1}
+        hasNextResults={false}
         onlyInheritedQueries={false}
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
@@ -272,6 +275,7 @@ describe("QueriesTable", () => {
       <QueriesTable
         queries={testQueries}
         totalQueriesCount={1}
+        hasNextResults={false}
         onlyInheritedQueries={false}
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
@@ -311,6 +315,7 @@ describe("QueriesTable", () => {
       <QueriesTable
         queries={testQueries}
         totalQueriesCount={1}
+        hasNextResults={false}
         onlyInheritedQueries={false}
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
@@ -339,6 +344,7 @@ describe("QueriesTable", () => {
       <QueriesTable
         queries={[...testTeamQueries, ...testGlobalQueries]}
         totalQueriesCount={4}
+        hasNextResults={false}
         onlyInheritedQueries={false}
         isLoading={false}
         onDeleteQueryClick={jest.fn()}

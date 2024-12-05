@@ -23,6 +23,7 @@ const baseClass = "queries-table";
 export interface IQueriesTableProps {
   queries: IEnhancedQuery[] | null;
   totalQueriesCount: number | undefined;
+  hasNextResults: boolean;
   onlyInheritedQueries: boolean;
   isLoading: boolean;
   onDeleteQueryClick: (selectedTableQueryIds: number[]) => void;
@@ -73,6 +74,7 @@ const PLATFORM_FILTER_OPTIONS = [
 const QueriesTable = ({
   queries,
   totalQueriesCount,
+  hasNextResults,
   onlyInheritedQueries,
   isLoading,
   onDeleteQueryClick,
@@ -278,6 +280,7 @@ const QueriesTable = ({
           defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
           defaultSearchQuery={trimmedSearchQuery}
           defaultPageIndex={page}
+          disableNextPage={!hasNextResults}
           showMarkAllPages={false}
           isAllPagesSelected={false}
           primarySelectAction={{

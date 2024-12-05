@@ -283,6 +283,7 @@ const ManageQueriesPage = ({
       <QueriesTable
         queries={enhancedQueries || []}
         totalQueriesCount={queriesResponse?.count}
+        hasNextResults={!!queriesResponse?.meta.has_next_results}
         onlyInheritedQueries={onlyInheritedQueries}
         isLoading={isFetchingQueries}
         onCreateQueryClick={onCreateQueryClick}
