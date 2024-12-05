@@ -67,7 +67,7 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 			if err := removeKeySlot(ctx, devicePath, *keyslot); err != nil {
 				log.Error().Err(err).Msgf("failed to remove key slot %d", *keyslot)
 			}
-			return fmt.Errorf("Failed to get salt for key slot: %w", err)
+			response.Err = fmt.Sprintf("Failed to get salt for key slot: %s", err)
 		}
 		response.Salt = salt
 	}
@@ -118,13 +118,18 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		return nil, nil, nil
 	}
 
-	err = lr.notifier.ShowProgress(ctx, dialog.ProgressOptions{
+	cancelProgress, err := lr.notifier.ShowProgress(dialog.ProgressOptions{
 		Title: infoTitle,
 		Text:  "Validating passphrase...",
 	})
 	if err != nil {
 		log.Error().Err(err).Msg("failed to show progress dialog")
 	}
+	defer func() {
+		if err := cancelProgress(); err != nil {
+			log.Debug().Err(err).Msg("failed to cancel progress dialog")
+		}
+	}()
 
 	// Validate the passphrase
 	for {
@@ -147,22 +152,25 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 			return nil, nil, nil
 		}
 
-		err = lr.notifier.ShowProgress(ctx, dialog.ProgressOptions{
-			Title: infoTitle,
-			Text:  "Validating passphrase...",
-		})
-		if err != nil {
-			log.Error().Err(err).Msg("failed to show progress dialog after retry")
-		}
 	}
 
-	err = lr.notifier.ShowProgress(ctx, dialog.ProgressOptions{
+	if err := cancelProgress(); err != nil {
+		log.Error().Err(err).Msg("failed to cancel progress dialog")
+	}
+
+	cancelProgress, err = lr.notifier.ShowProgress(dialog.ProgressOptions{
 		Title: infoTitle,
-		Text:  "Key escrow in progress...",
+		Text:  "Escrowing key...",
 	})
 	if err != nil {
 		log.Error().Err(err).Msg("failed to show progress dialog")
 	}
+
+	defer func() {
+		if err := cancelProgress(); err != nil {
+			log.Error().Err(err).Msg("failed to cancel progress dialog")
+		}
+	}()
 
 	escrowPassphrase, err := generateRandomPassphrase()
 	if err != nil {

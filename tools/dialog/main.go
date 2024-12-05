@@ -27,21 +27,20 @@ func main() {
 		panic(err)
 	}
 
-	ctx, cancelProgress := context.WithCancel(context.Background())
-
-	go func() {
-		err := prompt.ShowProgress(ctx, dialog.ProgressOptions{
-			Title: "Zenity Test Progress Title",
-			Text:  "Zenity Test Progress Text",
-		})
-		if err != nil {
-			fmt.Println("Err ShowProgress")
-			panic(err)
-		}
-	}()
+	cancelProgress, err := prompt.ShowProgress(dialog.ProgressOptions{
+		Title: "Zenity Test Progress Title",
+		Text:  "Zenity Test Progress Text",
+	})
+	if err != nil {
+		fmt.Println("Err ShowProgress")
+		panic(err)
+	}
 
 	time.Sleep(2 * time.Second)
-	cancelProgress()
+	if err := cancelProgress(); err != nil {
+		fmt.Println("Err cancelProgress")
+		panic(err)
+	}
 
 	err = prompt.ShowInfo(ctx, dialog.InfoOptions{
 		Title:   "Zenity Test Info Title",

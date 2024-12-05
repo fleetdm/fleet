@@ -54,3 +54,7 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
 	return nil, 0, errors.New("not implemented")
 }
+
+func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
+	return nil, errors.New("not implemented")
+}

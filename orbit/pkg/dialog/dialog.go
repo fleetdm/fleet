@@ -26,7 +26,7 @@ type Dialog interface {
 	ShowInfo(ctx context.Context, opts InfoOptions) error
 	// Progress displays a dialog that shows progress. It waits until the
 	// context is cancelled.
-	ShowProgress(ctx context.Context, opts ProgressOptions) error
+	ShowProgress(opts ProgressOptions) (cancelFunc func() error, err error)
 }
 
 // EntryOptions represents options for a dialog that accepts end user input.
