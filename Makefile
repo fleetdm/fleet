@@ -144,8 +144,40 @@ lint: lint-go lint-js
 dump-test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
-test-go: dump-test-schema generate-mock
-	go test -tags full,fts5,netgo ${GO_TEST_EXTRA_FLAGS_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
+
+# This is the base command to run Go tests.
+# Wrap this to run tests with presets (see `dev-tests` and `test-go` targets).
+# pkg_to_test: Paths to Go packages to test, e.g. "./server/datastore/mysql".  Separate multiple paths with spaces.
+# run_tests: Name specific tests to run in the specified packages.  Leave blank to run all tests in the specified packages.
+# GO_TEST_EXTRA_FLAGS_VAR: Set by GO_TEST_EXTRA_FLAGS; used to specify other arguments to `go test`.
+# GO_TEST_MAKE_FLAGS: Internal var used by other targets to add arguments to `go test`.
+#						 
+pkg_to_test := ""
+.run-tests:
+ifeq ($(pkg_to_test), "")
+		@echo "Please specify one or more tests to run with 'pkg_to_test'"; echo "Example: make run-tests pkg_to_test=./server/..."; 
+else
+		@echo Running Go tests with command:
+		$(GO_TEST_ENV) go test -tags full,fts5,netgo -run=${tests_to_run} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... $(pkg_to_test)
+endif
+
+.debug-tests:
+ifeq ($(pkg_to_test), "")
+		@echo "Please specify one or more tests to run with 'pkg_to_test'"; echo "Example: make debug-tests pkg_to_test=./server/..."; 
+else
+		@echo Running Go tests with command:
+		$(GO_TEST_ENV) go test -tags full,fts5,netgo -run=${tests_to_run} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... $(pkg_to_test)
+endif
+
+# Command to run specific tests in development.  Can run all tests for one or more packages, or specific tests within packages.
+run-tests:
+	@make .run-tests GO_TEST_ENV="MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1" GO_TEST_MAKE_FLAGS="-v"
+
+
+
+# Command used in CI to run all tests.
+test-go: dump-test-schema generate-mock 
+	make .run-tests pkg_to_test="./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/..."
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...
