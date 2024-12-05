@@ -45,19 +45,10 @@ const (
 // Matches all non-word and '-' characters for replacement
 var columnCharsRegexp = regexp.MustCompile(`[^\w-.]`)
 
-// dbReader is an interface that defines the methods required for reads.
-type dbReader interface {
-	sqlx.QueryerContext
-	sqlx.PreparerContext
-
-	Close() error
-	Rebind(string) string
-}
-
 // Datastore is an implementation of fleet.Datastore interface backed by
 // MySQL
 type Datastore struct {
-	replica dbReader // so it cannot be used to perform writes
+	replica fleet.DBReader // so it cannot be used to perform writes
 	primary *sqlx.DB
 
 	logger log.Logger
@@ -115,7 +106,7 @@ type Datastore struct {
 // reader returns the DB instance to use for read-only statements, which is the
 // replica unless the primary has been explicitly required via
 // ctxdb.RequirePrimary.
-func (ds *Datastore) reader(ctx context.Context) dbReader {
+func (ds *Datastore) reader(ctx context.Context) fleet.DBReader {
 	if ctxdb.IsPrimaryRequired(ctx) {
 		return ds.primary
 	}
@@ -518,7 +509,7 @@ func (ds *Datastore) MigrateData(ctx context.Context) error {
 func (ds *Datastore) loadMigrations(
 	ctx context.Context,
 	writer *sql.DB,
-	reader dbReader,
+	reader fleet.DBReader,
 ) (tableRecs []int64, dataRecs []int64, err error) {
 	// We need to run the following to trigger the creation of the migration status tables.
 	_, err = tables.MigrationClient.GetDBVersion(writer)
