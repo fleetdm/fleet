@@ -8825,6 +8825,7 @@ Modifies an existing script.
 | Name            | Type    | In   | Description                                           |
 | ----            | ------- | ---- | --------------------------------------------          |
 | id              | integer | path | **Required**. The ID of the script to modify. |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_id`. |
 
 #### Example
 
