@@ -1,6 +1,6 @@
-# macOS 14 Sonoma benchmark
+# macOS 15 Sequoia benchmark
 
-Fleet's policies have been written against v2.0.0 of the benchmark. You can refer to the [CIS website](https://www.cisecurity.org/cis-benchmarks) for full details about this version.
+Fleet's policies have been written against v1.0.0 of the benchmark. You can refer to the [CIS website](https://www.cisecurity.org/cis-benchmarks) for full details about this version.
 
 For requirements and usage details, see the [CIS Benchmarks](https://fleetdm.com/docs/using-fleet/cis-benchmarks) documentation.
 
@@ -15,6 +15,12 @@ The following CIS benchmarks cannot be checked with a policy in Fleet:
 6. 2.14.1 Audit Notification & Focus Settings
 7. 3.7 Audit Software Inventory
 8. 6.2.1 Ensure Protect Mail Activity in Mail Is Enabled
+
+Missing items:
+1. 2.6.3.1 Ensure Share Mac Analytics Is Disabled
+2. 2.6.3.3 Ensure Improve Assistive Voice Features Is Disabled
+3. 2.6.3.4 Ensure 'Share with app developers' Is Disabled
+4. 5.11 Ensure Logging Is Enabled for Sudo
 
 ### Checks that require decision
 
