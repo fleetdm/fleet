@@ -1,0 +1,2 @@
+- Send alert via SNS when a scheduled "cron" job returns errors
+- SNS topic for job error alerts can be configured separately from the existing monitor alert by adding "cron_job_failure_monitoring" to sns_topic_arns_map, otherwise defaults to the using the same topic
