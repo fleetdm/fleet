@@ -1,0 +1,181 @@
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link
+            href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700&display=swap"
+            rel="stylesheet"
+    />
+    <style>
+        body {
+            font-family: "Nunito Sans", sans-serif;
+            margin: 0;
+        }
+
+        h1 {
+            font-weight: 700;
+            font-size: 24px;
+            line-height: 32px;
+            margin: 0;
+            padding-bottom: 32px;
+        }
+
+        p {
+            font-size: 16px;
+            line-height: 22px;
+            margin: 0;
+            padding-bottom: 32px;
+        }
+
+        a {
+            text-decoration: none;
+            color: #6a67fe;
+        }
+
+        a:hover {
+            text-decoration: none;
+        }
+
+        @media only screen and (max-device-width: 480px) {
+            table {
+                width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            td {
+                width: 100% !important;
+                padding: 20px !important;
+            }
+        }
+    </style>
+</head>
+<body style="color: #192147">
+<table
+        align="center"
+        border="0"
+        cellpadding="0"
+        cellspacing="0"
+        height="100%"
+        width="100%"
+        bgcolor="#F9FAFC"
+        style="
+        background: #f9fafc;
+        font-family: 'Nunito Sans', sans-serif;
+        border-collapse: collapse;
+      "
+>
+    <tr>
+        <td valign="top" align="center">
+            <table
+                    width="580"
+                    align="center"
+                    cellpadding="0"
+                    cellspacing="0"
+                    bgcolor="#ffffff"
+                    style="
+              margin: 20px 20px;
+              border: 1px solid #e2e4ea;
+              border-radius: 8px;
+            "
+            >
+                <tr>
+                    <td
+                            colspan="2"
+                            bgcolor="#ffffff"
+                            style="
+                  padding-top: 40px;
+                  padding-left: 48px;
+                  font-family: 'Nunito Sans', sans-serif;
+                  border-radius: 8px 8px 0px 0px;
+                "
+                    >
+                        <a href="https://fleetdm.com" target="_blank">
+                            <img
+                                    alt="Fleet logo"
+                                    src="{{.AssetURL}}/fleet-logo-blue-118x41@2x.png"
+                                    style="height: 41px; width: 118px"
+                            />
+                        </a>
+                    </td>
+                </tr>
+                <tr>
+                    <td
+                            colspan="2"
+                            style="
+                  padding-top: 48px;
+                  padding-bottom: 48px;
+                  padding-left: 48px;
+                  padding-right: 48px;
+                  font-family: 'Nunito Sans', sans-serif;
+                "
+                    >
+                        <h1>Log in to Fleet</h1>
+                        <p>Hello <b>{{.FullName}}</b>,</p>
+                        <p>
+                            Please click the personalized link below to log into your account.
+                        </p>
+                        
+                        <a
+                                href="{{.BaseURL}}/login/mfa/{{.Token}}"
+                                target="_blank"
+                                style="
+                    font-weight: 700;
+                    color: #fff;
+                    text-decoration: none;
+                    border-radius: 4px;
+                    -webkit-border-radius: 4px;
+                    background-color: #6a67fe;
+                    border-top: 8px solid #6a67fe;
+                    border-bottom: 8px solid #6a67fe;
+                    border-right: 16px solid #6a67fe;
+                    border-left: 16px solid #6a67fe;
+                    display: inline-block;
+                  "
+                        >
+                            Log in
+                        </a>
+
+                        <div
+                                style="border-bottom: 1px solid #e2e4ea; padding-top: 32px"
+                        ></div>
+                        <div style="padding-top: 32px; padding-bottom: 32px">
+                            <a href="https://github.com/fleetdm/fleet" target="_blank">
+                                <img
+                                        alt="Fleet logo"
+                                        style="height: 20px; width: 20px; padding-right: 20px"
+                                        src="{{.AssetURL}}/fleet-mark-color-40x40@2x.png"
+                                />
+                            </a>
+                            <a href="https://twitter.com/fleetctl" target="_blank">
+                                <img
+                                        alt="X logo"
+                                        style="height: 20px; width: 20px; padding-right: 20px"
+                                        src="{{.AssetURL}}/x-logo-24x24@2x.png"
+                                />
+                            </a>
+                            <a
+                                    href="https://fleetdm.com/support"
+                                    target="_blank"
+                            >
+                                <img
+                                        alt="Slack logo"
+                                        style="height: 20px; width: 20.5px; padding-right: 20px"
+                                        src="{{.AssetURL}}/slack-logo-41x40@2x.png"
+                                />
+                            </a>
+                        </div>
+                        <p style="font-size: 12px; line-height: 16px; padding: 0">
+                            © {{.CurrentYear}} Fleet Device Management Inc. <br />
+                            All trademarks, service marks, and company names are the
+                            property of their respective owners.
+                        </p>
+                    </td>
+                </tr>
+            </table>
+            <br />
+        </td>
+    </tr>
+</table>
+</body>
+</html>

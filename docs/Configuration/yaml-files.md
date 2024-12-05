@@ -202,7 +202,7 @@ The `controls` section allows you to configure scripts and device management (MD
 
 - `scripts` is a list of paths to macOS, Windows, or Linux scripts.
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for all teams (`default.yml`).
-- `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS and Windows hosts (default: `false`).
+- `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
 
 #### Example
 
@@ -433,7 +433,7 @@ The `secrets` section defines the valid secrets that hosts can use to enroll to 
 ```yaml
 org_settings:
   secrets: 
-  - $ENROLL_SECRET
+  - secret: $ENROLL_SECRET
 ```
 
 ### server_settings

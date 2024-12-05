@@ -59,6 +59,7 @@ const CustomSettings = ({
     setProfileLabelsModalData,
   ] = useState<IMdmProfile | null>(null);
   const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const selectedProfile = useRef<IMdmProfile | null>(null);
 
@@ -101,6 +102,7 @@ const CustomSettings = ({
   };
 
   const onDeleteProfile = async (profileId: string) => {
+    setIsDeleting(true);
     try {
       await mdmAPI.deleteProfile(profileId);
       refetchProfiles();
@@ -112,6 +114,7 @@ const CustomSettings = ({
       selectedProfile.current = null;
       setShowDeleteProfileModal(false);
     }
+    setIsDeleting(false);
   };
 
   // pagination controls
@@ -213,6 +216,7 @@ const CustomSettings = ({
           profileId={selectedProfile.current?.profile_uuid}
           onCancel={onCancelDelete}
           onDelete={onDeleteProfile}
+          isDeleting={isDeleting}
         />
       )}
       {isPremiumTier && hasLabels && (

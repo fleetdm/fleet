@@ -10,7 +10,7 @@ type KeyEscrower interface {
 
 type LuksRunner struct {
 	escrower KeyEscrower
-	notifier dialog.Dialog
+	notifier dialog.Dialog //nolint:structcheck,unused
 }
 
 type LuksResponse struct {
@@ -29,9 +29,8 @@ type LuksResponse struct {
 	Err string
 }
 
-func New(escrower KeyEscrower, notifier dialog.Dialog) *LuksRunner {
+func New(escrower KeyEscrower) *LuksRunner {
 	return &LuksRunner{
 		escrower: escrower,
-		notifier: notifier,
 	}
 }

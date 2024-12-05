@@ -6586,12 +6586,12 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 	// Checking if an activity was created for the enrollment
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		`{
+		fmt.Sprintf(`{
 			"mdm_platform": "microsoft",
-			"host_serial": "",
+			"host_serial": "%s",
 			"installed_from_dep": false,
-			"host_display_name": "DESKTOP-0C89RC0"
-		 }`,
+			"host_display_name": "%s"
+		 }`, windowsHost.HardwareSerial, windowsHost.DisplayName()),
 		0)
 
 	expectedDeviceID := "AB157C3A18778F4FB21E2739066C1F27" // TODO: make the hard-coded deviceID in `s.newSecurityTokenMsg` configurable

@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 
 import mdmAPI from "services/entities/mdm";
 import { NotificationContext } from "context/notification";
@@ -22,8 +22,10 @@ const DeleteSetupExperienceScriptModal = ({
   onDeleted,
 }: IDeleteSetupExperienceScriptModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const onDelete = async () => {
+    setIsDeleting(true);
     try {
       await mdmAPI.deleteSetupExperienceScript(currentTeamId);
       renderFlash("success", "Setup script successfully deleted!");
@@ -34,12 +36,17 @@ const DeleteSetupExperienceScriptModal = ({
       );
       console.error(error);
     }
-
+    setIsDeleting(false);
     onDeleted();
   };
 
   return (
-    <Modal className={baseClass} title="Delete setup script" onExit={onExit}>
+    <Modal
+      className={baseClass}
+      title="Delete setup script"
+      onExit={onExit}
+      isContentDisabled={isDeleting}
+    >
       <>
         <p>
           This action will cancel any pending script execution for{" "}
@@ -51,7 +58,12 @@ const DeleteSetupExperienceScriptModal = ({
         </p>
         <p>You cannot undo this action.</p>
         <div className="modal-cta-wrap">
-          <Button type="button" onClick={onDelete} variant="alert">
+          <Button
+            type="button"
+            onClick={onDelete}
+            variant="alert"
+            isLoading={isDeleting}
+          >
             Delete
           </Button>
           <Button onClick={onExit} variant="inverse-alert">
