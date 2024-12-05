@@ -64,20 +64,17 @@ const CustomDropdownIndicator = (
 const CustomOption: React.FC<OptionProps<IDropdownOption, false>> = (props) => {
   const { innerRef, data } = props;
 
-  const optionContent = (
-    <div
-      className={`${baseClass}__option`}
-      ref={innerRef}
-      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-      tabIndex={0}
-    >
-      {data.label}
-    </div>
-  );
-
   return (
     <components.Option {...props} isFocused={false}>
-      {optionContent}
+      <div
+        className={`${baseClass}__option`}
+        ref={innerRef}
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+        tabIndex={0}
+        role="menuitem"
+      >
+        {data.label}
+      </div>
     </components.Option>
   );
 };
