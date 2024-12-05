@@ -11,6 +11,7 @@
 module.exports.policies = {
 
   '*': 'is-logged-in',
+  'list-software': 'is-authorized-by-bearer-token',
 
   // Bypass the `is-logged-in` policy for:
   'entrance/*': true,
