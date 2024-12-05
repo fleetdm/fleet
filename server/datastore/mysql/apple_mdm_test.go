@@ -92,6 +92,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMManagedCertificates", testMDMManagedCertificates},
 		{"AppleMDMSetBatchAsyncLastSeenAt", testAppleMDMSetBatchAsyncLastSeenAt},
 		{"TestMDMAppleProfileLabels", testMDMAppleProfileLabels},
+		{"AggregateMacOSSettingsAllPlatforms", testAggregateMacOSSettingsAllPlatforms},
 	}
 
 	for _, c := range cases {
@@ -7526,4 +7527,42 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
 		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
 	}, profilesToInstall)
+}
+
+func testAggregateMacOSSettingsAllPlatforms(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create macOS/iOS/iPadOS devices on "No team".
+	var hosts []*fleet.Host
+	for i, platform := range []string{"darwin", "ios", "ipados"} {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:        fmt.Sprintf("hostname_%d", i),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("osquery-host-id_%d", i)),
+			NodeKey:         ptr.String(fmt.Sprintf("node-key_%d", i)),
+			UUID:            fmt.Sprintf("uuid_%d", i),
+			HardwareSerial:  fmt.Sprintf("serial_%d", i),
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		nanoEnrollAndSetHostMDMData(t, ds, host, false)
+		hosts = append(hosts, host)
+	}
+
+	// Create a profile for "No team".
+	cp, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("foobar", "barfoo", 0))
+	require.NoError(t, err)
+
+	// Upsert the profile with nil status, should be counted as pending.
+	upsertHostCPs(hosts, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMOperationTypeInstall, nil, ctx, ds, t)
+	res, err := ds.GetMDMAppleProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.EqualValues(t, len(hosts), res.Pending)
+	require.EqualValues(t, 0, res.Failed)
+	require.EqualValues(t, 0, res.Verifying)
+	require.EqualValues(t, 0, res.Verified)
 }

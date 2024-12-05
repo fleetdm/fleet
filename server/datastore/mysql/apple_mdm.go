@@ -2941,7 +2941,7 @@ FROM
 	%s
 	LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
 WHERE
-	platform IN('darwin', 'ios', 'ipad_os') AND %s
+	platform IN('darwin', 'ios', 'ipados') AND %s
 GROUP BY
 	status HAVING status IS NOT NULL`
 
