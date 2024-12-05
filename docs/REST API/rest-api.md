@@ -9865,7 +9865,13 @@ Add Fleet-maintained app so it's available for install.
 
 ##### Default response
 
-`Status: 204`
+`Status: 200`
+
+```json
+{
+  "software_title_id": 234
+}
+```
 
 ### Download package
 
