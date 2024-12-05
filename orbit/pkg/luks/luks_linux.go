@@ -14,7 +14,9 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/kdialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/lvm"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/zenity"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 	"github.com/siderolabs/go-blockdevice/v2/encryption"
@@ -35,11 +37,32 @@ const (
 
 var ErrKeySlotFull = regexp.MustCompile(`Key slot \d+ is full`)
 
+func isInstalled(toolName string) bool {
+	path, err := exec.LookPath(toolName)
+	if err != nil {
+		return false
+	}
+	return path != ""
+}
+
 func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	ctx := context.Background()
 
 	if !oc.Notifications.RunDiskEncryptionEscrow {
 		return nil
+	}
+
+	if !isInstalled("cryptsetup") {
+		return errors.New("cryptsetup is not installed")
+	}
+
+	switch {
+	case isInstalled("zenity"):
+		lr.notifier = zenity.New()
+	case isInstalled("kdialog"):
+		lr.notifier = kdialog.New()
+	default:
+		return errors.New("No supported dialog tool found")
 	}
 
 	devicePath, err := lvm.FindRootDisk()
@@ -81,7 +104,7 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 		}
 
 		// Show error in dialog
-		if err := lr.infoPrompt(ctx, infoTitle, infoFailedText); err != nil {
+		if err := lr.infoPrompt(infoTitle, infoFailedText); err != nil {
 			log.Info().Err(err).Msg("failed to show failed escrow key dialog")
 		}
 
@@ -89,14 +112,14 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	}
 
 	if response.Err != "" {
-		if err := lr.infoPrompt(ctx, infoTitle, response.Err); err != nil {
+		if err := lr.infoPrompt(infoTitle, response.Err); err != nil {
 			log.Info().Err(err).Msg("failed to show response error dialog")
 		}
 		return fmt.Errorf("error getting linux escrow key: %s", response.Err)
 	}
 
 	// Show success dialog
-	if err := lr.infoPrompt(ctx, infoTitle, infoSuccessText); err != nil {
+	if err := lr.infoPrompt(infoTitle, infoSuccessText); err != nil {
 		log.Info().Err(err).Msg("failed to show success escrow key dialog")
 	}
 
@@ -251,7 +274,7 @@ func generateRandomPassphrase() ([]byte, error) {
 }
 
 func (lr *LuksRunner) entryPrompt(ctx context.Context, title, text string) ([]byte, error) {
-	passphrase, err := lr.notifier.ShowEntry(ctx, dialog.EntryOptions{
+	passphrase, err := lr.notifier.ShowEntry(dialog.EntryOptions{
 		Title:    title,
 		Text:     text,
 		HideText: true,
@@ -264,7 +287,7 @@ func (lr *LuksRunner) entryPrompt(ctx context.Context, title, text string) ([]by
 			return nil, nil
 		case errors.Is(err, dialog.ErrTimeout):
 			log.Debug().Msg("key escrow dialog timed out")
-			err := lr.infoPrompt(ctx, infoTitle, timeoutMessage)
+			err := lr.infoPrompt(infoTitle, timeoutMessage)
 			if err != nil {
 				log.Info().Err(err).Msg("failed to show timeout dialog")
 			}
@@ -279,8 +302,8 @@ func (lr *LuksRunner) entryPrompt(ctx context.Context, title, text string) ([]by
 	return passphrase, nil
 }
 
-func (lr *LuksRunner) infoPrompt(ctx context.Context, title, text string) error {
-	err := lr.notifier.ShowInfo(ctx, dialog.InfoOptions{
+func (lr *LuksRunner) infoPrompt(title, text string) error {
+	err := lr.notifier.ShowInfo(dialog.InfoOptions{
 		Title:   title,
 		Text:    text,
 		TimeOut: 1 * time.Minute,

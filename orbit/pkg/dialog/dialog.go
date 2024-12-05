@@ -1,7 +1,6 @@
 package dialog
 
 import (
-	"context"
 	"errors"
 	"time"
 )
@@ -20,10 +19,10 @@ var (
 type Dialog interface {
 	// ShowEntry displays a dialog that accepts end user input. It returns the entered
 	// text or errors ErrCanceled, ErrTimeout, or ErrUnknown.
-	ShowEntry(ctx context.Context, opts EntryOptions) ([]byte, error)
+	ShowEntry(opts EntryOptions) ([]byte, error)
 	// ShowInfo displays a dialog that displays information. It returns an error if the dialog
 	// could not be displayed.
-	ShowInfo(ctx context.Context, opts InfoOptions) error
+	ShowInfo(opts InfoOptions) error
 	// Progress displays a dialog that shows progress. It waits until the
 	// context is cancelled.
 	ShowProgress(opts ProgressOptions) (cancelFunc func() error, err error)

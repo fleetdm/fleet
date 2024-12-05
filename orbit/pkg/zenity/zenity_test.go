@@ -1,7 +1,6 @@
 package zenity
 
 import (
-	"context"
 	"os/exec"
 	"testing"
 	"time"
@@ -18,7 +17,7 @@ type mockExecCmd struct {
 }
 
 // MockCommandContext simulates exec.CommandContext and captures arguments
-func (m *mockExecCmd) runWithOutput(ctx context.Context, args ...string) ([]byte, int, error) {
+func (m *mockExecCmd) runWithOutput(args ...string) ([]byte, int, error) {
 	m.capturedArgs = append(m.capturedArgs, args...)
 
 	if m.exitCode != 0 {
@@ -35,8 +34,6 @@ func (m *mockExecCmd) runWithStdin(args ...string) (func() error, error) {
 }
 
 func TestShowEntryArgs(t *testing.T) {
-	ctx := context.Background()
-
 	testCases := []struct {
 		name         string
 		opts         dialog.EntryOptions
@@ -70,7 +67,7 @@ func TestShowEntryArgs(t *testing.T) {
 			z := &Zenity{
 				cmdWithOutput: mock.runWithOutput,
 			}
-			output, err := z.ShowEntry(ctx, tt.opts)
+			output, err := z.ShowEntry(tt.opts)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedArgs, mock.capturedArgs)
 			assert.Equal(t, []byte("some output"), output)
@@ -79,8 +76,6 @@ func TestShowEntryArgs(t *testing.T) {
 }
 
 func TestShowEntryError(t *testing.T) {
-	ctx := context.Background()
-
 	testcases := []struct {
 		name        string
 		exitCode    int
@@ -111,7 +106,7 @@ func TestShowEntryError(t *testing.T) {
 			z := &Zenity{
 				cmdWithOutput: mock.runWithOutput,
 			}
-			output, err := z.ShowEntry(ctx, dialog.EntryOptions{})
+			output, err := z.ShowEntry(dialog.EntryOptions{})
 			require.ErrorIs(t, err, tt.expectedErr)
 			assert.Nil(t, output)
 		})
@@ -119,22 +114,18 @@ func TestShowEntryError(t *testing.T) {
 }
 
 func TestShowEntrySuccess(t *testing.T) {
-	ctx := context.Background()
-
 	mock := &mockExecCmd{
 		output: []byte("some output"),
 	}
 	z := &Zenity{
 		cmdWithOutput: mock.runWithOutput,
 	}
-	output, err := z.ShowEntry(ctx, dialog.EntryOptions{})
+	output, err := z.ShowEntry(dialog.EntryOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("some output"), output)
 }
 
 func TestShowInfoArgs(t *testing.T) {
-	ctx := context.Background()
-
 	testCases := []struct {
 		name         string
 		opts         dialog.InfoOptions
@@ -162,7 +153,7 @@ func TestShowInfoArgs(t *testing.T) {
 			z := &Zenity{
 				cmdWithOutput: mock.runWithOutput,
 			}
-			err := z.ShowInfo(ctx, tt.opts)
+			err := z.ShowInfo(tt.opts)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedArgs, mock.capturedArgs)
 		})
@@ -170,8 +161,6 @@ func TestShowInfoArgs(t *testing.T) {
 }
 
 func TestShowInfoError(t *testing.T) {
-	ctx := context.Background()
-
 	testcases := []struct {
 		name        string
 		exitCode    int
@@ -197,7 +186,7 @@ func TestShowInfoError(t *testing.T) {
 			z := &Zenity{
 				cmdWithOutput: mock.runWithOutput,
 			}
-			err := z.ShowInfo(ctx, dialog.InfoOptions{})
+			err := z.ShowInfo(dialog.InfoOptions{})
 			require.ErrorIs(t, err, tt.expectedErr)
 		})
 	}
