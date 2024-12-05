@@ -8676,6 +8676,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
 - [Add script](#add-script)
+- [Modify script](#modify-script)
 - [Delete script](#delete-script)
 - [List scripts](#list-scripts)
 - [Get or download script](#get-or-download-script)
@@ -8732,7 +8733,7 @@ Gets the result of a script that was executed.
 
 `GET /api/v1/fleet/scripts/results/:execution_id`
 
-##### Default Response
+##### Default response
 
 `Status: 200`
 
@@ -8804,6 +8805,41 @@ echo "hello"
   "script_id": 1227
 }
 ```
+
+### Modify script
+
+Modifies an existing script.
+
+`PATCH /api/v1/fleet/scripts/:id`
+
+##### Request body
+
+```json
+{
+  script_content: "updated script content"
+}
+```
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                           |
+| ----            | ------- | ---- | --------------------------------------------          |
+| id              | integer | path | **Required**. The ID of the script to modify. |
+
+#### Example
+
+`PATCH /api/v1/fleet/scripts/1`
+
+##### Default response
+
+`Status: 204`
+
+```json
+{
+  script_content: "updated content is returned here"
+}
+```
+
 
 ### Delete script
 
@@ -9582,7 +9618,7 @@ _Available in Fleet Premium._
 
 Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 
-`PATCH /api/v1/fleet/software/titles/:title_id/package`
+`PATCH /api/v1/fleet/software/titles/:id/package`
 
 #### Parameters
 
