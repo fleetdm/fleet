@@ -39,7 +39,6 @@ import {
   IQueryKeyQueriesLoadAll,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
-import { IHostScript } from "interfaces/script";
 
 import {
   normalizeEmptyValues,
