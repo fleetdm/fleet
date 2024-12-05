@@ -128,8 +128,7 @@ export default {
     }`;
   },
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
-  TWO_FACTOR_AUTHENTICATION: `${URL_PREFIX}/login/2fa`,
-  EXPIRED: `${URL_PREFIX}/login/expired`,
+  MFA: `${URL_PREFIX}/login/mfa`,
   NO_ACCESS: `${URL_PREFIX}/login/denied`,
   API_ONLY_USER: `${URL_PREFIX}/apionlyuser`,
 
