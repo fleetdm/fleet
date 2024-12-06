@@ -66,7 +66,6 @@ const CustomOption: React.FC<
 > = (props) => {
   const { innerRef, data, isFocused, isKeyboardFocus } = props;
 
-  console.log("props", props);
   return (
     <components.Option
       {...props}
@@ -92,7 +91,8 @@ const UserMenu = ({
   isGlobalAdmin,
   currentUser,
 }: IUserMenuProps): JSX.Element => {
-  // Work around for react-select-5 not having :focus-visible pseudo class that can style dropdown on tabbing only
+  // Work around for react-select-5 not having :focus-visible pseudo class that can style dropdown on keyboard tab only
+  // Work around preventing react-select-5 from auto focusing first option unless using keyboard
   const [isKeyboardFocus, setIsKeyboardFocus] = useState(false);
 
   useEffect(() => {
