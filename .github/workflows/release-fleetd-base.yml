@@ -71,7 +71,7 @@ jobs:
           curl -O $BASE_URL/stable/tuf-meta.json
           if diff latest-tuf-meta.json tuf-meta.json >/dev/null 2>&1
           then
-            echo "update_needed=false" >> $GITHUB_OUTPUT
+            echo "update_needed=true" >> $GITHUB_OUTPUT
           else
             echo "update_needed=true" >> $GITHUB_OUTPUT
           fi
@@ -125,7 +125,6 @@ jobs:
           rm certificate.p12
 
       - name: Build PKG, sign, and notarize
-        id: build-sign-notarize
         env:
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
@@ -139,6 +138,7 @@ jobs:
           command: fleetctl package --type pkg --fleet-desktop --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize
 
       - name: Calculate the SHA256 checksum of the package
+        id: calculate-sha256
         run: |
           mv fleet-osquery*.pkg fleetd-base.pkg
           echo "fleetd_base_pkg_sha256=$(shasum -a 256 fleetd-base.pkg | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
@@ -159,7 +159,7 @@ jobs:
                       <integer>32</integer>
                       <key>sha256s</key>
                       <array>
-                        <string>${{ steps.build-sign-notarize.outputs.fleetd_base_pkg_sha256 }}</string>
+                        <string>${{ steps.calculate-sha256.outputs.fleetd_base_pkg_sha256 }}</string>
                       </array>
                       <key>url</key>
                       <string>${{ env.BASE_URL }}/${{ env.FULL_DATE_DIR }}/fleetd-base.pkg</string>
@@ -314,7 +314,7 @@ jobs:
           filenames: stable/meta.json,stable/tuf-meta.json,${{ env.FULL_DATE_DIR }}/meta.json,${{ env.FULL_DATE_DIR }}/tuf-meta.json
 
   verify-fleetd-base:
-    # needs: update-meta-files
+    needs: update-meta-files
     uses: ./.github/workflows/verify-fleetd-base.yml
     with:
       base-url: "https://download-testing.fleetdm.com" # Production: "https://download.fleetdm.com" | Testing: "https://download-testing.fleetdm.com"
