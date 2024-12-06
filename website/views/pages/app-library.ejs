@@ -24,8 +24,8 @@
         </div> -->
       </div>
       <div purpose="count-and-cta" class="d-flex flex-sm-row flex-column align-items-sm-center align-items-start justify-content-sm-between justify-content-center mb-3">
-        <div><p class="mb-sm-0"><strong>{{allApps.length}} and counting....</strong></p></div>
-        <div>
+        <div><p class="mb-0"><strong>{{allApps.length}} and counting....</strong></p></div>
+        <div class="d-sm-block d-none">
           <a purpose="request-button" href="/contact?sendMessage">Request an app</a>
         </div>
       </div>
@@ -46,21 +46,10 @@
             </div>
           </a>
         <% } %>
-        <!--
-        <a :href="'/app-library/'+app.identifier" purpose="app-card" class="card d-flex" v-for="app in allApps">
-          <div class="d-flex flex-row align-items-center justify-content-start">
-            <div purpose="app-icon">
-              <img :src="'/images/app-icon-'+app.identifier+'-60x60@2x.png'">
-            </div>
-            <div class="flex-column">
-              <h4>{{app.name}}</h4>
-              <p purpose="app-version" class="mb-0">
-                {{app.version}}
-              </p>
-            </div>
-          </div>
-        </a> -->
         <div purpose="app-card" class="card d-flex invisible"></div>
+      </div>
+      <div class="d-flex d-sm-none w-100">
+        <a purpose="request-button" href="/contact?sendMessage">Request an app</a>
       </div>
     </div>
   </div>

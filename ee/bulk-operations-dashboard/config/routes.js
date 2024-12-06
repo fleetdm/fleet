@@ -67,6 +67,7 @@ module.exports.routes = {
   'POST /api/v1/software/delete-software':               { action: 'software/delete-software' },
   'POST /api/v1/software/edit-software':                 { action: 'software/edit-software' },
   'POST /api/v1/software/upload-software':               { action: 'software/upload-software' },
+  'GET /api/v1/get-labels':                              { action: 'get-labels' },
   'GET /api/v1/list-software':                           { action: 'list-software' },
   'GET /api/v1/account/get-new-api-token':               { action: 'account/get-new-api-token' },
 };

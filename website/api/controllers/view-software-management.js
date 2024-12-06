@@ -23,13 +23,24 @@ module.exports = {
     // Get testimonials for the <scrolalble-tweets> component.
     let testimonialsForScrollableTweets = _.clone(sails.config.builtStaticContent.testimonials);
 
+    // Specify an order for the testimonials on this page using the last names of quote authors
+    let testimonialOrderForThisPage = [
+      'Wes Whetstone',
+      'Kenny Botelho',
+      'Andre Shields',
+      'Erik Gomez',
+      'Arsenio Figueroa',
+      'Eric Tan',
+      'Chandra Majumdar',
+      'Nico Waisman',
+      'Dan Grzelak',
+    ];
+
     // Filter the testimonials by product category
     testimonialsForScrollableTweets = _.filter(testimonialsForScrollableTweets, (testimonial)=>{
-      return _.contains(testimonial.productCategories, 'Vulnerability management');
+      return _.contains(testimonial.productCategories, 'Software management') && _.contains(testimonialOrderForThisPage, testimonial.quoteAuthorName);
     });
 
-    // Specify an order for the testimonials on this page using the last names of quote authors
-    let testimonialOrderForThisPage = ['Nico Waisman', 'Andre Shields', 'Dhruv Majumdar', 'Austin Anderson', 'Dan Grzelak', 'Nick Fohs', 'Chandra Majumdar', 'Charles Zaffery'];
     testimonialsForScrollableTweets.sort((a, b)=>{
       if(testimonialOrderForThisPage.indexOf(a.quoteAuthorName) === -1){
         return 1;

@@ -24,13 +24,13 @@
       </div>
       <div purpose="context-switch" class="d-flex flex-sm-row flex-column">
         <div purpose="switch-option" :class="[selectedContent === 'mdm' ? 'selected' : '']" @click="clickChangePageContent('mdm')"><p>Device management</p></div>
-        <div purpose="switch-option" :class="[selectedContent === 'it' ? 'selected' : '']" @click="clickChangePageContent('it')"><p>IT engineering</p></div>
-        <div purpose="switch-option" :class="[selectedContent === 'security' ? 'selected' : '']" @click="clickChangePageContent('security')"><p>Security engineering</p></div>
+        <div purpose="switch-option" :class="[selectedContent === 'it' ? 'selected' : '']" @click="clickChangePageContent('it')"><p>Observability</p></div>
+        <div purpose="switch-option" :class="[selectedContent === 'security' ? 'selected' : '']" @click="clickChangePageContent('security')"><p>Software management</p></div>
       </div>
       <div v-if="selectedContent === 'mdm'">
         <div purpose="testimonials-container" class="card-columns">
           <% for(let testimonial of testimonialsForMdm) {%>
-            <div purpose="testimonial-card" class="card">
+            <a href="<%- testimonial.quoteLinkUrl%>" target="_blank" purpose="testimonial-card" class="card" >
               <% if(testimonial.quoteImageFilename){ %>
                 <div purpose="logo" class="mb-4">
                   <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>
@@ -39,7 +39,7 @@
               <p purpose="quote">
                 <%- testimonial.quote %>
                 <%if(testimonial.youtubeVideoUrl) {%>
-                  <a purpose="video-link" @click="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</a>
+                  <span purpose="video-link" @click.prevent.self="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</span>
                 <% } %>
               </p>
               <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
@@ -51,14 +51,14 @@
                   <p purpose="job-title" class="m-0"><%- testimonial.quoteAuthorJobTitle %></p>
                 </div>
               </div>
-            </div>
+            </a>
           <% } %>
         </div>
       </div>
       <div v-if="selectedContent === 'it'">
         <div purpose="testimonials-container" class="card-columns">
-          <% for(let testimonial of testimonialsForItEngineering) {%>
-            <div purpose="testimonial-card" class="card">
+          <% for(let testimonial of testimonialsForObservability) {%>
+            <a href="<%- testimonial.quoteLinkUrl%>" target="_blank" purpose="testimonial-card" class="card" >
               <% if(testimonial.quoteImageFilename){ %>
                 <div purpose="logo" class="mb-4">
                   <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>
@@ -67,7 +67,7 @@
               <p purpose="quote">
                 <%- testimonial.quote %>
                 <%if(testimonial.youtubeVideoUrl) {%>
-                  <a purpose="video-link" @click="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</a>
+                  <span purpose="video-link" @click.prevent.self="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</span>
                 <% } %>
               </p>
               <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
@@ -79,14 +79,14 @@
                   <p purpose="job-title" class="m-0"><%- testimonial.quoteAuthorJobTitle %></p>
                 </div>
               </div>
-            </div>
+            </a>
           <% } %>
         </div>
       </div>
       <div v-if="selectedContent === 'security'">
         <div purpose="testimonials-container" class="card-columns">
-          <% for(let testimonial of testimonialsForSecurityEngineering) {%>
-            <div purpose="testimonial-card" class="card">
+          <% for(let testimonial of testimonialsForSoftwareManagement) {%>
+            <a href="<%- testimonial.quoteLinkUrl%>" target="_blank" purpose="testimonial-card" class="card" >
               <% if(testimonial.quoteImageFilename){ %>
                 <div purpose="logo" class="mb-4">
                   <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>
@@ -95,7 +95,7 @@
               <p purpose="quote">
                 <%- testimonial.quote %>
                 <%if(testimonial.youtubeVideoUrl) {%>
-                  <a purpose="video-link" @click="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</a>
+                  <span purpose="video-link" @click.prevent.self="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</span>
                 <% } %>
               </p>
               <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
@@ -107,7 +107,7 @@
                   <p purpose="job-title" class="m-0"><%- testimonial.quoteAuthorJobTitle %></p>
                 </div>
               </div>
-            </div>
+            </a>
           <% } %>
         </div>
       </div>
@@ -117,17 +117,25 @@
         </div>
         <div purpose="logos-and-statistics" class="mx-auto">
           <div purpose="statistics">
-            <div purpose="customers">
-              <h4>100+</h4>
-              <p>customers</p>
+            <div purpose="statistics-column">
+              <div purpose="customers">
+                <h4>100+</h4>
+                <p>customers</p>
+              </div>
+              <div purpose="devices">
+                <h4>2,000,000+</h4>
+                <p>computing devices</p>
+              </div>
             </div>
-            <div purpose="devices">
-              <h4>2,000,000+</h4>
-              <p>computing devices</p>
-            </div>
-            <div purpose="countries" >
-              <h4>90+</h4>
-              <p>countries</p>
+            <div purpose="statistics-column">
+              <div purpose="countries">
+                <h4>90+</h4>
+                <p>countries</p>
+              </div>
+              <div purpose="response-time">
+                <h4>8 minutes</h4>
+                <p>avg support response time</p>
+              </div>
             </div>
           </div>
           <logo-carousel></logo-carousel>

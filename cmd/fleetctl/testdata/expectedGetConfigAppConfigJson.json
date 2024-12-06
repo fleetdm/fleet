@@ -118,6 +118,7 @@
 				"deadline_days": 7,
 				"grace_period_days": 3
 			},
+			"windows_migration_enabled": false,
 			"macos_migration": {
 				"enable": false,
 				"mode": "",

@@ -84,7 +84,7 @@ module.exports = {
                     contentType: 'application/octet-stream'
                   });
                   (async ()=>{
-                    await axios.post(`${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/package`, form, {
+                    await axios.postForm(`${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/package`, form, {
                       headers: {
                         Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
                         ...form.getHeaders()
@@ -118,7 +118,7 @@ module.exports = {
                 if(_.startsWith(errorMessageFromFleetInstance, `Couldn't add. Fleet couldn't read the version`)){
                   return 'couldNotReadVersion';
                 } else {
-                  sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API. Error returned from Fleet API: ${errorMessageFromFleetInstance}`);
+                  sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API. Error returned from Fleet API: ${errorMessageFromFleetInstance} \n Axios error: ${require('util').inspect(error, {depth: 3})}`);
                   return {'softwareUploadFailed': error};
                 }
               }

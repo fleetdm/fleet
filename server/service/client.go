@@ -1512,6 +1512,11 @@ func (c *Client) DoGitOps(
 		} else {
 			mdmAppConfig["windows_enabled_and_configured"] = false
 		}
+		// Put in default values for windows_migration_enabled
+		mdmAppConfig["windows_migration_enabled"] = config.Controls.WindowsMigrationEnabled
+		if config.Controls.WindowsMigrationEnabled == nil {
+			mdmAppConfig["windows_migration_enabled"] = false
+		}
 		if windowsEnabledAndConfiguredAssumption, ok := mdmAppConfig["windows_enabled_and_configured"].(bool); ok {
 			teamAssumptions = &fleet.TeamSpecsDryRunAssumptions{
 				WindowsEnabledAndConfigured: optjson.SetBool(windowsEnabledAndConfiguredAssumption),

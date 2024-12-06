@@ -20,7 +20,7 @@ export type IDiskEncryptionSummaryResponse = Record<
 
 const diskEncryptionService = {
   getDiskEncryptionSummary: (teamId?: number) => {
-    let { MDM_DISK_ENCRYPTION_SUMMARY: path } = endpoints;
+    let { DISK_ENCRYPTION: path } = endpoints;
 
     if (teamId) {
       path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
