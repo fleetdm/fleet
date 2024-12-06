@@ -1638,6 +1638,9 @@ type Datastore interface {
 	// DeleteScript deletes the script identified by its id.
 	DeleteScript(ctx context.Context, id uint) error
 
+	// DeletePendingHostScriptExecutionsForPolicy should be called when a policy is deleted to remove any pending script executions
+	DeletePendingHostScriptExecutionsForPolicy(ctx context.Context, policyID uint) error
+
 	// ListScripts returns a paginated list of scripts corresponding to the
 	// criteria.
 	ListScripts(ctx context.Context, teamID *uint, opt ListOptions) ([]*Script, *PaginationMetadata, error)
@@ -1754,6 +1757,9 @@ type Datastore interface {
 
 	// DeleteSoftwareInstaller deletes the software installer corresponding to the id.
 	DeleteSoftwareInstaller(ctx context.Context, id uint) error
+
+	// DeletePendingSoftwareInstallsForPolicy should be called after a policy is deleted to remove any pending software installs
+	DeletePendingSoftwareInstallsForPolicy(ctx context.Context, policyID uint) error
 
 	// DeleteVPPAppFromTeam deletes the VPP app corresponding to the adamID from
 	// the provided team.

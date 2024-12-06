@@ -461,6 +461,22 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 	})
 }
 
+func (ds *Datastore) DeletePendingSoftwareInstallsForPolicy(ctx context.Context, policyID uint) error {
+	const deleteStmt = `
+		DELETE FROM
+			host_software_installs
+		WHERE 
+			policy_id = ? AND
+			status = ?
+	`
+	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, policyID, fleet.SoftwareInstallPending)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete pending software installs for policy")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool, policyID *uint) (string, error) {
 	const (
 		getInstallerStmt = `SELECT filename, "version", title_id, COALESCE(st.name, '[deleted title]') title_name

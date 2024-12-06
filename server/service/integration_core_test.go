@@ -6615,6 +6615,58 @@ func (s *integrationTestSuite) TestTeamPoliciesTeamNotExists() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", 9999999), deleteTeamPoliciesRequest{IDs: []uint{1, 1000}}, http.StatusNotFound, &deleteTeamPoliciesResponse)
 }
 
+func (s *integrationTestSuite) TestTeamPolicyPendingScript() {
+	t := s.T()
+
+	user := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
+	team1, _ := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+
+	// create a policy and add a pending script execution
+	script1, err := s.ds.NewScript(context.Background(), &fleet.Script{
+		Name:           "script1.sh",
+		ScriptContents: "echo",
+		TeamID:         &team1.ID,
+	})
+	require.NoError(t, err)
+	tpParams := teamPolicyRequest{
+		Name:        "policy",
+		Query:       "select * from osquery;",
+		Description: "Some description",
+		Resolution:  "some team resolution",
+		Platform:    "darwin",
+		ScriptID:    &script1.ID,
+	}
+	tpResp := teamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusOK, &tpResp)
+	policy := tpResp.Policy
+
+	// add pending script execution
+	_, err = s.ds.NewHostScriptExecutionRequest(context.Background(), &fleet.HostScriptRequestPayload{
+		HostID:         1,
+		ScriptContents: "echo",
+		UserID:         &user.ID,
+		PolicyID:       &policy.ID,
+		SyncRequest:    true,
+	})
+	require.NoError(t, err)
+	pending, err := s.ds.ListPendingHostScriptExecutions(context.Background(), 1)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(pending))
+
+	deleteTeamPoliciesResponse := deleteTeamPoliciesResponse{}
+	s.DoJSON("POST",
+		fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", team1.ID),
+		deleteTeamPoliciesRequest{IDs: []uint{policy.ID}},
+		http.StatusOK,
+		&deleteTeamPoliciesResponse,
+	)
+
+	// list pending executions
+	pending, err = s.ds.ListPendingHostScriptExecutions(context.Background(), 1)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(pending))
+}
+
 func (s *integrationTestSuite) TestSessionInfo() {
 	t := s.T()
 

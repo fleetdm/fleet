@@ -1,0 +1,1 @@
+* On policy deletion any associated pending software installer or scripts are deleted. 
