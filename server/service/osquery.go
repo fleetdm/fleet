@@ -2461,6 +2461,13 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 		// 2017/legacy packs with the format "pack/<Pack name>/<Query name> are
 		// considered unknown format (they are not considered global or team
 		// scheduled queries).
+
+		// We can't infer the team from this and it can't be stored, but it's still valid
+		if strings.HasPrefix(path, "pack"+sep) && strings.Count(path, "/") == 2 {
+			return nil, "", fleet.ErrLegacyQueryPack
+		}
+
+		// Truly unknown
 		return nil, "", fmt.Errorf("unknown format: %q", path)
 	}
 
@@ -2493,11 +2500,6 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 		return &teamNumber, teamIDAndQueryNameParts[1], nil
 	}
 
-	// Legacy query packs: path/<anything>/Name
-	// We can't infer the team from this and it can't be stored, but it's still valid
-	if strings.HasPrefix(path, "path"+sep) && strings.Count(path, "/") == 2 {
-		return nil, "", fleet.ErrLegacyQueryPack
-	}
 	// If none of the above patterns match, return error
 	return nil, "", fmt.Errorf("unknown format: %q", path)
 }
