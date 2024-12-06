@@ -1,6 +1,6 @@
 # Leading financial company consolidates multiple tools with Fleet
 
-Fleet helps Scaling organizations that face a common challenge: managing every device efficiently across varying teams and locations. Here, we take a deeper look at the impact that Fleet has made at a leading financial technology company. 
+Scaling organizations face a common challenge: managing every device efficiently across varying teams and locations. Here, we take a deeper look at the impact that Fleet has made at a leading financial technology company.
 
 ## Fleet’s impact
 
