@@ -50,9 +50,9 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 1. Take the top user story that is assigned to you in the "Ready" column of the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board) and move it to "In progress."
   
 2. Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project). The starter file includes three predefined pages: "Cover," "Ready," and "Scratchpad."
- -  **Cover**: This page has a component with issue number, issue name, and status fields. There are three statuses: "Work In Progress (WIP)," "Approved," and "Released" (the drafting board is still the source of truth).
- -  **Ready**: Use this page to communicate design reviews and development.
- -  **Scratchpad**: Use this page to keep "work in progress" designs that might be useful in the future.
+   -  **Cover**: This page has a component with issue number, issue name, and status fields. There are three statuses: "Work In Progress (WIP)," "Approved," and "Released" (the drafting board is still the source of truth).
+   -  **Ready**: Use this page to communicate design reviews and development.
+   -  **Scratchpad**: Use this page to keep "work in progress" designs that might be useful in the future.
 
 3. Add page names (e.g. "Host details" page) to the user story's title and/or description to help contributors find Figma wireframes for the area of the UI you're making changes to.
 
