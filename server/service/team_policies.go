@@ -397,6 +397,15 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 		}
 	}
 
+	for _, policy := range policiesByID {
+		if err := svc.ds.DeletePendingSoftwareInstallsForPolicy(ctx, policy.PolicyData.ID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete pending software installs for policy")
+		}
+		if err := svc.ds.DeletePendingHostScriptExecutionsForPolicy(ctx, policy.PolicyData.ID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete pending host script executions for policy")
+		}
+	}
+
 	deletedIDs, err := svc.ds.DeleteTeamPolicies(ctx, teamID, ids)
 	if err != nil {
 		return nil, err
