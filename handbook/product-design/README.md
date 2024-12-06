@@ -67,7 +67,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 
 Additionally:
 
-- To make changes to the design system or a component (e.g. button border-radius or modal width), [make a new request](#making-a-request) and attach the `:design system improvement` label. Updates will be reviewed and, if accepted, be incorporated back into the design system by the designer who proposed the change.
+- To make changes to the design system or a component (e.g. button border-radius or modal width), [make a new request](#making-a-request) and attach the `:improve design system` label.
 
 - If the story has a requester and the title and/or description change during drafting (scope change), notify the requester. The customer DRI should confirm that the updated scope still meets the requester's needs.
 
