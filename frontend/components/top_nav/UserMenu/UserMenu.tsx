@@ -61,11 +61,17 @@ const CustomDropdownIndicator = (
   );
 };
 
-const CustomOption: React.FC<OptionProps<IDropdownOption, false>> = (props) => {
-  const { innerRef, data } = props;
+const CustomOption: React.FC<
+  OptionProps<IDropdownOption, false> & { isKeyboardFocus: boolean }
+> = (props) => {
+  const { innerRef, data, isFocused, isKeyboardFocus } = props;
 
+  console.log("props", props);
   return (
-    <components.Option {...props} isFocused={false}>
+    <components.Option
+      {...props}
+      isFocused={isKeyboardFocus ? isFocused : false} // work around to not preselect first option unless keyboarding
+    >
       <div
         className={`${baseClass}__option`}
         ref={innerRef}
@@ -254,7 +260,9 @@ const UserMenu = ({
         components={{
           DropdownIndicator: CustomDropdownIndicator,
           IndicatorSeparator: () => null,
-          Option: CustomOption,
+          Option: (props) => (
+            <CustomOption {...props} isKeyboardFocus={isKeyboardFocus} />
+          ),
           SingleValue: () => null,
         }}
         controlShouldRenderValue={false}
