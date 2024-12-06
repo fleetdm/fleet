@@ -1405,16 +1405,16 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	// current implementation.
 
 	// TODO once testLabelsListHostsInLabelOSSettings enrolls hosts into the correct MDM, switch to this:
-	/*sqlFmt := ` AND (
+	sqlFmt := ` AND (
 		(h.platform = 'windows' AND mwe.host_uuid IS NOT NULL AND hmdm.enrolled = 1) -- windows
 		OR (h.platform IN ('darwin', 'ios', 'ipados') AND ne.id IS NOT NULL AND hmdm.enrolled = 1) -- apple
 		OR (h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%%') -- linux
-	)`*/
-
-	sqlFmt := ` AND (
-		(h.platform IN('windows', 'darwin', 'ios', 'ipados') AND (ne.id IS NOT NULL OR mwe.host_uuid IS NOT NULL) AND hmdm.enrolled = 1)
-		OR (h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%%')
 	)`
+
+	// sqlFmt := ` AND (
+	// 	(h.platform IN('windows', 'darwin', 'ios', 'ipados') AND (ne.id IS NOT NULL OR mwe.host_uuid IS NOT NULL) AND hmdm.enrolled = 1)
+	// 	OR (h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%%')
+	// )`
 
 	if opt.TeamFilter == nil {
 		// OS settings filter is not compatible with the "all teams" option so append the "no team"
