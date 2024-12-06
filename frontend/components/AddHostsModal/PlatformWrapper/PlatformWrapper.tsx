@@ -340,9 +340,11 @@ const PlatformWrapper = ({
     };
     const getHelpTextForPackageType = (): string => {
       if (packageType === "deb") {
-        return " For CentOS, Red Hat, and Fedora Linux, use --type=rpm.";
+        return "Install this package to add hosts to Fleet. For CentOS, Red Hat, and Fedora Linux, use --type=rpm.";
       } else if (packageType === "msi") {
-        return " Windows can only generate an MSI package.";
+        return "Install this package to add hosts to Fleet.";
+      } else if (packageType === "pkg") {
+        return "Install this package to add hosts to Fleet";
       }
       return "";
     };
@@ -553,7 +555,7 @@ const PlatformWrapper = ({
           label={renderLabel(packageType, renderInstallerString(packageType))}
           type="textarea"
           value={renderInstallerString(packageType)}
-          helpText={`Distribute your package to add hosts to Fleet.${getHelpTextForPackageType()}`}
+          helpText={`${getHelpTextForPackageType()}`}
         />
       </>
     );
