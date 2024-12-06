@@ -34,10 +34,10 @@ permissions:
 
 env:
   R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-  R2_ACCESS_KEY_ID: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_ID }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_ID }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }}
-  R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
-  R2_BUCKET: download # Production: download | Testing: download-testing
-  BASE_URL: https://download.fleetdm.com # Production: https://download.fleetdm.com | Testing: https://download-testing.fleetdm.com
+  R2_ACCESS_KEY_ID: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_ID }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }}
+  R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
+  R2_BUCKET: download-testing # Production: download | Testing: download-testing
+  BASE_URL: https://download-testing.fleetdm.com # Production: https://download.fleetdm.com | Testing: https://download-testing.fleetdm.com
 
 jobs:
   check-for-fleetd-component-updates:
@@ -91,6 +91,7 @@ jobs:
       fleetd_base_pkg_sha256: ${{ steps.build-sign-notarize.outputs.fleetd_base_pkg_sha256 }}
     env:
       FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
+    timeout-minutes: 120
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
@@ -130,11 +131,16 @@ jobs:
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           PACKAGE_SIGNING_IDENTITY_SHA1: D52080FD1F0941DE31346F06DA0F08AED6FACBBF
-        run: |
-          fleetctl package --type pkg --fleet-desktop --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize
-          mv fleet-osquery*.pkg fleetd-base.pkg
-          : # Calculate the SHA256 checksum of the package
-          echo "fleetd_base_pkg_sha256=$(shasum -a 256 fleetd-base.pkg | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
+        # We use retry because we've seen Apple notarization fail or timeout
+        uses: nick-fields/retry@7152eba30c6575329ac0576536151aca5a72780e # v3.0.0
+        with:
+          timeout_minutes: 40
+          max_attempts: 10
+          command: |
+            fleetctl package --type pkg --fleet-desktop --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize
+            mv fleet-osquery*.pkg fleetd-base.pkg
+            : # Calculate the SHA256 checksum of the package
+            echo "fleetd_base_pkg_sha256=$(shasum -a 256 fleetd-base.pkg | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
 
       - name: Create plist
         run: |
@@ -310,4 +316,4 @@ jobs:
     needs: update-meta-files
     uses: ./.github/workflows/verify-fleetd-base.yml
     with:
-      base-url: "https://download.fleetdm.com" # Production: "https://download.fleetdm.com" | Testing: "https://download-testing.fleetdm.com"
+      base-url: "https://download-testing.fleetdm.com" # Production: "https://download.fleetdm.com" | Testing: "https://download-testing.fleetdm.com"
