@@ -38,5 +38,5 @@ To learn more about how Workbrew and Fleet can work together, visit [Workbrew’
 <meta name="authorFullName" value="Drew Baker">
 <meta name="publishedOn" value="2024-11-19">
 <meta name="articleTitle" value="Introducing Workbrew: bringing enterprise control to Homebrew deployments">
-<meta name="category" value="announcements">
+<meta name="category" value="misc">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-and-workbrew-1600x900@2x.png">
