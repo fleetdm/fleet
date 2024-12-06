@@ -2463,7 +2463,7 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 		// scheduled queries).
 
 		// We can't infer the team from this and it can't be stored, but it's still valid
-		if strings.HasPrefix(path, "pack"+sep) && strings.Count(path, "/") == 2 {
+		if strings.HasPrefix(path, "pack/") && strings.Count(path, "/") == 2 {
 			return nil, "", fleet.ErrLegacyQueryPack
 		}
 
