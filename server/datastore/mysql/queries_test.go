@@ -459,6 +459,19 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	for i := 0; i < 10; i++ {
+		// populate platform field of first 4 queries
+		var p string
+		switch i {
+		case 0:
+			p = "darwin"
+		case 1:
+			p = "windows"
+		case 2:
+			p = "linux"
+		case 3:
+			p = "darwin,windows,linux"
+		}
+
 		_, err := ds.NewQuery(context.Background(), &fleet.Query{
 			Name:           fmt.Sprintf("name%02d", i),
 			Query:          fmt.Sprintf("query%02d", i),
@@ -467,6 +480,7 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 			DiscardData:    true,
 			ObserverCanRun: rand.Intn(2) == 0, //nolint:gosec
 			Logging:        fleet.LoggingSnapshot,
+			Platform:       p,
 		})
 		require.Nil(t, err)
 	}
@@ -484,10 +498,52 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 	opts := fleet.ListQueryOptions{}
 	opts.IncludeMetadata = true
 
+	opts.Platform = ptr.String("darwin")
+	// filtered by platform
+	results, count, meta, err := ds.ListQueries(context.Background(), opts)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(results))
+	assert.Equal(t, count, 2)
+	assert.False(t, meta.HasPreviousResults)
+	assert.False(t, meta.HasNextResults)
+	require.Equal(t, "darwin", results[0].Platform)
+	require.Equal(t, "darwin,windows,linux", results[1].Platform)
+
+	opts.Platform = ptr.String("windows")
+	results, count, meta, err = ds.ListQueries(context.Background(), opts)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(results))
+	assert.Equal(t, count, 2)
+	assert.False(t, meta.HasPreviousResults)
+	assert.False(t, meta.HasNextResults)
+	require.Equal(t, "windows", results[0].Platform)
+	require.Equal(t, "darwin,windows,linux", results[1].Platform)
+
+	opts.Platform = ptr.String("linux")
+	results, count, meta, err = ds.ListQueries(context.Background(), opts)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(results))
+	assert.Equal(t, count, 2)
+	assert.False(t, meta.HasPreviousResults)
+	assert.False(t, meta.HasNextResults)
+	require.Equal(t, "linux", results[0].Platform)
+	require.Equal(t, "darwin,windows,linux", results[1].Platform)
+
+	opts.Platform = ptr.String("lucas")
+	results, count, meta, err = ds.ListQueries(context.Background(), opts)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(results))
+	assert.Equal(t, count, 0)
+	assert.False(t, meta.HasPreviousResults)
+	assert.False(t, meta.HasNextResults)
+	require.Empty(t, results)
+
+	opts.Platform = nil
+
 	// paginated - beginning
 	opts.PerPage = 3
 	opts.Page = 0
-	results, count, meta, err := ds.ListQueries(context.Background(), opts)
+	results, count, meta, err = ds.ListQueries(context.Background(), opts)
 	require.NoError(t, err)
 	require.Equal(t, 3, len(results))
 	require.Equal(t, "Zach", results[0].AuthorName)
