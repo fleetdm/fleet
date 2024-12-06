@@ -56,7 +56,6 @@ Fleet's straightforward deployment package allowed a quick install of the agent 
 
 Being [open-source](http://fleetdm.com/handbook/company/why-this-way?utm_content=eo-security#why-open-source), Fleet provided the transparency and flexibility to tailor the platform to their specific requirements. This fostered trust among engineering teams and allows them to audit, customize, and extend the platform as needed.
 
-
 **Fleet's next-gen change management capabilities:**
 
 - Enforce custom settings updates and deployment: Manage custom settings across all devices using GitOps workflows.
@@ -65,7 +64,6 @@ Being [open-source](http://fleetdm.com/handbook/company/why-this-way?utm_content
 - Deliver MDM commands: Manage and execute MDM commands like lock, sleep, and wipe.
 - Report on installed applications and versions: Generate comprehensive reports on installed applications, aiding in software management and compliance checks.
 
-
 ### Definitive data and end-user empowerment
 
 Fleet can pull detailed information on assets across every operating system in seconds, allowing quick assessments of device health, installed applications, and verified configurations. Because Fleet is API-first, programmable, and built for automation, they configure all of their devices to access its network but only if they passed its predetermined policies.
@@ -73,9 +71,7 @@ Fleet can pull detailed information on assets across every operating system in s
 By providing self-service instructions in [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop#basic-article), end-users can resolve common policy issues without IT intervention, reducing support tickets and increasing efficiency. This empowerment optimizes resources and allowed their IT teams to focus on more strategic initiatives.
 
 
-
 ## Conclusion:
-
 
 Fleet has become an integral part of the financial company's infrastructure, offering the scalability, transparency, and flexibility needed to support their growth. By choosing Fleet, they improved endpoint operations, streamlined device management, unified their device management strategy across all platforms, and empowered end-users—all while leveraging the benefits of an open-source solution with advanced [GitOps capabilities](https://github.com/fleetdm/fleet-gitops).
 
