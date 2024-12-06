@@ -1,0 +1,1 @@
+* Include disk encryption stats only if setting is enabled for linux host
