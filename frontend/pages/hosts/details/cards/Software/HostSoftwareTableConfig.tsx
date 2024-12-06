@@ -78,8 +78,8 @@ export const generateActions = ({
   // the options.
   const actions = cloneDeep(DEFAULT_ACTION_OPTIONS);
 
-  // we want to hide the install/uninstall actions if (1) there this item doesn't have a
-  // software_package or app_store_app or (2) the user doens't have write permission for software
+  // we want to hide the install/uninstall actions if (1) this item doesn't have a
+  // software_package or app_store_app or (2) the user doens't have write permission
   const hideActions =
     (!app_store_app && !software_package) || !userHasSWWritePermission;
 
