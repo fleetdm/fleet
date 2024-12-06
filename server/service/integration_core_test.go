@@ -3425,34 +3425,38 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	assert.Equal(t, uint(0), delBatchResp.Deleted)
 }
 
-func (s *integrationTestSuite) TestQueriesPagination() {
+func (s *integrationTestSuite) TestQueriesPaginationAndPlatformFilter() {
 	t := s.T()
 
 	// make a few queries
 	testQueries := []*fleet.Query{
-		{Name: "paginationTestQuery1", Query: "select 1"},
-		{Name: "paginationTestQuery2", Query: "select 2"},
-		{Name: "paginationTestQuery3", Query: "select 3"},
-		{Name: "paginationTestQuery4", Query: "select 4"},
-		{Name: "paginationTestQuery5", Query: "select 5"},
-		{Name: "paginationTestQuery6", Query: "select 6"},
-		{Name: "paginationTestQuery7", Query: "select 7"},
-		{Name: "paginationTestQuery8", Query: "select 8"},
-		{Name: "paginationTestQuery9", Query: "select 9"},
-		{Name: "paginationTestQuery10", Query: "select 10"},
+		{Name: "TestQuery1", Query: "select 1", Platform: "darwin"},
+		{Name: "TestQuery2", Query: "select 2", Platform: "linux"},
+		{Name: "TestQuery3", Query: "select 3", Platform: "windows"},
+		{Name: "TestQuery4", Query: "select 4", Platform: "darwin,windows,linux"},
+		{Name: "TestQuery5", Query: "select 5"},
+		{Name: "TestQuery6", Query: "select 6"},
+		{Name: "TestQuery7", Query: "select 7"},
+		{Name: "TestQuery8", Query: "select 8"},
+		{Name: "TestQuery9", Query: "select 9"},
+		{Name: "TestQuery10", Query: "select 10"},
 	}
 	var createQueryResp createQueryResponse
 	for _, q := range testQueries {
 		reqQuery := &fleet.QueryPayload{
-			Name:  &q.Name,
-			Query: &q.Query,
+			Name:     &q.Name,
+			Query:    &q.Query,
+			Platform: &q.Platform,
 		}
 		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
-		require.NotZero(t, createQueryResp.Query.ID)
+		require.Equal(t, createQueryResp.Query.Name, q.Name)
+		require.Equal(t, createQueryResp.Query.Platform, q.Platform)
 	}
 
 	var listQryResp listQueriesResponse
-	queryNameToMatch := "paginationTestQuery"
+	queryNameToMatch := "TestQuery"
+
+	// Test pagination, no filter
 
 	// middle of the pages
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "query", queryNameToMatch, "per_page", "2", "page", "1")
@@ -3488,6 +3492,48 @@ func (s *integrationTestSuite) TestQueriesPagination() {
 	require.Equal(t, listQryResp.Count, 10)
 	require.True(t, listQryResp.Meta.HasPreviousResults)
 	require.False(t, listQryResp.Meta.HasNextResults)
+
+	// test platform filtering
+
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "platform", "macos")
+	require.Len(t, listQryResp.Queries, 2)
+	require.Equal(t, listQryResp.Count, 2)
+	require.False(t, listQryResp.Meta.HasPreviousResults)
+	require.False(t, listQryResp.Meta.HasNextResults)
+	require.Equal(t, "darwin", listQryResp.Queries[0].Platform)
+	require.Equal(t, "darwin,windows,linux", listQryResp.Queries[1].Platform)
+
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "platform", "windows")
+	require.Len(t, listQryResp.Queries, 2)
+	require.Equal(t, listQryResp.Count, 2)
+	require.False(t, listQryResp.Meta.HasPreviousResults)
+	require.False(t, listQryResp.Meta.HasNextResults)
+	require.Equal(t, "windows", listQryResp.Queries[0].Platform)
+	require.Equal(t, "darwin,windows,linux", listQryResp.Queries[1].Platform)
+
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "platform", "linux")
+	require.Len(t, listQryResp.Queries, 2)
+	require.Equal(t, listQryResp.Count, 2)
+	require.False(t, listQryResp.Meta.HasPreviousResults)
+	require.False(t, listQryResp.Meta.HasNextResults)
+	require.Equal(t, "linux", listQryResp.Queries[0].Platform)
+	require.Equal(t, "darwin,windows,linux", listQryResp.Queries[1].Platform)
+
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "platform", "linux", "per_page", "1", "page", "0")
+	require.Len(t, listQryResp.Queries, 1)
+	require.Equal(t, listQryResp.Count, 2)
+	require.False(t, listQryResp.Meta.HasPreviousResults)
+	require.True(t, listQryResp.Meta.HasNextResults)
+	require.Equal(t, "linux", listQryResp.Queries[0].Platform)
+
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "platform", "linux", "per_page", "1", "page", "1")
+	require.Len(t, listQryResp.Queries, 1)
+	require.Equal(t, listQryResp.Count, 2)
+	require.True(t, listQryResp.Meta.HasPreviousResults)
+	require.False(t, listQryResp.Meta.HasNextResults)
+	require.Equal(t, "darwin,windows,linux", listQryResp.Queries[0].Platform)
+
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusBadRequest, &listQryResp, "platform", "lucas", "per_page", "1", "page", "1")
 
 	// delete them by name
 	var delByNameResp deleteQueryResponse
