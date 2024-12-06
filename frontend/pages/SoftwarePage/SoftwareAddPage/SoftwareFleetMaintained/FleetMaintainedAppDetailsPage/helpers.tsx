@@ -21,6 +21,7 @@ const NameToIdentifierMap: Record<string, string> = {
   "Microsoft Visual Studio Code": "visual-studio-code",
   WhatsApp: "whatsapp",
   Zoom: "zoom",
+  "Zoom for IT Admins": "zoom-for-it-admins",
 };
 
 const getFleetAppData = (name: string) => {
