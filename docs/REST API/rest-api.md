@@ -8816,7 +8816,7 @@ Modifies an existing script.
 
 ```json
 {
-  "script_content": "updated script content"
+  "script_content": "#!/bin/sh\\n\\n#!/usr/bin/env bash\\n\\nsudo systemsetup -settimezone Pacific/Ponape"
 }
 ```
 
@@ -8837,7 +8837,7 @@ Modifies an existing script.
 
 ```json
 {
-  "script_content": "updated content is returned here"
+  "script_content": "#!/bin/sh\\n\\n#!/usr/bin/env bash\\n\\nsudo systemsetup -settimezone Pacific/Ponape"
 }
 ```
 
