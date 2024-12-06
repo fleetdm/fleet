@@ -71,7 +71,7 @@ jobs:
           curl -O $BASE_URL/stable/tuf-meta.json
           if diff latest-tuf-meta.json tuf-meta.json >/dev/null 2>&1
           then
-            echo "update_needed=true" >> $GITHUB_OUTPUT
+            echo "update_needed=false" >> $GITHUB_OUTPUT
           else
             echo "update_needed=true" >> $GITHUB_OUTPUT
           fi
