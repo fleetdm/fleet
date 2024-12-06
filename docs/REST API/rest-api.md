@@ -2993,6 +2993,12 @@ Returns the information of the specified host.
     "percent_disk_space_available": 74,
     "gigs_total_disk_space": 160,
     "disk_encryption_enabled": true,
+    "end_user" {
+      "full_name": "John Doe",
+      "role": "Software Engineer",
+      "department": "Engineering",
+      "groups": ["Engineering", "Canary"]
+    }
     "users": [
       {
         "uid": 0,
@@ -3765,6 +3771,8 @@ Also returns the custom email that's set via the `PUT /api/v1/fleet/hosts/:id/de
 
 Note that IdP email is only supported on macOS hosts. It's collected once, during automatic enrollment (DEP), only if the end user authenticates with the IdP and the DEP profile has `await_device_configured` set to `true`.
 
+Email with `custom` data soruce is used as the identifier to get data from the IdP (LDAP server).`mdm_idp_accounts` is used if `custom` isn't present. Once LDAP sync is performed, these emails will be used to determine to which end user the host belongs to.
+
 `GET /api/v1/fleet/hosts/:id/device_mapping`
 
 #### Parameters
@@ -3787,7 +3795,7 @@ Note that IdP email is only supported on macOS hosts. It's collected once, durin
   "device_mapping": [
     {
       "email": "user@example.com",
-      "source": "identity_provider"
+      "source": "mdm_idp_accounts"
     },
     {
       "email": "user@example.com",
@@ -3807,7 +3815,7 @@ Note that IdP email is only supported on macOS hosts. It's collected once, durin
 
 `PUT /api/v1/fleet/hosts/:id/device_mapping`
 
-Updates the email for the `custom` data source in the human-device mapping. This source can only have one email.
+Updates the email for the `custom` data source in the human-device mapping. This source can only have one email. To delete email with `custom` data source, send a request with `email` set to empty string.
 
 #### Parameters
 
@@ -6776,6 +6784,71 @@ _Available in Fleet Premium_
   "location": "Acme Inc. Main Address"
 }
 ```
+
+### Add LDAP server
+
+Add your Lightweight Directory Access Protocol (LDAP) server to add end user information to your hosts (e.g. Okta, Google Workspace, or Entra ID).
+
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/ldap_servers`
+
+#### Parameters
+
+| Name              | Type    | In   | Description                                     |
+| ----------------- | ------- | ---- | ----------------------------------------------- |
+| display_name              | string  | body | **Required.** The LDAP server display name.                   |
+| hostname          | string  | body | **Required.** Domain name or IP address of your LDAP server.     |
+| port              | integer | body | **Required.** The port of LDAP server. E.g. 389 or 636 (for SSL).      |
+| ssl_certificate   | string  | body | The content of SSL certificate. If specified port must be 636.                        |
+| bind_user_dn       | string  | body | **Required.** Distinguished name (DN) of admin account that Fleet will use when connecting to LDAP server. Only one of either combinations `bind_user_dn`&`bind_password` or `client_certificate`&`client_private_key` can be included in the request.                   |
+| bind_password       | string  | body | **Required.** Password of admin account that Fleet will use when connecting to LDAP server. Only one of either combinations `bind_user_dn`&`bind_password` or `client_certificate`&`client_private_key` can be included in the request.                    |
+| client_certificate  | string  | body | **Required.** The content of client certificate. It's used for SASL EXTERNAL authentication. Only one of either combinations `bind_user_dn`&`bind_password` or `client_certificate`&`client_private_key` can be included in the request.   |
+| client_private_key   | string  | body | **Required.** The content of client private key. It's used for SASL EXTERNAL authentication. Only one of either combinations `bind_user_dn`&`bind_password` or `client_certificate`&`client_private_key` can be included in the request.                 |
+| users_base_dn | string  | body | **Required.** Distinguished name (DN) of the branch to get users from, including all subtrees below.                     |
+| users_object_classes_include_all | string  | body | Limit users search to specified object classes. Separate object classes with comma. By default, all object classes are included.           |
+| user_email_mapping | string  | body | **Required.** Email is unique identifier that is used to map end user information from IdP to host. Host’s end user email from human-device mapping API will be used to compare with LDAP value defined here to get other information from user info from LDAP.                           |
+| user_full_name_mapping | string  | body | The LDAP attribute that maps to the `end_user.full_name` field in host vitals.                           |
+| user_role_mapping | string  | body | The LDAP attribute that maps to the `end_user.role` field in host vitals.                         |
+| user_department_mapping | string  | body | The LDAP attribute that maps to the `end_user.department` field in host vitals.                        |
+| groups_base_dn | string  | body | Distinguished name (DN) of the branch to get groups from, including all subtrees below.                     |
+| groups_object_classes_include_all | string  | body | Limit groups search to specified object classes. Separate object classes with comma. By default, all object classes are included.                    |
+| group_id_mapping | string  | body | The LDAP attribute that maps to the group ID in Fleet.                       |
+| group_name_mapping | string  | body | The LDAP attribute that maps to the groups that appear in `end_user.groups`.                    |
+| group_user_membership_mapping | string  | body | The LDAP attribute that maps member user to a group.  |
+
+
+#### Example
+
+`POST /api/v1/fleet/ldap_servers`
+
+#### Request body
+
+```json
+{
+  "server_name": "LDAP integration",
+  "hostname": "ldap.acme.com",
+  "port": 636,
+  "ssl_certificate": "-----BEGIN CERTIFICATE-----MIIDdzCCAl+gAwIBAgIEU3B+azANBgkqhkiG9w0BAQUFADCBjDELMAkGA1UEBhMC-----END CERTIFICATE-----",
+  "bind_dn": "uid=name@acme.com,dc=ldap,dc=acme,dc=com",
+  "bind_password": "myLdapBindPassword",
+  "users_search_base_dn": "ou=users,dc=ldap,dc=acme,dc=com",
+  "users_included_object_classes": "inetOrgPerson",
+  "user_email_mapping": "uid",
+  "user_full_name_mapping": "cn",
+  "user_role_mapping": "role",
+  "user_department_mapping": "department",
+  "groups_search_base_dn": "ou=groups,dc=ldap,dc=acme,dc=com",
+  "groups_included_object_classes": "groupOfUniqueNames",
+  "group_id_mapping": "cn",
+  "group_name_mapping": "cn",
+  "group_user_membership_mapping": "uniqueMember",
+}
+```
+
+##### Default response
+
+`Status: 204`
 
 ---
 

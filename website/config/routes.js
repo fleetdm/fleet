@@ -612,7 +612,8 @@ module.exports.routes = {
   'GET /learn-more-about/mdm-disk-encryption': '/guides/enforce-disk-encryption',
   'GET /learn-more-about/encrypt-linux-device': '/guides/linux-disk-encryption-end-user',
   'GET /contribute-to/policies': 'https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml',
-
+  'GET /learn-more-about/add-idp-info-to-host-vitals': '/guides/fleetctl#installing-fleetctl',
+  
   // Sitemap
   // =============================================================================================================
   // This is for search engines, not humans.  Search engines know to visit fleetdm.com/sitemap.xml to download this
