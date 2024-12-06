@@ -189,8 +189,7 @@ const FleetMaintainedAppDetailsPage = ({
           "success",
           <>
             <b>{fleetApp?.name}</b> successfully added.
-          </>,
-          { persistOnPageChange: true }
+          </>
         );
       } catch (e) {
         renderFlash(
