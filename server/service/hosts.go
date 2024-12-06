@@ -1169,7 +1169,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 
 	// If Fleet MDM is enabled and configured, we want to include MDM profiles,
-	// disk encryption status, and macOS setup details.
+	// disk encryption status, and macOS setup details for non-linux hosts.
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get app config for host mdm details")
@@ -1242,7 +1242,13 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 	host.MDM.Profiles = &profiles
 
-	if host.IsLUKSSupported() {
+	// since Linux hosts don't require MDM to be enabled & configured, explicitly check that disk encryption is
+	// enabled for the host's team
+	eDE, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host disk encryption enabled setting")
+	}
+	if host.IsLUKSSupported() && eDE {
 		status, err := svc.LinuxHostDiskEncryptionStatus(ctx, *host)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host disk encryption status")
