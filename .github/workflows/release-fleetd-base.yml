@@ -136,11 +136,12 @@ jobs:
         with:
           timeout_minutes: 40
           max_attempts: 10
-          command: |
-            fleetctl package --type pkg --fleet-desktop --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize
-            mv fleet-osquery*.pkg fleetd-base.pkg
-            : # Calculate the SHA256 checksum of the package
-            echo "fleetd_base_pkg_sha256=$(shasum -a 256 fleetd-base.pkg | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
+          command: fleetctl package --type pkg --fleet-desktop --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize
+
+      - name: Calculate the SHA256 checksum of the package
+        run: |
+          mv fleet-osquery*.pkg fleetd-base.pkg
+          echo "fleetd_base_pkg_sha256=$(shasum -a 256 fleetd-base.pkg | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
 
       - name: Create plist
         run: |
