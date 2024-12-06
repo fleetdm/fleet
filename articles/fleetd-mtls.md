@@ -110,7 +110,7 @@ graph LR;
     subgraph fleetctl[fleetctl package command]
         update_client_certificate_fleetctl[update_client.crt<br>update_client.key];
     end
-    fleetctl -- TUF TLS --> nginx;
+    fleetctl -- TUF mTLS --> nginx;
 ```
 
 If you have suggestions for how to improve mTLS functionality in Fleet, please share them with us in the osquery Slack [#fleet channel](https://fleetdm.com/slack) or open an issue in Github.
