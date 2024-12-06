@@ -2146,6 +2146,8 @@ func (svc *Service) preProcessOsqueryResults(
 		}
 		teamID, queryName, err := getQueryNameAndTeamIDFromResult(queryResult.QueryName)
 		if errors.Is(err, fleet.ErrLegacyQueryPack) {
+			// Legacy query. Cannot be stored and cannot
+			// infer team ID, but still used by some customers
 			continue
 		}
 		if err != nil {
