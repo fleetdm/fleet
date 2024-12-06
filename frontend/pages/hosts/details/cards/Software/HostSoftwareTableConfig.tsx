@@ -70,12 +70,18 @@ export const generateActions = ({
   softwareIdActionPending,
   softwareId,
   status,
+  software_package,
   app_store_app,
   hostMDMEnrolled,
 }: generateActionsProps) => {
   // this gives us a clean slate of the default actions so we can modify
   // the options.
   const actions = cloneDeep(DEFAULT_ACTION_OPTIONS);
+
+  // we want to hide the install/uninstall actions if (1) there this item doesn't have a
+  // software_package or app_store_app or (2) the user doens't have write permission for software
+  const hideActions =
+    (!app_store_app && !software_package) || !userHasSWWritePermission;
 
   const indexInstallAction = actions.findIndex((a) => a.value === "install");
   if (indexInstallAction === -1) {
@@ -92,7 +98,13 @@ export const generateActions = ({
     throw new Error("Uninstall action not found in default actions");
   }
 
-  if (!userHasSWWritePermission) {
+  if (indexInstallAction > indexUninstallAction) {
+    // subsquent code depends on relative index order; this shouldn't change, but if it does we'll throw an
+    // error to fail loudly so that we know to update this function
+    throw new Error("Order of install/uninstall actions changed");
+  }
+
+  if (hideActions) {
     // Reverse order to not change index of subsequent array element before removal
     actions.splice(indexUninstallAction, 1);
     actions.splice(indexInstallAction, 1);
