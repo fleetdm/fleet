@@ -26,7 +26,7 @@ Double-click the `tar.gz` or `zip` file to extract the binary. To run fleetctl c
 
 ### Upgrading fleetctl
 
-If you previously used npm to install fleetctl, the easiest way to update fleetctl is by rerunning the install command.
+If you previously used npm to install fleetctl, fleetctl will update itself the next time you run it.
 
 ```sh
 npm install -g fleetctl@latest
