@@ -1,1 +1,0 @@
-* Improve performance of updating the `nano_enrollments.last_seen_at` timestamp of Apple MDM devices by an order of magnitude under load.

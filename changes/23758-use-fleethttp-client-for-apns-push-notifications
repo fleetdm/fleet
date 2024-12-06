@@ -1,1 +1,0 @@
-* Fixed a bug where the HTTP client used for MDM APNs push notifications did not support using a configured proxy.
