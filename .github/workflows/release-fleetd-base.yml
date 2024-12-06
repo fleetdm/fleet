@@ -314,7 +314,7 @@ jobs:
           filenames: stable/meta.json,stable/tuf-meta.json,${{ env.FULL_DATE_DIR }}/meta.json,${{ env.FULL_DATE_DIR }}/tuf-meta.json
 
   verify-fleetd-base:
-    needs: update-meta-files
+    # needs: update-meta-files
     uses: ./.github/workflows/verify-fleetd-base.yml
     with:
       base-url: "https://download-testing.fleetdm.com" # Production: "https://download.fleetdm.com" | Testing: "https://download-testing.fleetdm.com"
