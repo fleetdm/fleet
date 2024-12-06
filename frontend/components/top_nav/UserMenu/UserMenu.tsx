@@ -183,7 +183,6 @@ const UserMenu = ({
       ...(state.isFocused &&
         isKeyboardFocus && {
           border: `2px solid ${COLORS["ui-blue-25"]}`,
-          // Add other focus styles as needed
         }),
       ...(state.menuIsOpen && {
         ".user-menu-select__indicator svg": {
