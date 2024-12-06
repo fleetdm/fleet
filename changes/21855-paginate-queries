@@ -1,3 +1,5 @@
 - Fleshed out server response from `queries` endpoint to include `count` and `meta` pagination information.
 - Updated UI queries page to filter, sort, paginate, etc. via query params in call to server.
-- Added platform compatibility checking logic to the server.
+- Updated platform filtering on queries page to refer to targeted platforms instead of compatible
+  platforms
+- Updated queries API to support above targeted platform filtering

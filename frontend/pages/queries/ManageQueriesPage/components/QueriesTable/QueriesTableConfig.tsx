@@ -193,7 +193,7 @@ const generateTableHeaders = ({
           .split(",")
           .map((s) => s.trim())
           // this casting is necessary because make generate for some reason doesn't recognize the
-          // type guarding of `isQueryablePlatform` even though the lanugage server in VSCode does
+          // type guarding of `isQueryablePlatform` even though the language server in VSCode does
           .filter((s) => isQueryablePlatform(s)) as QueryablePlatform[];
         return <PlatformCell platforms={platforms} />;
       },
