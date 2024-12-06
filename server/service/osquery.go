@@ -2145,6 +2145,9 @@ func (svc *Service) preProcessOsqueryResults(
 			continue
 		}
 		teamID, queryName, err := getQueryNameAndTeamIDFromResult(queryResult.QueryName)
+		if errors.Is(err, fleet.ErrLegacyQueryPack) {
+			continue
+		}
 		if err != nil {
 			level.Debug(svc.logger).Log("msg", "querying name and team ID from result", "err", err)
 			continue
@@ -2488,6 +2491,11 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 		return &teamNumber, teamIDAndQueryNameParts[1], nil
 	}
 
+	// Legacy query packs: path/<anything>/Name
+	// We can't infer the team from this and it can't be stored, but it's still valid
+	if strings.HasPrefix(path, "path"+sep) && strings.Count(path, "/") == 2 {
+		return nil, "", fleet.ErrLegacyQueryPack
+	}
 	// If none of the above patterns match, return error
 	return nil, "", fmt.Errorf("unknown format: %q", path)
 }
