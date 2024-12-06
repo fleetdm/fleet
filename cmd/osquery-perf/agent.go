@@ -514,8 +514,7 @@ type agent struct {
 	MDMCheckInInterval    time.Duration
 	DiskEncryptionEnabled bool
 
-	scheduledQueriesMu sync.Mutex // protects the below members
-	scheduledQueryData map[string]scheduledQuery
+	scheduledQueryData sync.Map
 	// bufferedResults contains result logs that are buffered when
 	// /api/v1/osquery/log requests to the Fleet server fail.
 	//
@@ -777,9 +776,13 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		// check if we have any scheduled queries that should be returning results
 		var results []resultLog
 		now := time.Now().Unix()
-		a.scheduledQueriesMu.Lock()
+		// a.scheduledQueriesMu.Lock()
 		prevCount := a.countBuffered()
-		for queryName, query := range a.scheduledQueryData {
+
+		a.scheduledQueryData.Range(func(key, value any) bool {
+			queryName := key.(string)
+			query := value.(scheduledQuery)
+
 			if query.lastRun == 0 || now >= (query.lastRun+int64(query.ScheduleInterval)) {
 				results = append(results, resultLog{
 					packName:  query.packName,
@@ -787,18 +790,18 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 					numRows:   int(query.numRows),
 				})
 				// Update lastRun
-				v := a.scheduledQueryData[queryName]
-				v.lastRun = now
-				a.scheduledQueryData[queryName] = v
+				query.lastRun = now
+				a.scheduledQueryData.Store(queryName, query)
 			}
-		}
+
+			return true
+		})
 		if prevCount+len(results) < 1_000_000 { // osquery buffered_log_max is 1M
 			a.addToBuffer(results)
 		}
 		a.sendLogsBatch()
 		newBufferedCount := a.countBuffered() - prevCount
 		a.stats.UpdateBufferedLogs(newBufferedCount)
-		a.scheduledQueriesMu.Unlock()
 	}
 }
 
@@ -811,7 +814,9 @@ func (a *agent) countBuffered() int {
 }
 
 func (a *agent) addToBuffer(results []resultLog) {
+	fmt.Println("addToBuffer called!!")
 	for _, result := range results {
+		fmt.Printf("adding buffered result: %+v\n", result)
 		a.bufferedResults[result] += 1
 	}
 }
@@ -1518,7 +1523,16 @@ func (a *agent) config() error {
 		return fmt.Errorf("json parse at config: %w", err)
 	}
 
-	scheduledQueryData := make(map[string]scheduledQuery)
+	existingLastRunData := make(map[string]int64)
+
+	a.scheduledQueryData.Range(func(key, value any) bool {
+		existingLastRunData[key.(string)] = value.(scheduledQuery).lastRun
+
+		return true
+	})
+
+	a.scheduledQueryData.Clear()
+
 	for packName, pack := range parsedResp.Packs {
 		for queryName, query := range pack.Queries {
 			m, ok := query.(map[string]interface{})
@@ -1546,17 +1560,12 @@ func (a *agent) config() error {
 			q.Query = m["query"].(string)
 
 			scheduledQueryName := packName + "_" + queryName
-			if existingEntry, ok := a.scheduledQueryData[scheduledQueryName]; ok {
-				// Keep lastRun if the query is already scheduled.
-				q.lastRun = existingEntry.lastRun
+			if lastRun, ok := existingLastRunData[scheduledQueryName]; ok {
+				q.lastRun = lastRun
 			}
-			scheduledQueryData[scheduledQueryName] = q
+			a.scheduledQueryData.Store(scheduledQueryName, q)
 		}
 	}
-
-	a.scheduledQueriesMu.Lock()
-	a.scheduledQueryData = scheduledQueryData
-	a.scheduledQueriesMu.Unlock()
 
 	return nil
 }
@@ -1852,13 +1861,12 @@ func (a *agent) runPolicy(query string) []map[string]string {
 }
 
 func (a *agent) randomQueryStats() []map[string]string {
-	a.scheduledQueriesMu.Lock()
-	defer a.scheduledQueriesMu.Unlock()
-
 	var stats []map[string]string
-	for scheduledQuery := range a.scheduledQueryData {
+	a.scheduledQueryData.Range(func(key, value any) bool {
+		queryName := key.(string)
+
 		stats = append(stats, map[string]string{
-			"name":           scheduledQuery,
+			"name":           queryName,
 			"delimiter":      "_",
 			"average_memory": fmt.Sprint(rand.Intn(200) + 10),
 			"denylisted":     "false",
@@ -1871,7 +1879,9 @@ func (a *agent) randomQueryStats() []map[string]string {
 			"wall_time":      fmt.Sprint(rand.Intn(4) + 1),
 			"wall_time_ms":   fmt.Sprint(rand.Intn(4000) + 10),
 		})
-	}
+
+		return true
+	})
 	return stats
 }
 
@@ -2401,16 +2411,27 @@ func (a *agent) submitLogs(results []resultLog) error {
 		return fmt.Errorf("/version check failed: %w", err)
 	}
 
-	var resultLogs []byte
-	for i, result := range results {
-		if i > 0 {
-			resultLogs = append(resultLogs, ',')
-		}
-		resultLogs = append(resultLogs, result.emit()...)
+	var resultLogs []json.RawMessage
+	for _, result := range results {
+		resultLogs = append(resultLogs, result.emit())
 	}
 
-	body := []byte(`{"node_key": "` + a.nodeKey + `", "log_type": "result", "data": [` + string(resultLogs) + `]}`)
-	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/log", bytes.NewReader(body))
+	body := struct {
+		NodeKey string            `json:"node_key"`
+		LogType string            `json:"log_type"`
+		Data    []json.RawMessage `json:"data"`
+	}{
+		NodeKey: a.nodeKey,
+		LogType: "result",
+		Data:    resultLogs,
+	}
+
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("marshalling osquery logs: %w", err)
+	}
+
+	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/log", bytes.NewReader(bodyBytes))
 	if err != nil {
 		return err
 	}
