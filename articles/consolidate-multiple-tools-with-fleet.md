@@ -3,30 +3,30 @@
 
 ## Fleet’s impact
 
-* Eliminate tool overlap:
+* **Eliminate tool overlap:**
 Fleet reduced tool overlap by consolidating multiple legacy solutions - improving efficiency and reducing SaaS spending without compromising functionality.
 
-* Next-gen change management: 
+* **Next-gen change management:**
 GitOps capabilities reduce mistakes through peer reviews and keep track of changes for faster auditing.
 
-* Definitive data: 
+* **Definitive data:**
 Reliable, live access to their infrastructure to verify device data for better decisions surrounding end-user access and auditing context.
 
-* Seamless customization and integration:
+* **Seamless customization and integration:**
 Electing to self-host Fleet, and as the company continued to scale, they did so without a single point to their impressive 99.99% uptime.
 
 "We've been using Fleet for a few years and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customize it to our needs, and seamlessly integrate it into our existing environment." - Head of Developer Infrastructure & Corporate Technology
 
 **Challenge:** They looked to simplify how they manage devices and reduce tool overlap without sacrificing control over their infrastructure.  The use of multiple proprietary device management tools was creating operational silos, and it required specialized expertise for different legacy systems, leading to inefficiencies.
 
-**Solution:** The leading financial company migrated to Fleet without sacrificing a single point of their 99.99% uptime, replacing multiple device management suppliers with a single multi-platform system supporting macOS, desktop Linux, and Windows. They also implemented next-change management, reducing mistakes through peer reviews, and using the user interface and Fleet API for reporting, automation, and to enable smarter end-user self-service.
+**Solution:** The leading financial company migrated to Fleet without sacrificing a single point of their 99.99% uptime, replacing multiple device management suppliers with a single multi-platform system supporting macOS, desktop Linux, and Windows. They also implemented next-change management, reducing mistakes through peer reviews, and using the user interface and [Fleet API](https://fleetdm.com/docs/rest-api/rest-api) for reporting, automation, and to enable smarter end-user self-service.
 
 **Impact:** They saw a reduction in wasted time by unblocking data collection for audits and overcame change inertia, allowing IT to move faster with less maintenance through convention over configuration and bare metal access to every supported platform, including Apple and desktop Linux. In this way, they were able to offer employees device choice without adding to their risk register. 
 
 
 ## The challenge
 
-This company is global technology company building economic infrastructure for the Internet. Businesses of every size, from new startups to public companies, use it's software to accept payments and manage their businesses online and in person.
+This company is a global technology company building economic infrastructure for the Internet. Businesses of every size, from new startups to public companies, use its software to accept payments and manage their businesses online and in person.
 
 As they expanded, it faced a growing complexity in managing a vast array of devices across teams and locations. Existing solutions were either too cumbersome to deploy or lacked the flexibility and cross-platform support needed to align with existing infrastructure and workflows.
 
