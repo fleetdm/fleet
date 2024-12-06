@@ -48,7 +48,7 @@ Then, use that API token to authenticate all subsequent API requests by sending 
 Authorization: Bearer <your token>
 ```
 
-> For SSO users, email/password login is disabled. The API token can instead be retrieved from the "My account" page in the UI (/profile). On this page, choose "Get API token".
+> For SSO and MFA users, email/password login is disabled. The API token can instead be retrieved from the "My account" page in the UI (/profile). On this page, choose "Get API token".
 
 ### Log in
 
@@ -56,7 +56,7 @@ Authenticates the user with the specified credentials. Use the token returned fr
 
 `POST /api/v1/fleet/login`
 
-> This API endpoint is not available to SSO users, since email/password login is disabled for SSO users. To get an API token for an SSO user, you can use the Fleet UI.
+> Logging in via the API is not supported for SSO and MFA users. The API token can instead be retrieved from the "My account" page in the UI (/profile). On this page, choose "Get API token".
 
 #### Parameters
 
@@ -94,6 +94,7 @@ Authenticates the user with the specified credentials. Use the token returned fr
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
+    "mfa_enabled": false,
     "global_role": "admin",
     "teams": []
   },
@@ -115,6 +116,16 @@ Authenticates the user with the specified credentials. Use the token returned fr
     }
   ],
   "uuid": "1272014b-902b-4b36-bcdb-75fde5eac1fc"
+}
+```
+
+##### MFA Required
+
+`Status: 202 Accepted`
+
+```json
+{
+  "message": "We sent an email to you. Please click the magic link in the email to sign in.",
 }
 ```
 
@@ -11135,6 +11146,7 @@ None.
       "force_password_reset": false,
       "gravatar_url": "",
       "sso_enabled": false,
+      "mfa_enabled": false,
       "global_role": null,
       "api_only": false,
       "teams": [
@@ -11182,8 +11194,6 @@ Creates a user account after an invited user provides registration information a
 | name                  | string | body | **Required**. The name of the user.                                                                                                                                                                                                                                                                                                                      |
 | password              | string | body | The password chosen by the user (if not SSO user).                                                                                                                                                                                                                                                                                                       |
 | password_confirmation | string | body | Confirmation of the password chosen by the user.                                                                                                                                                                                                                                                                                                         |
-| global_role           | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access).                                                                                                                                                                        |
-| teams                 | array  | body | _Available in Fleet Premium_. The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `teams` is specified, `global_role` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
 
 #### Example
 
@@ -11197,17 +11207,7 @@ Creates a user account after an invited user provides registration information a
   "invite_token": "SjdReDNuZW5jd3dCbTJtQTQ5WjJTc2txWWlEcGpiM3c=",
   "name": "janedoe",
   "password": "test-123",
-  "password_confirmation": "test-123",
-  "teams": [
-    {
-      "id": 2,
-      "role": "observer"
-    },
-    {
-      "id": 4,
-      "role": "observer"
-    }
-  ]
+  "password_confirmation": "test-123"
 }
 ```
 
@@ -11227,6 +11227,7 @@ Creates a user account after an invited user provides registration information a
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
+    "mfa_enabled": false,
     "global_role": "admin",
     "teams": []
   }
@@ -11298,6 +11299,7 @@ By default, the user will be forced to reset its password upon first login.
 | name        | string  | body | **Required**. The user's full name or nickname.                                                                                                                                                                                                                                                                                                          |
 | password    | string  | body | The user's password (required for non-SSO users).                                                                                                                                                                                                                                                                                                        |
 | sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
+| mfa_enabled | boolean | body | _Available in Fleet Premium._ Whether or not the user must click a magic link emailed to them to log in, after they successfully enter their username and password. Incompatible with SSO and API-only users. |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
 | global_role | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access).                                                                                                                                                                        |
 | admin_forced_password_reset    | boolean | body | Sets whether the user will be forced to reset its password upon first login (default=true) |
@@ -11344,6 +11346,7 @@ By default, the user will be forced to reset its password upon first login.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
+    "mfa_enabled": false,
     "api_only": true,
     "global_role": null,
     "teams": [
@@ -11395,14 +11398,6 @@ Returns all information about a specific user.
 
 `GET /api/v1/fleet/users/2`
 
-##### Request query parameters
-
-```json
-{
-  "id": 1
-}
-```
-
 ##### Default response
 
 `Status: 200`
@@ -11418,6 +11413,7 @@ Returns all information about a specific user.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
+    "mfa_enabled": false,
     "global_role": "admin",
     "api_only": false,
     "teams": []
@@ -11454,6 +11450,7 @@ Returns all information about a specific user.
 | position    | string  | body | The user's position.                                                                                                                                                                                                                                                                                                                                     |
 | email       | string  | body | The user's email.                                                                                                                                                                                                                                                                                                                                        |
 | sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
+| mfa_enabled | boolean | body | _Available in Fleet Premium._ Whether or not the user must click a magic link emailed to them to log in, after they successfully enter their username and password. Incompatible with SSO and API-only users. |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
 | password    | string  | body | The user's current password, required to change the user's own email or password (not required for an admin to modify another user).                                                                                                                                                                                                                     |
 | new_password| string  | body | The user's new password. |
@@ -11489,6 +11486,7 @@ Returns all information about a specific user.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
+    "mfa_enabled": false,
     "api_only": false,
     "teams": []
   }
@@ -11532,6 +11530,7 @@ Returns all information about a specific user.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
+    "mfa_enabled": false,
     "global_role": "admin",
     "teams": [
       {
@@ -11607,6 +11606,7 @@ The selected user is logged out of Fleet and required to reset their password du
     "email": "janedoe@example.com",
     "force_password_reset": true,
     "gravatar_url": "",
+    "mfa_enabled": false,
     "sso_enabled": false,
     "global_role": "observer",
     "teams": []

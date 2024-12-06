@@ -1,5 +1,6 @@
 # API for contributors
 
+- [Authentication](#authentication)
 - [Packs](#packs)
 - [Mobile device management (MDM)](#mobile-device-management-mdm)
 - [Get or apply configuration files](#get-or-apply-configuration-files)
@@ -17,6 +18,22 @@
 This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
 
 If you are interested in gathering information from Fleet in a production environment, please see the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api).
+
+## Authentication
+
+### Create session
+
+`POST /api/v1/fleet/sessions`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| token | string | body | **Required**. The token retrieved from the magic link email. |
+
+#### Response
+
+See [the Log in endpoint](https://fleetdm.com/docs/rest-api/rest-api#log-in) for the current
+successful response format.
 
 ## Packs
 
