@@ -685,6 +685,23 @@ func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*mdm.Command, error) {
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
+// NotNow sends a NotNow message to the MDM server.
+// The cmdUUID is the UUID of the command to reference.
+//
+// The server can signal back with either a command to run
+// or an empty (nil, nil) response body to end the communication
+// (i.e. no commands to run).
+func (c *TestAppleMDMClient) NotNow(cmdUUID string) (*mdm.Command, error) {
+	payload := map[string]any{
+		"Status":       "NotNow",
+		"Topic":        "com.apple.mgmt.External." + c.UUID,
+		"UDID":         c.UUID,
+		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"CommandUUID":  cmdUUID,
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
 func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceName, productName string) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":      "Acknowledged",

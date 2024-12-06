@@ -38,7 +38,7 @@ func (mw metricsMiddleware) CallbackSSO(ctx context.Context, auth fleet.Auth) (s
 	return
 }
 
-func (mw metricsMiddleware) Login(ctx context.Context, email string, password string) (*fleet.User, *fleet.Session, error) {
+func (mw metricsMiddleware) Login(ctx context.Context, email string, password string, supportsEmailVerification bool) (*fleet.User, *fleet.Session, error) {
 	var (
 		user    *fleet.User
 		session *fleet.Session
@@ -49,7 +49,7 @@ func (mw metricsMiddleware) Login(ctx context.Context, email string, password st
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	user, session, err = mw.Service.Login(ctx, email, password)
+	user, session, err = mw.Service.Login(ctx, email, password, supportsEmailVerification)
 	return user, session, err
 }
 

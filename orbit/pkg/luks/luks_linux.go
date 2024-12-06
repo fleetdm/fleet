@@ -11,10 +11,14 @@ import (
 	"math/big"
 	"os/exec"
 	"regexp"
+	"strings"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/kdialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/lvm"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/zenity"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 	"github.com/siderolabs/go-blockdevice/v2/encryption"
@@ -35,11 +39,32 @@ const (
 
 var ErrKeySlotFull = regexp.MustCompile(`Key slot \d+ is full`)
 
+func isInstalled(toolName string) bool {
+	path, err := exec.LookPath(toolName)
+	if err != nil {
+		return false
+	}
+	return path != ""
+}
+
 func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	ctx := context.Background()
 
 	if !oc.Notifications.RunDiskEncryptionEscrow {
 		return nil
+	}
+
+	if !isInstalled("cryptsetup") {
+		return errors.New("cryptsetup is not installed")
+	}
+
+	switch {
+	case isInstalled("zenity"):
+		lr.notifier = zenity.New()
+	case isInstalled("kdialog"):
+		lr.notifier = kdialog.New()
+	default:
+		return errors.New("No supported dialog tool found")
 	}
 
 	devicePath, err := lvm.FindRootDisk()
@@ -67,7 +92,7 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 			if err := removeKeySlot(ctx, devicePath, *keyslot); err != nil {
 				log.Error().Err(err).Msgf("failed to remove key slot %d", *keyslot)
 			}
-			return fmt.Errorf("Failed to get salt for key slot: %w", err)
+			response.Err = fmt.Sprintf("Failed to get salt for key slot: %s", err)
 		}
 		response.Salt = salt
 	}
@@ -81,7 +106,7 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 		}
 
 		// Show error in dialog
-		if err := lr.infoPrompt(ctx, infoTitle, infoFailedText); err != nil {
+		if err := lr.infoPrompt(infoTitle, infoFailedText); err != nil {
 			log.Info().Err(err).Msg("failed to show failed escrow key dialog")
 		}
 
@@ -89,14 +114,14 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	}
 
 	if response.Err != "" {
-		if err := lr.infoPrompt(ctx, infoTitle, response.Err); err != nil {
+		if err := lr.infoPrompt(infoTitle, response.Err); err != nil {
 			log.Info().Err(err).Msg("failed to show response error dialog")
 		}
 		return fmt.Errorf("error getting linux escrow key: %s", response.Err)
 	}
 
 	// Show success dialog
-	if err := lr.infoPrompt(ctx, infoTitle, infoSuccessText); err != nil {
+	if err := lr.infoPrompt(infoTitle, infoSuccessText); err != nil {
 		log.Info().Err(err).Msg("failed to show success escrow key dialog")
 	}
 
@@ -118,13 +143,18 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		return nil, nil, nil
 	}
 
-	err = lr.notifier.ShowProgress(ctx, dialog.ProgressOptions{
+	cancelProgress, err := lr.notifier.ShowProgress(dialog.ProgressOptions{
 		Title: infoTitle,
 		Text:  "Validating passphrase...",
 	})
 	if err != nil {
 		log.Error().Err(err).Msg("failed to show progress dialog")
 	}
+	defer func() {
+		if err := cancelProgress(); err != nil {
+			log.Debug().Err(err).Msg("failed to cancel progress dialog")
+		}
+	}()
 
 	// Validate the passphrase
 	for {
@@ -147,22 +177,25 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 			return nil, nil, nil
 		}
 
-		err = lr.notifier.ShowProgress(ctx, dialog.ProgressOptions{
-			Title: infoTitle,
-			Text:  "Validating passphrase...",
-		})
-		if err != nil {
-			log.Error().Err(err).Msg("failed to show progress dialog after retry")
-		}
 	}
 
-	err = lr.notifier.ShowProgress(ctx, dialog.ProgressOptions{
+	if err := cancelProgress(); err != nil {
+		log.Error().Err(err).Msg("failed to cancel progress dialog")
+	}
+
+	cancelProgress, err = lr.notifier.ShowProgress(dialog.ProgressOptions{
 		Title: infoTitle,
-		Text:  "Key escrow in progress...",
+		Text:  "Escrowing key...",
 	})
 	if err != nil {
 		log.Error().Err(err).Msg("failed to show progress dialog")
 	}
+
+	defer func() {
+		if err := cancelProgress(); err != nil {
+			log.Error().Err(err).Msg("failed to cancel progress dialog")
+		}
+	}()
 
 	escrowPassphrase, err := generateRandomPassphrase()
 	if err != nil {
@@ -243,7 +276,7 @@ func generateRandomPassphrase() ([]byte, error) {
 }
 
 func (lr *LuksRunner) entryPrompt(ctx context.Context, title, text string) ([]byte, error) {
-	passphrase, err := lr.notifier.ShowEntry(ctx, dialog.EntryOptions{
+	passphrase, err := lr.notifier.ShowEntry(dialog.EntryOptions{
 		Title:    title,
 		Text:     text,
 		HideText: true,
@@ -256,7 +289,7 @@ func (lr *LuksRunner) entryPrompt(ctx context.Context, title, text string) ([]by
 			return nil, nil
 		case errors.Is(err, dialog.ErrTimeout):
 			log.Debug().Msg("key escrow dialog timed out")
-			err := lr.infoPrompt(ctx, infoTitle, timeoutMessage)
+			err := lr.infoPrompt(infoTitle, timeoutMessage)
 			if err != nil {
 				log.Info().Err(err).Msg("failed to show timeout dialog")
 			}
@@ -271,8 +304,8 @@ func (lr *LuksRunner) entryPrompt(ctx context.Context, title, text string) ([]by
 	return passphrase, nil
 }
 
-func (lr *LuksRunner) infoPrompt(ctx context.Context, title, text string) error {
-	err := lr.notifier.ShowInfo(ctx, dialog.InfoOptions{
+func (lr *LuksRunner) infoPrompt(title, text string) error {
+	err := lr.notifier.ShowInfo(dialog.InfoOptions{
 		Title:   title,
 		Text:    text,
 		TimeOut: 1 * time.Minute,
@@ -303,10 +336,32 @@ type KDF struct {
 }
 
 func getSaltforKeySlot(ctx context.Context, devicePath string, keySlot uint) (string, error) {
-	cmd := exec.CommandContext(ctx, "cryptsetup", "luksDump", "--dump-json-metadata", devicePath)
+	var jsonFlag string
+	var jsonNeedsExtraction bool
+
+	lessThan2_4, err := isCryptsetupVersionLessThan2_4()
+	if err != nil {
+		return "", fmt.Errorf("Failed to check cryptsetup version: %w", err)
+	}
+
+	if lessThan2_4 {
+		jsonFlag = "--debug-json"
+		jsonNeedsExtraction = true
+	} else {
+		jsonFlag = "--dump-json-metadata"
+	}
+
+	cmd := exec.CommandContext(ctx, "cryptsetup", "luksDump", jsonFlag, devicePath)
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("Failed to run cryptsetup luksDump: %w", err)
+	}
+
+	if jsonNeedsExtraction {
+		output, err = extractJSON(output)
+		if err != nil {
+			return "", fmt.Errorf("Failed to extract JSON from cryptsetup luksDump output: %w", err)
+		}
 	}
 
 	var dump LuksDump
@@ -329,4 +384,34 @@ func removeKeySlot(ctx context.Context, devicePath string, keySlot uint) error {
 	}
 
 	return nil
+}
+
+// isCryptsetupVersionLessThan2_4 checks if the installed cryptsetup version is less than 2.4.0
+func isCryptsetupVersionLessThan2_4() (bool, error) {
+	cmd := exec.Command("cryptsetup", "--version")
+	output, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("failed to run cryptsetup: %w", err)
+	}
+
+	// Parse the output
+	// Examples of output:
+	// "cryptsetup 2.7.0 flags: UDEV BLKID KEYRING FIPS KERNEL_CAPI HW_OPAL"
+	// "cryptsetup 2.2.2"
+	outputStr := strings.TrimSpace(string(output))
+	parts := strings.Fields(outputStr)
+
+	// The second field should always contain the version number
+	if len(parts) < 2 {
+		return false, fmt.Errorf("unexpected output format: %s", outputStr)
+	}
+
+	installedVersion, err := semver.NewVersion(parts[1])
+	if err != nil {
+		return false, fmt.Errorf("failed to parse version: %w", err)
+	}
+
+	// Compare against version 2.4.0
+	targetVersion := semver.MustParse("2.4.0")
+	return installedVersion.LessThan(targetVersion), nil
 }

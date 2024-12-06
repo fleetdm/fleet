@@ -111,9 +111,11 @@
                 "
               >
                 <h1>You have been invited to Fleet!</h1>
-                <p>Hello,</p>
+                <p>Hello {{.Name}},</p>
                 <p>
-                  <strong style="text-transform: capitalize;">{{.InvitedBy}} </strong>has invited you to join <strong>{{.OrgName}}</strong>.
+                  <strong style="text-transform: capitalize"
+                    >{{.InvitedBy}} </strong
+                  >has invited you to join <strong>{{.OrgName}}</strong>.
                 </p>
                 <p>
                   Please click the button below to accept the invitation and
@@ -161,7 +163,7 @@
                   Accept invitation
                 </a>
                 {{end}}
-                
+
                 <div
                   style="border-bottom: 1px solid #e2e4ea; padding-top: 32px"
                 ></div>
@@ -175,15 +177,12 @@
                   </a>
                   <a href="https://twitter.com/fleetctl" target="_blank">
                     <img
-                      alt="Twitter logo"
-                      style="height: 20px; width: 25px; padding-right: 20px"
-                      src="{{.AssetURL}}/twitter-logo-50x40@2x.png"
+                      alt="X logo"
+                      style="height: 20px; width: 20px; padding-right: 20px"
+                      src="{{.AssetURL}}/x-logo-24x24@2x.png"
                     />
                   </a>
-                  <a
-                    href="https://fleetdm.com/support"
-                    target="_blank"
-                  >
+                  <a href="https://fleetdm.com/support" target="_blank">
                     <img
                       alt="Slack logo"
                       style="height: 20px; width: 20.5px; padding-right: 20px"

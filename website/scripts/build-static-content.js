@@ -909,7 +909,7 @@ module.exports = {
       async()=>{
         // Validate the pricing table yaml and add it to builtStaticContent.pricingTable.
         let RELATIVE_PATH_TO_TESTIMONIALS_YML_IN_FLEET_REPO = 'handbook/company/testimonials.yml';
-        let VALID_PRODUCT_CATEGORIES = ['Endpoint operations', 'Device management', 'Vulnerability management'];
+        let VALID_PRODUCT_CATEGORIES = ['Observability', 'Device management', 'Software management'];
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_TESTIMONIALS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find testimonials YAML file at "${RELATIVE_PATH_TO_TESTIMONIALS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let testimonials = YAML.parse(yaml, {prettyErrors: true});
         for(let testimonial of testimonials){

@@ -72,7 +72,7 @@ How to view the disk encryption key:
 
 2. On the **Host details** page, select **Actions > Show disk encryption key**.
 
-> This action is logged in the activity log for security auditing purposes.
+> The disk encryption key is deleted if a host is transferred to a team with disk encryption turned off. To re-escrow they key, transfer the host back to a team with disk encryption on.
 
 ## Migrate macOS hosts
 
