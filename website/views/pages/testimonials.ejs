@@ -30,7 +30,7 @@
       <div v-if="selectedContent === 'mdm'">
         <div purpose="testimonials-container" class="card-columns">
           <% for(let testimonial of testimonialsForMdm) {%>
-            <div purpose="testimonial-card" class="card">
+            <a href="<%- testimonial.quoteLinkUrl%>" target="_blank" purpose="testimonial-card" class="card" >
               <% if(testimonial.quoteImageFilename){ %>
                 <div purpose="logo" class="mb-4">
                   <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>
@@ -39,7 +39,7 @@
               <p purpose="quote">
                 <%- testimonial.quote %>
                 <%if(testimonial.youtubeVideoUrl) {%>
-                  <a purpose="video-link" @click="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</a>
+                  <span purpose="video-link" @click.prevent.self="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</span>
                 <% } %>
               </p>
               <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
@@ -51,14 +51,14 @@
                   <p purpose="job-title" class="m-0"><%- testimonial.quoteAuthorJobTitle %></p>
                 </div>
               </div>
-            </div>
+            </a>
           <% } %>
         </div>
       </div>
       <div v-if="selectedContent === 'it'">
         <div purpose="testimonials-container" class="card-columns">
           <% for(let testimonial of testimonialsForObservability) {%>
-            <div purpose="testimonial-card" class="card">
+            <a href="<%- testimonial.quoteLinkUrl%>" target="_blank" purpose="testimonial-card" class="card" >
               <% if(testimonial.quoteImageFilename){ %>
                 <div purpose="logo" class="mb-4">
                   <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>
@@ -67,7 +67,7 @@
               <p purpose="quote">
                 <%- testimonial.quote %>
                 <%if(testimonial.youtubeVideoUrl) {%>
-                  <a purpose="video-link" @click="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</a>
+                  <span purpose="video-link" @click.prevent.self="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</span>
                 <% } %>
               </p>
               <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
@@ -79,14 +79,14 @@
                   <p purpose="job-title" class="m-0"><%- testimonial.quoteAuthorJobTitle %></p>
                 </div>
               </div>
-            </div>
+            </a>
           <% } %>
         </div>
       </div>
       <div v-if="selectedContent === 'security'">
         <div purpose="testimonials-container" class="card-columns">
           <% for(let testimonial of testimonialsForSoftwareManagement) {%>
-            <div purpose="testimonial-card" class="card">
+            <a href="<%- testimonial.quoteLinkUrl%>" target="_blank" purpose="testimonial-card" class="card" >
               <% if(testimonial.quoteImageFilename){ %>
                 <div purpose="logo" class="mb-4">
                   <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>
@@ -95,7 +95,7 @@
               <p purpose="quote">
                 <%- testimonial.quote %>
                 <%if(testimonial.youtubeVideoUrl) {%>
-                  <a purpose="video-link" @click="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</a>
+                  <span purpose="video-link" @click.prevent.self="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</span>
                 <% } %>
               </p>
               <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
@@ -107,7 +107,7 @@
                   <p purpose="job-title" class="m-0"><%- testimonial.quoteAuthorJobTitle %></p>
                 </div>
               </div>
-            </div>
+            </a>
           <% } %>
         </div>
       </div>
