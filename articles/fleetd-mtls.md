@@ -1,8 +1,8 @@
 # mTLS support in fleetd
 
-The [Fleetd authentication](https://fleetdm.com/guides/fleetd-authentication#basic-article) article shows how Fleet's agent, fleetd, authenticates to Fleet and [TUF](https://fleetdm.com/guides/fleetd-updates#basic-article) servers.
+The [Fleetd Authentication](https://fleetdm.com/guides/fleetd-authentication#basic-article) article shows how Fleet's agent, fleetd, authenticates to Fleet and [TUF](https://fleetdm.com/guides/fleetd-updates#basic-article) servers.
 
-Additionally, Fleet premium admins can configure fleetd to use [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) on top of the existing authentication scheme to further increase the security of agent to server communication.
+Additionally, Fleet Premium admins can configure fleetd to use [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) on top of the existing authentication scheme to further increase the security of agent to server communication.
 
 > The Fleet server itself does not currently provide support for mTLS. 
 > Admins that want to use mTLS on their endpoints must setup a load balancer or TLS terminator like AWS's ELB or nginx that support mTLS.
@@ -30,7 +30,7 @@ fleetctl package \
 ```
 When `--update-tls-client-certificate` and `--update-tls-client-key` are provided,`fleetctl` will use them when downloading the fleetd components from the custom TUF server (`--update-url`).
 
-If you are using fleetd with `Fleet desktop` enabled, you may need to specify an alternative host for the "My device" URL (in the Fleet tray icon).
+If you are using fleetd with `Fleet Desktop` enabled, you may need to specify an alternative host for the "My device" URL (in the Fleet tray icon).
 Such alternative host should not require client certificates on the TLS connection.
 ```sh
 fleetctl package
@@ -61,7 +61,7 @@ Once fleetd is installed, admins can force fleetd to use mTLS to communicate wit
     - `C:\Program Files\Orbit\update_client.crt`
     - `C:\Program Files\Orbit\update_client.key`
 
-If you are using fleetd with `Fleet desktop` enabled, you may need to specify an alternative host for the "My device" URL (in the Fleet tray icon).
+If you are using fleetd with `Fleet Desktop` enabled, you may need to specify an alternative host for the "My device" URL (in the Fleet tray icon).
 Such alternative host should not require client certificates on the TLS connection.
 The `ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST` environment variable in `orbit`'s configuration can be used to configure the Fleet deskto alternative host.
 If `ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST` is not set, you will need to configure client certificates on devices' browsers.
