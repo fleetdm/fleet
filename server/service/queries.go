@@ -128,7 +128,7 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 		}
 		targetableDBPlatforms := []string{"darwin", "windows", "linux"}
 		if !slices.Contains(targetableDBPlatforms, *dbPlatform) {
-			return nil, 0, nil, &fleet.BadRequestError{Message: "provided platform param cannot be a scheduled query target"}
+			return nil, 0, nil, &fleet.BadRequestError{Message: fmt.Sprintf("platform %q cannot be a scheduled query target, supported platforms are: %s", *dbPlatform, strings.Join(targetableDBPlatforms, ","))}
 		}
 	}
 
