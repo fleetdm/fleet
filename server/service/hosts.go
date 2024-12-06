@@ -1242,23 +1242,25 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 	host.MDM.Profiles = &profiles
 
-	// since Linux hosts don't require MDM to be enabled & configured, explicitly check that disk encryption is
-	// enabled for the host's team
-	eDE, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host disk encryption enabled setting")
-	}
-	if host.IsLUKSSupported() && eDE {
-		status, err := svc.LinuxHostDiskEncryptionStatus(ctx, *host)
+	if host.IsLUKSSupported() {
+		// since Linux hosts don't require MDM to be enabled & configured, explicitly check that disk encryption is
+		// enabled for the host's team
+		eDE, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "get host disk encryption status")
+			return nil, ctxerr.Wrap(ctx, err, "get host disk encryption enabled setting")
 		}
-		host.MDM.OSSettings = &fleet.HostMDMOSSettings{
-			DiskEncryption: status,
-		}
+		if eDE {
+			status, err := svc.LinuxHostDiskEncryptionStatus(ctx, *host)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get host disk encryption status")
+			}
+			host.MDM.OSSettings = &fleet.HostMDMOSSettings{
+				DiskEncryption: status,
+			}
 
-		if status.Status != nil && *status.Status == fleet.DiskEncryptionVerified {
-			host.MDM.EncryptionKeyAvailable = true
+			if status.Status != nil && *status.Status == fleet.DiskEncryptionVerified {
+				host.MDM.EncryptionKeyAvailable = true
+			}
 		}
 	}
 
