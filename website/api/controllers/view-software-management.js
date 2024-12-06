@@ -29,7 +29,7 @@ module.exports = {
       'Kenny Botelho',
       'Andre Shields',
       'Erik Gomez',
-      'Alvaro Gutierrez',
+      'Arsenio Figueroa',
       'Eric Tan',
       'Chandra Majumdar',
       'Nico Waisman',

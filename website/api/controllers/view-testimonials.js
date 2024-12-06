@@ -51,7 +51,7 @@ module.exports = {
       'Erik Gomez',
       'Chandra Majumdar',
       'Kenny Botelho',
-      'Alvaro Gutierrez',
+      'Arsenio Figueroa',
       'Andre Shields',
       'Nico Waisman',
       'Eric Tan',
@@ -70,7 +70,7 @@ module.exports = {
     });
     let testimonialOrderForObservability = [
       'Eric Tan',
-      'Alvaro Gutierrez',
+      'Arsenio Figueroa',
       'Scott MacVicar',
       'Chandra Majumdar',
       'Kenny Botelho',

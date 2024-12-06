@@ -38,7 +38,7 @@ module.exports = {
       'Eric Tan',
       'Kenny Botelho',
       'Ahmed Elshaer',
-      'Alvaro Gutierrez',
+      'Arsenio Figueroa',
       'Brendan Shaklovitz',
       'Andre Shields',
       'Scott MacVicar',
