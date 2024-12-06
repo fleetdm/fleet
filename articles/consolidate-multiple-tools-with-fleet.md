@@ -1,6 +1,5 @@
 # Leading financial company consolidates multiple tools with Fleet
 
-
 ## Fleet’s impact
 
 * **Eliminate tool overlap:**
