@@ -426,5 +426,14 @@
       "product": ["virtualbox"],
       "vendor": ["oracle"]
     }
+  },
+  {
+    "software": {
+      "name": ["gh"]
+    },
+    "filter": {
+      "product": ["cli"],
+      "vendor": ["github"]
+    }
   }
 ]

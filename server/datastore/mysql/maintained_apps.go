@@ -53,9 +53,12 @@ ON DUPLICATE KEY UPDATE
 		// upsert the maintained app
 		res, err := tx.ExecContext(ctx, upsertStmt, app.Name, app.Token, app.Version, app.Platform, app.InstallerURL,
 			app.SHA256, app.BundleIdentifier, installScriptID, uninstallScriptID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert maintained app")
+		}
 		id, _ := res.LastInsertId()
 		appID = uint(id) //nolint:gosec // dismiss G115
-		return ctxerr.Wrap(ctx, err, "upsert maintained app")
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -162,4 +165,31 @@ WHERE NOT EXISTS (
 	}
 
 	return avail, meta, nil
+}
+
+// GetSoftwareTitleIDByAppID returns the software title ID related to a given fleet library app ID.
+func (ds *Datastore) GetSoftwareTitleIDByMaintainedAppID(ctx context.Context, appID uint, teamID *uint) (uint, error) {
+	stmt := `
+	SELECT
+		st.id
+	FROM software_titles st
+	JOIN software_installers si ON si.title_id = st.id
+	JOIN fleet_library_apps fla ON fla.id = si.fleet_library_app_id
+	WHERE fla.id = ? AND si.global_or_team_id = ?`
+
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	var titleID uint
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &titleID, stmt, appID, globalOrTeamID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ctxerr.Wrap(ctx, notFound("SoftwareInstaller"), "no matching software installer found")
+		}
+
+		return 0, ctxerr.Wrap(ctx, err, "getting software title id by app id")
+	}
+
+	return titleID, nil
 }

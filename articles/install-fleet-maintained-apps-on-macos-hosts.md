@@ -22,6 +22,8 @@ Fleet maintains these [celebrity apps](https://github.com/fleetdm/fleet/blob/mai
 
 These scripts are auto-generated based on the app's Homebrew Cask formula, but you can modify them. Modifying these scripts allows you to tailor the app installation process to your organization's needs, such as automating additional setup tasks or custom configurations post-installation.
 
+> Adding Fleet-maintained apps using Fleet's [best practice GitOps](https://fleetdm.com/docs/configuration/yaml-files) is coming soon.
+
 ## Install the app
 
 Once configured, click **Add Software**. This will download the installer specified in the Homebrew Cask and apply the installation scripts. The process may take a moment as it pulls the package.

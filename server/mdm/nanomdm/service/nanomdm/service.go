@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
@@ -243,6 +244,10 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 			"status", results.Status,
 			"error_chain", results.ErrorChain,
 		)
+	}
+	if results.Status != "Idle" {
+		// If the host is not idle, we use primary DB since we just wrote results of previous command.
+		ctxdb.RequirePrimary(r.Context, true)
 	}
 	cmd, err := s.store.RetrieveNextCommand(r, results.Status == "NotNow")
 	if err != nil {

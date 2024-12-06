@@ -13,7 +13,9 @@ module.exports = {
   },
 
 
+
   fn: async function () {
+
     // Get all teams on the Fleet instance.
     let teamsResponseData = await sails.helpers.http.get.with({
       url: '/api/v1/fleet/teams',
@@ -57,7 +59,6 @@ module.exports = {
       let profilesForThisTeam = configurationProfilesResponseData.profiles;
       allProfiles = allProfiles.concat(profilesForThisTeam);
     }
-
     // Add the configurations profiles that are assigned to the "no team" team.
     let noTeamConfigurationProfilesResponseData = await sails.helpers.http.get.with({
       url: '/api/v1/fleet/configuration_profiles',
@@ -68,45 +69,53 @@ module.exports = {
     })
     .timeout(120000)
     .retry(['requestFailed', {name: 'TimeoutError'}]);
-    let profilesForThisTeam = noTeamConfigurationProfilesResponseData.profiles;
-    allProfiles = allProfiles.concat(profilesForThisTeam);
-
-    // console.log(allProfiles);
-
-    let profilesOnThisFleetInstance = [];
-    // Group configuration profiles by their identifier.
-    let allProfilesByIdentifier = _.groupBy(allProfiles, 'identifier');
-    for(let profileIdentifier in allProfilesByIdentifier) {
-      // Iterate through the arrays of profiles with the same unique identifier.
-      let teamsForThisProfile = [];
-      // Add the profile's UUID and information about the team this profile is assigned to the teams array for profiles.
-      for(let profile of allProfilesByIdentifier[profileIdentifier]){
-        let informationAboutThisProfile = {
+    let profilesForNoTeam = noTeamConfigurationProfilesResponseData.profiles;
+    allProfiles = allProfiles.concat(profilesForNoTeam);
+    let profilesInformation = [];
+    for(let profile of allProfiles) {
+      let profileInformation = {
+        name: profile.name,
+        identifier: profile.identifier,
+        platform: profile.platform,
+        createdAt: new Date(profile.created_at).getTime(),
+        team: {
           uuid: profile.profile_uuid,
           fleetApid: profile.team_id,
           teamName: _.find(teams, {fleetApid: profile.team_id}).teamName,
-        };
-        teamsForThisProfile.push(informationAboutThisProfile);
-      }
-      let profile = allProfilesByIdentifier[profileIdentifier][0];// Grab the first profile returned in the api repsonse to build our profile configuration.
-      let profileInformation = {
-        name: profile.name,
-        identifier: profileIdentifier,
-        platform: profile.platform,
-        createdAt: new Date(profile.created_at).getTime(),
-        teams: teamsForThisProfile
+        },
+        profileTarget: 'all',
       };
-      profilesOnThisFleetInstance.push(profileInformation);
+      if(profile.labels_include_all) {
+        profileInformation.labels = _.pluck(profile.labels_include_all, 'name');
+        profileInformation.profileTarget = 'custom';
+        profileInformation.labelTargetBehavior = 'include';
+      } else if(profile.labels_exclude_any){
+        profileInformation.labels = _.pluck(profile.labels_exclude_any, 'name');
+        profileInformation.profileTarget = 'custom';
+        profileInformation.labelTargetBehavior = 'exclude';
+      }
+      profilesInformation.push(profileInformation);
     }
+    // Group the profiles based on identifier, labels, and labelTargetBehavior
+    let profilesGroupedbyLabelsAndIdentifier = _.groupBy(profilesInformation, (profile)=>{
+      return `${profile.identifier}|${JSON.stringify(profile.labels)}|${profile.labelTargetBehavior}`;
+    });
+
+    // map the grouped profiles and merge profiles that have the same labels, target behavior, and identifier.
+    let allProfilesOnFleetInstance = Object.values(profilesGroupedbyLabelsAndIdentifier).map(profileGroup => {
+      return {
+        ...profileGroup[0],// Expand the first item in the profileGroup
+        teams: profileGroup.map(item => item.team)// Merge the teams arrays
+      };
+    });
     // Get the undeployed profiles from the app's database.
     let undeployedProfiles = await UndeployedProfile.find();
-    profilesOnThisFleetInstance = _.union(profilesOnThisFleetInstance, undeployedProfiles);
-
+    allProfilesOnFleetInstance = _.union(allProfilesOnFleetInstance, undeployedProfiles);
     // Sort profiles by their name.
-    profilesOnThisFleetInstance = _.sortByOrder(profilesOnThisFleetInstance, 'name', 'asc');
+    allProfilesOnFleetInstance = _.sortByOrder(allProfilesOnFleetInstance, 'name', 'asc');
 
-    return profilesOnThisFleetInstance;
-
+    // return the updated list of profiles
+    return allProfilesOnFleetInstance;
   }
 
 

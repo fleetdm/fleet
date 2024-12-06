@@ -19,20 +19,17 @@ defaults:
     shell: bash
 
 env:
-  FLEET_DESKTOP_VERSION: 1.35.0
+  FLEET_DESKTOP_VERSION: 1.36.0
 
 permissions:
   contents: read
 
 jobs:
   desktop-macos:
-    # Set macOS version to '12' (current equivalent to macos-latest) for
+    # Set macOS version to '13' (previously was macos-12, and it was deprecated) for
     # building the binary. This ensures compatibility with macOS version 13 and
     # later, avoiding runtime errors on systems using macOS 13 or newer.
-    #
-    # Note: Update this version to '13' once GitHub marks macOS 13 as stable
-    # or if we revise our minimum supported macOS version.
-    runs-on: macos-12
+    runs-on: macos-13
     steps:
 
       - name: Harden Runner

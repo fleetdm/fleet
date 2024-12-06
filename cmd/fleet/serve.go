@@ -22,6 +22,7 @@ import (
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
@@ -498,7 +499,11 @@ the way that the Fleet server works.
 
 			var mdmPushService push.Pusher
 			nanoMDMLogger := service.NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
-			pushProviderFactory := buford.NewPushProviderFactory()
+			pushProviderFactory := buford.NewPushProviderFactory(buford.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
+				return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+					Certificates: []tls.Certificate{*cert},
+				})), nil
+			}))
 			if os.Getenv("FLEET_DEV_MDM_APPLE_DISABLE_PUSH") == "1" {
 				mdmPushService = nopPusher{}
 			} else {
@@ -919,7 +924,7 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newMDMProfileManager(
+				return newAppleMDMProfileManagerSchedule(
 					ctx,
 					instanceID,
 					ds,
@@ -928,6 +933,17 @@ the way that the Fleet server works.
 				)
 			}); err != nil {
 				initFatal(err, "failed to register mdm_apple_profile_manager schedule")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newWindowsMDMProfileManagerSchedule(
+					ctx,
+					instanceID,
+					ds,
+					logger,
+				)
+			}); err != nil {
+				initFatal(err, "failed to register mdm_windows_profile_manager schedule")
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {

@@ -3,9 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -2058,12 +2056,15 @@ func (s *integrationTestSuite) TestInvites() {
 		Teams: []fleet.UserTeam{
 			{Team: fleet.Team{ID: team.ID}, Role: fleet.RoleObserver},
 		},
+		MFAEnabled: ptr.Bool(true),
 	}}
 	updateInviteResp := updateInviteResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/invites/%d", validInvite.ID+1), updateInviteReq, http.StatusNotFound, &updateInviteResp)
 
 	// update the valid invite created earlier, make it an observer of a team
 	updateInviteResp = updateInviteResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/invites/%d", validInvite.ID), updateInviteReq, http.StatusPaymentRequired, &updateInviteResp)
+	updateInviteReq.MFAEnabled = nil
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/invites/%d", validInvite.ID), updateInviteReq, http.StatusOK, &updateInviteResp)
 
 	// update the valid invite: set an email that already exists for a user
@@ -4533,14 +4534,63 @@ func (s *integrationTestSuite) TestUsers() {
 		Email:      ptr.String("extra@asd.com"),
 		Password:   ptr.String(userRawPwd),
 		GlobalRole: ptr.String(fleet.RoleObserver),
+		MFAEnabled: ptr.Bool(true),
 	}
+	// mailer isn't set up, which fails prior to silently ignoring MFA
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusBadRequest, &createResp)
+	params.MFAEnabled = nil
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	assert.NotZero(t, createResp.User.ID)
 	assert.True(t, createResp.User.AdminForcedPasswordReset)
 	u := *createResp.User
 
-	// login as that user and check that teams info is empty
 	var loginResp loginResponse
+
+	// try MFA
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `UPDATE users SET mfa_enabled = TRUE WHERE id = ?`, u.ID)
+		return err
+	})
+	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/sessions", sessionCreateRequest{Token: "foo"}, http.StatusUnauthorized, &loginResp)
+	// MFA unsupported client
+	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login", params, http.StatusBadRequest, &loginResp)
+	// MFA supported; send email
+	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login", loginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
+	var mfaToken string
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), tx, &mfaToken, `SELECT token FROM verification_tokens WHERE user_id = ? LIMIT 1`, createResp.User.ID)
+	})
+	// create session from MFA token
+	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/sessions", sessionCreateRequest{Token: mfaToken}, http.StatusOK, &loginResp)
+	// can't use the same MFA token twice
+	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/sessions", sessionCreateRequest{Token: mfaToken}, http.StatusUnauthorized, &loginResp)
+
+	// send another email, which we'll expire the token for
+	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login", loginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(
+			context.Background(),
+			`UPDATE verification_tokens SET created_at = NOW() - INTERVAL ? SECOND - INTERVAL 0.5 SECOND WHERE user_id = ?`,
+			(time.Minute * 15).Seconds(),
+			u.ID,
+		)
+		if err != nil {
+			return err
+		}
+
+		return sqlx.GetContext(context.Background(), db, &mfaToken, `SELECT token FROM verification_tokens WHERE user_id = ? LIMIT 1`, createResp.User.ID)
+	})
+	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/sessions", sessionCreateRequest{Token: mfaToken}, http.StatusUnauthorized, &loginResp)
+
+	// turn off MFA
+	var modResp modifyUserResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{MFAEnabled: ptr.Bool(false)}, http.StatusOK, &modResp)
+	require.False(t, modResp.User.MFAEnabled)
+
+	// can't turn MFA back on
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{MFAEnabled: ptr.Bool(true)}, http.StatusPaymentRequired, &modResp)
+
+	// login as that user and check that teams info is empty
 	s.DoJSON("POST", "/api/latest/fleet/login", params, http.StatusOK, &loginResp)
 	require.Equal(t, loginResp.User.ID, u.ID)
 	assert.Len(t, loginResp.User.Teams, 0)
@@ -4557,7 +4607,6 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID+1), nil, http.StatusNotFound, &getResp)
 
 	// modify that user - simple name change
-	var modResp modifyUserResponse
 	params = fleet.UserPayload{
 		Name: ptr.String("extraz"),
 	}
@@ -4576,8 +4625,11 @@ func (s *integrationTestSuite) TestUsers() {
 		Email:      ptr.String("colliding@email.com"),
 		Name:       ptr.String("some name"),
 		GlobalRole: null.StringFrom(fleet.RoleAdmin),
+		MFAEnabled: ptr.Bool(true),
 	}}
 	createInviteResp := createInviteResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusPaymentRequired, &createInviteResp)
+	createInviteReq.MFAEnabled = nil
 	s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
 	params = fleet.UserPayload{
 		Email: ptr.String("colliding@email.com"),
@@ -6311,6 +6363,12 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 
 	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
 		"mdm": { "macos_setup": { "enable_release_device_manually": true } }
+	}`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "missing or invalid license")
+
+	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_migration_enabled": true }
 	}`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "missing or invalid license")
@@ -8638,6 +8696,11 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
 	require.True(t, *getHostResp.Host.DiskEncryptionEnabled)
 
+	// should succeed as we no longer require MDM to access this endpoint, as Linux encryption doesn't require MDM
+	var profiles getMDMProfilesSummaryResponse
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &profiles)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &profiles)
+
 	// set unencrypted for all hosts
 	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostWin.ID, false))
 	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostMac.ID, false))
@@ -8653,7 +8716,7 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	require.Equal(t, hostMac.ID, getHostResp.Host.ID)
 	require.False(t, *getHostResp.Host.DiskEncryptionEnabled)
 
-	// Linux does not return false, it omits the field when false
+	// Linux may omit the field when false
 	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
@@ -9495,12 +9558,7 @@ func createOrbitEnrolledHost(t *testing.T, os, suffix string, ds fleet.Datastore
 
 // creates a session and returns it, its key is to be passed as authorization header.
 func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
-	key := make([]byte, 64)
-	_, err := rand.Read(key)
-	require.NoError(t, err)
-
-	sessionKey := base64.StdEncoding.EncodeToString(key)
-	ssn, err := ds.NewSession(context.Background(), uid, sessionKey)
+	ssn, err := ds.NewSession(context.Background(), uid, 64)
 	require.NoError(t, err)
 
 	return ssn

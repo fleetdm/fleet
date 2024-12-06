@@ -193,8 +193,9 @@ type Service interface {
 
 	// SSOSettings returns non-sensitive single sign on information used before authentication
 	SSOSettings(ctx context.Context) (*SessionSSOSettings, error)
-	Login(ctx context.Context, email, password string) (user *User, session *Session, err error)
+	Login(ctx context.Context, email, password string, supportsEmailVerification bool) (user *User, session *Session, err error)
 	Logout(ctx context.Context) (err error)
+	CompleteMFA(ctx context.Context, token string) (*Session, *User, error)
 	DestroySession(ctx context.Context) (err error)
 	GetInfoAboutSessionsForUser(ctx context.Context, id uint) (sessions []*Session, err error)
 	DeleteSessionsForUser(ctx context.Context, id uint) (err error)
@@ -851,6 +852,9 @@ type Service interface {
 	// ListABMTokens lists all the ABM tokens in Fleet.
 	ListABMTokens(ctx context.Context) ([]*ABMToken, error)
 
+	// CountABMTokens counts the ABM tokens in Fleet.
+	CountABMTokens(ctx context.Context) (int, error)
+
 	// UpdateABMTokenTeams updates the default macOS, iOS, and iPadOS team IDs for a given ABM token.
 	UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*ABMToken, error)
 
@@ -1059,6 +1063,11 @@ type Service interface {
 	// Returns empty status if the host is not a supported Linux host
 	LinuxHostDiskEncryptionStatus(ctx context.Context, host Host) (HostMDMDiskEncryption, error)
 
+	// GetMDMLinuxProfilesSummary summarizes the current status of Linux disk encryption for
+	// the provided team (or hosts without a team if teamId is nil), or returns zeroes if disk
+	// encryption is not enforced on the selected team
+	GetMDMLinuxProfilesSummary(ctx context.Context, teamId *uint) (MDMProfilesSummary, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM
 
@@ -1154,7 +1163,7 @@ type Service interface {
 	// Fleet-maintained apps
 
 	// AddFleetMaintainedApp adds a Fleet-maintained app to the given team.
-	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool) error
+	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool) (uint, error)
 	// ListFleetMaintainedApps lists Fleet-maintained apps available to a specific team
 	ListFleetMaintainedApps(ctx context.Context, teamID uint, opts ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 	// GetFleetMaintainedApp returns a Fleet-maintained app by ID

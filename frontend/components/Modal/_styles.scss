@@ -25,17 +25,9 @@
   &__content-wrapper {
     margin-top: $pad-large;
     font-size: $x-small;
-    max-height: 800px;
-    overflow: visible;
 
     .input-field {
       width: 100%;
-
-      &::placeholder {
-        font-size: $x-small;
-        font-style: italic;
-        line-height: 24px;
-      }
     }
 
     form .modal-cta-wrap,
@@ -140,6 +132,11 @@
       padding: 11px;
     }
   }
+}
+
+.modal-scrollable-content {
+  overflow-y: auto;
+  max-height: 705px;
 }
 
 .modal-cta-wrap {
