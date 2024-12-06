@@ -1410,11 +1410,6 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 		OR (h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%%') -- linux
 	)`
 
-	// sqlFmt := ` AND (
-	// 	(h.platform IN('windows', 'darwin', 'ios', 'ipados') AND (ne.id IS NOT NULL OR mwe.host_uuid IS NOT NULL) AND hmdm.enrolled = 1)
-	// 	OR (h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%%')
-	// )`
-
 	if opt.TeamFilter == nil {
 		// OS settings filter is not compatible with the "all teams" option so append the "no team"
 		// filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
