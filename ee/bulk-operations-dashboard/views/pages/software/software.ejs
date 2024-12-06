@@ -150,8 +150,11 @@
             <label for="deploy-to-all-teams-edit">Add to all existing and new teams</label>
           </div>
         </div>
-        <cloud-error v-if="cloudError && cloudError.exit === 'wrongInstallerExtension'">{{cloudError.responseInfo.body}}</cloud-error>
-        <cloud-error v-else-if="cloudError"></cloud-error>
+        <cloud-error class="mb-2"  v-if="cloudError && cloudError.exit === 'wrongInstallerExtension'">{{cloudError.responseInfo.body}}</cloud-error>
+        <cloud-error class="mb-2"  v-else-if="cloudError && cloudError === 'couldNotReadVersion'">The Fleet instance could not read version information from the provided software installer.</cloud-error>
+        <cloud-error class="mb-2"  v-else-if="cloudError && cloudError === 'softwareDeletionFailed'">This software has been configured to be installed as part of the macOS setup experience and cannot be removed from a team. Please remove this software from any teams you want to remove this from in the <a :href="`${fleetBaseUrl}/controls/setup-experience/install-software`" target="_blank">"Setup experience" tab of the Controls page</a> on your Fleet instance and try again </cloud-error>
+        <cloud-error  class="mb-2" v-else-if="cloudError && cloudError === 'softwareAlreadyExistsOnThisTeam'">An error occured when transfering this software to a new team. A software installer with the same name as this software already exists on one or more of the selected teams.</cloud-error>
+        <cloud-error class="mb-2"  v-else-if="cloudError"></cloud-error>
         <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
           <ajax-button :syncing.sync="syncing" purpose="modal-button" type="submit">Save</ajax-button>
         </div>
@@ -200,6 +203,7 @@
         </div>
         <div class="invalid-feedback text-center" v-if="formErrors.teams">Please select the teams you want to deploy this software to.</div>
         <cloud-error v-if="cloudError && cloudError === 'softwareAlreadyExistsOnThisTeam'">A software with the same name as the uploaded software already exists on one or more of the selected teams.</cloud-error>
+        <cloud-error v-if="cloudError && cloudError === 'couldNotReadVersion'">The Fleet instance could not read version information from the provided software installer.</cloud-error>
         <cloud-error v-else-if="cloudError"></cloud-error>
         <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
           <a purpose="cancel-button" @click="closeModal()">Cancel</a>

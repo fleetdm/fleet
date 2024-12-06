@@ -27,6 +27,7 @@ spec:
     volume_purchasing_program: null
     windows_enabled_and_configured: false
     enable_disk_encryption: false
+    windows_migration_enabled: false
     macos_migration:
       enable: false
       mode: ""

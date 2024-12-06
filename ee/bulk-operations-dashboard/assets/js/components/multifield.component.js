@@ -54,35 +54,45 @@ parasails.registerComponent('multifield', {
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
   <div class="multifield-set">
-    <div class="multifield-item" v-for="(unused,idx) in currentFieldValues" :key="idx" :role="'item-'+idx">
-      <!-- <span class="multifield-item-label">{{idx+1}}.</span> -->
-      <slot name="item-field" :item="currentFieldValues[idx]" :do-set="_getCurriedDoSetFn(idx)" :all-items="currentFieldValues" :idx="idx">
-        <input type="text" :placeholder="inputPlaceholder" :class="[cloudError && _.contains(cloudError.responseInfo.data, currentFieldValues[idx]) ? 'text-danger is-invalid' : '']" :value.sync="currentFieldValues[idx]" @input="inputDefaultItemField($event, idx)" role="focusable" v-if="!inputType"/>
-        <select class="custom-select" :value.sync="currentFieldValues[idx]" @input="inputDefaultItemField($event, idx)" role="focusable" v-else-if="inputType && inputType === 'nameAndHostCountSelect'">
-          <option :value="undefined" selected>---</option>
-          <option v-for="option in optionsForSelect" :value="option.id">{{option.name}} ({{option.hostCount}} {{option.hostCount > 1 || option.hostCount === 0 ? 'hosts' : 'host'}})</option>
-        </select>
-        <select class="custom-select" :value.sync="currentFieldValues[idx]" @input="inputDefaultItemField($event, idx)" role="focusable" v-else-if="inputType && inputType === 'select'">
-          <option :value="undefined" selected>---</option>
-          <option v-for="option in optionsForSelect" :value="option.fleetApid">{{option.name}}</option>
-        </select>
-        <select class="custom-select" :value.sync="currentFieldValues[idx]" @input="inputTeamSelectItemField($event, idx)" role="focusable" v-else-if="inputType && inputType === 'teamSelect'">
-          <option :value="undefined" selected>---</option>
-          <option value="allTeams">All teams</option>
-          <option v-for="option in optionsForSelect" :value="option.fleetApid">{{option.teamName}}</option>
-        </select>
-        <select class="custom-select" :disabled="isCurrentlyDisabled" :value.sync="currentFieldValues[idx]" :class="[isCurrentlyDisabled ? 'disabled' : '']" @input="inputTeamSelectItemField($event, idx)" role="focusable" v-else-if="inputType && inputType === 'teamSelectWithNoAllTeamsOption'">
-          <option :value="undefined" selected>---</option>
-          <option v-for="option in optionsForSelect" :value="option.fleetApid">{{option.teamName}}</option>
-        </select>
-        <input :type="inputType" :placeholder="inputPlaceholder" :value.sync="currentFieldValues[idx]" @input="inputDefaultItemField($event, idx)" role="focusable" v-else-if="inputType">
-      </slot>
-      <button class="multifield-item-remove-button" :disabled="isCurrentlyDisabled" type="button" v-if="currentFieldValues.length >= 2" @click="clickRemoveItem(idx)"></button>
-      <button class="multifield-item-remove-button" :disabled="isCurrentlyDisabled" type="button" v-else-if="currentFieldValues.length === 1 && currentFieldValues[0] !== undefined" @click="clickResetSingleItem()"></button>
+    <div v-if="inputType === 'checkboxes'">
+      <div class="d-flex flex-wrap flex-row">
+        <div v-for="option in optionsForSelect" :key="option.name" class="form-check mr-3 mb-3">
+          <input type="checkbox" :value="option.name" :id="'checkbox-' + option.name" class="form-check-input" @change="inputCheckboxItemField($event)" :checked="_.contains(currentFieldValues, option.name)"/>
+          <label :for="'checkbox-' + option.name" class="form-check-label">{{ option.name }}</label>
+        </div>
+      </div>
     </div>
-    <div class="add-button-wrapper d-flex flex-row justify-content-start" :class="_.all(currentFieldValues, (item)=> item !== undefined) ? '' : 'empty'">
-      <a class="add-button" @click="clickAddItem()" v-if="_.all(currentFieldValues, (item)=> item !== undefined) && !isCurrentlyDisabled"><strong>+</strong>&nbsp;&nbsp;{{addButtonText || 'Add another'}}</a>
-      <span v-else>&nbsp;</span>
+    <div v-else>
+      <div class="multifield-item" v-for="(unused,idx) in currentFieldValues" :key="idx" :role="'item-'+idx">
+        <!-- <span class="multifield-item-label">{{idx+1}}.</span> -->
+        <slot name="item-field" :item="currentFieldValues[idx]" :do-set="_getCurriedDoSetFn(idx)" :all-items="currentFieldValues" :idx="idx">
+          <input type="text" :placeholder="inputPlaceholder" :class="[cloudError && _.contains(cloudError.responseInfo.data, currentFieldValues[idx]) ? 'text-danger is-invalid' : '']" :value.sync="currentFieldValues[idx]" @input="inputDefaultItemField($event, idx)" role="focusable" v-if="!inputType"/>
+          <select class="custom-select" :value.sync="currentFieldValues[idx]" @input="inputDefaultItemField($event, idx)" role="focusable" v-else-if="inputType && inputType === 'nameAndHostCountSelect'">
+            <option :value="undefined" selected>---</option>
+            <option v-for="option in optionsForSelect" :value="option.id">{{option.name}} ({{option.hostCount}} {{option.hostCount > 1 || option.hostCount === 0 ? 'hosts' : 'host'}})</option>
+          </select>
+          <select class="custom-select" :value.sync="currentFieldValues[idx]" @input="inputDefaultItemField($event, idx)" role="focusable" v-else-if="inputType && inputType === 'select'">
+            <option :value="undefined" selected>---</option>
+            <option v-for="option in optionsForSelect" :value="option.fleetApid">{{option.name}}</option>
+          </select>
+          <select class="custom-select" :value.sync="currentFieldValues[idx]" @input="inputTeamSelectItemField($event, idx)" role="focusable" v-else-if="inputType && inputType === 'teamSelect'">
+            <option :value="undefined" selected>---</option>
+            <option value="allTeams">All teams</option>
+            <option v-for="option in optionsForSelect" :value="option.fleetApid">{{option.teamName}}</option>
+          </select>
+          <select class="custom-select" :disabled="isCurrentlyDisabled" :value.sync="currentFieldValues[idx]" :class="[isCurrentlyDisabled ? 'disabled' : '']" @input="inputTeamSelectItemField($event, idx)" role="focusable" v-else-if="inputType && inputType === 'teamSelectWithNoAllTeamsOption'">
+            <option :value="undefined" selected>---</option>
+            <option v-for="option in optionsForSelect" :value="option.fleetApid">{{option.teamName}}</option>
+          </select>
+          <input :type="inputType" :placeholder="inputPlaceholder" :value.sync="currentFieldValues[idx]" @input="inputDefaultItemField($event, idx)" role="focusable" v-else-if="inputType">
+        </slot>
+        <button class="multifield-item-remove-button" :disabled="isCurrentlyDisabled" type="button" v-if="currentFieldValues.length >= 2" @click="clickRemoveItem(idx)"></button>
+        <button class="multifield-item-remove-button" :disabled="isCurrentlyDisabled" type="button" v-else-if="currentFieldValues.length === 1 && currentFieldValues[0] !== undefined" @click="clickResetSingleItem()"></button>
+      </div>
+      <div class="add-button-wrapper d-flex flex-row justify-content-start" :class="_.all(currentFieldValues, (item)=> item !== undefined) ? '' : 'empty'">
+        <a class="add-button" @click="clickAddItem()" v-if="_.all(currentFieldValues, (item)=> item !== undefined) && !isCurrentlyDisabled"><strong>+</strong>&nbsp;&nbsp;{{addButtonText || 'Add another'}}</a>
+        <span v-else>&nbsp;</span>
+      </div>
     </div>
   </div>
   `,
@@ -95,7 +105,6 @@ parasails.registerComponent('multifield', {
     if (this.value !== undefined && !_.isArray(this.value)) {
       throw new Error('In <multifield>, if specified, `v-model`/`:value` must be either an array or `undefined`.  But instead, got: '+this.value);
     }//•
-
     if (this.value === undefined || _.isEqual(this.value, [])) {
       this.currentFieldValues = [ undefined ];
     } else {
@@ -153,6 +162,26 @@ parasails.registerComponent('multifield', {
         this.optionsForSelect = _.clone(this.selectOptions);
       }
     }
+    if(this.inputType === 'checkboxes') {
+      if(!_.isArray(this.selectOptions)){
+        throw new Error('Missing selectOptions. When using inputType="select", an array of selectOptions is required.');
+      } else {
+        for(let option of this.selectOptions){
+          // If we're using inputType="select", we will validate all options before cloning the object.
+          if(!option.value){
+            throw new Error(`Option in selectOptions is missing a value. When using inputType="select", A value property is required for all objects in the selectOptions array. Object missing a value. ${option}`);
+          }
+          if(!option.name){
+            throw new Error(`Option in selectOptions is missing a name. When using inputType="select", A name property is required for all objects in the selectOptions array. Object missing a name. ${option}`);
+          }
+        }
+        this.optionsForSelect = _.clone(this.selectOptions);
+        if(this.currentFieldValues === [null]){
+          this.currentFieldValues = [];
+
+        }
+      }
+    }
     if(this.placeholder){
       this.inputPlaceholder = this.placeholder;
     }
@@ -206,6 +235,7 @@ parasails.registerComponent('multifield', {
       this._handleChangingFieldValues();
     },
 
+
     inputTeamSelectWithAllTeamsItemField: async function($event, idx) {
       var parsedValue = $event.target.value || undefined;
       this.currentFieldValues[idx] = parsedValue;
@@ -214,6 +244,19 @@ parasails.registerComponent('multifield', {
       } else {
         this.showAddButton = true;
       }
+      await this.forceRender();
+      this._handleChangingFieldValues();
+    },
+
+    inputCheckboxItemField: async function($event) {
+      let checkboxValue = $event.target.value;
+      if($event.target.checked) {
+        this.currentFieldValues.push(checkboxValue);
+      } else {
+        this.currentFieldValues = this.currentFieldValues
+        .filter(value => value !== checkboxValue);
+      }
+      this.currentFieldValues = this.currentFieldValues.filter(value => value !== undefined && value !== null);
       await this.forceRender();
       this._handleChangingFieldValues();
     },

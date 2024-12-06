@@ -92,6 +92,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMManagedCertificates", testMDMManagedCertificates},
 		{"AppleMDMSetBatchAsyncLastSeenAt", testAppleMDMSetBatchAsyncLastSeenAt},
 		{"TestMDMAppleProfileLabels", testMDMAppleProfileLabels},
+		{"AggregateMacOSSettingsAllPlatforms", testAggregateMacOSSettingsAllPlatforms},
 	}
 
 	for _, c := range cases {
@@ -570,6 +571,10 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// The pending profile will be NOT be cleaned up because it was updated too recently.
+	err = ds.CleanupHostMDMAppleProfiles(ctx)
+	require.NoError(t, err)
+
 	gotProfs, err = ds.GetHostMDMAppleProfiles(ctx, h1.UUID)
 	require.NoError(t, err)
 	require.Len(t, gotProfs, 2) // remove+verifying is not there anymore
@@ -587,6 +592,21 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 		require.Equal(t, ep.OperationType, gp.OperationType)
 		require.Equal(t, ep.Detail, gp.Detail)
 	}
+
+	// Update the timestamps of the profiles
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET updated_at = updated_at - INTERVAL 2 HOUR`)
+		return err
+	})
+
+	// The pending profile will be cleaned up because we did not populate the corresponding nano table in this test.
+	err = ds.CleanupHostMDMAppleProfiles(ctx)
+	require.NoError(t, err)
+	gotProfs, err = ds.GetHostMDMAppleProfiles(ctx, h1.UUID)
+	require.NoError(t, err)
+	require.Len(t, gotProfs, 1)
+	assert.Equal(t, &fleet.MDMDeliveryVerifying, gotProfs[0].Status)
+
 }
 
 func TestIngestMDMAppleDevicesFromDEPSync(t *testing.T) {
@@ -6536,6 +6556,14 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	tm3, err := ds.NewTeam(ctx, &fleet.Team{Name: "team3"})
 	require.NoError(t, err)
 
+	toks, err := ds.ListABMTokens(ctx)
+	require.NoError(t, err)
+	require.Empty(t, toks)
+
+	tokCount, err := ds.GetABMTokenCount(ctx)
+	require.NoError(t, err)
+	assert.EqualValues(t, 0, tokCount)
+
 	// create a token with an empty name and no team set, and another that will be unused
 	encTok := uuid.NewString()
 
@@ -6546,9 +6574,13 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotEmpty(t, t2.ID)
 
-	toks, err := ds.ListABMTokens(ctx)
+	toks, err = ds.ListABMTokens(ctx)
 	require.NoError(t, err)
 	require.Len(t, toks, 2)
+
+	tokCount, err = ds.GetABMTokenCount(ctx)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, tokCount)
 
 	// get that token
 	tok, err = ds.GetABMTokenByOrgName(ctx, "")
@@ -6645,6 +6677,10 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), expTok.MacOSTeam.ID)
 	require.Equal(t, tm2.Name, expTok.IOSTeamName)
 	require.Equal(t, tm3.Name, expTok.IPadOSTeamName)
+
+	tokCount, err = ds.GetABMTokenCount(ctx)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, tokCount)
 }
 
 func testMDMAppleABMTokensTermsExpired(t *testing.T, ds *Datastore) {
@@ -7510,4 +7546,42 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
 		{ProfileUUID: globProf2.ProfileUUID, ProfileIdentifier: globProf2.Identifier, ProfileName: globProf2.Name, HostUUID: hostLabel.UUID, HostPlatform: "darwin"},
 	}, profilesToInstall)
+}
+
+func testAggregateMacOSSettingsAllPlatforms(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create macOS/iOS/iPadOS devices on "No team".
+	var hosts []*fleet.Host
+	for i, platform := range []string{"darwin", "ios", "ipados"} {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:        fmt.Sprintf("hostname_%d", i),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("osquery-host-id_%d", i)),
+			NodeKey:         ptr.String(fmt.Sprintf("node-key_%d", i)),
+			UUID:            fmt.Sprintf("uuid_%d", i),
+			HardwareSerial:  fmt.Sprintf("serial_%d", i),
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		nanoEnrollAndSetHostMDMData(t, ds, host, false)
+		hosts = append(hosts, host)
+	}
+
+	// Create a profile for "No team".
+	cp, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("foobar", "barfoo", 0))
+	require.NoError(t, err)
+
+	// Upsert the profile with nil status, should be counted as pending.
+	upsertHostCPs(hosts, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMOperationTypeInstall, nil, ctx, ds, t)
+	res, err := ds.GetMDMAppleProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.EqualValues(t, len(hosts), res.Pending)
+	require.EqualValues(t, 0, res.Failed)
+	require.EqualValues(t, 0, res.Verifying)
+	require.EqualValues(t, 0, res.Verified)
 }

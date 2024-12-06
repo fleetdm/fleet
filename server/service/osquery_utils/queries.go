@@ -1885,6 +1885,11 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 		return nil
 	}
 
+	if host.RefetchCriticalQueriesUntil != nil {
+		level.Debug(logger).Log("msg", "ingesting Windows mdm data during refetch critical queries window", "host_id", host.ID,
+			"data", fmt.Sprintf("%+v", rows))
+	}
+
 	data := rows[0]
 	var enrolled bool
 	var automatic bool
@@ -1900,13 +1905,20 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 	}
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
 
+	mdmSolutionName := deduceMDMNameWindows(data)
+	if !enrolled && mdmSolutionName != fleet.WellKnownMDMFleet && host.RefetchCriticalQueriesUntil != nil {
+		// the host was unenrolled from a non-Fleet MDM solution, and the refetch
+		// critical queries timestamp was set, so clear it.
+		host.RefetchCriticalQueriesUntil = nil
+	}
+
 	return ds.SetOrUpdateMDMData(ctx,
 		host.ID,
 		isServer,
 		enrolled,
 		serverURL,
 		automatic,
-		deduceMDMNameWindows(data),
+		mdmSolutionName,
 		"",
 	)
 }
