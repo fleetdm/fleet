@@ -471,7 +471,13 @@ func main() {
 			}
 		}
 
-		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
+		metadataFileName := update.MetadataFileName
+		if updateURL := c.String("update-url"); updateURL != update.OldFleetTUFURL && updateURL != update.DefaultURL {
+			// Users using custom TUF repository will continue using the local TUF metadata as usual.
+			metadataFileName = update.OldMetadataFileName
+		}
+
+		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), metadataFileName))
 		if err != nil {
 			log.Fatal().Err(err).Msg("create local metadata store")
 		}
@@ -503,6 +509,10 @@ func main() {
 
 		opt.RootDirectory = c.String("root-dir")
 		opt.ServerURL = c.String("update-url")
+		if opt.ServerURL == update.OldFleetTUFURL {
+			// orbit 1.37.0+ will use the new TUF repository
+			opt.ServerURL = update.DefaultURL
+		}
 		opt.LocalStore = localStore
 		opt.InsecureTransport = c.Bool("insecure")
 		opt.ServerCertificatePath = c.String("update-tls-certificate")
@@ -545,13 +555,12 @@ func main() {
 		var updater *update.Updater
 		var updateRunner *update.Runner
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
-			updater, err = update.NewUpdater(opt)
+			updater, err := update.NewUpdater(opt)
 			if err != nil {
 				return fmt.Errorf("create updater: %w", err)
 			}
-
 			if err := updater.UpdateMetadata(); err != nil {
-				log.Info().Err(err).Msg("update metadata, using saved metadata")
+				log.Info().Err(err).Msg("update metadata")
 			}
 
 			signaturesExpiredAtStartup := updater.SignaturesExpired()
@@ -1394,10 +1403,17 @@ func getFleetdComponentPaths(
 		log.Error().Err(err).Msg("update metadata before getting components")
 	}
 
-	// "root", "targets", or "snapshot" signatures have expired, thus
-	// we attempt to get local paths for the targets (updater.Get will fail
-	// because of the expired signatures).
-	if updater.SignaturesExpired() {
+	//
+	// updater.SignaturesExpired():
+	// 	"root", "targets", or "snapshot" signatures have expired, thus
+	// 	we attempt to get local paths for the targets (updater.Get will fail
+	// 	because of the expired signatures).
+	//
+	// updater.LookupsFail():
+	//	Any of the targets fails to load thus we resort to the local executables we have.
+	//	This could happen if the new TUF server is down during the first run of the TUF migration.
+	//
+	if updater.SignaturesExpired() || updater.LookupsFail() {
 		log.Error().Err(err).Msg("expired metadata, using local targets")
 
 		// Attempt to get local path of osqueryd.
