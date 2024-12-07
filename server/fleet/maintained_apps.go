@@ -22,3 +22,8 @@ type MaintainedApp struct {
 	// UpdatedAt is the timestamp when the fleet maintained app data was last updated.
 	UpdatedAt *time.Time `json:"-" db:"updated_at"`
 }
+
+// AuthzType implements authz.AuthzTyper.
+func (s *MaintainedApp) AuthzType() string {
+	return "maintained_app"
+}
