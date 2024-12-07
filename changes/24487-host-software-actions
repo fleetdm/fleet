@@ -1,0 +1,2 @@
+- Fixed UI bug where "Actions" dropdown on host software page included "Install" and "Uninstall"
+  options for software that is not able to be installed via Fleet.
