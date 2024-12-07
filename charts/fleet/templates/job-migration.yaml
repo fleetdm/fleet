@@ -129,6 +129,31 @@ spec:
             readOnly: true
             mountPath: /secrets/mysql
           {{- end }}
+      {{- if .Values.gke.cloudSQL.enableProxy }}
+      - name: cloudsql-proxy
+        image: "{{ .Values.gke.cloudSQL.imageRepository }}:{{ .Values.gke.cloudSQL.imageTag }}"
+        command:
+        - "/cloud_sql_proxy"
+        - "-verbose={{ .Values.gke.cloudSQL.verbose}}"
+        - "-instances={{ .Values.gke.cloudSQL.instanceName }}=tcp:3306"
+        resources:
+          limits:
+            cpu: 0.5 # 500Mhz
+            memory: 150Mi
+          requests:
+            cpu: 0.1 # 100Mhz
+            memory: 50Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: [ALL]
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsGroup: 3333
+          runAsUser: 3333
+          runAsNonRoot: true
+      {{- end }}
+      serviceAccountName: fleet
       volumes:
         {{- if .Values.database.tls.enabled }}
         - name: mysql-tls
