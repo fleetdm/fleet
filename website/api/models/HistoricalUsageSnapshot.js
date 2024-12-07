@@ -47,6 +47,7 @@ module.exports = {
     maintenanceWindowsEnabled: {required: true, type: 'boolean'},
     maintenanceWindowsConfigured: {required: true, type: 'boolean'},
     numHostsFleetDesktopEnabled: {required: true, type: 'number'},
+    numQueries: {required: true, type: 'number' },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
