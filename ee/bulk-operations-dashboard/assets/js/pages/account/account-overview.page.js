@@ -7,6 +7,8 @@ parasails.registerPage('account-overview', {
 
     hasBillingCard: false,
 
+    apiToken: '',
+
     // Syncing/loading states for this page.
     syncingOpenCheckout: false,
     syncingUpdateCard: false,
@@ -31,7 +33,7 @@ parasails.registerPage('account-overview', {
     _.extend(this, window.SAILS_LOCALS);
 
     this.isBillingEnabled = !!this.stripePublishableKey;
-
+    this.apiToken = this.me.apiToken;
     // Determine whether there is billing info for this user.
     this.me.hasBillingCard = (
       this.me.billingCardBrand &&
@@ -82,7 +84,16 @@ parasails.registerPage('account-overview', {
       this.formErrors = {};
       await this.forceRender();
     },
-
+    clickRegenerateApiToken: async function() {
+      this.syncing = true;
+      let newApiToken = await Cloud.getNewApiToken();
+      this.apiToken = newApiToken;
+      await this.forceRender();
+      this.syncing = false;
+    },
+    clickCopyApiToken: function() {
+      navigator.clipboard.writeText(this.apiToken);
+    },
     clickRemoveCardButton: async function() {
       this.modal = 'remove-billing-card';
       this.formData.stripeToken = '';
