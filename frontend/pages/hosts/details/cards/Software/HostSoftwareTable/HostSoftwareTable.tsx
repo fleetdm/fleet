@@ -102,6 +102,13 @@ const HostSoftwareTable = ({
         routeTemplate,
         queryParams: newParams,
       });
+      const prevYScroll = window.scrollY;
+      setTimeout(() => {
+        window.scroll({
+          top: prevYScroll,
+          behavior: "smooth",
+        });
+      }, 0);
       router.replace(nextPath);
     },
     [pathPrefix, routeTemplate, router, searchQuery, sortDirection, sortHeader]
