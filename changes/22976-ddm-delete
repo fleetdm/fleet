@@ -1,2 +1,0 @@
-- Fixes a bug where DDM declarations would remaing "pending" forever if they were deleted
-  from Fleet before being sent to hosts.

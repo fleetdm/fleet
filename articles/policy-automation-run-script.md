@@ -18,6 +18,8 @@ Fleet allows users to upload scripts executed on macOS, Windows, and Linux hosts
 
 The next time a fleetd host fails the policy you added automation for, Fleet will queue up the script you selected and run it on the host as if you had requested a script run manually.
 
+> Adding a script to a policy will reset the policy's host counts.
+
 ## How does it work?
 
 * Online hosts report policy status when on a configurable cadence, with hourly default.
@@ -42,7 +44,7 @@ Fleet now supports running scripts on hosts that fail a policy check. We showed 
 
 Host condition-related issues can be resolved by running a script on those hosts. You can now automate those resolutions inside Fleet, allowing zero-touch remediation of policy failures on hosts running fleetd.
 
-<meta name="articleTitle" value="Automatic policy-based execution of scripts on hosts">
+<meta name="articleTitle" value="Automatically run scripts">
 <meta name="authorFullName" value="Ian Littman">
 <meta name="authorGitHubUsername" value="iansltx">
 <meta name="category" value="guides">

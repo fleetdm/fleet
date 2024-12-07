@@ -261,12 +261,12 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		`SELECT
 			COUNT(*) c
 			FROM host_software_installs hsi
-			WHERE hsi.host_id = :host_id AND
+			WHERE hsi.host_id = :host_id AND hsi.software_installer_id IS NOT NULL AND
 				hsi.status = :software_status_install_pending`,
 		`SELECT
 			COUNT(*) c
 			FROM host_software_installs hsi
-			WHERE hsi.host_id = :host_id AND
+			WHERE hsi.host_id = :host_id AND hsi.software_installer_id IS NOT NULL AND
 				hsi.status = :software_status_uninstall_pending`,
 		`
 		SELECT
@@ -312,7 +312,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			JSON_OBJECT(
 				'host_id', hsr.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
-				'script_name', COALESCE(scr.name, ''),
+				'script_name', COALESCE(ses.name, COALESCE(scr.name, '')),
 				'script_execution_id', hsr.execution_id,
 				'async', NOT hsr.sync_request,
 			    'policy_id', hsr.policy_id,
@@ -330,6 +330,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			scripts scr ON scr.id = hsr.script_id
 		LEFT OUTER JOIN
 		    host_software_installs hsi ON hsi.execution_id = hsr.execution_id
+		LEFT OUTER JOIN
+			setup_experience_scripts ses ON ses.id = hsr.setup_experience_script_id
 		WHERE
 			hsr.host_id = :host_id AND
 			hsr.exit_code IS NULL AND
@@ -340,7 +342,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			hsi.execution_id IS NULL
 `,
 		// list pending software installs
-		fmt.Sprintf(`SELECT
+		`SELECT
 			hsi.execution_id as uuid,
 			-- policies with automatic installers generate a host_software_installs with (user_id=NULL,self_service=0),
 			-- so we mark those as "Fleet"
@@ -376,9 +378,9 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		WHERE
 			hsi.host_id = :host_id AND
 			hsi.status = :software_status_install_pending
-		`),
+		`,
 		// list pending software uninstalls
-		fmt.Sprintf(`SELECT
+		`SELECT
 			hsi.execution_id as uuid,
 			-- policies with automatic installers generate a host_software_installs with (user_id=NULL,self_service=0),
 			-- so we mark those as "Fleet"
@@ -412,7 +414,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		WHERE
 			hsi.host_id = :host_id AND
 			hsi.status = :software_status_uninstall_pending
-		`),
+		`,
 		`
 SELECT
 	hvsi.command_uuid AS uuid,
@@ -481,8 +483,7 @@ WHERE
 		return nil, nil, ctxerr.Wrap(ctx, err, "select upcoming activities")
 	}
 
-	var metaData *fleet.PaginationMetadata
-	metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: count}
+	metaData := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: count}
 	if len(activities) > int(opt.PerPage) { //nolint:gosec // dismiss G115
 		metaData.HasNextResults = true
 		activities = activities[:len(activities)-1]

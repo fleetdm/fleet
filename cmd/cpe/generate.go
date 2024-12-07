@@ -42,7 +42,7 @@ func main() {
 	slog.SetDefault(slog.New(logHandler))
 
 	if apiKey == "" {
-		log.Fatal(fmt.Sprintf("Must set %v environment variable", apiKeyEnvVar))
+		log.Fatalf("Must set %v environment variable", apiKeyEnvVar)
 	}
 
 	cwd, err := os.Getwd()
@@ -109,12 +109,12 @@ func getCPEs(client common.HTTPClient, apiKey string, resultPath string) string 
 
 	// Sanity check
 	if totalResults <= 1 || len(cpes) != totalResults {
-		log.Fatal(fmt.Sprintf("Invalid number of expected results:%v or actual results:%v", totalResults, len(cpes)))
+		log.Fatalf("Invalid number of expected results:%v or actual results:%v", totalResults, len(cpes))
 	}
 
 	slog.Info("Generating CPE sqlite DB...")
 
-	dbPath := filepath.Join(resultPath, fmt.Sprint("cpe.sqlite"))
+	dbPath := filepath.Join(resultPath, "cpe.sqlite")
 	err = nvd.GenerateCPEDB(dbPath, cpes)
 	panicIf(err)
 

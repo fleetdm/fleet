@@ -24,12 +24,12 @@
   quoteAuthorJobTitle: Manager, Security Operations
   productCategories: [Endpoint operations]
 -
-  quote: I had to answer some really complex questions for a compliance audit, and I was able to do it in about 15 minutes by munging some data together via a few queries into a csv. It took me longer to remember how to use `xsv` than to actually put together the report. If you aren't using osquery in your environment, you should be.
+  quote: Fleet's extremely wide and diverse set of data allows us to answer questions that we didn't even know we had.  On top of that, the experience is near instantaneous.  Seconds to sort through billions of data points and return the exact handful that we need, with complete auditing and transparency.  We're able to address reliability and compliance concerns without sacrificing a single point-of-a-percent of performance for our servers.  All of this done consistently and continuously.
   quoteAuthorName: Charles Zaffery
   quoteAuthorProfileImageFilename: testimonial-author-charles-zaffery-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/charleszaffery/
   quoteAuthorJobTitle: Principle Computer Janitor
-  productCategories: [Vulnerability management]
+  productCategories: [Endpoint operations]
 -
   quote: The visibility down into the assets covered by the agent is phenomenal. Fleet has become the central source for a lot of things.
   quoteAuthorName: Andre Shields
@@ -87,6 +87,13 @@
   quoteAuthorJobTitle: CISO of Lyft
   productCategories: [Device management] # « explanation: https://github.com/fleetdm/fleet/blob/f412b1f02fb6d6f36bdc0776252fff72fc0fc2ea/website/views/pages/device-management.ejs#L32
 -
+  quote: I had to answer some really complex questions for a compliance audit, and I was able to do it in about 15 minutes by munging some data together via a few queries into a csv. It took me longer to remember how to use `xsv` than to actually put together the report. If you aren't using osquery in your environment, you should be.
+  quoteAuthorName: Charles Zaffery
+  quoteAuthorProfileImageFilename: testimonial-author-charles-zaffery-48x48@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/charleszaffery/
+  quoteAuthorJobTitle: Principle Computer Janitor
+  productCategories: [Vulnerability management]
+-
   quote: Fleet has been highly effective for our needs. We appreciate your team for always being so open to hearing our feedback.
   quoteAuthorName: Kenny Botelho
   quoteAuthorProfileImageFilename: testimonial-author-kenny-botelho-48x48@2x.png
@@ -143,7 +150,7 @@
   productCategories: [Vulnerability management, Endpoint operations]
 -
   quote: Fleet has such a huge amount of use cases. My goal was to get telemetry on endpoints, but then our IR team, our TBM team, and multiple other folks in security started heavily utilizing the system in ways I didn’t expect. It spread so naturally, even our corporate and infrastructure teams want to run it.
-  quoteAuthorName: Charles Zaffery
+  quoteAuthorName: charles zaffery # Note: this name is lowercased here so we can sort the two endpoint-ops-related Charles Zaffery quotes in different spots. (The name will be capitalized via CSS)
   quoteLinkUrl: https://www.linkedin.com/in/charleszaffery/
   quoteAuthorJobTitle: Principle computer janitor
   quoteAuthorProfileImageFilename: testimonial-author-charles-zaffery-48x48@2x.png
@@ -188,3 +195,11 @@
   quoteAuthorProfileImageFilename: testimonial-author-scott-macvicar-100x100@2x.png
   quoteAuthorJobTitle: Head of Developer Infrastructure & Corporate Technology
   productCategories: [Device management, Endpoint operations]
+-
+  quote: Fleet helped us determine that Norton antivirus (pre-installed on some machines) was interfering with Crowdstrike's ability to detect downloaded malware.
+  # quoteImageFilename: social-proof-logo-proofpoint-67x32@2x.png #TODO
+  quoteLinkUrl: https://www.linkedin.com/in/arsenio-figueroa-81a56198/
+  quoteAuthorName: Arsenio Figueroa
+  quoteAuthorProfileImageFilename: testimonial-author-arsenio-figueroa-48x48@2x.png
+  quoteAuthorJobTitle: Senior Systems Security Engineer
+  productCategories: [Endpoint operations, Vulnerability management]

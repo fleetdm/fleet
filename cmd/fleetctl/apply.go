@@ -94,7 +94,7 @@ func applyCommand() *cli.Command {
 			teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
 			teamsScripts := make(map[string][]fleet.ScriptResponse)
 
-			_, _, _, err = fleetClient.ApplyGroup(c.Context, specs, baseDir, logf, nil, opts, teamsSoftwareInstallers, teamsScripts)
+			_, _, _, err = fleetClient.ApplyGroup(c.Context, false, specs, baseDir, logf, nil, opts, teamsSoftwareInstallers, teamsScripts)
 			if err != nil {
 				return err
 			}

@@ -27,7 +27,7 @@ export type ISupportedGraphicNames = Extract<
 interface IListItemProps {
   /** The grahpic you want to display for this list item. */
   graphic: ISupportedGraphicNames;
-  title: string;
+  title: string | JSX.Element;
   details: React.ReactNode;
   /** A collection of React Nodes that will render as list item actions. Can be
    * used to render buttons, links, etc.

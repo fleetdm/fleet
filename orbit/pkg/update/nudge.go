@@ -222,10 +222,11 @@ func (n *NudgeConfigReceiver) launch() error {
 					// show up even if it's opened multiple times in that
 					// interval.
 					log.Info().Msg("running Nudge")
-					return execuser.Run(
+					_, err := execuser.Run(
 						appPath,
 						execuser.WithArg("-json-url", configPath),
 					)
+					return err
 				}
 			}
 

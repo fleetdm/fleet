@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"bytes"
 	"context"
 	_ "embed"
 	"fmt"
@@ -654,10 +653,47 @@ VALUES
 		require.NoError(t, err)
 		require.True(t, r)
 	})
+
+	t.Run("script deletion cancels pending script runs", func(t *testing.T) {
+		insertResults(t, 43, scripts[3], now.Add(-2*time.Minute), "execution-4-4", nil)
+		pending, err := ds.ListPendingHostScriptExecutions(ctx, 43)
+		require.NoError(t, err)
+		require.Len(t, pending, 1)
+
+		err = ds.DeleteScript(ctx, scripts[3].ID)
+		require.NoError(t, err)
+
+		pending, err = ds.ListPendingHostScriptExecutions(ctx, 43)
+		require.NoError(t, err)
+		require.Len(t, pending, 0)
+	})
 }
 
 func testBatchSetScripts(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	insertResults := func(t *testing.T, hostID uint, scriptID uint, createdAt time.Time, execID string, exitCode *int64) {
+		stmt := `
+INSERT INTO
+	host_script_results (%s host_id, created_at, execution_id, exit_code, output)
+VALUES
+	(%s ?,?,?,?,?)`
+
+		args := []interface{}{}
+		if scriptID == 0 {
+			stmt = fmt.Sprintf(stmt, "", "")
+		} else {
+			stmt = fmt.Sprintf(stmt, "script_id,", "?,")
+			args = append(args, scriptID)
+		}
+		args = append(args, hostID, createdAt, execID, exitCode, "")
+
+		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, stmt, args...)
+			return err
+		})
+	}
 
 	applyAndExpect := func(newSet []*fleet.Script, tmID *uint, want []*fleet.Script) map[string]uint {
 		responseFromSet, err := ds.BatchSetScripts(ctx, tmID, newSet)
@@ -781,6 +817,16 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, n1WithTeamID, *teamPolicy.ScriptID)
 
+	// add pending scripts on team and no-team and confirm they're shown as pending
+	insertResults(t, 44, n1WithTeamID, now.Add(-2*time.Minute), "execution-n1t1-1", nil)
+	insertResults(t, 45, n1WithNoTeamId, now.Add(-2*time.Minute), "execution-n1nt1-1", nil)
+	pending, err := ds.ListPendingHostScriptExecutions(ctx, 44)
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, 45)
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
+
 	// clear scripts for tm1
 	applyAndExpect(nil, ptr.Uint(1), nil)
 
@@ -793,6 +839,14 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 	noTeamPolicy, err = ds.Policy(ctx, noTeamPolicy.ID)
 	require.NoError(t, err)
 	require.Equal(t, n1WithNoTeamId, *noTeamPolicy.ScriptID)
+
+	// team script should no longer be pending, no-team script should still be pending
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, 44)
+	require.NoError(t, err)
+	require.Len(t, pending, 0)
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, 45)
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
 
 	// apply only new scripts to no-team
 	applyAndExpect([]*fleet.Script{
@@ -812,6 +866,11 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 	noTeamPolicy, err = ds.Policy(ctx, noTeamPolicy.ID)
 	require.NoError(t, err)
 	require.Nil(t, noTeamPolicy.ScriptID)
+
+	// no-team script should no longer be pending
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, 45)
+	require.NoError(t, err)
+	require.Len(t, pending, 0)
 }
 
 func testLockHostViaScript(t *testing.T, ds *Datastore) {
@@ -1224,12 +1283,14 @@ func testCleanupUnusedScriptContents(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create a software install that references scripts
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	swi, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "install-script",
 		UninstallScript:   "uninstall-script",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "post-install-script",
-		InstallerFile:     bytes.NewReader([]byte("hello")),
+		InstallerFile:     tfr1,
 		StorageID:         "storage1",
 		Filename:          "file1",
 		Title:             "file1",
@@ -1283,11 +1344,13 @@ func testCleanupUnusedScriptContents(t *testing.T, ds *Datastore) {
 	require.Equal(t, md5ChecksumScriptContent(res.ScriptContents), sc[0].Checksum)
 
 	// create a software install without a post-install script
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 	swi, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		PreInstallQuery: "SELECT 1",
 		InstallScript:   "install-script",
 		UninstallScript: "uninstall-script",
-		InstallerFile:   bytes.NewReader([]byte("hello")),
+		InstallerFile:   tfr2,
 		StorageID:       "storage1",
 		Filename:        "file1",
 		Title:           "file1",

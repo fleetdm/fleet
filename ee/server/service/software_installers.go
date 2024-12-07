@@ -1,13 +1,11 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"mime"
 	"net/http"
 	"net/url"
@@ -283,7 +281,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	// persist changes starting here, now that we've done all the validation/diffing we can
 	if len(dirty) > 0 {
-		if len(dirty) == 1 && dirty["SelfService"] == true { // only self-service changed; use lighter update function
+		if len(dirty) == 1 && dirty["SelfService"] { // only self-service changed; use lighter update function
 			if err := svc.ds.UpdateInstallerSelfServiceFlag(ctx, *payload.SelfService, existingInstaller.InstallerID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "updating installer self service flag")
 			}
@@ -301,7 +299,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			if payload.UninstallScript == nil {
 				payload.UninstallScript = &existingInstaller.UninstallScript
 			}
-			if payload.PostInstallScript == nil && dirty["PostInstallScript"] == false {
+			if payload.PostInstallScript == nil && !dirty["PostInstallScript"] {
 				payload.PostInstallScript = &existingInstaller.PostInstallScript
 			}
 			if payload.PreInstallQuery == nil {
@@ -319,7 +317,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			// and if we're updating the package we reset counts. This is run in its own transaction internally
 			// for consistency, but independent of the installer update query as the main update should stick
 			// even if side effects fail.
-			if err := svc.ds.ProcessInstallerUpdateSideEffects(ctx, existingInstaller.InstallerID, true, dirty["Package"] == true); err != nil {
+			if err := svc.ds.ProcessInstallerUpdateSideEffects(ctx, existingInstaller.InstallerID, true, dirty["Package"]); err != nil {
 				return nil, err
 			}
 		}
@@ -691,12 +689,13 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		return ctxerr.Wrap(ctx, err, "finding VPP app for title")
 	}
 
-	return svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.AppleDevicePlatform(platform) == fleet.MacOSPlatform, false)
+	_, err = svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.AppleDevicePlatform(platform) == fleet.MacOSPlatform, false)
+	return err
 }
 
-func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, appleDevice bool, selfService bool) error {
+func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, appleDevice bool, selfService bool) (string, error) {
 	if !appleDevice {
-		return &fleet.BadRequestError{
+		return "", &fleet.BadRequestError{
 			Message: "VPP apps can only be installed only on Apple hosts.",
 			InternalErr: ctxerr.NewWithData(
 				ctx, "invalid host platform for requested installer",
@@ -707,21 +706,21 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 
 	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching config to check MDM status")
+		return "", ctxerr.Wrap(ctx, err, "fetching config to check MDM status")
 	}
 
 	if !config.MDM.EnabledAndConfigured {
-		return fleet.NewUserMessageError(errors.New("Couldn't install. MDM is turned off. Please make sure that MDM is turned on to install App Store apps."), http.StatusUnprocessableEntity)
+		return "", fleet.NewUserMessageError(errors.New("Couldn't install. MDM is turned off. Please make sure that MDM is turned on to install App Store apps."), http.StatusUnprocessableEntity)
 	}
 
 	mdmConnected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "checking MDM status for host %d", host.ID)
+		return "", ctxerr.Wrapf(ctx, err, "checking MDM status for host %d", host.ID)
 	}
 
 	if !mdmConnected {
-		return &fleet.BadRequestError{
-			Message: "VPP apps can only be installed only on hosts enrolled in MDM.",
+		return "", &fleet.BadRequestError{
+			Message: "Error: Couldn't install. To install App Store app, turn on MDM for this host.",
 			InternalErr: ctxerr.NewWithData(
 				ctx, "VPP install attempted on non-MDM host",
 				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": vppApp.TitleID},
@@ -731,7 +730,7 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 
 	token, err := svc.getVPPToken(ctx, host.TeamID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting VPP token")
+		return "", ctxerr.Wrap(ctx, err, "getting VPP token")
 	}
 
 	// at this moment, neither the UI or the back-end are prepared to
@@ -747,7 +746,7 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 	// [1]: https://developer.apple.com/documentation/devicemanagement/app_and_book_management/handling_error_responses#3729433
 	assignments, err := vpp.GetAssignments(token, &vpp.AssignmentFilter{AdamID: vppApp.AdamID, SerialNumber: host.HardwareSerial})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting assignments from VPP API")
+		return "", ctxerr.Wrap(ctx, err, "getting assignments from VPP API")
 	}
 
 	var eventID string
@@ -757,7 +756,7 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 	if len(assignments) == 0 {
 		assets, err := vpp.GetAssets(token, &vpp.AssetFilter{AdamID: vppApp.AdamID})
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting assets from VPP API")
+			return "", ctxerr.Wrap(ctx, err, "getting assets from VPP API")
 		}
 
 		if len(assets) == 0 {
@@ -766,18 +765,18 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 				"adam_id", vppApp.AdamID,
 				"host_serial", host.HardwareSerial,
 			)
-			return &fleet.BadRequestError{
+			return "", &fleet.BadRequestError{
 				Message:     "Couldn't add software. <app_store_id> isn't available in Apple Business Manager. Please purchase license in Apple Business Manager and try again.",
 				InternalErr: ctxerr.Errorf(ctx, "VPP API didn't return any assets for adamID %s", vppApp.AdamID),
 			}
 		}
 
 		if len(assets) > 1 {
-			return ctxerr.Errorf(ctx, "VPP API returned more than one asset for adamID %s", vppApp.AdamID)
+			return "", ctxerr.Errorf(ctx, "VPP API returned more than one asset for adamID %s", vppApp.AdamID)
 		}
 
 		if assets[0].AvailableCount <= 0 {
-			return &fleet.BadRequestError{
+			return "", &fleet.BadRequestError{
 				Message: "Couldn't install. No available licenses. Please purchase license in Apple Business Manager and try again.",
 				InternalErr: ctxerr.NewWithData(
 					ctx, "license available count <= 0",
@@ -793,7 +792,7 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 
 		eventID, err = vpp.AssociateAssets(token, &vpp.AssociateAssetsRequest{Assets: assets, SerialNumbers: []string{host.HardwareSerial}})
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "associating asset with adamID %s to host %s", vppApp.AdamID, host.HardwareSerial)
+			return "", ctxerr.Wrapf(ctx, err, "associating asset with adamID %s to host %s", vppApp.AdamID, host.HardwareSerial)
 		}
 
 	}
@@ -802,15 +801,15 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 	cmdUUID := uuid.NewString()
 	err = svc.mdmAppleCommander.InstallApplication(ctx, []string{host.UUID}, cmdUUID, vppApp.AdamID)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "sending command to install VPP %s application to host with serial %s", vppApp.AdamID, host.HardwareSerial)
+		return "", ctxerr.Wrapf(ctx, err, "sending command to install VPP %s application to host with serial %s", vppApp.AdamID, host.HardwareSerial)
 	}
 
 	err = svc.ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vppApp.VPPAppID, cmdUUID, eventID, selfService)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "inserting host vpp software install for host with serial %s and app with adamID %s", host.HardwareSerial, vppApp.AdamID)
+		return "", ctxerr.Wrapf(ctx, err, "inserting host vpp software install for host with serial %s and app with adamID %s", host.HardwareSerial, vppApp.AdamID)
 	}
 
-	return nil
+	return cmdUUID, nil
 }
 
 func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host *fleet.Host, installer *fleet.SoftwareInstaller) error {
@@ -1089,7 +1088,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	payload.Extension = meta.Extension
 
 	// reset the reader (it was consumed to extract metadata)
-	if _, err := payload.InstallerFile.Seek(0, 0); err != nil {
+	if err := payload.InstallerFile.Rewind(); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "resetting installer file reader")
 	}
 
@@ -1229,7 +1228,7 @@ func (svc *Service) softwareBatchUpload(
 		}
 	}(time.Now())
 
-	downloadURLFn := func(ctx context.Context, url string) (http.Header, []byte, error) {
+	downloadURLFn := func(ctx context.Context, url string) (http.Header, *fleet.TempFileReader, error) {
 		client := fleethttp.NewClient()
 		client.Transport = fleethttp.NewSizeLimitTransport(fleet.MaxSoftwareInstallerSize)
 
@@ -1267,7 +1266,7 @@ func (svc *Service) softwareBatchUpload(
 			)
 		}
 
-		bodyBytes, err := io.ReadAll(resp.Body)
+		tfr, err := fleet.NewTempFileReader(resp.Body, nil)
 		if err != nil {
 			// the max size error can be received either at client.Do or here when
 			// reading the body if it's caught via a limited body reader.
@@ -1281,7 +1280,7 @@ func (svc *Service) softwareBatchUpload(
 			return nil, nil, fmt.Errorf("reading installer %q contents: %w", url, err)
 		}
 
-		return resp.Header, bodyBytes, nil
+		return resp.Header, tfr, nil
 	}
 
 	var g errgroup.Group
@@ -1294,21 +1293,26 @@ func (svc *Service) softwareBatchUpload(
 		i, p := i, p
 
 		g.Go(func() error {
-			headers, bodyBytes, err := downloadURLFn(ctx, p.URL)
+			headers, tfr, err := downloadURLFn(ctx, p.URL)
 			if err != nil {
 				return err
 			}
 
+			// NOTE: cannot defer tfr.Close() here because the reader needs to be
+			// available after the goroutine completes. Instead, all temp file
+			// readers will have their Close deferred after the join/wait of
+			// goroutines.
 			installer := &fleet.UploadSoftwareInstallerPayload{
-				TeamID:            teamID,
-				InstallScript:     p.InstallScript,
-				PreInstallQuery:   p.PreInstallQuery,
-				PostInstallScript: p.PostInstallScript,
-				UninstallScript:   p.UninstallScript,
-				InstallerFile:     bytes.NewReader(bodyBytes),
-				SelfService:       p.SelfService,
-				UserID:            userID,
-				URL:               p.URL,
+				TeamID:             teamID,
+				InstallScript:      p.InstallScript,
+				PreInstallQuery:    p.PreInstallQuery,
+				PostInstallScript:  p.PostInstallScript,
+				UninstallScript:    p.UninstallScript,
+				InstallerFile:      tfr,
+				SelfService:        p.SelfService,
+				UserID:             userID,
+				URL:                p.URL,
+				InstallDuringSetup: p.InstallDuringSetup,
 			}
 
 			// set the filename before adding metadata, as it is used as fallback
@@ -1324,6 +1328,7 @@ func (svc *Service) softwareBatchUpload(
 
 			ext, err := svc.addMetadataToSoftwarePayload(ctx, installer)
 			if err != nil {
+				_ = tfr.Close() // closing the temp file here since it will not be available after the goroutine completes
 				return err
 			}
 
@@ -1350,9 +1355,18 @@ func (svc *Service) softwareBatchUpload(
 		})
 	}
 
-	if err := g.Wait(); err != nil {
+	waitErr := g.Wait()
+
+	// defer close for any valid temp file reader
+	for _, payload := range installers {
+		if payload != nil && payload.InstallerFile != nil {
+			defer payload.InstallerFile.Close()
+		}
+	}
+
+	if waitErr != nil {
 		// NOTE: intentionally not wrapping to avoid polluting user errors.
-		batchErr = err
+		batchErr = waitErr
 		return
 	}
 
@@ -1506,7 +1520,8 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 	platform := host.FleetPlatform()
 	mobileAppleDevice := fleet.AppleDevicePlatform(platform) == fleet.IOSPlatform || fleet.AppleDevicePlatform(platform) == fleet.IPadOSPlatform
 
-	return svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.AppleDevicePlatform(platform) == fleet.MacOSPlatform, true)
+	_, err = svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.AppleDevicePlatform(platform) == fleet.MacOSPlatform, true)
+	return err
 }
 
 // packageExtensionToPlatform returns the platform name based on the
@@ -1560,7 +1575,15 @@ func UninstallSoftwareMigration(
 			return ctxerr.Wrap(ctx, err, "getting installer from store")
 		}
 
-		meta, err := file.ExtractInstallerMetadata(installer)
+		tfr, err := fleet.NewTempFileReader(installer, nil)
+		_ = installer.Close()
+		if err != nil {
+			level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
+				err)
+			continue
+		}
+		meta, err := file.ExtractInstallerMetadata(tfr)
+		_ = tfr.Close() // best-effort closing and deleting of temp file
 		if err != nil {
 			level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
 				err)

@@ -207,6 +207,13 @@ const HostSoftwareTable = ({
     );
   }, [hostSoftwareFilter, platform, searchQuery]);
 
+  // Determines if a user should be able to filter or search in the table
+  const hasData = data && data.software.length > 0;
+  const hasQuery = searchQuery !== "";
+  const hasSoftwareFilter = hostSoftwareFilter !== "allSoftware";
+
+  const showFilterHeaders = hasData || hasQuery || hasSoftwareFilter;
+
   return (
     <div className={baseClass}>
       <TableContainer
@@ -223,10 +230,10 @@ const HostSoftwareTable = ({
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
         emptyComponent={memoizedEmptyComponent}
-        customControl={memoizedFilterDropdown}
+        customControl={showFilterHeaders ? memoizedFilterDropdown : undefined}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        searchable
+        searchable={showFilterHeaders}
         manualSortBy
       />
     </div>

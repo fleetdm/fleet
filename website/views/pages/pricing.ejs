@@ -104,7 +104,7 @@
                 <% for( let feature of category.features){ %>
                   <tr>
                     <%if(feature.description && feature.documentationUrl) {%>
-                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank"><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<u>Click to learn more</u>' : ''] %> "></a></td>
+                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank"><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<p class="d-flex flex-row align-items-center mb-0">Click <img src="/images/icon-more-info-25-14x14@2x.png" class="mx-1" style="height: 12px; display: inline;" alt="more info"> to learn more</p>' : ''] %> "></a></td>
                     <% } else if(feature.description) {%>
                       <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<%= feature.description %> "></td>
                     <% } else {%>
@@ -179,7 +179,7 @@
                 <% for( let feature of category.features){ %>
                   <tr>
                     <%if(feature.description && feature.documentationUrl) {%>
-                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank"><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<u>Click to learn more</u>' : ''] %> "></a></td>
+                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank"><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<p class="d-flex flex-row align-items-center mb-0">Click <img src="/images/icon-more-info-25-14x14@2x.png" class="mx-1" style="height: 12px; display: inline;" alt="more info"> to learn more</p>' : ''] %> "></a></td>
                     <% } else if(feature.description) {%>
                       <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<%= feature.description %> "></td>
                     <% } else {%>
@@ -252,7 +252,7 @@
                 <% for( let feature of category.features){ %>
                   <tr>
                     <%if(feature.description && feature.documentationUrl) {%>
-                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank"><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<u>Click to learn more</u>' : ''] %> "></a></td>
+                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank"><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<p class="d-flex flex-row align-items-center mb-0">Click <img src="/images/icon-more-info-25-14x14@2x.png" class="mx-1" style="height: 12px; display: inline;" alt="more info"> to learn more</p>' : ''] %> "></a></td>
                     <% } else if(feature.description) {%>
                       <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<%= feature.description %> "></td>
                     <% } else {%>

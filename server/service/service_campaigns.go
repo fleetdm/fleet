@@ -465,5 +465,4 @@ func (svc Service) updateStats(
 		}
 		tracker.aggregationNeeded = false
 	}
-	return
 }

@@ -243,7 +243,7 @@ func testQueriesGetByName(t *testing.T, ds *Datastore) {
 	require.Equal(t, "q1", actual.Name)
 	require.Equal(t, "select * from time", actual.Query)
 
-	actual, err = ds.QueryByName(context.Background(), nil, "xxx")
+	_, err = ds.QueryByName(context.Background(), nil, "xxx")
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 
@@ -262,7 +262,7 @@ func testQueriesGetByName(t *testing.T, ds *Datastore) {
 	require.Equal(t, teamRocket.ID, *actual.TeamID)
 	require.Equal(t, "select * from time", actual.Query)
 
-	actual, err = ds.QueryByName(context.Background(), &teamRocket.ID, "xxx")
+	_, err = ds.QueryByName(context.Background(), &teamRocket.ID, "xxx")
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 }

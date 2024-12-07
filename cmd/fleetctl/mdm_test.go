@@ -149,23 +149,23 @@ func TestMDMRunCommand(t *testing.T) {
 
 	emptyAppleCmdFilePath, err := os.CreateTemp(t.TempDir(), "*.xml")
 	require.NoError(t, err)
-	_, err = emptyAppleCmdFilePath.WriteString(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	_, err = emptyAppleCmdFilePath.WriteString(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-</plist>`))
+</plist>`)
 	require.NoError(t, err)
 	emptyAppleCmdFilePath.Close()
 
 	emptyWinCmdFilePath, err := os.CreateTemp(t.TempDir(), "*.xml")
 	require.NoError(t, err)
-	_, err = emptyWinCmdFilePath.WriteString(fmt.Sprintf(`<Exec>
-</Exec>`))
+	_, err = emptyWinCmdFilePath.WriteString(`<Exec>
+</Exec>`)
 	require.NoError(t, err)
 	emptyWinCmdFilePath.Close()
 
 	nonExecWinCmdFilePath, err := os.CreateTemp(t.TempDir(), "*.xml")
 	require.NoError(t, err)
-	_, err = nonExecWinCmdFilePath.WriteString(fmt.Sprintf(`<Get>
+	_, err = nonExecWinCmdFilePath.WriteString(`<Get>
 	<CmdID>22</CmdID>
 	<Item>
 		<Target>
@@ -177,7 +177,7 @@ func TestMDMRunCommand(t *testing.T) {
 		</Meta>
 		<Data>NamedValuesList=MinPasswordLength,8;</Data>
 	</Item>
-</Get>`))
+</Get>`)
 	require.NoError(t, err)
 	nonExecWinCmdFilePath.Close()
 

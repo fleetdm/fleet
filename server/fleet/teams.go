@@ -216,8 +216,7 @@ func (t *TeamMDM) Copy() *TeamMDM {
 		return nil
 	}
 
-	var clone TeamMDM
-	clone = *t
+	clone := *t
 
 	// EnableDiskEncryption, MacOSUpdates and MacOSSetup don't have fields that
 	// require cloning (all fields are basic value types, no
@@ -238,6 +237,14 @@ func (t *TeamMDM) Copy() *TeamMDM {
 			windowsSettings[i] = *mps.Copy()
 		}
 		clone.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
+	}
+	if t.MacOSSetup.Software.Set {
+		sw := make([]*MacOSSetupSoftware, len(t.MacOSSetup.Software.Value))
+		for i, s := range t.MacOSSetup.Software.Value {
+			s := *s
+			sw[i] = &s
+		}
+		clone.MacOSSetup.Software = optjson.SetSlice(sw)
 	}
 	return &clone
 }
@@ -518,5 +525,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		HostExpirySettings: &t.Config.HostExpirySettings,
 		WebhookSettings:    webhookSettings,
 		Integrations:       integrations,
+		Scripts:            t.Config.Scripts,
+		Software:           t.Config.Software,
 	}, nil
 }

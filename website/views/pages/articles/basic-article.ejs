@@ -46,7 +46,6 @@
       <div purpose="sidebar-container">
         <div purpose="right-sidebar" class="d-flex flex-column">
           <div purpose="social-share-buttons" class="d-flex flex-column order-lg-2 order-1">
-            <p><strong>Share</strong></p>
             <div class="d-flex flex-row">
               <a :href="`https://news.ycombinator.com/submitlink?u=https://fleetdm.com${encodeURIComponent(thisPage.url)}&t=${encodeURIComponent(thisPage.meta.articleTitle)}`"><img src="/images/social-share-icon-hacker-news-20x20@2x.png" alt="Share this article on Hacker News"></a>
               <a :href="`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://fleetdm.com'+thisPage.url)}`"><img src="/images/social-share-icon-linkedin-20x20@2x.png" alt="Share this article on LinkedIn"></a>
@@ -56,17 +55,50 @@
 
           <div purpose="subtopics" id="subtopics" class="d-flex nav flex-column order-lg-1 order-2">
             <p><strong>On this page</strong></p>
-            <a v-for="topic in subtopics" :href="topic.url" class="nav-link p-0">{{topic.title}}</a>
+            <a purpose="sidebar-link" v-for="topic in subtopics" :href="topic.url" class="nav-link p-0">{{topic.title}}</a>
           </div>
           <div purpose="docs-links" class="order-3">
-            <a href="/docs">Docs</a>
-            <a href="/docs/rest-api">REST API</a>
-            <a href="/guides">Guides</a>
-            <a purpose="edit-button" class="d-inline-block text-nowrap" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/articles/'+thisPage.sectionRelativeRepoPath"><img alt="A pencil icon" src="/images/pencil-16x16@2x.png">Edit page</a>
-          </div>
+            <a purpose="sidebar-link" href="/docs"><img alt="Docs" src="/images/icon-docs-16x16@2x.png"> Docs</a>
+            <a purpose="sidebar-link" href="/docs/rest-api"><img alt="REST API" src="/images/icon-api-16x16@2x.png"> REST API</a>
+            <a purpose="sidebar-link" href="/guides"><img alt="Guides" src="/images/icon-guides-16x16@2x.png"> Guides</a>
+            <a purpose="sidebar-link" href="/contact"><img alt="Talk to us" src="/images/icon-contact-16x16@2x.png"> Talk to us</a>
+            <div purpose="edit-link">
+              <a purpose="sidebar-link" :href="'https://github.com/fleetdm/fleet/edit/main/articles/'+thisPage.sectionRelativeRepoPath"> <img src="/images/icon-edit-16x16@2x.png" alt="Suggest an edit">Suggest an edit</a>
+            </div>
+            <div purpose="sidebar-cta" @click="clickGotoStart()">
+              <a href="<% if(typeof me === 'undefined') {%>/register<% } else { %>/start<% } %>">
+              <div purpose="cta-image"></div>
+              <div purpose="cta-text">
+                <% if(typeof me === 'undefined'){ %>
+                  <h4>Try it out</h4>
+                  <p>See what Fleet can do</p>
+                  <a purpose="cta-button" class="btn btn-primary docs-cta-continue-button" href="/register">Start now</a>
+                <% } else if (['2 - Aware', '3 - Intrigued'].includes(me.psychologicalStage)) {%>
+                  <h4>Tried Fleet yet?</h4>
+                  <p>Continue getting started with Fleet</p>
+                  <a purpose="cta-button" class="btn btn-primary" href="/start">Continue</a>
+                <% } else if (me.psychologicalStage === '4 - Has use case') {%>
+                  <h4>Feeling confident?</h4>
+                  <p>Get set up with Fleet</p>
+                  <a purpose="cta-button" class="btn btn-primary" hredf="/start">Continue</a>
+                <% } else if (['5 - Personally confident', '6 - Has team buy-in'].includes(me.psychologicalStage)) {%>
+                  <h4>Talk to the team</h4>
+                  <p>Let’s get you set up!</p>
+                  <a purpose="cta-button" class="btn btn-primary" href="/start">Continue</a>
+                <%}%>
+                <div purpose="cta-platform-icons" class="d-flex flex-row justify-content-between align-items-center">
+                  <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS" />
+                  <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows" />
+                  <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux" />
+                </div>
+              </div>
+              </a>
+            </div>
           <!-- <div class="d-flex flex-row align-items-center justify-content-start pt-3 pt-sm-1">
             <a purpose="rss-button" @click="clickCopyRssLink(articleCategorySlug)"><span>Subscribe</span></a>
           </div> -->
+          </div>
+
         </div>
       </div>
       <div purpose="article-container">
@@ -82,21 +114,10 @@
               <img style="height: 28px; width: 28px; border-radius: 100%;" alt="The author's GitHub profile picture" :src="'https://github.com/'+thisPage.meta.authorGitHubUsername+'.png?size=200'">
               <p class="pl-2 font-weight-bold"><%=thisPage.meta.authorFullName %></p>
             </div>
-
           </div>
         </div>
         <div purpose="article-content" class="d-flex flex-column" parasails-has-no-page-script>
           <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, thisPage.htmlId)))) %>
-        </div>
-        <hr>
-        <div purpose="bottom-cta" class="d-block">
-          <h3 style="font-size: 24px; line-height: 32px;">Get started</h3>
-          <div class="d-flex flex-sm-row flex-column align-items-center">
-            <a href="/register" class="d-flex btn btn-primary justify-content-center align-items-center" purpose="next-steps-button">
-              Start now
-            </a>
-            <animated-arrow-button class="ml-sm-4" href="/contact">Talk to us</animated-arrow-button>
-          </div>
         </div>
       </div>
     </div>

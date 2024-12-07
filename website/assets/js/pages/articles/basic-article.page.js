@@ -6,6 +6,8 @@ parasails.registerPage('basic-article', {
     articleHasSubtitle: false,
     articleSubtitle: undefined,
     subtopics: [],
+    lastScrollTop: 0,
+    scrollDistance: 0,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -73,6 +75,9 @@ parasails.registerPage('basic-article', {
         window.open('https://fleetdm.com/rss/'+articleCategory, '_blank');
       }
     },
+    clickGotoStart: function() {
+      this.goto('/register');
+    },
     handleScrollingInArticle: function () {
       let rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
       let scrollTop = window.pageYOffset;
@@ -81,8 +86,10 @@ parasails.registerPage('basic-article', {
       if (rightNavBar) {
         if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
           rightNavBar.classList.add('header-hidden');
-        } else {
+          this.lastScrollTop = scrollTop;
+        } else if(scrollTop < this.lastScrollTop - 60) {
           rightNavBar.classList.remove('header-hidden');
+          this.lastScrollTop = scrollTop;
         }
       }
       this.scrollDistance = scrollTop;

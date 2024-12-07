@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -137,6 +138,12 @@ func queryCommand() *cli.Command {
 			if err != nil {
 				if strings.Contains(err.Error(), "no hosts targeted") {
 					return errors.New(fleet.NoHostsTargetedErrMsg)
+				}
+				if strings.Contains(err.Error(), fleet.InvalidLabelSpecifiedErrMsg) {
+					pattern := fmt.Sprintf("(%s.*)$", regexp.QuoteMeta(fleet.InvalidLabelSpecifiedErrMsg))
+					regex := regexp.MustCompile(pattern)
+					match := regex.FindString(err.Error())
+					return errors.New(match)
 				}
 				return err
 			}

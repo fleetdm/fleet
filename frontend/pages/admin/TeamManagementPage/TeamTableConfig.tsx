@@ -2,7 +2,7 @@ import React from "react";
 
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import DropdownCell from "components/ActionsDropdown";
+import ActionsDropdown from "components/ActionsDropdown";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
@@ -91,7 +91,7 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "actions",
       Cell: (cellProps: IDropdownCellProps) => (
-        <DropdownCell
+        <ActionsDropdown
           options={cellProps.cell.value}
           onChange={(value: string) =>
             actionSelectHandler(value, cellProps.row.original)

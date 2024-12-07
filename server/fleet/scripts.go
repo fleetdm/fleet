@@ -149,6 +149,9 @@ type HostScriptRequestPayload struct {
 	// SyncRequest is filled automatically based on the endpoint used to create
 	// the execution request (synchronous or asynchronous).
 	SyncRequest bool `json:"-"`
+	// SetupExperienceScriptID is the ID of the setup experience script related to this request
+	// payload, if such a script exists.
+	SetupExperienceScriptID *uint `json:"-"`
 }
 
 func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) error {
@@ -251,6 +254,10 @@ type HostScriptResult struct {
 	// results can still be returned to see activity details after the host got
 	// deleted.
 	HostDeletedAt *time.Time `json:"-" db:"host_deleted_at"`
+
+	// SetupExperienceScriptID is the ID of the setup experience script, if this script execution
+	// was part of setup experience.
+	SetupExperienceScriptID *uint `json:"-" db:"setup_experience_script_id"`
 }
 
 func (hsr HostScriptResult) AuthzType() string {
@@ -373,14 +380,15 @@ type ScriptPayload struct {
 }
 
 type SoftwareInstallerPayload struct {
-	URL               string `json:"url"`
-	PreInstallQuery   string `json:"pre_install_query"`
-	InstallScript     string `json:"install_script"`
-	UninstallScript   string `json:"uninstall_script"`
-	PostInstallScript string `json:"post_install_script"`
-	SelfService       bool   `json:"self_service"`
-	FleetMaintained   bool   `json:"-"`
-	Filename          string `json:"-"`
+	URL                string `json:"url"`
+	PreInstallQuery    string `json:"pre_install_query"`
+	InstallScript      string `json:"install_script"`
+	UninstallScript    string `json:"uninstall_script"`
+	PostInstallScript  string `json:"post_install_script"`
+	SelfService        bool   `json:"self_service"`
+	FleetMaintained    bool   `json:"-"`
+	Filename           string `json:"-"`
+	InstallDuringSetup *bool  `json:"install_during_setup"` // if nil, do not change saved value, otherwise set it
 }
 
 type HostLockWipeStatus struct {

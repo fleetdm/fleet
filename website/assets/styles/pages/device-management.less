@@ -122,6 +122,42 @@
     padding-bottom: 16px;
     margin-bottom: 0px;
   }
+  [purpose='swag-request-button'] {
+    max-width: 380px;
+    cursor: pointer;
+    margin-top: 16px;
+    margin-bottom: 16px;
+    display: flex;
+    padding: 16px;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    align-self: stretch;
+    border-radius: 8px;
+    border: 1px solid #E2E4EA;
+    background: #F9FAFC;
+    &:hover {
+      box-shadow: 0px 0px 0px 3px rgba(0, 0, 0, 0.03);
+    }
+    img {
+      margin-right: 16px;
+    }
+    p {
+      color: var(--text-text-primary, #515774);
+      font-family: Inter;
+      font-size: 14px;
+      font-style: normal;
+      line-height: 21px;
+    }
+    span {
+      color: var(--Core-Fleet-Black, #192147);
+      font-family: Inter;
+      font-size: 14px;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 21px;
+    }
+  }
 
   // Desktop features comparison table styles
   [purpose='desktop-comparison-table'] {

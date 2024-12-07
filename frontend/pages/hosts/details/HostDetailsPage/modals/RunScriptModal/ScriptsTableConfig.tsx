@@ -14,9 +14,21 @@ import {
   isGlobalObserver,
   isTeamObserver,
 } from "utilities/permissions/permissions";
+import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import ScriptStatusCell from "./components/ScriptStatusCell";
+
+interface IRowProps {
+  row: {
+    original: IHostScript;
+  };
+}
+interface ICellProps extends IRowProps {
+  cell: {
+    value: string;
+  };
+}
 
 interface IStatusCellProps {
   cell: {
@@ -33,7 +45,7 @@ interface IActionsDropdownProps {
   };
 }
 
-const generateActionDropdownOptions = (
+export const generateActionDropdownOptions = (
   currentUser: IUser | null,
   teamId: number | null,
   { last_execution }: IHostScript
@@ -51,13 +63,13 @@ const generateActionDropdownOptions = (
       isTeamObserver(currentUser, teamId));
   const options: IDropdownOption[] = [
     {
-      label: "Show details",
+      label: "Show run details",
       disabled: last_execution === null,
-      value: "showDetails",
+      value: "showRunDetails",
     },
   ];
   hasRunPermission &&
-    options.push({
+    options.unshift({
       label: "Run",
       disabled: isPending,
       value: "run",
@@ -71,6 +83,7 @@ export const generateTableColumnConfigs = (
   currentUser: IUser | null,
   hostTeamId: number | null,
   scriptsDisabled: boolean,
+  onClickViewScript: (scriptId: number, scriptDetails: IHostScript) => void,
   onSelectAction: (value: string, script: IHostScript) => void
 ) => {
   return [
@@ -79,6 +92,25 @@ export const generateTableColumnConfigs = (
       Header: "Name",
       disableSortBy: true,
       accessor: "name",
+      Cell: (cellProps: ICellProps) => {
+        const { name, script_id } = cellProps.row.original;
+
+        const onClickScriptName = (e: React.MouseEvent) => {
+          // Allows for button to be clickable in a clickable row
+          e.stopPropagation();
+          onClickViewScript(script_id, cellProps.row.original);
+        };
+
+        return (
+          <Button
+            className="script-info"
+            onClick={onClickScriptName}
+            variant="text-icon"
+          >
+            <span className={`script-info-text`}>{name}</span>
+          </Button>
+        );
+      },
     },
     {
       title: "Status",
@@ -127,6 +159,7 @@ export const generateTableColumnConfigs = (
             }
             placeholder="Actions"
             disabled={scriptsDisabled}
+            menuAlign="right"
           />
         );
       },

@@ -221,3 +221,21 @@
   description: "Log into the \"Integrations admin\" account in Salesforce and change the password to prevent a password change being required by Salesforce."
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#change-the-integrations-admin-salesforce-account-password"
   dri: "eashaw"
+-
+  task: "Check GitHub/GitLab terms"
+  startedOn: "2023-10-24"
+  frequency: "Annually"
+  description: "Check GitHub's terms to make sure the “inbound=outbound” clause is unchanged."
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-github-terms"
+  dri: "hollidayn"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"
+-
+  task: "Check that there is sufficient availability for scheduling demos via fleetdm.com/contact"
+  startedOn: "2024-10-25"
+  frequency: "Weekly"
+  description: "Check out the meeting booking flow that you get when you schedule a demo from Fleet's contact form, and make sure there is plenty of availability for the rest of the day in US PT thru ET, with significant spots open in the morning (US time) for folks in EMEA and at least one or two spots open in the evening (US time) for folks in APAC / Hawaii."
+  moreInfoUrl: ""
+  dri: "onasismunro"
+

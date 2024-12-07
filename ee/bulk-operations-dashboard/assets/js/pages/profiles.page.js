@@ -23,6 +23,8 @@ parasails.registerPage('profiles', {
     profileToEdit: {},
     cloudError: '',
     newProfile: undefined,
+    syncingMessage: '',
+    overlaySyncing: false,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -118,10 +120,11 @@ parasails.registerPage('profiles', {
       await this._getProfiles();
     },
     _getProfiles: async function() {
-      this.syncing = true;
+      this.overlaySyncing = true;
+      this.syncingMessage = 'Gathering profiles';
       let newProfilesInformation = await Cloud.getProfiles();
       this.profiles = newProfilesInformation;
-      this.syncing = false;
+      this.overlaySyncing = false;
       await this.changeTeamFilter();
     }
   }

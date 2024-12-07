@@ -19,13 +19,7 @@ team_settings: # Only teams/team-name.yml
 
 ## policies
 
-Policies can be specified inline in your `default.yml`, `teams/team-name.yml`, or `teams/no-team.yml` files. They can also be specified in separate files in your `lib/` folder.  
-
-Policies defined in `default.yml` run on **all** hosts.  
-
-Policies defined in `teams/no-team.yml` run on hosts that belong to "No team".
-
-> Policies that run automations to install software or run scripts must be defined in `teams/no-team.yml` to run on hosts that belong to "No team".
+Policies can be specified inline in your `default.yml`, `teams/team-name.yml`, or `teams/no-team.yml` files. They can also be specified in separate files in your `lib/` folder.
 
 ### Options
 
@@ -45,7 +39,6 @@ policies:
     query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
     platform: darwin
     critical: false
-    calendar_event_enabled: false
 ```
 
 #### Separate file
@@ -78,13 +71,15 @@ policies:
     package_path: "../lib/linux-firefox.deb.package.yml"
 ```
 
-`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
+`default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
 
 ```yaml
 policies:
   - path: ../lib/policies-name.policies.yml
-# path is relative to default.yml or teams/team-name.yml 
+# path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
 ```
+
+> Currently, the `run_script` and `install_software` policy automations can only be configured for a team (`teams/team-name.yml`) or "No team" (`teams/no-team.yml`). The automations can only be added to policies in which the script (or software) is defined in the same team (or "No team"). `calendar_event_enabled` can only be configured for policies on a team.
 
 ## queries
 
@@ -139,7 +134,7 @@ queries:
 ```yaml
 queries:
   - path: ../lib/queries-name.queries.yml
-# path is relative to default.yml or teams/team-name.yml
+# path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
 ```
 
 ## agent_options
@@ -198,16 +193,14 @@ config:
 ```yaml
 queries:
   path: ../lib/agent-options.yml
-# path is relative to default.yml or teams/team-name.yml
+# path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
 ```
 
 ## controls
 
 The `controls` section allows you to configure scripts and device management (MDM) features in Fleet.
 
-Controls for hosts that are in "No team" can be defined in `default.yml` or in `teams/no-team.yml` (but not in both files).
-
-- `scripts` is a list of paths to macOS, Windows, or Linux scripts. Scripts used in policy automations for "No team" must be defined in `teams/no-team.yml`.
+- `scripts` is a list of paths to macOS, Windows, or Linux scripts.
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for all teams (`default.yml`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS and Windows hosts (default: `false`).
 
@@ -222,8 +215,14 @@ controls:
   windows_enabled_and_configured: true
   enable_disk_encryption: true # Available in Fleet Premium
   macos_updates: # Available in Fleet Premium
-    deadline: "2023-06-13"
-    minimum_version: 13.4.1
+    deadline: "2024-12-31"
+    minimum_version: 15.1
+  ios_updates: # Available in Fleet Premium
+    deadline: "2024-12-31"
+    minimum_version: 18.1
+  ipados_updates: # Available in Fleet Premium
+    deadline: "2024-12-31"
+    minimum_version: 18.1
   windows_updates: # Available in Fleet Premium
     deadline_days: 5
     grace_period_days: 2
@@ -242,6 +241,10 @@ controls:
     bootstrap_package: https://example.org/bootstrap_package.pkg
     enable_end_user_authentication: true
     macos_setup_assistant: ../lib/dep-profile.json
+    script: ../lib/macos-setup-script.sh
+    software:
+      - app_store_id: '1091189122'
+      - package_path: ../lib/software/adobe-acrobat.software.yml
   macos_migration: # Available in Fleet Premium
     enable: true
     mode: voluntary
@@ -251,30 +254,30 @@ controls:
 
 ### macos_updates
 
-- `deadline` specifies the deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8) (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time for hosts on macOS 14 and above, 20:00 UTC for hosts on older macOS versions. (default: `""`).
 - `minimum_version` specifies the minimum required macOS version (default: `""`).
-
-### windows_updates
-
-- `deadline_days` (default: null)
-- `grace_period_days` (default: null)
 
 ### ios_updates
 
-- `deadline` specifies the deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8) (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format; the exact deadline is set to noon local time. (default: `""`).
 - `minimum_version` specifies the minimum required iOS version (default: `""`).
 
 ### ipados_updates
 
-- `deadline` specifies the deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8) (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format; the exact deadline is set to noon local time. (default: `""`).
 - `minimum_version` specifies the minimum required iPadOS version (default: `""`).
+
+### windows_updates
+
+- `deadline_days` specifies the number of days before Windows installs updates (default: `null`)
+- `grace_period_days` specifies the number of days before Windows restarts to install updates (default: `null`)
 
 ### macos_settings and windows_settings
 
 - `macos_settings.custom_settings` is a list of paths to macOS configuration profiles (.mobileconfig) or declaration profiles (.json).
 - `windows_settings.custom_settings` is a list of paths to Windows configuration profiles (.xml).
 
-Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format.
+Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format. Variables beginning with `$FLEET_VAR_` are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. See supported variables in the guide [here](https://fleetdm.com/guides/ndes-scep-proxy).
 
 Use `labels_include_all` to only apply (scope) profiles to hosts that have all those labels or `labels_exclude_any` to apply profiles to hosts that don't have any of those labels.
 
@@ -285,6 +288,8 @@ The `macos_setup` section lets you control the out-of-the-box macOS [setup exper
 - `bootstrap_package` is the URL to a bootstap package. Fleet will download the bootstrap package (default: `""`).
 - `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host. 
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
+- `script` is the path to a custom setup script to run after the host is first set up.
+- `software` is a list of references to either a `package_path` matching a package in the `software` section below or an `app_store_id` to install when the host is first set up.
 
 ### macos_migration
 
@@ -294,56 +299,39 @@ The `macos_migration` section lets you control the [end user migration workflow]
 - `mode` specifies whether the end user initiates migration (`voluntary`) or they're nudged every 15-20 minutes to migrate (`forced`) (default: `""`).
 - `webhook_url` is the URL that Fleet sends a webhook to when the end user selects **Start**. Receive this webhook using your automation tool (ex. Tines) to unenroll your end users from your old MDM solution.
 
-Can only be configure for all teams (`default.yml`).
+Can only be configured for all teams (`default.yml`).
 
 ## software
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 The `software` section allows you to configure packages and Apple App Store apps that you want to install on your hosts.
-Software for hosts that belong to "No team" have to be defined in `teams/no-team.yml`.
-Software can also be specified in separate files in your `lib/` folder.
 
-- `packages` is a list of software packages (.pkg, .msi, .exe, .rpm, or .deb) and software specific options.
+- `packages` is a list of paths to custom packages (.pkg, .msi, .exe, .rpm, or .deb).
 - `app_store_apps` is a list of Apple App Store apps.
 
-### Example
+#### Example
 
-#### Inline
+`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
 
 ```yaml
 software:
   packages:
-   - url: https://github.com/organinzation/repository/package-1.pkg
-     install_script:
-       path: /lib/crowdstrike-install.sh 
-      pre_install_query: 
-        path: /lib/check-crowdstrike-configuration-profile.queries.yml
-      post_install_script:
-        path: /lib/crowdstrike-post-install.sh 
-      self_service: true
-    - url: https://github.com/organinzation/repository/package-2.msi
+    - path: ../lib/software-name.package.yml
+  # path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
   app_store_apps:
-   - app_store_id: '1091189122'
+    - app_store_id: '1091189122'
 ```
 
-#### packages
+### packages
 
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3 (default: `""`).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
-- `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables/account_policy_data) (default: `""`).
-- `post_install_script.path` is the script Fleet will run on hosts after intalling software (default: `""`).
+- `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables) (default: `""`).
+- `post_install_script.path` is the script Fleet will run on hosts after installing software (default: `""`).
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
 
-#### app_store_apps
-
-- `app_store_id` is the ID of the Apple App Store app. You can find this at the end of the app's App Store URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" and the `app_store_id` is `1016366447`.
-
-> Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
-
-`self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
-
-#### Separate file
+#### Example
 
 `lib/software-name.package.yml`:
 
@@ -354,23 +342,13 @@ install_script:
 self_service: true
 ```
 
-`lib/software/tailscale-install-script.ps1`
+### app_store_apps
 
-```yaml
-$exeFilePath = "${env:INSTALLER_PATH}"
-$installProcess = Start-Process $exeFilePath `
-  -ArgumentList "/quiet /norestart" `
-    -PassThru -Verb RunAs -Wait
-```
+- `app_store_id` is the ID of the Apple App Store app. You can find this at the end of the app's App Store URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" and the `app_store_id` is `1016366447`.
 
-`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
+> Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 
-```yaml
-software:
-  packages:
-    - path: ../lib/software-name.package.yml
-# path is relative to default.yml or teams/team-name.yml
-```
+`self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
 
 ## org_settings and team_settings
 
@@ -460,8 +438,9 @@ org_settings:
 - `live_query_disabled` disables the ability to run live queries (ad hoc queries executed via the UI or fleetctl) (default: `false`).
 - `query_reports_disabled` disables query reports and deletes existing repors (default: `false`).
 - `query_report_cap` sets the maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at time and monitoring your infrastructure. (Default: `1000`)
-- `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI (default: `false`).
-- `server_url` is the base URL of the Fleet instance (default: provided during Fleet setup)
+- `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI (defaul: `false`).
+- `server_url` is the base URL of the Fleet instance. If this URL changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features. (default: provided during Fleet setup)
+
 
 Can only be configured for all teams (`org_settings`).
 
@@ -507,7 +486,8 @@ org_settings:
 
 ### integrations
 
-The `integrations` section lets you define calendar events and ticket settings for failing policy and vulnerablity automations. Learn more about automations in Fleet [here](https://fleetdm.com/docs/using-fleet/automations).
+The `integrations` section lets you define calendar events and ticket settings for failing policy and vulnerability automations. Learn more about automations in Fleet [here](https://fleetdm.com/docs/using-fleet/automations).
+In addition, you can define the SCEP proxy settings for Network Device Enrollment Service (NDES). Learn more about SCEP and NDES in Fleet [here](https://fleetdm.com/guides/ndes-scep-proxy).
 
 #### Example
 
@@ -527,6 +507,11 @@ org_settings:
         email: user1@example.com
         api_token: $ZENDESK_API_TOKEN
         group_id: 1234
+    ndes_scep_proxy:
+      url: https://example.com/certsrv/mscep/mscep.dll
+      admin_url: https://example.com/certsrv/mscep_admin/
+      username: Administrator@example.com
+      password: 'myPassword'
 ```
 
 For secrets, you can add [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow)
@@ -545,10 +530,16 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 
 #### zendesk
 
-  - `url` is the URL of your Zendesk (default: `""`)
+- `url` is the URL of your Zendesk (default: `""`)
 - `username` is the username of your Zendesk account (default: `""`).
 - `api_token` is the Zendesk API token (default: `""`).
 - `group_id`is found by selecting **Admin > People > Groups** in Zendesk. Find your group and select it. The group ID will appear in the search field.
+
+#### ndes_scep_proxy
+- `url` is the URL of the NDES SCEP endpoint (default: `""`).
+- `admin_url` is the URL of the NDES admin endpoint (default: `""`).
+- `username` is the username of the NDES admin endpoint (default: `""`).
+- `password` is the password of the NDES admin endpoint (default: `""`).
 
 ### webhook_settings
 
@@ -682,6 +673,22 @@ Once the IdP settings are configured, you can use the [`controls.macos_setup.ena
 - `entity_id` is the entity ID: a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: `""`).
 - `metadata` is the metadata (in XML format) provided by the identity provider. (default: `""`)
 - `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
+
+Can only be configured for all teams (`org_settings`).
+
+##### apple_server_url
+
+Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)
+
+If this URL changes and hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
+
+##### Example
+
+```yaml
+org_settings:
+  mdm:
+    apple_server_url: https://instance.fleet.com
+```
 
 Can only be configured for all teams (`org_settings`).
 

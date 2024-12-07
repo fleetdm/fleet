@@ -14,13 +14,14 @@ import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 
 import Pagination from "pages/ManageControlsPage/components/Pagination";
 
 import UploadList from "../../../components/UploadList";
 
 import AddProfileCard from "./components/ProfileUploader/components/AddProfileCard";
-import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal/AddProfileModal";
+import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
 import ProfileLabelsModal from "./components/ProfileLabelsModal/ProfileLabelsModal";
 import ProfileListItem from "./components/ProfileListItem";
@@ -46,7 +47,11 @@ const CustomSettings = ({
   onMutation,
 }: ICustomSettingsProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier } = useContext(AppContext);
+  const { config, isPremiumTier } = useContext(AppContext);
+
+  const mdmEnabled =
+    config?.mdm.enabled_and_configured ||
+    config?.mdm.windows_enabled_and_configured;
 
   const [showAddProfileModal, setShowAddProfileModal] = useState(false);
   const [
@@ -78,6 +83,7 @@ const CustomSettings = ({
         per_page: PROFILES_PER_PAGE,
       }),
     {
+      enabled: mdmEnabled,
       refetchOnWindowFocus: false,
     }
   );
@@ -136,7 +142,7 @@ const CustomSettings = ({
     }
 
     if (!profiles?.length) {
-      return null;
+      return <AddProfileCard setShowModal={setShowAddProfileModal} />;
     }
 
     return (
@@ -144,11 +150,11 @@ const CustomSettings = ({
         <UploadList
           keyAttribute="profile_uuid"
           listItems={profiles}
-          HeadingComponent={() =>
-            ProfileListHeading({
-              onClickAddProfile: () => setShowAddProfileModal(true),
-            })
-          }
+          HeadingComponent={() => (
+            <ProfileListHeading
+              onClickAddProfile={() => setShowAddProfileModal(true)}
+            />
+          )}
           ListItemComponent={({ listItem }) => (
             <ProfileListItem
               isPremium={!!isPremiumTier}
@@ -171,6 +177,7 @@ const CustomSettings = ({
 
   const hasLabels =
     !!profileLabelsModalData?.labels_include_all?.length ||
+    !!profileLabelsModalData?.labels_include_any?.length ||
     !!profileLabelsModalData?.labels_exclude_any?.length;
 
   return (
@@ -184,12 +191,13 @@ const CustomSettings = ({
           url="https://fleetdm.com/learn-more-about/custom-os-settings"
         />
       </p>
-      {renderProfileList()}
-      {!isLoadingProfiles && !isErrorProfiles && !profiles?.length && (
-        <AddProfileCard
-          baseClass="add-profile"
-          setShowModal={setShowAddProfileModal}
+      {!mdmEnabled ? (
+        <TurnOnMdmMessage
+          router={router}
+          info="MDM must be turned on to apply custom settings."
         />
+      ) : (
+        renderProfileList()
       )}
       {showAddProfileModal && (
         <AddProfileModal
@@ -209,7 +217,6 @@ const CustomSettings = ({
       )}
       {isPremiumTier && hasLabels && (
         <ProfileLabelsModal
-          baseClass={baseClass}
           profile={profileLabelsModalData}
           setModalData={setProfileLabelsModalData}
         />

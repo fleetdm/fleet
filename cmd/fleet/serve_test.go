@@ -100,6 +100,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 			NumSoftwareCVEs:                      105,
 			NumTeams:                             9,
 			NumPolicies:                          0,
+			NumQueries:                           200,
 			NumLabels:                            3,
 			SoftwareInventoryEnabled:             true,
 			VulnDetectionEnabled:                 true,
@@ -139,7 +140,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	require.True(t, cleanedup)
-	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"numHostsFleetDesktopEnabled":1984}`, requestBody)
+	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"numHostsFleetDesktopEnabled":1984}`, requestBody)
 }
 
 func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
@@ -307,7 +308,6 @@ func TestAutomationsSchedule(t *testing.T) {
 }
 
 func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
-	t.Skip() // https://github.com/fleetdm/fleet/issues/23258
 	t.Parallel()
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
@@ -355,24 +355,26 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx, cancel := context.WithCancel(ctx)
 	lg := kitlog.NewJSONLogger(os.Stdout)
-	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, lg, &config)
-	require.NoError(t, err)
-	s.Start()
-	t.Cleanup(func() {
-		cancel()
-		<-s.Done()
-	})
+
+	go func() {
+		defer func() {
+			// this test may panic as we're ending it early, so we shouldn't fail our suite on this panic
+			// but depending on where we are in the cron call it may not panic, hence not checking the recover
+			// value either way
+			// nolint:errcheck
+			recover()
+		}()
+		_ = cronVulnerabilities(ctx, ds, lg, &config)
+	}()
 
 	assert.Eventually(t, func() bool {
 		info, err := os.Lstat(vulnPath)
-		if err != nil {
-			return false
-		}
-		if !info.IsDir() {
-			return false
-		}
-		return true
-	}, 5*time.Minute, 30*time.Second)
+		return err == nil && info.IsDir()
+	}, 10*time.Second, 1*time.Second)
+
+	t.Cleanup(func() {
+		cancel()
+	})
 
 	// at this point, the assertion has succeeded or failed, try to remove the
 	// temp dir and all content instead of leaving it to the testing package to
@@ -571,6 +573,9 @@ func TestScanVulnerabilities(t *testing.T) {
 				DisplayName: "1",
 			},
 		}, nil
+	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
 	}
 
 	vulnPath := filepath.Join("..", "..", "server", "vulnerabilities", "testdata")

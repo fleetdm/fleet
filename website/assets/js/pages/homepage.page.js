@@ -4,7 +4,20 @@ parasails.registerPage('homepage', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     modal: undefined,
-    selectedCategory: 'mdm'
+    selectedCategory: 'mdm',
+    formData: { /* … */ },
+    formErrors: { /* … */ },
+
+    // Form rules
+    formRules: {
+      emailAddress: {isEmail: true, required: true},
+    },
+
+    syncing: false,
+
+    // Server error state for the form
+    cloudError: '',
+    cloudSuccess: false,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -33,6 +46,13 @@ parasails.registerPage('homepage', {
     closeModal: function() {
       this.modal = undefined;
     },
-
+    submittedNewsletterForm: async function() {
+      // Show the success message.
+      this.cloudSuccess = true;
+      this.formData = {};
+      await setTimeout(()=>{
+        this.cloudSuccess = false;
+      }, 10000);
+    },
   }
 });

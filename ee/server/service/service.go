@@ -86,6 +86,7 @@ func NewService(
 		MDMWindowsEnableOSUpdates:         eeservice.mdmWindowsEnableOSUpdates,
 		MDMWindowsDisableOSUpdates:        eeservice.mdmWindowsDisableOSUpdates,
 		MDMAppleEditedAppleOSUpdates:      eeservice.mdmAppleEditedAppleOSUpdates,
+		SetupExperienceNextStep:           eeservice.SetupExperienceNextStep,
 	})
 
 	return eeservice, nil

@@ -7,10 +7,16 @@
     display: flex;
     justify-content: center;
     animation: fade-in 150ms ease-out;
+    visibility: visible;
+    opacity: 1; // Used for transitions between modals
+    transition: opacity 150ms ease-out, visibility 0s; // Used for transitions between modals
   }
 
   &__hidden {
     visibility: hidden;
+    opacity: 0; // Used for transitions between modals
+    transition: opacity 150ms ease-out, visibility 0s 150ms; // Used for transitions between modals
+
     .fleet-checkbox__tick:after {
       visibility: hidden;
     }
@@ -19,6 +25,8 @@
   &__content-wrapper {
     margin-top: $pad-large;
     font-size: $x-small;
+    max-height: 800px;
+    overflow: visible;
 
     .input-field {
       width: 100%;
@@ -34,14 +42,6 @@
     .form .modal-cta-wrap {
       // compensate for form gap to maintain consistent 32px spacing on top of modal ctas
       margin-top: $pad-small;
-    }
-
-    .modal-cta-wrap {
-      align-self: flex-end;
-      display: flex;
-      flex-direction: row-reverse;
-      margin-top: $pad-xlarge;
-      gap: $pad-medium;
     }
   }
 
@@ -117,4 +117,35 @@
     width: 100%;
     z-index: 1000;
   }
+
+  &__actions-footer {
+    display: flex;
+    justify-content: space-between;
+    padding-top: $pad-medium;
+
+    // Styles both primary-actions and secondary-actions
+    > * {
+      display: flex;
+      justify-content: space-between;
+      gap: $pad-medium;
+      align-items: center;
+    }
+
+    // Align primary actions right if no secondary actions
+    > :last-child {
+      margin-left: auto;
+    }
+
+    .button__text-icon {
+      padding: 11px;
+    }
+  }
+}
+
+.modal-cta-wrap {
+  align-self: flex-end;
+  display: flex;
+  flex-direction: row-reverse;
+  margin-top: $pad-xlarge;
+  gap: $pad-medium;
 }

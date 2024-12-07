@@ -114,7 +114,7 @@ func WithDebugLogging() FlattenOpts {
 // re-writing arrays into maps, and for filtering. See "Query
 // Specification" for docs.
 func WithQuery(q []string) FlattenOpts {
-	if q == nil || len(q) == 0 || (len(q) == 1 && q[0] == "") {
+	if len(q) == 0 || (len(q) == 1 && q[0] == "") {
 		return func(_ *Flattener) {}
 	}
 

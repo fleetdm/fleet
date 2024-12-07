@@ -1,0 +1,9 @@
+url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+install_script:
+  path: ./install_ruby.sh
+pre_install_query:
+  path: ./query_ruby.yml
+post_install_script:
+  path: ./post_install_ruby.sh
+uninstall_script:
+  path: ./uninstall_ruby.sh

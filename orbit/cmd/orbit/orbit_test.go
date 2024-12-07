@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -130,4 +131,35 @@ func TestCfgsDiffer(t *testing.T) {
 			require.Equal(t, tc.expected, v)
 		})
 	}
+}
+
+func TestProcessLog(t *testing.T) {
+	runner := desktopRunner{}
+	runner.errorNotifyCh = make(chan string, 1)
+
+	// Nothing to report
+	runner.processLog("")
+	assert.Empty(t, runner.errorNotifyCh)
+	assert.Nil(t, runner.errorsReported)
+
+	// No errors found
+	runner.processLog("line 1\nline 2")
+	assert.Empty(t, runner.errorNotifyCh)
+	assert.Nil(t, runner.errorsReported)
+
+	// Process log with known error
+	runner.processLog("line 1\n" + string(logErrorLaunchServicesSubstr) + "bozo")
+	require.Len(t, runner.errorNotifyCh, 1)
+	msg := <-runner.errorNotifyCh
+	assert.Equal(t, string(logErrorLaunchServicesMsg), msg)
+
+	// Process known error again
+	runner.processLog(string(logErrorLaunchServicesSubstr))
+	assert.Empty(t, runner.errorNotifyCh)
+
+	// Process another error
+	runner.processLog("line 1" + string(logErrorMissingExecSubstr) + "\nbozo")
+	require.Len(t, runner.errorNotifyCh, 1)
+	msg = <-runner.errorNotifyCh
+	assert.Equal(t, string(logErrorMissingExecMsg), msg)
 }
