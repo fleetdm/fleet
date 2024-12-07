@@ -4,7 +4,6 @@ Use Fleet's best practice GitOps workflow to manage your computers as code.
 
 To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
 
-
 The following are the required keys in the `default.yml` and any `teams/team-name.yml` files:
 
 ```yaml
@@ -16,6 +15,8 @@ controls: # Can be defined in teams/no-team.yml too.
 org_settings: # Only default.yml
 team_settings: # Only teams/team-name.yml
 ```
+
+Currently, managing labels, users, and ticket destinations (Jira and Zendesk) are only supported in Fleet's UI (YAML files coming soon).
 
 ## policies
 
