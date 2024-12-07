@@ -14,6 +14,8 @@ describe("ReportUpdatedCell component", () => {
         discard_data
         automations_enabled
         should_link_to_hqr={false}
+        queryId={3}
+        hostId={4}
       />
     );
 
@@ -29,6 +31,8 @@ describe("ReportUpdatedCell component", () => {
         discard_data={false}
         automations_enabled={false}
         should_link_to_hqr
+        queryId={3}
+        hostId={4}
       />
     );
 
@@ -49,6 +53,8 @@ describe("ReportUpdatedCell component", () => {
         automations_enabled={false}
         should_link_to_hqr
         last_fetched={tenDaysAgo.toISOString()}
+        queryId={3}
+        hostId={4}
       />
     );
 
@@ -66,6 +72,8 @@ describe("ReportUpdatedCell component", () => {
         automations_enabled={false}
         should_link_to_hqr
         last_fetched={tenDaysAgo.toISOString()}
+        queryId={3}
+        hostId={4}
       />
     );
 
