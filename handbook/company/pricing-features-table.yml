@@ -174,6 +174,9 @@
 #  ╩ ╩╚═╝═╩╝╩ ╩   ╩═╝╚═╝╚═╝╚═╝╩╝╚╝╚═╝
 - industryName: Audit logging
   description: Log all activity, including queries, scripts, access, etc.
+  demo:
+    - description: See activities for enabling/disabling the activities webhook and editing the destination URL so that I can know when the activities webhook was modified and by who.
+      moreInfoUrl: https://youtu.be/3Fndgrsk-Ss
   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#list-activities
   productCategories: [Endpoint operations, Device management]
   pricingTableCategories: [Configuration]
@@ -591,8 +594,9 @@
   usualDepartment: IT
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Devices]
-  demos: https://www.youtube.com/watch?v=o1G0YZAsWzI 
+  demos: 
     - description: A large tech company used scripts to fix issues with their security and compliance agents on workstations.
+      moreInfoUrl: https://www.youtube.com/watch?v=o1G0YZAsWzI 
   buzzwords: [Remote script execution,PowerShell scripts,Bash scripts]
   waysToUse:
     - description: Execute custom macOS scripts (client platform engineering)
@@ -782,6 +786,8 @@
   pricingTableCategories: [Devices]
   usualDepartment: IT
   demos:
+    - description: Policy failure in Fleet to trigger a script run on a host so that I can run scripts on many hosts w/o using a third-party automation tool (ex. Tines).
+      moreInfoUrl: https://youtu.be/o1G0YZAsWzI
     - description: A top financial services company needed to set up rolling deployments for changes to osquery agents running on their production servers.
       moreInfoUrl: https://docs.google.com/document/d/1UdzZMyBLbs9SUXfSXN2x2wZQCbjZZUetYlNWH6-ryqQ/edit#heading=h.2lh6ehprpvl6
   waysToUse:
