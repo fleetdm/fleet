@@ -1411,10 +1411,14 @@ const ActivityItem = ({
     ? addGravatarUrlToResource({ email: actor_email })
     : { gravatar_url: DEFAULT_GRAVATAR_LINK };
 
+  // Add the "Fleet" name to the activity if needed.
+  // TODO: remove/refactor this once we have "fleet-initiated" activities.
   if (
     !activity.actor_email &&
     !activity.actor_full_name &&
-    !activity.actor_id
+    (activity.type === ActivityType.InstalledSoftware ||
+      activity.type === ActivityType.InstalledAppStoreApp ||
+      activity.type === ActivityType.RanScript)
   ) {
     activity.actor_full_name = "Fleet";
   }

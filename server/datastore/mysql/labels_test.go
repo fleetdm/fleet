@@ -1550,7 +1550,8 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 
 	// add two hosts to MDM to enforce disk encryption, fleet doesn't enforce settings on centos so h3 is not included
 	for _, h := range []*fleet.Host{h1, h2} {
-		nanoEnrollAndSetHostMDMData(t, db, h, false)
+		windowsEnroll(t, db, h)
+		require.NoError(t, db.SetOrUpdateMDMData(context.Background(), h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
 	}
 	// add disk encryption key for h1
 	require.NoError(t, db.SetOrUpdateHostDiskEncryptionKey(context.Background(), h1.ID, "test-key", "", ptr.Bool(true)))

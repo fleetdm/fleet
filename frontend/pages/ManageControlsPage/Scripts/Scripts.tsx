@@ -34,6 +34,7 @@ interface IScriptsProps {
 }
 
 const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
+  const { isPremiumTier } = useContext(AppContext);
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
   const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
   const [goBackToScriptDetails, setGoBackToScriptDetails] = useState(false); // Used for onCancel in delete modal
@@ -69,13 +70,14 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
   );
 
   // pagination controls
-  const path = PATHS.CONTROLS_SCRIPTS.concat(`?team_id=${teamIdForApi}`);
+  const path = PATHS.CONTROLS_SCRIPTS;
+  const queryString = isPremiumTier ? `?team_id=${teamIdForApi}&` : "?";
   const onPrevPage = useCallback(() => {
-    router.push(path.concat(`&page=${currentPage - 1}`));
-  }, [router, path, currentPage]);
+    router.push(path.concat(`${queryString}page=${currentPage - 1}`));
+  }, [router, path, currentPage, queryString]);
   const onNextPage = useCallback(() => {
-    router.push(path.concat(`&page=${currentPage + 1}`));
-  }, [router, path, currentPage]);
+    router.push(path.concat(`${queryString}page=${currentPage + 1}`));
+  }, [router, path, currentPage, queryString]);
 
   const { config } = useContext(AppContext);
   if (!config) return null;
