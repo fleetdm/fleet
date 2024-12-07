@@ -7300,6 +7300,25 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		"GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", versResp.Software[0].ID), nil, http.StatusNotFound, &detailsResp,
 		"team_id", "999999",
 	)
+
+	// a request with without_vulnerability_details set to false does not return extra details
+	respVersions := listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"without_vulnerability_details", "false",
+	)
+	for _, s := range respVersions.Software {
+		for _, cve := range s.Vulnerabilities {
+			require.Nil(t, cve.CVSSScore)
+			require.Nil(t, cve.EPSSProbability)
+			require.Nil(t, cve.CISAKnownExploit)
+			require.Nil(t, cve.CVEPublished)
+			require.Nil(t, cve.Description)
+			require.Nil(t, cve.ResolvedInVersion)
+		}
+	}
 }
 
 func (s *integrationTestSuite) TestChangeUserEmail() {

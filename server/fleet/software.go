@@ -305,13 +305,14 @@ type SoftwareListOptions struct {
 	ListOptions ListOptions `url:"list_options"`
 
 	// HostID filters software to the specified host if not nil.
-	HostID           *uint
-	TeamID           *uint `query:"team_id,optional"`
-	VulnerableOnly   bool  `query:"vulnerable,optional"`
-	IncludeCVEScores bool
-	KnownExploit     bool    `query:"exploit,optional"`
-	MinimumCVSS      float64 `query:"min_cvss_score,optional"`
-	MaximumCVSS      float64 `query:"max_cvss_score,optional"`
+	HostID                      *uint
+	TeamID                      *uint `query:"team_id,optional"`
+	VulnerableOnly              bool  `query:"vulnerable,optional"`
+	WithoutVulnerabilityDetails bool  `query:"without_vulnerability_details,optional"`
+	IncludeCVEScores            bool
+	KnownExploit                bool    `query:"exploit,optional"`
+	MinimumCVSS                 float64 `query:"min_cvss_score,optional"`
+	MaximumCVSS                 float64 `query:"max_cvss_score,optional"`
 
 	// WithHostCounts indicates that the list of software should include the
 	// counts of hosts per software, and include only those software that have
