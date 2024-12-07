@@ -1125,6 +1125,9 @@ type ListQueryOptions struct {
 	// MergeInherited merges inherited global queries into the team list.  Is only valid when TeamID
 	// is set.
 	MergeInherited bool
+	// Return queries that are scheduled to run on this platform. One of "macos",
+	// "windows", or "linux"
+	Platform *string
 }
 
 type ListActivitiesOptions struct {

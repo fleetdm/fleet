@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
-import { QueryablePlatform, SUPPORTED_PLATFORMS } from "interfaces/platform";
+import { QueryablePlatform, QUERYABLE_PLATFORMS } from "interfaces/platform";
 import { checkPlatformCompatibility } from "utilities/sql_tools";
 
 import PlatformCompatibility from "components/PlatformCompatibility";
@@ -37,7 +37,7 @@ const usePlatformCompatibility = (): IPlatformCompatibility => {
   );
 
   const getCompatiblePlatforms = useCallback(
-    () => SUPPORTED_PLATFORMS.filter((p) => compatiblePlatforms?.includes(p)),
+    () => QUERYABLE_PLATFORMS.filter((p) => compatiblePlatforms?.includes(p)),
     [compatiblePlatforms]
   );
 

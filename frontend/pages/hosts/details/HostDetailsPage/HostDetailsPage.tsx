@@ -214,19 +214,24 @@ const HostDetailsPage = ({
   >("past");
   const [activityPage, setActivityPage] = useState(0);
 
+  // Optimization TODO: move this call into the SelectQuery modal, since queries are only used if that modal is opened
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IListQueriesResponse,
     Error,
     ISchedulableQuery[],
     IQueryKeyQueriesLoadAll[]
-  >([{ scope: "queries", teamId: undefined }], () => queryAPI.loadAll(), {
-    enabled: !!hostIdFromURL,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
-    refetchOnWindowFocus: false,
-    retry: false,
-    select: (data: IListQueriesResponse) => data.queries,
-  });
+  >(
+    [{ scope: "queries", teamId: undefined }],
+    ({ queryKey }) => queryAPI.loadAll(queryKey[0]),
+    {
+      enabled: !!hostIdFromURL,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      retry: false,
+      select: (data: IListQueriesResponse) => data.queries,
+    }
+  );
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     "teams",
