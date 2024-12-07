@@ -88,9 +88,10 @@ jobs:
     if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
     runs-on: macos-latest
     outputs:
-      fleetd_base_pkg_sha256: ${{ steps.build-sign-notarize.outputs.fleetd_base_pkg_sha256 }}
+      fleetd_base_pkg_sha256: ${{ steps.calculate-sha256.outputs.fleetd_base_pkg_sha256 }}
     env:
       FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
+    timeout-minutes: 120
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
@@ -124,16 +125,22 @@ jobs:
           rm certificate.p12
 
       - name: Build PKG, sign, and notarize
-        id: build-sign-notarize
         env:
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           PACKAGE_SIGNING_IDENTITY_SHA1: D52080FD1F0941DE31346F06DA0F08AED6FACBBF
+        # We use retry because we've seen Apple notarization fail or timeout
+        uses: nick-fields/retry@7152eba30c6575329ac0576536151aca5a72780e # v3.0.0
+        with:
+          timeout_minutes: 40
+          max_attempts: 10
+          command: fleetctl package --type pkg --fleet-desktop --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize
+
+      - name: Calculate the SHA256 checksum of the package
+        id: calculate-sha256
         run: |
-          fleetctl package --type pkg --fleet-desktop --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize
           mv fleet-osquery*.pkg fleetd-base.pkg
-          : # Calculate the SHA256 checksum of the package
           echo "fleetd_base_pkg_sha256=$(shasum -a 256 fleetd-base.pkg | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
 
       - name: Create plist
@@ -152,7 +159,7 @@ jobs:
                       <integer>32</integer>
                       <key>sha256s</key>
                       <array>
-                        <string>${{ steps.build-sign-notarize.outputs.fleetd_base_pkg_sha256 }}</string>
+                        <string>${{ steps.calculate-sha256.outputs.fleetd_base_pkg_sha256 }}</string>
                       </array>
                       <key>url</key>
                       <string>${{ env.BASE_URL }}/${{ env.FULL_DATE_DIR }}/fleetd-base.pkg</string>
