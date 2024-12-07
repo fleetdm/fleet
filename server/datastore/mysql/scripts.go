@@ -204,24 +204,20 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 }
 
 func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
-	const listStmt = `
-  SELECT
-    id,
-    host_id,
-    execution_id,
-    script_id
-  FROM
-    host_script_results
-  WHERE
-    host_id = ? AND
-    exit_code IS NULL
-    -- async requests + sync requests created within the given interval
-    AND (
-      sync_request = 0
-      OR created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
-    )
-  ORDER BY
-    created_at ASC`
+	listStmt := fmt.Sprintf(`
+		SELECT
+			id,
+			host_id,
+			execution_id,
+			script_id
+		FROM
+			host_script_results
+		WHERE
+			host_id = ? AND
+			%s
+		ORDER BY
+			created_at ASC
+	`, whereFilterPendingScript())
 
 	var results []*fleet.HostScriptResult
 	seconds := int(constants.MaxServerWaitTime.Seconds())
@@ -469,6 +465,24 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 
 		return nil
 	})
+}
+
+func (ds *Datastore) DeletePendingHostScriptExecutionsForPolicy(ctx context.Context, policyID uint) error {
+	deleteStmt := fmt.Sprintf(`
+		DELETE FROM
+			host_script_results
+		WHERE 
+			policy_id = ? AND
+			%s
+	`, whereFilterPendingScript())
+
+	seconds := int(constants.MaxServerWaitTime.Seconds())
+	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, policyID, seconds)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete pending host script executions for policy")
+	}
+
+	return nil
 }
 
 func (ds *Datastore) ListScripts(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
@@ -1286,4 +1300,15 @@ func (ds *Datastore) getOrGenerateScriptContentsID(ctx context.Context, contents
 		return 0, err
 	}
 	return scriptContentsID, nil
+}
+
+func whereFilterPendingScript() string {
+	return `
+	exit_code IS NULL
+    -- async requests + sync requests created within the given interval
+    AND (
+      sync_request = 0
+      OR created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
+    )
+	`
 }

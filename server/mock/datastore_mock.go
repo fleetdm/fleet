@@ -1045,6 +1045,8 @@ type GetAnyScriptContentsFunc func(ctx context.Context, id uint) ([]byte, error)
 
 type DeleteScriptFunc func(ctx context.Context, id uint) error
 
+type DeletePendingHostScriptExecutionsForPolicyFunc func(ctx context.Context, policyID uint) error
+
 type ListScriptsFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error)
 
 type GetScriptIDByNameFunc func(ctx context.Context, name string, teamID *uint) (uint, error)
@@ -1102,6 +1104,8 @@ type GetVPPAppByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, title
 type GetVPPAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error)
 
 type DeleteSoftwareInstallerFunc func(ctx context.Context, id uint) error
+
+type DeletePendingSoftwareInstallsForPolicyFunc func(ctx context.Context, policyID uint) error
 
 type DeleteVPPAppFromTeamFunc func(ctx context.Context, teamID *uint, appID fleet.VPPAppID) error
 
@@ -2712,6 +2716,9 @@ type DataStore struct {
 	DeleteScriptFunc        DeleteScriptFunc
 	DeleteScriptFuncInvoked bool
 
+	DeletePendingHostScriptExecutionsForPolicyFunc 	  DeletePendingHostScriptExecutionsForPolicyFunc
+	DeletePendingHostScriptExecutionsForPolicyFuncInvoked bool
+
 	ListScriptsFunc        ListScriptsFunc
 	ListScriptsFuncInvoked bool
 
@@ -2798,6 +2805,9 @@ type DataStore struct {
 
 	DeleteSoftwareInstallerFunc        DeleteSoftwareInstallerFunc
 	DeleteSoftwareInstallerFuncInvoked bool
+
+	DeletePendingSoftwareInstallsForPolicyFunc DeletePendingSoftwareInstallsForPolicyFunc
+	DeletePendingSoftwareInstallsForPolicyFuncInvoked bool
 
 	DeleteVPPAppFromTeamFunc        DeleteVPPAppFromTeamFunc
 	DeleteVPPAppFromTeamFuncInvoked bool
@@ -6494,6 +6504,13 @@ func (s *DataStore) DeleteScript(ctx context.Context, id uint) error {
 	return s.DeleteScriptFunc(ctx, id)
 }
 
+func (s *DataStore) DeletePendingHostScriptExecutionsForPolicy(ctx context.Context, policyID uint) error {
+	s.mu.Lock()
+	s.DeletePendingHostScriptExecutionsForPolicyFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeletePendingHostScriptExecutionsForPolicyFunc(ctx, policyID)
+}
+
 func (s *DataStore) ListScripts(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListScriptsFuncInvoked = true
@@ -6695,6 +6712,13 @@ func (s *DataStore) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 	s.DeleteSoftwareInstallerFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteSoftwareInstallerFunc(ctx, id)
+}
+
+func (s *DataStore) DeletePendingSoftwareInstallsForPolicy(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeletePendingSoftwareInstallsForPolicyFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeletePendingSoftwareInstallsForPolicyFunc(ctx, id)
 }
 
 func (s *DataStore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, appID fleet.VPPAppID) error {
