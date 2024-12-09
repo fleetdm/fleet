@@ -594,7 +594,7 @@
   usualDepartment: IT
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Devices]
-  demos: 
+  demos:
     - description: A large tech company used scripts to fix issues with their security and compliance agents on workstations.
       moreInfoUrl: https://youtu.be/o1G0YZAsWzI
   buzzwords: [Remote script execution,PowerShell scripts,Bash scripts]
