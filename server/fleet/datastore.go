@@ -346,6 +346,8 @@ type Datastore interface {
 	RemoveHostMDMCommand(ctx context.Context, command HostMDMCommand) error
 	// CleanupHostMDMCommands removes invalid and stale MDM commands sent to hosts.
 	CleanupHostMDMCommands(ctx context.Context) error
+	// CleanupHostMDMAppleProfiles removes abandoned host MDM Apple profiles entries.
+	CleanupHostMDMAppleProfiles(ctx context.Context) error
 
 	// IsHostConnectedToFleetMDM verifies if the host has an active Fleet MDM enrollment with this server
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)

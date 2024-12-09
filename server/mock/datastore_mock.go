@@ -261,6 +261,8 @@ type RemoveHostMDMCommandFunc func(ctx context.Context, command fleet.HostMDMCom
 
 type CleanupHostMDMCommandsFunc func(ctx context.Context) error
 
+type CleanupHostMDMAppleProfilesFunc func(ctx context.Context) error
+
 type IsHostConnectedToFleetMDMFunc func(ctx context.Context, host *fleet.Host) (bool, error)
 
 type AreHostsConnectedToFleetMDMFunc func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error)
@@ -1533,6 +1535,9 @@ type DataStore struct {
 
 	CleanupHostMDMCommandsFunc        CleanupHostMDMCommandsFunc
 	CleanupHostMDMCommandsFuncInvoked bool
+
+	CleanupHostMDMAppleProfilesFunc        CleanupHostMDMAppleProfilesFunc
+	CleanupHostMDMAppleProfilesFuncInvoked bool
 
 	IsHostConnectedToFleetMDMFunc        IsHostConnectedToFleetMDMFunc
 	IsHostConnectedToFleetMDMFuncInvoked bool
@@ -3743,6 +3748,13 @@ func (s *DataStore) CleanupHostMDMCommands(ctx context.Context) error {
 	s.CleanupHostMDMCommandsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupHostMDMCommandsFunc(ctx)
+}
+
+func (s *DataStore) CleanupHostMDMAppleProfiles(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupHostMDMAppleProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupHostMDMAppleProfilesFunc(ctx)
 }
 
 func (s *DataStore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {

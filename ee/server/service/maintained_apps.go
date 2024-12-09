@@ -175,9 +175,9 @@ func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, op
 }
 
 func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{
-		TeamID: nil,
-	}, fleet.ActionRead); err != nil {
+	// Special case auth for maintained apps (vs. normal installers) as maintained apps are not scoped to a team;
+	// use SoftwareInstaller for authorization elsewhere.
+	if err := svc.authz.Authorize(ctx, &fleet.MaintainedApp{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
