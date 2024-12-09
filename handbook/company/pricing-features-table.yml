@@ -596,7 +596,7 @@
   pricingTableCategories: [Devices]
   demos: 
     - description: A large tech company used scripts to fix issues with their security and compliance agents on workstations.
-      moreInfoUrl: https://www.youtube.com/watch?v=o1G0YZAsWzI 
+      moreInfoUrl: https://youtu.be/o1G0YZAsWzI
   buzzwords: [Remote script execution,PowerShell scripts,Bash scripts]
   waysToUse:
     - description: Execute custom macOS scripts (client platform engineering)
