@@ -530,7 +530,7 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	if opt.Platform != nil {
 		qs := fmt.Sprintf("%%%s%%", *opt.Platform)
 		args = append(args, qs)
-		whereClauses += ` AND q.platform LIKE ?`
+		whereClauses += ` AND (q.platform LIKE ? OR q.platform = '')`
 	}
 
 	// normalize the name for full Unicode support (Unicode equivalence).

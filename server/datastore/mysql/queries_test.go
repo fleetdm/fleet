@@ -502,8 +502,8 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 	// filtered by platform
 	results, count, meta, err := ds.ListQueries(context.Background(), opts)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(results))
-	assert.Equal(t, count, 2)
+	require.Equal(t, 8, len(results))
+	assert.Equal(t, count, 8)
 	assert.False(t, meta.HasPreviousResults)
 	assert.False(t, meta.HasNextResults)
 	require.Equal(t, "darwin", results[0].Platform)
@@ -512,8 +512,8 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 	opts.Platform = ptr.String("windows")
 	results, count, meta, err = ds.ListQueries(context.Background(), opts)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(results))
-	assert.Equal(t, count, 2)
+	require.Equal(t, 8, len(results))
+	assert.Equal(t, count, 8)
 	assert.False(t, meta.HasPreviousResults)
 	assert.False(t, meta.HasNextResults)
 	require.Equal(t, "windows", results[0].Platform)
@@ -522,8 +522,8 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 	opts.Platform = ptr.String("linux")
 	results, count, meta, err = ds.ListQueries(context.Background(), opts)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(results))
-	assert.Equal(t, count, 2)
+	require.Equal(t, 8, len(results))
+	assert.Equal(t, count, 8)
 	assert.False(t, meta.HasPreviousResults)
 	assert.False(t, meta.HasNextResults)
 	require.Equal(t, "linux", results[0].Platform)
@@ -532,11 +532,11 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 	opts.Platform = ptr.String("lucas")
 	results, count, meta, err = ds.ListQueries(context.Background(), opts)
 	require.NoError(t, err)
-	require.Equal(t, 0, len(results))
-	assert.Equal(t, count, 0)
+	// only returns queries set to run on all platforms with platform == ""
+	require.Equal(t, 6, len(results))
+	assert.Equal(t, count, 6)
 	assert.False(t, meta.HasPreviousResults)
 	assert.False(t, meta.HasNextResults)
-	require.Empty(t, results)
 
 	opts.Platform = nil
 
