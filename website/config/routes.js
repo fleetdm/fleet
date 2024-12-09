@@ -550,7 +550,7 @@ module.exports.routes = {
   'GET /try-fleet/sandbox':   '/try-fleet',
   'GET /try-fleet/waitlist':   '/try-fleet',
   'GET /endpoint-operations': '/endpoint-ops',// « just in case we type it the wrong way
-  'GET /example-dep-profile': 'https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/automatic-enrollment.dep.json',
+  'GET /example-dep-profile': 'https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/enrollment-profiles/automatic-enrollment.dep.json',
   'GET /vulnerability-management': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/software-management'+originalQueryString);},
   'GET /endpoint-ops': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/observability'+originalQueryString);},
 
