@@ -514,7 +514,7 @@ type agent struct {
 	MDMCheckInInterval    time.Duration
 	DiskEncryptionEnabled bool
 
-	scheduledQueryData sync.Map
+	scheduledQueryData *sync.Map
 	// bufferedResults contains result logs that are buffered when
 	// /api/v1/osquery/log requests to the Fleet server fail.
 	//
@@ -667,6 +667,7 @@ func newAgent(
 		disableFleetDesktop: disableFleetDesktop,
 		loggerTLSMaxLines:   loggerTLSMaxLines,
 		bufferedResults:     make(map[resultLog]int),
+		scheduledQueryData:  new(sync.Map),
 	}
 }
 
@@ -1528,7 +1529,7 @@ func (a *agent) config() error {
 		return true
 	})
 
-	a.scheduledQueryData.Clear()
+	newScheduledQueryData := new(sync.Map)
 
 	for packName, pack := range parsedResp.Packs {
 		for queryName, query := range pack.Queries {
@@ -1560,9 +1561,11 @@ func (a *agent) config() error {
 			if lastRun, ok := existingLastRunData[scheduledQueryName]; ok {
 				q.lastRun = lastRun
 			}
-			a.scheduledQueryData.Store(scheduledQueryName, q)
+			newScheduledQueryData.Store(scheduledQueryName, q)
 		}
 	}
+
+	a.scheduledQueryData = newScheduledQueryData
 
 	return nil
 }
