@@ -814,9 +814,7 @@ func (a *agent) countBuffered() int {
 }
 
 func (a *agent) addToBuffer(results []resultLog) {
-	fmt.Println("addToBuffer called!!")
 	for _, result := range results {
-		fmt.Printf("adding buffered result: %+v\n", result)
 		a.bufferedResults[result] += 1
 	}
 }
