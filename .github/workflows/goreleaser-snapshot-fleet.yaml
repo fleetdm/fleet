@@ -94,13 +94,6 @@ jobs:
       - name: Get image digests
         id: image_digests
         run: |
-          IMAGE1=""
-          IMAGE2="fleetdm/fleetctl:${{ steps.commit.outputs.short_commit }}"
-
-          # Fetch digests for both images
-          DIGEST1=$(docker inspect --format='{{index .RepoDigests 0}}' $IMAGE1)
-          DIGEST2=$(docker inspect --format='{{index .RepoDigests 0}}' $IMAGE2)
-
           echo "::set-output name=digest_fleet::$(docker inspect --format='{{index .RepoDigests 0}}' fleetdm/fleet:${{ steps.commit.outputs.short_commit }})"
           echo "::set-output name=digest_fleetctl::$(docker inspect --format='{{index .RepoDigests 0}}' fleetdm/fleetctl:${{ steps.commit.outputs.short_commit }})"
 
