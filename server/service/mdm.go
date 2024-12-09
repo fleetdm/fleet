@@ -3,6 +3,9 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
@@ -2393,7 +2396,7 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 	}
 
 	// Check if we have existing certs and keys
-	var apnsKey *rsa.PrivateKey
+	var apnsKey crypto.PrivateKey
 	savedAssets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetCACert,
 		fleet.MDMAssetCAKey,
@@ -2415,17 +2418,18 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 			return nil, ctxerr.Wrap(ctx, err, "generate SCEP cert and key")
 		}
 
-		apnsKey, err = apple_mdm.NewPrivateKey()
+		apnsRSAKey, err := apple_mdm.NewPrivateKey()
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "generate new apns private key")
 		}
+		apnsKey = apnsRSAKey
 
 		// Store our config assets encrypted
 		var assets []fleet.MDMConfigAsset
 		for k, v := range map[fleet.MDMAssetName][]byte{
 			fleet.MDMAssetCACert:  apple_mdm.EncodeCertPEM(scepCert),
 			fleet.MDMAssetCAKey:   apple_mdm.EncodePrivateKeyPEM(scepKey),
-			fleet.MDMAssetAPNSKey: apple_mdm.EncodePrivateKeyPEM(apnsKey),
+			fleet.MDMAssetAPNSKey: apple_mdm.EncodePrivateKeyPEM(apnsRSAKey),
 		} {
 			assets = append(assets, fleet.MDMConfigAsset{
 				Name:  k,
@@ -2439,9 +2443,9 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 	} else {
 		rawApnsKey := savedAssets[fleet.MDMAssetAPNSKey]
 		block, _ := pem.Decode(rawApnsKey.Value)
-		apnsKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+		apnsKey, err = parseAPNSPrivateKey(ctx, block)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "unmarshaling saved apns key")
+			return nil, err
 		}
 	}
 
@@ -2486,6 +2490,31 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 
 	// Return signed CSR
 	return signedCSRB64, nil
+}
+
+func parseAPNSPrivateKey(ctx context.Context, block *pem.Block) (crypto.PrivateKey, error) {
+	if block == nil {
+		return nil, ctxerr.New(ctx, "failed to decode saved APNS key")
+	}
+
+	// The code below is based on tls.parsePrivateKey
+	// https://cs.opensource.google/go/go/+/release-branch.go1.23:src/crypto/tls/tls.go;l=355-372
+	if key, err := x509.ParsePKCS1PrivateKey(block.Bytes); err == nil {
+		return key, nil
+	}
+	if key, err := x509.ParsePKCS8PrivateKey(block.Bytes); err == nil {
+		switch key := key.(type) {
+		case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
+			return key, nil
+		default:
+			return nil, errors.New("unmarshaled PKCS8 APNS key is not an RSA, ECDSA, or Ed25519 private key")
+		}
+	}
+	if key, err := x509.ParseECPrivateKey(block.Bytes); err == nil {
+		return key, nil
+	}
+
+	return nil, ctxerr.New(ctx, fmt.Sprintf("failed to parse APNS private key of type %s", block.Type))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
