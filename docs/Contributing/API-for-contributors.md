@@ -2100,7 +2100,7 @@ This replaces the active global enroll secrets with the secrets specified.
 
 Stores secret variables prefixed with `$FLEET_SECRET_` to Fleet.
 
-`POST /api/v1/fleet/spec/secret_variables`
+`PUT /api/v1/fleet/spec/secret_variables`
 
 #### Parameters
 
@@ -2110,7 +2110,7 @@ Stores secret variables prefixed with `$FLEET_SECRET_` to Fleet.
 
 #### Example
 
-`POST /api/v1/fleet/spec/secret_variables`
+`PUT /api/v1/fleet/spec/secret_variables`
 
 ##### Request body
 
