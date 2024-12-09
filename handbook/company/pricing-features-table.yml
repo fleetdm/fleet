@@ -474,7 +474,6 @@
   pricingTableCategories: [Devices]
   usualDepartment: IT
   dri: mikermcneil
-  demos:
   buzzwords: [Device trust,Zero trust,Layer 7 device trust,Beyondcorp,Device attestation,Conditional access]
   waysToUse:
     - description: Automatically manage the behavior of endpoints that are at higher risk of vulnerabilities or data loss due to their configuration or patch level.
