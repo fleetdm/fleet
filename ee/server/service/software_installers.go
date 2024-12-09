@@ -82,7 +82,6 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	// Create activity
-	// TODO(JVE): get the software title ID from MatchOrCreate above
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
 		SoftwareTitle:   payload.Title,
 		SoftwarePackage: payload.Filename,
