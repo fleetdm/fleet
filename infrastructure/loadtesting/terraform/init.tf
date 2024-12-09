@@ -67,6 +67,8 @@ data "terraform_remote_state" "shared" {
     encrypt              = true
     kms_key_id           = "9f98a443-ffd7-4dbe-a9c3-37df89b2e42a"
     dynamodb_table       = "tf-remote-state-lock"
-    role_arn             = "arn:aws:iam::353365949058:role/terraform-loadtesting"
+    assume_role = {
+      role_arn = "arn:aws:iam::353365949058:role/terraform-loadtesting"
+    }
   }
 }
