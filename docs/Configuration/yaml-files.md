@@ -16,7 +16,7 @@ org_settings: # Only default.yml
 team_settings: # Only teams/team-name.yml
 ```
 
-Currently, managing labels, users, and ticket destinations (Jira and Zendesk) are only supported in Fleet's UI (YAML files coming soon).
+Currently, managing labels and users is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
 ## policies
 
@@ -312,8 +312,12 @@ Can only be configured for all teams (`default.yml`).
 
 The `software` section allows you to configure packages and Apple App Store apps that you want to install on your hosts.
 
+Currently, managing [Fleet-maintained apps](https://fleetdm.com/guides/install-fleet-maintained-apps-on-macos-hosts) is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
+
 - `packages` is a list of paths to custom packages (.pkg, .msi, .exe, .rpm, or .deb).
 - `app_store_apps` is a list of Apple App Store apps.
+
+Currently, all supported platforms for App Store apps are added. For example, when you add [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) both the iOS and iPadOS apps will be added to your software that's available to install in Fleet. Specifying specific platforms is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
 #### Example
 
@@ -493,8 +497,9 @@ org_settings:
 
 ### integrations
 
-The `integrations` section lets you define calendar events and ticket settings for failing policy and vulnerability automations. Learn more about automations in Fleet [here](https://fleetdm.com/docs/using-fleet/automations).
-In addition, you can define the SCEP proxy settings for Network Device Enrollment Service (NDES). Learn more about SCEP and NDES in Fleet [here](https://fleetdm.com/guides/ndes-scep-proxy).
+The `integrations` section lets you configure your Google Calendar, Jira, and Zendesk. After configuration, you can enable automations like calendar event and ticket creation for failing policies and vulnerabilities. Currently, enabling automation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon). Learn more about automations in Fleet [here](https://fleetdm.com/docs/using-fleet/automations).
+
+In addition, you can configure your the SCEP server to help your end users connect to Wi-Fi. Learn more about SCEP and NDES in Fleet [here](https://fleetdm.com/guides/ndes-scep-proxy).
 
 #### Example
 
@@ -617,6 +622,10 @@ Can only be configured for all teams (`org_settings`).
 
 #### apple_business_manager
 
+After you've uploaded an Apple Business Manager (ABM) token, the `apple_business_manager` section lets you configure the teams in Fleet new hosts in ABM are automatically added to. Currently, adding an ABM token is only available using Fleet's UI. Learn more [here](https://fleetdm.com/guides/macos-mdm-setup#automatic-enrollment).
+
+Currently, managing labels and users, ticket destinations (Jira and Zendesk), Apple Business Manager (ABM) are only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
+
 - `organization_name` is the organization name associated with the Apple Business Manager account.
 - `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager.
 - `ios_team` is the the team where iOS hosts are automatically added when they appear in Apple Business Manager.
@@ -637,6 +646,8 @@ org_settings:
 > Apple Business Manager settings can only be configured for all teams (`org_settings`).
 
 #### volume_purchasing_program
+
+After you've uploaded a Volume Purchasing Program (VPP) token, the  `volume_purchasing_program` section lets you configure the teams in Fleet that have access to that VPP token's App Store apps. Currently, adding a VPP token is only available using Fleet's UI. Learn more [here](https://fleetdm.com/guides/macos-mdm-setup#volume-purchasing-program-vpp).
 
 - `location` is the name of the location in the Apple Business Manager account.
 - `teams` is a list of team names. If you choose specific teams, App Store apps in this VPP account will only be available to install on hosts in these teams. If not specified, App Store apps are available to install on hosts in all teams.
