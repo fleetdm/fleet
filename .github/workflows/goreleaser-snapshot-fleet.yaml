@@ -85,30 +85,36 @@ jobs:
       - name: Publish Docker images
         run: docker push fleetdm/fleet --all-tags
 
-      # Get the commit hash so we can get image digests
+      # Get the commit hash so we can pull images
       - name: Get the short commit hash
         id: commit
         run: echo "::set-output name=short_commit::$(git rev-parse --short HEAD)"
 
-      # Get the image digests (only available after we push to the registry)
+      # Pull the images so we can get their digests
+      - name: Pull Docker fleetdm
+        run: |
+          docker pull fleetdm/fleet:${{ steps.commit.outputs.short_commit }}
+          docker pull fleetdm/fleetctl:${{ steps.commit.outputs.short_commit }}
+
+      # Get the image digests
       - name: Get image digests
         id: image_digests
         run: |
-          echo "::set-output name=digest_fleet::$(docker inspect --format='{{index .RepoDigests 0}}' fleetdm/fleet:${{ steps.commit.outputs.short_commit }})"
-          echo "::set-output name=digest_fleetctl::$(docker inspect --format='{{index .RepoDigests 0}}' fleetdm/fleetctl:${{ steps.commit.outputs.short_commit }})"
+          echo "digest_fleet=$(docker inspect --format='{{index .RepoDigests 0}}' fleetdm/fleet:${{ steps.commit.outputs.short_commit }} | awk -F'@' '{print $2}')" >> ${GITHUB_OUTPUT}
+          echo "digest_fleetctl=$(docker inspect --format='{{index .RepoDigests 0}}' fleetdm/fleetctl:${{ steps.commit.outputs.short_commit }} | awk -F'@' '{print $2}')" >> ${GITHUB_OUTPUT}
 
       - name: Attest Fleet image
         uses: actions/attest-build-provenance@173725a1209d09b31f9d30a3890cf2757ebbff0d # v1.1.2
         with:
           subject-digest: ${{steps.image_digests.outputs.digest_fleet}}
-          subject-name: "fleetdm/fleet:${{ steps.commit.outputs.short_commit }}"
+          subject-name: "fleetdm/fleet"
           push-to-registry: true
 
       - name: Attest FleetCtl image
         uses: actions/attest-build-provenance@173725a1209d09b31f9d30a3890cf2757ebbff0d # v1.1.2
         with:
           subject-digest: ${{steps.image_digests.outputs.digest_fleetctl}}
-          subject-name: "fleetdm/fleetctl:${{ steps.commit.outputs.short_commit }}"
+          subject-name: "fleetdm/fleetctl"
           push-to-registry: true
 
       - name: Get tag
