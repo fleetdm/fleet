@@ -108,7 +108,9 @@ const QueriesTable = ({
   const sortHeader = initialSortHeader;
 
   const targetedPlatformParam = queryParams?.platform;
-  const curTargetedPlatformFilter = isQueryablePlatform(targetedPlatformParam)
+  const curTargetedPlatformFilter: SelectedPlatform = isQueryablePlatform(
+    targetedPlatformParam
+  )
     ? targetedPlatformParam
     : DEFAULT_PLATFORM;
 
