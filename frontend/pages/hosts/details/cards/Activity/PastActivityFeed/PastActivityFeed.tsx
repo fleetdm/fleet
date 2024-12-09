@@ -1,6 +1,6 @@
 import React from "react";
 
-import { IHostPastActivity } from "interfaces/activity";
+import { ActivityType, IHostPastActivity } from "interfaces/activity";
 import { IHostPastActivitiesResponse } from "services/entities/activities";
 
 // @ts-ignore
@@ -59,7 +59,9 @@ const PastActivityFeed = ({
           if (
             !activity.actor_email &&
             !activity.actor_full_name &&
-            !activity.actor_id
+            (activity.type === ActivityType.InstalledSoftware ||
+              activity.type === ActivityType.InstalledAppStoreApp ||
+              activity.type === ActivityType.RanScript)
           ) {
             activity.actor_full_name = "Fleet";
           }

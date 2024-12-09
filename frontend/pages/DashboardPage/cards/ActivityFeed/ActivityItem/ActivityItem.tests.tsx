@@ -1412,4 +1412,40 @@ describe("Activity Feed", () => {
       )
     ).toBeInTheDocument();
   });
+
+  it("renders setup experience installed software correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "",
+      actor_email: "",
+      actor_id: undefined,
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/Fleet/)).toBeInTheDocument();
+  });
+
+  it("renders setup experience ran script correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.RanScript,
+      actor_full_name: "",
+      actor_email: "",
+      actor_id: undefined,
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/Fleet/)).toBeInTheDocument();
+  });
+
+  it("renders setup experience installed VPP app correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.RanScript,
+      actor_full_name: "",
+      actor_email: "",
+      actor_id: undefined,
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/Fleet/)).toBeInTheDocument();
+  });
 });
