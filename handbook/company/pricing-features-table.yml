@@ -259,9 +259,9 @@
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
     demos:
     - description: Install a bootstrap package to run custom scripts during the setup experience to enforce required configurations.
-    - moreInfoUrl: https://www.youtube.com/watch?v=gt7_dAU0VMY
+      moreInfoUrl: https://www.youtube.com/watch?v=gt7_dAU0VMY
     - description: Connect end users to Wi-Fi by adding your SCEP server.
-    - moreInfoUrl: https://www.youtube.com/watch?v=secV4NCGYPg
+      moreInfoUrl: https://www.youtube.com/watch?v=secV4NCGYPg
 #  
 #  ╔╗ ╦ ╦╔═╗╔╦╗  ╔═╗╔╗╔╦═╗╔═╗╦  ╦  ╔╦╗╔═╗╔╗╔╔╦╗
 #  ╠╩╗╚╦╝║ ║ ║║  ║╣ ║║║╠╦╝║ ║║  ║  ║║║║╣ ║║║ ║ 
