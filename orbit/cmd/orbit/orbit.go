@@ -39,7 +39,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/user"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/zenity"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	retrypkg "github.com/fleetdm/fleet/v4/pkg/retry"
@@ -947,7 +946,7 @@ func main() {
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(windowsMDMBitlockerCommandFrequency, orbitClient))
 		case "linux":
-			orbitClient.RegisterConfigReceiver(luks.New(orbitClient, zenity.New()))
+			orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
 		}
 
 		flagUpdateReceiver := update.NewFlagReceiver(orbitClient.TriggerOrbitRestart, update.FlagUpdateOptions{

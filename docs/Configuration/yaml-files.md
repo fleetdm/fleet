@@ -202,7 +202,7 @@ The `controls` section allows you to configure scripts and device management (MD
 
 - `scripts` is a list of paths to macOS, Windows, or Linux scripts.
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for all teams (`default.yml`).
-- `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS and Windows hosts (default: `false`).
+- `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
 
 #### Example
 
@@ -234,6 +234,10 @@ controls:
       - path: ../lib/macos-profile2.json
         labels_include_all:
           - Macs on Sonoma
+      - path: ../lib/macos-profile3.mobileconfig
+        labels_include_any:
+          - Engineering
+          - Product
   windows_settings:
     custom_settings:
       - path: ../lib/windows-profile.xml
@@ -279,7 +283,7 @@ controls:
 
 Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format. Variables beginning with `$FLEET_VAR_` are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. See supported variables in the guide [here](https://fleetdm.com/guides/ndes-scep-proxy).
 
-Use `labels_include_all` to only apply (scope) profiles to hosts that have all those labels or `labels_exclude_any` to apply profiles to hosts that don't have any of those labels.
+Use `labels_include_all` to only apply (scope) profiles to hosts that have all those labels, `labels_include_any` to apply profiles to hosts that have any of those labels, or `labels_exclude_any` to apply profiles to hosts that don't have any of those labels.
 
 ### macos_setup
 
@@ -326,9 +330,9 @@ software:
 ### packages
 
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3 (default: `""`).
-- `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables) (default: `""`).
-- `post_install_script.path` is the script Fleet will run on hosts after installing software (default: `""`).
+- `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
+- `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
 
 #### Example
@@ -339,6 +343,8 @@ software:
 url: https://dl.tailscale.com/stable/tailscale-setup-1.72.0.exe
 install_script:
   path: ../lib/software/tailscale-install-script.ps1
+uninstall_script:
+  path: ../lib/software/tailscale-uninstall-script.ps1
 self_service: true
 ```
 
@@ -429,7 +435,7 @@ The `secrets` section defines the valid secrets that hosts can use to enroll to 
 ```yaml
 org_settings:
   secrets: 
-  - $ENROLL_SECRET
+  - secret: $ENROLL_SECRET
 ```
 
 ### server_settings

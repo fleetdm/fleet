@@ -183,7 +183,7 @@
   frequency: "Monthly"
   description: "Via hand or automation, send a monthly update email to all investors that hold 4% equity or greater in Fleet who have opted in to receive emails on the company's progress." 
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#communicate-fleets-potential-energy-to-stakeholders"
-  dri: "sampfluger88"
+  dri: "SFriendLee"
   autoIssue:  
     labels: [ "#g-digital-experience" ] 
     repo: "confidential"

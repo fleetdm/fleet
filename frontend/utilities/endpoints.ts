@@ -73,6 +73,7 @@ export default {
   },
 
   LOGIN: `/${API_VERSION}/fleet/login`,
+  CREATE_SESSION: `/${API_VERSION}/fleet/sessions`,
   LOGOUT: `/${API_VERSION}/fleet/logout`,
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
 
@@ -115,7 +116,7 @@ export default {
 
   MDM_UPDATE_APPLE_SETTINGS: `/${API_VERSION}/fleet/mdm/apple/settings`,
   PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/configuration_profiles/summary`,
-  MDM_DISK_ENCRYPTION_SUMMARY: `/${API_VERSION}/fleet/mdm/disk_encryption/summary`,
+  DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,
   MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
   MDM_APPLE_ENROLLMENT_PROFILE: (token: string, ref?: string) => {
     const query = new URLSearchParams({ token });
@@ -137,7 +138,7 @@ export default {
   HOST_MDM_UNENROLL: (id: number) =>
     `/${API_VERSION}/fleet/mdm/hosts/${id}/unenroll`,
   HOST_ENCRYPTION_KEY: (id: number) =>
-    `/${API_VERSION}/fleet/mdm/hosts/${id}/encryption_key`,
+    `/${API_VERSION}/fleet/hosts/${id}/encryption_key`,
 
   ME: `/${API_VERSION}/fleet/me`,
 

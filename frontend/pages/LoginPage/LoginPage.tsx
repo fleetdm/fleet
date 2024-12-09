@@ -60,6 +60,8 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
   const { redirectLocation } = useContext(RoutingContext);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState(false);
 
   const { data: ssoSettings, isLoading: isLoadingSSOSettings } = useQuery<
     ISSOSettingsResponse,
@@ -112,10 +114,11 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
 
   const onSubmit = useCallback(
     async (formData: ILoginUserData) => {
+      setIsSubmitting(true);
       const { DASHBOARD, RESET_PASSWORD, NO_ACCESS } = paths;
 
       try {
-        const response = await sessionsAPI.create(formData);
+        const response = await sessionsAPI.login(formData);
         const { user, available_teams, token } = response;
 
         local.setItem("auth_token", token);
@@ -137,9 +140,15 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
         }
         return router.push(redirectLocation || DASHBOARD);
       } catch (response) {
+        if ((response as { status: number }).status === 202) {
+          setPendingEmail(true);
+        }
+
         const errorObject = formatErrorResponse(response);
         setErrors(errorObject);
         return false;
+      } finally {
+        setIsSubmitting(false);
       }
     },
     [
@@ -187,6 +196,8 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
         baseError={errors.base}
         ssoSettings={ssoSettings}
         handleSSOSignOn={ssoSignOn}
+        isSubmitting={isSubmitting}
+        pendingEmail={pendingEmail}
       />
     </AuthenticationFormWrapper>
   );
