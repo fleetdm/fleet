@@ -9894,7 +9894,7 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
 	}, "MacBookPro16,1")
-	// by default the mdm test client will have a randome uuid and serial, but we want
+	// by default the mdm test client will have a random uuid and serial, but we want
 	// it to match with the previously created host
 	mdmDevice.SerialNumber = host.HardwareSerial
 	mdmDevice.UUID = host.UUID
