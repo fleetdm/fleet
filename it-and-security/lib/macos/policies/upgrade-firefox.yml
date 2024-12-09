@@ -5,4 +5,4 @@
   resolution: During maintenance, the Firefox app could be updated to the correct version or installed if it's missing.
   platform: darwin
   install_software:
-    package_path: "../lib/software/macos-mozilla-firefox.yml"
+    package_path: "../lib/macos/software/mozilla-firefox.yml"
