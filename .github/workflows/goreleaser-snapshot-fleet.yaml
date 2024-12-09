@@ -69,6 +69,7 @@ jobs:
         run: make deps
 
       - name: Run GoReleaser
+        id: goreleaser
         uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b
         with:
           distribution: goreleaser-pro
@@ -83,6 +84,39 @@ jobs:
       # Explicitly push the docker images as GoReleaser will not do so in snapshot mode
       - name: Publish Docker images
         run: docker push fleetdm/fleet --all-tags
+
+      # Get the commit hash so we can get image digests
+      - name: Get the short commit hash
+        id: commit
+        run: echo "::set-output name=short_commit::$(git rev-parse --short HEAD)"
+
+      # Get the image digests (only available after we push to the registry)
+      - name: Get image digests
+        id: image_digests
+        run: |
+          IMAGE1=""
+          IMAGE2="fleetdm/fleetctl:${{ steps.commit.outputs.short_commit }}"
+
+          # Fetch digests for both images
+          DIGEST1=$(docker inspect --format='{{index .RepoDigests 0}}' $IMAGE1)
+          DIGEST2=$(docker inspect --format='{{index .RepoDigests 0}}' $IMAGE2)
+
+          echo "::set-output name=digest_fleet::$(docker inspect --format='{{index .RepoDigests 0}}' fleetdm/fleet:${{ steps.commit.outputs.short_commit }})"
+          echo "::set-output name=digest_fleetctl::$(docker inspect --format='{{index .RepoDigests 0}}' fleetdm/fleetctl:${{ steps.commit.outputs.short_commit }})"
+
+      - name: Attest Fleet image
+        uses: actions/attest-build-provenance@173725a1209d09b31f9d30a3890cf2757ebbff0d # v1.1.2
+        with:
+          subject-digest: ${{steps.image_digests.outputs.digest_fleet}}
+          subject-name: "fleetdm/fleet:${{ steps.commit.outputs.short_commit }}"
+          push-to-registry: true
+
+      - name: Attest FleetCtl image
+        uses: actions/attest-build-provenance@173725a1209d09b31f9d30a3890cf2757ebbff0d # v1.1.2
+        with:
+          subject-digest: ${{steps.image_digests.outputs.digest_fleetctl}}
+          subject-name: "fleetdm/fleetctl:${{ steps.commit.outputs.short_commit }}"
+          push-to-registry: true
 
       - name: Get tag
         run: |

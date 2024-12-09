@@ -86,6 +86,11 @@ jobs:
           APPLE_APP_STORE_CONNECT_KEY_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_KEY_ID }}
           APPLE_APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_ISSUER_ID }}
 
+      - name: Attest binaries and archives
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: "dist/fleet*"
+
       - name: Get tag
         run: |
           echo "TAG=$(git describe --tags |  sed -e "s/^fleet-//")" >> $GITHUB_OUTPUT
