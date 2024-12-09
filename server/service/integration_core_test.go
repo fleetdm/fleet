@@ -3430,16 +3430,16 @@ func (s *integrationTestSuite) TestQueriesPaginationAndPlatformFilter() {
 
 	// make a few queries
 	testQueries := []*fleet.Query{
-		{Name: "TestQuery1", Query: "select 1", Platform: "darwin"},
-		{Name: "TestQuery2", Query: "select 2", Platform: "linux"},
-		{Name: "TestQuery3", Query: "select 3", Platform: "windows"},
-		{Name: "TestQuery4", Query: "select 4", Platform: "darwin,windows,linux"},
-		{Name: "TestQuery5", Query: "select 5"},
-		{Name: "TestQuery6", Query: "select 6"},
-		{Name: "TestQuery7", Query: "select 7"},
-		{Name: "TestQuery8", Query: "select 8"},
-		{Name: "TestQuery9", Query: "select 9"},
-		{Name: "TestQuery10", Query: "select 10"},
+		{Name: "PPTestQuery1", Query: "select 1", Platform: "darwin"},
+		{Name: "PPTestQuery2", Query: "select 2", Platform: "linux"},
+		{Name: "PPTestQuery3", Query: "select 3", Platform: "windows"},
+		{Name: "PPTestQuery4", Query: "select 4", Platform: "darwin,windows,linux"},
+		{Name: "PPTestQuery5", Query: "select 5"},
+		{Name: "PPTestQuery6", Query: "select 6"},
+		{Name: "PPTestQuery7", Query: "select 7"},
+		{Name: "PPTestQuery8", Query: "select 8"},
+		{Name: "PPTestQuery9", Query: "select 9"},
+		{Name: "PPTestQuery10", Query: "select 10"},
 	}
 	var createQueryResp createQueryResponse
 	for _, q := range testQueries {
