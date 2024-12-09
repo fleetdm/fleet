@@ -776,7 +776,6 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		// check if we have any scheduled queries that should be returning results
 		var results []resultLog
 		now := time.Now().Unix()
-		// a.scheduledQueriesMu.Lock()
 		prevCount := a.countBuffered()
 
 		a.scheduledQueryData.Range(func(key, value any) bool {
