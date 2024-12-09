@@ -570,6 +570,7 @@ module.exports.routes = {
   'GET /sign-in-to/microsoft-automatic-enrollment-tool': 'https://portal.azure.com',
   'GET /learn-more-about/custom-os-settings': '/docs/using-fleet/mdm-custom-os-settings',
   'GET /learn-more-about/ndes': 'https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview', // TODO: Confirm URL
+  'GET /learn-more-about/setup-ndes': '/guides/ndes-scep-proxy',
   'GET /learn-more-about/idp-email': 'https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping',
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
   'GET /learn-more-about/setup-assistant': '/docs/using-fleet/mdm-macos-setup-experience#macos-setup-assistant',
@@ -612,7 +613,6 @@ module.exports.routes = {
   'GET /learn-more-about/mdm-disk-encryption': '/guides/enforce-disk-encryption',
   'GET /learn-more-about/encrypt-linux-device': '/guides/linux-disk-encryption-end-user',
   'GET /contribute-to/policies': 'https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml',
-  'GET /learn-more-about/setup-ndes': '/guides/ndes-scep-proxy',
 
   // Sitemap
   // =============================================================================================================
