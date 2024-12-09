@@ -64,7 +64,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	// Update $PACKAGE_ID in uninstall script
 	preProcessUninstallScript(payload)
 
-	installerID, err := svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
+	installerID, titleID, err := svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "matching or creating software installer")
 	}
@@ -82,12 +82,14 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	// Create activity
+	// TODO(JVE): get the software title ID from MatchOrCreate above
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
 		SoftwareTitle:   payload.Title,
 		SoftwarePackage: payload.Filename,
 		TeamName:        teamName,
 		TeamID:          payload.TeamID,
 		SelfService:     payload.SelfService,
+		SoftwareTitleID: titleID,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for added software")
 	}

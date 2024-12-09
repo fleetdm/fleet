@@ -208,7 +208,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	// Test excluding results for existing apps (installers)
 
 	/// Irrelevant package
-	_, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:            "Irrelevant Software",
 		TeamID:           &team1.ID,
 		InstallScript:    "nothing",
@@ -227,7 +227,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, expectedApps, apps)
 
 	/// Correct package on a different team
-	_, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:            "Maintained1",
 		TeamID:           &team2.ID,
 		InstallScript:    "nothing",
@@ -246,7 +246,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, expectedApps, apps)
 
 	/// Correct package on the right team with the wrong platform
-	_, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:            "Maintained1",
 		TeamID:           &team1.ID,
 		InstallScript:    "nothing",
@@ -414,7 +414,7 @@ func testGetSoftwareTitleIdByAppID(t *testing.T, ds *Datastore) {
 	installer, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
 
-	installerTm1ID, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
+	installerTm1ID, _, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
@@ -430,7 +430,7 @@ func testGetSoftwareTitleIdByAppID(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	_, err = ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
