@@ -475,9 +475,6 @@
   usualDepartment: IT
   dri: mikermcneil
   demos:
-    - description: A large tech company used the Fleet API to block access to corporate apps for outdated operating system versions with certain "celebrity" vulnerabilities.
-      quote: 
-      moreInfoUrl: https://play.goconsensus.com/s4e490bb9
   buzzwords: [Device trust,Zero trust,Layer 7 device trust,Beyondcorp,Device attestation,Conditional access]
   waysToUse:
     - description: Automatically manage the behavior of endpoints that are at higher risk of vulnerabilities or data loss due to their configuration or patch level.
@@ -486,7 +483,7 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14920
     - description: Control and restore access to applications by automatically restricting access when devices do not meet particular security requirements.
       moreInfoUrl: https://duo.com/docs/device-health
-      demos:
+  demos:
     - description: See activity logs when the activities webhook is enabled/disabled and when the destination URL is edited
       moreInfoUrl: https://youtu.be/3Fndgrsk-Ss 
     - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems. Coming soon (2024-09-30).
@@ -521,7 +518,9 @@
     - description: Surface security issues in all your deployed endpoints even data centers and factories.
     - description: Continually validate controls and policies
     - description: Block access to corporate apps if your end users are failing a specific number of critical policies.
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/16206       
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/16206
+    - description: A large tech company used the Fleet API to block access to corporate apps for outdated operating system versions with certain "celebrity" vulnerabilities.
+      moreInfoUrl: https://play.goconsensus.com/s4e490bb9
 #  
 #  ╔═╗╔═╗╔═╗╦  ╦╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ╔╦╗╔═╗╔═╗╦  ╔═╗╦ ╦╔╦╗╔═╗╔╗╔╔╦╗
 #  ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║   ║║║╣ ╠═╝║  ║ ║╚╦╝║║║║╣ ║║║ ║ 
