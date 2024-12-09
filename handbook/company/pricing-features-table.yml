@@ -174,7 +174,7 @@
 #  ╩ ╩╚═╝═╩╝╩ ╩   ╩═╝╚═╝╚═╝╚═╝╩╝╚╝╚═╝
 - industryName: Audit logging
   description: Log all activity, including queries, scripts, access, etc.
-  demo:
+  demos:
     - description: See activities for enabling/disabling the activities webhook and editing the destination URL so that I can know when the activities webhook was modified and by who.
       moreInfoUrl: https://youtu.be/3Fndgrsk-Ss
   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#list-activities
