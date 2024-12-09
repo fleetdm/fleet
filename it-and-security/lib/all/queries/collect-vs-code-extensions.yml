@@ -7,6 +7,6 @@
   logging: snapshot
   min_osquery_version: ""
   observer_can_run: false
-  platform: ""
+  platform: darwin,linux,windows
   query: SELECT extension.name, extension.publisher, extension.version FROM users
     JOIN vscode_extensions extension USING (uid);

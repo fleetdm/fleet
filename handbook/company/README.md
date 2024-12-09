@@ -131,7 +131,7 @@ Fleet raised its Series A funding round.  The world now has at least 1.65 millio
 Fleet added support for [scripting and management capabilities](https://fleetdm.com/announcements/fleet-introduces-windows-mdm) on macOS, Windows, _and_ Linux devices, allowing IT departments to manage devices more consistently using modern tooling and best practices.  This allowed many customers to simplify their management practices.  In several cases, Fleet was also able to save customers several hundreds of thousands of dollars (USD) by cutting tool overlap across platforms such as Jamf, Airwatch, Intune, MobileIron, Nexthink, Tanium, Uptycs, and Rapid7.
 
 ### 2024: Fleet is growing globally 
-Fleet has expanded into 90+ countries, with 100+ customers and 2.24 million computers and virtual hosts enrolled (including the worlds most powerful computer). 
+Fleet has expanded into 90+ countries, with 100+ customers and 2.24 million computers and virtual hosts enrolled (including the world's most powerful computer). 
 
 <!-- 2024: and implement "zero trust" faster -->
 
@@ -140,7 +140,7 @@ Fleet has expanded into 90+ countries, with 100+ customers and 2.24 million comp
 ## Org chart
 To provide clarity about decision-making, [responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility), and resources, everyone at Fleet has a manager, and [every manager](https://fleetdm.com/handbook/company/leadership) has direct reports.  Fleet's organizational chart is accessible company-wide as a sub-tab in ["🧑‍🚀 Fleeties" (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).  On the other sub-tabs, you can also check out a world map of where everyone is located, hiring stats, and fun facts about each team member.
 
-- 🚀 [Engineering](https://fleetdm.com/handbook/engineering): The Engineering department at Fleet is directly responsible for writing and maintaining the code for Fleet's core product, as well as Fleet's Information technology (IT) infrastucture.
+- 🚀 [Engineering](https://fleetdm.com/handbook/engineering): The Engineering department at Fleet is directly responsible for writing and maintaining the code for Fleet's core product, as well as Fleet's Information technology (IT) infrastructure.
 - 🦢 [Product Design](https://fleetdm.com/handbook/product-design): The Product Design department is directly responsible for defining and prioritizing the changes made to the core product, Fleet API, and reference documentation.
 - 🌦️ [Customer Success](https://fleetdm.com/handbook/customer-success): The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
 - 🫧 [Demand](https://fleetdm.com/handbook/demand): The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other programs.
