@@ -33,17 +33,24 @@ module.exports = {
       pagePersonalization = 'eo-security';
     }
 
-
     // Specify an order for the testimonials on this page using the last names of quote authors
-    let testimonialOrderForThisPage = ['Charles Zaffery','Dan Grzelak','Nico Waisman','Tom Larkin','Austin Anderson','Erik Gomez','Nick Fohs','Brendan Shaklovitz','Mike Arpaia','Andre Shields','Dhruv Majumdar','Ahmed Elshaer','Abubakar Yousafzai','Wes Whetstone','Kenny Botelho', 'Chandra Majumdar','Eric Tan', 'Alvaro Gutierrez', 'Joe Pistone'];
-    if(['eo-it', 'mdm'].includes(pagePersonalization)){
-      testimonialOrderForThisPage = [ 'Eric Tan','Erik Gomez', 'Tom Larkin', 'Nick Fohs', 'Wes Whetstone', 'Mike Arpaia', 'Kenny Botelho', 'Alvaro Gutierrez'];
-    } else if(['eo-security', 'vm'].includes(pagePersonalization)){
-      testimonialOrderForThisPage = ['Nico Waisman','Charles Zaffery','Abubakar Yousafzai','Eric Tan','Mike Arpaia','Chandra Majumdar','Ahmed Elshaer','Brendan Shaklovitz','Austin Anderson','Dan Grzelak','Dhruv Majumdar','Alvaro Gutierrez', 'Joe Pistone'];
-    }
+    let testimonialOrderForThisPage = [
+      'Eric Tan',
+      'Kenny Botelho',
+      'Ahmed Elshaer',
+      'Arsenio Figueroa',
+      'Brendan Shaklovitz',
+      'Andre Shields',
+      'Scott MacVicar',
+      'Erik Gomez',
+      'Mike Arpaia',
+      'Chandra Majumdar',
+      'Charles Zaffery',
+      'Tom Larkin',
+    ];
     // Filter the testimonials by product category and the filtered list we built above.
     testimonialsForScrollableTweets = _.filter(testimonialsForScrollableTweets, (testimonial)=>{
-      return _.contains(testimonial.productCategories, 'Endpoint operations') && _.contains(testimonialOrderForThisPage, testimonial.quoteAuthorName);
+      return _.contains(testimonial.productCategories, 'Observability') && _.contains(testimonialOrderForThisPage, testimonial.quoteAuthorName);
     });
 
     testimonialsForScrollableTweets.sort((a, b)=>{

@@ -20,6 +20,27 @@ var testFunctions = [...]func(*testing.T, fleet.MailService){
 	testMailTest,
 }
 
+func TestCanSendMail(t *testing.T) {
+	settings := fleet.SMTPSettings{
+		SMTPConfigured:           true,
+		SMTPAuthenticationType:   fleet.AuthTypeNameUserNamePassword,
+		SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
+		SMTPUserName:             "mailpit-username",
+		SMTPPassword:             "mailpit-password",
+		SMTPEnableTLS:            false,
+		SMTPVerifySSLCerts:       false,
+		SMTPEnableStartTLS:       false,
+		SMTPPort:                 1026,
+		SMTPServer:               "localhost",
+		SMTPSenderAddress:        "test@example.com",
+	}
+
+	r, err := NewService(config.TestConfig())
+	require.NoError(t, err)
+	require.True(t, r.CanSendEmail(settings))
+	require.False(t, r.CanSendEmail(fleet.SMTPSettings{}))
+}
+
 func TestMail(t *testing.T) {
 	// This mail test requires mailhog unauthenticated running on localhost:1025
 	// and mailpit running on localhost:1026.

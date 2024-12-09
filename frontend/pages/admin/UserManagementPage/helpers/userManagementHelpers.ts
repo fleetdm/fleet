@@ -3,7 +3,7 @@ import { isEqual } from "lodash";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import { IInvite } from "interfaces/invite";
 import { IUser, IUserUpdateBody, IUpdateUserFormData } from "interfaces/user";
-import { IFormData } from "../components/UserForm/UserForm";
+import { IUserFormData } from "../components/UserForm/UserForm";
 
 type ICurrentUserData = Pick<
   IUser,
@@ -24,7 +24,7 @@ export interface IRoleOptionsParams {
  */
 const generateUpdateData = (
   currentUserData: IUser | IInvite,
-  formData: IFormData
+  formData: IUserFormData
 ): IUpdateUserFormData => {
   const updatableFields = [
     "global_role",
