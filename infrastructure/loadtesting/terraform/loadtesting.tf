@@ -55,7 +55,11 @@ resource "aws_ecs_task_definition" "loadtest" {
           "-server_url", "http://${aws_lb.internal.dns_name}",
           "--policy_pass_prob", "0.5",
           "--start_period", "5m",
-          "--orbit_prob", "0.0"
+          "--orbit_prob", "1",
+          "--mdm_prob", "1",
+          "--mdm_scep_challenge", "foo",
+          "--os_templates", "macos_14.1.2:500",
+          "--mdm_check_in_interval", "1m"
         ]
       }
   ])
