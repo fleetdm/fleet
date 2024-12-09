@@ -109,7 +109,7 @@ controls:
     - path: ../lib/macos/scripts/remove-old-nudge.sh
     - path: ../lib/macos/scripts/mdm-migration.sh
     - path: ../lib/macos/scripts/system-maintenance.sh
-    - path: ../lib/scripts/windows-remove-fleetd.ps1
+    - path: ../lib/windows/scripts/remove-fleetd.ps1
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
     - path: ../lib/windows/scripts/install-bitdefender.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
