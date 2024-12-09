@@ -149,14 +149,6 @@ func (svc *Service) AddFleetMaintainedApp(
 		return 0, ctxerr.Wrap(ctx, err, "creating activity for added software")
 	}
 
-	// TODO(JVE): validate that this works
-	// Use the writer for this query; we need the software installer that might have just been
-	// created above
-	// titleId, err := svc.ds.GetSoftwareTitleIDByMaintainedAppID(ctxdb.RequirePrimary(ctx, true), app.ID, payload.TeamID)
-	// if err != nil {
-	// 	return 0, ctxerr.Wrap(ctx, err, "getting software title id by app id")
-	// }
-
 	return titleID, nil
 }
 
