@@ -39,8 +39,22 @@ const (
 // Defining these as variables so that we can overwrite them during development/testing of the migration.
 var (
 	//
-	// These used by `fleetctl package` and by orbit in the migration to the new TUF repository.
+	// For users using Fleet's TUF:
+	// 	- orbit 1.38.0+ we migrate TUF from https://tuf.fleetctl.com to https://updates.fleetdm.com.
+	//	- orbit 1.38.0+ will start using `updates-metadata.json` instead of `tuf-metadata.json`. If it is missing
+	//	(which will be the case for the first run after the auto-update) then it will generate it from the new pinned roots.
 	//
+	// For users using a custom TUF:
+	//	- orbit 1.38.0+ will start using `updates-metadata.json` instead of `tuf-metadata.json` (if it is missing then
+	// 	  it will perform a copy).
+	//
+	// For both Fleet's TUF and custom TUF, fleetd packages built with fleetctl 4.62.0+ will contain both files
+	// `updates-metadata.json` and `tuf-metadata.json` (same content) to support downgrades to orbit 1.37.0 or lower.
+
+	//
+	// The following variables are used by `fleetctl package` and by orbit in the migration to the new TUF repository.
+	//
+
 	// TODO(lucas): Before merging to `main` update DefaultURL to "https://updates.fleetctl.com".
 	DefaultURL       = `https://tuf.fleetctl.com`
 	MetadataFileName = "updates-metadata.json"

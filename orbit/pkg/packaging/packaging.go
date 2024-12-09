@@ -172,12 +172,7 @@ func (u UpdatesData) String() string {
 }
 
 func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
-	metadataFileName := update.MetadataFileName
-	if updateOpt.ServerURL != update.OldFleetTUFURL && updateOpt.ServerURL != update.DefaultURL {
-		// Users using custom TUF repository will continue using the local TUF metadata as usual.
-		metadataFileName = update.OldMetadataFileName
-	}
-	localStore, err := filestore.New(filepath.Join(updateOpt.RootDirectory, metadataFileName))
+	localStore, err := filestore.New(filepath.Join(updateOpt.RootDirectory, update.MetadataFileName))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create local metadata store: %w", err)
 	}
@@ -241,14 +236,15 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		}
 	}
 
-	if updateOpt.ServerURL == update.OldFleetTUFURL || updateOpt.ServerURL == update.DefaultURL {
-		// If using Fleet's TUF then copy the new metadata to the old location (pre-migration) to
-		// support orbit downgrades to 1.36.0 or lower.
-		oldMetadataPath := filepath.Join(updateOpt.RootDirectory, update.OldMetadataFileName)
-		newMetadataPath := filepath.Join(updateOpt.RootDirectory, update.MetadataFileName)
-		if err := file.Copy(newMetadataPath, oldMetadataPath, constant.DefaultFileMode); err != nil {
-			return nil, fmt.Errorf("failed to create %s copy: %w", oldMetadataPath, err)
-		}
+	// Copy the new metadata file to the old location (pre-migration) to
+	// support orbit downgrades to 1.37.0 or lower.
+	//
+	// Once https://tuf.fleetctl.com is brought down (which means downgrades to 1.37.0 or
+	// lower won't be possible), we can remove this copy.
+	oldMetadataPath := filepath.Join(updateOpt.RootDirectory, update.OldMetadataFileName)
+	newMetadataPath := filepath.Join(updateOpt.RootDirectory, update.MetadataFileName)
+	if err := file.Copy(newMetadataPath, oldMetadataPath, constant.DefaultFileMode); err != nil {
+		return nil, fmt.Errorf("failed to create %s copy: %w", oldMetadataPath, err)
 	}
 
 	return &UpdatesData{

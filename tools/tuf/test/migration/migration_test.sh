@@ -5,6 +5,7 @@
 #   - User runs the script on macOS
 #   - User has a Ubuntu 22.04 and a Windows 10/11 VM (running on the same macOS host script runs on).
 #   - Fleet is running on the macOS host.
+#   - `fleetctl login` was ran on the localhost Fleet instance (to be able to run `fleectl query` commands).
 #   - host.docker.internal points to localhost on the macOS host.
 #   - host.docker.internal points to the macOS host on the two VMs (/etc/hosts on Ubuntu and C:\Windows\System32\Drivers\etc\hosts on Windows).
 #   - 1.36.0 is the last version of orbit that uses the old TUF repository

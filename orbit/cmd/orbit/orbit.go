@@ -471,13 +471,26 @@ func main() {
 			}
 		}
 
-		metadataFileName := update.MetadataFileName
 		if updateURL := c.String("update-url"); updateURL != update.OldFleetTUFURL && updateURL != update.DefaultURL {
-			// Users using custom TUF repository will continue using the local TUF metadata as usual.
-			metadataFileName = update.OldMetadataFileName
+			// Migrate agents running with a custom TUF to use the new metadata file.
+			// We'll keep the old metadata file to support downgrades.
+			newMetadataFilePath := filepath.Join(c.String("root-dir"), update.MetadataFileName)
+			ok, err := file.Exists(newMetadataFilePath)
+			if err != nil {
+				// If we cannot stat this file then we cannot do other operations on it thus we fail with fatal error.
+				log.Fatal().Err(err).Msg("failed to check for new metadata file path")
+			}
+			if !ok {
+				oldMetadataFilePath := filepath.Join(c.String("root-dir"), update.OldMetadataFileName)
+				err := file.Copy(oldMetadataFilePath, newMetadataFilePath, constant.DefaultFileMode)
+				if err != nil {
+					// If we cannot write to this file then we cannot do other operations on it thus we fail with fatal error.
+					log.Fatal().Err(err).Msg("failed to copy new metadata file path")
+				}
+			}
 		}
 
-		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), metadataFileName))
+		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), update.MetadataFileName))
 		if err != nil {
 			log.Fatal().Err(err).Msg("create local metadata store")
 		}
@@ -510,7 +523,7 @@ func main() {
 		opt.RootDirectory = c.String("root-dir")
 		opt.ServerURL = c.String("update-url")
 		if opt.ServerURL == update.OldFleetTUFURL {
-			// orbit 1.37.0+ will use the new TUF repository
+			// orbit 1.38.0+ will use the new TUF repository
 			opt.ServerURL = update.DefaultURL
 		}
 		opt.LocalStore = localStore
