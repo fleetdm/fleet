@@ -458,6 +458,7 @@ const DataTable = ({
     !isAllPagesSelected;
 
   const pageOrRows = isClientSidePagination ? page : rows;
+  // console.log("pageOrRows", pageOrRows[0].cells);
 
   const previousButton = (
     <>

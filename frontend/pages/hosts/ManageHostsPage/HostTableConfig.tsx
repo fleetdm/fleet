@@ -5,7 +5,7 @@ import React from "react";
 import { CellProps, Column } from "react-table";
 import ReactTooltip from "react-tooltip";
 
-import { IDeviceUser, IHost } from "interfaces/host";
+import { IDeviceUser, IDeviceUserResponse, IHost } from "interfaces/host";
 import Checkbox from "components/forms/fields/Checkbox";
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -18,7 +18,10 @@ import TooltipTruncatedTextCell from "components/TableContainer/DataTable/Toolti
 import TooltipWrapper from "components/TooltipWrapper";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import NotSupported from "components/NotSupported";
-
+import {
+  HostPlatform,
+  platformSupportsDiskEncryption,
+} from "interfaces/platform";
 import {
   humanHostMemory,
   humanHostLastSeen,
@@ -68,6 +71,49 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
   return users.length > 4
     ? condensed.concat(`+${users.length - 3} more`) // TODO: confirm limit
     : condensed;
+};
+
+const generateDiskTableConfig = ({
+  platform,
+  os_version,
+  diskEncryptionEnabled,
+}: {
+  platform: HostPlatform;
+  os_version: string;
+  diskEncryptionEnabled: boolean;
+}): any => {
+  if (!platformSupportsDiskEncryption(platform, os_version)) {
+    return <></>;
+  }
+  console.log(
+    "statusText",
+    diskEncryptionEnabled,
+    platformSupportsDiskEncryption(platform, os_version)
+  );
+  let statusText;
+  const isChromeHost = platform === "chrome";
+  switch (true) {
+    case isChromeHost:
+      statusText = "Always on";
+      break;
+    case diskEncryptionEnabled === true:
+      statusText = "Onx";
+      break;
+    case diskEncryptionEnabled === false:
+      statusText = "Off";
+      break;
+    case (diskEncryptionEnabled === null ||
+      diskEncryptionEnabled === undefined) &&
+      platformSupportsDiskEncryption(platform, os_version):
+      statusText = "Unknown";
+      // currently stops here but should be fixable once we pass the correct values
+      break;
+    default:
+      // something unexpected happened on the way to this component, display whatever we got or
+      // "Unknown" to draw attention to the issue.
+      statusText = diskEncryptionEnabled || "Unknown";
+      return statusText;
+  }
 };
 
 const lastSeenTime = (status: string, seenTime: string): string => {
@@ -641,7 +687,36 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       <TextCell value={cellProps.cell.value} />
     ),
   },
+  {
+    title: "Disk Encryption",
+    Header: (cellProps: IHostTableHeaderProps) => (
+      <HeaderCell
+        value="Disk Encryption"
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "disk_encryption_enabled",
+    id: "disk_encryption_enabled",
+    Cell: (cellProps: IHostTableHeaderProps) => {
+      const {
+        platform,
+        os_version,
+        disk_encryption_enabled,
+      } = cellProps.row.original;
+      return (
+        <TextCell
+          value={generateDiskTableConfig({
+            platform,
+            os_version,
+            diskEncryptionEnabled: disk_encryption_enabled,
+          })}
+        />
+      );
+    },
+  },
 ];
+
+// LOOK FOR A  WAY TO GET THE DISK ENCRYPTION STATUS HERE
 
 const defaultHiddenColumns = [
   "hostname",
@@ -704,6 +779,7 @@ const generateAvailableTableHeaders = ({
     []
   );
 };
+// TEST
 
 /**
  * Will generate a host table column configuration that a user currently sees.
@@ -729,4 +805,5 @@ export {
   defaultHiddenColumns,
   generateAvailableTableHeaders,
   generateVisibleTableColumns,
+  generateDiskTableConfig,
 };

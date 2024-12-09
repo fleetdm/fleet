@@ -311,7 +311,7 @@ const HostSummary = ({
         statusText = "Always on";
         break;
       case diskEncryptionEnabled === true:
-        statusText = "On";
+        statusText = "Onx";
         break;
       case diskEncryptionEnabled === false:
         statusText = "Off";

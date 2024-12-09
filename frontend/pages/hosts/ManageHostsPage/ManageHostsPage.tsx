@@ -88,6 +88,7 @@ import {
   defaultHiddenColumns,
   generateVisibleTableColumns,
   generateAvailableTableHeaders,
+  generateDiskTableConfig,
 } from "./HostTableConfig";
 import {
   LABEL_SLUG_PREFIX,
@@ -1320,6 +1321,11 @@ const ManageHostsPage = ({
       </div>
     </div>
   );
+  const someData = generateDiskTableConfig({
+    platform: "windows",
+    os_version: osVersion,
+    diskEncryptionEnabled: true,
+  });
 
   const onExportHostsResults = async (
     evt: React.MouseEvent<HTMLButtonElement>
@@ -1565,7 +1571,7 @@ const ManageHostsPage = ({
       diskEncryptionStatus ||
       vulnerability
     );
-
+    console.log("hostsData", hostsData);
     return (
       <TableContainer
         resultsTitle="hosts"
