@@ -9894,15 +9894,21 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
 	}, "MacBookPro16,1")
+	// by default the mdm test client will have a random uuid and serial, but we want
+	// it to match with the previously created host
+	mdmDevice.SerialNumber = host.HardwareSerial
+	mdmDevice.UUID = host.UUID
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	// host response says that's not connected to Fleet
+	// host response says that it's connected to Fleet (this just checks that the
+	// device exists and is enabled in nano_enrollments, which it is thanks to
+	// the mdmDevice.Enroll call above - the row is created during TokenUpdate).
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
 	require.NotNil(t, hostResp.Host)
 	require.NotNil(t, hostResp.Host.MDM.ConnectedToFleet)
-	require.False(t, *hostResp.Host.MDM.ConnectedToFleet)
+	require.True(t, *hostResp.Host.MDM.ConnectedToFleet)
 
 	// orbit config asks for a migration because user migrations are enabled, but no ask to renew the enrollment profile.
 	resp = orbitGetConfigResponse{}
@@ -9921,18 +9927,29 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	// trigger the profile cron
 	s.awaitTriggerProfileSchedule(t)
 
+	// explicitly run the worker, which will send the install fleetd command
+	// because the device is ADE-enrolled (due to the simulation of it being
+	// ingested from ABM)
+	s.runWorker()
+
+	var installEnterpriseCount int
 	installs := [][]byte{}
 	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 
 	for cmd != nil {
-		require.Equal(t, "InstallProfile", cmd.Command.RequestType)
-		installs = append(installs, cmd.Raw)
+		if cmd.Command.RequestType == "InstallEnterpriseApplication" {
+			installEnterpriseCount++
+		} else {
+			require.Equal(t, "InstallProfile", cmd.Command.RequestType)
+			installs = append(installs, cmd.Raw)
+		}
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
 	}
 
-	require.Len(t, installs, 2)
+	require.Equal(t, 1, installEnterpriseCount)
+	require.Len(t, installs, 2) // fleetd profile and root cert profile
 
 	// trigger the scep renewals cron
 	cert, key, err := generateCertWithAPNsTopic()
