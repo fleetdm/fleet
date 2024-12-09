@@ -257,7 +257,7 @@
     - description: Customize the out-of-the-box setup experience for your end users.
     - description: Install a bootstrap package to run custom scripts during the setup experience.
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
-    demos:
+  demos:
     - description: Install a bootstrap package to run custom scripts during the setup experience to enforce required configurations.
       moreInfoUrl: https://youtu.be/gt7_dAU0VMY
     - description: Connect end users to Wi-Fi by adding your SCEP server.
