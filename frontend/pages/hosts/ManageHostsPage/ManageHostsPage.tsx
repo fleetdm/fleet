@@ -1571,7 +1571,7 @@ const ManageHostsPage = ({
       diskEncryptionStatus ||
       vulnerability
     );
-    console.log("hostsData", hostsData);
+
     return (
       <TableContainer
         resultsTitle="hosts"

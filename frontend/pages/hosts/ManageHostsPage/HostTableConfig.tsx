@@ -97,7 +97,7 @@ const generateDiskTableConfig = ({
       statusText = "Always on";
       break;
     case diskEncryptionEnabled === true:
-      statusText = "Onx";
+      statusText = "On";
       break;
     case diskEncryptionEnabled === false:
       statusText = "Off";
