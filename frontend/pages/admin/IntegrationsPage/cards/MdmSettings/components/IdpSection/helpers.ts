@@ -20,6 +20,12 @@ export const newFormDataIdp = (
   };
 };
 
+// export const isEmptyFormData = (data: IFormDataIdp) => {
+//   return (
+//     !data.idp_name && !data.entity_id && !data.metadata && !data.metadata_url
+//   );
+// };
+
 export const isMissingAnyRequiredField = (data: IFormDataIdp) => {
   return (
     !data.idp_name || !data.entity_id || (!data.metadata && !data.metadata_url)
@@ -54,7 +60,7 @@ const errorMetadataUrl = (data: IFormDataIdp) => {
         require_protocol: true,
         protocols: ["http", "https"],
       }):
-      return `Metadata URL does not include a supported protocol (https:// or http://)`;
+      return `Metadata URL must start with a supported protocol (https:// or http://).`;
     default:
       return "";
   }
