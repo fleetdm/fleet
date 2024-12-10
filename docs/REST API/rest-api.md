@@ -8833,7 +8833,7 @@ Modifies an existing script.
 
 ##### Default response
 
-`Status: 204`
+`Status: 200`
 
 ```json
 {
