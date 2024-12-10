@@ -1775,8 +1775,6 @@ If the `name` is not already associated with an existing team, this API route cr
 | software.app_store_apps                   | array   | body  | An array of objects with values below. |
 | software.app_store_apps.app_store_id      | string   | body  | ID of the App Store app. |
 | software.app_store_apps.self_service      | boolean   | body  | Specifies whether or not end users can install self-service. |
-| software.app_store_apps.labels_include_any     | array   | body  | Specifies whether the app will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
-| software.app_store_apps.labels_exclude_any     | array   | body  | Specifies whether the app will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
 | force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
 | dry_run                                   | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
@@ -3613,8 +3611,6 @@ _Available in Fleet Premium._
 | app_store_apps | list   | body  | An array of objects. Each object contains `app_store_id` and `self_service`. |
 | app_store_apps.app_store_id | string   | body  | ID of the App Store app. |
 | app_store_apps.self_service | boolean   | body  | Whether the VPP app is "Self-service" or not. |
-| app_store_apps.labels_include_any | array   | body  | App will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
-| app_store_apps.labels_exclude_any | array   | body  | App will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 
 #### Example
 
@@ -3625,11 +3621,7 @@ _Available in Fleet Premium._
   "app_store_apps": {
     {
       "app_store_id": "597799333",
-      "self_service": false,
-      "labels_include_any": [
-        "Engineering",
-        "Customer Support"
-      ]
+      "self_service": false
     },
     {
       "app_store_id": "497799835",
