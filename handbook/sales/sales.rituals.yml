@@ -42,3 +42,17 @@
   description: "https://fleetdm.com/handbook/customers#review-rep-activity"
   moreInfoUrl: "https://fleetdm.com/handbook/customers#review-rep-activity"
   dri: "alexmitchelliii"
+  -
+  task: "Proposal sent <30 days"
+  startedOn: "2024-12-02"
+  frequency: "Weekly"
+  description: "https://fleetdm.com/handbook/sales#proposal-sent-<30-days"
+  moreInfoUrl: "https://fleetdm.com/handbook/sales#proposal-sent-<30-days"
+  dri: "alexmitchelliii"
+  -
+   task: "Sales retrospective"
+  startedOn: "2024-12-02"
+  frequency: "Weekly"
+  description: "https://fleetdm.com/handbook/sales#sales-retrospective"
+  moreInfoUrl: "https://fleetdm.com/handbook/sales#sales-retrospective"
+  dri: "alexmitchelliii"
