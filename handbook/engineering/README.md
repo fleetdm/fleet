@@ -226,7 +226,7 @@ Osquery [repository](https://github.com/osquery/osquery/releases) has two channe
 Whether we contributed to the osquery version or not, when the osquery team pushes a release to their Pre-release channel, we push it to our EDGE channel, and when they put it under Latest, we push it to our Stable channel.
 We are constantly monitoring the osquery slack to be notified about changes.
 
-Internal Video training can be found [here](https://drive.google.com/drive/u/0/folders/1Jm2D-y4lbYs9GChV3JdMHNAva9Jf1rMn)
+* Internal agent release video training folder can be found [here](https://drive.google.com/drive/u/0/folders/1Jm2D-y4lbYs9GChV3JdMHNAva9Jf1rMn)
 
 
 
