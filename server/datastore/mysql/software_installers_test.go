@@ -201,7 +201,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			require.ErrorAs(t, err, &nfe)
 			require.Nil(t, si)
 
-			installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 				Title:         "foo",
 				Source:        "bar",
 				InstallScript: "echo",
@@ -212,6 +212,9 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			installerMeta, err := ds.GetSoftwareInstallerMetadataByID(ctx, installerID)
 			require.NoError(t, err)
+
+			require.NotNil(t, installerMeta.TitleID)
+			require.Equal(t, titleID, *installerMeta.TitleID)
 
 			si, err = ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, *installerMeta.TitleID, false)
 			require.NoError(t, err)
