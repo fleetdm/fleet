@@ -182,19 +182,23 @@ const Sso = ({
             parseTarget
             onBlur={validateForm}
             error={formErrors.metadata}
-            tooltip={`Metadata provided by the identity provider. Either
-            metadata or a metadata url must be provided.`}
+            tooltip="Metadata XML provided by the identity provider."
           />
           <InputField
             label="Metadata URL"
-            helpText="If available from the identity provider, this is the preferred means of providing metadata."
+            helpText={
+              <>
+                If both <b>Metadata URL</b> and <b>Metadata</b> are specified,{" "}
+                <b>Metadata URL</b> will be used.
+              </>
+            }
             onChange={onInputChange}
             name="metadataUrl"
             value={metadataUrl}
             parseTarget
             onBlur={validateForm}
             error={formErrors.metadata_url}
-            tooltip="A URL that references the identity provider metadata."
+            tooltip="Metadata URL provided by the identity provider."
           />
           <Checkbox
             onChange={onInputChange}
