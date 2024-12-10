@@ -5,6 +5,9 @@ import (
 	"strings"
 )
 
+// ContainsPrefixVars scans a string for variables in the form of $VAR
+// and ${VAR} that begin with prefix, and return an array of those
+// variables with the prefix removed.
 func ContainsPrefixVars(script, prefix string) []string {
 	secrets := []string{}
 	gather := func(variable string) string {
@@ -19,6 +22,8 @@ func ContainsPrefixVars(script, prefix string) []string {
 }
 
 // MaybeExpand conditionally replaces ${var} or $var in the string based on the mapping function.
+// Only repalces the variable with the mapper string if it returns true.
+// The mapper returning false will leave the original variable unchanged.
 // Based on os.Expand
 func MaybeExpand(s string, mapping func(string) (string, bool)) string {
 	var buf []byte
