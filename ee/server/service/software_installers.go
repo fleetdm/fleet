@@ -165,7 +165,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	if payload.SelfService == nil && payload.InstallerFile == nil && payload.PreInstallQuery == nil &&
-		payload.InstallScript == nil && payload.PostInstallScript == nil && payload.UninstallScript == nil {
+		payload.InstallScript == nil && payload.PostInstallScript == nil && payload.UninstallScript == nil && payload.LabelsIncludeAny == nil {
 		return existingInstaller, nil // no payload, noop
 	}
 
@@ -279,6 +279,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		payload.UninstallScript = &uninstallScript
 	}
 
+	// if payload.LabelsIncludeAny != nil && !slices.Equal[[]string](payload.LabelsIncludeAny, existingInstaller.LabelsIncludeAny) {
+	// 	dirty["LabelsIncludeAny"] = true
+	// }
+
 	// persist changes starting here, now that we've done all the validation/diffing we can
 	if len(dirty) > 0 {
 		if len(dirty) == 1 && dirty["SelfService"] { // only self-service changed; use lighter update function
@@ -308,6 +312,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			if payload.SelfService == nil {
 				payload.SelfService = &existingInstaller.SelfService
 			}
+			// if payload.LabelsIncludeAny == nil {
+			// 	payload.LabelsIncludeAny = &existingInstaller.LabelsIncludeAny
+			// }
 
 			if err := svc.ds.SaveInstallerUpdates(ctx, payload); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "saving installer updates")

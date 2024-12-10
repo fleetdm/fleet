@@ -22,16 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-type uploadSoftwareInstallerRequest struct {
-	File              *multipart.FileHeader
-	TeamID            *uint
-	InstallScript     string
-	PreInstallQuery   string
-	PostInstallScript string
-	SelfService       bool
-	UninstallScript   string
-}
-
 type updateSoftwareInstallerRequest struct {
 	TitleID           uint `url:"id"`
 	File              *multipart.FileHeader
@@ -41,6 +31,7 @@ type updateSoftwareInstallerRequest struct {
 	PostInstallScript *string
 	UninstallScript   *string
 	SelfService       *bool
+	LabelsIncludeAny  []string
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -131,6 +122,23 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.SelfService = &parsed
 	}
 
+	labelsIncludeAny, ok := r.MultipartForm.Value["labels_include_any"]
+	if ok && len(labelsIncludeAny) > 0 {
+		var labels []uint
+		for _, id := range labelsIncludeAny {
+			parsed, err := strconv.ParseUint(id, 10, 32)
+			if err != nil {
+				return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode label id uint in labels_include_any in multipart form: %s", err.Error())}
+			}
+
+			labels = append(labels, uint(parsed))
+		}
+
+		if len(labels) > 0 {
+			// decoded.LabelsIncludeAny = &labels
+		}
+	}
+
 	return &decoded, nil
 }
 
@@ -145,6 +153,7 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		PostInstallScript: req.PostInstallScript,
 		UninstallScript:   req.UninstallScript,
 		SelfService:       req.SelfService,
+		LabelsIncludeAny:  req.LabelsIncludeAny,
 	}
 	if req.File != nil {
 		ff, err := req.File.Open()
@@ -177,6 +186,18 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+type uploadSoftwareInstallerRequest struct {
+	File              *multipart.FileHeader
+	TeamID            *uint
+	InstallScript     string
+	PreInstallQuery   string
+	PostInstallScript string
+	SelfService       bool
+	UninstallScript   string
+	LabelsIncludeAny  []string
+	LabelsExcludeAny  []string
 }
 
 // TODO: We parse the whole body before running svc.authz.Authorize.
@@ -259,6 +280,16 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode self_service bool in multipart form: %s", err.Error())}
 		}
 		decoded.SelfService = parsed
+	}
+
+	labelsIncludeAny, ok := r.MultipartForm.Value["labels_include_any"]
+	if ok && len(labelsIncludeAny) > 0 {
+		decoded.LabelsIncludeAny = labelsIncludeAny
+	}
+
+	labelsExcludeAny, ok := r.MultipartForm.Value["labels_exclude_any"]
+	if ok && len(labelsExcludeAny) > 0 {
+		decoded.LabelsExcludeAny = labelsExcludeAny
 	}
 
 	return &decoded, nil
