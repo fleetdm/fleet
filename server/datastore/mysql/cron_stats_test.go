@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -11,6 +12,12 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
+
+type testCronStats struct {
+	fleet.CronStats
+	// Errors is a JSON string containing any errors encountered during the run.
+	Errors sql.NullString `db:"errors"`
+}
 
 func TestInsertUpdateCronStats(t *testing.T) {
 	const (
@@ -188,7 +195,7 @@ func TestCleanupCronStats(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	var stats []fleet.CronStats
+	var stats []testCronStats
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
 	require.Len(t, stats, len(cases))
@@ -200,7 +207,7 @@ func TestCleanupCronStats(t *testing.T) {
 	err = ds.CleanupCronStats(ctx)
 	require.NoError(t, err)
 
-	stats = []fleet.CronStats{}
+	stats = []testCronStats{}
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
 	require.Len(t, stats, len(cases)-1) // case[7] was deleted because it exceeded max age
@@ -271,7 +278,7 @@ func TestUpdateAllCronStatsForInstance(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	var stats []fleet.CronStats
+	var stats []testCronStats
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
 	require.Len(t, stats, len(cases))
@@ -284,7 +291,7 @@ func TestUpdateAllCronStatsForInstance(t *testing.T) {
 	err = ds.UpdateAllCronStatsForInstance(ctx, "inst1", fleet.CronStatsStatusPending, fleet.CronStatsStatusCanceled)
 	require.NoError(t, err)
 
-	stats = []fleet.CronStats{}
+	stats = []testCronStats{}
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
 	require.Len(t, stats, len(cases))
