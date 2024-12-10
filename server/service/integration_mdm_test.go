@@ -6586,12 +6586,12 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 	// Checking if an activity was created for the enrollment
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		`{
+		fmt.Sprintf(`{
 			"mdm_platform": "microsoft",
-			"host_serial": "",
+			"host_serial": "%s",
 			"installed_from_dep": false,
-			"host_display_name": "DESKTOP-0C89RC0"
-		 }`,
+			"host_display_name": "%s"
+		 }`, windowsHost.HardwareSerial, windowsHost.DisplayName()),
 		0)
 
 	expectedDeviceID := "AB157C3A18778F4FB21E2739066C1F27" // TODO: make the hard-coded deviceID in `s.newSecurityTokenMsg` configurable
@@ -9894,15 +9894,21 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
 	}, "MacBookPro16,1")
+	// by default the mdm test client will have a random uuid and serial, but we want
+	// it to match with the previously created host
+	mdmDevice.SerialNumber = host.HardwareSerial
+	mdmDevice.UUID = host.UUID
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	// host response says that's not connected to Fleet
+	// host response says that it's connected to Fleet (this just checks that the
+	// device exists and is enabled in nano_enrollments, which it is thanks to
+	// the mdmDevice.Enroll call above - the row is created during TokenUpdate).
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
 	require.NotNil(t, hostResp.Host)
 	require.NotNil(t, hostResp.Host.MDM.ConnectedToFleet)
-	require.False(t, *hostResp.Host.MDM.ConnectedToFleet)
+	require.True(t, *hostResp.Host.MDM.ConnectedToFleet)
 
 	// orbit config asks for a migration because user migrations are enabled, but no ask to renew the enrollment profile.
 	resp = orbitGetConfigResponse{}
@@ -9921,18 +9927,29 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	// trigger the profile cron
 	s.awaitTriggerProfileSchedule(t)
 
+	// explicitly run the worker, which will send the install fleetd command
+	// because the device is ADE-enrolled (due to the simulation of it being
+	// ingested from ABM)
+	s.runWorker()
+
+	var installEnterpriseCount int
 	installs := [][]byte{}
 	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 
 	for cmd != nil {
-		require.Equal(t, "InstallProfile", cmd.Command.RequestType)
-		installs = append(installs, cmd.Raw)
+		if cmd.Command.RequestType == "InstallEnterpriseApplication" {
+			installEnterpriseCount++
+		} else {
+			require.Equal(t, "InstallProfile", cmd.Command.RequestType)
+			installs = append(installs, cmd.Raw)
+		}
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
 	}
 
-	require.Len(t, installs, 2)
+	require.Equal(t, 1, installEnterpriseCount)
+	require.Len(t, installs, 2) // fleetd profile and root cert profile
 
 	// trigger the scep renewals cron
 	cert, key, err := generateCertWithAPNsTopic()
@@ -10033,6 +10050,95 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 0)
+}
+
+func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
+	t := s.T()
+	ctx := context.Background()
+
+	// macOS host, MDM on
+	_, macDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	// windows host, MDM on
+	createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	// linux and darwin, MDM off
+	createOrbitEnrolledHost(t, "linux", "linux_host", s.ds)
+	createOrbitEnrolledHost(t, "darwin", "mac_not_enrolled", s.ds)
+
+	// we're going to modify this mock, make sure we restore its default
+	originalPushMock := s.pushProvider.PushFunc
+	defer func() { s.pushProvider.PushFunc = originalPushMock }()
+
+	var recordedPushes []*mdm.Push
+	var mu sync.Mutex
+	s.pushProvider.PushFunc = func(ctx context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		recordedPushes = pushes
+		return mockSuccessfulPush(ctx, pushes)
+	}
+
+	// trigger the reconciliation schedule
+	err := ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
+	require.NoError(t, err)
+	require.Len(t, recordedPushes, 1)
+	recordedPushes = nil
+
+	// Flush any existing profiles.
+	cmd, err := macDevice.Idle()
+	require.NoError(t, err)
+	for {
+		if cmd == nil {
+			break
+		}
+		t.Logf("Received: %s %s", cmd.CommandUUID, cmd.Command.RequestType)
+		cmd, err = macDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	// Load new profiles
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
+		{Name: "N2", Contents: syncMLForTest("./Foo/Bar")},
+	}}, http.StatusNoContent)
+
+	// trigger the reconciliation schedule
+	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
+	require.NoError(t, err)
+	require.Len(t, recordedPushes, 1)
+	recordedPushes = nil
+
+	// The cron to trigger pushes sends a new push request each time it runs.
+	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
+	require.NoError(t, err)
+	require.Len(t, recordedPushes, 1)
+	recordedPushes = nil
+
+	// device sends 'NotNow'
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	cmd, err = macDevice.NotNow(cmd.CommandUUID)
+	require.NoError(t, err)
+	assert.Nil(t, cmd)
+
+	// A 'NotNow' command will not trigger a new push. Device is expected to check in again when conditions change.
+	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
+	require.NoError(t, err)
+	require.Len(t, recordedPushes, 0)
+	recordedPushes = nil
+
+	// device acknowledges the commands
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	cmd, err = macDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	assert.Nil(t, cmd)
+
+	// no more pushes are enqueued
+	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
+	require.NoError(t, err)
+	assert.Zero(t, recordedPushes)
 }
 
 func (s *integrationMDMTestSuite) TestMDMRequestWithoutCerts() {

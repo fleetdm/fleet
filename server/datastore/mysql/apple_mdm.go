@@ -2748,7 +2748,15 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 			strings.TrimSuffix(valuePart, ","),
 		)
 
-		_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+		// We need to run with retry due to deadlocks.
+		// The INSERT/ON DUPLICATE KEY UPDATE pattern is prone to deadlocks when multiple
+		// threads are modifying nearby rows. That's because this statement uses gap locks.
+		// When two transactions acquire the same gap lock, they may deadlock.
+		// Two simultaneous transactions may happen when cron job runs and the user is updating via the UI at the same time.
+		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, stmt, args...)
+			return err
+		})
 		return err
 	}
 
@@ -2941,7 +2949,7 @@ FROM
 	%s
 	LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
 WHERE
-	platform IN('darwin', 'ios', 'ipad_os') AND %s
+	platform IN('darwin', 'ios', 'ipados') AND %s
 GROUP BY
 	status HAVING status IS NOT NULL`
 
@@ -5700,6 +5708,21 @@ func (ds *Datastore) CleanupHostMDMCommands(ctx context.Context) error {
 		WHERE h.id IS NULL OR hmc.updated_at < NOW() - INTERVAL 1 DAY`
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete from host_mdm_commands")
+	}
+	return nil
+}
+
+func (ds *Datastore) CleanupHostMDMAppleProfiles(ctx context.Context) error {
+	// Delete pending commands that don't have a corresponding entry in nano_enrollment_queue.
+	// This could occur due to errors (i.e., large server/DB load) or server being stopped while processing the profiles.
+	// After the entry is deleted, the mdm_apple_profile_manager job will try to requeue the profile.
+	stmt := fmt.Sprintf(`
+		DELETE hmap FROM host_mdm_apple_profiles AS hmap
+		LEFT JOIN nano_enrollment_queue neq ON hmap.host_uuid = neq.id AND hmap.command_uuid = neq.command_uuid
+		WHERE neq.id IS NULL AND (hmap.status IS NULL OR hmap.status = '%s') AND hmap.updated_at < NOW() - INTERVAL 1 HOUR`,
+		fleet.MDMDeliveryPending)
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete from host_mdm_apple_profiles")
 	}
 	return nil
 }

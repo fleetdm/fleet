@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/jmoiron/sqlx"
@@ -29,6 +30,7 @@ type MySQLStorage struct {
 	db            *sql.DB
 	rm            bool
 	asyncLastSeen *asyncLastSeen
+	reader        func(ctx context.Context) fleet.DBReader
 }
 
 type config struct {
@@ -39,9 +41,16 @@ type config struct {
 	rm            bool
 	asyncCap      int
 	asyncInterval time.Duration
+	reader        func(ctx context.Context) fleet.DBReader
 }
 
 type Option func(*config)
+
+func WithReaderFunc(readerFunc func(ctx context.Context) fleet.DBReader) Option {
+	return func(c *config) {
+		c.reader = readerFunc
+	}
+}
 
 func WithLogger(logger log.Logger) Option {
 	return func(c *config) {
@@ -102,6 +111,13 @@ func New(opts ...Option) (*MySQLStorage, error) {
 	}
 
 	mysqlStore := &MySQLStorage{db: cfg.db, logger: cfg.logger, rm: cfg.rm}
+	if cfg.reader == nil {
+		mysqlStore.reader = func(ctx context.Context) fleet.DBReader {
+			return sqlx.NewDb(mysqlStore.db, "mysql")
+		}
+	} else {
+		mysqlStore.reader = cfg.reader
+	}
 
 	if v := os.Getenv("FLEET_DISABLE_ASYNC_NANO_LAST_SEEN"); v != "1" {
 		asyncLastSeen := newAsyncLastSeen(cfg.asyncInterval, cfg.asyncCap, mysqlStore.updateLastSeenBatch)
