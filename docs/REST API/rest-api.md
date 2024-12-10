@@ -461,8 +461,7 @@ This is the callback endpoint that the identity provider will use to send securi
 
 ### List activities
 
-Returns a list of the activities that have been performed in Fleet as well as additional metadata.
-for pagination. For a comprehensive list of activity types and detailed information, please see the [audit logs](https://fleetdm.com/docs/using-fleet/audit-activities) page.
+Returns a list of the activities that have been performed in Fleet. For a comprehensive list of activity types and detailed information, please see the [audit logs](https://fleetdm.com/docs/using-fleet/audit-activities) page.
 
 `GET /api/v1/fleet/activities`
 
