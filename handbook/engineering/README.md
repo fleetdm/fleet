@@ -209,7 +209,7 @@ The process will typically be arranged in a ticket like [this](https://app.zenhu
 
 Steps:
  - Build the agent from our main brunch.
-`Q: Why directly from the main branch and not from an Release candidate branch?`
+`Q: Why directly from the main branch and not from a Release candidate branch?`
 `A: We currently don't have high enough traffic that requires it. By simplifying the process we save time in releasing.`
  - QA all tickets involved in this build.
  - Push this release to our edge channel on TUF.
