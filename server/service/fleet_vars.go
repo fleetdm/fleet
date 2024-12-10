@@ -9,16 +9,16 @@ import (
 // and ${VAR} that begin with prefix, and return an array of those
 // variables with the prefix removed.
 func ContainsPrefixVars(script, prefix string) []string {
-	secrets := []string{}
+	vars := []string{}
 	gather := func(variable string) string {
 		if strings.HasPrefix(variable, prefix) {
-			secrets = append(secrets, strings.TrimPrefix(variable, prefix))
+			vars = append(vars, strings.TrimPrefix(variable, prefix))
 		}
 		return ""
 	}
 	os.Expand(script, gather)
 
-	return secrets
+	return vars
 }
 
 // MaybeExpand conditionally replaces ${var} or $var in the string based on the mapping function.
