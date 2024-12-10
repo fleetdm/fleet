@@ -3520,7 +3520,7 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 | team_name | string | query | The name of the team to add the software package to. Ommitting these parameters will add software to 'No Team'. |
 | dry_run   | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
 | software  | object   | body  | The team's software that will be available for install.  |
-| software.packages   | list   | body  | An array of objects with values below. |
+| software.packages   | array   | body  | An array of objects with values below. |
 | software.packages.url                      | string   | body  | URL to the software package (PKG, MSI, EXE or DEB). |
 | software.packages.install_script           | string   | body  | Command that Fleet runs to install software. |
 | software.packages.pre_install_query        | string   | body  | Condition query that determines if the install will proceed. |
