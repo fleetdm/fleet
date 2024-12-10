@@ -64,12 +64,11 @@ Being API-first, programmable, and built for automation, Fleet features policy a
 Fleet’s open-source nature provided the transparency and customization needed to tailor the platform to their requirements and integrate with existing tools. Integrations with GitOps workflows generated the ability to:
 
 - Update and deploy custom settings across macOS and Windows devices.
-- Execute MDM commands, such as lock, sleep, and wipe.
 - Manage OS updates with custom deadlines.
 - Implement change control and reduce mistakes through peer reviews.
-- Enable zero-touch onboarding and self-service.
+- maintain consistent zero-touch onboarding and self-service.
 
-In addition to automated patching, Fleet empowers employees with self-service tools for additional app installation and policy remediation with Fleet Desktop. Employees can see what IT sees on their devices, including which policies they’re failing, and enable them to resolve issues without escalation. All from the first time they open their device with zero-touch onboarding.
+In addition to automated patching, Fleet empowers employees with self-service tools for additional app installation and policy remediation with Fleet Desktop. Employees can see what IT sees on their devices, including which policies they’re failing, and empower them to resolve issues without escalation. All from the first time they open their device with zero-touch onboarding.
 
 
 ## Conclusion
