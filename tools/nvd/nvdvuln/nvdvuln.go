@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -305,6 +306,35 @@ func vulnDBSync(vulnDBDir string, debug bool, logger log.Logger) error {
 	if err != nil {
 		return err
 	}
+
+	// copy dev CPE Translations file
+	src := "./server/vulnerabilities/nvd/cpe_translations.json"
+	dst := filepath.Join(vulnDBDir, "cpe_translations.json")
+	if err := copyFile(src, dst); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func copyFile(src, dst string) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	_, err = io.Copy(dstFile, srcFile)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
