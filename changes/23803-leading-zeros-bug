@@ -1,0 +1,1 @@
+- Fleet UI: Fix export to CSV from trimming leading zeros by treating those values as strings
