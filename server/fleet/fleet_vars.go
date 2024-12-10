@@ -1,4 +1,4 @@
-package service
+package fleet
 
 import (
 	"os"
@@ -8,7 +8,7 @@ import (
 // ContainsPrefixVars scans a string for variables in the form of $VAR
 // and ${VAR} that begin with prefix, and return an array of those
 // variables with the prefix removed.
-func ContainsPrefixVars(script, prefix string) []string {
+func ContainsPrefixVars(text, prefix string) []string {
 	vars := []string{}
 	gather := func(variable string) string {
 		if strings.HasPrefix(variable, prefix) {
@@ -16,7 +16,7 @@ func ContainsPrefixVars(script, prefix string) []string {
 		}
 		return ""
 	}
-	os.Expand(script, gather)
+	os.Expand(text, gather)
 
 	return vars
 }

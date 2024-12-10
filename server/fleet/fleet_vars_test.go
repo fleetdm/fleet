@@ -1,10 +1,9 @@
-package service
+package fleet
 
 import (
 	"strings"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,7 +16,7 @@ echo words${FLEET_SECRET_BAR}words
 $FLEET_SECRET_BAZ
 ${FLEET_SECRET_QUX}
 `
-	secrets := ContainsPrefixVars(script, fleet.FLEET_SECRET_PREFIX)
+	secrets := ContainsPrefixVars(script, FLEET_SECRET_PREFIX)
 	require.Contains(t, secrets, "FOO")
 	require.Contains(t, secrets, "BAR")
 	require.Contains(t, secrets, "BAZ")
@@ -40,8 +39,8 @@ We want to remember BREAD and alsoSHORTCAKEare important.
 	}
 
 	mapper := func(s string) (string, bool) {
-		if strings.HasPrefix(s, fleet.FLEET_SECRET_PREFIX) {
-			return mapping[strings.TrimPrefix(s, fleet.FLEET_SECRET_PREFIX)], true
+		if strings.HasPrefix(s, FLEET_SECRET_PREFIX) {
+			return mapping[strings.TrimPrefix(s, FLEET_SECRET_PREFIX)], true
 		}
 		return "", false
 	}
