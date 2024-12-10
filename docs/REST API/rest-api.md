@@ -9767,9 +9767,9 @@ List available Fleet-maintained apps.
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| team_id       | integer | query | **Required**. The team ID. Filters Fleet-maintained apps to only include apps available for the specified team.  |
-| page            | integer | query | Page number of the results to fetch.  |
-| per_page        | integer | query | Results per page.  |
+| team_id  | integer | query | If supplied, only list apps for which an installer doesn't already exist for the specified team.  |
+| page     | integer | query | Page number of the results to fetch.  |
+| per_page | integer | query | Results per page.  |
 
 #### Example
 
