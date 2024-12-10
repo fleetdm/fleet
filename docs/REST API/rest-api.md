@@ -9413,6 +9413,12 @@ Returns information about the specified software. By default, `versions` are sor
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
       "uninstall_script": "/Library/CS/falconctl uninstall",
       "self_service": true,
+      "labels_include_any": [
+        {
+          "name": "Engineering",
+          "id": 294
+        }
+      ]
       "status": {
         "installed": 3,
         "pending_install": 1,
