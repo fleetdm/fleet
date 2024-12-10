@@ -9866,8 +9866,8 @@ Modify App Store (VPP) app's options.
 | ---- | ---- | -- | ----------- |
 | team_id       | integer | body | **Required**. The team ID. Edits App Store apps from the specified team.  |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
-| labels_include_any        | array     | form | App will only be available for install or installed (by policy automation) on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
-| labels_exclude_any | array | form | App will only be available for install or installed (by policy automation) on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| labels_include_any        | array     | form | App will only be available for install or installed (by policy automation) on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
+| labels_exclude_any | array | form | App will only be available for install or installed (by policy automation) on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 
 #### Example
 
