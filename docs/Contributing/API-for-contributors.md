@@ -2106,7 +2106,7 @@ Stores secret variables prefixed with `$FLEET_SECRET_` to Fleet.
 
 | Name    | Type | In   | Description                                                                                                      |
 | ------- | ---- | ---- | ---------------------------------------------------------------------------------------------------------------- |
-| secrets | list | body | **Required.** List of objects consists of a `name` and `value` fields. |
+| secrets | list | body | **Required.** List of objects consisting of fields: `name` and `value`
 
 #### Example
 
