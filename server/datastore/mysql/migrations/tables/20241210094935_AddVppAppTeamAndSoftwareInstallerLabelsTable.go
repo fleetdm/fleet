@@ -21,12 +21,12 @@ CREATE TABLE IF NOT EXISTS vpp_app_team_labels (
 	label_id             INT(10) UNSIGNED NOT NULL,
 
 	-- if exclude is true, "exclude_any" condition, otherwise "include_any"
-	-- (we don't support include/exclude all for now, so not adding a 
+	-- (we don't support include/exclude all for now, so not adding a
 	-- "require_all" column).
 	exclude              TINYINT(1) NOT NULL DEFAULT 0,
 
-	created_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	updated_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	created_at           TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	updated_at           TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 
 	UNIQUE KEY idx_vpp_app_team_labels_vpp_app_team_id_label_id (vpp_app_team_id, label_id),
 
@@ -51,12 +51,12 @@ CREATE TABLE IF NOT EXISTS software_installer_labels (
 	label_id              INT(10) UNSIGNED NOT NULL,
 
 	-- if exclude is true, "exclude_any" condition, otherwise "include_any"
-	-- (we don't support include/exclude all for now, so not adding a 
+	-- (we don't support include/exclude all for now, so not adding a
 	-- "require_all" column).
 	exclude               TINYINT(1) NOT NULL DEFAULT 0,
 
-	created_at            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	updated_at            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	created_at            TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	updated_at            TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 
 	UNIQUE KEY idx_software_installer_labels_software_installer_id_label_id (software_installer_id, label_id),
 
