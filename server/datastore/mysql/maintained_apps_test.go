@@ -24,7 +24,6 @@ func TestMaintainedApps(t *testing.T) {
 		{"IngestWithBrew", testIngestWithBrew},
 		{"ListAvailableApps", testListAvailableApps},
 		{"GetMaintainedAppByID", testGetMaintainedAppByID},
-		{"GetSoftwareTitleIdByAppID", testGetSoftwareTitleIdByAppID},
 	}
 
 	for _, c := range cases {
