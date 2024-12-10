@@ -53,7 +53,7 @@ func (ds *Datastore) GetSecretVariables(ctx context.Context, names []string) ([]
 
 	var secretVariables []fleet.SecretVariable
 
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), secretVariables, stmt, args...)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &secretVariables, stmt, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get secret variables")
 	}
