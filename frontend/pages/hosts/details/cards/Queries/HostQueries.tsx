@@ -29,6 +29,7 @@ interface IHostQueriesRowProps extends Row {
   original: {
     id?: number;
     should_link_to_hqr?: boolean;
+    hostId?: number;
   };
 }
 
@@ -101,8 +102,8 @@ const HostQueries = ({
   const tableData = useMemo(() => generateDataSet(schedule ?? []), [schedule]);
 
   const columnConfigs = useMemo(
-    () => generateColumnConfigs(queryReportsDisabled),
-    [queryReportsDisabled]
+    () => generateColumnConfigs(hostId, queryReportsDisabled),
+    [hostId, queryReportsDisabled]
   );
 
   const renderHostQueries = () => {
