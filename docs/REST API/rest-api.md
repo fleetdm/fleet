@@ -4384,7 +4384,7 @@ created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,la
 
 Retrieves the disk encryption key for a host.
 
-The host will only return a key if it's disk encryption status is "Verified." Get hosts' disk encryption status using the [List hosts endpoint](#list-hosts) and `os_settings_disk_encryption` parameter.
+The host will only return a key if its disk encryption status is "Verified." Get hosts' disk encryption statuses using the [List hosts endpoint](#list-hosts) and `os_settings_disk_encryption` parameter.
 
 `GET /api/v1/fleet/hosts/:id/encryption_key`
 
