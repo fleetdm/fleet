@@ -6,6 +6,9 @@
     display: flex;
     flex-direction: column;
     gap: $pad-medium;
+    // For scrollable modal
+    max-height: 705px; /* Adjust as needed */
+    overflow-y: auto;
   }
 
   &__script-content {

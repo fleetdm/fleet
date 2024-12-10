@@ -32,7 +32,7 @@ jobs:
   verify-checksums:
     runs-on: ubuntu-latest
     env:
-      BASE_URL: ${{ github.event.inputs.base-url || 'https://download.fleetdm.com' }}
+      BASE_URL: ${{ inputs.base-url || 'https://download.fleetdm.com' }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
@@ -67,7 +67,7 @@ jobs:
   verify-fleetd-base-msi:
     runs-on: windows-latest
     env:
-      BASE_URL: ${{ github.event.inputs.base-url || 'https://download.fleetdm.com' }}
+      BASE_URL: ${{ inputs.base-url || 'https://download.fleetdm.com' }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
@@ -94,7 +94,7 @@ jobs:
   verify-fleetd-base-pkg:
     runs-on: macos-latest
     env:
-      BASE_URL: ${{ github.event.inputs.base-url || 'https://download.fleetdm.com' }}
+      BASE_URL: ${{ inputs.base-url || 'https://download.fleetdm.com' }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0

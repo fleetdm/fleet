@@ -7300,6 +7300,25 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		"GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", versResp.Software[0].ID), nil, http.StatusNotFound, &detailsResp,
 		"team_id", "999999",
 	)
+
+	// a request with without_vulnerability_details set to false does not return extra details
+	respVersions := listSoftwareVersionsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"without_vulnerability_details", "false",
+	)
+	for _, s := range respVersions.Software {
+		for _, cve := range s.Vulnerabilities {
+			require.Nil(t, cve.CVSSScore)
+			require.Nil(t, cve.EPSSProbability)
+			require.Nil(t, cve.CISAKnownExploit)
+			require.Nil(t, cve.CVEPublished)
+			require.Nil(t, cve.Description)
+			require.Nil(t, cve.ResolvedInVersion)
+		}
+	}
 }
 
 func (s *integrationTestSuite) TestChangeUserEmail() {
@@ -12452,4 +12471,66 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.Len(t, getHostSoftwareResp.Software[2].InstalledVersions[0].InstalledPaths, 1)
 	require.Equal(t, "/some/path/gh", getHostSoftwareResp.Software[2].InstalledVersions[0].InstalledPaths[0])
 	require.Nil(t, getHostSoftwareResp.Software[2].InstalledVersions[0].SignatureInformation)
+}
+
+func (s *integrationTestSuite) TestSecretVariables() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create the global GitOps user we'll use in tests.
+	u := &fleet.User{
+		Name:       "GitOps",
+		Email:      "gitops1@example.com",
+		GlobalRole: ptr.String(fleet.RoleGitOps),
+	}
+	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.ds.NewUser(ctx, u)
+	require.NoError(t, err)
+	s.setTokenForTest(t, "gitops1@example.com", test.GoodPassword)
+
+	// Empty request
+	req := secretVariablesRequest{}
+	var resp secretVariablesResponse
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
+
+	// Secret variable name too long
+	req = secretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{
+				Name:  strings.Repeat("a", 256),
+				Value: "value",
+			},
+		},
+	}
+	httpResp := s.Do("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusUnprocessableEntity)
+	assertBodyContains(t, httpResp, "secret variable name is too long")
+
+	// Secret variable name empty
+	req = secretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{
+				Name:  "  ",
+				Value: "value",
+			},
+		},
+	}
+	httpResp = s.Do("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusUnprocessableEntity)
+	assertBodyContains(t, httpResp, "secret variable name cannot be empty")
+
+	validName := strings.Repeat("g", 255)
+	req = secretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{
+				Name:  "FLEET_SECRET_" + validName,
+				Value: "value",
+			},
+		},
+	}
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
+
+	secrets, err := s.ds.GetSecretVariables(ctx, []string{validName})
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+	assert.Equal(t, "value", secrets[0].Value)
+
 }

@@ -118,17 +118,16 @@ const CustomSettings = ({
   };
 
   // pagination controls
-  const path = PATHS.CONTROLS_CUSTOM_SETTINGS.concat(
-    `?team_id=${currentTeamId}`
-  );
+  const path = PATHS.CONTROLS_CUSTOM_SETTINGS;
+  const queryString = isPremiumTier ? `?team_id=${currentTeamId}&` : "?";
 
   const onPrevPage = useCallback(() => {
-    router.push(path.concat(`&page=${currentPage - 1}`));
-  }, [router, path, currentPage]);
+    router.push(path.concat(`${queryString}page=${currentPage - 1}`));
+  }, [router, path, currentPage, queryString]);
 
   const onNextPage = useCallback(() => {
-    router.push(path.concat(`&page=${currentPage + 1}`));
-  }, [router, path, currentPage]);
+    router.push(path.concat(`${queryString}page=${currentPage + 1}`));
+  }, [router, path, currentPage, queryString]);
 
   const onClickDelete = (profile: IMdmProfile) => {
     selectedProfile.current = profile;

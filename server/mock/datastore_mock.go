@@ -261,6 +261,8 @@ type RemoveHostMDMCommandFunc func(ctx context.Context, command fleet.HostMDMCom
 
 type CleanupHostMDMCommandsFunc func(ctx context.Context) error
 
+type CleanupHostMDMAppleProfilesFunc func(ctx context.Context) error
+
 type IsHostConnectedToFleetMDMFunc func(ctx context.Context, host *fleet.Host) (bool, error)
 
 type AreHostsConnectedToFleetMDMFunc func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error)
@@ -1173,6 +1175,10 @@ type CleanUpMDMManagedCertificatesFunc func(ctx context.Context) error
 
 type GetSoftwareTitleIDByMaintainedAppIDFunc func(ctx context.Context, appID uint, teamID *uint) (uint, error)
 
+type UpsertSecretVariablesFunc func(ctx context.Context, secretVariables []fleet.SecretVariable) error
+
+type GetSecretVariablesFunc func(ctx context.Context, names []string) ([]fleet.SecretVariable, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1533,6 +1539,9 @@ type DataStore struct {
 
 	CleanupHostMDMCommandsFunc        CleanupHostMDMCommandsFunc
 	CleanupHostMDMCommandsFuncInvoked bool
+
+	CleanupHostMDMAppleProfilesFunc        CleanupHostMDMAppleProfilesFunc
+	CleanupHostMDMAppleProfilesFuncInvoked bool
 
 	IsHostConnectedToFleetMDMFunc        IsHostConnectedToFleetMDMFunc
 	IsHostConnectedToFleetMDMFuncInvoked bool
@@ -2902,6 +2911,12 @@ type DataStore struct {
 	GetSoftwareTitleIDByMaintainedAppIDFunc        GetSoftwareTitleIDByMaintainedAppIDFunc
 	GetSoftwareTitleIDByMaintainedAppIDFuncInvoked bool
 
+	UpsertSecretVariablesFunc        UpsertSecretVariablesFunc
+	UpsertSecretVariablesFuncInvoked bool
+
+	GetSecretVariablesFunc        GetSecretVariablesFunc
+	GetSecretVariablesFuncInvoked bool
+
 	mu sync.Mutex
 }
 
@@ -3743,6 +3758,13 @@ func (s *DataStore) CleanupHostMDMCommands(ctx context.Context) error {
 	s.CleanupHostMDMCommandsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupHostMDMCommandsFunc(ctx)
+}
+
+func (s *DataStore) CleanupHostMDMAppleProfiles(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupHostMDMAppleProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupHostMDMAppleProfilesFunc(ctx)
 }
 
 func (s *DataStore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
@@ -6935,4 +6957,18 @@ func (s *DataStore) GetSoftwareTitleIDByMaintainedAppID(ctx context.Context, app
 	s.GetSoftwareTitleIDByMaintainedAppIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSoftwareTitleIDByMaintainedAppIDFunc(ctx, appID, teamID)
+}
+
+func (s *DataStore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) error {
+	s.mu.Lock()
+	s.UpsertSecretVariablesFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertSecretVariablesFunc(ctx, secretVariables)
+}
+
+func (s *DataStore) GetSecretVariables(ctx context.Context, names []string) ([]fleet.SecretVariable, error) {
+	s.mu.Lock()
+	s.GetSecretVariablesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSecretVariablesFunc(ctx, names)
 }

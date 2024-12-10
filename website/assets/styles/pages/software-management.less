@@ -228,9 +228,10 @@
     padding-top: 32px;
     text-align: center;
   }
-  [purpose='testimonial-image'] {
-    height: 48px;
-    margin-bottom: 5px;
+  [purpose='testimonial-logo'] {
+    height: 24px;
+    margin-bottom: 16px;
+
   }
   [purpose='testimonial-text'] {
     color: @core-fleet-black-75;
@@ -242,6 +243,13 @@
     margin-bottom: 24px;
   }
   [purpose='testimonial-attribution'] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    [purpose='testimonial-author-image'] {
+      height: 48px;
+      margin-bottom: 16px;
+    }
     [purpose='name'] {
       color: @core-fleet-black-75;
       text-align: center;
@@ -465,6 +473,10 @@
     [parasails-component='scrollable-tweets'] {
       [purpose='tweets'] {
         margin-bottom: 56px;
+        [purpose='quote'] {
+          padding: 0;
+        }
+
       }
     }
   }

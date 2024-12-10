@@ -5210,6 +5210,22 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/versions",
 		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"without_vulnerability_details", "true",
+	)
+	for _, s := range respVersions.Software {
+		for _, cve := range s.Vulnerabilities {
+			require.Nil(t, cve.CVSSScore)
+			require.Nil(t, cve.EPSSProbability)
+			require.Nil(t, cve.CISAKnownExploit)
+			require.Nil(t, cve.CVEPublished)
+			require.Nil(t, cve.Description)
+			require.Nil(t, cve.ResolvedInVersion)
+		}
+	}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
 		http.StatusUnprocessableEntity, &respVersions,
 		"exploit", "true",
 	)
@@ -6071,15 +6087,6 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		},
 		QueryID: &q1.ID,
 	}, http.StatusForbidden, &countTargetsResponse{})
-}
-
-func (s *integrationEnterpriseTestSuite) setTokenForTest(t *testing.T, email, password string) {
-	oldToken := s.token
-	t.Cleanup(func() {
-		s.token = oldToken
-	})
-
-	s.token = s.getCachedUserToken(email, password)
 }
 
 func (s *integrationEnterpriseTestSuite) TestDesktopEndpointWithInvalidPolicy() {

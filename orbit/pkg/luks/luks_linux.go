@@ -11,8 +11,10 @@ import (
 	"math/big"
 	"os/exec"
 	"regexp"
+	"strings"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/kdialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/lvm"
@@ -334,10 +336,32 @@ type KDF struct {
 }
 
 func getSaltforKeySlot(ctx context.Context, devicePath string, keySlot uint) (string, error) {
-	cmd := exec.CommandContext(ctx, "cryptsetup", "luksDump", "--dump-json-metadata", devicePath)
+	var jsonFlag string
+	var jsonNeedsExtraction bool
+
+	lessThan2_4, err := isCryptsetupVersionLessThan2_4()
+	if err != nil {
+		return "", fmt.Errorf("Failed to check cryptsetup version: %w", err)
+	}
+
+	if lessThan2_4 {
+		jsonFlag = "--debug-json"
+		jsonNeedsExtraction = true
+	} else {
+		jsonFlag = "--dump-json-metadata"
+	}
+
+	cmd := exec.CommandContext(ctx, "cryptsetup", "luksDump", jsonFlag, devicePath)
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("Failed to run cryptsetup luksDump: %w", err)
+	}
+
+	if jsonNeedsExtraction {
+		output, err = extractJSON(output)
+		if err != nil {
+			return "", fmt.Errorf("Failed to extract JSON from cryptsetup luksDump output: %w", err)
+		}
 	}
 
 	var dump LuksDump
@@ -360,4 +384,34 @@ func removeKeySlot(ctx context.Context, devicePath string, keySlot uint) error {
 	}
 
 	return nil
+}
+
+// isCryptsetupVersionLessThan2_4 checks if the installed cryptsetup version is less than 2.4.0
+func isCryptsetupVersionLessThan2_4() (bool, error) {
+	cmd := exec.Command("cryptsetup", "--version")
+	output, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("failed to run cryptsetup: %w", err)
+	}
+
+	// Parse the output
+	// Examples of output:
+	// "cryptsetup 2.7.0 flags: UDEV BLKID KEYRING FIPS KERNEL_CAPI HW_OPAL"
+	// "cryptsetup 2.2.2"
+	outputStr := strings.TrimSpace(string(output))
+	parts := strings.Fields(outputStr)
+
+	// The second field should always contain the version number
+	if len(parts) < 2 {
+		return false, fmt.Errorf("unexpected output format: %s", outputStr)
+	}
+
+	installedVersion, err := semver.NewVersion(parts[1])
+	if err != nil {
+		return false, fmt.Errorf("failed to parse version: %w", err)
+	}
+
+	// Compare against version 2.4.0
+	targetVersion := semver.MustParse("2.4.0")
+	return installedVersion.LessThan(targetVersion), nil
 }

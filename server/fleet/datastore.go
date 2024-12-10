@@ -346,6 +346,8 @@ type Datastore interface {
 	RemoveHostMDMCommand(ctx context.Context, command HostMDMCommand) error
 	// CleanupHostMDMCommands removes invalid and stale MDM commands sent to hosts.
 	CleanupHostMDMCommands(ctx context.Context) error
+	// CleanupHostMDMAppleProfiles removes abandoned host MDM Apple profiles entries.
+	CleanupHostMDMAppleProfiles(ctx context.Context) error
 
 	// IsHostConnectedToFleetMDM verifies if the host has an active Fleet MDM enrollment with this server
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
@@ -1874,6 +1876,15 @@ type Datastore interface {
 
 	// GetSoftwareTitleIDByMaintainedAppID returns the software title ID for the given app ID.
 	GetSoftwareTitleIDByMaintainedAppID(ctx context.Context, appID uint, teamID *uint) (uint, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Secret variables
+
+	// UpsertSecretVariables inserts or updates secret variables in the database.
+	UpsertSecretVariables(ctx context.Context, secretVariables []SecretVariable) error
+
+	// GetSecretVariables retrieves secret variables from the database.
+	GetSecretVariables(ctx context.Context, names []string) ([]SecretVariable, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

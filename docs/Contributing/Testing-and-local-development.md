@@ -339,7 +339,7 @@ Configure SSO on the Organization Settings page with the following:
 ```
 Identity Provider Name: SimpleSAML
 Entity ID: https://localhost:8080
-Metadata URL: http://localhost:9080/simplesaml/saml2/idp/metadata.php
+Metadata URL: http://127.0.0.1:9080/simplesaml/saml2/idp/metadata.php
 ```
 
 The identity provider is configured with four users:
