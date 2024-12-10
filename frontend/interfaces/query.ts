@@ -14,10 +14,6 @@ export interface IStoredQueryResponse {
   query: ISchedulableQuery;
 }
 
-export interface IFleetQueriesResponse {
-  queries: ISchedulableQuery[];
-}
-
 export interface IQuery {
   created_at: string;
   updated_at: string;

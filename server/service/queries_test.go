@@ -400,8 +400,8 @@ func TestQueryAuth(t *testing.T) {
 	ds.DeleteQueriesFunc = func(ctx context.Context, ids []uint) (uint, error) {
 		return 0, nil
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) {
-		return nil, nil
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
 	}
 	ds.ApplyQueriesFunc = func(ctx context.Context, authID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 		return nil
@@ -647,7 +647,7 @@ func TestQueryAuth(t *testing.T) {
 			_, err = svc.QueryReportIsClipped(ctx, tt.qid, fleet.DefaultMaxQueryReportRows)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.ListQueries(ctx, fleet.ListOptions{}, query.TeamID, nil, false)
+			_, _, _, err = svc.ListQueries(ctx, fleet.ListOptions{}, query.TeamID, nil, false, nil)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			teamName := ""
