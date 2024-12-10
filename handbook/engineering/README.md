@@ -199,22 +199,24 @@ The Elements of fleetd are:
  - Osqury (e.g. 5.14.1)
  - Fleet Desktop (separate executable but is released together with orbit so has the same version)
 
-Tickets for fleetd and Fleet desktop elements are milestoned with Orbit version. 
+Tickets for fleetd and Fleet desktop elements are milestoned with Orbit version.
+
 Tickets for Osquery core issues are milestoned with osquery versions.
 
 #### Release Orbit and Desktop elements 
 The process will typically be arranged in a ticket like [this](https://app.zenhub.com/workspaces/g-endpoint-ops-current-sprint-63bd7e0bf75dba002a2343ac/issues/gh/fleetdm/fleet/23820). 
+
 Steps:
  - Build the agent from our main brunch.
-Q: Why directly from the main branch and not from an Release candidate branch? 
-A: We currently don't have high enough traffic that requires it. By simplifying the process we save time in releasing.
+`Q: Why directly from the main branch and not from an Release candidate branch?`
+`A: We currently don't have high enough traffic that requires it. By simplifying the process we save time in releasing.`
  - QA all tickets involved in this build.
  - Push this release to our edge channel on TUF
-Full instructions how to do it are [here](https://github.com/fleetdm/fleet/tree/main/tools/tuf#releasing-fleetd-1230-to-edge).
-This could be used by any customer that wishes to have a canary set of agents but is only currently used by our (Fleet) Canary team on Dogfood.
+`Full instructions how to do it are [here](https://github.com/fleetdm/fleet/tree/main/tools/tuf#releasing-fleetd-1230-to-edge).`
+`This could be used by any customer that wishes to have a canary set of agents but is only currently used by our (Fleet) Canary team on Dogfood.`
  - Wait at least 24 hours 
  - Push this release to our edge channel on TUF
-Full instructions how to do it are [here](https://github.com/fleetdm/fleet/tree/main/tools/tuf#promoting-from-edge-to-stable).
+`Full instructions how to do it are [here](https://github.com/fleetdm/fleet/tree/main/tools/tuf#promoting-from-edge-to-stable).`
 
 The content of all agent elements are presented in our [here](https://github.com/fleetdm/fleet/blob/main/orbit/TUF.md)
 
