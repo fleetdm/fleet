@@ -102,6 +102,7 @@ func getShellName(s string) (string, int) {
 	}
 	// Scan alphanumerics.
 	var i int
+	// nolint:empty-block
 	for i = 0; i < len(s) && isAlphaNum(s[i]); i++ {
 	}
 	return s[:i], i
