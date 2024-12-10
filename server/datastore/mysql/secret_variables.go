@@ -38,54 +38,6 @@ func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables 
 	return nil
 }
 
-type MissingSecretsError struct {
-	MissingSecrets []string
-}
-
-func (e *MissingSecretsError) Error() string {
-	return fmt.Sprintf("secret variables not present in database: %q", e.MissingSecrets)
-}
-
-func (ds *Datastore) ValidateEmbeddedSecrets(ctx context.Context, documents []string) error {
-	wantSecrets := make(map[string]struct{})
-	haveSecrets := make(map[string]struct{})
-
-	for _, document := range documents {
-		vars := fleet.ContainsPrefixVars(document, fleet.FLEET_SECRET_PREFIX)
-		for _, v := range vars {
-			wantSecrets[v] = struct{}{}
-		}
-	}
-
-	wantSecretsList := make([]string, 0, len(wantSecrets))
-	for wantSecret := range wantSecrets {
-		wantSecretsList = append(wantSecretsList, wantSecret)
-	}
-
-	dbSecrets, err := ds.GetSecretVariables(ctx, wantSecretsList)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "validating document embedded secrets")
-	}
-
-	for _, dbSecret := range dbSecrets {
-		haveSecrets[dbSecrets.Name] = struct{}{}
-	}
-
-	missingSecrets := []string{}
-
-	for wantSecret := range wantSecrets {
-		if _, ok := haveSecrets[wantSecret]; !ok {
-			missingSecrets = append(missingSecrets, wantSecret)
-		}
-	}
-
-	if len(missingSecrets) > 0 {
-		return &MissingSecretsError{MissingSecrets: missingSecrets}
-	}
-
-	return nil
-}
-
 func (ds *Datastore) GetSecretVariables(ctx context.Context, names []string) ([]fleet.SecretVariable, error) {
 	if len(names) == 0 {
 		return nil, nil
@@ -115,4 +67,44 @@ func (ds *Datastore) GetSecretVariables(ctx context.Context, names []string) ([]
 	}
 
 	return secretVariables, nil
+}
+
+func (ds *Datastore) ValidateEmbeddedSecrets(ctx context.Context, documents []string) error {
+	wantSecrets := make(map[string]struct{})
+	haveSecrets := make(map[string]struct{})
+
+	for _, document := range documents {
+		vars := fleet.ContainsPrefixVars(document, fleet.FLEET_SECRET_PREFIX)
+		for _, v := range vars {
+			wantSecrets[v] = struct{}{}
+		}
+	}
+
+	wantSecretsList := make([]string, 0, len(wantSecrets))
+	for wantSecret := range wantSecrets {
+		wantSecretsList = append(wantSecretsList, wantSecret)
+	}
+
+	dbSecrets, err := ds.GetSecretVariables(ctx, wantSecretsList)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "validating document embedded secrets")
+	}
+
+	for _, dbSecret := range dbSecrets {
+		haveSecrets[dbSecret.Name] = struct{}{}
+	}
+
+	missingSecrets := []string{}
+
+	for wantSecret := range wantSecrets {
+		if _, ok := haveSecrets[wantSecret]; !ok {
+			missingSecrets = append(missingSecrets, wantSecret)
+		}
+	}
+
+	if len(missingSecrets) > 0 {
+		return &fleet.MissingSecretsError{MissingSecrets: missingSecrets}
+	}
+
+	return nil
 }
