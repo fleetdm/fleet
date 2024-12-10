@@ -91,10 +91,11 @@ jobs:
         uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
         with:
           subject-path: "dist/fleet*"
+
       # Get the commit hash so we can get image digests
       - name: Get the short commit hash
         id: commit
-        run: echo "::set-output name=short_commit::$(git rev-parse --short HEAD)"
+        run: echo "short_commit=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
       # Get the image digests from the goreleaser artifacts
       # Adapted from https://github.com/goreleaser/goreleaser/issues/4852#issuecomment-2122790132
