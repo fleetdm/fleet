@@ -41,9 +41,6 @@ func MaybeExpand(s string, mapping func(string) (string, bool)) string {
 				// eat invalid syntax, just leave it
 				// and pass over.
 				w = 0
-				// Valid syntax, but $ was not
-				// followed by a valid name. Leave
-				// untouched.
 				buf = append(buf, s[j])
 			} else {
 				replacement, shouldReplace := mapping(name)
