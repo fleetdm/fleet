@@ -230,8 +230,6 @@ We are constantly monitoring the osquery slack to be notified about changes.
 Agent release video training can be found in this internal [Google Drive folder](https://drive.google.com/drive/u/0/folders/1Jm2D-y4lbYs9GChV3JdMHNAva9Jf1rMn)
 
 
-
-
 ### Handle process exceptions for non-released code
 
 Some of our code does not go through a scheduled release process, but is released immediately via GitHub workflows. 
