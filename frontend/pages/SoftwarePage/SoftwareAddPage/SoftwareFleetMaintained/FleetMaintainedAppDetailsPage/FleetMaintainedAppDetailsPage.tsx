@@ -8,11 +8,13 @@ import { buildQueryStringFromParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import softwareAPI from "services/entities/software";
 import teamPoliciesAPI from "services/entities/team_policies";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import { QueryContext } from "context/query";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
 import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
+import { ILabelSummary } from "interfaces/label";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 
 import BackLink from "components/BackLink";
@@ -113,7 +115,11 @@ const FleetMaintainedAppDetailsPage = ({
     setShowAddFleetAppSoftwareModal,
   ] = useState(false);
 
-  const { data: fleetApp, isLoading, isError } = useQuery(
+  const {
+    data: fleetApp,
+    isLoading: isLoadingFleetApp,
+    isError: isErrorFleetApp,
+  } = useQuery(
     ["fleet-maintained-app", appId],
     () => softwareAPI.getFleetMainainedApp(appId),
     {
@@ -122,6 +128,24 @@ const FleetMaintainedAppDetailsPage = ({
       select: (res) => res.fleet_maintained_app,
     }
   );
+
+  const {
+    data: labels,
+    isLoading: isLoadingLabels,
+    isFetching: isFetchingLabels,
+    isError: isErrorLabels,
+  } = useQuery<ILabelSummary[], Error>(
+    ["custom_labels"],
+    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isPremiumTier,
+      staleTime: 10000,
+    }
+  );
+
+  console.log(labels);
 
   const onOsqueryTableSelect = (tableName: string) => {
     setSelectedOsqueryTable(tableName);
@@ -221,11 +245,11 @@ const FleetMaintainedAppDetailsPage = ({
       return <PremiumFeatureMessage />;
     }
 
-    if (isLoading) {
+    if (isLoadingFleetApp || isLoadingLabels) {
       return <Spinner />;
     }
 
-    if (isError) {
+    if (isErrorFleetApp || isErrorLabels) {
       return <DataError />;
     }
 
