@@ -38,6 +38,7 @@ func TestScripts(t *testing.T) {
 		{"TestCleanupUnusedScriptContents", testCleanupUnusedScriptContents},
 		{"TestGetAnyScriptContents", testGetAnyScriptContents},
 		{"TestDeleteScriptsAssignedToPolicy", testDeleteScriptsAssignedToPolicy},
+		{"TestDeletePendingHostScriptExecutionsForPolicy", testDeletePendingHostScriptExecutionsForPolicy},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1421,4 +1422,108 @@ func testDeleteScriptsAssignedToPolicy(t *testing.T, ds *Datastore) {
 
 	err = ds.DeleteScript(ctx, script.ID)
 	require.NoError(t, err)
+}
+
+func testDeletePendingHostScriptExecutionsForPolicy(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, _ := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+
+	script1, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1.sh",
+		TeamID:         &team1.ID,
+		ScriptContents: "hello world",
+	})
+	require.NoError(t, err)
+	script2, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script2.sh",
+		TeamID:         &team1.ID,
+		ScriptContents: "hello world",
+	})
+	require.NoError(t, err)
+
+	p1, err := ds.NewTeamPolicy(ctx, team1.ID, nil, fleet.PolicyPayload{
+		Name:     "p1",
+		Query:    "SELECT 1;",
+		ScriptID: &script1.ID,
+	})
+	require.NoError(t, err)
+
+	p2, err := ds.NewTeamPolicy(ctx, team1.ID, nil, fleet.PolicyPayload{
+		Name:     "p2",
+		Query:    "SELECT 2;",
+		ScriptID: &script2.ID,
+	})
+	require.NoError(t, err)
+
+	// pending host script execution for correct policy
+	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         1,
+		ScriptContents: "echo",
+		UserID:         &user.ID,
+		PolicyID:       &p1.ID,
+		SyncRequest:    true,
+	})
+	require.NoError(t, err)
+
+	pending, err := ds.ListPendingHostScriptExecutions(ctx, 1)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(pending))
+
+	err = ds.DeletePendingHostScriptExecutionsForPolicy(ctx, p1.ID)
+	require.NoError(t, err)
+
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(pending))
+
+	// test pending host script execution for incorrect policy
+	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         1,
+		ScriptContents: "echo",
+		UserID:         &user.ID,
+		PolicyID:       &p2.ID,
+		SyncRequest:    true,
+	})
+	require.NoError(t, err)
+
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(pending))
+
+	err = ds.DeletePendingHostScriptExecutionsForPolicy(ctx, p1.ID)
+	require.NoError(t, err)
+
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(pending))
+
+	// test not pending host script execution for correct policy
+	scriptExecution, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         1,
+		ScriptContents: "echo",
+		UserID:         &user.ID,
+		PolicyID:       &p1.ID,
+		SyncRequest:    true,
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err = q.ExecContext(ctx, `UPDATE host_script_results SET exit_code = 1 WHERE id = ?`, scriptExecution.ID)
+		require.NoError(t, err)
+		return nil
+	})
+
+	err = ds.DeletePendingHostScriptExecutionsForPolicy(ctx, p1.ID)
+	require.NoError(t, err)
+
+	var count int
+	err = sqlx.GetContext(
+		ctx,
+		ds.reader(ctx),
+		&count,
+		"SELECT count(1) FROM host_script_results WHERE id = ?",
+		scriptExecution.ID,
+	)
+	require.Equal(t, 1, count)
 }
