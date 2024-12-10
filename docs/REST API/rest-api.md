@@ -8837,7 +8837,13 @@ Modifies an existing script.
 
 ```json
 {
-  "script_content": "#!/bin/sh\\n\\n#!/usr/bin/env bash\\n\\nsudo systemsetup -settimezone Pacific/Ponape"
+{
+  "id": 1,
+  "team_id": null,
+  "name": "script_1.sh",
+  "created_at": "2023-07-30T13:41:07Z",
+  "updated_at": "2023-07-30T13:41:07Z"
+}
 }
 ```
 
