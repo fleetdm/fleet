@@ -1,0 +1,68 @@
+---
+x-default-settings:
+  environment: &default-environment
+    ENROLL_SECRET: "${ENROLL_SECRET:?ENROLL_SECRET must be set for server authentication}"
+  ulimits: &default-ulimits
+    core:
+      hard: 1000000000
+      soft: 1000000000
+  network_mode: &default-network-mode bridge
+  extra_hosts: &extra-hosts
+    - "host.docker.internal:host-gateway"
+  platform: &default-platform linux/x86_64
+
+services:
+  ubuntu24.04-fleetd:
+    image: "fleetd-ubuntu-24.04"
+    privileged: true
+    user: 0:0
+    network_mode: *default-network-mode
+    platform: *default-platform
+    environment: *default-environment
+    ulimits: *default-ulimits
+    extra_hosts: *extra-hosts
+  fedora41-fleetd:
+    image: "fleetd-fedora-41"
+    privileged: true
+    user: 0:0
+    network_mode: *default-network-mode
+    platform: *default-platform
+    environment: *default-environment
+    ulimits: *default-ulimits
+    extra_hosts: *extra-hosts
+  redhat9.5-fleetd:
+    image: "fleetd-redhat-9.5"
+    privileged: true
+    user: 0:0
+    network_mode: *default-network-mode
+    platform: *default-platform
+    environment: *default-environment
+    ulimits: *default-ulimits
+    extra_hosts: *extra-hosts
+  centosstream10-fleetd:
+    image: "fleetd-centos-stream-10"
+    privileged: true
+    user: 0:0
+    network_mode: *default-network-mode
+    platform: *default-platform
+    environment: *default-environment
+    ulimits: *default-ulimits
+    extra_hosts: *extra-hosts
+  debian12.8-fleetd:
+    image: "fleetd-debian-12.8"
+    privileged: true
+    user: 0:0
+    network_mode: *default-network-mode
+    platform: *default-platform
+    environment: *default-environment
+    ulimits: *default-ulimits
+    extra_hosts: *extra-hosts
+  amazonlinux2023-fleetd:
+    image: "fleetd-amazonlinux-2023"
+    privileged: true
+    user: 0:0
+    network_mode: *default-network-mode
+    platform: *default-platform
+    environment: *default-environment
+    ulimits: *default-ulimits
+    extra_hosts: *extra-hosts
