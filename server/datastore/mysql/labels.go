@@ -240,6 +240,7 @@ func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilt
 
 // DeleteLabel deletes a fleet.Label
 func (ds *Datastore) DeleteLabel(ctx context.Context, name string) error {
+	// TODO(mna): prevent deletion if used to scope a software installer
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var labelID uint
 		err := sqlx.GetContext(ctx, tx, &labelID, `select id FROM labels WHERE name = ?`, name)
@@ -252,6 +253,9 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string) error {
 
 		_, err = tx.ExecContext(ctx, `DELETE FROM labels WHERE id = ?`, labelID)
 		if err != nil {
+			if isMySQLForeignKey(err) {
+				return ctxerr.Wrap(ctx, foreignKey("labels", name), "delete label")
+			}
 			return ctxerr.Wrapf(ctx, err, "delete label")
 		}
 
