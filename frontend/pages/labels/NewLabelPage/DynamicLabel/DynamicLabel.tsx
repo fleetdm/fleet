@@ -41,6 +41,7 @@ const DynamicLabel = ({
               res.label.id
             )}?${buildQueryStringFromParams({ team_id: currentTeam?.id })}`
           );
+          renderFlash("success", "Label added successfully.");
         })
         .catch((error: { data: IApiError }) => {
           renderFlash(
