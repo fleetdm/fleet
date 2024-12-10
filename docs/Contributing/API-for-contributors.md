@@ -1763,7 +1763,7 @@ If the `name` is not already associated with an existing team, this API route cr
 | mdm.windows_settings.custom_settings        | array   | body  | The list of objects consists of a `path` to XML files and `labels_include_all` or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | scripts                                   | array   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
 | software                                   | object   | body  | The team's software that will be available for install.  |
-| software.packages                          | list   | body  | An array of objects with values below. |
+| software.packages                          | array   | body  | An array of objects with values below. |
 | software.packages.url                      | string   | body  | URL to the software package (PKG, MSI, EXE or DEB). |
 | software.packages.install_script           | string   | body  | Command that Fleet runs to install software. |
 | software.packages.pre_install_query        | string   | body  | Condition query that determines if the install will proceed. |
