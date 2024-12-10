@@ -1758,9 +1758,9 @@ If the `name` is not already associated with an existing team, this API route cr
 | mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version.                                                                                                                                                                                      |
 | mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
 | mdm.macos_settings                        | object | body  | The macOS-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.macos_settings.custom_settings        | array   | body  | The list of objects consists of a `path` to .mobileconfig or JSON file and `labels_include_all` or `labels_exclude_any` list of label names.                                                                                                                                                         |
+| mdm.macos_settings.custom_settings        | array   | body  | The list of objects consists of a `path` to .mobileconfig or JSON file and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.windows_settings.custom_settings        | array   | body  | The list of objects consists of a `path` to XML files and `labels_include_all` or `labels_exclude_any` list of label names.                                                                                                                                                         |
+| mdm.windows_settings.custom_settings        | array   | body  | The list of objects consists of a `path` to XML files and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | scripts                                   | array   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
 | software                                   | object   | body  | The team's software that will be available for install.  |
 | software.packages                          | array   | body  | An array of objects with values below. |
@@ -1770,8 +1770,8 @@ If the `name` is not already associated with an existing team, this API route cr
 | software.packages.post_install_script      | string   | body  | Script that runs after software install. |
 | software.packages.uninstall_script       | string   | body  | Command that Fleet runs to uninstall software. |
 | software.packages.self_service           | boolean   | body  | Condition query that determines if the install will proceed. |
-| software.packages.labels_include_any     | array   | body  | Specifies whether the software will only be available for install or installed (by policy automation) on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
-| software.packages.labels_exclude_any     | array   | body  | Specifies whether the software will only be available for install or installed (by policy automation) on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
+| software.packages.labels_include_any     | array   | body  | Target hosts that have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
+| software.packages.labels_exclude_any     | array   | body  | Target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
 | software.app_store_apps                   | array   | body  | An array of objects with values below. |
 | software.app_store_apps.app_store_id      | string   | body  | ID of the App Store app. |
 | software.app_store_apps.self_service      | boolean   | body  | Specifies whether or not end users can install self-service. |
@@ -3525,8 +3525,8 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 | software.packages.post_install_script      | string   | body  | Script that runs after software install. |
 | software.packages.uninstall_script      | string   | body  | Command that Fleet runs to uninstall software. |
 | software.packages.self_service           | boolean   | body  | Condition query that determines if the install will proceed. |
-| software.packages.labels_include_any     | array   | body  | Specifies whether the software will only be available for install or installed (by policy automation) on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
-| software.packages.labels_exclude_any     | array   | body  | Specifies whether the software will only be available for install or installed (by policy automation) on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
+| software.packages.labels_include_any     | array   | body  | Target hosts that have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
+| software.packages.labels_exclude_any     | array   | body  | Target hosts that don't have any labels in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
 
 #### Example
 
