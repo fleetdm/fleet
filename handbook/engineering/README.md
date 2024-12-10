@@ -214,7 +214,7 @@ Steps:
  - QA all tickets involved in this build.
  - Push this release to our edge channel on TUF.
 `Full instructions how to do it are `[here](https://github.com/fleetdm/fleet/tree/main/tools/tuf#releasing-fleetd-1230-to-edge).
-`This could be used by any customer that wishes to have a canary set of agents but is only currently used by our (Fleet) Canary team on Dogfood.`
+`This could be used by any customer that wishes to have a canary set of agents but, per our knowledge, is only currently used by our (Fleet) Canary team on Dogfood.`
  - Wait at least 24 hours.
  - Push this release to our edge channel on TUF.
 `Full instructions how to do it are `[here](https://github.com/fleetdm/fleet/tree/main/tools/tuf#promoting-from-edge-to-stable).
