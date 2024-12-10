@@ -8812,13 +8812,6 @@ Modifies an existing script.
 
 `PATCH /api/v1/fleet/scripts/:id`
 
-##### Request body
-
-```json
-{
-  "script_content": "#!/bin/sh\\n\\n#!/usr/bin/env bash\\n\\nsudo systemsetup -settimezone Pacific/Ponape"
-}
-```
 
 #### Parameters
 
@@ -8830,6 +8823,15 @@ Modifies an existing script.
 #### Example
 
 `PATCH /api/v1/fleet/scripts/1`
+
+
+##### Request body
+
+```json
+{
+  "script_contents": "#!/bin/sh\\n\\n#!/usr/bin/env bash\\n\\nsudo systemsetup -settimezone Pacific/Ponape"
+}
+```
 
 ##### Default response
 
