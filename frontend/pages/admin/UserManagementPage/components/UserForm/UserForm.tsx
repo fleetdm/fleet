@@ -221,6 +221,7 @@ const UserForm = ({
       // if an existing user is converted to sso, the API expects `new_password` to be null
       if (formData.sso_enabled) {
         submitData.new_password = null;
+        submitData.mfa_enabled = false; // Edge case a user sets mfa, and then sets sso, we need to remove mfa
       }
     }
 
@@ -628,6 +629,7 @@ const UserForm = ({
             !formData.sso_enabled &&
             renderPasswordSection()}
           {(isPremiumTier || isMfaEnabled) &&
+            !formData.sso_enabled &&
             renderTwoFactorAuthenticationOption()}
           {isPremiumTier ? renderPremiumRoleOptions() : renderGlobalRoleForm()}
         </form>
