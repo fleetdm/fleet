@@ -279,7 +279,7 @@ controls:
 
 Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format. Variables beginning with `$FLEET_VAR_` are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. See supported variables in the guide [here](https://fleetdm.com/guides/ndes-scep-proxy).
 
-Use `labels_include_all` to only apply (scope) profiles to hosts that have all those labels or `labels_exclude_any` to apply profiles to hosts that don't have any of those labels.
+Use `labels_include_all` to target hosts that have all labels in the list, `labels_include_any` to target hosts that have any label in the list, or `labels_exclude_any` to target hosts that don't have any of the labels in the list. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be included. If none are included, all hosts are targeted.
 
 ### macos_setup
 
@@ -327,9 +327,7 @@ software:
     - app_store_id: '1091189122'
 ```
 
-When making software packages available for install or installable by policy automation, you can include one of the following arrays of labels to narrow the scope of software installs:
-- `labels_include_any`: matches hosts that have all labels in the list
-- `labels_exclude_any`: matches hosts that don't have any labels in the list
+Use `labels_include_any` to target hosts that have any label in the list or `labels_exclude_any` to target hosts that don't have any label in the list. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted.
 
 ### packages
 
