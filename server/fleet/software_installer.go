@@ -127,6 +127,10 @@ type SoftwareInstaller struct {
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
+	// LablesIncludeAny is the list of "include any" labels for this software installer (if not nil).
+	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
+	// LabelsExcludeAny is the list of "exclude any" labels for this software installer (if not nil).
+	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -331,7 +335,9 @@ type UploadSoftwareInstallerPayload struct {
 	PackageIDs         []string
 	UninstallScript    string
 	Extension          string
-	InstallDuringSetup *bool // keep saved value if nil, otherwise set as indicated
+	InstallDuringSetup *bool    // keep saved value if nil, otherwise set as indicated
+	LabelsIncludeAny   []string // names of "include any" labels
+	LabelsExcludeAny   []string // names of "exclude any" labels
 }
 
 type UpdateSoftwareInstallerPayload struct {
@@ -356,6 +362,8 @@ type UpdateSoftwareInstallerPayload struct {
 	Filename          string
 	Version           string
 	PackageIDs        []string
+	LabelsIncludeAny  []string // names of "include any" labels
+	LabelsExcludeAny  []string // names of "exclude any" labels
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -615,4 +623,19 @@ func NewTempFileReader(from io.Reader, tempDirFn func() string) (*TempFileReader
 		return nil, err
 	}
 	return tfr, nil
+}
+
+// SoftwareScopeLabel represents the many-to-many relationship between
+// software titles and labels.
+//
+// NOTE: json representation of the fields is a bit awkward to match the
+// required API response, as this struct is returned within software title details.
+//
+// NOTE The fields in this struct other than LabelName and LabelID
+// MAY NOT BE SET CORRECTLY, dependong on where they're being ingested from.
+type SoftwareScopeLabel struct {
+	TitleID   uint   `db:"title_id" json:"-"` // not rendered in JSON, used to store the associated title ID
+	LabelName string `db:"label_name" json:"name"`
+	LabelID   uint   `db:"label_id" json:"id,omitempty"` // omitted if 0 (which is impossible if the label is not broken)
+	Exclude   bool   `db:"exclude" json:"-"`             // not rendered in JSON, used to store the profile in LabelsIncludeAll, LabelsIncludeAny, or LabelsExcludeAny on the parent profile
 }
