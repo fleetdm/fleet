@@ -327,7 +327,7 @@ software:
     - app_store_id: '1091189122'
 ```
 
-When making software available for install or installable by policy automation, you can include one of the following arrays of labels to narrow the scope of software installs:
+When making software packages available for install or installable by policy automation, you can include one of the following arrays of labels to narrow the scope of software installs:
 - `labels_include_any`: matches hosts that have all labels in the list
 - `labels_exclude_any`: matches hosts that don't have any labels in the list
 
