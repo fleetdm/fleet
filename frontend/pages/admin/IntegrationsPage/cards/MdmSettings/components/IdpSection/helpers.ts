@@ -13,10 +13,10 @@ export const newFormDataIdp = (
   config?: IEndUserAuthentication
 ): IFormDataIdp => {
   return {
-    idp_name: config?.idp_name.trim() || "",
-    entity_id: config?.entity_id.trim() || "",
-    metadata_url: config?.metadata_url.trim() || "",
-    metadata: config?.metadata.trim() || "",
+    idp_name: config?.idp_name?.trim() || "",
+    entity_id: config?.entity_id?.trim() || "",
+    metadata_url: config?.metadata_url?.trim() || "",
+    metadata: config?.metadata?.trim() || "",
   };
 };
 

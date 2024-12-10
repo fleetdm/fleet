@@ -37,7 +37,7 @@ const IdpSection = () => {
 
   const onInputChange = useCallback(
     ({ name, value }: { name: keyof IFormDataIdp; value: string }) => {
-      const newData = { ...formData, [name]: value.trim() };
+      const newData = { ...formData, [name]: value?.trim() || "" };
       setFormData(newData);
 
       const newErrors = validateFormDataIdp(newData);
@@ -48,9 +48,9 @@ const IdpSection = () => {
         // don't wait for onBlur to update error on this field
         setFormErrors(newErrors);
       } else if (name === "metadata") {
-        // FIXME(sarah): I noticed that the InputField component doesn't pass the onBlur prop down
-        // if the type is textarea. Do we want to change that? What might break if we do? For now,
-        // this check just always updates form errors whenever metadata field changes.
+        // FIXME: See comment to InputField component regarding onBlur prop for textarea. For now,
+        // this check just always updates form errors whenever metadata field changes because
+        // onBlur doesn't currently work for textareas.
         setFormErrors(newErrors);
       }
     },
