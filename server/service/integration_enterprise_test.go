@@ -6089,15 +6089,6 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusForbidden, &countTargetsResponse{})
 }
 
-func (s *integrationEnterpriseTestSuite) setTokenForTest(t *testing.T, email, password string) {
-	oldToken := s.token
-	t.Cleanup(func() {
-		s.token = oldToken
-	})
-
-	s.token = s.getCachedUserToken(email, password)
-}
-
 func (s *integrationEnterpriseTestSuite) TestDesktopEndpointWithInvalidPolicy() {
 	t := s.T()
 
