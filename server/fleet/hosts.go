@@ -437,7 +437,7 @@ type MDMHostData struct {
 	rawDecryptable *int
 
 	// OSSettings contains information related to operating systems settings that are managed for
-	// MDM-enrolled hosts.
+	// MDM-enrolled hosts and/or Linux hosts with disk encryption enabled, wich don't require MDM.
 	//
 	// Note: Additional information for macOS hosts is currently stored in MacOSSettings.
 	OSSettings *HostMDMOSSettings `json:"os_settings,omitempty" db:"-" csv:"-"`
