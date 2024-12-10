@@ -330,7 +330,7 @@ software:
         - Engineering
 ```
 
-Use `labels_include_any` to make software availalbe for install or installed (by policy automation) only on hosts that have all those labels or `labels_exclude_any` to make software availalbe for install or installed (by policy automation) only on hosts that don't have any of those labels.
+Use `labels_include_any` to make software available for install or installed by policy automation only on hosts that have all those labels. Use `labels_exclude_any` to make software available for install or installed by policy automation only on hosts that don't have any of those labels.
 
 ### packages
 
