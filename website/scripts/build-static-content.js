@@ -1146,11 +1146,47 @@ module.exports = {
           // .intercept((error)=>{
           //   return new Error(`Could not build app library configuration. When attempting to send a request to the homebrew API to get the latest information about ${app.identifier}, an error occured. Full error: ${util.inspect(error, {depth: null})}`);
           // });
-          // let scriptToUninstallThisApp = await sails.helpers.fs.read(path.join(topLvlRepoPath, `/server/mdm/maintainedapps/testdata/scripts/${app.identifier}_uninstall.golden.sh`))
-          // .intercept('doesNotExist', ()=>{
-          //   return new Error(`Could not build app library configuration from testdata folder. When attempting to read an uninstall script for ${app.identifier}, no file was found at ${path.join(topLvlRepoPath, '/server/mdm/maintainedapps/testdata/scripts/'+app.identifier+'_uninstall.golden.sh. Was it moved?')}.`);
-          // });
-          // appInformation.uninstallScript = scriptToUninstallThisApp;
+          let scriptToUninstallThisApp = await sails.helpers.fs.read(path.join(topLvlRepoPath, `/server/mdm/maintainedapps/testdata/scripts/${app.identifier}_uninstall.golden.sh`))
+          .intercept('doesNotExist', ()=>{
+            return new Error(`Could not build app library configuration from testdata folder. When attempting to read an uninstall script for ${app.identifier}, no file was found at ${path.join(topLvlRepoPath, '/server/mdm/maintainedapps/testdata/scripts/'+app.identifier+'_uninstall.golden.sh. Was it moved?')}.`);
+          });
+          // Remove lines that only contain comments.
+          scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/^\s*#.*$/gm, '');
+
+          // Condense functions onto a single line.
+          // For each function in the script:
+          scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/(\w+)\s*\(\)\s*\{([\s\S]*?)^\}/gm, (match, functionName, functionContent)=> {
+            // Split the function content into an array
+            let linesInFunction = functionContent.split('\n');
+
+            // Remove extra leading or trailing whitespace from each line.
+            linesInFunction = linesInFunction.map((line)=>{ return line.trim();});
+
+            // Remove any empty lines
+            linesInFunction = linesInFunction.filter((lineText)=>{
+              return lineText.length > 0;
+            });
+            // Iterate through the lines in the function, adding semicolons to lines with commands.
+            linesInFunction = linesInFunction.map((text, lineIndex, lines)=>{
+              // If this is not the last line in the function, and it does not only contain a control stucture keyword, append a semi colon to it.
+              if(lineIndex !== lines.length - 1 && !/^\s*(if|while|for|do|else|then|done|return)/.test(text)) {
+                return text + ';';
+              }
+              // Otherwise, do not add a semicolon
+              return text;
+            });
+            // Join the lines into a single string
+            let condensedBodyOfFunction = linesInFunction.join(' ');
+
+            // Return the condensed single-line function.
+            return `${functionName}() { ${condensedBodyOfFunction} }`;
+          });
+
+          // Remove newlines with "&&" and remove any that are added to the end and beginning of the condensed command.
+          scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/\n\s*/g, ' && ').replace(/ && $/, '').replace(/^ && /, '');
+
+
+          appInformation.uninstallScript = scriptToUninstallThisApp;
           appInformation.version = detailedInformationAboutThisApp.version.split(',')[0];
           appInformation.description = detailedInformationAboutThisApp.desc;
           appInformation.name = detailedInformationAboutThisApp.name[0];

@@ -73,45 +73,9 @@ Once configured, fleetd will use the provided client certificates on all compone
 - `orbit` will use (if provided) client certificates to connect to custom TUF servers.
 - `orbit` will configure `osqueryd` and `Fleet desktop` to use the provided client certificate to connect to the Fleet server.
 
-```mermaid
-graph LR;
-    tuf[Custom TUF server];
-    fleet_server[Fleet server];
-    nginx["TLS terminator with<br> mTLS support<br>(e.g. nginx/ELB)"];
+![](https://mermaid.ink/img/pako:eNqVVW1v2jAQ_iuWP7USZISEAulaaW1XbRLVqkK_jFTIJBeISOLMcWgZ4r_PsR1IWOi6fInv5Xnuzr6zt9ijPmAHLxhJl2j0dOkmSHw8D6a3ecZpjCbP9ygDtgb2oo1BBMBnSje9L4Qjh2QRJm9TF09GY8SBxWFCOGXoNeTLz3N2jeLCkOVpShkvFGdgLAyF-vR1dHPu4oKpwoXabfRtMnkci8V1Lf7lSS9Rwp4ky-eqQAn1lbJmoGwe8oO-ZtOV3kYhJBx5wHgYhB7hkJUFl5_KzJOOs4rjTNJPq2bDU7XXdCvYHFPmqV8QnOSs2UvSurKBFZLKJtSEw45kv3Jgm6n-HzM0JaQR7TaPsmrGV02F17xEilfv7URzij5kK05TpJtQiy__TFQ7ig49C5hocUjW53-dxYnzUb1Z6xPZHh8PYKQQ11lkdQdRo2dzRl-z_YjdKa0cIEl6o8wlUYVEdkYxDS5W2B9S8eXxuxw9F8sBkTOjweVOVjA63nsofeAKpYUiPwYx5fCBeGWJiuFhI4KuQw_Q89MIHYBH835UY3E_yQulGqNp7D0eTcsFSom3IgtAHo1jkviVnjk9cHuW_5u5fe_ugzdnjVs4FpclCX1xH28LiIv5EmJwsSOWPgQkj7iL3WQnXEnO6XiTeNjhLIcWVuHvQiIqjrETkCgT2pQkPymtydjZ4jfstIf20DC7g4FpWj3L7nd6LbwRatMU6kF_2LEt0-x1hxe7Fv4tKbpGb2BZ_e7AMi3bvujYAgF-KG72B_WGyKekhRnNF0sdcfcHtbsXuA?type=png)
+<!-- Note: The Mermaid chart on this page has been replaced with a link to an image of the chart until support for newer versions of mermaid have been added to the website. See https://github.com/fleetdm/fleet/blob/65c0cb25e9771d3bef087ff767342b17de007ad4/articles/fleetd-mtls.md#L76 to view the original chart. -->
 
-    nginx -- HTTPS --> fleet_server;
-    nginx -- HTTPS --> tuf;
-
-    subgraph fleetd
-        subgraph orbit
-            subgraph server[Client certificates];
-            fleet_client_certificate_orbit[fleet_client.crt<br>fleet_client.key];
-            update_client_certificate_orbit[update_client.crt<br>update_client.key];
-            end
-        end
-        subgraph osquery[osquery];
-            client_certificate_osquery[--tls_client_cert=fleet_client.crt<br>--tls_client_key=fleet_client.key];
-        end
-        subgraph desktop [Fleet desktop]
-            client_certificate_desktop["(from env)<br>fleet_client.crt<br>fleet_client.key"];
-            server_certificate_desktop["(from env)<br>fleet.pem"];
-        end
-
-        desktop_browser[Fleet Desktop<br> from Browser];
-    end
-
-    orbit -- "Fleet Orbit API mTLS" --> nginx;
-    desktop -- "Fleet Desktop API mTLS" --> nginx;
-    osquery -- "osquery<br>remote API mTLS" --> nginx;
-    desktop_browser -- "My Device URL TLS" --> fleet_server;
-
-    orbit -- TUF mTLS --> nginx;
-
-    subgraph fleetctl[fleetctl package command]
-        update_client_certificate_fleetctl[update_client.crt<br>update_client.key];
-    end
-    fleetctl -- TUF mTLS --> nginx;
-```
 
 If you have suggestions for how to improve mTLS functionality in Fleet, please share them with us in the osquery Slack [#fleet channel](https://fleetdm.com/slack) or open an issue in Github.
 

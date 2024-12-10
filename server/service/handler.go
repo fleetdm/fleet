@@ -525,6 +525,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Generative AI
 	ue.POST("/api/_version_/fleet/autofill/policy", autofillPoliciesEndpoint, autofillPoliciesRequest{})
 
+	// Secret variables
+	ue.PUT("/api/_version_/fleet/spec/secret_variables", secretVariablesEndpoint, secretVariablesRequest{})
+
 	// Only Fleet MDM specific endpoints should be within the root /mdm/ path.
 	// NOTE: remember to update
 	// `service.mdmConfigurationRequiredEndpoints` when you add an

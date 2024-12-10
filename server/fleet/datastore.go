@@ -1873,6 +1873,15 @@ type Datastore interface {
 
 	// CleanUpMDMManagedCertificates removes all managed certificates that are not associated with any host+profile.
 	CleanUpMDMManagedCertificates(ctx context.Context) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Secret variables
+
+	// UpsertSecretVariables inserts or updates secret variables in the database.
+	UpsertSecretVariables(ctx context.Context, secretVariables []SecretVariable) error
+
+	// GetSecretVariables retrieves secret variables from the database.
+	GetSecretVariables(ctx context.Context, names []string) ([]SecretVariable, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
