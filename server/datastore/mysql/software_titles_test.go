@@ -300,7 +300,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create a software installer not installed on any host
-	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:         "installer1",
 		Source:        "apps",
 		InstallScript: "echo",
@@ -315,7 +315,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 		return err
 	})
 	// create a software installer with an install request on host1
-	installer2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:         "installer2",
 		Source:        "apps",
 		InstallScript: "echo",
@@ -631,7 +631,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create a software installer for team1
-	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:            "installer1",
 		Source:           "apps",
 		InstallScript:    "echo",
@@ -648,7 +648,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 		return err
 	})
 	// create a software installer for team2
-	installer2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:         "installer2",
 		Source:        "apps",
 		InstallScript: "echo",
@@ -875,7 +875,7 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 	test.CreateInsertGlobalVPPToken(t, ds)
 
 	// create a couple software installers not installed on any host
-	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:         "installer1",
 		Source:        "apps",
 		InstallScript: "echo",
@@ -884,7 +884,7 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
-	installer2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:         "installer2",
 		Source:        "apps",
 		InstallScript: "echo",
@@ -980,7 +980,7 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 	test.CreateInsertGlobalVPPToken(t, ds)
 
 	// create 2 software installers
-	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:         "installer1",
 		Source:        "apps",
 		InstallScript: "echo",
@@ -989,7 +989,7 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
-	installer2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:         "installer2",
 		Source:        "apps",
 		InstallScript: "echo",
@@ -1170,7 +1170,7 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	// Create a macOS software foobar installer on "No team".
-	macOSInstallerNoTeam, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	macOSInstallerNoTeam, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:            "foobar",
 		BundleIdentifier: "com.foo.bar",
 		Source:           "apps",
@@ -1354,7 +1354,7 @@ func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
-	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:            "installer1",
 		Source:           "apps",
 		InstallScript:    "echo",
@@ -1364,7 +1364,7 @@ func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
-	installer2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:            "installer2",
 		Source:           "apps",
 		InstallScript:    "echo",

@@ -1079,7 +1079,7 @@ type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]s
 
 type GetHostLastInstallDataFunc func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error)
 
-type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error)
+type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, titleID uint, err error)
 
 type GetSoftwareInstallerMetadataByIDFunc func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error)
 
@@ -1172,8 +1172,6 @@ type BulkUpsertMDMManagedCertificatesFunc func(ctx context.Context, payload []*f
 type GetHostMDMCertificateProfileFunc func(ctx context.Context, hostUUID string, profileUUID string) (*fleet.HostMDMCertificateProfile, error)
 
 type CleanUpMDMManagedCertificatesFunc func(ctx context.Context) error
-
-type GetSoftwareTitleIDByMaintainedAppIDFunc func(ctx context.Context, appID uint, teamID *uint) (uint, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -2903,9 +2901,6 @@ type DataStore struct {
 
 	CleanUpMDMManagedCertificatesFunc        CleanUpMDMManagedCertificatesFunc
 	CleanUpMDMManagedCertificatesFuncInvoked bool
-
-	GetSoftwareTitleIDByMaintainedAppIDFunc        GetSoftwareTitleIDByMaintainedAppIDFunc
-	GetSoftwareTitleIDByMaintainedAppIDFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -6613,7 +6608,7 @@ func (s *DataStore) GetHostLastInstallData(ctx context.Context, hostID uint, ins
 	return s.GetHostLastInstallDataFunc(ctx, hostID, installerID)
 }
 
-func (s *DataStore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+func (s *DataStore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, titleID uint, err error) {
 	s.mu.Lock()
 	s.MatchOrCreateSoftwareInstallerFuncInvoked = true
 	s.mu.Unlock()
@@ -6940,11 +6935,4 @@ func (s *DataStore) CleanUpMDMManagedCertificates(ctx context.Context) error {
 	s.CleanUpMDMManagedCertificatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanUpMDMManagedCertificatesFunc(ctx)
-}
-
-func (s *DataStore) GetSoftwareTitleIDByMaintainedAppID(ctx context.Context, appID uint, teamID *uint) (uint, error) {
-	s.mu.Lock()
-	s.GetSoftwareTitleIDByMaintainedAppIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetSoftwareTitleIDByMaintainedAppIDFunc(ctx, appID, teamID)
 }
