@@ -631,11 +631,11 @@ func NewTempFileReader(from io.Reader, tempDirFn func() string) (*TempFileReader
 // NOTE: json representation of the fields is a bit awkward to match the
 // required API response, as this struct is returned within software title details.
 //
-// NOTE The fields in this struct other than LabelName and LabelID
-// MAY NOT BE SET CORRECTLY, dependong on where they're being ingested from.
+// NOTE: depending on how/where this struct is used, fields MAY BE
+// UNRELIABLE insofar as they represent default, empty values.
 type SoftwareScopeLabel struct {
-	TitleID   uint   `db:"title_id" json:"-"` // not rendered in JSON, used to store the associated title ID
 	LabelName string `db:"label_name" json:"name"`
-	LabelID   uint   `db:"label_id" json:"id,omitempty"` // omitted if 0 (which is impossible if the label is not broken)
-	Exclude   bool   `db:"exclude" json:"-"`             // not rendered in JSON, used to store the profile in LabelsIncludeAll, LabelsIncludeAny, or LabelsExcludeAny on the parent profile
+	LabelID   uint   `db:"label_id" json:"id"` // label id in database, which may be the empty value in some cases where id is not known in advance (e.g., if labels are created during gitops processing)
+	Exclude   bool   `db:"exclude" json:"-"`   // not rendered in JSON, used when processing LabelsIncludeAny and LabelsExcludeAny on parent title (may be the empty value in some cases)
+	TitleID   uint   `db:"title_id" json:"-"`  // not rendered in JSON, used to store the associated title ID (may be the empty value in some cases)
 }
