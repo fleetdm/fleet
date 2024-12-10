@@ -103,8 +103,8 @@ jobs:
         continue-on-error: true
         id: image_digests
         run: |
-          echo "digest_fleet=$(echo ${{ steps.goreleaser.outputs.artifacts }} | jq -r '.[]|select(.type == "Published Docker Image" and (.name | contains("fleetdm/fleet:${{ steps.commit.outputs.short_commit }}"))) | select(. != null)|.extra.Digest" >> "$GITHUB_OUTPUT"
-          echo "digest_fleetctl=$(echo ${{ steps.goreleaser.outputs.artifacts }} | jq -r '.[]|select(.type == "Published Docker Image" and (.name | contains("fleetdm/fleetctl:${{ steps.commit.outputs.short_commit }}"))) | select(. != null)|.extra.Digest" >> "$GITHUB_OUTPUT"
+          echo "digest_fleet=$(echo ${{ steps.goreleaser.outputs.artifacts }} | jq -r '.[]|select(.type == "Published Docker Image" and (.name | contains("fleetdm/fleet:${{ steps.commit.outputs.short_commit }}"))) | select(. != null)|.extra.Digest')" >> "$GITHUB_OUTPUT"
+          echo "digest_fleetctl=$(echo ${{ steps.goreleaser.outputs.artifacts }} | jq -r '.[]|select(.type == "Published Docker Image" and (.name | contains("fleetdm/fleetctl:${{ steps.commit.outputs.short_commit }}"))) | select(. != null)|.extra.Digest')" >> "$GITHUB_OUTPUT"
 
       - name: Attest Fleet image
         uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
