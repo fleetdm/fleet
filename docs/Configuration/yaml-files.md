@@ -325,9 +325,6 @@ software:
   # path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
   app_store_apps:
     - app_store_id: '1091189122'
-    - app_store_id: '1477376905'
-      labels_include_any:
-        - Engineering
 ```
 
 Use `labels_include_any` to make software available for install or installed by policy automation only on hosts that have all those labels. Use `labels_exclude_any` to make software available for install or installed by policy automation only on hosts that don't have any of those labels.
