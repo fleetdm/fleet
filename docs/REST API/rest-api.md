@@ -8839,13 +8839,11 @@ Modifies an existing script.
 
 ```json
 {
-{
   "id": 1,
   "team_id": null,
   "name": "script_1.sh",
   "created_at": "2023-07-30T13:41:07Z",
   "updated_at": "2023-07-30T13:41:07Z"
-}
 }
 ```
 
