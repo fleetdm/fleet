@@ -17,7 +17,7 @@ echo words${FLEET_SECRET_BAR}words
 $FLEET_SECRET_BAZ
 ${FLEET_SECRET_QUX}
 `
-	secrets := ContainsPrefixVars(fleet.FLEET_SECRET_PREFIX, script)
+	secrets := ContainsPrefixVars(script, fleet.FLEET_SECRET_PREFIX)
 	require.Contains(t, secrets, "FOO")
 	require.Contains(t, secrets, "BAR")
 	require.Contains(t, secrets, "BAZ")
