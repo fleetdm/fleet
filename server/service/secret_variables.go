@@ -19,7 +19,7 @@ const (
 // //////////////////////////////////////////////////////////////////////////////
 
 type secretVariablesRequest struct {
-	SecretVariables []fleet.SecretVariable
+	SecretVariables []fleet.SecretVariable `json:"secrets"`
 }
 
 type secretVariablesResponse struct {

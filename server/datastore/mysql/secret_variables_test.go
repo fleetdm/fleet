@@ -59,7 +59,6 @@ func testUpsertSecretVariables(t *testing.T, ds *Datastore) {
 
 	// Update a secret
 	secretMap["test2"] = "newTestValue2"
-	secrets = createExpectedSecrets()
 	err = ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{
 		{Name: "test2", Value: secretMap["test2"]},
 	})
