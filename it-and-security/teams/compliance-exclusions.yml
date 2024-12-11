@@ -31,3 +31,5 @@ controls:
 policies:
 queries:
 software:
+  packages:
+    - path: ../lib/linux/software/zoom.yml # Zoom for Ubuntu
