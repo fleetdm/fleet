@@ -17,6 +17,7 @@ func TestSecretVariables(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"UpsertSecretVariables", testUpsertSecretVariables},
+		{"ValidateEmbeddedSecrets", testUpsertSecretVariables},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -69,4 +70,51 @@ func testUpsertSecretVariables(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "test2", results[0].Name)
 	assert.Equal(t, secretMap[results[0].Name], results[0].Value)
 
+}
+
+func testValidateEmbeddedSecrets(t *testing.T, ds *Datastore) {
+	noSecrets := `
+This document contains to fleet secrets.
+$FLEET_VAR_XX $HOSTNAME ${SOMETHING_ELSE}
+`
+
+	validSecret := `
+This document contains a valid ${FLEET_SECRET_VALID}.
+Another $FLEET_SECRET_ALSO_VALID.
+`
+
+	invalidSecret := `
+This document contains a secret not stored in the database.
+Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
+`
+	ctx := context.Background()
+	secretMap := map[string]string{
+		"VALID":      "testValue1",
+		"ALSO_VALID": "testValue2",
+	}
+
+	secrets := make([]fleet.SecretVariable, 0, len(secretMap))
+	for name, value := range secretMap {
+		secrets = append(secrets, fleet.SecretVariable{Name: name, Value: value})
+	}
+
+	err := ds.UpsertSecretVariables(ctx, secrets)
+	require.NoError(t, err)
+
+	err = ds.ValidateEmbeddedSecrets(ctx, []string{noSecrets})
+	require.NoError(t, err)
+
+	err = ds.ValidateEmbeddedSecrets(ctx, []string{validSecret})
+	require.NoError(t, err)
+
+	err = ds.ValidateEmbeddedSecrets(ctx, []string{noSecrets, validSecret})
+	require.NoError(t, err)
+
+	err = ds.ValidateEmbeddedSecrets(ctx, []string{invalidSecret})
+	require.Error(t, err)
+	require.ErrorAs(t, err, fleet.MissingSecretsError{MissingSecrets: []string{"INVALID", "ALSO_INVALID"}})
+
+	err = ds.ValidateEmbeddedSecrets(ctx, []string{noSecrets, validSecret, invalidSecret})
+	require.Error(t, err)
+	require.ErrorAs(t, err, fleet.MissingSecretsError{MissingSecrets: []string{"INVALID", "ALSO_INVALID"}})
 }
