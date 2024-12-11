@@ -104,29 +104,28 @@ jobs:
 
       - name: Run Go Tests
         run: |
-            set +e
-            counter=0
-            while [ $counter -lt 20 ]; do
-              ((counter++))
-              echo
-              echo "----- TEST RUN #$counter -----"
-              echo
+          set +e
+          counter=0
+          while [ $counter -lt 20 ]; do
+            ((counter++))
+            echo
+            echo "----- TEST RUN #$counter -----"
+            echo
 
-              GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT" \
-                TEST_LOCK_FILE_PATH=$(pwd)/lock \
-                TEST_CRON_NO_RECOVER=1 \
-                NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
-                make run-go-tests TESTS_TO_RUN=${{ fromJSON(needs.parse_config.outputs.json).tests_to_run }} PKG_TO_TEST=${{ fromJSON(needs.parse_config.outputs.json).pkg_to_test }} 2>&1 | tee /tmp/gotest.log
+            GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT" \
+              TEST_LOCK_FILE_PATH=$(pwd)/lock \
+              TEST_CRON_NO_RECOVER=1 \
+              NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
+              make run-go-tests TESTS_TO_RUN=${{ fromJSON(needs.parse_config.outputs.json).tests_to_run }} PKG_TO_TEST=${{ fromJSON(needs.parse_config.outputs.json).pkg_to_test }} 2>&1 | tee /tmp/gotest.log
 
-              exit_code=$?
+            exit_code=$?
 
-              if [ $exit_code -ne 0 ]; then
-                echo "Test run #$counter failed with exit code $exit_code"
-                exit $exit_code
-              fi              
-                
-            done
-          shell: bash
+            if [ $exit_code -ne 0 ]; then
+              echo "Test run #$counter failed with exit code $exit_code"
+              exit $exit_code
+            fi              
+              
+          done
 
       - name: Create mysql identifier without colon
         if: always()
