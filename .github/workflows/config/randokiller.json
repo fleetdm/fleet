@@ -1,0 +1,7 @@
+{
+  "mysql_matrix": [
+    "mysql:8.0.36"
+  ],
+  "pkg_to_test": "server/datastore/mysql",
+  "tests_to_run": "^TestMDMApple\\$$/^TestMDMAppleProfileLabels\\$$"
+}

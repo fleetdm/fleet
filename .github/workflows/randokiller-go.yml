@@ -1,0 +1,132 @@
+name: Go Tests
+
+on:
+  push:
+    branches:
+      - "*randokiller-*"
+    paths:
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/randokiller-go.yaml"
+      - "docker-compose.yml"
+  workflow_dispatch: # Manual
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  parse_config:
+    runs-on: ubuntu-latest
+    outputs:
+      json: ${{steps.get_config_json.outputs.json}}
+      mysql_matrix: ${{fromJson(steps.get_config_json.outputs.json).mysql_matrix}}
+      tests_to_run: ${{fromJson(steps.get_config_json.outputs.json).tests_to_run}}
+      pkg_to_test: ${{fromJson(steps.get_config_json.outputs.json).pkg_to_test}}
+    steps:
+      id: get_config_json
+      run: |
+        content=`cat ./github/workflows/config/randokiller.json`
+        # the following lines are only required for multi line json
+        content="${content//'%'/'%25'}"
+        content="${content//$'\n'/'%0A'}"
+        content="${content//$'\r'/'%0D'}"
+        # end of optional handling for multi line json
+        echo "json=$content" >> $GITHUB_OUTPUT
+
+  test-go:
+    needs: parse_config
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        mysql: ${{fromJson(needs.parse_config.outputs.json).mysql_matrix}}
+    runs-on: ${{ matrix.os }}
+
+    env:
+      RACE_ENABLED: false
+      GO_TEST_TIMEOUT: 20m
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout Code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: Install Go
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+        with:
+          go-version-file: "go.mod"
+
+      # Pre-starting dependencies here means they are ready to go when we need them.
+      - name: Start Infra Dependencies
+        # Use & to background this
+        run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test &
+
+      - name: Add TLS certificate for SMTP Tests
+        run: |
+          sudo cp tools/smtp4dev/fleet.crt /usr/local/share/ca-certificates/
+          sudo update-ca-certificates
+
+      # It seems faster not to cache Go dependencies
+      - name: Install Go Dependencies
+        run: make deps-go
+
+      - name: Install ZSH
+        run: sudo apt update && sudo apt install -y zsh
+
+      - name: Wait for mysql
+        run: |
+          echo "waiting for mysql..."
+          until docker compose exec -T mysql_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
+              echo "."
+              sleep 1
+          done
+          echo "mysql is ready"
+          echo "waiting for mysql replica..."
+          until docker compose exec -T mysql_replica_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
+              echo "."
+              sleep 1
+          done
+          echo "mysql replica is ready"
+
+      - name: Run Go Tests
+        run: |
+          GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT" \
+            TEST_LOCK_FILE_PATH=$(pwd)/lock \
+            TEST_CRON_NO_RECOVER=1 \
+            NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
+            make run-go-tests TESTS_TO_RUN=${{ fromJSON(needs.parse_config.outputs.json).tests_to_run }} PKG_TO_TEST=${{ fromJSON(needs.parse_config.outputs.json).pkg_to_test }} 2>&1 | tee /tmp/gotest.log
+
+      - name: Create mysql identifier without colon
+        if: always()
+        run: |
+          echo "MATRIX_MYSQL_ID=$(echo ${{ matrix.mysql }} | tr -d ':')" >> $GITHUB_ENV
+
+      - name: Generate summary of errors
+        if: failure()
+        run: |
+          c1grep() { grep "$@" || test $? = 1; }
+          c1grep -oP 'FAIL: .*$' /tmp/gotest.log > /tmp/summary.txt
+          c1grep 'test timed out after' /tmp/gotest.log >> /tmp/summary.txt
+          c1grep 'fatal error:' /tmp/gotest.log >> /tmp/summary.txt
+          c1grep -A 10 'panic: runtime error: ' /tmp/gotest.log >> /tmp/summary.txt
+          c1grep ' FAIL\t' /tmp/gotest.log >> /tmp/summary.txt
+          GO_FAIL_SUMMARY=$(head -n 5 /tmp/summary.txt | sed ':a;N;$!ba;s/\n/\\n/g')
+          echo "GO_FAIL_SUMMARY=$GO_FAIL_SUMMARY"
+          if [[ -z "$GO_FAIL_SUMMARY" ]]; then
+            GO_FAIL_SUMMARY="unknown, please check the build URL"
+          fi
+          GO_FAIL_SUMMARY=$GO_FAIL_SUMMARY envsubst < .github/workflows/config/slack_payload_template.json > ./payload.json
