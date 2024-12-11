@@ -1,0 +1,1 @@
+Allow APNS key to be in unencrypted PKCS8 format, which may happen when migrating from another MDM.

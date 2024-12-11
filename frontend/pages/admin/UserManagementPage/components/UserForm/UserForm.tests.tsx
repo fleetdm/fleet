@@ -74,4 +74,18 @@ describe("UserForm - component", () => {
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
   });
+
+  it("does not render password and 2FA sections when SSO is enabled", () => {
+    render(<UserForm {...defaultProps} canUseSso />);
+
+    // Enable SSO
+    const ssoRadio = screen.getByLabelText("Enable single sign-on");
+    ssoRadio.click();
+
+    // Check that password and 2FA sections are not present
+    expect(screen.queryByText("Password")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Enable two-factor authentication")
+    ).not.toBeInTheDocument();
+  });
 });

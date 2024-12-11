@@ -123,6 +123,7 @@ func TestHosts(t *testing.T) {
 		{"HostsIncludesScheduledQueriesInPackStats", testHostsIncludesScheduledQueriesInPackStats},
 		{"HostsAllPackStats", testHostsAllPackStats},
 		{"HostsPackStatsMultipleHosts", testHostsPackStatsMultipleHosts},
+		{"HostsPackStatsNoDuplication", testHostsPackStatsNoDuplication},
 		{"HostsPackStatsForPlatform", testHostsPackStatsForPlatform},
 		{"HostsReadsLessRows", testHostsReadsLessRows},
 		{"HostsNoSeenTime", testHostsNoSeenTime},
@@ -4627,6 +4628,61 @@ func testHostsPackStatsMultipleHosts(t *testing.T, ds *Datastore) {
 	}
 }
 
+// See #22384.
+func testHostsPackStatsNoDuplication(t *testing.T, ds *Datastore) {
+	osqueryHostID, _ := server.GenerateRandomText(10)
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		Platform:        "darwin",
+		OsqueryHostID:   &osqueryHostID,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	query, err := ds.NewQuery(context.Background(), &fleet.Query{
+		Name:               "global-time",
+		Query:              "select * from time",
+		Saved:              true,
+		TeamID:             nil,
+		Interval:           30,
+		AutomationsEnabled: false,
+		Logging:            fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+
+	host, err = ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+
+	// host should see just one stats entry at this point
+	host, err = ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	packStats := host.PackStats
+	require.Len(t, packStats, 1)
+	require.Len(t, packStats[0].QueryStats, 1)
+
+	// record query results
+	require.NoError(t, ds.OverwriteQueryResultRows(context.Background(), []*fleet.ScheduledQueryResultRow{{
+		QueryID: query.ID,
+		HostID:  host.ID,
+		Data:    ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
+	}}, fleet.DefaultMaxQueryReportRows))
+
+	// host should still see just one stats entry at this point, despite seeing stats from both queries in the UNION
+	host, err = ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	packStats = host.PackStats
+	require.Len(t, packStats, 1)
+	require.Len(t, packStats[0].QueryStats, 1)
+}
+
 // See #2964.
 func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 	osqueryHostID1, _ := server.GenerateRandomText(10)
@@ -6847,7 +6903,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 			`, host.ID, calendarEventID)
 	require.NoError(t, err)
 
-	softwareInstaller, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
+	softwareInstaller, _, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:   "",
 		PreInstallQuery: "",
 		Title:           "ChocolateRain",

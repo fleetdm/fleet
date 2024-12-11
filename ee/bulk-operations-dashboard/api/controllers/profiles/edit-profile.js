@@ -15,7 +15,7 @@ module.exports = {
       required: true,
     },
     newTeamIds: {
-      type: ['string'],
+      type: ['number'],
       description: 'An array of teams that this profile will be deployed on or Undefined if the profile is being removed from a team.'
     },
     newProfile: {

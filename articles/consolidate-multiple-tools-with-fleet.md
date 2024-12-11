@@ -4,19 +4,24 @@ Scaling organizations face a common challenge: managing every device efficiently
 
 ## Fleet’s impact
 
-* **Eliminate tool overlap:**
-Fleet reduced tool overlap by consolidating multiple legacy solutions - improving efficiency and reducing SaaS spending without compromising functionality.
+<div purpose="checklist">
 
-* **Next-gen change management:**
-GitOps capabilities reduce mistakes through peer reviews and keep track of changes for faster auditing.
+**Eliminate tool overlap:** Fleet reduced tool overlap by consolidating multiple legacy solutions - improving efficiency and reducing SaaS spending without compromising functionality.
 
-* **Definitive data:**
-Reliable, live access to their infrastructure to verify device data for better decisions surrounding end-user access and auditing context.
+**Next-gen change management:** GitOps capabilities reduce mistakes through peer reviews and keep track of changes for faster auditing.
 
-* **Seamless customization and integration:**
-Electing to self-host Fleet, and as the company continued to scale, they did so without a single point to their impressive 99.99% uptime.
+**Definitive data:** Reliable, live access to their infrastructure to verify device data for better decisions surrounding end-user access and auditing context.
 
-"We've been using Fleet for a few years and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customize it to our needs, and seamlessly integrate it into our existing environment." - Head of Developer Infrastructure & Corporate Technology
+**Seamless customization and integration:** Electing to self-host Fleet, and as the company continued to scale, they did so without a single point to their impressive 99.99% uptime.
+</div>
+
+
+<div purpose="attribution-quote">
+
+We've been using Fleet for a few years and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customize it to our needs, and seamlessly integrate it into our existing environment.
+
+**- Head of Developer Infrastructure & Corporate Technology**
+</div>
 
 **Challenge:** They looked to simplify how they manage devices and reduce tool overlap without sacrificing control over their infrastructure.  The use of multiple proprietary device management tools was creating operational silos, and it required specialized expertise for different legacy systems, leading to inefficiencies.
 
@@ -47,14 +52,23 @@ Not soon after in April 2023, Fleet announced open-source, [cross-platform MDM c
 
 ### Eliminate tool overlap with easy deployment
 
-"Mad props to how easy making a deploy pkg of the agent was. I wish everyone made stuff that easy."
-— Staff Client Platform Engineer
+<div purpose="attribution-quote">
+
+Mad props to how easy making a deploy pkg of the agent was. I wish everyone made stuff that easy.
+
+**— Staff Client Platform Engineer**
+</div>
 
 Fleet's straightforward deployment package allowed a quick install of the agent across all of its devices. By supporting macOS, Windows, and Linux, Fleet enabled them to not only continue managing osquery but also consolidate its legacy device management tools into a single self-hosted MDM without sacrificing existing control. 
 
 ### Next-gen change management and open-source flexibility
 
-"We've been using Fleet for a few years and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customize it to our needs, and seamlessly integrate it into our existing environment." — Head of Developer Infrastructure & Corporate Technology
+<div purpose="attribution-quote">
+
+We've been using Fleet for a few years and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customize it to our needs, and seamlessly integrate it into our existing environment.
+
+**— Head of Developer Infrastructure & Corporate Technology**
+</div>
 
 Being [open-source](http://fleetdm.com/handbook/company/why-this-way?utm_content=eo-security#why-open-source), Fleet provided the transparency and flexibility to tailor the platform to their specific requirements. This fostered trust among engineering teams and allows them to audit, customize, and extend the platform as needed.
 
@@ -81,6 +95,9 @@ Fleet's cross-platform support and open-source transparency set it apart from co
 
 
 To learn more about how Fleet can support your organization, visit [fleetdm.com/mdm](https://fleetdm.com/mdm).
+
+
+<call-to-action></call-to-action>
 
 <meta name="category" value="announcements">
 <meta name="authorGitHubUsername" value="Drew-P-drawers">

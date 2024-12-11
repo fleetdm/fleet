@@ -1260,6 +1260,7 @@ This activity contains the following fields:
 - "team_name": Name of the team to which this software was added. `null` if it was added to no team." +
 - "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
 - "self_service": Whether the software is available for installation by the end user.
+- "software_title_id": ID of the added software title.
 
 #### Example
 
@@ -1269,7 +1270,8 @@ This activity contains the following fields:
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
   "team_id": 123,
-  "self_service": true
+  "self_service": true,
+  "software_title_id": 2234
 }
 ```
 

@@ -24,6 +24,12 @@ func queryCommand() *cli.Command {
 		Name:      "query",
 		Usage:     "Run a live query",
 		UsageText: `fleetctl query [options]`,
+		Description: `Runs the specified query as a live query on the specified targets. 
+
+Using the --hosts flag individual hosts can be specified with the host's hostname. Groups of hosts can
+specified by using labels. Note if both the --hosts and --labels flags are specified, the query will
+be run on the union of the hosts and hosts with matching labels.
+		`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "hosts",
@@ -37,7 +43,7 @@ func queryCommand() *cli.Command {
 				EnvVars:     []string{"LABELS"},
 				Value:       "",
 				Destination: &flLabels,
-				Usage:       "Comma-separated label names to target",
+				Usage:       "Comma-separated label names to target. Hosts with any of the labels will be targeted.",
 			},
 			&cli.BoolFlag{
 				Name:        "quiet",
