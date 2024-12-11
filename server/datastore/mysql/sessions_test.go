@@ -70,7 +70,7 @@ func testMFA(t *testing.T, ds *Datastore) {
 		_, err := q.ExecContext(
 			context.Background(),
 			"UPDATE verification_tokens SET created_at = NOW() - INTERVAL ? SECOND - INTERVAL 0.5 SECOND",
-			mfaLinkTTL.Seconds(),
+			fleet.MFALinkTTL.Seconds(),
 		)
 		return err
 	})
