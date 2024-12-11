@@ -4,15 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"time"
-
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
 
-const mfaLinkTTL = time.Minute * 15
 const mfaTokenEntropyInBytes = 32
 
 func (ds *Datastore) SessionByMFAToken(ctx context.Context, token string, sessionKeySize int) (*fleet.Session, *fleet.User, error) {
@@ -23,7 +20,7 @@ func (ds *Datastore) SessionByMFAToken(ctx context.Context, token string, sessio
 		&userID,
 		"SELECT user_id FROM verification_tokens WHERE token = ? AND created_at >= NOW() - INTERVAL ? SECOND",
 		token,
-		mfaLinkTTL.Seconds(),
+		fleet.MFALinkTTL.Seconds(),
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
