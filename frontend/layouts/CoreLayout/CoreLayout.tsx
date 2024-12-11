@@ -50,17 +50,7 @@ const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
   };
 
   const onUserMenuItemClick = (path: string) => {
-    return (evt: React.MouseEvent<HTMLButtonElement>) => {
-      evt.preventDefault();
-
-      if (path.indexOf("http") !== -1) {
-        global.window.open(path, "_blank");
-        return false;
-      }
-
-      router.push(path);
-      return false;
-    };
+    router.push(path);
   };
 
   const fullWidthFlash = !currentUser;
