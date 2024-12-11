@@ -31,7 +31,7 @@
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/MinDevicePasswordLength</LocURI>
     </Target>
-    <Data>$FLEET_SECRET_length</Data>
+    <Data>${FLEET_SECRET_length}</Data>
   </Item>
 </Replace>
 <Replace>

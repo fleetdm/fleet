@@ -493,11 +493,13 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	// Find Fleet secrets in profiles
 	var profiles []fleet.MDMProfileSpec
 	if result.Controls.MacOSSettings != nil {
+		// We are marshalling/unmarshalling to get the data into the fleet.MacOSSettings struct.
+		// This is inefficient, but it is more robust and less error-prone.
+		var macOSSettings fleet.MacOSSettings
 		data, err := json.Marshal(result.Controls.MacOSSettings)
 		if err != nil {
 			return multierror.Append(multiError, fmt.Errorf("failed to process controls.macos_settings: %v", err))
 		}
-		var macOSSettings fleet.MacOSSettings
 		err = json.Unmarshal(data, &macOSSettings)
 		if err != nil {
 			return multierror.Append(multiError, fmt.Errorf("failed to process controls.macos_settings: %v", err))
@@ -505,11 +507,13 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		profiles = append(profiles, macOSSettings.CustomSettings...)
 	}
 	if result.Controls.WindowsSettings != nil {
+		// We are marshalling/unmarshalling to get the data into the fleet.WindowsSettings struct.
+		// This is inefficient, but it is more robust and less error-prone.
+		var windowsSettings fleet.WindowsSettings
 		data, err := json.Marshal(result.Controls.WindowsSettings)
 		if err != nil {
 			return multierror.Append(multiError, fmt.Errorf("failed to process controls.windows_settings: %v", err))
 		}
-		var windowsSettings fleet.WindowsSettings
 		err = json.Unmarshal(data, &windowsSettings)
 		if err != nil {
 			return multierror.Append(multiError, fmt.Errorf("failed to process controls.windows_settings: %v", err))

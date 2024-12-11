@@ -238,9 +238,6 @@ func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 				err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
 				return "", false
 			}
-			if secretsMap == nil {
-				secretsMap = make(map[string]string, 1)
-			}
 			secretsMap[env] = v
 		}
 		return "", false
