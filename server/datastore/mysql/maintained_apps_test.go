@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -25,7 +24,6 @@ func TestMaintainedApps(t *testing.T) {
 		{"IngestWithBrew", testIngestWithBrew},
 		{"ListAvailableApps", testListAvailableApps},
 		{"GetMaintainedAppByID", testGetMaintainedAppByID},
-		{"GetSoftwareTitleIdByAppID", testGetSoftwareTitleIdByAppID},
 	}
 
 	for _, c := range cases {
@@ -208,7 +206,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	// Test excluding results for existing apps (installers)
 
 	/// Irrelevant package
-	_, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:            "Irrelevant Software",
 		TeamID:           &team1.ID,
 		InstallScript:    "nothing",
@@ -227,7 +225,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, expectedApps, apps)
 
 	/// Correct package on a different team
-	_, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:            "Maintained1",
 		TeamID:           &team2.ID,
 		InstallScript:    "nothing",
@@ -246,7 +244,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, expectedApps, apps)
 
 	/// Correct package on the right team with the wrong platform
-	_, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:            "Maintained1",
 		TeamID:           &team1.ID,
 		InstallScript:    "nothing",
@@ -378,86 +376,4 @@ func testGetMaintainedAppByID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.Equal(t, expApp, gotApp)
-}
-
-func testGetSoftwareTitleIdByAppID(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	// Maintained app doesn't exist, should get not found error
-	_, err := ds.GetSoftwareTitleIDByMaintainedAppID(ctx, 99, nil)
-	require.Error(t, err)
-	require.True(t, fleet.IsNotFound(err))
-
-	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
-	require.NoError(t, err)
-
-	app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
-		Name:             "foo",
-		Token:            "token",
-		Version:          "1.0.0",
-		Platform:         "darwin",
-		InstallerURL:     "https://example.com/foo.zip",
-		SHA256:           "sha",
-		BundleIdentifier: "bundle",
-		InstallScript:    "install",
-		UninstallScript:  "uninstall",
-	})
-	require.NoError(t, err)
-
-	// Valid maintained app ID, but no installer yet so we should get not found error
-	_, err = ds.GetSoftwareTitleIDByMaintainedAppID(ctx, app.ID, nil)
-	require.Error(t, err)
-	require.True(t, fleet.IsNotFound(err))
-
-	// create a software installer for team and for no team
-	installer, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
-	require.NoError(t, err)
-
-	installerTm1ID, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
-		InstallScript:     "hello",
-		PreInstallQuery:   "SELECT 1",
-		PostInstallScript: "world",
-		InstallerFile:     installer,
-		StorageID:         "storage1",
-		Filename:          "file1",
-		Title:             "file1",
-		Version:           "1.0",
-		Source:            "apps",
-		UserID:            user1.ID,
-		TeamID:            &team1.ID,
-		FleetLibraryAppID: &app.ID,
-	})
-	require.NoError(t, err)
-
-	_, err = ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
-		InstallScript:     "hello",
-		PreInstallQuery:   "SELECT 1",
-		PostInstallScript: "world",
-		InstallerFile:     installer,
-		StorageID:         "storage1",
-		Filename:          "file1",
-		Title:             "file1",
-		Version:           "1.0",
-		Source:            "apps",
-		UserID:            user1.ID,
-		TeamID:            nil,
-		FleetLibraryAppID: &app.ID,
-	})
-	require.NoError(t, err)
-
-	// get the software installer metadata as we will need the associated software title id.
-	installer1, err := ds.GetSoftwareInstallerMetadataByID(ctx, installerTm1ID)
-	require.NoError(t, err)
-	require.NotNil(t, installer1.TitleID)
-
-	stID, err := ds.GetSoftwareTitleIDByMaintainedAppID(ctx, app.ID, &team1.ID)
-	require.NoError(t, err)
-	require.Equal(t, *installer1.TitleID, stID)
-
-	stNoTmID, err := ds.GetSoftwareTitleIDByMaintainedAppID(ctx, app.ID, nil)
-	require.NoError(t, err)
-	require.Equal(t, *installer1.TitleID, stNoTmID)
-
-	require.NoError(t, err)
 }
