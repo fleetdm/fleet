@@ -1165,6 +1165,8 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		}
 	}
 
+	// TODO(mna): validate only one of include/exclude labels are provided, and that they exist
+
 	// keyExpireTime is the current maximum time supported for retrieving
 	// the result of a software by batch operation.
 	const keyExpireTime = 24 * time.Hour
@@ -1314,6 +1316,8 @@ func (svc *Service) softwareBatchUpload(
 				UserID:             userID,
 				URL:                p.URL,
 				InstallDuringSetup: p.InstallDuringSetup,
+				LabelsIncludeAny:   p.LabelsIncludeAny,
+				LabelsExcludeAny:   p.LabelsExcludeAny,
 			}
 
 			// set the filename before adding metadata, as it is used as fallback
