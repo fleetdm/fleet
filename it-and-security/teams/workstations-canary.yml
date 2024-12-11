@@ -151,6 +151,7 @@ queries:
 software:
   packages:
     - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
+    - path: ../lib/linux/software/zoom.yml # Zoom for Ubuntu
   app_store_apps:
       - app_store_id: '803453959' # Slack Desktop
       - app_store_id: '1333542190' # 1Password 7 Desktop
