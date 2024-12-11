@@ -405,6 +405,11 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	default:
 		// TODO what happens if mode is not set?s
 	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(cp.Mobileconfig)}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating fleet secrets")
+	}
+
 	err = validateConfigProfileFleetVariables(string(cp.Mobileconfig))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
@@ -500,6 +505,10 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 
 	validatedLabels, err := svc.validateDeclarationLabels(ctx, labels)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(data)}); err != nil {
 		return nil, err
 	}
 
@@ -1995,6 +2004,15 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		byIdent[mdmProf.Identifier] = true
 
 		profs = append(profs, mdmProf)
+	}
+
+	profStrings := make([]string, 0, len(profs))
+	for _, prof := range profs {
+		profStrings = append(profStrings, string(prof.Mobileconfig))
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, profStrings); err != nil {
+		return ctxerr.Wrap(ctx, err, "validating fleet secrets")
 	}
 
 	if !skipBulkPending {

@@ -76,6 +76,10 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 		ScriptContents: string(b),
 	}
 
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{script.ScriptContents}); err != nil {
+		return ctxerr.Wrap(ctx, err, "validating secrets for setup experience script contents")
+	}
+
 	// setup experience is only supported for macOS currently so we need to override the file
 	// extension check in the general script validation
 	if filepath.Ext(script.Name) != ".sh" {

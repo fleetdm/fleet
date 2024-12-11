@@ -174,6 +174,12 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		}
 	}
 
+	if request.ScriptContents != "" {
+		if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{request.ScriptContents}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validating embedded secrets")
+		}
+	}
+
 	if request.ScriptName != "" {
 		scriptID, err := svc.GetScriptIDByName(ctx, request.ScriptName, &request.TeamID)
 		if err != nil {
@@ -509,6 +515,11 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 		Name:           name,
 		ScriptContents: string(b),
 	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{script.ScriptContents}); err != nil {
+		return nil, fleet.NewInvalidArgumentError("script", err.Error())
+	}
+
 	if err := script.ValidateNewScript(); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
@@ -858,6 +869,10 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 		if err := script.ValidateNewScript(); err != nil {
 			return nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), err.Error()))
+		}
+
+		if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{script.ScriptContents}); err != nil {
+			return nil, fleet.NewInvalidArgumentError(fmt.Sprintf("script[%d]", i), err.Error())
 		}
 
 		if byName[script.Name] {
