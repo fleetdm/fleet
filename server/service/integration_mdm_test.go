@@ -2919,6 +2919,9 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 
 	// list commands returns that command
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commands", nil, http.StatusOK, &listCmdResp)
+	results, err := json.Marshal(listCmdResp.Results)
+	t.Logf("GET /api/latest/fleet/mdm/apple/commands response:\n%s", results)
+
 	require.Len(t, listCmdResp.Results, 1)
 	require.NotZero(t, listCmdResp.Results[0].UpdatedAt)
 	listCmdResp.Results[0].UpdatedAt = time.Time{}
