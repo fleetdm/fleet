@@ -493,6 +493,31 @@ module.exports = {
       tags: [`license_tier:free`],
     });
 
+    // FUTURE: Uncomment the section below to send metrics about reported number of queries to Datadog.
+    // let fleetInstancesThatReportedNumQueries = _.filter(latestStatisticsReportedByReleasedFleetVersions, (statistics)=>{
+    //   return statistics.numQueries > 0;
+    // });
+
+    // let averageNumberOfQueries = Math.foor(_.sum(_.pluck(fleetInstancesThatReportedNumQueries, 'numQueries')) / fleetInstancesThatReportedNumQueries.length);
+    // metricsToReport.push({
+    //   metric: 'usage_statistics.avg_num_queries',
+    //   type: 3,
+    //   points: [{
+    //     timestamp: timestampForTheseMetrics,
+    //     value: averageNumberOfQueries
+    //   }],
+    // });
+
+    // let highestNumberOfQueries = _.max(_.pluck(fleetInstancesThatReportedNumQueries, 'numQueries'));
+    // metricsToReport.push({
+    //   metric: 'usage_statistics.max_num_queries',
+    //   type: 3,
+    //   points: [{
+    //     timestamp: timestampForTheseMetrics,
+    //     value: highestNumberOfQueries
+    //   }],
+    // });
+
     // Break the metrics into smaller arrays to ensure we don't exceed Datadog's 512 kb request body limit.
     let chunkedMetrics = _.chunk(metricsToReport, 500);// Note: 500 stringified JSON metrics is ~410 kb.
     for(let chunkOfMetrics of chunkedMetrics) {
