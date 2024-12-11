@@ -620,21 +620,19 @@
     }
     [purpose='large-quote'] {
       font-style: italic;
-      margin: 24px 0 32px 0px;
       line-height: 24px;
       font-size: 16px;
     }
-    [purpose='large-quote']::before, [purpose='quote']::before, [purpose='attribution-quote']::before {
+    [purpose='large-quote']::before, [purpose='quote']::before {
       content: ' ';
-      background-image: url('/images/icon-quote-21x17@2x.png');
-      background-repeat: no-repeat;
-      background-size: 21px 17px;
+      background-image: url('/images/icon-quote-mark-22x18@2x.png');
+      background-size: 22px 18px;
       display: block;
       position: relative;
-      top: -16px;
-      left: 0px;
-      width: 21px;
-      height: 17px;
+      top: 24px;
+      left: -40px;
+      width: 22px;
+      height: 18px;
     }
     [purpose='attribution-quote'] {
       margin: 72px 0 32px 0px;
@@ -655,6 +653,18 @@
         font-weight: 700;
         line-height: 18px;
       }
+    }
+    [purpose='attribution-quote']::before {
+      content: ' ';
+      background-image: url('/images/icon-quote-21x17@2x.png');
+      background-repeat: no-repeat;
+      background-size: 21px 17px;
+      display: block;
+      position: relative;
+      top: -16px;
+      left: 0px;
+      width: 21px;
+      height: 17px;
     }
     [purpose='checklist'] {
       margin-bottom: 32px;
@@ -846,6 +856,7 @@
     [purpose='large-button-text'] { // Changes the Slack call to action (Join the Fleet community on Slack -> Join Fleet on Slack)
       display: none;
     }
+
   }
 
 }
