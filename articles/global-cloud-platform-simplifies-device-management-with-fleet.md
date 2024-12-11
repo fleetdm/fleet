@@ -1,23 +1,30 @@
 # Global edge cloud platform simplifies device management with Fleet
 
-_“We had a different MDM for Mac, a different MDM for Windows, and a different MDM for Linux... it’s just too much.”_
+<div purpose="attribution-quote">
+
+We had a different MDM for Mac, a different MDM for Windows, and a different MDM for Linux... it’s just too much.
+
+</div>
 
 ## Fleet's impact:
 
-* **Eliminate tool overlap:**
+<div purpose="checklist">
+
+**Eliminate tool overlap:**
 Fleet’s unified platform eliminates the need to manage multiple MDM platforms for each operating system. By providing in-depth data insights in real-time, this global cloud platform was also able to replace other tools often deployed alongside other MDM solutions to maintain full control over their infrastructure. 
 
-* **Definitive data for instant audits:**
+**Definitive data for instant audits:**
 Fleet provides trustworthy data and portability to send their data to systems other teams can also work out of, simplifying compliance processes and making audits less burdensome.
 
-* **Automated updates**
+**Automated updates**
 Policy automation eliminated manual intervention for software updates and patching, keeping their devices more secure and freeing IT resources.
 
-* **Improved support efficiency**
+**Improved support efficiency**
 Accurate, real-time data allowed support teams to resolve issues faster and assist employees more effectively.
 
-* **Zero-touch onboarding to self-service**
+**Zero-touch onboarding to self-service**
 Fleet provides a great out-of-the-box user experience from day one, while also empowering employees to stay productive without needing to reach out to IT.
+</div>
 
 **Challenge:** The cloud platform was managing thousands of devices with multiple tools across multiple operating systems and global locations, resulting in fragmented processes and unreliable asset data. This complexity compromised security, compliance, and operational efficiency, making it difficult to maintain consistent device check-ins and accurate inventory.
 
@@ -39,7 +46,12 @@ While continuing to expand, managing a diverse range of devices across multiple 
 
 ## The solution
 
-_“We had a different MDM for Mac, a different MDM for Windows, a different MDM for Linux, and a different MDM for Android build devices… it’s just too much.” — Staff Client Platform Engineer_
+<div purpose="attribution-quote">
+
+We had a different MDM for Mac, a different MDM for Windows, a different MDM for Linux, and a different MDM for Android build devices… it’s just too much.
+
+**— Staff Client Platform Engineer**
+</div>
 
 A unified solution was needed to replace multiple device management suppliers with a single platform. Fleet provided the tools and flexibility required to address these challenges through:
 
@@ -74,9 +86,17 @@ In addition to automated patching, Fleet empowers employees with self-service to
 ## Conclusion
 
 Fleet has become an essential part of this cloud platform's infrastructure, allowing the company to manage its devices more effectively. By consolidating tools across platforms, Fleet simplified device operations and ensured compliance with stringent requirements. The platform’s automation and real-time data capabilities reduced manual efforts and provided accurate insights, while its self-service tools helped employees resolve unique issues independently. These improvements have supported the goals of maintaining security, reliability, and efficient operations as the company continues to grow.
+
 By adopting Fleet, they've transformed its device management processes, achieving greater security, reliability, and scalability to support its global operations.
 
-_“I love Fleet.” — Staff Client Platform Engineer_
+<div purpose="attribution-quote">
+
+I love Fleet.
+
+**— Staff Client Platform Engineer**
+</div>
+
+<call-to-action></call-to-action>
 
 <meta name="category" value="announcements">
 <meta name="authorGitHubUsername" value="Drew-P-drawers">

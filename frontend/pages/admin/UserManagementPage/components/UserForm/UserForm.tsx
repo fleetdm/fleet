@@ -362,7 +362,7 @@ const UserForm = ({
             <SelectRoleForm
               currentTeam={currentTeam || formData.teams[0]}
               teams={formData.teams}
-              defaultTeamRole={defaultTeamRole || "observer"}
+              defaultTeamRole={defaultTeamRole || "Observer"}
               onFormChange={onTeamRoleChange}
               isApiOnly={isApiOnly}
             />
@@ -630,6 +630,7 @@ const UserForm = ({
             renderPasswordSection()}
           {(isPremiumTier || isMfaEnabled) &&
             !formData.sso_enabled &&
+            isModifiedByGlobalAdmin &&
             renderTwoFactorAuthenticationOption()}
           {isPremiumTier ? renderPremiumRoleOptions() : renderGlobalRoleForm()}
         </form>

@@ -22,6 +22,7 @@ import {
   IPolicy,
 } from "interfaces/policy";
 import { API_ALL_TEAMS_ID, API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import { IDropdownOption, TooltipContent } from "interfaces/dropdownOption";
 
 import configAPI from "services/entities/config";
 import globalPoliciesAPI, {
@@ -168,7 +169,10 @@ const ManagePolicyPage = ({
 
   // Needs update on location change or table state might not match URL
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
-  const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
+  const [
+    tableQueryDataForApi,
+    setTableQueryDataForApi,
+  ] = useState<ITableQueryData>();
   const [sortHeader, setSortHeader] = useState(initialSortHeader);
   const [sortDirection, setSortDirection] = useState<
     "asc" | "desc" | undefined
@@ -224,7 +228,7 @@ const ManagePolicyPage = ({
     [
       {
         scope: "globalPolicies",
-        page: tableQueryData?.pageIndex,
+        page: tableQueryDataForApi?.pageIndex,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDirection: sortDirection,
@@ -280,7 +284,7 @@ const ManagePolicyPage = ({
     [
       {
         scope: "teamPolicies",
-        page: tableQueryData?.pageIndex,
+        page: tableQueryDataForApi?.pageIndex,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDirection: sortDirection,
@@ -336,7 +340,8 @@ const ManagePolicyPage = ({
 
   const canAddOrDeletePolicy =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
-  const canManageAutomations = isGlobalAdmin || isTeamAdmin;
+  const canManageAutomations =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   const {
     data: config,
@@ -388,7 +393,7 @@ const ManagePolicyPage = ({
 
   // NOTE: used to reset page number to 0 when modifying filters
   const handleResetPageIndex = () => {
-    setTableQueryData(
+    setTableQueryDataForApi(
       (prevState) =>
         ({
           ...prevState,
@@ -410,11 +415,11 @@ const ManagePolicyPage = ({
   // TODO: Look into useDebounceCallback with dependencies
   const onQueryChange = useCallback(
     async (newTableQuery: ITableQueryData) => {
-      if (!isRouteOk || isEqual(newTableQuery, tableQueryData)) {
+      if (!isRouteOk || isEqual(newTableQuery, tableQueryDataForApi)) {
         return;
       }
 
-      setTableQueryData({ ...newTableQuery });
+      setTableQueryDataForApi({ ...newTableQuery });
 
       const {
         pageIndex: newPageIndex,
@@ -449,11 +454,11 @@ const ManagePolicyPage = ({
         queryParams: { ...queryParams, ...newQueryParams },
       });
 
-      router?.replace(locationPath);
+      router?.push(locationPath);
     },
     [
       isRouteOk,
-      tableQueryData,
+      tableQueryDataForApi,
       sortDirection,
       sortHeader,
       searchQuery,
@@ -853,10 +858,18 @@ const ManagePolicyPage = ({
     );
   };
 
+  const isCalEventsConfigured =
+    (config?.integrations.google_calendar &&
+      config?.integrations.google_calendar.length > 0) ??
+    false;
+
+  const isCalEventsEnabled =
+    teamConfig?.integrations.google_calendar?.enable_calendar_events ?? false;
+
   const getAutomationsDropdownOptions = (configPresent: boolean) => {
-    let disabledInstallTooltipContent: React.ReactNode;
-    let disabledCalendarTooltipContent: React.ReactNode;
-    let disabledRunScriptTooltipContent: React.ReactNode;
+    let disabledInstallTooltipContent: TooltipContent;
+    let disabledCalendarTooltipContent: TooltipContent;
+    let disabledRunScriptTooltipContent: TooltipContent;
     if (!isPremiumTier) {
       disabledInstallTooltipContent = "Available in Fleet Premium.";
       disabledCalendarTooltipContent = "Available in Fleet Premium.";
@@ -883,27 +896,20 @@ const ManagePolicyPage = ({
           run script automation.
         </>
       );
-    }
-    const installSWOption = {
-      label: "Install software",
-      value: "install_software",
-      disabled: !!disabledInstallTooltipContent,
-      helpText: "Install software to resolve failing policies.",
-      tooltipContent: disabledInstallTooltipContent,
-    };
-    const runScriptOption = {
-      label: "Run script",
-      value: "run_script",
-      disabled: !!disabledRunScriptTooltipContent,
-      helpText: "Run script to resolve failing policies.",
-      tooltipContent: disabledRunScriptTooltipContent,
-    };
-
-    if (!configPresent) {
-      return [installSWOption, runScriptOption];
+    } else if (
+      (isGlobalMaintainer || isTeamMaintainer) &&
+      !isCalEventsEnabled
+    ) {
+      disabledCalendarTooltipContent = (
+        <>
+          Contact a user with an
+          <br />
+          admin role for access.
+        </>
+      );
     }
 
-    return [
+    const options: IDropdownOption[] = [
       {
         label: "Calendar events",
         value: "calendar_events",
@@ -911,21 +917,34 @@ const ManagePolicyPage = ({
         helpText: "Automatically reserve time to resolve failing policies.",
         tooltipContent: disabledCalendarTooltipContent,
       },
-      installSWOption,
-      runScriptOption,
       {
+        label: "Install software",
+        value: "install_software",
+        disabled: !!disabledInstallTooltipContent,
+        helpText: "Install software to resolve failing policies.",
+        tooltipContent: disabledInstallTooltipContent,
+      },
+      {
+        label: "Run script",
+        value: "run_script",
+        disabled: !!disabledRunScriptTooltipContent,
+        helpText: "Run script to resolve failing policies.",
+        tooltipContent: disabledRunScriptTooltipContent,
+      },
+    ];
+
+    // Maintainers do not have access to other workflows
+    if (configPresent && !isGlobalMaintainer && !isTeamMaintainer) {
+      options.push({
         label: "Other workflows",
         value: "other_workflows",
         disabled: false,
         helpText: "Create tickets or fire webhooks for failing policies.",
-      },
-    ];
-  };
+      });
+    }
 
-  const isCalEventsConfigured =
-    (config?.integrations.google_calendar &&
-      config?.integrations.google_calendar.length > 0) ??
-    false;
+    return options;
+  };
 
   if (!isRouteOk) {
     return <Spinner />;
@@ -1048,10 +1067,7 @@ const ManagePolicyPage = ({
             onExit={toggleCalendarEventsModal}
             onSubmit={onUpdateCalendarEvents}
             configured={isCalEventsConfigured}
-            enabled={
-              teamConfig?.integrations.google_calendar
-                ?.enable_calendar_events ?? false
-            }
+            enabled={isCalEventsEnabled}
             url={teamConfig?.integrations.google_calendar?.webhook_url || ""}
             policies={policiesAvailableToAutomate}
             isUpdating={isUpdatingPolicies}
