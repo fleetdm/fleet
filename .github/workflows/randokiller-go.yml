@@ -109,7 +109,7 @@ jobs:
             TEST_LOCK_FILE_PATH=$(pwd)/lock \
             TEST_CRON_NO_RECOVER=1 \
             NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
-            make run-go-tests TESTS_TO_RUN=${{ fromJSON(needs.parse_config.outputs.json).tests_to_run }} PKG_TO_TEST=${{ fromJSON(needs.parse_config.outputs.json).pkg_to_test }} 2>&1 | tee /tmp/gotest.log \
+            make run-go-tests TESTS_TO_RUN=${{ fromJSON(needs.parse_config.outputs.json).tests_to_run }} PKG_TO_TEST=${{ fromJSON(needs.parse_config.outputs.json).pkg_to_test }} 2>&1 | tee /tmp/gotest.log; \
             done
 
       - name: Create mysql identifier without colon
