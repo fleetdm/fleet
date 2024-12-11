@@ -11774,7 +11774,7 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	// create a software installation request
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
 	require.NoError(t, err)
-	sw1, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	sw1, _, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install foo",
 		InstallerFile: tfr1,
 		StorageID:     uuid.NewString(),
