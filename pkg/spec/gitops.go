@@ -434,6 +434,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal controls: %v", err))
 	}
 	controlsTop.Defined = true
+	controlsDir := baseDir
 	if controlsTop.Path == nil {
 		controlsTop.Scripts, err = resolveScriptPaths(controlsTop.Scripts, baseDir)
 		if err != nil {
@@ -470,6 +471,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 			result.Controls = pathControls
 		}
+		controlsDir = filepath.Dir(controlsFilePath)
 	}
 
 	// Find Fleet secrets in scripts.
@@ -481,6 +483,46 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		fileBytes, err := os.ReadFile(*script.Path)
 		if err != nil {
 			return multierror.Append(multiError, fmt.Errorf("failed to read scripts file %s: %v", *script.Path, err))
+		}
+		err = LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
+		if err != nil {
+			return multierror.Append(multiError, err)
+		}
+	}
+
+	// Find Fleet secrets in profiles
+	var profiles []fleet.MDMProfileSpec
+	if result.Controls.MacOSSettings != nil {
+		data, err := json.Marshal(result.Controls.MacOSSettings)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to process controls.macos_settings: %v", err))
+		}
+		var macOSSettings fleet.MacOSSettings
+		err = json.Unmarshal(data, &macOSSettings)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to process controls.macos_settings: %v", err))
+		}
+		profiles = append(profiles, macOSSettings.CustomSettings...)
+	}
+	if result.Controls.WindowsSettings != nil {
+		data, err := json.Marshal(result.Controls.WindowsSettings)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to process controls.windows_settings: %v", err))
+		}
+		var windowsSettings fleet.WindowsSettings
+		err = json.Unmarshal(data, &windowsSettings)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to process controls.windows_settings: %v", err))
+		}
+		if windowsSettings.CustomSettings.Valid {
+			profiles = append(profiles, windowsSettings.CustomSettings.Value...)
+		}
+	}
+	for _, profile := range profiles {
+		resolvedPath := resolveApplyRelativePath(controlsDir, profile.Path)
+		fileBytes, err := os.ReadFile(resolvedPath)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to read profile file %s: %v", resolvedPath, err))
 		}
 		err = LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
 		if err != nil {
