@@ -832,6 +832,8 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 }
 
 func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+	// TODO(mna): handle the include/exclude labels...
+
 	const upsertSoftwareTitles = `
 INSERT INTO software_titles
   (name, source, browser)

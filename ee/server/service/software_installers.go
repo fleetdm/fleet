@@ -16,6 +16,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -1121,7 +1122,7 @@ const (
 )
 
 func (svc *Service) BatchSetSoftwareInstallers(
-	ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool,
+	ctx context.Context, tmName string, payloads []*fleet.SoftwareInstallerPayload, dryRun bool,
 ) (string, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return "", err
@@ -1163,15 +1164,27 @@ func (svc *Service) BatchSetSoftwareInstallers(
 				fmt.Sprintf("Couldn't edit software. URL (%q) is invalid", payload.URL),
 			)
 		}
-		if len(payload.LabelsExcludeAny) > 0 && len(payload.LabelsIncludeAny) > 0 {
+		switch {
+		case len(payload.LabelsExcludeAny) > 0 && len(payload.LabelsIncludeAny) > 0:
 			return "", fleet.NewInvalidArgumentError(
 				"software.labels_exclude_any",
 				"Only one of `labels_include_any` or `labels_exclude_any` can be specified.",
 			)
+		case len(payload.LabelsExcludeAny) > 0:
+			scopeLabels, err := svc.validateSoftwareInstallerLabels(ctx, payload.LabelsExcludeAny)
+			if err != nil {
+				return "", err
+			}
+			// TODO(mna): I don't technically need the Exclude field in SoftwareScopeLabel, is it necessary?
+			payload.ResolvedLabelsExcludeAny = scopeLabels
+		case len(payload.LabelsIncludeAny) > 0:
+			scopeLabels, err := svc.validateSoftwareInstallerLabels(ctx, payload.LabelsIncludeAny)
+			if err != nil {
+				return "", err
+			}
+			payload.ResolvedLabelsIncludeAny = scopeLabels
 		}
 	}
-
-	// TODO(mna): validate that labels exist if provided
 
 	// keyExpireTime is the current maximum time supported for retrieving
 	// the result of a software by batch operation.
@@ -1200,6 +1213,47 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	return requestUUID, nil
 }
 
+func (svc *Service) validateSoftwareInstallerLabels(ctx context.Context, labelNames []string) ([]*fleet.SoftwareScopeLabel, error) {
+	labelMap, err := svc.batchValidateSoftwareInstallerLabels(ctx, labelNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating software installer labels")
+	}
+
+	var swLabels []*fleet.SoftwareScopeLabel
+	for _, label := range labelMap {
+		swLabels = append(swLabels, label)
+	}
+	return swLabels, nil
+}
+
+func (svc *Service) batchValidateSoftwareInstallerLabels(ctx context.Context, labelNames []string) (map[string]*fleet.SoftwareScopeLabel, error) {
+	if len(labelNames) == 0 {
+		return nil, nil
+	}
+
+	labelNames = server.RemoveDuplicatesFromSlice(labelNames)
+	labels, err := svc.ds.LabelIDsByName(ctx, labelNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
+	}
+
+	if len(labels) != len(labelNames) {
+		return nil, &fleet.BadRequestError{
+			Message:     "some or all the labels provided don't exist",
+			InternalErr: fmt.Errorf("names provided: %v", labelNames),
+		}
+	}
+
+	swLabels := make(map[string]*fleet.SoftwareScopeLabel)
+	for labelName, labelID := range labels {
+		swLabels[labelName] = &fleet.SoftwareScopeLabel{
+			LabelName: labelName,
+			LabelID:   labelID,
+		}
+	}
+	return swLabels, nil
+}
+
 const (
 	batchSetProcessing   = "processing"
 	batchSetCompleted    = "completed"
@@ -1210,7 +1264,7 @@ func (svc *Service) softwareBatchUpload(
 	requestUUID string,
 	teamID *uint,
 	userID uint,
-	payloads []fleet.SoftwareInstallerPayload,
+	payloads []*fleet.SoftwareInstallerPayload,
 	dryRun bool,
 ) {
 	var batchErr error
@@ -1312,18 +1366,20 @@ func (svc *Service) softwareBatchUpload(
 			// readers will have their Close deferred after the join/wait of
 			// goroutines.
 			installer := &fleet.UploadSoftwareInstallerPayload{
-				TeamID:             teamID,
-				InstallScript:      p.InstallScript,
-				PreInstallQuery:    p.PreInstallQuery,
-				PostInstallScript:  p.PostInstallScript,
-				UninstallScript:    p.UninstallScript,
-				InstallerFile:      tfr,
-				SelfService:        p.SelfService,
-				UserID:             userID,
-				URL:                p.URL,
-				InstallDuringSetup: p.InstallDuringSetup,
-				LabelsIncludeAny:   p.LabelsIncludeAny,
-				LabelsExcludeAny:   p.LabelsExcludeAny,
+				TeamID:                   teamID,
+				InstallScript:            p.InstallScript,
+				PreInstallQuery:          p.PreInstallQuery,
+				PostInstallScript:        p.PostInstallScript,
+				UninstallScript:          p.UninstallScript,
+				InstallerFile:            tfr,
+				SelfService:              p.SelfService,
+				UserID:                   userID,
+				URL:                      p.URL,
+				InstallDuringSetup:       p.InstallDuringSetup,
+				LabelsIncludeAny:         p.LabelsIncludeAny,
+				LabelsExcludeAny:         p.LabelsExcludeAny,
+				ResolvedLabelsIncludeAny: p.ResolvedLabelsIncludeAny,
+				ResolvedLabelsExcludeAny: p.ResolvedLabelsExcludeAny,
 			}
 
 			// set the filename before adding metadata, as it is used as fallback
