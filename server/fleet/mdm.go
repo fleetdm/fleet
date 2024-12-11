@@ -18,6 +18,11 @@ const (
 	MDMAppleDeclarationUUIDPrefix = "d"
 	MDMAppleProfileUUIDPrefix     = "a"
 	MDMWindowsProfileUUIDPrefix   = "w"
+
+	// RefetchMDMUnenrollCriticalQueryDuration is the duration to set the
+	// RefetchCriticalQueriesUntil field when migrating a device from a
+	// third-party MDM solution to Fleet.
+	RefetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
 )
 
 type AppleMDM struct {

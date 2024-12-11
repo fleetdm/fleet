@@ -33,6 +33,7 @@ type Controls struct {
 	WindowsUpdates              interface{} `json:"windows_updates"`
 	WindowsSettings             interface{} `json:"windows_settings"`
 	WindowsEnabledAndConfigured interface{} `json:"windows_enabled_and_configured"`
+	WindowsMigrationEnabled     interface{} `json:"windows_migration_enabled"`
 
 	EnableDiskEncryption interface{} `json:"enable_disk_encryption"`
 
@@ -46,7 +47,7 @@ func (c Controls) Set() bool {
 		c.IPadOSUpdates != nil || c.MacOSSettings != nil ||
 		c.MacOSSetup != nil || c.MacOSMigration != nil ||
 		c.WindowsUpdates != nil || c.WindowsSettings != nil || c.WindowsEnabledAndConfigured != nil ||
-		c.EnableDiskEncryption != nil || len(c.Scripts) > 0
+		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || len(c.Scripts) > 0
 }
 
 type Policy struct {
@@ -169,7 +170,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	}
 
 	// Validate the required top level options
-	multiError = parseControls(top, result, baseDir, multiError)
+	multiError = parseControls(top, result, baseDir, multiError, filePath)
 	multiError = parseAgentOptions(top, result, baseDir, logFn, multiError)
 	multiError = parseQueries(top, result, baseDir, logFn, multiError)
 
@@ -417,19 +418,24 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 	return multiError
 }
 
-func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error, yamlFilename string) *multierror.Error {
 	controlsRaw, ok := top["controls"]
 	if !ok {
 		// Nothing to do, return.
 		return multiError
 	}
 	var controlsTop Controls
-	if err := json.Unmarshal(controlsRaw, &controlsTop); err != nil {
+	var err error
+
+	if err = json.Unmarshal(controlsRaw, &controlsTop); err != nil {
 		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal controls: %v", err))
 	}
 	controlsTop.Defined = true
 	if controlsTop.Path == nil {
-		controlsTop.Scripts = resolvePaths(controlsTop.Scripts, baseDir)
+		controlsTop.Scripts, err = resolveScriptPaths(controlsTop.Scripts, baseDir)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to parse scripts list in %s: %v", yamlFilename, err))
+		}
 		result.Controls = controlsTop
 	} else {
 		controlsFilePath := resolveApplyRelativePath(baseDir, *controlsTop.Path)
@@ -455,24 +461,29 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				)
 			}
 
-			pathControls.Scripts = resolvePaths(pathControls.Scripts, filepath.Dir(controlsFilePath))
+			pathControls.Scripts, err = resolveScriptPaths(pathControls.Scripts, filepath.Dir(controlsFilePath))
+			if err != nil {
+				return multierror.Append(multiError, fmt.Errorf("failed to parse scripts list in %s: %v", yamlFilename, err))
+			}
 			result.Controls = pathControls
 		}
 	}
 	return multiError
 }
 
-func resolvePaths(input []BaseItem, baseDir string) []BaseItem {
+func resolveScriptPaths(input []BaseItem, baseDir string) ([]BaseItem, error) {
 	var resolved []BaseItem
 	for _, item := range input {
-		if item.Path != nil {
-			resolvedPath := resolveApplyRelativePath(baseDir, *item.Path)
-			item.Path = &resolvedPath
+		if item.Path == nil {
+			return nil, errors.New(`script entry was specified without a path; check for a stray "-" in your scripts list`)
 		}
+
+		resolvedPath := resolveApplyRelativePath(baseDir, *item.Path)
+		item.Path = &resolvedPath
 		resolved = append(resolved, item)
 	}
 
-	return resolved
+	return resolved, nil
 }
 
 func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {

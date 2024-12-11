@@ -964,6 +964,9 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_host_mdm_managed_certificates", func(ctx context.Context) error {
 			return ds.CleanUpMDMManagedCertificates(ctx)
 		}),
+		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
+			return ds.CleanupHostMDMAppleProfiles(ctx)
+		}),
 	)
 
 	return s, nil

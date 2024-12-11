@@ -8,13 +8,11 @@ import { IOSSettings } from "interfaces/host";
 import {
   HostPlatform,
   isDiskEncryptionSupportedLinuxPlatform,
-  platformSupportsDiskEncryption,
 } from "interfaces/platform";
 
 import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import { isDiskEncryptionProfile } from "pages/hosts/details/OSSettingsModal/OSSettingsTable/OSSettingStatusCell/helpers";
 
 const baseClass = "host-details-banners";
 
@@ -110,16 +108,13 @@ const HostDetailsBanners = ({
       </div>
     );
   }
-  // setting applies
   if (
     hostPlatform &&
-    platformSupportsDiskEncryption(hostPlatform, hostOsVersion) &&
+    isDiskEncryptionSupportedLinuxPlatform(hostPlatform, hostOsVersion ?? "") &&
     diskEncryptionOSSetting?.status
   ) {
-    if (
-      !diskIsEncrypted &&
-      isDiskEncryptionSupportedLinuxPlatform(hostPlatform, hostOsVersion ?? "")
-    ) {
+    // setting applies to a Linux host
+    if (!diskIsEncrypted) {
       // linux host not in compliance with setting
       return (
         <div className={baseClass}>
@@ -143,8 +138,9 @@ const HostDetailsBanners = ({
       );
     }
     if (!diskEncryptionKeyAvailable) {
-      // disk is encrypted, but Fleet doesn't yet have a disk
-      // encryption key escrowed (possible for Linux hosts)
+      // linux host's disk is encrypted, but Fleet doesn't yet have a disk
+      // encryption key escrowed (note that this state is also possible for Windows hosts, which we
+      // don't show this banner for currently)
       return (
         <div className={baseClass}>
           <InfoBanner color="yellow">

@@ -44,7 +44,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version-file: 'go.mod'
+          go-version-file: "go.mod"
 
       - name: Set up Node.js
         uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
@@ -72,11 +72,12 @@ jobs:
           popd
 
       - name: Run GoReleaser
+        id: goreleaser
         uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b
         with:
           distribution: goreleaser-pro
-          version: "~> 1"
-          args: release --rm-dist -f .goreleaser.yml
+          version: "~> 2"
+          args: release --clean -f .goreleaser.yml
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -85,6 +86,41 @@ jobs:
           APPLE_APP_STORE_CONNECT_KEY: ${{ secrets.APPLE_APP_STORE_CONNECT_KEY }}
           APPLE_APP_STORE_CONNECT_KEY_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_KEY_ID }}
           APPLE_APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_ISSUER_ID }}
+
+      - name: Attest binaries and archives
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: "dist/fleet*"
+
+      # Get the commit hash so we can get image digests
+      - name: Get the short commit hash
+        id: commit
+        run: echo "short_commit=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      # Get the image digests from the goreleaser artifacts
+      # Adapted from https://github.com/goreleaser/goreleaser/issues/4852#issuecomment-2122790132
+      - name: Get image digests
+        continue-on-error: true
+        id: image_digests
+        run: |
+          echo "digest_fleet=$(echo ${{ steps.goreleaser.outputs.artifacts }} | jq -r '.[]|select(.type == "Published Docker Image" and (.name | contains("fleetdm/fleet:${{ steps.commit.outputs.short_commit }}"))) | select(. != null)|.extra.Digest')" >> "$GITHUB_OUTPUT"
+          echo "digest_fleetctl=$(echo ${{ steps.goreleaser.outputs.artifacts }} | jq -r '.[]|select(.type == "Published Docker Image" and (.name | contains("fleetdm/fleetctl:${{ steps.commit.outputs.short_commit }}"))) | select(. != null)|.extra.Digest')" >> "$GITHUB_OUTPUT"
+
+      - name: Attest Fleet image
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        continue-on-error: true
+        with:
+          subject-digest: ${{steps.image_digests.outputs.digest_fleet}}
+          subject-name: "fleetdm/fleet:${{ steps.commit.outputs.short_commit }}"
+          push-to-registry: true
+
+      - name: Attest FleetCtl image
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        continue-on-error: true
+        with:
+          subject-digest: ${{steps.image_digests.outputs.digest_fleetctl}}
+          subject-name: "fleetdm/fleetctl:${{ steps.commit.outputs.short_commit }}"
+          push-to-registry: true
 
       - name: Get tag
         run: |

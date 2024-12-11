@@ -1,6 +1,9 @@
 package luks
 
 import (
+	"errors"
+	"regexp"
+
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 )
 
@@ -10,7 +13,7 @@ type KeyEscrower interface {
 
 type LuksRunner struct {
 	escrower KeyEscrower
-	notifier dialog.Dialog
+	notifier dialog.Dialog //nolint:structcheck,unused
 }
 
 type LuksResponse struct {
@@ -29,9 +32,18 @@ type LuksResponse struct {
 	Err string
 }
 
-func New(escrower KeyEscrower, notifier dialog.Dialog) *LuksRunner {
+func New(escrower KeyEscrower) *LuksRunner {
 	return &LuksRunner{
 		escrower: escrower,
-		notifier: notifier,
 	}
+}
+
+func extractJSON(input []byte) ([]byte, error) {
+	// Regular expression to extract JSON
+	re := regexp.MustCompile(`(?s)\{.*\}`)
+	match := re.FindString(string(input))
+	if match == "" {
+		return nil, errors.New("no JSON found")
+	}
+	return []byte(match), nil
 }

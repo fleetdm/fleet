@@ -17,8 +17,6 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 	return svc.ds.ListPoliciesForHost(ctx, host)
 }
 
-const refetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
-
 // TriggerMigrateMDMDevice triggers the webhook associated with the MDM
 // migration to Fleet configuration. It is located in the ee package instead of
 // the server/webhooks one because it is a Fleet Premium only feature and for
@@ -88,7 +86,7 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 	// if the webhook was successfully triggered, we update the host to
 	// constantly run the query to check if it has been unenrolled from its
 	// existing third-party MDM.
-	refetchUntil := svc.clock.Now().Add(refetchMDMUnenrollCriticalQueryDuration)
+	refetchUntil := svc.clock.Now().Add(fleet.RefetchMDMUnenrollCriticalQueryDuration)
 	host.RefetchCriticalQueriesUntil = &refetchUntil
 	if err := svc.ds.UpdateHostRefetchCriticalQueriesUntil(ctx, host.ID, &refetchUntil); err != nil {
 		return ctxerr.Wrap(ctx, err, "save host with refetch critical queries timestamp")

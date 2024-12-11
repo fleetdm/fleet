@@ -193,8 +193,9 @@ type Service interface {
 
 	// SSOSettings returns non-sensitive single sign on information used before authentication
 	SSOSettings(ctx context.Context) (*SessionSSOSettings, error)
-	Login(ctx context.Context, email, password string) (user *User, session *Session, err error)
+	Login(ctx context.Context, email, password string, supportsEmailVerification bool) (user *User, session *Session, err error)
 	Logout(ctx context.Context) (err error)
+	CompleteMFA(ctx context.Context, token string) (*Session, *User, error)
 	DestroySession(ctx context.Context) (err error)
 	GetInfoAboutSessionsForUser(ctx context.Context, id uint) (sessions []*Session, err error)
 	DeleteSessionsForUser(ctx context.Context, id uint) (err error)
@@ -851,6 +852,9 @@ type Service interface {
 	// ListABMTokens lists all the ABM tokens in Fleet.
 	ListABMTokens(ctx context.Context) ([]*ABMToken, error)
 
+	// CountABMTokens counts the ABM tokens in Fleet.
+	CountABMTokens(ctx context.Context) (int, error)
+
 	// UpdateABMTokenTeams updates the default macOS, iOS, and iPadOS team IDs for a given ABM token.
 	UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*ABMToken, error)
 
@@ -1159,7 +1163,7 @@ type Service interface {
 	// Fleet-maintained apps
 
 	// AddFleetMaintainedApp adds a Fleet-maintained app to the given team.
-	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool) error
+	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool) (uint, error)
 	// ListFleetMaintainedApps lists Fleet-maintained apps available to a specific team
 	ListFleetMaintainedApps(ctx context.Context, teamID uint, opts ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 	// GetFleetMaintainedApp returns a Fleet-maintained app by ID
@@ -1170,6 +1174,12 @@ type Service interface {
 
 	// CalendarWebhook handles incoming calendar callback requests.
 	CalendarWebhook(ctx context.Context, eventUUID string, channelID string, resourceState string) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Secret variables
+
+	// CreateSecretVariables creates secret variables for scripts and profiles.
+	CreateSecretVariables(ctx context.Context, secretVariables []SecretVariable) error
 }
 
 type KeyValueStore interface {
@@ -1186,4 +1196,6 @@ const (
 	BatchSetSoftwareInstallersStatusFailed = "failed"
 	// MinOrbitLUKSVersion is the earliest version of Orbit that can escrow LUKS passphrases
 	MinOrbitLUKSVersion = "1.36.0"
+	// MFALinkTTL is how long MFA verification links stay active
+	MFALinkTTL = time.Minute * 15
 )

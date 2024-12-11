@@ -266,13 +266,26 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	// set the host's orbit notifications for Windows MDM
 	if appConfig.MDM.WindowsEnabledAndConfigured {
-		if IsEligibleForWindowsMDMEnrollment(host, mdmInfo) {
+		if isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
 			discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appConfig.ServerSettings.ServerURL)
 			if err != nil {
 				return fleet.OrbitConfig{}, err
 			}
 			notifs.WindowsMDMDiscoveryEndpoint = discoURL
 			notifs.NeedsProgrammaticWindowsMDMEnrollment = true
+		} else if appConfig.MDM.WindowsMigrationEnabled && isEligibleForWindowsMDMMigration(host, mdmInfo) {
+			notifs.NeedsMDMMigration = true
+
+			// Set the host to refetch the "critical queries" quickly for some time,
+			// to improve ingestion time of the unenroll and make the host eligible to
+			// enroll into Fleet faster.
+			if host.RefetchCriticalQueriesUntil == nil {
+				refetchUntil := svc.clock.Now().Add(fleet.RefetchMDMUnenrollCriticalQueryDuration)
+				host.RefetchCriticalQueriesUntil = &refetchUntil
+				if err := svc.ds.UpdateHostRefetchCriticalQueriesUntil(ctx, host.ID, &refetchUntil); err != nil {
+					return fleet.OrbitConfig{}, err
+				}
+			}
 		}
 	}
 	if !appConfig.MDM.WindowsEnabledAndConfigured {
