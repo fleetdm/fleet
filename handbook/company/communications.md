@@ -799,37 +799,33 @@ In responding to security questionnaires, Fleet endeavors to provide full transp
 
 ## Getting a contract reviewed
 
-> If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and use the signature process documented above.
+If a document is ready for signature and does not need to be reviewed or negotiated, you can review the process on "Getting a contract signed"(https://fleetdm.com/handbook/company/communications#getting-a-contract-signed)
 
-To get a contract reviewed, upload the agreement to [Google Drive](https://drive.google.com/drive/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c).
+To get a contract reviewed, follow the steps below,
 
-Complete the [contract review issue template in GitHub](https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn&labels=%23g-digital-experience&projects=&template=contract-review.md&title=Review%3A++%F0%9F%96%8B%EF%B8%8F+__________________________), being sure to include the link to the document you uploaded and using the Calendly link in the issue template to schedule time to discuss the agreement with Nathan Holliday (allowing for sufficient time for him to have reviewed the contract prior to the call).
+1. Upload the agreement to [Google Drive](https://drive.google.com/drive/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c).
 
-Follow up comments should be made in the GitHub issue and in the document itself so it is all in the same place.
+2. Complete the [contract review issue template in GitHub](https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn&labels=%23g-digital-experience&projects=&template=contract-review.md&title=Review%3A++%F0%9F%96%8B%EF%B8%8F+__________________________). 
 
-The SLA for contract review is **2 business days**.
+If an agreement requires an additional review during the negotiation process, the requestor will need to create a new contact review issue. 
 
-Once the review is complete, the issue will be closed.
+When no further review or action is required for an agreement and the document is ready to be signed, the requestor is then responsible for routing the document for signature (make sure the other party is first to sign).
 
-If an agreement requires an additional review during the negotiation process, the requestor will need to follow these steps again. Uploading the new draft and creating a new issue in GitHub. 
-
-When no further review or action is required for an agreement and the document is ready to be signed, the requestor is then responsible for routing the document for signature.
-
-> **Note:** Please submit other legal questions and requests to [Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us).
+Please submit other legal questions and requests to [Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us).
 
 ## Getting a contract signed
 
-If a contract is ready for signature and requires no review or revision, log into DocuSign (credentials in 1Password) and route the agreement to the CEO for signature. 
+If a contract is ready for signature and requires no review, follow the steps below,
+
+1. Log into DocuSign (credentials in 1Password) and route the agreement to the CEO for signature (make sure the other party is the first to sign). 
+
+2. Reach out to the [Apprentice]([url](https://fleetdm.com/handbook/digital-experience#team)) to let them know about the signature on route.
+
+3. Use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts, and never use individual emails except for signature.  If the page to sign includes any individual emails in the docusign contract, please remove it before routing to the CEO for signature.
 
 When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
 
-The SLA for contract signature is **2 business days**. Please do not follow up on signature unless this time has elapsed.
-
-_**Note:** Signature open time for the CEO is not currently measured, to avoid the overhead of creating separate signature issues to measure open and close time. This may change as signature volume increases._
-
-> _**Note:** If a contract is ready for signature and requires no review or revision, log into DocuSign (credentials in 1Password) and route the agreement to the CEO for signature._ 
-
-Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts, and never use individual emails except for signature.  If the page to sign includes any individual emails in the docusign contract, please remove it before routing to the CEO for signature.
+Please submit other legal questions and requests to [Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us).
 
 
 ## Trust
