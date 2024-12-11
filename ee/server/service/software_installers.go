@@ -1163,9 +1163,15 @@ func (svc *Service) BatchSetSoftwareInstallers(
 				fmt.Sprintf("Couldn't edit software. URL (%q) is invalid", payload.URL),
 			)
 		}
+		if len(payload.LabelsExcludeAny) > 0 && len(payload.LabelsIncludeAny) > 0 {
+			return "", fleet.NewInvalidArgumentError(
+				"software.labels_exclude_any",
+				"Only one of `labels_include_any` or `labels_exclude_any` can be specified.",
+			)
+		}
 	}
 
-	// TODO(mna): validate only one of include/exclude labels are provided, and that they exist
+	// TODO(mna): validate that labels exist if provided
 
 	// keyExpireTime is the current maximum time supported for retrieving
 	// the result of a software by batch operation.
