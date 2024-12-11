@@ -950,7 +950,7 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 	u := test.NewUser(t, db, "user1", "user1@example.com", false)
 	installer, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
 	require.NoError(t, err)
-	installerID, err := db.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installerID, _, err := db.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install foo",
 		InstallerFile: installer,
 		StorageID:     uuid.NewString(),
