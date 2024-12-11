@@ -1,4 +1,4 @@
-name: Go Tests
+name: Stress Test Go Test
 
 on:
   push:
