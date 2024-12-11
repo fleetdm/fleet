@@ -1179,7 +1179,7 @@ type Service interface {
 	// Secret variables
 
 	// CreateSecretVariables creates secret variables for scripts and profiles.
-	CreateSecretVariables(ctx context.Context, secretVariables []SecretVariable) error
+	CreateSecretVariables(ctx context.Context, secretVariables []SecretVariable, dryRun bool) error
 }
 
 type KeyValueStore interface {

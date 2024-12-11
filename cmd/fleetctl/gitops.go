@@ -223,7 +223,7 @@ func gitopsCommand() *cli.Command {
 					}
 				}
 
-				err = fleetClient.SaveEnvSecrets(allFleetSecrets, config.FleetSecrets)
+				err = fleetClient.SaveEnvSecrets(allFleetSecrets, config.FleetSecrets, flDryRun)
 				if err != nil {
 					return err
 				}

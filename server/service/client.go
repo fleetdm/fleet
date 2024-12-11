@@ -1415,7 +1415,7 @@ func extractTmSpecsMacOSSetup(tmSpecs []json.RawMessage) map[string]*fleet.MacOS
 	return m
 }
 
-func (c *Client) SaveEnvSecrets(alreadySaved map[string]string, toSave map[string]string) error {
+func (c *Client) SaveEnvSecrets(alreadySaved map[string]string, toSave map[string]string, dryRun bool) error {
 	if len(toSave) == 0 {
 		return nil
 	}
@@ -1430,7 +1430,7 @@ func (c *Client) SaveEnvSecrets(alreadySaved map[string]string, toSave map[strin
 	if len(secretsToSave) == 0 {
 		return nil
 	}
-	return c.SaveSecretVariables(secretsToSave)
+	return c.SaveSecretVariables(secretsToSave, dryRun)
 }
 
 // DoGitOps applies the GitOps config to Fleet.
