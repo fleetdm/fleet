@@ -7,9 +7,56 @@
   // Note: This component has been given an ID to override page specific styles
 [parasails-component='call-to-action'], #cta-component {
   margin-top: 40px;
-  margin-bottom: 40px;
+  // margin-bottom: 40px;
 
   // For customizeable call to action
+  [purpose='default-cta'] {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    a {
+      font-weight: 700;
+      font-size: 16px;
+      line-height: 150%;
+      white-space: nowrap;
+    }
+    [purpose='cta-button'] {
+      cursor: pointer;
+      margin-right: 24px;
+      background: @core-vibrant-red;
+      border-radius: 8px;
+      padding: 16px;
+      height: 36px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #FFF;
+      position: relative;
+      text-decoration: none;
+      overflow: hidden;
+      &:hover {
+        color: #FFF;
+      }
+    }
+    [purpose='cta-button']::before {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
+      opacity: 1;
+      content: ' ';
+      position: absolute;
+      top: 0;
+      left: -5px;
+      width: 70%;
+      height: 100%;
+      transform: skew(-10deg);
+      transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
+    }
+    [purpose='cta-button']:hover:before {
+      opacity: 0;
+      left: 160px;
+      width: 110%;
+    }
+
+  }
   [purpose='custom-cta'] {
     background-image: url('/images/call-to-action-banner-background.svg');
     background-position-x: center;
@@ -307,6 +354,20 @@
       }
       [purpose='premium-cta-btn'] {
         width: 100%;
+      }
+    }
+  }
+  @media (max-width: 375px) {
+
+    [purpose='default-cta'] {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      [purpose='cta-button'] {
+        cursor: pointer;
+        width: 100%;
+        margin-right: 0px;
+        margin-bottom: 24px;
       }
     }
   }
