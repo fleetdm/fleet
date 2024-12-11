@@ -1,6 +1,11 @@
 # Worldwide security and authentication platform chooses Fleet for Linux management
 
-“My biggest issue with Linux is that no one considers Linux. It's never the first thing. It's always the last thing. And as the advocate and evangelist for Linux in the IT org broadly, I have to make the security guys stop and go, hey, hang on a second. We're also here. You know, we matter…” — Technical Systems Engineer
+<div purpose="attribution-quote">
+
+My biggest issue with Linux is that no one considers Linux. It's never the first thing. It's always the last thing. And as the advocate and evangelist for Linux in the IT org broadly, I have to make the security guys stop and go, hey, hang on a second. We're also here. You know, we matter…
+
+**— Technical Systems Engineer**
+</div>
 
 
 ## Challenge
@@ -15,13 +20,16 @@ By adopting Fleet, they were able to unify their [device management](https://fle
 
 ## Results
 
-- Fleet enabled Linux device management and replaced legacy tools for telemetry and system configuration. This reduced their previously typical compliance woes and lack of standard MDM features. 
+<div purpose="checklist">
 
-- Employees are free to work with their preferred operating systems of choice.
+Fleet enabled Linux device management and replaced legacy tools for telemetry and system configuration. This reduced their previously typical compliance woes and lack of standard MDM features.
 
-- [Fleet’s API](https://fleetdm.com/docs/rest-api/rest-api) and live query capabilities ensured up-to-date inventory data to meet stringent security and access control requirements while integrating with existing systems.
+Employees are free to work with their preferred operating systems of choice.
 
-- Fleet’s policy automation ensures that software and configurations can remain secure without requiring manual intervention, thereby freeing up IT resources.
+[Fleet’s API](https://fleetdm.com/docs/rest-api/rest-api) and live query capabilities ensured up-to-date inventory data to meet stringent security and access control requirements while integrating with existing systems.
+
+Fleet’s policy automation ensures that software and configurations can remain secure without requiring manual intervention, thereby freeing up IT resources.
+</div>
 
 Implementing Fleet significantly enhanced their device management strategy by centralizing Linux operations, improving security compliance, and increasing the operational efficiency of these previously overlooked devices. Fleet’s automation and integration capabilities ensured accurate and reliable asset inventory across teams, and empowered technical users with self-service tools, maintaining high security standards across all of their devices.
 
@@ -69,7 +77,9 @@ Fleet’s ability to scale horizontally allowed the company to manage thousands 
 
 By providing tools typically overlooked for Linux, Fleet's open-source platform completes the circle of high-security standards, compliance, and trust with a technically proficient and privacy-conscious Linux user base. Fleet’s automation and integration capabilities meant that IT could still use the tools they wanted, without leaving Linux behind. This proved vital for the company which continues to scale globally. 
 
-To learn more about how Fleet can support your organization, visit [fleetdm.com/mdm](fleetdm.com/mdm)
+To learn more about how Fleet can support your organization, visit [fleetdm.com/mdm](fleetdm.com/mdm).
+
+<call-to-action></call-to-action>
 
 <meta name="category" value="announcements">
 <meta name="authorGitHubUsername" value="Drew-P-drawers">
