@@ -9,7 +9,7 @@ team_settings:
   secrets:
     - secret: $DOGFOOD_SERVERS_ENROLL_SECRET
 agent_options:
-  path: ../lib/servers.agent-options.yml
+  path: ../lib/all/agent-options/servers.agent-options.yml
 controls:
   enable_disk_encryption: false
   macos_settings:

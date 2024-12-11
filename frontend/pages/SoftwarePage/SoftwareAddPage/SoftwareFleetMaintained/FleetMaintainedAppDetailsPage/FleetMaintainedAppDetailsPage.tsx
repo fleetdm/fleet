@@ -195,7 +195,7 @@ const FleetMaintainedAppDetailsPage = ({
       } catch (e) {
         renderFlash(
           "error",
-          "Couldn't add automatic install policy. Software is successfuly added. To try again delete software and add it again.",
+          "Couldn't add automatic install policy. Software is successfully added. To retry, delete software and add it again.",
           { persistOnPageChange: true }
         );
       }

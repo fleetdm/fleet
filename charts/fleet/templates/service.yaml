@@ -7,6 +7,12 @@ metadata:
     chart: fleet
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
+{{- if .Values.serviceAnnotations }}
+  annotations:
+  {{- with .Values.serviceAnnotations}}
+  {{ toYaml . | trim | indent 2}}
+  {{- end }}
+{{- end }}
   name: {{ $serviceName }}
   namespace: {{ .Release.Namespace }}
 spec:

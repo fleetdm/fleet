@@ -276,7 +276,7 @@ type Service interface {
 	// and only non-scheduled queries will be returned if `*scheduled == false`.
 	// If mergeInherited is true and a teamID is provided, then queries from the global team will be
 	// included in the results.
-	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool, mergeInherited bool) ([]*Query, error)
+	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, platform *string) ([]*Query, int, *PaginationMetadata, error)
 	GetQuery(ctx context.Context, id uint) (*Query, error)
 	// GetQueryReportResults returns all the stored results of a query for hosts the requestor has access to.
 	// Returns a boolean indicating whether the report is clipped.
@@ -1174,6 +1174,12 @@ type Service interface {
 
 	// CalendarWebhook handles incoming calendar callback requests.
 	CalendarWebhook(ctx context.Context, eventUUID string, channelID string, resourceState string) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Secret variables
+
+	// CreateSecretVariables creates secret variables for scripts and profiles.
+	CreateSecretVariables(ctx context.Context, secretVariables []SecretVariable, dryRun bool) error
 }
 
 type KeyValueStore interface {
@@ -1190,4 +1196,6 @@ const (
 	BatchSetSoftwareInstallersStatusFailed = "failed"
 	// MinOrbitLUKSVersion is the earliest version of Orbit that can escrow LUKS passphrases
 	MinOrbitLUKSVersion = "1.36.0"
+	// MFALinkTTL is how long MFA verification links stay active
+	MFALinkTTL = time.Minute * 15
 )

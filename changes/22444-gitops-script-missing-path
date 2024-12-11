@@ -1,0 +1,1 @@
+* Added a descriptive error when a GitOps file contains script references that are missing paths

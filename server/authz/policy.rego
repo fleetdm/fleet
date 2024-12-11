@@ -1008,3 +1008,14 @@ allow {
   team_role(subject, object.team_id) == [admin, maintainer, observer_plus, observer][_]
   action == read
 }
+
+##
+# Secret variables
+##
+
+# Global admins, maintainers, and gitops can write secret variables.
+allow {
+  object.type == "secret_variable"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == write
+}
