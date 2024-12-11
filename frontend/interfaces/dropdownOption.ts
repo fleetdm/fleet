@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import React, { ReactNode } from "react";
 import PropTypes from "prop-types";
 
 export default PropTypes.shape({
@@ -14,4 +14,5 @@ export interface IDropdownOption {
   helpText?: ReactNode;
   premiumOnly?: boolean;
   tooltipContent?: string | JSX.Element;
+  onClick?: (() => void) | void | null;
 }
