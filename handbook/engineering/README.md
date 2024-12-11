@@ -193,6 +193,42 @@ Immediately after publishing a new release, we close out the associated GitHub i
 
 The [Fleet releases Google calendar](https://calendar.google.com/calendar/embed?src=c_v7943deqn1uns488a65v2d94bs%40group.calendar.google.com&ctz=America%2FChicago) is kept up-to-date by the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). Any change to targeted release dates is reflected on this calendar.
 
+### Release an agent
+
+The Elements of fleetd are:
+ - Orbit. (e.g. 1.36.0)
+ - Osqury (e.g. 5.14.1)
+ - Fleet Desktop (separate executable but is released together with orbit so has the same version)
+
+Tickets for fleetd and Fleet desktop elements are milestoned with Orbit version.
+
+Tickets for Osquery core issues are milestoned with osquery versions.
+
+#### Release Orbit and Desktop elements 
+The process will typically be arranged in a ticket like [this](https://app.zenhub.com/workspaces/g-endpoint-ops-current-sprint-63bd7e0bf75dba002a2343ac/issues/gh/fleetdm/fleet/23820). 
+
+Steps:
+ - Build the agent from our main brunch.
+`Q: Why directly from the main branch and not from a Release candidate branch?`
+`A: We currently don't have high enough traffic that requires it. By simplifying the process we save time in releasing.`
+ - QA all tickets involved in this build.
+ - Push this release to our edge channel on TUF.
+`Full instructions how to do it are `[here](https://github.com/fleetdm/fleet/tree/main/tools/tuf#releasing-fleetd-1230-to-edge).
+`This could be used by any customer that wishes to have a canary set of agents but, per our knowledge, is only currently used by our (Fleet) Canary team on Dogfood.`
+ - Wait at least 24 hours.
+ - Push this release to our edge channel on TUF.
+`Full instructions how to do it are `[here](https://github.com/fleetdm/fleet/tree/main/tools/tuf#promoting-from-edge-to-stable).
+
+The content of all agent elements are presented in our [here](https://github.com/fleetdm/fleet/blob/main/orbit/TUF.md)
+
+#### Release OSQuery element 
+
+Osquery [repository](https://github.com/osquery/osquery/releases) has two channels: Pre-release and Latest (Latest being the official stable release)
+Whether we contributed to the osquery version or not, when the osquery team pushes a release to their Pre-release channel, we push it to our EDGE channel, and when they put it under Latest, we push it to our Stable channel.
+We are constantly monitoring the osquery slack to be notified about changes.
+
+Agent release video training can be found in this internal [Google Drive folder](https://drive.google.com/drive/u/0/folders/1Jm2D-y4lbYs9GChV3JdMHNAva9Jf1rMn)
+
 
 ### Handle process exceptions for non-released code
 
