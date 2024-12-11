@@ -8818,19 +8818,30 @@ Modifies an existing script.
 | Name            | Type    | In   | Description                                           |
 | ----            | ------- | ---- | --------------------------------------------          |
 | id              | integer | path | **Required**. The ID of the script to modify. |
-| script_contents | string  | body | **Required**. The contents of the script to be updated. |
+| script          | file    | form | **Required**. The file containing the script. Filename will be ignored. |
 
 #### Example
 
 `PATCH /api/v1/fleet/scripts/1`
 
 
+##### Request headers
+
+```http
+Content-Length: 306
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
 ##### Request body
 
-```json
-{
-  "script_contents": "#!/bin/sh\\n\\n#!/usr/bin/env bash\\n\\nsudo systemsetup -settimezone Pacific/Ponape"
-}
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="script"; filename="myscript.sh"
+Content-Type: application/octet-stream
+
+echo "hello"
+--------------------------f02md47480und42y--
+
 ```
 
 ##### Default response
