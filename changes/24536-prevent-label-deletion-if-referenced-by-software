@@ -1,0 +1,1 @@
+* Added a validation to prevent label deletion if it is used to scope the hosts targeted by a software installer.
