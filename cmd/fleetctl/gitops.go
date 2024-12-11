@@ -121,6 +121,8 @@ func gitopsCommand() *cli.Command {
 
 			// We keep track of the secrets to check if duplicates exist during dry run
 			secrets := make(map[string]struct{})
+			// We keep track of the environment FLEET_SECRET_* variables
+			allFleetSecrets := make(map[string]string)
 			for _, flFilename := range flFilenames.Value() {
 				baseDir := filepath.Dir(flFilename)
 				config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, logf)
@@ -221,6 +223,10 @@ func gitopsCommand() *cli.Command {
 					}
 				}
 
+				err = fleetClient.SaveEnvSecrets(allFleetSecrets, config.FleetSecrets)
+				if err != nil {
+					return err
+				}
 				assumptions, err := fleetClient.DoGitOps(c.Context, config, flFilename, logf, flDryRun, teamDryRunAssumptions, appConfig, teamsSoftwareInstallers, teamsScripts)
 				if err != nil {
 					return err

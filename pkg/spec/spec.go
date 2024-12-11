@@ -231,7 +231,7 @@ func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 		return errors.New("secretsMap cannot be nil")
 	}
 	var err *multierror.Error
-	s = fleet.MaybeExpand(s, func(env string) (string, bool) {
+	_ = fleet.MaybeExpand(s, func(env string) (string, bool) {
 		if strings.HasPrefix(env, fleet.FLEET_SECRET_PREFIX) {
 			// lookup the secret and save it, but don't replace
 			v, ok := os.LookupEnv(env)
