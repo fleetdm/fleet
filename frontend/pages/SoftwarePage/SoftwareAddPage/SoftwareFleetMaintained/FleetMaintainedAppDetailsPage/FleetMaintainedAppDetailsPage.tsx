@@ -98,6 +98,9 @@ const FleetMaintainedAppDetailsPage = ({
 }: IFleetMaintainedAppDetailsPageProps) => {
   const teamId = location.query.team_id;
   const appId = parseInt(routeParams.id, 10);
+  if (isNaN(appId)) {
+    router.push(PATHS.SOFTWARE_ADD_FLEET_MAINTAINED);
+  }
 
   const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier } = useContext(AppContext);
