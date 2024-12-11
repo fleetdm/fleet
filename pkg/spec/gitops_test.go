@@ -236,6 +236,10 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "windows_migration_enabled not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
+				require.Len(t, gitops.FleetSecrets, 3)
+				assert.Equal(t, "fleet_secret", gitops.FleetSecrets["FLEET_SECRET_FLEET_SECRET_"])
+				assert.Equal(t, "secret_name", gitops.FleetSecrets["FLEET_SECRET_NAME"])
+				assert.Equal(t, "10", gitops.FleetSecrets["FLEET_SECRET_length"])
 
 				// Check agent options
 				assert.NotNil(t, gitops.AgentOptions)
