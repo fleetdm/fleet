@@ -91,6 +91,11 @@ To close a deal with a new customer (non-self-service), create and complete a Gi
 - The SC will search for unanswered questions and confirm again that nothing was missed from the handbook. Content missing from the handbook will need to be added via PR by the SC. Any unanswered questions after this pass has been completed by the SC will need to be [escalated to the Infrastructure team (#g-customer-success)](https://fleetdm.com/handbook/customer-success#contact-us) with the requested timeline for completion defined in the issue. Once complete, the infra team will assign the issue back to the #g-sales board.
 - Any questions answered by the infra team will be added to the handbook by the SC.
 
+### Proposals sent <30 days 
+Every week, any proposal not sent within 30 days of its creation in Salesforce should be closed lost. The review of these opportunities and exceptions for them of one (1) week or less are the responsibility of the sales manager.  For exceptions of more than one week, escalate to the CEO.  
+
+### Sales retrospectives
+Every week, any closed lost new business or expansion opportunity from the previous week, as well as any opportunity with a closed lost date pushed into subsequent quarters, is discussed in a meeting between the AE or CSM who lost the deal, their manager, the head of marketing, head of digital experience and the CEO.  SC does not attend. This meeting should include any notes regarding the closed lost reason. When no deals are closed lost from the prior week, the meeting is used to discuss the oldest top opportunities and try to get them out of the pipeline.  
 
 <!-- 2024-11-16 We noticed some content in these sections was outdated, so we're using this opportunity to try out a different structure ± altitude level for the content for on this page
 
