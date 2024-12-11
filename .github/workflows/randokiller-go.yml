@@ -34,15 +34,16 @@ jobs:
       tests_to_run: ${{fromJson(steps.get_config_json.outputs.json).tests_to_run}}
       pkg_to_test: ${{fromJson(steps.get_config_json.outputs.json).pkg_to_test}}
     steps:
-      id: get_config_json
-      run: |
-        content=`cat ./github/workflows/config/randokiller.json`
-        # the following lines are only required for multi line json
-        content="${content//'%'/'%25'}"
-        content="${content//$'\n'/'%0A'}"
-        content="${content//$'\r'/'%0D'}"
-        # end of optional handling for multi line json
-        echo "json=$content" >> $GITHUB_OUTPUT
+      - name: Parse Config
+        id: get_config_json
+        run: |
+          content=`cat ./github/workflows/config/randokiller.json`
+          # the following lines are only required for multi line json
+          content="${content//'%'/'%25'}"
+          content="${content//$'\n'/'%0A'}"
+          content="${content//$'\r'/'%0D'}"
+          # end of optional handling for multi line json
+          echo "json=$content" >> $GITHUB_OUTPUT
 
   test-go:
     needs: parse_config
