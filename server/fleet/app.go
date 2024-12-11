@@ -88,29 +88,29 @@ type SMTPSettings struct {
 	SMTPConfigured bool `json:"configured"`
 	// SMTPSenderAddress is the email address that will appear in emails sent
 	// from Fleet
-	SMTPSenderAddress string `json:"sender_address"`
+	SMTPSenderAddress string `json:"sender_address,omitempty"`
 	// SMTPServer is the host name of the SMTP server Fleet will use to send mail
-	SMTPServer string `json:"server"`
+	SMTPServer string `json:"server,omitempty"`
 	// SMTPPort port SMTP server will use
-	SMTPPort uint `json:"port"`
+	SMTPPort uint `json:"port,omitempty"`
 	// SMTPAuthenticationType type of authentication for SMTP
-	SMTPAuthenticationType string `json:"authentication_type"`
+	SMTPAuthenticationType string `json:"authentication_type,omitempty"`
 	// SMTPUserName must be provided if SMTPAuthenticationType is UserNamePassword
-	SMTPUserName string `json:"user_name"`
+	SMTPUserName string `json:"user_name,omitempty"`
 	// SMTPPassword must be provided if SMTPAuthenticationType is UserNamePassword
-	SMTPPassword string `json:"password"`
+	SMTPPassword string `json:"password,omitempty"`
 	// SMTPEnableSSLTLS whether to use SSL/TLS for SMTP
-	SMTPEnableTLS bool `json:"enable_ssl_tls"`
+	SMTPEnableTLS bool `json:"enable_ssl_tls,omitempty"`
 	// SMTPAuthenticationMethod authentication method smtp server will use
-	SMTPAuthenticationMethod string `json:"authentication_method"`
+	SMTPAuthenticationMethod string `json:"authentication_method,omitempty"`
 
 	// SMTPDomain optional domain for SMTP
-	SMTPDomain string `json:"domain"`
+	SMTPDomain string `json:"domain,omitempty"`
 	// SMTPVerifySSLCerts defaults to true but can be turned off if self signed
 	// SSL certs are used by the SMTP server
-	SMTPVerifySSLCerts bool `json:"verify_ssl_certs"`
+	SMTPVerifySSLCerts bool `json:"verify_ssl_certs,omitempty"`
 	// SMTPEnableStartTLS detects of TLS is enabled on mail server and starts to use it (default true)
-	SMTPEnableStartTLS bool `json:"enable_start_tls"`
+	SMTPEnableStartTLS bool `json:"enable_start_tls,omitempty"`
 }
 
 // VulnerabilitySettings is part of the AppConfig which defines how fleet will behave
