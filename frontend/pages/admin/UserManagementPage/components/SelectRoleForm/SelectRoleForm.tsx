@@ -55,6 +55,7 @@ const SelectRoleForm = ({
   return (
     <DropdownWrapper
       name="Team role"
+      label="Role"
       options={roleOptions({ isPremiumTier, isApiOnly })}
       value={selectedRole}
       onChange={updateSelectedRole}
