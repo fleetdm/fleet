@@ -3,7 +3,7 @@ name: Stress Test Go Test
 on:
   push:
     branches:
-      - "sgress454/sgress454/randokiller-go-init"
+      - "sgress454/randokiller-go-init"
       - "*randokiller-*"
     paths:
       - "**.go"
