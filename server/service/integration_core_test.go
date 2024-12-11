@@ -12648,9 +12648,18 @@ func (s *integrationTestSuite) TestSecretVariables() {
 			},
 		},
 	}
+	// Do dry run
+	req.DryRun = true
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
 
 	secrets, err := s.ds.GetSecretVariables(ctx, []string{validName})
+	require.NoError(t, err)
+	require.Empty(t, secrets)
+
+	// Do real run
+	req.DryRun = false
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
+	secrets, err = s.ds.GetSecretVariables(ctx, []string{validName})
 	require.NoError(t, err)
 	require.Len(t, secrets, 1)
 	assert.Equal(t, "value", secrets[0].Value)
