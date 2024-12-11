@@ -413,7 +413,9 @@ func TestHostDetailsOSSettings(t *testing.T) {
 	cases := []testCase{
 		{"windows", &fleet.Host{ID: 42, Platform: "windows"}, fleet.TierPremium, fleet.DiskEncryptionEnforcing},
 		{"darwin", &fleet.Host{ID: 42, Platform: "darwin"}, fleet.TierPremium, ""},
-		{"ubuntu", &fleet.Host{ID: 42, Platform: "ubuntu"}, fleet.TierPremium, ""},
+		// TeamID necessary to check whether disk encryption is enabled for Linux hosts, in lieu of
+		// MDM-related logic which doesn't apply to Linux hosts
+		{"ubuntu", &fleet.Host{ID: 42, Platform: "ubuntu", TeamID: ptr.Uint(1)}, fleet.TierPremium, ""},
 		{"not premium", &fleet.Host{ID: 42, Platform: "windows"}, fleet.TierFree, ""},
 	}
 
@@ -423,6 +425,7 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		ds.GetHostMDMAppleProfilesFuncInvoked = false
 		ds.GetHostMDMWindowsProfilesFuncInvoked = false
 		ds.GetHostMDMFuncInvoked = false
+		ds.GetConfigEnableDiskEncryptionFuncInvoked = false
 
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}, nil
@@ -442,6 +445,10 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 			hmdm := fleet.HostMDM{Enrolled: true, IsServer: false}
 			return &hmdm, nil
+		}
+		ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (bool, error) {
+			// testing API response when not enabled
+			return false, nil
 		}
 	}
 
@@ -475,6 +482,19 @@ func TestHostDetailsOSSettings(t *testing.T) {
 					require.False(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
 					require.Nil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
 				}
+			case "ubuntu":
+				require.False(t, ds.GetHostMDMAppleProfilesFuncInvoked)
+				require.False(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
+				// service should call this function to check whether disk encryption is enabled for a Linux host
+				require.True(t, ds.GetConfigEnableDiskEncryptionFuncInvoked)
+
+				// `hostDetail.MDM.OSSettings` and `hostDetail.MDM.OSSettings.DiskEncryption` will actually not
+				// be `nil` here due to the way those fields are initialized by `svc.ds.Host`, so we can't
+				// expect them to be `nil` in these tests. However, since the relevant struct tags are set to
+				// `omitempty`, the resulting API response WILL omit these fields/subfields when empty,
+				// which is confirmed at the integration layer.
+				require.Nil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
+
 			case "darwin":
 				require.True(t, ds.GetHostMDMAppleProfilesFuncInvoked)
 				require.False(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
