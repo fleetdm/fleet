@@ -326,6 +326,15 @@ func (ts *withServer) getTestAdminToken() string {
 	return ts.cachedAdminToken
 }
 
+func (ts *withServer) setTokenForTest(t *testing.T, email, password string) {
+	oldToken := ts.token
+	t.Cleanup(func() {
+		ts.token = oldToken
+	})
+
+	ts.token = ts.getCachedUserToken(email, password)
+}
+
 // getCachedUserToken returns the cached auth token for the given test user email.
 // If it's not found, then a login request is performed and the token cached.
 func (ts *withServer) getCachedUserToken(email, password string) string {

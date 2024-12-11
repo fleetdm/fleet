@@ -1708,7 +1708,7 @@ type Datastore interface {
 	GetHostLastInstallData(ctx context.Context, hostID, installerID uint) (*HostLastInstallData, error)
 
 	// MatchOrCreateSoftwareInstaller matches or creates a new software installer.
-	MatchOrCreateSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (uint, error)
+	MatchOrCreateSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (installerID, titleID uint, err error)
 
 	// GetSoftwareInstallerMetadataByID returns the software installer corresponding to the installer id.
 	GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*SoftwareInstaller, error)
@@ -1874,8 +1874,14 @@ type Datastore interface {
 	// CleanUpMDMManagedCertificates removes all managed certificates that are not associated with any host+profile.
 	CleanUpMDMManagedCertificates(ctx context.Context) error
 
-	// GetSoftwareTitleIDByMaintainedAppID returns the software title ID for the given app ID.
-	GetSoftwareTitleIDByMaintainedAppID(ctx context.Context, appID uint, teamID *uint) (uint, error)
+	// /////////////////////////////////////////////////////////////////////////////
+	// Secret variables
+
+	// UpsertSecretVariables inserts or updates secret variables in the database.
+	UpsertSecretVariables(ctx context.Context, secretVariables []SecretVariable) error
+
+	// GetSecretVariables retrieves secret variables from the database.
+	GetSecretVariables(ctx context.Context, names []string) ([]SecretVariable, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
