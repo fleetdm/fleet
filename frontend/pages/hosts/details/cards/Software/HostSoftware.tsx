@@ -250,14 +250,14 @@ const HostSoftware = ({
     return isMyDevicePage
       ? generateDeviceSoftwareTableConfig()
       : generateHostSoftwareTableConfig({
-          router,
-          softwareIdActionPending,
           userHasSWWritePermission,
           hostScriptsEnabled,
-          onSelectAction,
-          teamId: hostTeamId,
           hostCanWriteSoftware,
           hostMDMEnrolled,
+          softwareIdActionPending,
+          router,
+          teamId: hostTeamId,
+          onSelectAction,
         });
   }, [
     isMyDevicePage,

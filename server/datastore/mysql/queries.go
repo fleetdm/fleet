@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/text/unicode/norm"
+
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log/level"
@@ -16,6 +18,8 @@ const (
 	statsScheduledQueryType = iota
 	statsLiveQueryType
 )
+
+var querySearchColumns = []string{"q.name"}
 
 func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 	if err := ds.applyQueriesInTx(ctx, authorID, queries); err != nil {
@@ -468,9 +472,10 @@ func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 }
 
 // ListQueries returns a list of queries with sort order and results limit
-// determined by passed in fleet.ListOptions
-func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
-	sql := `
+// determined by passed in fleet.ListOptions, count of total queries returned without limits, and
+// pagination metadata
+func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+	getQueriesStmt := `
 		SELECT
 			q.id,
 			q.team_id,
@@ -488,7 +493,6 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 			q.discard_data,
 			q.created_at,
 			q.updated_at,
-			q.discard_data,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
 			JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
@@ -523,24 +527,51 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		}
 	}
 
-	if opt.MatchQuery != "" {
-		whereClauses += " AND q.name = ?"
-		args = append(args, opt.MatchQuery)
+	if opt.Platform != nil {
+		qs := fmt.Sprintf("%%%s%%", *opt.Platform)
+		args = append(args, qs)
+		whereClauses += ` AND (q.platform LIKE ? OR q.platform = '')`
 	}
 
-	sql += whereClauses
-	sql, args = appendListOptionsWithCursorToSQL(sql, args, &opt.ListOptions)
+	// normalize the name for full Unicode support (Unicode equivalence).
+	normMatch := norm.NFC.String(opt.MatchQuery)
+	whereClauses, args = searchLike(whereClauses, args, normMatch, querySearchColumns...)
 
-	results := []*fleet.Query{}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing queries")
+	getQueriesStmt += whereClauses
+
+	// build the count statement before adding pagination constraints
+	getQueriesCountStmt := fmt.Sprintf("SELECT COUNT(DISTINCT id) FROM (%s) AS s", getQueriesStmt)
+
+	getQueriesStmt, args = appendListOptionsWithCursorToSQL(getQueriesStmt, args, &opt.ListOptions)
+
+	dbReader := ds.reader(ctx)
+	queries := []*fleet.Query{}
+	if err := sqlx.SelectContext(ctx, dbReader, &queries, getQueriesStmt, args...); err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "listing queries")
 	}
 
-	if err := ds.loadPacksForQueries(ctx, results); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
+	// perform a second query to grab the count
+	var count int
+	if err := sqlx.GetContext(ctx, dbReader, &count, getQueriesCountStmt, args...); err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get queries count")
 	}
 
-	return results, nil
+	if err := ds.loadPacksForQueries(ctx, queries); err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
+	}
+
+	var meta *fleet.PaginationMetadata
+	if opt.ListOptions.IncludeMetadata {
+		meta = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
+		// `appendListOptionsWithCursorToSQL` used above to build the query statement will cause this
+		// discrepancy
+		if len(queries) > int(opt.ListOptions.PerPage) { //nolint:gosec // dismiss G115
+			meta.HasNextResults = true
+			queries = queries[:len(queries)-1]
+		}
+	}
+
+	return queries, count, meta, nil
 }
 
 // loadPacksForQueries loads the user packs (aka 2017 packs) associated with the provided queries.
