@@ -1190,4 +1190,6 @@ const (
 	BatchSetSoftwareInstallersStatusFailed = "failed"
 	// MinOrbitLUKSVersion is the earliest version of Orbit that can escrow LUKS passphrases
 	MinOrbitLUKSVersion = "1.36.0"
+	// MFALinkTTL is how long MFA verification links stay active
+	MFALinkTTL = time.Minute * 15
 )
