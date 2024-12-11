@@ -8,7 +8,7 @@ on:
       - "**.go"
       - "go.mod"
       - "go.sum"
-      - ".github/workflows/randokiller-go.yaml"
+      - ".github/workflows/randokiller-go.yml"
       - "docker-compose.yml"
   workflow_dispatch: # Manual
 
