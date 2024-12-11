@@ -946,6 +946,10 @@ func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyP
 	ctx := context.Background()
 	for h, wantProfs := range want {
 		var gotProfs []anyProfile
+		wantMsg := ""
+		for _, wp := range wantProfs {
+			wantMsg += fmt.Sprintf("identifier: %s, status: %v, operation: %s, prof uuid: %s\n", wp.IdentifierOrName, *wp.Status, wp.OperationType, wp.ProfileUUID)
+		}
 
 		switch h.Platform {
 		case "windows":
@@ -963,8 +967,9 @@ func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyP
 		default:
 			profs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 			require.NoError(t, err)
-			require.Equal(t, len(wantProfs), len(profs), "host uuid: %s", h.UUID)
+			gotMsg := ""
 			for _, p := range profs {
+				gotMsg += fmt.Sprintf("identifier: %s, status: %v, operation: %s, prof uuid: %s\n", p.Identifier, *p.Status, p.OperationType, p.ProfileUUID)
 				gotProfs = append(gotProfs, anyProfile{
 					ProfileUUID:      p.ProfileUUID,
 					Status:           p.Status,
@@ -972,6 +977,7 @@ func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyP
 					IdentifierOrName: p.Identifier,
 				})
 			}
+			require.Equal(t, len(wantProfs), len(profs), "host uuid: \n%s\n want: \n%s\n got: \n%s\n", h.UUID, wantMsg, gotMsg)
 		}
 
 		sortProfs := func(profs []anyProfile) []anyProfile {
