@@ -36,6 +36,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"DeleteSoftwareInstallers", testDeleteSoftwareInstallers},
 		{"GetHostLastInstallData", testGetHostLastInstallData},
 		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
+		{"TestSoftwareInstallerLabels", testSoftwareInstallerLabels},
 	}
 
 	for _, c := range cases {
@@ -1356,5 +1357,53 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			require.NotEmpty(t, id)
 		})
+	}
+}
+
+func testSoftwareInstallerLabels(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// Create some labels
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "Label 1 " + t.Name(), LabelType: fleet.LabelTypeRegular, Description: "label 1"})
+	require.NoError(t, err)
+
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "Label 2 " + t.Name(), LabelType: fleet.LabelTypeRegular, Description: "label 2"})
+	require.NoError(t, err)
+
+	label3, err := ds.NewLabel(ctx, &fleet.Label{Name: "Label 3 " + t.Name(), LabelType: fleet.LabelTypeRegular, Description: "label 3"})
+	require.NoError(t, err)
+
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	installerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		UninstallScript:   "goodbye",
+		InstallerFile:     tfr1,
+		StorageID:         "storage1",
+		Filename:          "file1",
+		Title:             "file1",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		LabelsExcludeAny:  []string{label1.Name},
+		LabelsIncludeAny:  []string{label2.Name, label3.Name},
+	})
+	require.NoError(t, err)
+
+	var installerLabels []fleet.SoftwareScopeLabel
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		// TODO(JVE): remove this if we add a relevant DS method
+		return sqlx.SelectContext(ctx, q, &installerLabels, "SELECT label_id, exclude FROM software_installer_labels WHERE software_installer_id = ? ORDER BY id", installerID)
+	})
+
+	require.Len(t, installerLabels, 3)
+	expectedLabelIDs := map[uint]struct{}{label1.ID: {}, label2.ID: {}, label3.ID: {}}
+	for _, l := range installerLabels {
+		_, ok := expectedLabelIDs[l.LabelID]
+		require.True(t, ok)
 	}
 }

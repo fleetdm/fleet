@@ -166,7 +166,48 @@ INSERT INTO software_installers (
 
 	id, _ := res.LastInsertId()
 
+	if len(payload.LabelsExcludeAny) != 0 {
+		if err := ds.updateSoftwareInstallerLabels(ctx, uint(id), payload.LabelsExcludeAny, true); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "updating software installer labels exclude any")
+		}
+	}
+
+	if len(payload.LabelsIncludeAny) != 0 {
+		if err := ds.updateSoftwareInstallerLabels(ctx, uint(id), payload.LabelsIncludeAny, false); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "updating software installer labels include any")
+		}
+	}
+
 	return uint(id), nil //nolint:gosec // dismiss G115
+}
+
+func (ds *Datastore) updateSoftwareInstallerLabels(ctx context.Context, installerID uint, labels []string, exclude bool) error {
+	stmt := `
+INSERT INTO software_installer_labels (software_installer_id, label_id, exclude)
+	(SELECT
+		si.id AS software_installer_id,
+		l.id AS label_id,
+		?
+	FROM
+		software_installers si
+		JOIN labels l ON l.name IN (?)
+	WHERE
+		si.id = ?)
+	`
+	// TODO(JVE): if there are no rows affected, should we return an error saying that the labels
+	// weren't found? or do we validate further up? Seems like we should validate further up since
+	// we otherwise would have to insert some logic here to check which of the labels is missing if any.
+	stmt, args, err := sqlx.In(stmt, exclude, labels, installerID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "generating IN query for updating software installer labels")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating software installer labels")
+	}
+
+	return nil
 }
 
 func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
