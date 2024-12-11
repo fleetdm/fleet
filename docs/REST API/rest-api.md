@@ -9022,11 +9022,11 @@ Get a list of all software.
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
-| platform | string | query | Filter software by platform. Supported values are `darwin`, `windows`, and `linux`.  |
+| platform | string | query | Filter software titles by platforms. Options are: `"macos"`, `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`. This parameter can be specified more than once to filter by multiple platforms (e.g. `?platform=darwin&platform=windows`). |
 
 #### Example
 
-`GET /api/v1/fleet/software/titles?team_id=3`
+`GET /api/v1/fleet/software/titles?team_id=3&platform=darwin&platform=windows`
 
 ##### Default response
 
@@ -9372,6 +9372,12 @@ Returns information about the specified software. By default, `versions` are sor
       "latest_version": "2.04",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "self_service": true,
+      "automatic_install_policies": [
+        {
+          "id": 345,
+          "name": "[Install software] Logic Pro",
+        } 
+      ],
       "status": {
         "installed": 3,
         "pending": 1,
