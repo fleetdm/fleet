@@ -79,6 +79,11 @@ jobs:
       - name: Install Go Dependencies
         run: make deps-go
 
+      - name: Generate static files
+        run: |
+          export PATH=$PATH:~/go/bin
+          make generate-go
+
       - name: Install ZSH
         run: sudo apt update && sudo apt install -y zsh
 
