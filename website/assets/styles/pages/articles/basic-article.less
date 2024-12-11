@@ -426,35 +426,41 @@
     h2 {
       font-size: 24px;
       margin-top: 64px;
-      margin-bottom: 32px;
+      // margin-bottom: 32px;
+      margin-bottom: 0px;
     }
     h3 {
       font-size: 20px;
       margin-top: 48px;
-      margin-bottom: 32px;
+      // margin-bottom: 32px;
+      margin-bottom: 0px;
     }
     h4 {
       font-size: 16px;
       margin-top: 24px;
-      margin-bottom: 24px;
+      // margin-bottom: 24px;
+      margin-bottom: 0px;
     }
     h2 > code:not(.bash):not(.nohighlight):not(.mermaid) {
       padding: 0px 4px;
       font-weight: 400;
       font-size: 22px;
       line-height: inherit;
+      margin-bottom: 0px;
     }
     h3 > code:not(.bash):not(.nohighlight):not(.mermaid) {
       padding: 0px 4px;
       font-weight: 400;
       font-size: 18px;
       line-height: inherit;
+      margin-bottom: 0px;
     }
     p {
       font-size: 16px;
       line-height: 150%;
       color: #515774;
-      margin-bottom: 32px;
+      margin-top: 32px;
+      margin-bottom: 0px;
     }
     img + em { // Image captions
       position: relative;
@@ -503,10 +509,12 @@
     ul {
       list-style-type: disc;
       padding-left: 16px;
+      margin-top: 32px;
     }
     li {
       line-height: 24px;
       padding-bottom: 16px;
+      padding-top: 16px;
       p { // Making sure our list items stay a consistent size if the contents get wrapped in a <p> tag coverted from Markdown.
         margin-bottom: 0;
       }
@@ -522,8 +530,8 @@
       list-style-type: none;
       padding-inline-start: 0px;
       padding: 0;
-      margin-top: 16px;
-      margin-bottom: 20px;
+      margin-top: 32px;
+      // margin-bottom: 20px;
       ul > li {
         text-indent: 0px;
         margin-left: 0px;
@@ -533,7 +541,8 @@
         margin-left: 36px;
         text-indent: -36px;
         padding-left: 0px;
-        margin-bottom: 16px;
+        margin-top: 24px;
+        margin-bottom: 24px;
         code:not(.nohighlight):not(.mermaid) {
           display: inline;
         }
@@ -639,11 +648,11 @@
       p {
         font-style: italic;
         line-height: 150%;
-        margin-bottom: 24px;
+        margin-top: 24px;
         font-size: 20px;
       }
-      p:last-of-type {
-        margin-bottom: 0px;
+      p:fist-of-type {
+        margin-top: 0px;
       }
       strong {
         color: #515774;
@@ -667,7 +676,8 @@
       height: 17px;
     }
     [purpose='checklist'] {
-      margin-bottom: 32px;
+      margin-top: 32px;
+      // margin-bottom: 32px;
       p {
         font-size: 16px;
         line-height: 150%;
@@ -675,11 +685,12 @@
         font-weight: 400;
         padding-left: 40px;
         text-indent: -40px;
-        margin-bottom: 16px;
-        padding-top: 12px;
-        padding-bottom: 12px;
-        &:last-of-type {
-          margin-bottom: 0px;
+        // margin-top: 16px;
+        margin-top: 0px;
+        padding-top: 24px;
+        padding-bottom: 24px;
+        &:first-of-type {
+          margin-top: 0px;
         }
       }
       p::before {
@@ -743,7 +754,8 @@
       border-collapse: collapse;
       font-size: 16px;
       line-height: 28px;
-      margin-bottom: 16px;
+      margin-top: 32px;
+      // margin-bottom: 16px;
       max-width: 100%;
       th {
         font-weight: @bold;
