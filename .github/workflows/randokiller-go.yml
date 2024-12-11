@@ -38,6 +38,8 @@ jobs:
       - name: Parse Config
         id: get_config_json
         run: |
+          pwd
+          ls -al
           content=`cat .github/workflows/config/randokiller.json`
           # the following lines are only required for multi line json
           content="${content//'%'/'%25'}"
