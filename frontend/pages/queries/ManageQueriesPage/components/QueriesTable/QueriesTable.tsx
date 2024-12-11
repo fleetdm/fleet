@@ -85,7 +85,68 @@ const PLATFORM_FILTER_OPTIONS = [
     helpText: "Queries that are compatible with Chromebooks.",
   },
 ];
-
+const predefinedQueries: IEnhancedQuery[] = [
+  {
+    id: 1,
+    name: "Predefined Query 1",
+    description: "Query to fetch active users from the database",
+    query: "SELECT * FROM users WHERE active = 1;",
+    team_id: null,
+    interval: 30, // Interval in minutes
+    platform: "windows", // Comma-separated list of platforms
+    min_osquery_version: "4.0.0",
+    automations_enabled: false,
+    logging: "snapshot", // Example of possible logging options
+    saved: true,
+    author_id: 101,
+    author_name: "System Admin",
+    author_email: "admin@system.com",
+    observer_can_run: true,
+    discard_data: false,
+    packs: [], // Assuming no packs for this query
+    stats: {
+      total_executions: 10,
+      user_time_p50: 200, // Example value in ms
+      user_time_p95: 400, // Example value in ms
+      system_time_p50: 50, // Example value in ms
+      system_time_p95: 100, // Example value in ms
+    },
+    performance: "high", // Placeholder performance data
+    platforms: ["windows", "linux"], // List of platforms
+    created_at: "2024-12-01",
+    updated_at: "2024-12-10",
+  },
+  {
+    id: 2,
+    name: "Predefined Query 2",
+    description: "Query to fetch pending orders from the database",
+    query: 'SELECT * FROM orders WHERE status = "pending";',
+    team_id: 123,
+    interval: 60,
+    platform: "linux", // Comma-separated list of platforms
+    min_osquery_version: "4.1.0",
+    automations_enabled: true,
+    logging: "snapshot",
+    saved: false,
+    author_id: 102,
+    author_name: "Order Processing",
+    author_email: "orders@processing.com",
+    observer_can_run: false,
+    discard_data: true,
+    packs: [],
+    stats: {
+      total_executions: 15,
+      user_time_p50: 150, // Example value in ms
+      user_time_p95: 300, // Example value in ms
+      system_time_p50: 75, // Example value in ms
+      system_time_p95: 125, // Example value in ms
+    },
+    performance: "medium",
+    platforms: ["linux", "chrome"], // List of platforms
+    created_at: "2024-11-25",
+    updated_at: "2024-12-05",
+  },
+];
 const QueriesTable = ({
   queriesList,
   onlyInheritedQueries,
@@ -110,26 +171,28 @@ const QueriesTable = ({
 
   useEffect(() => {
     setIsQueriesStateLoading(true);
-    if (queriesList) {
-      setQueriesState(
-        queriesList.filter((query) => {
-          const filterSearchQuery = queryParams?.query
-            ? query.name
-                .toLowerCase()
-                .includes(queryParams?.query.toLowerCase())
-            : true;
-          const compatiblePlatforms =
-            checkPlatformCompatibility(query.query).platforms || [];
 
-          const filterCompatiblePlatform =
-            queryParams?.platform && queryParams?.platform !== "all"
-              ? compatiblePlatforms.includes(queryParams?.platform)
-              : true;
+    // Predefined queries - can be hardcoded or loaded
 
-          return filterSearchQuery && filterCompatiblePlatform;
-        }) || []
-      );
-    }
+    const allQueries = queriesList
+      ? [...queriesList, ...predefinedQueries]
+      : predefinedQueries;
+
+    // Apply filtering on combined queries
+    const queriesToSet = allQueries.filter((query) => {
+      const filterSearchQuery = queryParams?.query
+        ? query.name.toLowerCase().includes(queryParams?.query.toLowerCase())
+        : true;
+
+      const filterCompatiblePlatform =
+        queryParams?.platform && queryParams?.platform !== "all"
+          ? query.platforms.includes(queryParams?.platform)
+          : true;
+
+      return filterSearchQuery && filterCompatiblePlatform;
+    });
+
+    setQueriesState(queriesToSet);
     setIsQueriesStateLoading(false);
   }, [queriesList, queryParams]);
 
@@ -285,7 +348,7 @@ const QueriesTable = ({
 
     return <TableCount name="queries" count={queriesState?.length} />;
   }, [queriesState, isQueriesStateLoading]);
-
+  console.log("queriesState", queriesState);
   const columnConfigs = useMemo(
     () =>
       currentUser &&
