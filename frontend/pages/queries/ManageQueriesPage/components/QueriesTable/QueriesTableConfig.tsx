@@ -12,7 +12,11 @@ import {
   IEnhancedQuery,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
-import { QueryablePlatform } from "interfaces/platform";
+import {
+  isQueryablePlatform,
+  QueryablePlatform,
+  SelectedPlatformString,
+} from "interfaces/platform";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
 
 import Icon from "components/Icon";
@@ -81,7 +85,7 @@ interface IBoolCellProps extends IRowProps {
 }
 interface IPlatformCellProps extends IRowProps {
   cell: {
-    value: QueryablePlatform[];
+    value: SelectedPlatformString;
   };
 }
 
@@ -181,11 +185,17 @@ const generateTableHeaders = ({
     },
     {
       title: "Platform",
-      Header: "Compatible with",
+      Header: "Targeted platforms",
       disableSortBy: true,
-      accessor: "platforms",
+      accessor: "platform",
       Cell: (cellProps: IPlatformCellProps): JSX.Element => {
-        return <PlatformCell platforms={cellProps.row.original.platforms} />;
+        const platforms = cellProps.cell.value
+          .split(",")
+          .map((s) => s.trim())
+          // this casting is necessary because make generate for some reason doesn't recognize the
+          // type guarding of `isQueryablePlatform` even though the language server in VSCode does
+          .filter((s) => isQueryablePlatform(s)) as QueryablePlatform[];
+        return <PlatformCell platforms={platforms} />;
       },
     },
     {
