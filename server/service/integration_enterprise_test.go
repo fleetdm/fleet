@@ -15529,3 +15529,57 @@ func (s *integrationEnterpriseTestSuite) TestWindowsMigrateMDMNotEnabled() {
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Windows MDM is not enabled")
 }
+
+func (s *integrationEnterpriseTestSuite) TestDeleteLabels() {
+	t := s.T()
+
+	// create a couple labels
+	var newLabelResp createLabelResponse
+	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
+		Name:     "TestDeleteLabels1",
+		Platform: "darwin",
+		Query:    "SELECT 1",
+	}, http.StatusOK, &newLabelResp)
+	lbl1 := newLabelResp.Label.ID
+	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
+		Name:     "TestDeleteLabels2",
+		Platform: "darwin",
+		Query:    "SELECT 2",
+	}, http.StatusOK, &newLabelResp)
+	lbl2 := newLabelResp.Label.ID
+
+	// create a software installer
+	installer := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "ruby.deb",
+		SelfService:   false,
+		TeamID:        nil,
+	}
+	s.uploadSoftwareInstaller(t, installer, http.StatusOK, "")
+
+	// associate lbl1 with the installer
+	// TODO(mna): use API or Datastore method once implemented
+	ctx := context.Background()
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var id uint
+		err := sqlx.GetContext(ctx, q, &id, `SELECT id FROM software_installers WHERE global_or_team_id = 0 AND filename = ?`, installer.Filename)
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `INSERT INTO software_installer_labels (software_installer_id, label_id) VALUES (?, ?)`, id, lbl1)
+		return err
+	})
+
+	// try to delete the label associated with the installer
+	res := s.Do("DELETE", "/api/v1/fleet/labels/id/"+fmt.Sprint(lbl1), nil, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "foreign key constraint on labels: TestDeleteLabels1")
+
+	// try to delete a label that does not exist by id and name
+	var delLabelResp deleteLabelByIDResponse
+	s.DoJSON("DELETE", "/api/v1/fleet/labels/id/"+fmt.Sprint(lbl1+1000), nil, http.StatusNotFound, &delLabelResp)
+	s.DoJSON("DELETE", "/api/v1/fleet/labels/no-such-label", nil, http.StatusNotFound, &delLabelResp)
+
+	// delete the unused label2
+	s.DoJSON("DELETE", "/api/v1/fleet/labels/id/"+fmt.Sprint(lbl2), nil, http.StatusOK, &delLabelResp)
+}
