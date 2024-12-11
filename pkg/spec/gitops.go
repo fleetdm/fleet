@@ -101,6 +101,8 @@ type GitOps struct {
 	Queries      []*fleet.QuerySpec
 	// Software is only allowed on teams, not on global config.
 	Software GitOpsSoftware
+	// FleetSecrets is a map of secret names to their values, extracted from FLEET_SECRET_ environment variables used in profiles and scripts.
+	FleetSecrets map[string]string
 }
 
 type GitOpsSoftware struct {
@@ -130,6 +132,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 
 	var multiError *multierror.Error
 	result := &GitOps{}
+	result.FleetSecrets = make(map[string]string)
 
 	topKeys := []string{"name", "team_settings", "org_settings", "agent_options", "controls", "policies", "queries", "software"}
 	for k := range top {
@@ -468,6 +471,25 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			result.Controls = pathControls
 		}
 	}
+
+	// Find Fleet secrets in scripts.
+	for _, script := range result.Controls.Scripts {
+		if script.Path == nil {
+			return multierror.Append(
+				multiError,
+				errors.New("controls.scripts.path is missing"),
+			)
+		}
+		fileBytes, err := os.ReadFile(*script.Path)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to read scripts file %s: %v", *script.Path, err))
+		}
+		err = LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
+		if err != nil {
+			return multierror.Append(multiError, err)
+		}
+	}
+
 	return multiError
 }
 
