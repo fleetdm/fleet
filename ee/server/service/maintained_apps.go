@@ -11,7 +11,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -119,7 +118,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	// Create record in software installers table
-	_, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
+	_, titleID, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "setting downloaded installer")
 	}
@@ -145,18 +144,12 @@ func (svc *Service) AddFleetMaintainedApp(
 		TeamName:        teamName,
 		TeamID:          payload.TeamID,
 		SelfService:     payload.SelfService,
+		SoftwareTitleID: titleID,
 	}); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "creating activity for added software")
 	}
 
-	// Use the writer for this query; we need the software installer that might have just been
-	// created above
-	titleId, err := svc.ds.GetSoftwareTitleIDByMaintainedAppID(ctxdb.RequirePrimary(ctx, true), app.ID, payload.TeamID)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "getting software title id by app id")
-	}
-
-	return titleId, nil
+	return titleID, nil
 }
 
 func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
