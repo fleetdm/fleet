@@ -35,6 +35,9 @@ jobs:
       tests_to_run: ${{fromJson(steps.get_config_json.outputs.json).tests_to_run}}
       pkg_to_test: ${{fromJson(steps.get_config_json.outputs.json).pkg_to_test}}
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
       - name: Parse Config
         id: get_config_json
         run: |
