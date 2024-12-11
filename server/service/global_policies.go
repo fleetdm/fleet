@@ -248,6 +248,16 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 			)
 		}
 	}
+
+	for _, policy := range policiesByID {
+		if err := svc.ds.DeletePendingSoftwareInstallsForPolicy(ctx, policy.PolicyData.ID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete pending software installs for policy")
+		}
+		if err := svc.ds.DeletePendingHostScriptExecutionsForPolicy(ctx, policy.PolicyData.ID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete pending host script executions for policy")
+		}
+	}
+
 	if err := svc.removeGlobalPoliciesFromWebhookConfig(ctx, ids); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "removing global policies from webhook config")
 	}
