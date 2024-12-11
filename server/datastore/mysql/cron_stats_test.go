@@ -50,9 +50,12 @@ func TestInsertUpdateCronStats(t *testing.T) {
 	require.Equal(t, fleet.CronStatsTypeScheduled, res[0].StatsType)
 	require.Equal(t, fleet.CronStatsStatusCompleted, res[0].Status)
 
+	var stats []testCronStats
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &stats, `SELECT * FROM cron_stats ORDER BY id`)
+	require.NoError(t, err)
 	// Make sure we got valid JSON back.
 	var actualMap map[string]string
-	err = json.Unmarshal([]byte(res[0].Errors), &actualMap)
+	err = json.Unmarshal([]byte(stats[0].Errors.String), &actualMap)
 	require.NoError(t, err)
 
 	// Compare the error JSON with the expected object.

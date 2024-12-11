@@ -17,7 +17,7 @@ func (ds *Datastore) GetLatestCronStats(ctx context.Context, name string) ([]fle
 	stmt := `
 (
 	SELECT
-		id, name, instance, stats_type, status, coalesce(errors, '') as errors, created_at, updated_at
+		id, name, instance, stats_type, status, created_at, updated_at
 	FROM
 		cron_stats
 	WHERE
@@ -30,7 +30,7 @@ func (ds *Datastore) GetLatestCronStats(ctx context.Context, name string) ([]fle
 UNION
 (
 	SELECT
-		id, name, instance, stats_type, status, coalesce(errors, '') as errors, created_at, updated_at
+		id, name, instance, stats_type, status, created_at, updated_at
 	FROM
 		cron_stats
 	WHERE
