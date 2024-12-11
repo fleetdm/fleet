@@ -964,6 +964,18 @@ software:
 	assert.ErrorContains(t, err, "failed to unmarshal install_software.package_path file")
 }
 
+func TestGitOpsWithStrayScriptEntryWithNoPath(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"controls"})
+	config += `
+controls:
+  scripts:
+    -
+`
+	_, err := gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, `check for a stray "-"`)
+}
+
 func TestGitOpsTeamPolicyWithInvalidRunScript(t *testing.T) {
 	t.Parallel()
 	config := getTeamConfig([]string{"policies"})
