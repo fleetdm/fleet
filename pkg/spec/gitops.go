@@ -475,10 +475,8 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	// Find Fleet secrets in scripts.
 	for _, script := range result.Controls.Scripts {
 		if script.Path == nil {
-			return multierror.Append(
-				multiError,
-				errors.New("controls.scripts.path is missing"),
-			)
+			// This should never happen because we checked for missing paths above (with code added in https://github.com/fleetdm/fleet/pull/24639).
+			return multierror.Append(multiError, errors.New("controls.scripts.path is missing"))
 		}
 		fileBytes, err := os.ReadFile(*script.Path)
 		if err != nil {

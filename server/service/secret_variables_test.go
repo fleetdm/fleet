@@ -94,14 +94,14 @@ func TestCreateSecretVariables(t *testing.T) {
 		t.Cleanup(func() {
 			testSetEmptyPrivateKey = false
 		})
-		err := svc.CreateSecretVariables(ctx, []fleet.SecretVariable{{Name: "foo", Value: "bar"}}, false)
+		err := svc.CreateSecretVariables(ctx, []fleet.SecretVariable{{Name: "foo", Value: "bar"}}, true)
 		assert.ErrorContains(t, err, "Couldn't save secret variables. Missing required private key")
 		testSetEmptyPrivateKey = false
 
 		ds.UpsertSecretVariablesFunc = func(ctx context.Context, secrets []fleet.SecretVariable) error {
 			return errors.New("test error")
 		}
-		err = svc.CreateSecretVariables(ctx, []fleet.SecretVariable{{Name: "foo", Value: "bar"}}, true)
+		err = svc.CreateSecretVariables(ctx, []fleet.SecretVariable{{Name: "foo", Value: "bar"}}, false)
 		assert.ErrorContains(t, err, "test error")
 	})
 
