@@ -662,7 +662,22 @@ SELECT
   '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
-FROM homebrew_packages;
+FROM homebrew_packages
+WHERE type = 'formula'
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS browser,
+  'homebrew_packages' AS source,
+  '' AS vendor,
+  0 AS last_opened_at,
+  path AS installed_path
+FROM homebrew_packages
+WHERE type = 'cask'
+AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path, '/%%', '/%.app%') LIMIT 1);
 ```
 
 ## software_macos_codesign
