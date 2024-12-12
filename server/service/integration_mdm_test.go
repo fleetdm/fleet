@@ -2919,29 +2919,16 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 
 	// list commands returns that command
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commands", nil, http.StatusOK, &listCmdResp)
-	results, err := json.Marshal(listCmdResp.Results)
-	t.Logf("GET /api/latest/fleet/mdm/apple/commands response:\n%s", results)
-
-	// filter to the expected command.
-	// there may be other commands due to the bootstrap packages uploaded in prior tests.
-	// TODO: decouple these tests so we don't have to do this -- perhaps delete bootstrap packages?
-	var profileListCommands []*fleet.MDMAppleCommand
-	for _, result := range listCmdResp.Results {
-		if result.RequestType == "ProfileList" {
-			profileListCommands = append(profileListCommands, result)
-		}
-	}
-
-	require.Len(t, profileListCommands, 1)
-	require.NotZero(t, profileListCommands[0].UpdatedAt)
-	profileListCommands[0].UpdatedAt = time.Time{}
+	require.Len(t, listCmdResp.Results, 1)
+	require.NotZero(t, listCmdResp.Results[0].UpdatedAt)
+	listCmdResp.Results[0].UpdatedAt = time.Time{}
 	require.Equal(t, &fleet.MDMAppleCommand{
 		DeviceID:    mdmDevice.UUID,
 		CommandUUID: uuid2,
 		Status:      "Acknowledged",
 		RequestType: "ProfileList",
 		Hostname:    "test-host",
-	}, profileListCommands[0])
+	}, listCmdResp.Results[0])
 }
 
 func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {
