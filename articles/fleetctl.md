@@ -102,7 +102,7 @@ Password:
 
 Once your local context is configured, you can use fleetctl normally.
 
-#### Users with sign sign-on (SSO) or email two-factor authentication (2FA)
+#### Users with single sign-on (SSO) or email two-factor authentication (2FA)
 
 Users that log into Fleet with SSO or email 2FA can't log in with `fleetctl login`. Instead they can retrieve their API token from the UI and manually set it in their fleetctl configuration (instead of logging in via `fleetctl login`).
 
