@@ -685,6 +685,16 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		_, err := tx.ExecContext(ctx, "DELETE FROM setup_experience_scripts;")
 		return err
 	})
+
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DELETE FROM host_mdm_apple_bootstrap_packages;")
+		return err
+	})
+
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DELETE FROM nano_commands;")
+		return err
+	})
 }
 
 func (s *integrationMDMTestSuite) mockDEPResponse(orgName string, handler http.Handler) {
@@ -2904,6 +2914,9 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	}, cmdResResp.Results[0])
 
 	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", uuid2)
+	results, err := json.Marshal(listCmdResp.Results)
+	t.Logf("GET /api/latest/fleet/mdm/apple/commands response:\n%s", results)
+
 	require.Len(t, getMDMCmdResp.Results, 1)
 	require.NotZero(t, getMDMCmdResp.Results[0].UpdatedAt)
 	getMDMCmdResp.Results[0].UpdatedAt = time.Time{}
