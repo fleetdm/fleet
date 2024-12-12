@@ -13,6 +13,7 @@ interface ISelectRoleFormProps {
   teams: ITeam[];
   onFormChange: (teams: ITeam[]) => void;
   isApiOnly?: boolean;
+  onMenuOpen?: () => void;
 }
 
 const generateSelectedTeamData = (
@@ -33,6 +34,7 @@ const SelectRoleForm = ({
   teams,
   onFormChange,
   isApiOnly,
+  onMenuOpen,
 }: ISelectRoleFormProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
 
@@ -59,6 +61,7 @@ const SelectRoleForm = ({
       value={selectedRole}
       onChange={updateSelectedRole}
       isSearchable={false}
+      onMenuOpen={onMenuOpen}
     />
   );
 };

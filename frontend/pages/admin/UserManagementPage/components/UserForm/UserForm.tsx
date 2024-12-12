@@ -160,6 +160,19 @@ const UserForm = ({
     };
   };
 
+  // Used to show entire dropdown when a dropdown menu is open in scrollable component of a modal
+  // menuPortalTarget solution not used as scrolling is weird
+  const scrollToFitDropdownMenu = () => {
+    if (topDivRef?.current) {
+      setTimeout(() => {
+        if (topDivRef.current) {
+          topDivRef.current.scrollTop =
+            topDivRef.current.scrollHeight - topDivRef.current.clientHeight;
+        }
+      }, 50); // Delay needed for scrollHeight to update first
+    }
+  };
+
   const onCheckboxChange = (formField: string): ((evt: string) => void) => {
     return (evt: string) => {
       return onInputChange(formField)(evt);
@@ -308,6 +321,7 @@ const UserForm = ({
             }
           }}
           isSearchable={false}
+          onMenuOpen={scrollToFitDropdownMenu}
         />
       </>
     );
@@ -356,6 +370,7 @@ const UserForm = ({
                 usersCurrentTeams={formData.teams}
                 onFormChange={onSelectedTeamChange}
                 isApiOnly={isApiOnly}
+                onMenuOpen={scrollToFitDropdownMenu}
               />
             </>
           ) : (
@@ -365,6 +380,7 @@ const UserForm = ({
               defaultTeamRole={defaultTeamRole || "Observer"}
               onFormChange={onTeamRoleChange}
               isApiOnly={isApiOnly}
+              onMenuOpen={scrollToFitDropdownMenu}
             />
           ))}
         {!availableTeams.length && renderNoTeamsMessage()}
