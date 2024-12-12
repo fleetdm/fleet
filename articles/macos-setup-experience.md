@@ -178,6 +178,8 @@ If you configure software and/or a script for setup experience, users will see a
 
 This window shows the status of the software installations as well as the script exectution. Once all steps have completed, the window can be closed and Setup Assistant will proceed as usual.
 
+> Currently, software set to [automatic install](https://fleetdm.com/guides/automatic-software-install-in-fleet) is also installed during Setup Assistant but won't appear in the window. All software, automatic and setup experience, isn't installed in any particular order. The script always runs after setup experience software is installed.
+
 ### Install software
 
 To configure software to be installed during setup experience:
