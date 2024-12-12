@@ -11,7 +11,6 @@ describe("UserForm - component", () => {
     availableTeams: [],
     onCancel: noop,
     onSubmit: noop,
-    submitText: "Add",
     isModifiedByGlobalAdmin: true,
     isPremiumTier: true,
     smtpConfigured: true,
@@ -42,7 +41,7 @@ describe("UserForm - component", () => {
   it("renders SSO option when canUseSso is true", () => {
     render(<UserForm {...defaultProps} canUseSso />);
 
-    expect(screen.getByLabelText("Enable single sign-on")).toBeInTheDocument();
+    expect(screen.getByLabelText("Single sign-on")).toBeInTheDocument();
   });
 
   it("disables invite user option when SMTP and SES are not configured", () => {
@@ -72,6 +71,51 @@ describe("UserForm - component", () => {
     // Verify that non-premium elements are still present
     expect(screen.getByLabelText("Full name")).toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
-    expect(screen.getByLabelText("Password")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("radio", { name: "Password" })
+    ).toBeInTheDocument();
+  });
+
+  it("does not render password and 2FA sections when SSO is selected", () => {
+    render(<UserForm {...defaultProps} canUseSso />);
+
+    // Enable SSO
+    const ssoRadio = screen.getByLabelText("Single sign-on");
+    ssoRadio.click();
+
+    // Check that the password radio is present
+    const passwordRadio = screen.getByRole("radio", { name: "Password" });
+    expect(passwordRadio).not.toBeDisabled();
+
+    // Check that password input field and 2FA sections are not present
+    expect(
+      screen.queryByRole("input", { name: "Password" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Enable two-factor authentication")
+    ).not.toBeInTheDocument();
+  });
+
+  it("displays disabled SSO option when SSO is globally disabled but was previously enabled for the user", async () => {
+    const props = {
+      ...defaultProps,
+      defaultName: "User 1",
+      defaultEmail: "user@example.com",
+      currentUserId: 1,
+      canUseSso: false,
+      isSsoEnabled: true,
+      isNewUser: false,
+    };
+
+    const { user } = renderWithSetup(<UserForm {...props} />);
+
+    // Check that the SSO radio is disabled
+    const ssoRadio = screen.getByLabelText("Single sign-on");
+    expect(ssoRadio).toBeDisabled();
+
+    await user.click(screen.getByText("Save"));
+    expect(
+      screen.getByText(/Password field must be completed/i)
+    ).toBeInTheDocument();
   });
 });

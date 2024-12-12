@@ -6903,7 +6903,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 			`, host.ID, calendarEventID)
 	require.NoError(t, err)
 
-	softwareInstaller, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
+	softwareInstaller, _, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:   "",
 		PreInstallQuery: "",
 		Title:           "ChocolateRain",

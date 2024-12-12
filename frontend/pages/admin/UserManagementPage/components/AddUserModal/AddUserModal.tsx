@@ -59,7 +59,6 @@ const AddUserModal = ({
         onCancel={onCancel}
         onSubmit={onSubmit}
         availableTeams={availableTeams || []}
-        submitText="Add"
         isPremiumTier={isPremiumTier}
         smtpConfigured={smtpConfigured}
         sesConfigured={sesConfigured}

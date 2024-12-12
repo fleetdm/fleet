@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-git/go-git/v5"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -100,6 +101,36 @@ func (s *integrationGitopsTestSuite) TestFleetGitops() {
 	t := s.T()
 	const fleetGitopsRepo = "https://github.com/fleetdm/fleet-gitops"
 
+	fleetctlConfig := s.createFleetctlConfig()
+
+	// Clone git repo
+	repoDir := t.TempDir()
+	_, err := git.PlainClone(
+		repoDir, false, &git.CloneOptions{
+			ReferenceName: "main",
+			SingleBranch:  true,
+			Depth:         1,
+			URL:           fleetGitopsRepo,
+			Progress:      os.Stdout,
+		},
+	)
+	require.NoError(t, err)
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.server.URL)
+	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
+	globalFile := path.Join(repoDir, "default.yml")
+
+	// Dry run
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"})
+
+	// Real run
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile})
+
+}
+
+func (s *integrationGitopsTestSuite) createFleetctlConfig() *os.File {
+	t := s.T()
 	// Create a temporary fleetctl config file
 	fleetctlConfig, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -116,30 +147,40 @@ contexts:
 	)
 	_, err = fleetctlConfig.WriteString(configStr)
 	require.NoError(t, err)
+	return fleetctlConfig
+}
 
-	// Clone git repo
-	repoDir := t.TempDir()
-	_, err = git.PlainClone(
-		repoDir, false, &git.CloneOptions{
-			ReferenceName: "main",
-			SingleBranch:  true,
-			Depth:         1,
-			URL:           fleetGitopsRepo,
-			Progress:      os.Stdout,
-		},
-	)
-	require.NoError(t, err)
+func (s *integrationGitopsTestSuite) TestFleetGitopsWithFleetSecrets() {
+	t := s.T()
+	const secretName = "NAME"
+	ctx := context.Background()
+	fleetctlConfig := s.createFleetctlConfig()
 
 	// Set the required environment variables
 	t.Setenv("FLEET_URL", s.server.URL)
 	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
-	globalFile := path.Join(repoDir, "default.yml")
-	require.NoError(t, err)
+	t.Setenv("FLEET_SECRET_"+secretName, "secret_value")
+	globalFile := path.Join("testdata", "gitops", "global_integration.yml")
 
 	// Dry run
 	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"})
+	secrets, err := s.ds.GetSecretVariables(ctx, []string{secretName})
+	require.NoError(t, err)
+	require.Empty(t, secrets)
 
 	// Real run
 	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile})
+	secrets, err = s.ds.GetSecretVariables(ctx, []string{secretName})
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+	assert.Equal(t, secretName, secrets[0].Name)
+	assert.Equal(t, "secret_value", secrets[0].Value)
+	scriptID, err := s.ds.GetScriptIDByName(ctx, "fleet-secret.sh", nil)
+	require.NoError(t, err)
+	expected, err := os.ReadFile("testdata/gitops/lib/fleet-secret.sh")
+	require.NoError(t, err)
+	script, err := s.ds.GetScriptContents(ctx, scriptID)
+	require.NoError(t, err)
+	assert.Equal(t, expected, script)
 
 }
