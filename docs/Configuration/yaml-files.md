@@ -314,7 +314,7 @@ The `software` section allows you to configure packages, Apple App Store apps, a
 
 - `packages` is a list of paths to custom packages (.pkg, .msi, .exe, .rpm, or .deb).
 - `app_store_apps` is a list of Apple App Store apps.
-- `fleet_maintained_apps` is a list of apps maintained by Fleet.
+- `fleet_maintained_apps` is a list of apps maintained by Fleet. The full list can be found on the [App library page](https://fleetdm.com/app-library) on [Fleetdm.com](https://fleetdm.com)
 
 Currently, one app for each of an App Store app's supported platforms are added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet. Specifying specific platforms is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
@@ -330,7 +330,7 @@ software:
   app_store_apps:
     - app_store_id: '1091189122'
   fleet_maintained_apps:
-    - fleet_id: 'slack'
+    - fleet_maintained_app_id: slack
 ```
 
 ### packages
@@ -364,7 +364,7 @@ self_service: true
 
 ### fleet_maintained_apps
 
-- `fleet_id` is the ID of the app. This ID is the same as the 'token' name on Homebrew. The ID can be found on the [App library page](https://fleetdm.com/app-library) on Fleetdm.com or in the list of Fleet-maintained apps on the "Add software" page within Fleet.
+- `fleet_maintained_app_id` is the ID of the app. The ID can be found on the [App library page](https://fleetdm.com/app-library) on [Fleetdm.com](https://fleetdm.com) or in the list of Fleet-maintained apps on the "Add software" page within Fleet.
 
 ## org_settings and team_settings
 
