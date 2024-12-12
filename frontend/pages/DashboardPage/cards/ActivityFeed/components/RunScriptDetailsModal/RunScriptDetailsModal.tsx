@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "react-query";
 
 import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
@@ -10,6 +10,7 @@ import Icon from "components/Icon";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import Spinner from "components/Spinner/Spinner";
+import ModalFooter from "components/ModalFooter";
 
 const baseClass = "run-script-details-modal";
 
@@ -166,6 +167,17 @@ const RunScriptDetailsModal = ({
   onCancel,
   isHidden = false,
 }: IRunScriptDetailsModalProps) => {
+  // For scrollable modal
+  const [isTopScrolling, setIsTopScrolling] = useState(false);
+  const topDivRef = useRef<HTMLDivElement>(null);
+  const checkScroll = () => {
+    if (topDivRef.current) {
+      const isScrolling =
+        topDivRef.current.scrollHeight > topDivRef.current.clientHeight;
+      setIsTopScrolling(isScrolling);
+    }
+  };
+
   const { data, isLoading, isError } = useQuery<IScriptResultResponse>(
     ["runScriptDetailsModal", scriptExecutionId],
     () => {
@@ -173,6 +185,13 @@ const RunScriptDetailsModal = ({
     },
     { refetchOnWindowFocus: false, enabled: !!scriptExecutionId }
   );
+
+  // For scrollable modal
+  useEffect(() => {
+    checkScroll();
+    window.addEventListener("resize", checkScroll);
+    return () => window.removeEventListener("resize", checkScroll);
+  }, [data]); // Re-run when data changes
 
   const renderContent = () => {
     let content = <></>;
@@ -206,18 +225,24 @@ const RunScriptDetailsModal = ({
     }
 
     return (
-      <>
-        <div className={`${baseClass}__modal-content`}>{content}</div>
-      </>
+      <div
+        className={`${baseClass}__modal-content modal-scrollable-content`}
+        ref={topDivRef}
+      >
+        {content}
+      </div>
     );
   };
 
   const renderFooter = () => (
-    <div className={`primary-actions ${baseClass}__host-script-actions`}>
-      <Button onClick={onCancel} variant="brand">
-        Done
-      </Button>
-    </div>
+    <ModalFooter
+      isTopScrolling={isTopScrolling}
+      primaryButtons={
+        <Button onClick={onCancel} variant="brand">
+          Done
+        </Button>
+      }
+    />
   );
   return (
     <Modal
@@ -226,9 +251,11 @@ const RunScriptDetailsModal = ({
       onEnter={onCancel}
       className={baseClass}
       isHidden={isHidden}
-      actionsFooter={renderFooter()}
     >
-      {renderContent()}
+      <>
+        {renderContent()}
+        {renderFooter()}
+      </>
     </Modal>
   );
 };

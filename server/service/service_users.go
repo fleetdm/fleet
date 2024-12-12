@@ -38,6 +38,9 @@ func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.Us
 	if err := fleet.ValidateUserRoles(true, p, *license); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate role")
 	}
+	if !license.IsPremium() {
+		p.MFAEnabled = ptr.Bool(false)
+	}
 
 	user, err := p.User(svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
 	if err != nil {

@@ -17,6 +17,8 @@ You can deploy Fleet anywhere, or we can [host it for you](/docs/get-started/faq
     </a>
 </div>
 
+Want to host Fleet yourself? Check out the [reference architecture](https://fleetdm.com/docs/deploy/reference-architectures#reference-architectures).
+
 Looking for other deployment options? Check out the [guides](https://fleetdm.com/guides).
 
 <h2 class="d-none markdown-heading">Render</h2>
@@ -143,3 +145,4 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
 
 <meta name="pageOrderInSection" value="100">
 <meta name="description" value="Learn how to easily deploy Fleet on Render or AWS with Terraform.">
+<meta name="title" value="Hosting Fleet">

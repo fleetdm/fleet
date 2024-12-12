@@ -214,7 +214,7 @@ module "main" {
       prefix  = local.customer
       enabled = true
     }
-    idle_timeout = 605
+    idle_timeout = 905
     #    extra_target_groups = [
     #      {
     #        name             = module.saml_auth_proxy.name

@@ -5,10 +5,11 @@ import (
 	"context"
 	"sync"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/ctxlog"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
+
+	"github.com/micromdm/nanolib/log"
+	"github.com/micromdm/nanolib/log/ctxlog"
 )
 
 // MultiService executes multiple services for the same service calls.
@@ -126,6 +127,16 @@ func (ms *MultiService) DeclarativeManagement(r *mdm.Request, m *mdm.Declarative
 		return err
 	})
 	return retBytes, err
+}
+
+func (ms *MultiService) GetToken(r *mdm.Request, m *mdm.GetToken) (*mdm.GetTokenResponse, error) {
+	resp, err := ms.svcs[0].GetToken(r, m)
+	rc := ms.RequestWithContext(r)
+	ms.runOthers(r.Context, func(svc service.CheckinAndCommandService) error {
+		_, err := svc.GetToken(rc, m)
+		return err
+	})
+	return resp, err
 }
 
 func (ms *MultiService) CommandAndReportResults(r *mdm.Request, results *mdm.CommandResults) (*mdm.Command, error) {

@@ -403,7 +403,7 @@ func SanitizeVersion(version string) ([]string, error) {
 	}
 	if len(vParts) == 3 && strings.Contains(vParts[2], "-") {
 		parts := strings.SplitN(vParts[2], "-", 2)
-		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
 			return nil, fmt.Errorf("invalid patch and pre-release version: %s", vParts[2])
 		}
 		patch, preRelease := parts[0], parts[1]

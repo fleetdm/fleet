@@ -31,9 +31,10 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
       	gravatar_url,
       	position,
         sso_enabled,
+	    mfa_enabled,
 		api_only,
 		global_role
-      ) VALUES (?,?,?,?,?,?,?,?,?,?)
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?)
       `
 		result, err := tx.ExecContext(ctx, sqlStatement,
 			user.Password,
@@ -44,6 +45,7 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
 			user.GravatarURL,
 			user.Position,
 			user.SSOEnabled,
+			user.MFAEnabled,
 			user.APIOnly,
 			user.GlobalRole)
 
@@ -168,6 +170,7 @@ func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error
       	gravatar_url = ?,
       	position = ?,
         sso_enabled = ?,
+        mfa_enabled = ?,
         api_only = ?,
 		global_role = ?
       WHERE id = ?
@@ -181,6 +184,7 @@ func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error
 		user.GravatarURL,
 		user.Position,
 		user.SSOEnabled,
+		user.MFAEnabled,
 		user.APIOnly,
 		user.GlobalRole,
 		user.ID)

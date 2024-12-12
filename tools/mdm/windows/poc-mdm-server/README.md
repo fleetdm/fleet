@@ -23,6 +23,17 @@ This code is MIT licensed and it was forked from [here](https://github.com/oscar
 ## Usage
 
 On the server side, you just need to run the project using the already provided cert and keys. The certificate is in `.pfx` file format, so you need to extract the certificate and key first, see https://stackoverflow.com/a/59120388/1094941.
+The "Import password" is "testpassword", and the names of the output files matter, on Linux something like this works (assuming you are in the certs/ directory):
+
+```
+# for the cert
+$ openssl pkcs12 -in dev_cert_mdmwindows_com.pfx -clcerts -nokeys -out dev_cert_mdmwindows_com_cert.pem
+
+# for the key
+$ openssl pkcs12 -in dev_cert_mdmwindows_com.pfx -out dev_cert_mdmwindows_com.key -nocerts -nodes
+```
+
+Note that an asn1 error might occur when running the server, if that's the case you need to patch your local Go toolchain by running `$ go run ./patch/patch.go` (`GOROOT` env var must be set to point to your `go env GOROOT` directory). It may require `sudo` depending on where your `go` installation is (due to https://github.com/golang/go/issues/14017).
 
 Next go to the project folder and run.
 
@@ -30,7 +41,9 @@ Next go to the project folder and run.
 go run .
 ```
 
-On the Windows client side, you need to import a custom CA certificate to the certificate store, and populate the `hosts` file before running the Windows Enrollment. The certificate to import is on the certs directory and it is called `dev_cert_mdmwindows_com.pfx`. You need to copy this certificate to the client machine and run the powershell command below. This is required because the project uses a local dev https endpoint.
+Note that the server binds to the standard and usually firewall-protected `443` port, so you may need to configure your firewall to allow connections to it for the duration of your test.
+
+On the Windows client side, you need to import the custom CA certificate to the certificate store, and populate the `hosts` file before running the Windows Enrollment. The certificate to import is on the certs directory and it is called `dev_cert_mdmwindows_com.pfx`. You need to copy this certificate to the client machine and run the powershell command below (in the console, not in a powershell terminal). This is required because the project uses a local dev https endpoint.
 
     1) Import certificate to Trusted CAs repository (be sure to update the path to the pfx certificate)
 
@@ -41,6 +54,8 @@ On the Windows client side, you need to import a custom CA certificate to the ce
     echo <server_ip> mdmwindows.com >> %SystemRoot%\System32\drivers\etc\hosts
     echo <server_ip> autodiscovery.mdmwindows.com >> %SystemRoot%\System32\drivers\etc\hosts
     echo <server_ip> enterpriseenrollment.mdmwindows.com >> %SystemRoot%\System32\drivers\etc\hosts
+
+To enroll the device into this MDM server, go to `Settings > Accounts > Access work or school` and click the connect button, enter the email provided to the server when you ran `go run .` (default: `demo@mdmwindows.com`) and it should automatically detect the server and proceed with enrollment. This is why the server must run on port `:443`, because it uses automatic discovery and will not attempt a custom port.
 
 ## Protocol Details
 
