@@ -5,6 +5,7 @@ on:
     branches:
       - "sgress454/randokiller-go-init"
       - "*randokiller-*"
+      - "*/*randokiller-*"
     paths:
       - "**.go"
       - "go.mod"
