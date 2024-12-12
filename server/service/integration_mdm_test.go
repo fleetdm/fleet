@@ -2920,6 +2920,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	// list commands returns that command
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commands", nil, http.StatusOK, &listCmdResp)
 	results, err := json.Marshal(listCmdResp.Results)
+	require.NoError(t, err)
 	t.Logf("GET /api/latest/fleet/mdm/apple/commands response:\n%s", results)
 
 	// filter to the expected command.
