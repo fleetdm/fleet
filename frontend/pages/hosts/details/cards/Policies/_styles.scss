@@ -23,6 +23,10 @@
         tr {
           .name__cell {
             max-width: 0; // sets ellipsis
+
+            .truncated-tooltip {
+              font-weight: $regular;
+            }
           }
 
           .policy-link {
@@ -38,12 +42,6 @@
           .policy-info {
             width: 100%; // sets ellipsis
             justify-content: left;
-
-            .policy-info-text {
-              overflow: hidden;
-              white-space: nowrap;
-              text-overflow: ellipsis;
-            }
 
             &::after {
               content: url("../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png");

@@ -2037,9 +2037,7 @@ func TestIngestNetworkInterface(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overriden
+			h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overridden
 			err := ingestNetworkInterface(publicip.NewContext(context.Background(), tc.ip), log.NewNopLogger(), &h, nil)
 			require.NoError(t, err)
 			if tc.valid {
@@ -2049,6 +2047,48 @@ func TestIngestNetworkInterface(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("primaryIP and primaryMAC", func(t *testing.T) {
+		h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overridden
+		ip := "10.0.0.1"
+		var b bytes.Buffer
+		logger := log.NewLogfmtLogger(&b)
+
+		// Happy path
+		rows := []map[string]string{
+			{"address": "address", "mac": "mac"},
+		}
+		err := ingestNetworkInterface(publicip.NewContext(context.Background(), ip), logger, &h, rows)
+		require.NoError(t, err)
+		assert.Equal(t, ip, h.PublicIP)
+		assert.Equal(t, "mac", h.PrimaryMac)
+		assert.Equal(t, "address", h.PrimaryIP)
+		assert.Empty(t, b.String())
+
+		// No rows
+		b.Reset()
+		h = fleet.Host{PublicIP: "190.18.97.3"}
+		err = ingestNetworkInterface(publicip.NewContext(context.Background(), ip), logger, &h, []map[string]string{})
+		require.NoError(t, err)
+		assert.Equal(t, ip, h.PublicIP)
+		assert.Empty(t, h.PrimaryMac)
+		assert.Empty(t, h.PrimaryIP)
+		assert.Contains(t, b.String(), "did not find a private IP address")
+
+		// Too many rows
+		b.Reset()
+		h = fleet.Host{PublicIP: "190.18.97.3"}
+		rows = []map[string]string{
+			{"address": "address", "mac": "mac"},
+			{"address": "address2", "mac": "mac2"},
+		}
+		err = ingestNetworkInterface(publicip.NewContext(context.Background(), ip), logger, &h, rows)
+		require.NoError(t, err)
+		assert.Equal(t, ip, h.PublicIP)
+		assert.Empty(t, h.PrimaryMac)
+		assert.Empty(t, h.PrimaryIP)
+		assert.Contains(t, b.String(), "expected single result")
+	})
 }
 
 func TestGenerateSQLForAllExists(t *testing.T) {
