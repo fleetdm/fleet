@@ -102,9 +102,9 @@ Password:
 
 Once your local context is configured, you can use fleetctl normally.
 
-### Log in with SAML (SSO) authentication
+### Log in with SAML (SSO) authentication or MFA
 
-Users that authenticate to Fleet via SSO should retrieve their API token from the UI and manually set it in their fleetctl configuration (instead of logging in via `fleetctl login`).
+Users that authenticate to Fleet via SSO, or who have email MFA set up, should retrieve their API token from the UI and manually set it in their fleetctl configuration (instead of logging in via `fleetctl login`).
 
 **Fleet UI:**
 1. Go to the **My account** page (https://fleet.example.com/profile)

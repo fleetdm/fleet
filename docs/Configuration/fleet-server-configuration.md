@@ -1856,6 +1856,9 @@ By default, the SMTP backend is enabled and no additional configuration is requi
 SMTP through the [Fleet console UI](https://fleetdm.com/docs/using-fleet/configuration-files#smtp-settings). However, you can also
 configure Fleet to use AWS SES natively rather than through SMTP.
 
+A configured email backend is required for sending user invites, resetting passwords, verifying user email address changes,
+and Multi-Factor authentication within Fleet (without using an SSO identity provider).
+
 ### backend
 
 Enable SES support for Fleet. You must also configure the ses configurations such as `ses.source_arn`
