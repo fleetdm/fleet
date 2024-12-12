@@ -43,23 +43,23 @@ A leading online platform for user-generated games faced significant challenges 
 
 To address these challenges, they adopted Fleet for server observability, leveraging its query engine and open API to enhance its infrastructure management alongside:
 
-### Scalable Deployment: 
+### Scalable deployment: 
 
 Fleet’s architecture ensures minimal performance impact even as the server count grows exponentially.
 
-### Comprehensive Security and Compliance:
+### Comprehensive security and compliance:
 
 The gaming company now utilizes Fleet’s customizable compliance checks and vulnerability assessments to maintain high-security standards across multiple teams.
 
-### Robust API and Integration:
+### Robust API and integration:
 
 Fleet’s extensive API and webhook support enables automation and integration with their existing systems, eliminating the need for additional middleware and reducing reliance on manual configurations.
 
-### Advanced Data Handling: 
+### Advanced data handling: 
 
 Fleet’s ability to handle large data sets efficiently allows them to perform complex queries and generate accurate inventories of software components, everything from different Python versions to identified vulnerable software across varying server environments.
 
-### User-Friendly Management: 
+### User-friendly management: 
 
 Fleet facilitates the deployment and maintenance of agents without the need for ongoing manual intervention, aligning with the goal of reducing operational overhead and enhancing reliability.
 
