@@ -72,6 +72,8 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 		return fmt.Errorf("Failed to find LUKS Root Partition: %w", err)
 	}
 
+	log.Debug().Msgf("LUKS: found encrypted partition at %s", devicePath)
+
 	var response LuksResponse
 	key, keyslot, err := lr.getEscrowKey(ctx, devicePath)
 	if err != nil {
@@ -79,6 +81,7 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	}
 
 	if len(key) == 0 && err == nil {
+		log.Debug().Msg("LUKS: keylen is 0, dialog was probably canceled or timed out")
 		// dialog was canceled or timed out
 		return nil
 	}
@@ -87,16 +90,21 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	response.KeySlot = keyslot
 
 	if keyslot != nil {
+		log.Debug().Msgf("LUKS: getting salt for keyslot %d", *keyslot)
 		salt, err := getSaltforKeySlot(ctx, devicePath, *keyslot)
 		if err != nil {
+			log.Debug().Msg("LUKS: error occurred while getting salt")
+			log.Debug().Err(err)
 			if err := removeKeySlot(ctx, devicePath, *keyslot); err != nil {
 				log.Error().Err(err).Msgf("failed to remove key slot %d", *keyslot)
 			}
 			response.Err = fmt.Sprintf("Failed to get salt for key slot: %s", err)
 		}
+		log.Debug().Msg("LUKS: successfully retrieved salt for keyslot")
 		response.Salt = salt
 	}
 
+	log.Debug().Msg("LUKS: sending passphrase to fleet")
 	if err := lr.escrower.SendLinuxKeyEscrowResponse(response); err != nil {
 		// If sending the response fails, remove the key slot
 		if keyslot != nil {
@@ -104,6 +112,8 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 				log.Error().Err(err).Msg("failed to remove key slot")
 			}
 		}
+
+		log.Debug().Msg("LUKS: failed to send passphrase to fleet")
 
 		// Show error in dialog
 		if err := lr.infoPrompt(infoTitle, infoFailedText); err != nil {
@@ -113,7 +123,11 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 		return fmt.Errorf("escrower escrowKey err: %w", err)
 	}
 
+	log.Debug().Msg("LUKS: successfully sent passphrase to fleet")
+
+	
 	if response.Err != "" {
+		log.Debug().Msg("LUKS: response error is not empty")
 		if err := lr.infoPrompt(infoTitle, response.Err); err != nil {
 			log.Info().Err(err).Msg("failed to show response error dialog")
 		}
@@ -121,6 +135,7 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	}
 
 	// Show success dialog
+	log.Debug().Msg("LUKS: showing success dialog")
 	if err := lr.infoPrompt(infoTitle, infoSuccessText); err != nil {
 		log.Info().Err(err).Msg("failed to show success escrow key dialog")
 	}
@@ -133,6 +148,7 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 	device := luksdevice.New(luksdevice.AESXTSPlain64Cipher)
 
 	// Prompt user for existing LUKS passphrase
+	log.Debug().Msg("LUKS: prompting user for passphrase")
 	passphrase, err := lr.entryPrompt(ctx, entryDialogTitle, entryDialogText)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to show passphrase entry prompt: %w", err)
@@ -197,6 +213,7 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		}
 	}()
 
+	log.Debug().Msg("LUKS: generating random passphrase")
 	escrowPassphrase, err := generateRandomPassphrase()
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to generate random passphrase: %w", err)
@@ -207,6 +224,7 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 	// the user's passphrase
 	var keySlot uint = userKeySlot + 1
 	for {
+		
 		if keySlot == maxKeySlots {
 			return nil, nil, errors.New("all LUKS key slots are full")
 		}
@@ -214,20 +232,28 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		userKey := encryption.NewKey(userKeySlot, passphrase)
 		escrowKey := encryption.NewKey(int(keySlot), escrowPassphrase) // #nosec G115
 
+		log.Debug().Msgf("LUKS: attempting to add key to slot %d", keySlot)
 		if err := device.AddKey(ctx, devicePath, userKey, escrowKey); err != nil {
 			if ErrKeySlotFull.MatchString(err.Error()) {
+				log.Debug().Msgf("LUKS: keyslot %d is full, trying next keyslot", keySlot)
 				keySlot++
 				continue
 			}
 			return nil, nil, fmt.Errorf("Failed to add key: %w", err)
 		}
 
+		log.Debug().Msgf("LUKS: successfully added passphrase to key slot %d", keySlot)
 		break
 	}
 
+	log.Debug().Msgf("LUKS: validating passphrase at keyslot %d", keySlot)
 	valid, err := lr.passphraseIsValid(ctx, device, devicePath, escrowPassphrase, keySlot)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error while validating escrow passphrase: %w", err)
+	}
+
+	if valid {
+		log.Debug().Msgf("LUKS: successfully validated passphrase at keyslot %d", keySlot)
 	}
 
 	if !valid {
