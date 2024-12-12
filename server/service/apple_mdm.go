@@ -1977,6 +1977,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), "maximum configuration profile file size is 1 MB"),
 			)
 		}
+		// TODO substitute in secrets for parsing
 		mdmProf, err := fleet.NewMDMAppleConfigProfile(prof, tmID)
 		if err != nil {
 			return ctxerr.Wrap(ctx,
@@ -2012,7 +2013,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	}
 
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, profStrings); err != nil {
-		return ctxerr.Wrap(ctx, err, "validating fleet secrets")
+		return fleet.NewInvalidArgumentError("profiles", err.Error())
 	}
 
 	if !skipBulkPending {
