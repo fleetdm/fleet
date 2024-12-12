@@ -12,5 +12,13 @@ type MissingSecretsError struct {
 }
 
 func (e MissingSecretsError) Error() string {
-	return fmt.Sprintf("secret variables not present in database: %s", strings.Join(e.MissingSecrets, ", "))
+	secretVars := make([]string, 0, len(e.MissingSecrets))
+	for _, secret := range e.MissingSecrets {
+		secretVars = append(secretVars, fmt.Sprintf("\"$FLEET_SECRET_%s\"", secret))
+	}
+	plural := ""
+	if len(secretVars) > 1 {
+		plural = "s"
+	}
+	return fmt.Sprintf("Couldn't add. Variable%s %s missing", plural, strings.Join(secretVars, ", "))
 }
