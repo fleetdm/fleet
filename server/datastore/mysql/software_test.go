@@ -5259,7 +5259,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	// create some software: custom installers and FMA
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
-	installerID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installerID1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
@@ -5329,7 +5329,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	// TODO(JVE): check the title ID once I update this with feature branch
 
 	// Add an installer. No label yet.
-	installerID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installerID2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
