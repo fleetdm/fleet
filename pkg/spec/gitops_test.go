@@ -79,6 +79,9 @@ func TestValidGitOpsYaml(t *testing.T) {
 		isTeam      bool
 	}{
 		"global_config_no_paths": {
+			environment: map[string]string{
+				"FLEET_SECRET_FLEET_SECRET_": "fleet_secret",
+			},
 			filePath: "testdata/global_config_no_paths.yml",
 		},
 		"global_config_with_paths": {
@@ -86,10 +89,14 @@ func TestValidGitOpsYaml(t *testing.T) {
 				"LINUX_OS":                      "linux",
 				"DISTRIBUTED_DENYLIST_DURATION": "0",
 				"ORG_NAME":                      "Fleet Device Management",
+				"FLEET_SECRET_FLEET_SECRET_":    "fleet_secret",
 			},
 			filePath: "testdata/global_config.yml",
 		},
 		"team_config_no_paths": {
+			environment: map[string]string{
+				"FLEET_SECRET_FLEET_SECRET_": "fleet_secret",
+			},
 			filePath: "testdata/team_config_no_paths.yml",
 			isTeam:   true,
 		},
@@ -99,6 +106,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 				"LINUX_OS":                        "linux",
 				"DISTRIBUTED_DENYLIST_DURATION":   "0",
 				"ENABLE_FAILING_POLICIES_WEBHOOK": "true",
+				"FLEET_SECRET_FLEET_SECRET_":      "fleet_secret",
 			},
 			filePath: "testdata/team_config.yml",
 			isTeam:   true,
@@ -220,6 +228,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "windows_migration_enabled not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
+				require.Len(t, gitops.FleetSecrets, 1)
+				assert.Equal(t, "fleet_secret", gitops.FleetSecrets["FLEET_SECRET_FLEET_SECRET_"])
 
 				// Check agent options
 				assert.NotNil(t, gitops.AgentOptions)
@@ -1050,4 +1060,20 @@ func getBaseConfig(options map[string]string, optsToExclude []string) string {
 		}
 	}
 	return config
+}
+
+func TestIllegalFleetSecret(t *testing.T) {
+	t.Parallel()
+	config := getGlobalConfig([]string{"policies"})
+	config += `
+policies:
+  - name: $FLEET_SECRET_POLICY
+    platform: linux
+    query: SELECT 1 FROM osquery_info WHERE start_time < 0;
+  - name: My policy
+    platform: windows
+    query: SELECT 1;
+`
+	_, err := gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "variables with \"FLEET_SECRET_\" prefix are only allowed")
 }

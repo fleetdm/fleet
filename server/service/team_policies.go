@@ -515,8 +515,8 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		policy.FailingHostCount = 0
 		policy.PassingHostCount = 0
 	}
-	if p.SoftwareTitleID != nil {
-		softwareInstallerID, err := svc.deduceSoftwareInstallerIDFromTitleID(ctx, teamID, p.SoftwareTitleID)
+	if p.SoftwareTitleID.Set {
+		softwareInstallerID, err := svc.deduceSoftwareInstallerIDFromTitleID(ctx, teamID, &p.SoftwareTitleID.Value)
 		if err != nil {
 			return nil, err
 		}
@@ -529,19 +529,19 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		}
 		policy.SoftwareInstallerID = softwareInstallerID
 	}
-	if p.ScriptID != nil { // indicates that script ID is changing, but might be to 0 to remove
+	if p.ScriptID.Set { // indicates that script ID is changing, but might be to 0 to remove
 		// If the associated script is changed (or it's set and the policy didn't have an associated script)
 		// then we clear the results of the policy so that automation can be triggered upon failure
 		// (automation is currently triggered on the first failure or when it goes from passing to failure).
-		if *p.ScriptID != 0 && (policy.ScriptID == nil || *policy.ScriptID != *p.ScriptID) {
+		if p.ScriptID.Value != 0 && (policy.ScriptID == nil || *policy.ScriptID != p.ScriptID.Value) {
 			removeAllMemberships = true
 			removeStats = true
 		}
 
-		if *p.ScriptID == 0 {
+		if p.ScriptID.Value == 0 {
 			policy.ScriptID = nil
 		} else {
-			policy.ScriptID = p.ScriptID
+			policy.ScriptID = &p.ScriptID.Value
 		}
 	}
 

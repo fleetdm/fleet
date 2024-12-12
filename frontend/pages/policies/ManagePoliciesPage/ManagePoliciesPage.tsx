@@ -169,7 +169,10 @@ const ManagePolicyPage = ({
 
   // Needs update on location change or table state might not match URL
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
-  const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
+  const [
+    tableQueryDataForApi,
+    setTableQueryDataForApi,
+  ] = useState<ITableQueryData>();
   const [sortHeader, setSortHeader] = useState(initialSortHeader);
   const [sortDirection, setSortDirection] = useState<
     "asc" | "desc" | undefined
@@ -225,7 +228,7 @@ const ManagePolicyPage = ({
     [
       {
         scope: "globalPolicies",
-        page: tableQueryData?.pageIndex,
+        page: tableQueryDataForApi?.pageIndex,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDirection: sortDirection,
@@ -281,7 +284,7 @@ const ManagePolicyPage = ({
     [
       {
         scope: "teamPolicies",
-        page: tableQueryData?.pageIndex,
+        page: tableQueryDataForApi?.pageIndex,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDirection: sortDirection,
@@ -390,7 +393,7 @@ const ManagePolicyPage = ({
 
   // NOTE: used to reset page number to 0 when modifying filters
   const handleResetPageIndex = () => {
-    setTableQueryData(
+    setTableQueryDataForApi(
       (prevState) =>
         ({
           ...prevState,
@@ -412,11 +415,11 @@ const ManagePolicyPage = ({
   // TODO: Look into useDebounceCallback with dependencies
   const onQueryChange = useCallback(
     async (newTableQuery: ITableQueryData) => {
-      if (!isRouteOk || isEqual(newTableQuery, tableQueryData)) {
+      if (!isRouteOk || isEqual(newTableQuery, tableQueryDataForApi)) {
         return;
       }
 
-      setTableQueryData({ ...newTableQuery });
+      setTableQueryDataForApi({ ...newTableQuery });
 
       const {
         pageIndex: newPageIndex,
@@ -451,11 +454,11 @@ const ManagePolicyPage = ({
         queryParams: { ...queryParams, ...newQueryParams },
       });
 
-      router?.replace(locationPath);
+      router?.push(locationPath);
     },
     [
       isRouteOk,
-      tableQueryData,
+      tableQueryDataForApi,
       sortDirection,
       sortHeader,
       searchQuery,
@@ -557,9 +560,9 @@ const ManagePolicyPage = ({
       responses.concat(
         changedPolicies.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
-            // "software_title_id": 0 will unset software install for the policy
+            // "software_title_id": null will unset software install for the policy
             // "software_title_id": X will set the value to the given integer (except 0).
-            software_title_id: changedPolicy.swIdToInstall || 0,
+            software_title_id: changedPolicy.swIdToInstall || null,
             team_id: teamIdForApi,
           });
         })
@@ -610,9 +613,9 @@ const ManagePolicyPage = ({
       responses.concat(
         changedPolicies.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
-            // "script_id": 0 will unset running a script for the policy (a script never has ID 0)
+            // "script_id": null will unset running a script for the policy
             // "script_id": X will sets script X to run when the policy fails
-            script_id: changedPolicy.scriptIdToRun || 0,
+            script_id: changedPolicy.scriptIdToRun || null,
             team_id: teamIdForApi,
           });
         })
