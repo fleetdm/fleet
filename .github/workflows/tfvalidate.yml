@@ -41,7 +41,7 @@ jobs:
       - name: Install terraform
         uses: hashicorp/setup-terraform@633666f66e0061ca3b725c73b2ec20cd13a8fdd1 # v2.0.3
         with:
-          terraform_version: 1.3.0
+          terraform_version: 1.9.0
 
       - name: Validate loadtesting
         working-directory: ./infrastructure/loadtesting/terraform
