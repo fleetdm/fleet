@@ -3,7 +3,7 @@ name: Stress Test Go Test
 on:
   push:
     branches:
-      - "*-randokiller"
+      - "**-randokiller"
     paths:
       - "**.go"
       - "go.mod"
