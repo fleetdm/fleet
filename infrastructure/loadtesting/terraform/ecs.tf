@@ -84,8 +84,10 @@ resource "aws_ecs_task_definition" "backend" {
       {
         name        = "fleet"
         image       = docker_registry_image.fleet.name
-        cpu         = 1024
-        memory      = 4096
+        # cpu         = 1024
+        # memory      = 4096
+        cpu         = 256
+        mem         = 512
         mountPoints = []
         volumesFrom = []
         essential   = true
@@ -118,10 +120,10 @@ resource "aws_ecs_task_definition" "backend" {
             name      = "FLEET_MYSQL_PASSWORD"
             valueFrom = aws_secretsmanager_secret.database_password_secret.arn
           },
-          {
-            name      = "FLEET_MYSQL_READ_REPLICA_PASSWORD"
-            valueFrom = aws_secretsmanager_secret.database_password_secret.arn
-          },
+#          {
+#            name      = "FLEET_MYSQL_READ_REPLICA_PASSWORD"
+#            valueFrom = aws_secretsmanager_secret.database_password_secret.arn
+#          },
           {
             name      = "FLEET_LICENSE_KEY"
             valueFrom = data.aws_secretsmanager_secret.license.arn
@@ -148,22 +150,22 @@ resource "aws_ecs_task_definition" "backend" {
             name  = "FLEET_MYSQL_MAX_OPEN_CONNS"
             value = "10"
           },
-          {
-            name  = "FLEET_MYSQL_READ_REPLICA_USERNAME"
-            value = module.aurora_mysql.cluster_master_username
-          },
-          {
-            name  = "FLEET_MYSQL_READ_REPLICA_DATABASE"
-            value = module.aurora_mysql.cluster_database_name
-          },
-          {
-            name  = "FLEET_MYSQL_READ_REPLICA_ADDRESS"
-            value = "${module.aurora_mysql.cluster_reader_endpoint}:3306"
-          },
-          {
-            name  = "FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS"
-            value = "10"
-          },
+#          {
+#            name  = "FLEET_MYSQL_READ_REPLICA_USERNAME"
+#            value = module.aurora_mysql.cluster_master_username
+#          },
+#          {
+#            name  = "FLEET_MYSQL_READ_REPLICA_DATABASE"
+#            value = module.aurora_mysql.cluster_database_name
+#          },
+#          {
+#            name  = "FLEET_MYSQL_READ_REPLICA_ADDRESS"
+#            value = "${module.aurora_mysql.cluster_reader_endpoint}:3306"
+#          },
+#          {
+#            name  = "FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS"
+#            value = "10"
+#          },
           {
             name  = "FLEET_REDIS_ADDRESS"
             value = "${aws_elasticache_replication_group.default.primary_endpoint_address}:6379"
