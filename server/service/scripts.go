@@ -882,12 +882,12 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 		scripts = append(scripts, script)
 	}
 
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, scriptContents); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating script secrets")
-	}
-
 	if dryRun {
 		return nil, nil
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, scriptContents); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating script secrets")
 	}
 
 	scriptResponses, err := svc.ds.BatchSetScripts(ctx, teamID, scripts)

@@ -1641,13 +1641,13 @@ func (svc *Service) BatchSetMDMProfiles(
 		return err
 	}
 
+	if dryRun {
+		return nil
+	}
+
 	err = validateFleetVariables(ctx, appleProfiles, windowsProfiles, appleDecls)
 	if err != nil {
 		return err
-	}
-
-	if dryRun {
-		return nil
 	}
 
 	var profUpdates fleet.MDMProfilesUpdates
