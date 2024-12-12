@@ -31,6 +31,7 @@ Reduced the need for manual interventions and integrated easily with existing to
 
 
 ## Their story
+
 A leading online platform for user-generated games faced significant challenges in managing and observing its extensive server infrastructure. They were looking to:
 
 - Manage a rapidly growing fleet of servers, with deployments scaling up to 100,000 servers, each with substantial memory and processing capabilities.
