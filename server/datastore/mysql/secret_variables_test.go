@@ -110,11 +110,13 @@ Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 	err = ds.ValidateEmbeddedSecrets(ctx, []string{noSecrets, validSecret})
 	require.NoError(t, err)
 
+	missingSecretsErr := fleet.MissingSecretsError{MissingSecrets: []string{"INVALID", "ALSO_INVALID"}}
+
 	err = ds.ValidateEmbeddedSecrets(ctx, []string{invalidSecret})
 	require.Error(t, err)
-	require.ErrorAs(t, err, fleet.MissingSecretsError{MissingSecrets: []string{"INVALID", "ALSO_INVALID"}})
+	require.ErrorContains(t, err, missingSecretsErr.Error())
 
 	err = ds.ValidateEmbeddedSecrets(ctx, []string{noSecrets, validSecret, invalidSecret})
 	require.Error(t, err)
-	require.ErrorAs(t, err, fleet.MissingSecretsError{MissingSecrets: []string{"INVALID", "ALSO_INVALID"}})
+	require.ErrorContains(t, err, missingSecretsErr.Error())
 }

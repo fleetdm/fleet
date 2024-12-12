@@ -11,6 +11,6 @@ type MissingSecretsError struct {
 	MissingSecrets []string
 }
 
-func (e *MissingSecretsError) Error() string {
+func (e MissingSecretsError) Error() string {
 	return fmt.Sprintf("secret variables not present in database: %s", strings.Join(e.MissingSecrets, ", "))
 }
