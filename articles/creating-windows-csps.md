@@ -172,6 +172,6 @@ Ready to take control of your Windows device configurations? Explore FleetDM’s
 <meta name="articleTitle" value="Creating Windows CSPs">
 <meta name="authorFullName" value="Harrison Ravazzolo">
 <meta name="authorGitHubUsername" value="harrisonravazzolo">
-<meta name="category" value="articles">
+<meta name="category" value="guides">
 <meta name="publishedOn" value="2024-12-12">
 <meta name="description" value="Learn how to create and deploy Windows CSPs with FleetDM, leveraging ADMX-backed policies for streamlined and secure device management.">
