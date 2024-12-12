@@ -37,7 +37,7 @@ jobs:
 
       - name: Parse Config
         id: get_config_json
-        run: echo "json=$(cat .github/workflows/config/randokiller.json)" >> $GITHUB_OUTPUT
+        run: echo "json=$(jq -c . < .github/workflows/config/randokiller.json)" >> $GITHUB_OUTPUT
 
   test-go:
     needs: parse_config
