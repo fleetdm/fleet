@@ -5340,7 +5340,7 @@ Deletes the label specified by ID.
 - [Add custom OS setting (configuration profile)](#add-custom-os-setting-configuration-profile)
 - [List custom OS settings (configuration profiles)](#list-custom-os-settings-configuration-profiles)
 - [Get or download custom OS setting (configuration profile)](#get-or-download-custom-os-setting-configuration-profile)
-- [Edit custom OS setting (configuration profile)](#edit-custom-os-setting-configuration-profile)
+- [Modify custom OS setting (configuration profile)](#modify-custom-os-setting-configuration-profile)
 - [Delete custom OS setting (configuration profile)](#delete-custom-os-setting-configuration-profile)
 - [Update disk encryption enforcement](#update-disk-encryption-enforcement)
 - [Get disk encryption statistics](#get-disk-encryption-statistics)
