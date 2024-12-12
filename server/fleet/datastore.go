@@ -1884,8 +1884,8 @@ type Datastore interface {
 	// GetSecretVariables retrieves secret variables from the database.
 	GetSecretVariables(ctx context.Context, names []string) ([]SecretVariable, error)
 
-	// ValidateEmbeddedSecrets parses fleet secrets from a
-	// document and checks that they exist in the database.
+	// ValidateEmbeddedSecrets parses fleet secrets from a list of
+	// documents and checks that they exist in the database.
 	ValidateEmbeddedSecrets(ctx context.Context, documents []string) error
 }
 
