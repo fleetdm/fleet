@@ -17,6 +17,8 @@ type Product string
 
 type Products map[string]Product
 
+var ErrNoMatch = errors.New("no product matches")
+
 func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (string, error) {
 	var dvMatch, noDvMatch string
 
@@ -53,7 +55,7 @@ func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (
 	}
 
 	if dvMatch == "" && noDvMatch == "" {
-		return "", ctxerr.Wrap(ctx, errors.New("no product matches for "+os.Name))
+		return "", ctxerr.Wrap(ctx, ErrNoMatch)
 	}
 
 	if dvMatch == "" {
