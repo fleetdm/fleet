@@ -2103,6 +2103,34 @@ Content distribution network (CDN) URL. Leave blank if you don't use CDN distrib
     software_intallers_cdn_url: https://jkl8dxv87sdh.cloudfront.net
   ```
 
+### s3_software_installers_cdn_url_sign_public_key_id
+
+Public key ID for URL signing. Leave blank if you don't use URL signing.
+
+- Default value:
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CDN_URL_SIGN_PUBLIC_KEY_ID`
+- Config file format:
+  ```yaml
+  s3:
+    software_intallers_cdn_url_sign_public_key_id: 1babd7e98b03
+  ```
+
+### s3_software_installers_cdn_url_sign_private_key
+
+Private key for URL signing. Leave blank if you don't use URL signing.
+
+- Default value:
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CDN_URL_SIGN_PRIVATE_KEY`
+- Config file format:
+  ```yaml
+  s3:
+    software_intallers_cdn_url_sign_private_key: |
+      ------BEGIN BEGIN RSA PRIVATE KEY-----
+      3126756bd0c54fbc90c9928ef59e7037af8983afd10048929ae5
+      7473e62c7aed...
+  ```
+
+
 ### s3_carves_bucket
 
 Name of the S3 bucket for file carves.
