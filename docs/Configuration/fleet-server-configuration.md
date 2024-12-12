@@ -1857,7 +1857,7 @@ SMTP through the [Fleet console UI](https://fleetdm.com/docs/using-fleet/configu
 configure Fleet to use AWS SES natively rather than through SMTP.
 
 A configured email backend is required for sending user invites, resetting passwords, verifying user email address changes,
-and Multi-Factor authentication within Fleet (without using an SSO identity provider).
+and multi-factor authentication within Fleet (without using an SSO identity provider).
 
 ### backend
 
