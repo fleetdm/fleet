@@ -37,6 +37,12 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return err
 	}
 
+	if payload.AutomaticInstall {
+		if err := svc.authz.Authorize(ctx, &fleet.Policy{PolicyData: fleet.PolicyData{TeamID: payload.TeamID}}, fleet.ActionWrite); err != nil {
+			return err
+		}
+	}
+
 	// validate labels before we do anything else
 	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
 	if err != nil {
@@ -61,12 +67,26 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return ctxerr.Wrap(ctx, err, "adding metadata to payload")
 	}
 
+	if payload.AutomaticInstall {
+		switch {
+		case payload.Extension == "exe":
+			return &fleet.BadRequestError{
+				Message: "Couldn't add. Fleet can't create a policy to detect existing installations for .exe packages. Please add the software, add a custom policy, and enable the install software policy automation.",
+			}
+		case payload.Extension == "pkg" && payload.BundleIdentifier == "":
+			return &fleet.BadRequestError{
+				Message: "Couldn't add. Policy that triggers automatic install can't be created because bundle identifier can't be extracted.",
+			}
+		case payload.Extension == "msi" && (len(payload.PackageIDs[0]) == 0 || payload.PackageIDs[0] == ""):
+			return &fleet.BadRequestError{
+				Message: "Couldn't add. Policy that triggers automatic install can't be created because product GUID can't be extracted.",
+			}
+		}
+	}
+
 	if err := svc.storeSoftware(ctx, payload); err != nil {
 		return ctxerr.Wrap(ctx, err, "storing software installer")
 	}
-
-	// TODO: basic validation of install and post-install script (e.g., supported interpreters)?
-	// TODO: any validation of pre-install query?
 
 	// Update $PACKAGE_ID in uninstall script
 	preProcessUninstallScript(payload)
@@ -81,8 +101,6 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 	level.Debug(svc.logger).Log("msg", "software installer uploaded", "installer_id", installerID)
 
-	// TODO: QA what breaks when you have a software title with no versions?
-
 	var teamName *string
 	if payload.TeamID != nil && *payload.TeamID != 0 {
 		t, err := svc.ds.Team(ctx, *payload.TeamID)
@@ -92,7 +110,6 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		teamName = &t.Name
 	}
 
-	// Create activity
 	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
 		SoftwareTitle:    payload.Title,

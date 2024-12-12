@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/automatic_policy"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -197,12 +198,67 @@ INSERT INTO software_installers (
 			return ctxerr.Wrap(ctx, err, "upsert software installer labels")
 		}
 
+		if payload.AutomaticInstall {
+			if err := ds.createAutomaticPolicy(ctx, tx, payload, installerID); err != nil {
+				return ctxerr.Wrap(ctx, err, "create automatic policy")
+			}
+		}
+
 		return nil
 	}); err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "insert software installer")
 	}
 
 	return installerID, titleID, nil
+}
+
+func (ds *Datastore) createAutomaticPolicy(ctx context.Context, tx sqlx.ExtContext, payload *fleet.UploadSoftwareInstallerPayload, softwareInstallerID uint) error {
+	generatedPolicyData, err := automatic_policy.Generate(automatic_policy.InstallerMetadata{
+		Title:            payload.Title,
+		Extension:        payload.Extension,
+		BundleIdentifier: payload.BundleIdentifier,
+		PackageIDs:       payload.PackageIDs,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "generate automatic policy query data")
+	}
+	availablePolicyName, err := getAvailablePolicyName(ctx, tx, payload.TeamID, generatedPolicyData.Name)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get available policy name")
+	}
+	teamID := fleet.PolicyNoTeamID
+	if payload.TeamID != nil {
+		teamID = *payload.TeamID
+	}
+	var userID *uint
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
+		userID = &ctxUser.ID
+	}
+	if _, err := newTeamPolicy(ctx, tx, teamID, userID, fleet.PolicyPayload{
+		Name:                availablePolicyName,
+		Query:               generatedPolicyData.Query,
+		Platform:            generatedPolicyData.Platform,
+		Description:         generatedPolicyData.Description,
+		SoftwareInstallerID: &softwareInstallerID,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create automatic policy query")
+	}
+	return nil
+}
+
+func getAvailablePolicyName(ctx context.Context, db sqlx.QueryerContext, teamID *uint, tentativePolicyName string) (string, error) {
+	availableName := tentativePolicyName
+	for i := 1; ; i++ {
+		var count int
+		if err := sqlx.GetContext(ctx, db, &count, `SELECT COUNT(*) FROM policies WHERE team_id = ? AND name = ?`, teamID, tentativePolicyName); err != nil {
+			return "", ctxerr.Wrapf(ctx, err, "get policy by team and name")
+		}
+		if count == 0 {
+			break
+		}
+		availableName = fmt.Sprintf("%s %d", tentativePolicyName, i)
+	}
+	return availableName, nil
 }
 
 func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
