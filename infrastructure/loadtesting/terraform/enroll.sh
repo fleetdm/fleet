@@ -14,16 +14,20 @@ SLEEP_TIME_SECONDS=60
 
 if [ -z "$BRANCH_NAME" ]; then
 	echo "Missing BRANCH_NAME"
+	exit 1
 fi
 if [ -z "$START_INDEX" ]; then
 	echo "Missing START_INDEX"
+	exit 1
 fi
 if [ -z "$END_INDEX" ]; then
 	echo "Missing END_INDEX"
+	exit 1
 fi
 
 # We add this check to avoid terraform (error-prone) locking in case of typos.
-read -p "You will use BRANCH_NAME=$BRANCH_NAME. Continue? "
+read -p "You will use BRANCH_NAME=$BRANCH_NAME. Continue? (y/N) "
+if [ "$REPLY" != "y" ]; then echo ok, bailing out for safety...; exit 1; fi
 
 set -x
 
