@@ -5326,7 +5326,6 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, software, 1)
 	require.Equal(t, "file1", software[0].SoftwarePackage.Name)
-	// TODO(JVE): check the title ID once I update this with feature branch
 
 	// Add an installer. No label yet.
 	installerID2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
