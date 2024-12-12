@@ -176,7 +176,7 @@ INSERT INTO software_installers (
 	// TODO: how does should this check work in the context of editng an existing software installer to
 	// remove existing labels (i.e. switching from custom targets to all hosts)?
 	if payload.ValidatedLabels.LabelScope != "" {
-		if err := ds.upsertSoftwareInstallerLabels(ctx, uint(id), *payload.ValidatedLabels); err != nil {
+		if err := ds.upsertSoftwareInstallerLabels(ctx, uint(id), *payload.ValidatedLabels); err != nil { //nolint:gosec // dismiss G115
 			return uint(id), titleID, ctxerr.Wrap(ctx, err, "upsert software installer labels") //nolint:gosec // dismiss G115
 		}
 	}
