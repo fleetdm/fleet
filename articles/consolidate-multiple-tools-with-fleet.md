@@ -1,21 +1,5 @@
 # Leading financial company consolidates multiple tools with Fleet
 
-Scaling organizations face a common challenge: managing every device efficiently across varying teams and locations. Here, we take a deeper look at the impact that Fleet has made at a leading financial technology company.
-
-## Fleet’s impact
-
-<div purpose="checklist">
-
-**Eliminate tool overlap:** Fleet reduced tool overlap by consolidating multiple legacy solutions - improving efficiency and reducing SaaS spending without compromising functionality.
-
-**Next-gen change management:** GitOps capabilities reduce mistakes through peer reviews and keep track of changes for faster auditing.
-
-**Definitive data:** Reliable, live access to their infrastructure to verify device data for better decisions surrounding end-user access and auditing context.
-
-**Seamless customization and integration:** Electing to self-host Fleet, and as the company continued to scale, they did so without a single point to their impressive 99.99% uptime.
-</div>
-
-
 <div purpose="attribution-quote">
 
 We've been using Fleet for a few years and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customize it to our needs, and seamlessly integrate it into our existing environment.
@@ -23,14 +7,33 @@ We've been using Fleet for a few years and we couldn't be happier. The fact that
 **- Head of Developer Infrastructure & Corporate Technology**
 </div>
 
-**Challenge:** They looked to simplify how they manage devices and reduce tool overlap without sacrificing control over their infrastructure.  The use of multiple proprietary device management tools was creating operational silos, and it required specialized expertise for different legacy systems, leading to inefficiencies.
+## Challenge
 
-**Solution:** The leading financial company migrated to Fleet without sacrificing a single point of their 99.99% uptime, replacing multiple device management suppliers with a single multi-platform system supporting macOS, desktop Linux, and Windows. They also implemented next-change management, reducing mistakes through peer reviews, and using the user interface and [Fleet API](https://fleetdm.com/docs/rest-api/rest-api) for reporting, automation, and to enable smarter end-user self-service.
+Scaling organizations face a common challenge: managing every device efficiently across varying teams and locations. Here, we take a deeper look at the impact that Fleet has made at a leading financial technology company.
 
-**Impact:** They saw a reduction in wasted time by unblocking data collection for audits and overcame change inertia, allowing IT to move faster with less maintenance through convention over configuration and bare metal access to every supported platform, including Apple and desktop Linux. In this way, they were able to offer employees device choice without adding to their risk register. 
+The leading financial company looked to simplify how they manage devices and reduce tool overlap without sacrificing control over their infrastructure. The use of multiple proprietary device management tools was creating operational silos, and it required specialized expertise for different legacy systems, leading to inefficiencies.
+
+## Solution
+
+The leading financial company migrated to Fleet without sacrificing a single point of their 99.99% uptime, replacing multiple device management suppliers with a single multi-platform system supporting macOS, desktop Linux, and Windows. They also implemented next-change management, reducing mistakes through peer reviews, and using the user interface and [Fleet API](https://fleetdm.com/docs/rest-api/rest-api) for reporting, automation, and to enable smarter end-user self-service.
+
+## Results
+
+<div purpose="checklist">
+
+Reduced tool overlap by consolidating multiple legacy solutions, improving efficiency and reducing SaaS spending without compromising functionality. 
+
+Adopted Fleet’s GitOps capabilities to help reduce mistakes through peer reviews and keep track of changes for faster auditing.
+
+Use Fleet to get reliable, live access to their infrastructure to verify device data for better decisions surrounding end-user access and auditing context.
+
+Elected to self-host Fleet, and as the company continued to scale, they did so without a single point to their impressive 99.99% uptime.
+</div>
+
+By switching to Fleet, the leading financial company saw a reduction in wasted time by unblocking data collection for audits and overcame change inertia, allowing IT to move faster with less maintenance through convention over configuration and bare metal access to every supported platform, including Apple and desktop Linux. In this way, they were able to offer employees device choice without adding to their risk register. 
 
 
-## The challenge
+## Their story
 
 This company is a global technology company building economic infrastructure for the Internet. Businesses of every size, from new startups to public companies, use its software to accept payments and manage their businesses online and in person.
 
@@ -38,17 +41,14 @@ As they expanded, it faced a growing complexity in managing a vast array of devi
 
 To address these challenges, they set out to achieve four key goals:
 
-- **Reduce tool overlap:** Replace multiple tools with a single solution that supports macOS, Windows, and Linux, ensuring consistency across all platforms.
-- **Adopt next-generation change management:** Leverage GitOps workflows for tasks such as deploying configuration profiles, delivering MDM commands, updating custom settings, and reporting on application installations.
-- **Streamline device health assessments:** Enable quick access to asset data to evaluate device health and make informed network access decisions efficiently.
-- **Empower end-user self-service:** Provide users with clear instructions to resolve common issues independently, reducing dependence on IT teams.
-
-
-## The solution
+- Reduce tool overlap
+- Adopt next-generation change management
+- Streamline device health assessments
+- Empower end-user self-service
 
 The company was already using Fleet in early 2023 to manage osquery from a threat detection and compliance perspective with [scheduled queries](https://fleetdm.com/guides/queries). However, they mentioned the growing need to quickly reach out to users to educate them on enabling compliance checks.
 
-Not soon after in April 2023, Fleet announced open-source, [cross-platform MDM capabilities](https://www.computerworld.com/article/1622574/fleet-announces-open-source-cross-platform-mdm-solution.html) building on top of osquery which they were already familiar with.  Seeing this as an opportunity to leverage Fleet and reduce the amount of tools they had to manage. Fleet's combination of cross-platform support, open-source transparency, and scalability made it worthwhile to migrate MDMs.
+Not long after, Fleet announced open-source, [cross-platform MDM capabilities](https://www.computerworld.com/article/1622574/fleet-announces-open-source-cross-platform-mdm-solution.html) building on top of osquery which they were already familiar with.  Seeing this as an opportunity to leverage Fleet and reduce the amount of tools they had to manage. Fleet's combination of cross-platform support, open-source transparency, and scalability made it worthwhile to migrate MDMs.
 
 ### Eliminate tool overlap with easy deployment
 
@@ -63,22 +63,7 @@ Fleet's straightforward deployment package allowed a quick install of the agent 
 
 ### Next-gen change management and open-source flexibility
 
-<div purpose="attribution-quote">
-
-We've been using Fleet for a few years and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customize it to our needs, and seamlessly integrate it into our existing environment.
-
-**— Head of Developer Infrastructure & Corporate Technology**
-</div>
-
 Being [open-source](http://fleetdm.com/handbook/company/why-this-way?utm_content=eo-security#why-open-source), Fleet provided the transparency and flexibility to tailor the platform to their specific requirements. This fostered trust among engineering teams and allows them to audit, customize, and extend the platform as needed.
-
-**Fleet's next-gen change management capabilities:**
-
-- Enforce custom settings updates and deployment: Manage custom settings across all devices using GitOps workflows.
-- Implement change control: Reduce mistakes through peer reviews.
-- Deploy configuration profiles to macOS devices: Update system settings and controls on macOS devices efficiently.
-- Deliver MDM commands: Manage and execute MDM commands like lock, sleep, and wipe.
-- Report on installed applications and versions: Generate comprehensive reports on installed applications, aiding in software management and compliance checks.
 
 ### Definitive data and end-user empowerment
 
