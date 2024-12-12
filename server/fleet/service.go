@@ -1165,7 +1165,7 @@ type Service interface {
 	// AddFleetMaintainedApp adds a Fleet-maintained app to the given team.
 	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool) (uint, error)
 	// ListFleetMaintainedApps lists Fleet-maintained apps available to a specific team
-	ListFleetMaintainedApps(ctx context.Context, teamID uint, opts ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
+	ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 	// GetFleetMaintainedApp returns a Fleet-maintained app by ID
 	GetFleetMaintainedApp(ctx context.Context, appID uint) (*MaintainedApp, error)
 

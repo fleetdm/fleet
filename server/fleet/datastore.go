@@ -1852,8 +1852,8 @@ type Datastore interface {
 	//
 
 	// ListAvailableFleetMaintainedApps returns a list of
-	// Fleet-maintained apps available to a specific team
-	ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
+	// Fleet-maintained apps available to a specific team (or the full list of apps if no team is specified)
+	ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 
 	// GetMaintainedAppByID gets a Fleet-maintained app by its ID.
 	GetMaintainedAppByID(ctx context.Context, appID uint) (*MaintainedApp, error)
