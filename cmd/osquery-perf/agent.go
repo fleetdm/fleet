@@ -779,7 +779,8 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		now := time.Now().Unix()
 		prevCount := a.countBuffered()
 
-		a.scheduledQueryData.Range(func(key, value any) bool {
+		queryData := a.scheduledQueryData
+		queryData.Range(func(key, value any) bool {
 			queryName := key.(string)
 			query := value.(scheduledQuery)
 
@@ -791,7 +792,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 				})
 				// Update lastRun
 				query.lastRun = now
-				a.scheduledQueryData.Store(queryName, query)
+				queryData.Store(queryName, query)
 			}
 
 			return true
