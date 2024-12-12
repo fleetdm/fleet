@@ -131,7 +131,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		}
 	}
 
-	queries, err := ts.ds.ListQueries(ctx, fleet.ListQueryOptions{})
+	queries, _, _, err := ts.ds.ListQueries(ctx, fleet.ListQueryOptions{})
 	require.NoError(t, err)
 	queryIDs := make([]uint, 0, len(queries))
 	for _, query := range queries {
