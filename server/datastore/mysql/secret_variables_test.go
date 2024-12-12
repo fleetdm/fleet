@@ -17,7 +17,7 @@ func TestSecretVariables(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"UpsertSecretVariables", testUpsertSecretVariables},
-		{"ValidateEmbeddedSecrets", testUpsertSecretVariables},
+		{"ValidateEmbeddedSecrets", testValidateEmbeddedSecrets},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
