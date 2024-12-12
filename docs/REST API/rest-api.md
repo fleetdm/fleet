@@ -9032,6 +9032,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Modify package](#modify-package)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
+- [Modify App Store app](#modify-app-store-app)
 - [List Fleet-maintained apps](#list-fleet-maintained-apps)
 - [Get Fleet-maintained app](#get-fleet-maintained-app)
 - [Add Fleet-maintained app](#add-fleet-maintained-app)
@@ -9774,6 +9775,10 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| labels_include_any        | array     | form | Target hosts that have any label in the array. |
+| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
 #### Example
 
