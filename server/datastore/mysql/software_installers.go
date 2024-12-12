@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -74,6 +75,12 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 }
 
 func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (installerID, titleID uint, err error) {
+	if payload.ValidatedLabels == nil {
+		// caller must ensure this is not nil; if caller intends no labels to be created,
+		// payload.ValidatedLabels should point to an empty struct.
+		return 0, 0, errors.New("validated labels must not be nil")
+	}
+
 	titleID, err = ds.getOrGenerateSoftwareInstallerTitleID(ctx, payload)
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "get or generate software installer title ID")
@@ -166,6 +173,14 @@ INSERT INTO software_installers (
 
 	id, _ := res.LastInsertId()
 
+	// TODO: how does should this check work in the context of editng an existing software installer to
+	// remove existing labels (i.e. switching from custom targets to all hosts)?
+	if payload.ValidatedLabels.LabelScope != "" {
+		if err := ds.upsertSoftwareInstallerLabels(ctx, uint(id), *payload.ValidatedLabels); err != nil {
+			return uint(id), titleID, ctxerr.Wrap(ctx, err, "upsert software installer labels") //nolint:gosec // dismiss G115
+		}
+	}
+
 	return uint(id), titleID, nil //nolint:gosec // dismiss G115
 }
 
@@ -217,6 +232,59 @@ func (ds *Datastore) addSoftwareTitleToMatchingSoftware(ctx context.Context, tit
 		    %s`, whereClause)
 	_, err := ds.writer(ctx).ExecContext(ctx, updateSoftwareStmt, args...)
 	return ctxerr.Wrap(ctx, err, "adding fk reference in software to software_titles")
+}
+
+func (ds *Datastore) upsertSoftwareInstallerLabels(ctx context.Context, installerID uint, labels fleet.LabelIndentsWithScope) error {
+	var exclude bool
+	switch labels.LabelScope {
+	case fleet.LabelScopeIncludeAny:
+		exclude = false
+	case fleet.LabelScopeExcludeAny:
+		exclude = true
+	default:
+		return errors.New("invalid label scope")
+	}
+
+	labelIds := make([]uint, 0, len(labels.ByName))
+	for _, label := range labels.ByName {
+		labelIds = append(labelIds, label.LabelID)
+	}
+
+	level.Debug(ds.logger).Log("msg", "upsert software installer labels", "installer_id", installerID, "label_ids", fmt.Sprintf("%v", labelIds), "exclude", exclude)
+
+	// remove existing labels
+	delArgs := []interface{}{installerID}
+	delStmt := `DELETE FROM software_installer_labels WHERE software_installer_id = ?`
+	if len(labelIds) > 0 {
+		// TODO: we might consider skipping this step which preserves existing labels and just deleting everything each time
+		inStmt, args, err := sqlx.In(` AND label_id NOT IN (?)`, labelIds)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build delete existing software installer labels query")
+		}
+		delArgs = append(delArgs, args...)
+		delStmt += inStmt
+	}
+	_, err := ds.writer(ctx).ExecContext(ctx, delStmt, delArgs...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete existing software installer labels")
+	}
+
+	// insert new labels
+	stmt := `INSERT INTO software_installer_labels (software_installer_id, label_id, exclude) VALUES %s ON DUPLICATE KEY UPDATE software_installer_id = software_installer_id, label_id = label_id, exclude = VALUES(exclude)`
+	var placeholders string
+	var insertArgs []interface{}
+	for _, lid := range labelIds {
+		placeholders += "(?, ?, ?),"
+		insertArgs = append(insertArgs, installerID, lid, exclude)
+	}
+	placeholders = strings.TrimSuffix(placeholders, ",")
+
+	_, err = ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(stmt, placeholders), insertArgs...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "insert software installer label")
+	}
+
+	return nil
 }
 
 func (ds *Datastore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfService bool, id uint) error {
@@ -405,6 +473,28 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
 	}
 
+	// TODO: do we want to include labels on other queries that return software installer metadata
+	// (e.g., GetSoftwareInstallerMetadataByID)?
+	labels, err := ds.getSoftwareInstallerLabels(ctx, dest.InstallerID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get software installer labels")
+	}
+	var exclAny, inclAny []fleet.SoftwareScopeLabel
+	for _, l := range labels {
+		if l.Exclude {
+			exclAny = append(exclAny, l)
+		} else {
+			inclAny = append(inclAny, l)
+		}
+	}
+
+	if len(inclAny) > 0 && len(exclAny) > 0 {
+		// there's a bug somewhere
+		level.Debug(ds.logger).Log("msg", "software installer has both include and exclude labels", "installer_id", dest.InstallerID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
+	}
+	dest.LabelsExcludeAny = exclAny
+	dest.LabelsIncludeAny = inclAny
+
 	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
@@ -412,6 +502,28 @@ WHERE
 	dest.AutomaticInstallPolicies = policies
 
 	return &dest, nil
+}
+
+func (ds *Datastore) getSoftwareInstallerLabels(ctx context.Context, installerID uint) ([]fleet.SoftwareScopeLabel, error) {
+	query := `
+SELECT
+	label_id,
+	exclude,
+	l.name as label_name,
+	si.title_id
+FROM
+	software_installer_labels sil
+	JOIN software_installers si ON sil.id = si.id
+	JOIN labels l ON l.id = sil.label_id
+WHERE
+	software_installer_id = ?`
+
+	var labels []fleet.SoftwareScopeLabel
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, installerID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get software installer labels")
+	}
+
+	return labels, nil
 }
 
 var (

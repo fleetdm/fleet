@@ -37,6 +37,13 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return err
 	}
 
+	// validate labels before we do anything else
+	validatedLabels, err := svc.validateSoftwareLabels(ctx, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "validating software labels")
+	}
+	payload.ValidatedLabels = validatedLabels
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return fleet.ErrNoContext
@@ -94,6 +101,36 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	return nil
+}
+
+func (svc *Service) validateSoftwareLabels(ctx context.Context, labelsIncludeAny, labelsExcludeAny []string) (*fleet.LabelIndentsWithScope, error) {
+	var names []string
+	var scope fleet.LabelScope
+	switch {
+	case len(labelsIncludeAny) > 0 && len(labelsExcludeAny) > 0:
+		return nil, &fleet.BadRequestError{Message: `Only one of "labels_include_any" or "labels_exclude_any" can be included.`}
+	case len(labelsIncludeAny) > 0:
+		names = labelsIncludeAny
+		scope = fleet.LabelScopeIncludeAny
+	case len(labelsExcludeAny) > 0:
+		names = labelsExcludeAny
+		scope = fleet.LabelScopeExcludeAny
+	}
+
+	if len(names) == 0 {
+		// nothing to validate, return empty result
+		return &fleet.LabelIndentsWithScope{}, nil
+	}
+
+	byName, err := svc.BatchValidateLabels(ctx, names)
+	if err != nil {
+		return nil, err
+	}
+
+	return &fleet.LabelIndentsWithScope{
+		LabelScope: scope,
+		ByName:     byName,
+	}, nil
 }
 
 var packageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<suffix>\W|$))|(("\${PACKAGE_ID}")|(\${PACKAGE_ID}))`)

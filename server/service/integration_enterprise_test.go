@@ -10634,21 +10634,63 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		require.Equal(t, checkSoftwareTitle(t, payload.Title, "deb_packages"), *meta.TitleID)
 		require.NotZero(t, meta.UploadedAt)
 
+		// get metadata by team and title ID so we can check labels
+		meta2, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(context.Background(), payload.TeamID, *meta.TitleID, false)
+		require.NoError(t, err)
+
+		// check labels include any
+		require.Len(t, meta2.LabelsIncludeAny, len(payload.LabelsIncludeAny))
+		byName := make(map[string]struct{}, len(meta2.LabelsIncludeAny))
+		for _, l := range meta2.LabelsIncludeAny {
+			byName[l.LabelName] = struct{}{}
+			require.Equal(t, *meta2.TitleID, l.TitleID)
+			require.False(t, l.Exclude)
+		}
+		require.Len(t, byName, len(payload.LabelsIncludeAny))
+		for _, l := range payload.LabelsIncludeAny {
+			_, ok := byName[l]
+			require.True(t, ok)
+		}
+
+		// check labels exclude any
+		require.Len(t, meta2.LabelsExcludeAny, len(payload.LabelsExcludeAny))
+		byName = make(map[string]struct{}, len(meta2.LabelsExcludeAny))
+		for _, l := range meta.LabelsExcludeAny {
+			byName[l.LabelName] = struct{}{}
+			require.Equal(t, *meta2.TitleID, l.TitleID)
+			require.True(t, l.Exclude)
+		}
+		require.Len(t, byName, len(payload.LabelsExcludeAny))
+		for _, l := range payload.LabelsExcludeAny {
+			_, ok := byName[l]
+			require.True(t, ok)
+		}
+
 		return meta.InstallerID, *meta.TitleID
 	}
 
 	t.Run("upload no team software installer", func(t *testing.T) {
+		// status is reflected in list hosts responses and counts when filtering by software title and status
+		// create a label to test also the counts per label with the software install status filter
+		var labelResp createLabelResponse
+		s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+			Name:  t.Name(),
+			Query: "select 1",
+		}}, http.StatusOK, &labelResp)
+		require.NotZero(t, labelResp.Label.ID)
+
 		payload := &fleet.UploadSoftwareInstallerPayload{
 			InstallScript:     "some install script",
 			PreInstallQuery:   "some pre install query",
 			PostInstallScript: "some post install script",
 			Filename:          "ruby.deb",
 			// additional fields below are pre-populated so we can re-use the payload later for the test assertions
-			Title:     "ruby",
-			Version:   "1:2.5.1",
-			Source:    "deb_packages",
-			StorageID: "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
-			Platform:  "linux",
+			Title:            "ruby",
+			Version:          "1:2.5.1",
+			Source:           "deb_packages",
+			StorageID:        "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+			Platform:         "linux",
+			LabelsIncludeAny: []string{t.Name()},
 		}
 
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
