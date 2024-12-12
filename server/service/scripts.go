@@ -888,7 +888,7 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 	}
 
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, scriptContents); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating script secrets")
+		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
 	scriptResponses, err := svc.ds.BatchSetScripts(ctx, teamID, scripts)

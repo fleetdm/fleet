@@ -7921,6 +7921,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
 		{Name: "", ScriptContents: []byte("foo")},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 
+	// invalid secret
+	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
+		{Name: "N2.sh", ScriptContents: []byte("echo $FLEET_SECRET_INVALID")},
+	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
+
 	// successfully apply a scripts for the team
 	saveAndCheckScripts(tm, []fleet.ScriptPayload{
 		{Name: "N1.sh", ScriptContents: []byte("foo")},
