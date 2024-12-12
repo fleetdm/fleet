@@ -692,6 +692,11 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	})
 
 	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DELETE FROM nano_cert_auth_associations;")
+		return err
+	})
+
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM nano_commands;")
 		return err
 	})
