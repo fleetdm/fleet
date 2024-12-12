@@ -2091,6 +2091,18 @@ Minio users must set this to any nonempty value (eg. `minio`), as Minio does not
     software_intallers_region: us-east-1
   ```
 
+### s3_software_installers_cdn_url
+
+Content distribution network (CDN) URL. Leave blank if you don't use CDN distribution.
+
+- Default value:
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CDN_URL`
+- Config file format:
+  ```yaml
+  s3:
+    software_intallers_cdn_url: https://jkl8dxv87sdh.cloudfront.net
+  ```
+
 ### s3_carves_bucket
 
 Name of the S3 bucket for file carves.
