@@ -10,6 +10,7 @@ on:
       - "go.sum"
       - ".github/workflows/randokiller-go.yml"
       - "docker-compose.yml"
+      - ".github/workflows/config/randokiller.json"
   workflow_dispatch: # manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
