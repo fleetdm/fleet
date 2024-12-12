@@ -19,9 +19,9 @@ Fleet's extremely wide and diverse set of data allows us to answer questions tha
 
 Fleet scaled out of the box, from managing tens to hundreds of thousands of servers.
 
-Provides real-time observability across every enrolled server, even within previous blindspots
+Provides real-time [observability](https://fleetdm.com/observability) across every enrolled server, even within previous blindspots
 
-They can now answer complex questions swiftly, providing near-instantaneous access to precise data points with complete auditing and transparency across multiple teams.
+They can now answer complex questions swiftly, providing near-instantaneous access to precise data points with complete auditing and [transparency](https://fleetdm.com/better) across multiple teams.
 
 Reduced the need for manual interventions and integrated easily with existing tools.
 </div>
@@ -47,15 +47,15 @@ Fleet’s architecture ensures minimal performance impact even as the server cou
 
 ### Comprehensive security and compliance:
 
-The gaming company now utilizes Fleet’s customizable compliance checks and vulnerability assessments to maintain high-security standards across multiple teams.
+The gaming company now utilizes Fleet’s customizable [compliance checks](https://fleetdm.com/queries) and vulnerability assessments to maintain high-security standards across multiple teams.
 
 ### Robust API and integration:
 
-Fleet’s extensive API and webhook support enables automation and integration with their existing systems, eliminating the need for additional middleware and reducing reliance on manual configurations.
+[Fleet API](https://fleetdm.com/docs/rest-api/rest-api) and webhook support enables automation and integration with their existing systems, eliminating the need for additional middleware and reducing reliance on manual configurations.
 
 ### Advanced data handling: 
 
-Fleet’s ability to handle large data sets efficiently allows them to perform complex queries and generate accurate inventories of software components, everything from different Python versions to identified vulnerable software across varying server environments.
+Fleet’s ability to handle large data sets efficiently allows them to perform complex queries and generate accurate [inventories of software](https://fleetdm.com/software-management) components, everything from different Python versions to identified vulnerable software across varying server environments.
 
 ### User-friendly management: 
 
