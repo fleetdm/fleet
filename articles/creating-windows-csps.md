@@ -54,7 +54,7 @@ Values can take one of the following types:
 3. List Element - The list element corresponds to a hive of REG_SZ registry strings and correspondingly to a grid to enter multiple strings in a policy panel display by gpedit.msc. 
     - PRO TIP: Each pair is a REG_SZ name/value key. When applying policies through gpedit, visit the corresponding registry location to understand how list values are stored.
 
-4. No Elements - Just an Enable/Disable of the policy, represented like <Enabled/>
+4. No Elements - Just an Enable/Disable of the policy, represented like `<Enabled/>`
 
 5. Enum - Think of these as options from a dropdown in gpedit. This is the data type we are working with in the example
 
