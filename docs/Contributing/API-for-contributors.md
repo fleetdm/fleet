@@ -2486,8 +2486,6 @@ One of `query` and `query_id` must be specified.
 }
 ```
 
-<<<<<<< Updated upstream
-=======
 #### Example with invalid label
 
 `POST /api/v1/fleet/queries/run_by_identifiers`
@@ -2521,7 +2519,6 @@ One of `query` and `query_id` must be specified.
 ```
 
 
->>>>>>> Stashed changes
 ### Retrieve live query results (standard WebSocket API)
 
 You can retrieve the results of a live query using the [standard WebSocket API](#https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_client_applications).
