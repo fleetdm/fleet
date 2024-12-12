@@ -1,1 +1,8 @@
-{ "mysql_matrix": [ "mysql:8.0.36" ], "pkg_to_test": "server/service", "tests_to_run": "^TestIntegrationsMDM\\$$", "num_tries": 30 }
+{
+  "mysql_matrix": [
+    "mysql:8.0.36"
+  ],
+  "pkg_to_test": "server/service",
+  "tests_to_run": "^TestIntegrationsMDM\\$$",
+  "num_tries": 30
+}
