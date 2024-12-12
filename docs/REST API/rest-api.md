@@ -8731,7 +8731,7 @@ Gets the result of a script that was executed.
 
 `GET /api/v1/fleet/scripts/results/:execution_id`
 
-##### Default Response
+##### Default response
 
 `Status: 200`
 
@@ -9581,12 +9581,13 @@ _Available in Fleet Premium._
 
 Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 
-`PATCH /api/v1/fleet/software/titles/:title_id/package`
+`PATCH /api/v1/fleet/software/titles/:id/package`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
+| id | integer | path | ID of the software title being updated. |
 | software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
@@ -9876,13 +9877,13 @@ Add Fleet-maintained app so it's available for install.
 
 _Available in Fleet Premium._
 
-`GET /api/v1/fleet/software/titles/:software_title_id/package?alt=media`
+`GET /api/v1/fleet/software/titles/:id/package?alt=media`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id   | integer | path | **Required**. The ID of the software title to download software package.|
+| id   | integer | path | **Required**. The ID of the software title to download software package.|
 | team_id | integer | query | **Required**. The team ID. Downloads a software package added to the specified team. |
 | alt             | integer | query | **Required**. If specified and set to "media", downloads the specified software package. |
 
