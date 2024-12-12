@@ -125,6 +125,7 @@ const SoftwareTitles = ({
         teamId,
         addedSoftwareToken,
         ...vulnFilters,
+        ...(showVersions ? { without_vulnerability_details: true } : {}),
       },
     ],
     ({ queryKey: [queryKey] }) =>

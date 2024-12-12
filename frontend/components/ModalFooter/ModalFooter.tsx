@@ -25,7 +25,7 @@ const ModalFooter = ({
       className={classes}
       style={{
         borderTop: isTopScrolling
-          ? `1px solid ${COLORS["ui-fleet-black-50"]}`
+          ? `1px solid ${COLORS["ui-fleet-black-10"]}`
           : "none",
       }}
     >
