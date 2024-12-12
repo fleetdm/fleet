@@ -859,6 +859,7 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 	// any duplicate name in the provided set results in an error
 	scripts := make([]*fleet.Script, 0, len(payloads))
 	byName := make(map[string]bool, len(payloads))
+	scriptContents := []string{}
 	for i, p := range payloads {
 		script := &fleet.Script{
 			ScriptContents: string(p.ScriptContents),
@@ -871,17 +872,18 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 				fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), err.Error()))
 		}
 
-		if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{script.ScriptContents}); err != nil {
-			return nil, fleet.NewInvalidArgumentError(fmt.Sprintf("script[%d]", i), err.Error())
-		}
-
 		if byName[script.Name] {
 			return nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), fmt.Sprintf("Couldn’t edit scripts. More than one script has the same file name: %q", script.Name)),
 				"duplicate script by name")
 		}
 		byName[script.Name] = true
+		scriptContents = append(scriptContents, script.ScriptContents)
 		scripts = append(scripts, script)
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, scriptContents); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating script secrets")
 	}
 
 	if dryRun {
