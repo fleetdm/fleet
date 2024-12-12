@@ -2427,7 +2427,7 @@ One of `query` and `query_id` must be specified.
 
 #### Example with one host targeted by hostname
 
-`POST /api/v1/fleet/queries/run_by_names`
+`POST /api/v1/fleet/queries/run_by_identifiers`
 
 ##### Request body
 
@@ -2466,7 +2466,7 @@ One of `query` and `query_id` must be specified.
 
 #### Example with multiple hosts targeted by label name
 
-`POST /api/v1/fleet/queries/run_by_names`
+`POST /api/v1/fleet/queries/run_by_identifiers`
 
 ##### Request body
 
@@ -2505,7 +2505,7 @@ One of `query` and `query_id` must be specified.
 
 #### Example with invalid label
 
-`POST /api/v1/fleet/queries/run_by_names`
+`POST /api/v1/fleet/queries/run_by_identifiers`
 
 ##### Request body
 

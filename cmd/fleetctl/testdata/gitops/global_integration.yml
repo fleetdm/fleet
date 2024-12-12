@@ -1,0 +1,14 @@
+policies:
+queries:
+agent_options:
+  path: ./lib/agent-options.yml
+controls:
+  scripts:
+    - path: ./lib/fleet-secret.sh
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: "$FLEET_GLOBAL_ENROLL_SECRET"
