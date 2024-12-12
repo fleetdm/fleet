@@ -183,5 +183,4 @@ func (s *integrationGitopsTestSuite) TestFleetGitopsWithFleetSecrets() {
 	script, err := s.ds.GetScriptContents(ctx, scriptID)
 	require.NoError(t, err)
 	assert.Equal(t, expected, script)
-
 }
