@@ -96,7 +96,7 @@ describe("UserForm - component", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("displays disabled SSO option with tooltip when SSO is globally disabled but was previously enabled for the user", async () => {
+  it("displays disabled SSO option when SSO is globally disabled but was previously enabled for the user", async () => {
     const props = {
       ...defaultProps,
       defaultName: "User 1",
