@@ -6149,6 +6149,11 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	err := s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
 	require.NoError(t, err)
 
+	// make sure invalid secrets aren't allowed
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo $FLEET_SECRET_INVALID"}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `$FLEET_SECRET_INVALID`)
+
 	// create a valid script execution request
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
 	require.Equal(t, host.ID, runResp.HostID)

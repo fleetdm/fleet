@@ -176,7 +176,8 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 
 	if request.ScriptContents != "" {
 		if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{request.ScriptContents}); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "validating embedded secrets")
+			svc.authz.SkipAuthorization(ctx)
+			return nil, fleet.NewInvalidArgumentError("script", err.Error())
 		}
 	}
 
