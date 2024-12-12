@@ -9842,50 +9842,33 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ```json
 {
-  "software_title": {
-    "id": 3467,
+  "app_store_app": {
     "name": "Logic Pro",
-    "bundle_identifier": "com.apple.logic10",
-    "software_package": null,
-    "app_store_app": {
-      "name": "Logic Pro",
-      "app_store_id": 1091189122,
-      "latest_version": "2.04",
-      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
-      "self_service": true,
-      "labels_include_any": [
-        {
-          "name": "Product",
-          "id": 12
-        },
-        {
-          "name": "Marketing",
-          "id": 17
-        }
-      ],
-      "automatic_install_policies": [
-        {
-          "id": 345,
-          "name": "[Install software] Logic Pro",
-        } 
-      ],
-      "status": {
-        "installed": 3,
-        "pending": 1,
-        "failed": 2,
-      }
-    },
-    "source": "apps",
-    "browser": "",
-    "hosts_count": 48,
-    "versions": [
+    "app_store_id": 1091189122,
+    "latest_version": "2.04",
+    "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+    "self_service": true,
+    "labels_include_any": [
       {
-        "id": 123,
-        "version": "2.04",
-        "vulnerabilities": [],
-        "hosts_count": 24
+        "name": "Product",
+        "id": 12
+      },
+      {
+        "name": "Marketing",
+        "id": 17
       }
-    ]
+    ],
+    "automatic_install_policies": [
+      {
+        "id": 345,
+        "name": "[Install software] Logic Pro",
+      } 
+    ],
+    "status": {
+      "installed": 3,
+      "pending": 1,
+      "failed": 2,
+    }
   }
 }
 ```
