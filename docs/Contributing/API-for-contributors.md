@@ -2107,6 +2107,7 @@ Stores secret variables prefixed with `$FLEET_SECRET_` to Fleet.
 | Name    | Type | In   | Description                                                                                                      |
 | ------- | ---- | ---- | ---------------------------------------------------------------------------------------------------------------- |
 | secrets | list | body | **Required.** List of objects consisting of fields: `name` and `value`
+| dry_run | boolean | body | **Optional.** If true, validates the provided secrets and returns any validation errors, but does not apply the changes.
 
 #### Example
 
