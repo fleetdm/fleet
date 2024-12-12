@@ -107,7 +107,8 @@ jobs:
         run: |
           set +e
           counter=0
-          while [ $counter -lt 20 ]; do
+          NUM_TRIES=${{ fromJSON(needs.parse_config.outputs.json).num_tries }}
+          while [ $counter -lt ${NUM_TRIES:-20} ]; do
             ((counter++))
             echo
             echo "----- TEST RUN #$counter -----"
