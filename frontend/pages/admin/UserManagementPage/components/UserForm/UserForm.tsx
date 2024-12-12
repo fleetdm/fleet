@@ -32,7 +32,7 @@ import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
 import { roleOptions } from "../../helpers/userManagementHelpers";
 
-const baseClass = "add-user-form";
+const baseClass = "user-form";
 
 export enum NewUserType {
   AdminInvited = "ADMIN_INVITED",
@@ -63,7 +63,6 @@ interface IUserFormProps {
   availableTeams: ITeam[];
   onCancel: () => void;
   onSubmit: (formData: IUserFormData) => void;
-  submitText: string;
   defaultName?: string;
   defaultEmail?: string;
   currentUserId?: number;
@@ -90,7 +89,6 @@ const UserForm = ({
   availableTeams,
   onCancel,
   onSubmit,
-  submitText,
   defaultName,
   defaultEmail,
   currentUserId,
@@ -499,7 +497,7 @@ const UserForm = ({
             </TooltipWrapper>
           )
         }
-        id="enable-single-sign-on"
+        id="single-sign-on-authentication"
         checked={!!formData.sso_enabled}
         value="true"
         name="authentication-type"
@@ -509,7 +507,7 @@ const UserForm = ({
       <Radio
         className={`${baseClass}__radio-input`}
         label="Password"
-        id="password"
+        id="password-authentication"
         disabled={!(smtpConfigured || sesConfigured)}
         checked={!formData.sso_enabled}
         value="false"
@@ -650,11 +648,11 @@ const UserForm = ({
             type="submit"
             variant="brand"
             onClick={onFormSubmit}
-            className={`${submitText === "Add" ? "add" : "save"}-loading
+            className={`${isNewUser ? "add" : "save"}-loading
           `}
             isLoading={isUpdatingUsers}
           >
-            {submitText}
+            {isNewUser ? "Add" : "Save"}
           </Button>
         </>
       }
