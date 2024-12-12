@@ -309,7 +309,7 @@ func checkWinVulnerabilities(
 				"found new", len(r))
 			results = append(results, r...)
 			if err != nil {
-				errHandler(ctx, logger, "analyzing hosts for Windows vulnerabilities", err)
+				errHandler(ctx, kitlog.With(logger, "os name", o.Name, "display version", o.DisplayVersion), "analyzing hosts for Windows vulnerabilities", err)
 			}
 		}
 	}
