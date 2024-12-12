@@ -5340,6 +5340,7 @@ Deletes the label specified by ID.
 - [Add custom OS setting (configuration profile)](#add-custom-os-setting-configuration-profile)
 - [List custom OS settings (configuration profiles)](#list-custom-os-settings-configuration-profiles)
 - [Get or download custom OS setting (configuration profile)](#get-or-download-custom-os-setting-configuration-profile)
+- [Edit custom OS setting (configuration profile)](#edit-custom-os-setting-configuration-profile)
 - [Delete custom OS setting (configuration profile)](#delete-custom-os-setting-configuration-profile)
 - [Update disk encryption enforcement](#update-disk-encryption-enforcement)
 - [Get disk encryption statistics](#get-disk-encryption-statistics)
@@ -5599,6 +5600,90 @@ solely on the response status code returned by this endpoint.
   <integer>1</integer>
 </dict>
 </plist>
+```
+
+### Modify custom OS setting (configuration profile)
+
+Update a configuration profile that enforces custom settings on macOS and Windows hosts.
+
+For macOS configuration profiles, the new profile’s `PayloadIdentifier` must match the old profile’s `PayloadIdentifier`.
+
+`PATCH /api/v1/fleet/configuration_profiles/:id`
+
+#### Parameters
+
+| Name                      | Type     | In   | Description                                                                                                   |
+| ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| profile                   | file     | form | **Required.** The .mobileconfig and JSON for macOS or XML for Windows file containing the profile. |
+| team_id                   | string   | form | _Available in Fleet Premium_. The team ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
+| labels_include_all        | array     | form | _Available in Fleet Premium_. Profile will only be applied to hosts that have all of these labels. Only one of either `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| labels_include_any        | array     | form | _Available in Fleet Premium_. Profile will only be applied to hosts that have any of these labels. Only one of either `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Profile will be applied to hosts that don’t have any of these labels. Only one of either `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be included in the request. |
+
+#### Example
+
+Edit a configuration profile to be applied to macOS hosts
+assigned to a team. Note that in this example the form data specifies`team_id` in addition to
+`profile`.
+
+`PATCH /api/v1/fleet/configuration_profiles/:id`
+
+##### Request headers
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="team_id"
+
+1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="labels_include_all"
+
+Label name 1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="labels_include_all"
+
+Label name 2
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="profile"; filename="Foo.mobileconfig"
+Content-Type: application/octet-stream
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array/>
+  <key>PayloadDisplayName</key>
+  <string>Example profile</string>
+  <key>PayloadIdentifier</key>
+  <string>com.example.profile</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>
+--------------------------f02md47480und42y--
+
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24"
+}
 ```
 
 ### Delete custom OS setting (configuration profile)
