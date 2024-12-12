@@ -6,6 +6,7 @@ Deploying Configuration Service Providers (CSPs) for Windows devices—the Windo
 
 This guide will help you understand the building blocks to crafting CSPs of varying complexity – from simple payloads to more complex ones that involve modification of ADMX underpinnings.
 
+> In Fleet, Windows CSPs are called "Custom OS settings." Learn more about Custom OS settings [here](https://fleetdm.com/guides/custom-os-settings).
 
 ## What is ADMX and why should you care?
 
