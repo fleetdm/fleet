@@ -10376,6 +10376,12 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 		})
 	}
 
+	var installerID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID, "SELECT id FROM software_installers WHERE title_id = ?", titleID)
+	})
+	require.NotEmpty(t, installerID)
+
 	// create some labels
 	var labelResp createLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
@@ -10392,7 +10398,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 
 	// Set to "exclude any". Installer should be missing from the response for both host details and
 	// for self service
-	updateInstallerLabel(1, labelResp.Label.ID, true)
+	updateInstallerLabel(installerID, labelResp.Label.ID, true)
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "self_service", "true")
 	require.Empty(t, getHostSw.Software)
@@ -10404,7 +10410,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Empty(t, getDeviceSw.Software)
 
 	// Set to "include any". Installer should be in response.
-	updateInstallerLabel(1, labelResp.Label.ID, false)
+	updateInstallerLabel(installerID, labelResp.Label.ID, false)
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "self_service", "true")
 	require.Len(t, getHostSw.Software, 1)
