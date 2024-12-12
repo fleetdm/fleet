@@ -11,14 +11,7 @@
           <img alt="A device verifying compliance for every endpoint" src="/images/endpoint-operations-hero-image-380x380@2x.png">
         </div>
         <div purpose="hero-text">
-          <% if(['eo-it', 'mdm'].includes(pagePersonalization)) { %>
-            <strong>Automate anything</strong>
-            <p>Remotely run scripts and prompts to complete tasks on every kind of computer, including Linux.</p>
-            <strong>Pulse check anything</strong>
-            <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
-            <strong>Ship data to any platform</strong>
-            <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
-          <% } else if(['eo-security', 'vm'].includes(pagePersonalization)) { %>
+          <% if(['eo-security', 'vm'].includes(pagePersonalization)) { %>
             <strong>Osquery on easy mode</strong>
             <p>Build the agent in "read-only" mode or enable remote scripting to automatically mitigate misconfigurations and vulnerabilities.</p>
             <strong>Pulse check anything</strong>
@@ -26,12 +19,12 @@
             <strong>Ship data to any platform</strong>
             <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
           <% } else { %>
+            <strong>Automate anything</strong>
+            <p>Remotely run scripts and prompts to complete tasks on every kind of computer, including Linux.</p>
             <strong>Pulse check anything</strong>
             <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
             <strong>Ship data to any platform</strong>
             <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
-            <strong>Osquery on easy mode</strong>
-            <p>Use "read-only" mode or enable remote scripting to automate anything on every operating system, including Linux.</p>
           <% }%>
           <div purpose="button-row" class="d-flex flex-md-row flex-column justify-content-start align-items-center">
             <a purpose="cta-button" href="/contact">Take a tour</a>
@@ -44,32 +37,15 @@
       <% if (['eo-security'].includes(pagePersonalization)) { %>
         <div purpose="testimonial-quote">
           <div purpose="quote">
-            <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
-            <p>"We will have no, zero, blind spots in our entire infrastructure, more than 100,000 servers. It just works, it's awesome."</p>
-            <!-- TODO: Fleet reduces costs through tool consolidation.  Plus if you can’t confidently answer questions about the state and configuration of all your devices in seconds - regardless of operating system - you should take a look at what these guys are doing. -->
+            <img alt="an opening quotation mark" style="height: 45px; margin-bottom: 16px;" src="/images/social-proof-salesforce-65x45@2x.png">
+            <p>“Osquery is one of the best tools out there and Fleet makes it even better. Highly recommend it if you want to monitor, detect and investigate threats on a scale and also for infra/sys admin. I have used it on 15k servers and it’s really scalable.”</p>
           </div>
-            <a href="https://www.linkedin.com/in/charleszaffery/" target="_blank">
+            <a href="https://www.linkedin.com/in/anelshaer/" target="_blank">
           <div purpose="quote-attribution" class="d-flex flex-row align-items-center">
-            <div purpose="quote-image"><img src="/images/testimonial-author-charles-zaffery-48x48@2x.png" alt="Charles Zaffery"></div>
+            <div purpose="quote-image"><img src="/images/testimonial-author-ahmed-elshaer-48x48@2x.png" alt="Ahmed Elshaer"></div>
             <div class="d-flex flex-column">
-              <p purpose="name">Charles Zaffery</p>
-              <p purpose="title">Principal computer janitor</p>
-            </div>
-          </div>
-            </a>
-        </div>
-      <% } else if (['vm'].includes(pagePersonalization)) { %>
-        <div purpose="testimonial-quote">
-          <div purpose="quote">
-            <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
-            <p>"Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced."</p>
-          </div>
-            <a href="https://www.linkedin.com/in/austin-anderson-73172185/" target="_blank">
-          <div purpose="quote-attribution" class="d-flex flex-row align-items-center">
-            <div purpose="quote-image"><img src="/images/testimonial-author-austin-anderson-48x48@2x.png" alt="Austin Anderson"></div>
-            <div class="d-flex flex-column">
-              <p purpose="name">Austin Anderson</p>
-              <p purpose="title">Cybersecurity team senior manager</p>
+              <p purpose="name">Ahmed Elshaer</p>
+              <p purpose="title">DFIR, Blue Teaming, SecOps</p>
             </div>
           </div>
             </a>
@@ -77,42 +53,20 @@
       <% } else { %>
         <div purpose="testimonial-quote">
           <div purpose="quote">
-            <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
-            <p>“Fleet provides a way to surface device data and telemetry to our other teams and partners.”</p>
+            <img alt="Flock Safety logo" purpose="quote-logo" src="/images/logo-flock-safety-907x132@2x.png">
+            <p>“This is not just production osquery, but actually a way bigger opportunity than even something like Airwatch or Jamf.”</p>
           </div>
-          <a target="_blank" href="https://www.linkedin.com/in/nickfohs/">
+          <a target="_blank" href="https://www.linkedin.com/in/mrerictan/">
           <div purpose="quote-attribution" class="d-flex flex-row align-items-center">
-            <div purpose="quote-image"><img src="/images/testimonial-author-nick-fohs-24x24@2x.png" alt="Nick Fohs"></div>
+            <div purpose="quote-image"><img src="/images/testimonial-author-eric-tan-99x99@2x.png" alt="Eric Tan"></div>
             <div class="d-flex flex-column">
-              <p purpose="name">Nick Fohs</p>
-              <p purpose="title">Systems and infrastructure manager</p>
+              <p purpose="name">Eric Tan</p>
+              <p purpose="title">CIO & Chief Security Officer at Flock Safety</p>
             </div>
           </div>
           </a>
         </div>
       <% } %>
-      <div purpose="testimonial-videos" class="d-flex">
-        <%if(['eo-security'].includes(pagePersonalization)) {%>
-        <div purpose="testimonial-video" class="charles-zaffery mx-auto" @click="clickOpenVideoModal('charles-zaffery')">
-          <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
-        </div>
-        <%} else if(['vm'].includes(pagePersonalization)){%>
-        <div purpose="testimonial-video" class="austin-anderson mx-auto" @click="clickOpenVideoModal('austin-anderson')">
-          <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
-        </div>
-        <%} else if(['eo-it', 'mdm'].includes(pagePersonalization)) {%>
-        <div purpose="testimonial-video" class="nick-fohs mx-auto" @click="clickOpenVideoModal('nick-fohs')">
-          <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
-        </div>
-        <% } else { /* Display no videos for now.  FUTURE: make the agnostic version have 2 appropriate vids */ %>
-        <!-- <div purpose="testimonial-video" class="austin-anderson" @click="clickOpenVideoModal('austin-anderson')">
-          <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
-        </div>
-        <div purpose="testimonial-video" class="nick-fohs" @click="clickOpenVideoModal('nick-fohs')">
-          <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
-        </div> -->
-        <% } %>
-      </div>
     </div>
     <logo-carousel></logo-carousel>
 
@@ -289,8 +243,7 @@
   <div purpose="bottom-gradient">
     <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
       <div purpose="section-heading" class="mx-auto text-center">
-        <h4>Who else uses Fleet?</h4>
-        <h3>Empowering <%= ['mdm'].includes(pagePersonalization) ? 'IT and corporate engineering' : ['eo-it'].includes(pagePersonalization) ? 'IT and client platform' : ['eo-security'].includes(pagePersonalization) ? 'security and platform' : ['vm'].includes(pagePersonalization) ? 'security and IT' : 'IT and security' %> teams, globally</h3>
+        <h2 class="mb-3">What people are saying</h2>
       </div>
     </div>
 

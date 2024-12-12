@@ -53,6 +53,8 @@ func createUserEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	}, nil
 }
 
+var errMailerRequiredForMFA = badRequest("Email must be set up to enable Fleet MFA")
+
 func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, *string, error) {
 	var teams []fleet.UserTeam
 	if p.Teams != nil {
@@ -95,6 +97,23 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		p.AdminForcedPasswordReset = ptr.Bool(true)
 	}
 
+	// make sure we can send email before requiring email sending to log in
+	if p.MFAEnabled != nil && *p.MFAEnabled {
+		config, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		var smtpSettings fleet.SMTPSettings
+		if config.SMTPSettings != nil {
+			smtpSettings = *config.SMTPSettings
+		}
+
+		if !svc.mailService.CanSendEmail(smtpSettings) {
+			return nil, nil, errMailerRequiredForMFA
+		}
+	}
+
 	user, err := svc.NewUser(ctx, p)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "create user")
@@ -108,7 +127,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 			level.Error(svc.logger).Log("err", err, "msg", "password not set during admin user creation")
 		} else {
 			// Create a session for the API-only user by logging in.
-			_, session, err := svc.Login(ctx, user.Email, *p.Password)
+			_, session, err := svc.Login(ctx, user.Email, *p.Password, false)
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "create session for api-only user")
 			}
@@ -149,6 +168,7 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 	// set the payload role property based on an existing invite.
 	p.GlobalRole = invite.GlobalRole.Ptr()
 	p.Teams = &invite.Teams
+	p.MFAEnabled = ptr.Bool(invite.MFAEnabled)
 
 	user, err := svc.NewUser(ctx, p)
 	if err != nil {
@@ -342,6 +362,41 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 	ownUser := vc.UserID() == userID
 	if err := p.VerifyModify(ownUser); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify user payload")
+	}
+
+	if p.MFAEnabled != nil {
+		if *p.MFAEnabled && !user.MFAEnabled {
+			lic, _ := license.FromContext(ctx)
+			if lic == nil {
+				return nil, ctxerr.New(ctx, "license not found")
+			}
+			if !lic.IsPremium() {
+				return nil, fleet.ErrMissingLicense
+			}
+			if (p.SSOEnabled != nil && *p.SSOEnabled) || (p.SSOEnabled == nil && user.SSOEnabled) {
+				return nil, SSOMFAConflict
+			}
+
+			// make sure we can send email before requiring email sending to log in
+			config, err := svc.ds.AppConfig(ctx)
+			if err != nil {
+				return nil, err
+			}
+
+			var smtpSettings fleet.SMTPSettings
+			if config.SMTPSettings != nil {
+				smtpSettings = *config.SMTPSettings
+			}
+
+			if !svc.mailService.CanSendEmail(smtpSettings) {
+				return nil, errMailerRequiredForMFA
+			}
+		}
+		user.MFAEnabled = *p.MFAEnabled
+	}
+
+	if (p.SSOEnabled != nil && *p.SSOEnabled) && user.MFAEnabled {
+		return nil, SSOMFAConflict
 	}
 
 	if p.GlobalRole != nil || p.Teams != nil {

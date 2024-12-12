@@ -691,7 +691,8 @@ const alwaysTrueQuery = "SELECT 1"
 // list of detail queries that are returned when only the critical queries
 // should be returned (due to RefetchCriticalQueriesUntil timestamp being set).
 var criticalDetailQueries = map[string]bool{
-	"mdm": true,
+	"mdm":         true,
+	"mdm_windows": true,
 }
 
 // detailQueriesForHost returns the map of detail+additional queries that should be executed by
@@ -2144,6 +2145,11 @@ func (svc *Service) preProcessOsqueryResults(
 			continue
 		}
 		teamID, queryName, err := getQueryNameAndTeamIDFromResult(queryResult.QueryName)
+		if errors.Is(err, fleet.ErrLegacyQueryPack) {
+			// Legacy query. Cannot be stored and cannot
+			// infer team ID, but still used by some customers
+			continue
+		}
 		if err != nil {
 			level.Debug(svc.logger).Log("msg", "querying name and team ID from result", "err", err)
 			continue
@@ -2455,6 +2461,13 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 		// 2017/legacy packs with the format "pack/<Pack name>/<Query name> are
 		// considered unknown format (they are not considered global or team
 		// scheduled queries).
+
+		// We can't infer the team from this and it can't be stored, but it's still valid
+		if strings.HasPrefix(path, "pack/") && strings.Count(path, "/") == 2 {
+			return nil, "", fleet.ErrLegacyQueryPack
+		}
+
+		// Truly unknown
 		return nil, "", fmt.Errorf("unknown format: %q", path)
 	}
 

@@ -38,9 +38,9 @@ import (
 	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.mozilla.org/pkcs7"
 )
 
 type profileAssignmentReq struct {

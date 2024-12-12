@@ -1,1 +1,0 @@
-* GitOps: Fixed path resolution for installer queries and scripts to always be relative to where the query file or script is referenced. This change breaks existing YAML files that had to account for previous inconsistent behavior (e.g. installers in a subdirectory referencing scripts elsewhere).

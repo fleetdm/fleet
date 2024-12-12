@@ -39,6 +39,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
     deadline_days: null,
     grace_period_days: null,
   },
+  windows_migration_enabled: false,
   end_user_authentication: {
     entity_id: "",
     issuer_uri: "",

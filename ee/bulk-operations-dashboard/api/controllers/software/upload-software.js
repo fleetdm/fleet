@@ -35,6 +35,10 @@ module.exports = {
 
     softwareUploadFailed: {
       description:'An unexpected error occurred communicating with the Fleet API'
+    },
+
+    couldNotReadVersion: {
+      description:'Fleet could not read version information from the provided software installer.'
     }
 
   },
@@ -80,7 +84,7 @@ module.exports = {
                     contentType: 'application/octet-stream'
                   });
                   (async ()=>{
-                    await axios.post(`${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/package`, form, {
+                    await axios.postForm(`${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/package`, form, {
                       headers: {
                         Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
                         ...form.getHeaders()
@@ -100,13 +104,32 @@ module.exports = {
             };
           }
         })
-        .intercept({response: {status: 409}}, async (error)=>{
+        .intercept({response: {status: 409}}, async (error)=>{// handles errors related to duplicate software items.
           await sails.rm(sails.config.uploads.prefixForFileDeletion+uploadedSoftware.fd);
           return {'softwareAlreadyExistsOnThisTeam': error};
         })
-        .intercept({name: 'AxiosError'}, async (error)=>{
+        .intercept({name: 'AxiosError', response: {status: 400}}, async (error)=>{// Handles errors related to malformed installer packages
           await sails.rm(sails.config.uploads.prefixForFileDeletion+uploadedSoftware.fd);
-          sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, ${require('util').inspect(error, {depth: 2})}`);
+          let axiosError = error;
+          if(axiosError.response.data) {
+            if(axiosError.response.data.errors && _.isArray(axiosError.response.data.errors)){
+              if(axiosError.response.data.errors[0] && axiosError.response.data.errors[0].reason) {
+                let errorMessageFromFleetInstance = axiosError.response.data.errors[0].reason;
+                if(_.startsWith(errorMessageFromFleetInstance, `Couldn't add. Fleet couldn't read the version`)){
+                  return 'couldNotReadVersion';
+                } else {
+                  sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API. Error returned from Fleet API: ${errorMessageFromFleetInstance} \n Axios error: ${require('util').inspect(error, {depth: 3})}`);
+                  return {'softwareUploadFailed': error};
+                }
+              }
+            }
+          }
+          sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, ${require('util').inspect(error, {depth: 3})}`);
+          return {'softwareUploadFailed': error};
+        })
+        .intercept({name: 'AxiosError'}, async (error)=>{// Handles any other error.
+          await sails.rm(sails.config.uploads.prefixForFileDeletion+uploadedSoftware.fd);
+          sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, ${require('util').inspect(error, {depth: 3})}`);
           return {'softwareUploadFailed': error};
         });
       }

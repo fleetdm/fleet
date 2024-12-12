@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -55,6 +54,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	googleCalendar "google.golang.org/api/calendar/v3"
+	"gopkg.in/guregu/null.v3"
 )
 
 func TestIntegrationsEnterprise(t *testing.T) {
@@ -1235,12 +1235,10 @@ func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {
 	assert.Equal(t, getResp.AvailableTeams[0].Name, "Available Team")
 
 	// test available teams returned by `/me` endpoint
-	key := make([]byte, 64)
-	sessionKey := base64.StdEncoding.EncodeToString(key)
-	_, err = s.ds.NewSession(context.Background(), user.ID, sessionKey)
+	session, err := s.ds.NewSession(context.Background(), user.ID, 64)
 	require.NoError(t, err)
 	resp := s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
-		"Authorization": fmt.Sprintf("Bearer %s", sessionKey),
+		"Authorization": fmt.Sprintf("Bearer %s", session.Key),
 	})
 	err = json.NewDecoder(resp.Body).Decode(&getResp)
 	require.NoError(t, err)
@@ -3689,6 +3687,62 @@ func (s *integrationEnterpriseTestSuite) TestMDMAppleOSUpdates() {
 	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetIPadOSUpdatesProfileName, nil)
 }
 
+// Skipping admin-created users because we don't have email fully set up in integration tests
+func (s *integrationEnterpriseTestSuite) TestInvitedUserMFA() {
+	t := s.T()
+
+	// create valid invite
+	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String("some email"),
+		Name:       ptr.String("some name"),
+		GlobalRole: null.StringFrom(fleet.RoleAdmin),
+		MFAEnabled: ptr.Bool(true),
+		SSOEnabled: ptr.Bool(true),
+	}}
+	createInviteResp := createInviteResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusConflict, &createInviteResp)
+	createInviteReq.SSOEnabled = nil
+	s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
+	require.NotNil(t, createInviteResp.Invite)
+	require.NotZero(t, createInviteResp.Invite.ID)
+	validInvite := *createInviteResp.Invite
+
+	// create user from valid invite - the token was not returned via the
+	// response's json, must get it from the db
+	inv, err := s.ds.Invite(context.Background(), validInvite.ID)
+	require.NoError(t, err)
+	validInviteToken := inv.Token
+
+	// verify the token with valid invite
+	var verifyInvResp verifyInviteResponse
+	s.DoJSON("GET", "/api/latest/fleet/invites/"+validInviteToken, nil, http.StatusOK, &verifyInvResp)
+	require.Equal(t, validInvite.ID, verifyInvResp.Invite.ID)
+
+	var createFromInviteResp createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+		Name:        ptr.String("Full Name"),
+		Password:    ptr.String(test.GoodPassword),
+		Email:       ptr.String("a@b.c"),
+		InviteToken: ptr.String(validInviteToken),
+	}, http.StatusOK, &createFromInviteResp)
+	require.True(t, createFromInviteResp.User.MFAEnabled)
+
+	// create an invite with SSO, swap to MFA
+	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String("a@b.d"),
+		Name:       ptr.String("some other name"),
+		GlobalRole: null.StringFrom(fleet.RoleAdmin),
+		SSOEnabled: ptr.Bool(true),
+	}}
+	s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
+	validInvite = *createInviteResp.Invite
+	var updateInviteResp updateInviteResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/invites/%d", validInvite.ID), updateInviteRequest{
+		InvitePayload: fleet.InvitePayload{MFAEnabled: ptr.Bool(true), SSOEnabled: ptr.Bool(false)},
+	}, http.StatusOK, &updateInviteResp)
+	require.True(t, updateInviteResp.Invite.MFAEnabled)
+}
+
 func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	t := s.T()
 
@@ -5156,6 +5210,22 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/versions",
 		listSoftwareRequest{},
+		http.StatusOK, &respVersions,
+		"without_vulnerability_details", "true",
+	)
+	for _, s := range respVersions.Software {
+		for _, cve := range s.Vulnerabilities {
+			require.Nil(t, cve.CVSSScore)
+			require.Nil(t, cve.EPSSProbability)
+			require.Nil(t, cve.CISAKnownExploit)
+			require.Nil(t, cve.CVEPublished)
+			require.Nil(t, cve.Description)
+			require.Nil(t, cve.ResolvedInVersion)
+		}
+	}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions",
+		listSoftwareRequest{},
 		http.StatusUnprocessableEntity, &respVersions,
 		"exploit", "true",
 	)
@@ -6017,15 +6087,6 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		},
 		QueryID: &q1.ID,
 	}, http.StatusForbidden, &countTargetsResponse{})
-}
-
-func (s *integrationEnterpriseTestSuite) setTokenForTest(t *testing.T, email, password string) {
-	oldToken := s.token
-	t.Cleanup(func() {
-		s.token = oldToken
-	})
-
-	s.token = s.getCachedUserToken(email, password)
 }
 
 func (s *integrationEnterpriseTestSuite) TestDesktopEndpointWithInvalidPolicy() {
@@ -10510,11 +10571,12 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
-		// check activity
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), `{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": null, "self_service": false}`, 0)
-
 		// check the software installer
 		_, titleID := checkSoftwareInstaller(t, payload)
+
+		// check activity
+		activityData := fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": null, "self_service": false, "software_title_id": %d}`, titleID)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
 
 		// upload again fails
 		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already exists")
@@ -10562,7 +10624,13 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		installerID, titleID := checkSoftwareInstaller(t, payload)
 
 		// check activity
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s", "team_id": %d, "self_service": true}`, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
+		activityData := fmt.Sprintf(
+			`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s", "team_id": %d, "self_service": true, "software_title_id": %d}`,
+			createTeamResp.Team.Name,
+			createTeamResp.Team.ID,
+			titleID,
+		)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
 
 		// upload again fails
 		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already exists")
@@ -10678,7 +10746,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// check activity
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(),
-			`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": 0, "self_service": true}`, 0)
+			fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": 0, "self_service": true, "software_title_id": %d}`, titleID), 0)
 
 		// upload again fails
 		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already exists")
@@ -13981,8 +14049,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		Filename:      "ruby.deb",
 		TeamID:        &team1.ID,
 	}
-	sessionKey := uuid.New().String()
-	adminTeam1Session, err := s.ds.NewSession(ctx, adminTeam1.ID, sessionKey)
+	adminTeam1Session, err := s.ds.NewSession(ctx, adminTeam1.ID, 64)
 	require.NoError(t, err)
 	adminToken := s.token
 	t.Cleanup(func() {
@@ -15132,7 +15199,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	installerBytes := []byte("abc")
 
 	// Mock server to serve the "installers"
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/badinstaller":
 			_, _ = w.Write([]byte("badinstaller"))
@@ -15143,7 +15210,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 			_, _ = w.Write(installerBytes)
 		}
 	}))
-	defer srv.Close()
+	defer installerServer.Close()
 
 	getSoftwareInstallerIDByMAppID := func(mappID uint) uint {
 		var id uint
@@ -15166,11 +15233,11 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		_, err := h.Write(installerBytes)
 		require.NoError(t, err)
 		spoofedSHA := hex.EncodeToString(h.Sum(nil))
-		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET sha256 = ?, installer_url = ?", spoofedSHA, srv.URL+"/installer.zip")
+		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET sha256 = ?, installer_url = ?", spoofedSHA, installerServer.URL+"/installer.zip")
 		require.NoError(t, err)
-		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET installer_url = ? WHERE id = 2", srv.URL+"/badinstaller")
+		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET installer_url = ? WHERE id = 2", installerServer.URL+"/badinstaller")
 		require.NoError(t, err)
-		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET installer_url = ? WHERE id = 3", srv.URL+"/timeout")
+		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET installer_url = ? WHERE id = 3", installerServer.URL+"/timeout")
 		return err
 	})
 
@@ -15289,7 +15356,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	// Check activity
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeAddedSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"software_title": "%[1]s", "software_package": "installer.zip", "team_name": "%s", "team_id": %d, "self_service": true}`, mapp.Name, team.Name, team.ID),
+		fmt.Sprintf(`{"software_title": "%[1]s", "software_package": "installer.zip", "team_name": "%s", "team_id": %d, "self_service": true, "software_title_id": %d}`, mapp.Name, team.Name, team.ID, title.ID),
 		0,
 	)
 
@@ -15352,4 +15419,111 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	postinstall, err = s.ds.GetAnyScriptContents(ctx, *i.PostInstallScriptContentID)
 	require.NoError(t, err)
 	require.Equal(t, req.PostInstallScript, string(postinstall))
+
+	// ===========================================================================================
+	// Adding an automatically installed FMA
+	// ===========================================================================================
+
+	// Add another FMA
+	req = &addFleetMaintainedAppRequest{
+		AppID:             5,
+		SelfService:       false,
+		PreInstallQuery:   "SELECT 1",
+		InstallScript:     "echo foo",
+		PostInstallScript: "echo done",
+		TeamID:            ptr.Uint(0),
+	}
+
+	addMAResp = addFleetMaintainedAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAResp)
+	require.NoError(t, addMAResp.Err)
+	require.NotEmpty(t, addMAResp.SoftwareTitleID)
+
+	// Add the automatic install policy
+	tpParams := teamPolicyRequest{
+		Name:            "[Install software]",
+		Query:           "select * from osquery;",
+		Description:     "Some description",
+		Platform:        "darwin",
+		SoftwareTitleID: &addMAResp.SoftwareTitleID,
+	}
+	tpResp := teamPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", tpParams, http.StatusOK, &tpResp)
+	require.NotNil(t, tpResp.Policy)
+	require.NotEmpty(t, tpResp.Policy.ID)
+
+	// List software titles; we should see the policy on the software title object
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"per_page", "2",
+		"order_key", "id",
+		"order_direction", "desc",
+		"available_for_install", "true",
+		"team_id", "0",
+	)
+
+	require.Len(t, resp.SoftwareTitles, 2)
+	// most recently added FMA should have 1 automatic install policy
+	st := resp.SoftwareTitles[0] // sorted by ID above
+	require.NotNil(t, st.SoftwarePackage)
+	require.Len(t, st.SoftwarePackage.AutomaticInstallPolicies, 1)
+	gotPolicy := st.SoftwarePackage.AutomaticInstallPolicies[0]
+	require.Equal(t, tpResp.Policy.Name, gotPolicy.Name)
+	require.Equal(t, tpResp.Policy.ID, gotPolicy.ID)
+
+	// First FMA added doesn't have automatic install policies
+	st = resp.SoftwareTitles[1] // sorted by ID above
+	require.NotNil(t, st.SoftwarePackage)
+	require.Empty(t, st.SoftwarePackage.AutomaticInstallPolicies)
+
+	// Get the specific app that we set to be installed automatically
+	var titleResp getSoftwareTitleResponse
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addMAResp.SoftwareTitleID),
+		getSoftwareTitleRequest{},
+		http.StatusOK, &titleResp,
+		"team_id", "0",
+	)
+	require.NotNil(t, titleResp.SoftwareTitle)
+	swTitle := titleResp.SoftwareTitle
+	require.NotNil(t, swTitle.SoftwarePackage)
+	require.Len(t, swTitle.SoftwarePackage.AutomaticInstallPolicies, 1)
+	gotPolicy = swTitle.SoftwarePackage.AutomaticInstallPolicies[0]
+	require.Equal(t, tpResp.Policy.Name, gotPolicy.Name)
+	require.Equal(t, tpResp.Policy.ID, gotPolicy.ID)
+
+	// Policy should appear in the list of policies
+	var listPolResp listTeamPoliciesResponse
+	s.DoJSON(
+		"GET", "/api/latest/fleet/teams/0/policies",
+		listTeamPoliciesRequest{},
+		http.StatusOK, &listPolResp,
+		"page", "0",
+	)
+
+	require.Len(t, listPolResp.Policies, 1)
+	policies := listPolResp.Policies
+	require.Equal(t, tpResp.Policy.Name, policies[0].Name)
+	require.Equal(t, tpResp.Policy.ID, policies[0].ID)
+	require.Equal(t, tpResp.Policy.Description, policies[0].Description)
+	require.Equal(t, tpResp.Policy.Query, policies[0].Query)
+	require.Equal(t, "darwin", policies[0].Platform)
+	require.False(t, policies[0].Critical)
+	require.NotNil(t, policies[0].InstallSoftware)
+	require.Equal(t, tpResp.Policy.InstallSoftware.Name, policies[0].InstallSoftware.Name)
+	require.Equal(t, tpResp.Policy.InstallSoftware.SoftwareTitleID, policies[0].InstallSoftware.SoftwareTitleID)
+}
+
+func (s *integrationEnterpriseTestSuite) TestWindowsMigrateMDMNotEnabled() {
+	t := s.T()
+
+	res := s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_migration_enabled": true }
+	}`), http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Windows MDM is not enabled")
 }

@@ -151,6 +151,7 @@ func (ds *Datastore) ListSoftwareTitles(
 			if title.PackageVersion != nil {
 				version = *title.PackageVersion
 			}
+
 			title.SoftwarePackage = &fleet.SoftwarePackageOrApp{
 				Name:               *title.PackageName,
 				Version:            version,
@@ -177,6 +178,18 @@ func (ds *Datastore) ListSoftwareTitles(
 
 		titleIDs[i] = title.ID
 		titleIndex[title.ID] = i
+	}
+
+	// Grab the automatic install policies, if any exist
+	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, titleIDs, opt.TeamID)
+	if err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "batch getting policies by software title IDs")
+	}
+
+	for _, p := range policies {
+		if i, ok := titleIndex[p.TitleID]; ok {
+			softwareList[i].SoftwarePackage.AutomaticInstallPolicies = append(softwareList[i].SoftwarePackage.AutomaticInstallPolicies, p)
+		}
 	}
 
 	// we grab matching versions separately and build the desired object in

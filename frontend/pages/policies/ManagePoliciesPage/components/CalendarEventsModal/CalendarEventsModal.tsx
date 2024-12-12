@@ -1,7 +1,8 @@
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect, useContext } from "react";
 
 import { IPolicyStats } from "interfaces/policy";
 
+import { AppContext } from "context/app";
 import { syntaxHighlight } from "utilities/helpers";
 import validURL from "components/forms/validators/valid_url";
 import Button from "components/buttons/Button";
@@ -52,6 +53,10 @@ const CalendarEventsModal = ({
   url,
   policies,
 }: ICalendarEventsModal) => {
+  const { isGlobalAdmin, isTeamAdmin } = useContext(AppContext);
+
+  const isAdmin = isGlobalAdmin || isTeamAdmin;
+
   const [formData, setFormData] = useState<ICalendarEventsFormData>({
     enabled,
     url,
@@ -259,14 +264,45 @@ const CalendarEventsModal = ({
     );
   };
 
-  const renderConfiguredModal = () => (
-    <div className={`${baseClass} form`}>
+  const renderAdminHeader = () => (
+    <div className="form-header">
+      <Slider
+        value={formData.enabled}
+        onChange={onFeatureEnabledChange}
+        inactiveText="Disabled"
+        activeText="Enabled"
+      />
+      <Button
+        type="button"
+        variant="text-link"
+        onClick={() => {
+          setSelectedPolicyToPreview(undefined);
+          togglePreviewCalendarEvent();
+        }}
+      >
+        Preview calendar event
+      </Button>
+    </div>
+  );
+
+  /** Maintainer does not have access to update calendar event
+  / configuration only to set the automated policies
+  / Modal not available for maintainers if calendar is disabled but
+  / disabled inputs here as fail safe and to match admin view.
+  */
+  const renderMaintainerHeader = () => (
+    <>
       <div className="form-header">
-        <Slider
-          value={formData.enabled}
-          onChange={onFeatureEnabledChange}
-          inactiveText="Disabled"
-          activeText="Enabled"
+        <RevealButton
+          isShowing={showExamplePayload}
+          className={`${baseClass}__show-example-payload-toggle`}
+          hideText="Hide example payload"
+          showText="Show example payload"
+          caretPosition="after"
+          onClick={() => {
+            setShowExamplePayload(!showExamplePayload);
+          }}
+          // disabled={!formData.enabled}
         />
         <Button
           type="button"
@@ -279,32 +315,43 @@ const CalendarEventsModal = ({
           Preview calendar event
         </Button>
       </div>
+      {showExamplePayload && renderExamplePayload()}
+    </>
+  );
+
+  const renderConfiguredModal = () => (
+    <div className={`${baseClass} form`}>
+      {isAdmin ? renderAdminHeader() : renderMaintainerHeader()}
       <div
         className={`form ${formData.enabled ? "" : "form-fields--disabled"}`}
       >
-        <InputField
-          placeholder="https://server.com/example"
-          label="Resolution webhook URL"
-          onChange={onUrlChange}
-          name="url"
-          value={formData.url}
-          error={formErrors.url}
-          tooltip="Provide a URL to deliver a webhook request to."
-          helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remediation."
-          disabled={!formData.enabled}
-        />
-        <RevealButton
-          isShowing={showExamplePayload}
-          className={`${baseClass}__show-example-payload-toggle`}
-          hideText="Hide example payload"
-          showText="Show example payload"
-          caretPosition="after"
-          onClick={() => {
-            setShowExamplePayload(!showExamplePayload);
-          }}
-          disabled={!formData.enabled}
-        />
-        {showExamplePayload && renderExamplePayload()}
+        {isAdmin && (
+          <>
+            <InputField
+              placeholder="https://server.com/example"
+              label="Resolution webhook URL"
+              onChange={onUrlChange}
+              name="url"
+              value={formData.url}
+              error={formErrors.url}
+              tooltip="Provide a URL to deliver a webhook request to."
+              helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remediation."
+              disabled={!formData.enabled}
+            />
+            <RevealButton
+              isShowing={showExamplePayload}
+              className={`${baseClass}__show-example-payload-toggle`}
+              hideText="Hide example payload"
+              showText="Show example payload"
+              caretPosition="after"
+              onClick={() => {
+                setShowExamplePayload(!showExamplePayload);
+              }}
+              disabled={!formData.enabled}
+            />
+            {showExamplePayload && renderExamplePayload()}
+          </>
+        )}
         {renderPolicies()}
       </div>
       <div className="modal-cta-wrap">

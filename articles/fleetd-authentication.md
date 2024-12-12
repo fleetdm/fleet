@@ -101,7 +101,7 @@ More information can be found on orbit's Github [README](https://github.com/flee
 ## TLS with custom CA certificates
 
 By default, fleetd uses the OS root CA certificate store and also embeds the [Mozilla CA certificate store](https://curl.se/docs/caextract.html).
-fleetd also supports setting custom root CA certificates that will be used to communicate to Fleet and the TUF server.
+Fleetd also supports setting custom root CA certificates that will be used to communicate to Fleet and the TUF server.
 More information can be found on the [Certificates in fleetd]((https://fleetdm.com/guides/certificates-in-fleetd#basic-article) guide.
 
 ## mTLS

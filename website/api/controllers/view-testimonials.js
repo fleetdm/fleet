@@ -25,20 +25,19 @@ module.exports = {
     let testimonials = _.clone(sails.config.builtStaticContent.testimonials);
 
     // Filter the testimonials by product category
-    let testimonialsForMdm = _.filter(testimonials, (testimonial)=>{
-      return _.contains(testimonial.productCategories, 'Device management');
-    });
     let testimonialOrderForMdm = [
       'Scott MacVicar',
-      'Wes Whetstone',
-      'Nick Fohs',
-      'Erik Gomez',
-      'Matt Carr',
+      'Chandra Majumdar',
       'Nico Waisman',
       'Kenny Botelho',
-      'Dan Grzelak',
       'Eric Tan',
+      'Dan Grzelak',
+      'Erik Gomez',
+      'Matt Carr',
     ];
+    let testimonialsForMdm = _.filter(testimonials, (testimonial)=>{
+      return _.contains(testimonial.productCategories, 'Device management') && _.contains(testimonialOrderForMdm, testimonial.quoteAuthorName);
+    });
     testimonialsForMdm.sort((a, b)=>{
       if(testimonialOrderForMdm.indexOf(a.quoteAuthorName) === -1){
         return 1;
@@ -47,62 +46,52 @@ module.exports = {
       }
       return testimonialOrderForMdm.indexOf(a.quoteAuthorName) - testimonialOrderForMdm.indexOf(b.quoteAuthorName);
     });
-    let testimonialsForSecurityEngineering = _.filter(testimonials, (testimonial)=>{
-      return _.contains(testimonial.productCategories, 'Vulnerability management');
-    });
-    let testimonialOrderForSecurityEngineering = [
-      'Nico Waisman',
-      'Austin Anderson',
-      'Chandra Majumdar',
-      'Andre Shields',
-      'Dan Grzelak',
-      'Charles Zaffery',
+    let testimonialOrderForSoftwareManagement = [
+      'Wes Whetstone',
       'Erik Gomez',
-      'Nick Fohs',
-      'Dhruv Majumdar',
+      'Chandra Majumdar',
+      'Kenny Botelho',
       'Arsenio Figueroa',
+      'Andre Shields',
+      'Nico Waisman',
+      'Eric Tan',
+      'Dan Grzelak',
     ];
-    testimonialsForSecurityEngineering.sort((a, b)=>{
-      if(testimonialOrderForSecurityEngineering.indexOf(a.quoteAuthorName) === -1){
+    let testimonialsForSoftwareManagement = _.filter(testimonials, (testimonial)=>{
+      return _.contains(testimonial.productCategories, 'Software management') && _.contains(testimonialOrderForSoftwareManagement, testimonial.quoteAuthorName);
+    });
+    testimonialsForSoftwareManagement.sort((a, b)=>{
+      if(testimonialOrderForSoftwareManagement.indexOf(a.quoteAuthorName) === -1){
         return 1;
-      } else if(testimonialOrderForSecurityEngineering.indexOf(b.quoteAuthorName) === -1) {
+      } else if(testimonialOrderForSoftwareManagement.indexOf(b.quoteAuthorName) === -1) {
         return -1;
       }
-      return testimonialOrderForSecurityEngineering.indexOf(a.quoteAuthorName) - testimonialOrderForSecurityEngineering.indexOf(b.quoteAuthorName);
+      return testimonialOrderForSoftwareManagement.indexOf(a.quoteAuthorName) - testimonialOrderForSoftwareManagement.indexOf(b.quoteAuthorName);
     });
-    let testimonialsForItEngineering = _.filter(testimonials, (testimonial)=>{
-      return _.contains(testimonial.productCategories, 'Endpoint operations');
-    });
-    let testimonialOrderForItEngineering = [
-      'Charles Zaffery',
-      'Nico Waisman',
-      'Erik Gomez',
-      'Mike Arpaia',
-      'Ahmed Elshaer',
-      'Kenny Botelho',
-      'Alvaro Gutierrez',
-      'Tom Larkin',
-      'Nick Fohs',
-      'charles zaffery',// Note: This testimonial's quoteAuthorName value is lowercased so it can be sorted to a different position than the other Charles Zaffery quote.
-      'Andre Shields',
-      'Abubakar Yousafzai',
-      'Chandra Majumdar',
-      'Joe Pistone',
-      'Dan Grzelak',
-      'Austin Anderson',
-      'Brendan Shaklovitz',
-      'Dhruv Majumdar',
-      'Wes Whetstone',
+    let testimonialOrderForObservability = [
       'Eric Tan',
       'Arsenio Figueroa',
+      'Scott MacVicar',
+      'Chandra Majumdar',
+      'Kenny Botelho',
+      'Brendan Shaklovitz',
+      'Erik Gomez',
+      'Charles Zaffery',
+      'Ahmed Elshaer',
+      'Andre Shields',
+      'Mike Arpaia',
+      'Tom Larkin',
     ];
-    testimonialsForItEngineering.sort((a, b)=>{
-      if(testimonialOrderForItEngineering.indexOf(a.quoteAuthorName) === -1){
+    let testimonialsForObservability = _.filter(testimonials, (testimonial)=>{
+      return _.contains(testimonial.productCategories, 'Observability') && _.contains(testimonialOrderForObservability, testimonial.quoteAuthorName);
+    });
+    testimonialsForObservability.sort((a, b)=>{
+      if(testimonialOrderForObservability.indexOf(a.quoteAuthorName) === -1){
         return 1;
-      } else if(testimonialOrderForItEngineering.indexOf(b.quoteAuthorName) === -1) {
+      } else if(testimonialOrderForObservability.indexOf(b.quoteAuthorName) === -1) {
         return -1;
       }
-      return testimonialOrderForItEngineering.indexOf(a.quoteAuthorName) - testimonialOrderForItEngineering.indexOf(b.quoteAuthorName);
+      return testimonialOrderForObservability.indexOf(a.quoteAuthorName) - testimonialOrderForObservability.indexOf(b.quoteAuthorName);
     });
     let testimonialsWithVideoLinks = _.filter(testimonials, (testimonial)=>{
       return testimonial.youtubeVideoUrl;
@@ -110,8 +99,8 @@ module.exports = {
 
     return {
       testimonialsForMdm,
-      testimonialsForSecurityEngineering,
-      testimonialsForItEngineering,
+      testimonialsForSoftwareManagement,
+      testimonialsForObservability,
       testimonialsWithVideoLinks,
     };
 

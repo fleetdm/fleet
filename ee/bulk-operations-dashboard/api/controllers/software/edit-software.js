@@ -46,9 +46,23 @@ module.exports = {
       description: 'The provided replacement software\'s has the wrong extension.',
       statusCode: 400,
     },
+
     softwareUploadFailed: {
       description: 'The software upload failed'
-    }
+    },
+
+    softwareAlreadyExistsOnThisTeam: {
+      description: 'A software installer with this name already exists on the Fleet Instance',
+    },
+
+    couldNotReadVersion: {
+      description:'Fleet could not read version information from the provided software installer.'
+    },
+
+    softwareDeletionFailed: {
+      description: 'The specified software could not be deleted from the Fleet instance.',
+      statusCode: 409,
+    },
   },
 
 
@@ -148,7 +162,7 @@ module.exports = {
                         contentType: 'application/octet-stream'
                       });
                       (async ()=>{
-                        await axios.post(`${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/package`, form, {
+                        await axios.postForm(`${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/package`, form, {
                           headers: {
                             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
                             ...form.getHeaders()
@@ -167,7 +181,35 @@ module.exports = {
                   }
                 };
               },
-            })
+            }
+          )
+          .intercept({response: {status: 409}}, async (error)=>{// handles errors related to duplicate software items.
+            if(!software.id) {// If the software does not have an ID, it not stored in the app's database/s3 bucket, so we can safely delete the file in s3.
+              await sails.rm(sails.config.uploads.prefixForFileDeletion+softwareFd);
+            }
+            return {'softwareAlreadyExistsOnThisTeam': error};
+          })
+          .intercept({name: 'AxiosError', response: {status: 400}}, async (error)=>{// Handles errors related to malformed installer packages
+            if(!software.id) {// If the software does not have an ID, it not stored in the app's database/s3 bucket, so we can safely delete the file in s3.
+              await sails.rm(sails.config.uploads.prefixForFileDeletion+softwareFd);
+            }
+            let axiosError = error;
+            if(axiosError.response.data) {
+              if(axiosError.response.data.errors && _.isArray(axiosError.response.data.errors)){
+                if(axiosError.response.data.errors[0] && axiosError.response.data.errors[0].reason) {
+                  let errorMessageFromFleetInstance = axiosError.response.data.errors[0].reason;
+                  if(_.startsWith(errorMessageFromFleetInstance, `Couldn't add. Fleet couldn't read the version`)){
+                    return 'couldNotReadVersion';
+                  } else {
+                    sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API. Error returned from Fleet API: ${errorMessageFromFleetInstance} \n Axios error: ${require('util').inspect(error, {depth: 3})}`);
+                    return {'softwareUploadFailed': error};
+                  }
+                }
+              }
+            }
+            sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, ${require('util').inspect(error, {depth: 3})}`);
+            return {'softwareUploadFailed': error};
+          })
           .intercept(async (error)=>{
             // Note: with this current behavior, all errors from this upload are currently swallowed and a softwareUploadFailed response is returned.
             // FUTURE: Test to make sure that uploading duplicate software to a team results in a 409 response.
@@ -176,7 +218,7 @@ module.exports = {
               await sails.rm(sails.config.uploads.prefixForFileDeletion+softwareFd);
             }
             // Log a warning containing an error
-            sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, Full error: ${require('util').inspect(error, {depth: 2})}`);
+            sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, Full error: ${require('util').inspect(error, {depth: 3})}`);
             return {'softwareUploadFailed': error};
           });
           // console.timeEnd(`transfering ${software.name} to fleet instance for team id ${team}`);
@@ -234,6 +276,33 @@ module.exports = {
                 };
               },
             })
+            .intercept({response: {status: 409}}, async (error)=>{// handles errors related to duplicate software items.
+              if(!software.id) {// If the software does not have an ID, it not stored in the app's database/s3 bucket, so we can safely delete the file in s3.
+                await sails.rm(sails.config.uploads.prefixForFileDeletion+softwareFd);
+              }
+              return {'softwareAlreadyExistsOnThisTeam': error};
+            })
+            .intercept({name: 'AxiosError', response: {status: 400}}, async (error)=>{// Handles errors related to malformed installer packages
+              if(!software.id) {// If the software does not have an ID, it not stored in the app's database/s3 bucket, so we can safely delete the file in s3.
+                await sails.rm(sails.config.uploads.prefixForFileDeletion+softwareFd);
+              }
+              let axiosError = error;
+              if(axiosError.response.data) {
+                if(axiosError.response.data.errors && _.isArray(axiosError.response.data.errors)){
+                  if(axiosError.response.data.errors[0] && axiosError.response.data.errors[0].reason) {
+                    let errorMessageFromFleetInstance = axiosError.response.data.errors[0].reason;
+                    if(_.startsWith(errorMessageFromFleetInstance, `Couldn't add. Fleet couldn't read the version`)){
+                      return 'couldNotReadVersion';
+                    } else {
+                      sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API. Error returned from Fleet API: ${errorMessageFromFleetInstance} \n Axios error: ${require('util').inspect(error, {depth: 3})}`);
+                      return {'softwareUploadFailed': error};
+                    }
+                  }
+                }
+              }
+              sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, ${require('util').inspect(error, {depth: 3})}`);
+              return {'softwareUploadFailed': error};
+            })
             .intercept(async (error)=>{
               // Note: with this current behavior, all errors from this upload are currently swallowed and a softwareUploadFailed response is returned.
               // FUTURE: Test to make sure that uploading duplicate software to a team results in a 409 response.
@@ -242,7 +311,7 @@ module.exports = {
                 await sails.rm(sails.config.uploads.prefixForFileDeletion+softwareFd);
               }
               // Log a warning containing an error
-              sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, ${require('util').inspect(error, {depth: 2})}`);
+              sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API, ${require('util').inspect(error, {depth: 3})}`);
               return {'softwareUploadFailed': error};
             });
             // console.timeEnd(`transfering ${software.name} to fleet instance for team id ${teamApid}`);
@@ -279,6 +348,11 @@ module.exports = {
             headers: {
               Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
             }
+          })
+          .intercept({raw:{statusCode: 409}}, (error)=>{
+            // If the Fleet instance's returns a 409 response, then the software is configured to be installed as
+            // part of the macOS setup experience, and must be removed before it can be deleted via API requests.
+            return {softwareDeletionFailed: error};
           });
         }
         // If the software had been previously undeployed, delete the installer in s3 and the db record.
@@ -289,9 +363,23 @@ module.exports = {
 
       } else if(software.teams && newTeamIds.length === 0) {
         // If this is a deployed software that is being unassigned, save information about the uploaded file in our s3 bucket.
+        for(let team of software.teams) {
+          // Now delete the software on the Fleet instance.
+          await sails.helpers.http.sendHttpRequest.with({
+            method: 'DELETE',
+            baseUrl: sails.config.custom.fleetBaseUrl,
+            url: `/api/v1/fleet/software/titles/${software.fleetApid}/available_for_install?team_id=${team.fleetApid}`,
+            headers: {
+              Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
+            }
+          })
+          .intercept({raw:{statusCode: 409}}, (error)=>{
+            // If the Fleet instance's returns a 409 response, then the software is configured to be installed as
+            // part of the macOS setup experience, and must be removed before it can be deleted via API requests.
+            return {softwareDeletionFailed: error};
+          });
+        }
         if(newSoftware) {
-          // remove the old copy.
-          // console.log('Removing old package for ',softwareName);
           await UndeployedSoftware.create({
             uploadFd: softwareFd,
             uploadMime: softwareMime,
@@ -313,17 +401,6 @@ module.exports = {
             preInstallQuery,
             installScript,
             uninstallScript,
-          });
-        }
-        // Now delete the software on the Fleet instance.
-        for(let team of software.teams) {
-          await sails.helpers.http.sendHttpRequest.with({
-            method: 'DELETE',
-            baseUrl: sails.config.custom.fleetBaseUrl,
-            url: `/api/v1/fleet/software/titles/${software.fleetApid}/available_for_install?team_id=${team.fleetApid}`,
-            headers: {
-              Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
-            }
           });
         }
 
