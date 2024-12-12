@@ -31,7 +31,7 @@ resource "aws_route53_record" "spf_domain" {
   name     = each.key
   type     = "TXT"
   ttl      = "600"
-  records  = ["v=spf1 include:amazonses.com -all"]
+  records  = each.key == aws_ses_domain_identity.default.domain ? flatten([["v=spf1 include:amazonses.com -all"], var.extra_txt_records]) : ["v=spf1 include:amazonses.com -all"]
 }
 
 resource "aws_iam_policy" "main" {

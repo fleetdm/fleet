@@ -6,10 +6,11 @@ import (
 	"strings"
 
 	mdmhttp "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/ctxlog"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
+
+	"github.com/micromdm/nanolib/log"
+	"github.com/micromdm/nanolib/log/ctxlog"
 )
 
 func mdmReqFromHTTPReq(r *http.Request) *mdm.Request {
@@ -27,6 +28,12 @@ func mdmReqFromHTTPReq(r *http.Request) *mdm.Request {
 
 // CheckinHandler decodes an MDM check-in request and adapts it to service.
 func CheckinHandler(svc service.Checkin, logger log.Logger) http.HandlerFunc {
+	if svc == nil {
+		panic("nil service")
+	}
+	if logger == nil {
+		panic("nil logger")
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := ctxlog.Logger(r.Context(), logger)
 		bodyBytes, err := mdmhttp.ReadAllAndReplaceBody(r)

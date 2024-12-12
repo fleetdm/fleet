@@ -18,6 +18,67 @@ import (
 )
 
 func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
+	t.Run("don't check for pending escrow if unsupported platform or encryption is not enabled", func(t *testing.T) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+		os := &fleet.OperatingSystem{
+			Platform: "rhel",
+			Version:  "9.0",
+		}
+		host := &fleet.Host{
+			OsqueryHostID: ptr.String("test"),
+			ID:            1,
+			OSVersion:     "Red Hat Enterprise Linux 9.0",
+			Platform:      "rhel",
+		}
+
+		team := fleet.Team{ID: 1}
+		teamMDM := fleet.TeamMDM{EnableDiskEncryption: true}
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			require.Equal(t, team.ID, teamID)
+			return &teamMDM, nil
+		}
+		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
+			return ptr.RawMessage(json.RawMessage(`{}`)), nil
+		}
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ListPendingSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+			return nil, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return true, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return nil, nil
+		}
+
+		appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnableDiskEncryption: optjson.SetBool(true)}}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appCfg, nil
+		}
+		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
+			return os, nil
+		}
+
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+
+		ctx = test.HostContext(ctx, host)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.False(t, cfg.Notifications.RunDiskEncryptionEscrow)
+
+		host.OSVersion = "Fedora 38.0"
+		cfg, err = svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.False(t, cfg.Notifications.RunDiskEncryptionEscrow)
+	})
+
 	t.Run("pending escrow sets config flag and clears in DB", func(t *testing.T) {
 		ds := new(mock.Store)
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
@@ -27,8 +88,11 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 			Version:  "20.04",
 		}
 		host := &fleet.Host{
-			OsqueryHostID: ptr.String("test"),
-			ID:            1,
+			OsqueryHostID:         ptr.String("test"),
+			ID:                    1,
+			OSVersion:             "Ubuntu 20.04",
+			Platform:              "ubuntu",
+			DiskEncryptionEnabled: ptr.Bool(true),
 		}
 
 		team := fleet.Team{ID: 1}
@@ -116,20 +180,21 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		}
 
 		// test reporting client errors
-		err := svc.EscrowLUKSData(ctx, "foo", "bar", expectedErrorMessage)
+		err := svc.EscrowLUKSData(ctx, "foo", "bar", nil, expectedErrorMessage)
 		require.NoError(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
 		// blank passphrase
 		ds.ReportEscrowErrorFuncInvoked = false
-		expectedErrorMessage = "Blank passphrase provided"
-		err = svc.EscrowLUKSData(ctx, "", "bar", "")
+		expectedErrorMessage = "passphrase, salt, and key_slot must be provided to escrow LUKS data"
+		err = svc.EscrowLUKSData(ctx, "", "bar", ptr.Uint(0), "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
 		ds.ReportEscrowErrorFuncInvoked = false
-		passphrase, slotKey := "foo", ""
-		ds.SaveLUKSDataFunc = func(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64SlotKey string) error {
+		passphrase, salt := "foo", ""
+		var keySlot *uint
+		ds.SaveLUKSDataFunc = func(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlotToPersist uint) error {
 			require.Equal(t, host.ID, hostID)
 			key := config.TestConfig().Server.PrivateKey
 
@@ -137,28 +202,35 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, passphrase, decryptedPassphrase)
 
-			if encryptedBase64SlotKey == "" {
-				require.Equal(t, slotKey, encryptedBase64SlotKey)
-				return nil
-			}
-			decryptedSlotKey, err := mdm.DecodeAndDecrypt(encryptedBase64SlotKey, key)
+			decryptedSalt, err := mdm.DecodeAndDecrypt(encryptedBase64Salt, key)
 			require.NoError(t, err)
-			require.Equal(t, slotKey, decryptedSlotKey)
+			require.Equal(t, salt, decryptedSalt)
+
+			require.Equal(t, *keySlot, keySlotToPersist)
 
 			return nil
 		}
 
-		// with no slot key
-		err = svc.EscrowLUKSData(ctx, passphrase, slotKey, "")
+		// with no salt
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "")
+		require.Error(t, err)
+		require.True(t, ds.ReportEscrowErrorFuncInvoked)
+		require.False(t, ds.SaveLUKSDataFuncInvoked)
+
+		// with no key slot
+		ds.ReportEscrowErrorFuncInvoked = false
+		salt = "baz"
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "")
+		require.Error(t, err)
+		require.True(t, ds.ReportEscrowErrorFuncInvoked)
+		require.False(t, ds.SaveLUKSDataFuncInvoked)
+
+		// with salt and key slot
+		keySlot = ptr.Uint(0)
+		ds.ReportEscrowErrorFuncInvoked = false
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "")
 		require.NoError(t, err)
 		require.False(t, ds.ReportEscrowErrorFuncInvoked)
-		require.True(t, ds.SaveLUKSDataFuncInvoked)
-
-		// with slot key
-		slotKey = "baz"
-		ds.SaveLUKSDataFuncInvoked = false
-		err = svc.EscrowLUKSData(ctx, passphrase, slotKey, "")
-		require.NoError(t, err)
 		require.True(t, ds.SaveLUKSDataFuncInvoked)
 	})
 
@@ -179,7 +251,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		cfg.Server.PrivateKey = ""
 		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 		ctx = test.HostContext(ctx, host)
-		err := svc.EscrowLUKSData(ctx, "foo", "bar", "")
+		err := svc.EscrowLUKSData(ctx, "foo", "bar", ptr.Uint(0), "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
@@ -188,7 +260,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		cfg.Server.PrivateKey = "invalid"
 		svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 		ctx = test.HostContext(ctx, host)
-		err = svc.EscrowLUKSData(ctx, "foo", "bar", "")
+		err = svc.EscrowLUKSData(ctx, "foo", "bar", ptr.Uint(0), "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 	})

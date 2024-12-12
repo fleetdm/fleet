@@ -216,6 +216,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "ipados_updates not found")
 				_, ok = gitops.Controls.WindowsEnabledAndConfigured.(bool)
 				assert.True(t, ok, "windows_enabled_and_configured not found")
+				_, ok = gitops.Controls.WindowsMigrationEnabled.(bool)
+				assert.True(t, ok, "windows_migration_enabled not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
 
@@ -960,6 +962,18 @@ software:
 	}
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
 	assert.ErrorContains(t, err, "failed to unmarshal install_software.package_path file")
+}
+
+func TestGitOpsWithStrayScriptEntryWithNoPath(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"controls"})
+	config += `
+controls:
+  scripts:
+    -
+`
+	_, err := gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, `check for a stray "-"`)
 }
 
 func TestGitOpsTeamPolicyWithInvalidRunScript(t *testing.T) {

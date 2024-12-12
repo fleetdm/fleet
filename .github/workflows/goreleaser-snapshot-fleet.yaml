@@ -57,7 +57,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version-file: 'go.mod'
+          go-version-file: "go.mod"
 
       # Set the Node.js version
       - name: Set up Node.js
@@ -72,8 +72,8 @@ jobs:
         uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b
         with:
           distribution: goreleaser-pro
-          version: "~> 1"
-          args: release --snapshot --rm-dist -f .goreleaser-snapshot.yml
+          version: "~> 2"
+          args: release --snapshot --clean -f .goreleaser-snapshot.yml
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 

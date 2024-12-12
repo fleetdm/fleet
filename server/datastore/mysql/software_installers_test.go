@@ -55,7 +55,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
-	installerID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installerID1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
@@ -72,7 +72,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 
 	tfr2, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
-	installerID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installerID2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "world",
 		PreInstallQuery:   "SELECT 2",
 		PostInstallScript: "hello",
@@ -88,7 +88,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 
 	tfr3, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
-	installerID3, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installerID3, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "banana",
 		PreInstallQuery:   "SELECT 3",
 		PostInstallScript: "apple",
@@ -201,7 +201,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			require.ErrorAs(t, err, &nfe)
 			require.Nil(t, si)
 
-			installerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 				Title:         "foo",
 				Source:        "bar",
 				InstallScript: "echo",
@@ -212,6 +212,9 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			installerMeta, err := ds.GetSoftwareInstallerMetadataByID(ctx, installerID)
 			require.NoError(t, err)
+
+			require.NotNil(t, installerMeta.TitleID)
+			require.Equal(t, titleID, *installerMeta.TitleID)
 
 			si, err = ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, *installerMeta.TitleID, false)
 			require.NoError(t, err)
@@ -498,7 +501,7 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 		t.Run(tc.name, func(t *testing.T) {
 			// create a host and software installer
 			swFilename := "file_" + tc.name + ".pkg"
-			installerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 				Title:         "foo" + tc.name,
 				Source:        "bar" + tc.name,
 				InstallScript: "echo " + tc.name,
@@ -629,7 +632,7 @@ func testCleanupUnusedSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assertExisting([]string{ins0})
 
-	swi, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	swi, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
 		InstallerFile: tfr0,
 		StorageID:     ins0,
@@ -911,7 +914,7 @@ func testGetSoftwareInstallerMetadataByTeamAndTitleID(t *testing.T, ds *Datastor
 	require.NoError(t, err)
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
-	installerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:             "foo",
 		Source:            "bar",
 		InstallScript:     "echo install",
@@ -934,7 +937,7 @@ func testGetSoftwareInstallerMetadataByTeamAndTitleID(t *testing.T, ds *Datastor
 	require.EqualValues(t, installerID, metaByTeamAndTitle.InstallerID)
 	require.Equal(t, "SELECT 1", metaByTeamAndTitle.PreInstallQuery)
 
-	installerID, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installerID, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:         "bar",
 		Source:        "bar",
 		InstallScript: "echo install",
@@ -973,7 +976,7 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	assert.False(t, hasSelfService)
 
 	// Create a non-self service installer
-	_, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:         "foo",
 		Source:        "bar",
 		InstallScript: "echo install",
@@ -992,7 +995,7 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	assert.False(t, hasSelfService)
 
 	// Create a self-service installer for team
-	_, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:         "foo2",
 		Source:        "bar2",
 		InstallScript: "echo install",
@@ -1031,7 +1034,7 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	assert.True(t, hasSelfService)
 
 	// Create a global self-service installer
-	_, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:         "foo global",
 		Source:        "bar",
 		InstallScript: "echo install",
@@ -1082,7 +1085,7 @@ func testDeleteSoftwareInstallers(t *testing.T, ds *Datastore) {
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
-	softwareInstallerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	softwareInstallerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
 		InstallerFile: tfr0,
 		StorageID:     ins0,
@@ -1157,7 +1160,7 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	tfr0, err := fleet.NewTempFileReader(ins0File, t.TempDir)
 	require.NoError(t, err)
 
-	softwareInstallerID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	softwareInstallerID1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
 		InstallerFile: tfr0,
 		StorageID:     ins0,
@@ -1169,7 +1172,7 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 		UserID:        user1.ID,
 	})
 	require.NoError(t, err)
-	softwareInstallerID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	softwareInstallerID2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install2",
 		InstallerFile: tfr0,
 		StorageID:     ins0,

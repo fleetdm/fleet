@@ -10,30 +10,30 @@
 #     Add markdown content to this field.
 ################################################
 
-# - jobTitle: 🚀 Software Engineer
-#   department: Engineering
-#   hiringManagerName: Luke Heath
-#   hiringManagerGithubUsername: LukeHeath
-#   hiringManagerLinkedInUrl: https://www.linkedin.com/in/lukeheath/
-#   responsibilities: |
-#       - 🧑‍🔬 Design, develop, test, and maintain a state-of-the-art Golang application that includes robust APIs to support mobile and desktop clients.
-#       - 🛠 Write code and tests, build prototypes, resolve issues, and profile and analyze bottlenecks.
-#       - 💭 Manage and optimize scalable distributed systems in the cloud.
-#       - 🤝 Collaborate closely with product managers to understand requirements and translate them into actionable specifications.
-#       - 🚀 Actively participate in all engineering scrum meetings, including sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
-#       - 🌟 Contribute to the overall success of the [MDM](https://fleetdm.com/handbook/company/product-groups#mdm-group) product group by ensuring users receive valuable new features.
-#   experience: |
-#       - 💭 3-5 years of experience in backend/SaaS development.
-#       - 🦉 Proficient in backend development. You practice OOP design and are comfortable in a lean software development environment. 
-#       - 🦉 Translate requirements into well-designed and functional software.
-#       - 🤝 Communicate regularly with stakeholders, project managers, quality assurance teams, and other developers regarding progress on long-term technology roadmap.
-#       - 🧪 Collaborate with QA team for testing software features.
-#       - 🏃‍♂️ Familiarity with agile development processes and scrum methodologies.
-#       - 🛠️ Produce quality code, raising the bar for team performance and speed.
-#       - 📖 Mentor junior team members.
-#       - 🤝 Collaboration: You work best in a participatory, team-based environment.
-#       - 🚀 Prototype-first: You embrace speed and failure as we iterate towards the right solution. You have hands-on experience in creating low and high fidelity prototypes. You’re comfortable accepting suboptimal designs in favor of iteration.
-#       - 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
-#       - 🛠️ Technical: You understand the software development processes. You understand that software quality matters.
-#       - 🟣 Openness: You are flexible and open to new ideas and ways of working.
-#       - ➕ Bonus: Cybersecurity or IT background.
+- jobTitle: 🚀 Software Engineer
+  department: Engineering
+  hiringManagerName: Luke Heath
+  hiringManagerGithubUsername: LukeHeath
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/lukeheath/
+  responsibilities: |
+      - 🧑‍🔬 Design, develop, test, and maintain a state-of-the-art Golang application that includes robust APIs to support mobile and desktop clients.
+      - 🛠 Write code and tests, build prototypes, resolve issues, and profile and analyze bottlenecks.
+      - 💭 Manage and optimize scalable distributed systems in the cloud.
+      - 🤝 Collaborate closely with product managers to understand requirements and translate them into actionable specifications.
+      - 🚀 Actively participate in all engineering scrum meetings, including sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
+      - 🌟 Contribute to the overall success of the [MDM](https://fleetdm.com/handbook/company/product-groups#mdm-group) product group by ensuring users receive valuable new features.
+  experience: |
+      - 💭 3-5 years of experience in backend/SaaS development.
+      - 🦉 Proficient in backend development. You practice OOP design and are comfortable in a lean software development environment. 
+      - 🦉 Translate requirements into well-designed and functional software.
+      - 🤝 Communicate regularly with stakeholders, project managers, quality assurance teams, and other developers regarding progress on long-term technology roadmap.
+      - 🧪 Collaborate with QA team for testing software features.
+      - 🏃‍♂️ Familiarity with agile development processes and scrum methodologies.
+      - 🛠️ Produce quality code, raising the bar for team performance and speed.
+      - 📖 Mentor junior team members.
+      - 🤝 Collaboration: You work best in a participatory, team-based environment.
+      - 🚀 Prototype-first: You embrace speed and failure as we iterate towards the right solution. You have hands-on experience in creating low and high fidelity prototypes. You’re comfortable accepting suboptimal designs in favor of iteration.
+      - 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
+      - 🛠️ Technical: You understand the software development processes. You understand that software quality matters.
+      - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+      - ➕ Bonus: Cybersecurity or IT background.

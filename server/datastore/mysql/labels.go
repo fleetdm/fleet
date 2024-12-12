@@ -662,7 +662,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	}
 	query, whereParams = filterHostsByMacOSDiskEncryptionStatus(query, opt, whereParams)
 	query, whereParams = filterHostsByMDMBootstrapPackageStatus(query, opt, whereParams)
-	if enableDiskEncryption, err := ds.getConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
+	if enableDiskEncryption, err := ds.GetConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
 		return "", nil, err
 	} else if opt.OSSettingsFilter.IsValid() {
 		query, whereParams, err = ds.filterHostsByOSSettingsStatus(query, opt, whereParams, enableDiskEncryption)

@@ -8,7 +8,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Role                                  | Contributor(s)           |
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
 | Chief Revenue Officer (CRO)                  | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
-| Solutions Consulting (SC)                    | [Dave Herder](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_ <br> [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_
+| Solutions Consulting (SC)                    | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_
 | Channel Sales                                | [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@tomostertag](https://github.com/TomOstertag))_
 | Account Executive (AE)                       | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_ <br> [Kendra McKeever](https://www.linkedin.com/in/kendramckeever/) _([@KendraAtFleet](https://github.com/KendraAtFleet))_
 
@@ -25,11 +25,25 @@ This handbook page details processes specific to working [with](#contact-us) and
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
 
 
+### Set up a Fleet trial
+
+You can set up a Fleet Managed Cloud environment for a prospect with >300 hosts, or you can help them generate a trial license key to configure on their own self-managed Fleet server.
+
+- **To set up a new Fleet Managed Cloud environment** for a user: First, [create a "New customer environment" issue](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key).  Then, once the environment is set up, you'll get a notification and you can let the user know.
+- **To set up only a trial license key** for a user's self-managed Fleet server: Point the user towards fleetdm.com/start, where they can sign up and choose to "Run your own trial with Docker".  On that page, they'll see a license key located in the `fleectl preview` CLI instructions, and they can configure this by copying and pasting it as the [`FLEET_LICENSE_KEY`](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key)  environment variable on the server(s) where Fleet is deployed.
+
+### Demo Fleet to a prospect
+
+To run a demo for a prospect, follow the relevant steps in ["Why Fleet?"](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.vfxwnwufxzzi)
+
+### Introduce Fleet's CEO
+
+To get the CEO's attention and introduce him to an account, follow the relevant steps in ["Why Fleet?"](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.vfxwnwufxzzi)
+
+
 ### Track an objection
 
-We often hear objections to using Fleet that are important to track, understand, and solve for. To track an objection:
-1. Navigate to the ["Understanding objections document" (Confidential Google Doc)](https://docs.google.com/document/d/1UFjHaIBdoSGDiqNqwgxRdwRz9Wn9SqP7h-g2OM8Runk/edit).
-2. Copy the template at the top of the page and paste it at the top of the "Objections" section completing all TODOs.
+To track an objection you heard from a prospect, follow the relevant steps in ["Why Fleet?"](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.vfxwnwufxzzi)
 
 
 ### Change a contact's organization in Salesforce
@@ -38,35 +52,47 @@ Use the following steps to change a contact's organization in Salesforce:
 - If the contact's organization in Salesforce is incorrect but their new organization is unknown, navigate to the contact in Salesforce and change the "Account name" to "?" and save.
 - If the contact's organization in Salesforce is incorrect and we know where they're moving to, navigate to the contact in Salesforce, change the "Account name" to the contact's new organization, and save.
 
-### Onboard a new sales team member
 
-Once the standard Fleetie onboarding issue is complete, create a new ["Sales team onboarding"](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=sales-team-onboarding.md&title=Sales%20onboarding%3A_____________) issue and complete it.
+### Send an order form
 
+In order to be transparent, Fleet sends order forms within 30 days of opportunity creation in most cases. All quotes and purchase orders must be approved by the CRO and 🌐 [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) before being sent to the prospect or customer. Often, the CRO will request legal review of any unique terms required. To prepare and send a subscription order form the Fleet owner of the opportunity (usually AE or CSM) will: 
 
-### Send a quote
+1. Navigate to the ["Template gallery"](https://docs.google.com/document/u/0/?tgif=d&ftv=1) in Google Docs and create a copy of the "TEMPLATE - Order form".
+2. Add/remove table rows as needed for multi-year deals.
+3. Where possible, include a graphic of the customer's logo. Use good judgment and omit if a high-quality graphic is unavailable. If in doubt, ask Digital Experience for help.
 
-During the buying cycle, the champion will need to start the process to secure funding in cooperation with the economic buyer and the finance org.
+> **Important**
+> - All changes to the [subscription agreement template](https://docs.google.com/document/d/1X4fh2LsuFtAVyQDnU1ZGBggqg-Ec00vYHACyckEooqA/edit?tab=t.0), or [standard terms](http://fleetdm.com/terms) must be brought to ["🦢🗣 Design review (#g-digital-experience)"](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none) for approval.
+> - All non-standard (from another party) subscription agreements, NDAs, and similar contracts require legal review from Digital Experience before being signed. [Create an issue to request legal review](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/contract-review.md).
 
-All quotes and purchase orders must be approved by CRO before being sent to the prospect or customer. Often, the CRO will request legal review of any unique terms required.
-
-The Fleet owner of the opportunity (usually AE or CSM) will prepare a quote and/or a Purchase Order when requested.
-- Because the champion may need to socialize "what is Fleet" or "what are we getting when buying Fleet," it is most often best to send the quote in [slide form](https://docs.google.com/presentation/d/15kbqm0OYPf1OmmTZvDp4F7VvMERnX4K6TMYqCYNr-wI/edit?usp=sharing).
-- Docusign can be used to create a [standard Purchase Order](https://www.loom.com/share/Loom-Message-16-January-2023-2ba8cf195ec645ebabac267d7df59823?sid=214f8c6b-beb3-427a-a3a8-e8c20b5dc350) if no special terms or pricing are needed.
-- Before sending to prospect, work with the Finance team to verify if sales tax needs to be charged and, if so, how much.
-
-
-### Obtain a copy of Fleet's W-9
-
-A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1ugXazEBk1oVm_LqGbYNsIFECcv5jXLA9/view?usp=drivesdk).
+4. In the internal Slack channel for the deal, at-mention the CRO and the Head of Digital Experience with a link to the docx version of the order and ask them to approve the order form.
+5. Once approved, send the order to the prospect. 
 
 
-### Provide payment information to a prospect
+### Send an NDA to a customer
 
-For customers with large deployments, Fleet accepts payment via wire transfer or electronic debit (ACH/SWIFT).
+- Fleet uses "Non-Disclosure Agreements" (NDAs) to protect the company and the companies we collaborate with. Always offer to send Fleet's NDA and, whenever possible, default to using the company's version. To send an NDA to a customer, follow these steps: 
+1. If a customer has no objections to using Fleet's NDA, route the NDA to them for signature using the "🙊 NDA (Non-disclosure agreement)" template in [DocuSign](https://apps.docusign.com/send/home).
+> If a customer would like to review the NDA first, download a .docx of [Fleet's NDA](https://docs.google.com/document/d/1gQCrF3silBFG9dJgyCvpmLa6hPhX_T4V7pL3XAwgqEU/edit?usp=sharing) and send it to the customer.
+2. If the customer has no objections, route the NDA using the template in DocuSign (do not upload and use the copy you emailed to the customer).
+3. If the customer "redlines" (i.e. wants to change) the NDA, follow the [contract review process](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) so that Digital Experience can look over any proposed changes and provide guidance on how to proceed.
 
-Payment information for customers within the United States is on Fleet's invoices. Typically, payment information does not need to be sent separately.
 
-For Fleet customers outside of the United States or instances where a customer is requesting payment information prior to invoicing, provide remittance information to customers by exporting ["💸 Paying Fleet"](https://docs.google.com/document/d/1KP_-x9c1x3sS1X9Q8Wlib2H7tq69xRONn1KMA3nVFQc/edit) into a PDF, then sending that to the prospect.
+### Close a new customer deal
+
+To close a deal with a new customer (non-self-service), create and complete a GitHub issue using the ["Sale" issue template](https://github.com/fleetdm/confidential/issues/new?assignees=alexmitchelliii&labels=%23g-sales&projects=&template=3-sale.md&title=New+customer%3A+_____________).
+
+
+### Process a security questionnaire
+
+- The AE will [use the handbook](https://fleetdm.com/handbook/company/communications#vendor-questionnaires) to answer most of the questions with links to appropriate sections in the handbook. After this first pass has been completed, and if there are outstanding questions, the AE will [assign the issue to Digital Experience (#g-digital-experience)](https://fleetdm.com/handbook/digital-experience#contact-us)  with a requested timeline for completion defined.
+- Digital Experience consults the handbook to validate that nothing was missed by the AE. After the second pass has been completed, and if there are outstanding questions, Digital Experience will [reassign the issue to Sales (#g-sales)](https://fleetdm.com/handbook/sales#contact-us) for intake.
+- The issue will be assigned to the Solutions Consultant (SC) associated to the opportunity in order to complete any unanswered questions.
+- The SC will search for unanswered questions and confirm again that nothing was missed from the handbook. Content missing from the handbook will need to be added via PR by the SC. Any unanswered questions after this pass has been completed by the SC will need to be [escalated to the Infrastructure team (#g-customer-success)](https://fleetdm.com/handbook/customer-success#contact-us) with the requested timeline for completion defined in the issue. Once complete, the infra team will assign the issue back to the #g-sales board.
+- Any questions answered by the infra team will be added to the handbook by the SC.
+
+
+<!-- 2024-11-16 We noticed some content in these sections was outdated, so we're using this opportunity to try out a different structure ± altitude level for the content for on this page
 
 
 ### Review rep activity
@@ -90,65 +116,6 @@ Every week, AEs will review the status of all qualified opportunities with leade
 4. Relay how many meetings they had with attendees from both IT and security this week.
 
 
-### Validate Salesforce data (RevOps) 
-
-In order to maintain a consistent contributor experience in Salesforce, we log in to make sure the structure of Salesforce data continues to look correct based on processes started elsewhere. Then we can look and see that the goals we want to achieve as a business are in line with our view inside Salesforce by conducting the following checkup. Any discrepancies between how information is presented in Salesforce and what should be in there per this ritual should be flagged so that they can be fixed or discussed.
-
-1. Make sure the default tabs for a standard user include a detailed view of contacts, opportunities, accounts, and leads. No other tabs should exist.
-
-2. Click the accounts tab and check for the following: 
-
-* The default filter is Customers when you click on the accounts tab. Click on an account to continue.
-* Click on a customer and make sure billing address, parent account, LinkedIn company URL, CISO employees (#), employees, and industry appear first at the top of the account. 
-* Useful links section should appear in the top right section of the account page. It includes links to purchase orders (POs), signed subscription agreements, invoices sent, meeting notes, and signed NDA. Clicking these links should search the appropriate repository for the requested information pertaining to the customer. All meeting notes should be saved in the [Meeting notes](https://drive.google.com/drive/folders/18e-rVadHG0T5w98OKMngM-yv-K9SXaOq) folder in Google Drive with the account name and date in the title. We do not use the notes feature on "accounts" or "opportunities" in Salesforce. 
-* Additional information section should include fields for account (customer) name first, account rating, LinkedIn sales navigator URL, LinkedIn company URL, and my LinkedIn overlaps. Make sure the LinkedIn links work.
-* Accounting section should include the following fields: invoice sent (latest), the payment received on (latest), subscription end date (latest), press approval field, license key, total opportunities (#), deals won (#), close date (first deal), cumulative revenue, payment terms, billing address, and shipping address. 
-* Opportunities, meeting notes, and activity feed should appear on the right.  
-
-3. Click on the opportunities tab and check for the following:
-
-* Default filter should be all opportunities. Open an opportunity to continue.
-* Section at the top of the page should include fields for account name, amount, close date, next step, and opportunity owner.
-* Opportunity information section should include fields for account name, opportunity name (should have the year on it), amount, next step, next step's due date, close date, and stage.
-* The accounting section here should include: up to # of hosts, type, payment terms, billing process, term, reseller, effective date, subscription end date, invoice sent, and the date payment was received.
-* Stage history, activity feed, and LinkedIn sales navigator should appear at the right.  
-
-4. Click on the contacts tab and check for the following:
-
-* Default filter should be all contacts. Open a contact to continue.
-* Top section should have fields for the contact's name, job title, department, account name, LinkedIn, and Orbit feed. 
-* The second section should have fields for LinkedIn URL, account name, name, title, is champion, and reports to
-* Additional information should have fields for email, personal email, Twitter, GitHub, mobile, website, orbit feed, and description.
-* Related contacts section should exist at the bottom, activity feed, meeting notes reminder, and manager information should appear on the right. 
-
-5. Click on the leads tab and check for the following:
-
-* Default filter should be all leads. Open a lead to continue.
-* There should be fields for name, lead source, lead status, and rating.
-
-
-### Invite new customer DRI
-
-Sometimes there is a change in the champion within the customer's organization.
-1. Get an introduction to the new DRIs including names, roles, contact information.
-2. Make sure they're in the Slack channel.
-3. Invite them to the *Success* meetings.
-4. In the first meeting understand their proficiency level of osquery.
-    1. Make sure the meeting time is still convenient for their team. 
-    2. Understand their needs and goals for visibility.
-    3. Offer training to get them up to speed.
-    4. Provide a white glove experience.
-
-
-### To schedule Solutions Consultant (SC) for a prospect meeting
-
-To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) with a Fleet prospect, the Account Executive (AE) will [open an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales%2C%23solutions-consultant%2C%3Adiscovery%2C%3Ademo%2C%3Ascoping%2C%3Atech-eval&projects=&template=custom-request.md&title=prospect+name+-+prep+%28date%29+-+discovery%2Cdemo%2Cscoping+%28date%29). 
- - Use [this calendly link](https://calendly.com/fleetdm/talk-to-a-solutions-consultant) to obtain SC availability.
- - The AE will populate this issue with the appropriate dates for an internal prep meeting as well as the dates for the external prospect meeting.
- - Do not assign the issue. The Director of Solutions Consulting will assign the issue.
- - Ensure that the product category is defined ("Endpoint ops", "Device management", or "Vulnerability management") in the description of the issue.
-
-
 ### Conduct a POV
 
 We use the "tech eval test plan" as a guide when conducting a "POV" (Proof of Value) with a prospect. This planning helps us avoid costly detours that can take a long time, and result in folks getting lost. The tech eval test plan is the main document that will track success criteria for the tech eval.
@@ -164,7 +131,7 @@ The AE and SC will work together to scope the POV with the prospect in this stag
 If the above questions are answered successfully, the opportunity should progress to tech eval. If we cannot answer the questions above successfully, then the POV should not start unless approved by the CRO.
 
 During Stage 4, follow this process:
-1. SC creates a [tech eval issue](https://github.com/fleetdm/confidential/issues/new?assignees=dherder&labels=%23g-sales&projects=&template=technical-evaluation.md&title=Technical+evaluation%3A+___________________).
+1. SC creates a [tech eval issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=technical-evaluation.md&title=Technical+evaluation%3A+___________________).
 2. SC updates the issue labels to include: "~sc, :tech-eval" and the obfuscated "prospect-codename" label. See [Assign a customer a codename](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename). Instead of
    "customer-codename", prospects are labeled "prospect-codename". When a prospect purchases Fleet, the SC will edit this label from "prospect-codename" to "customer-codename".
 3. SC sets the appropriate sprint duration based on the defined timelines and an estimation of effort in points.
@@ -221,45 +188,9 @@ Temp Transfer to: Temp technical DRI
   - phone, try finding their number to text and/or call (as appropriate to the device type: landline vs. cell phone).
   - an alternative date and time. Suggest two to three options from which the prospect can choose.
     - Confirm that contact information is accurate and that the prospect can receive and access meeting invites.
-   
-
-### Send an NDA to a customer
-
-- Fleet uses "Non-Disclosure Agreements" (NDAs) to protect the company and the companies we collaborate with. Always offer to send Fleet's NDA and, whenever possible, default to using the company's version. To send an NDA to a customer, follow these steps: 
-1. If a customer has no objections to using Fleet's NDA, route the NDA to them for signature using the "🙊 NDA (Non-disclosure agreement)" template in [DocuSign](https://apps.docusign.com/send/home).
-> If a customer would like to review the NDA first, download a .docx of [Fleet's NDA](https://docs.google.com/document/d/1gQCrF3silBFG9dJgyCvpmLa6hPhX_T4V7pL3XAwgqEU/edit?usp=sharing) and send it to the customer.
-2. If the customer has no objections, route the NDA using the template in DocuSign (do not upload and use the copy you emailed to the customer).
-3. If the customer "redlines" (i.e. wants to change) the NDA, follow the [contract review process](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) so that Digital Experience can look over any proposed changes and provide guidance on how to proceed.
+-->  
 
 
-### Create a subscription agreement
-
-1. Create a copy of the [subscription agreement template](https://docs.google.com/document/d/1ri9sS2rlBbBLEFi7RrfKZ9bZj8e48orsFKZDfF0PgAg/copy?tab=t.0).
-2. Add/remove table rows as needed for multi-year deals.
-3. Where possible, include a graphic of the customer's logo. Use good judgement and omit if a high quality graphic is unavailable. If in doubt, ask Digital Experience for help.
-
-> **Important**
-> - All changes to the [subscription agreement template](https://docs.google.com/document/d/1ri9sS2rlBbBLEFi7RrfKZ9bZj8e48orsFKZDfF0PgAg/copy?tab=t.0), or [standard terms](http://fleetdm.com/terms) must be brought to ["🦢🗣 Design review (#g-digital-experience)"](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none) for approval.
-> - All non-standard (from another party) subscription agreements, NDAs, and similar contracts require legal review from Digital Experience before being signed. [Create an issue to request legal review](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/contract-review.md).
-
-
-### Close a new customer deal
-
-To close a deal with a new customer (non-self-service), create and complete a GitHub issue using the ["Sale" issue template](https://github.com/fleetdm/confidential/issues/new?assignees=alexmitchelliii&labels=%23g-sales&projects=&template=3-sale.md&title=New+customer%3A+_____________).
-
-
-### Change customer credit card number
-
-You can help a Premium license dispenser customers change their credit card by directing them to their [account dashboard](https://fleetdm.com/customers/dashboard). On that page, the customer can update their billing card by clicking the pencil icon next to their billing information.
-
-
-### Process a security questionnaire
-
-- The AE will [use the handbook](https://fleetdm.com/handbook/company/communications#vendor-questionnaires) to answer most of the questions with links to appropriate sections in the handbook. After this first pass has been completed, and if there are outstanding questions, the AE will [assign the issue to Digital Experience (#g-digital-experience)](https://fleetdm.com/handbook/digital-experience#contact-us)  with a requested timeline for completion defined.
-- Digital Experience consults the handbook to validate that nothing was missed by the AE. After the second pass has been completed, and if there are outstanding questions, Digital Experience will [reassign the issue to Sales (#g-sales)](https://fleetdm.com/handbook/sales#contact-us) for intake.
-- The issue will be assigned to the Solutions Consultant (SC) associated to the opportunity in order to complete any unanswered questions.
-- The SC will search for unanswered questions and confirm again that nothing was missed from the handbook. Content missing from the handbook will need to be added via PR by the SC. Any unanswered questions after this pass has been completed by the SC will need to be [escalated to the Infrastructure team (#g-customer-success)](https://fleetdm.com/handbook/customer-success#contact-us) with the requested timeline for completion defined in the issue. Once complete, the infra team will assign the issue back to the #g-sales board.
-- Any questions answered by the infra team will be added to the handbook by the SC.
 
 
 ## Rituals
@@ -282,17 +213,6 @@ Please see [handbook/company/communications#customer-support-service-level-agree
 ##### Submit a customer contract
 Please see [handbook/sales#create-a-customer-agreement](https://fleetdm.com/handbook/sales#create-a-customer-agreement) for all sections above.
 
-##### Customer codenames
-Please see [Handbook/customer-success#assign-a-customer-codename](https://www.fleetdm.com/handbook/customer-success#assign-a-customer-codename)
-
-##### Document customer requests
-Please see [handbook/customer-success#document-customer-requests](https://fleetdm.com/handbook/customer-success#document-customer-requests)
-
-##### Generate a trial license key
-Please see [handbook/customer-success#generate-a-trial-license-key](https://fleetdm.com/handbook/customer-success#generate-a-trial-license-key)
-
-#### Create customer support Issue
-Please see [handbook/customer-success#create-customer-support-issue](https://fleetdm.com/handbook/customer-success#create-customer-support-issue)
 
 <meta name="maintainedBy" value="alexmitchelliii">
 <meta name="title" value="🐋 Sales">

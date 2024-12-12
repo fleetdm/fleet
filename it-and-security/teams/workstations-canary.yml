@@ -65,70 +65,64 @@ controls:
   enable_disk_encryption: true
   macos_settings:
     custom_settings:
-      - path: ../lib/configuration-profiles/macos-chrome-enrollment.mobileconfig
-      - path: ../lib/configuration-profiles/macos-date-time.mobileconfig
-      - path: ../lib/configuration-profiles/macos-disable-bluetooth-file-sharing.mobileconfig
-      - path: ../lib/configuration-profiles/macos-disable-content-caching.mobileconfig
-      - path: ../lib/configuration-profiles/macos-disable-guest-account.mobileconfig
-      - path: ../lib/configuration-profiles/macos-disable-guest-shares.mobileconfig
-      - path: ../lib/configuration-profiles/macos-disable-internet-sharing.mobileconfig
-      - path: ../lib/configuration-profiles/macos-disable-media-sharing.mobileconfig
-      - path: ../lib/configuration-profiles/macos-disable-safari-safefiles.mobileconfig
-      - path: ../lib/configuration-profiles/macos-enable-doh.mobileconfig
-      - path: ../lib/configuration-profiles/macos-enable-firewall-logging.mobileconfig
-      - path: ../lib/configuration-profiles/macos-enable-gatekeeper.mobileconfig
-      - path: ../lib/configuration-profiles/macos-enforce-library-validation.mobileconfig
-      - path: ../lib/configuration-profiles/macos-firewall.mobileconfig
-      - path: ../lib/configuration-profiles/macos-full-disk-access-for-fleetd.mobileconfig
-      - path: ../lib/configuration-profiles/macos-limit-ad-tracking.mobileconfig
-      - path: ../lib/configuration-profiles/macos-misc.mobileconfig
-      - path: ../lib/configuration-profiles/macos-prevent-autologon.mobileconfig
-      - path: ../lib/configuration-profiles/macos-secure-terminal-keyboard.mobileconfig
-      - path: ../lib/configuration-profiles/macos-disable-update-notifications.mobileconfig
-      - path: ../lib/configuration-profiles/macos-ensure-show-status-bar-is-enabled.mobileconfig
-      - path: ../lib/configuration-profiles/macos-passcode-settings.json
+      - path: ../lib/macos/configuration-profiles/chrome-enrollment.mobileconfig
+      - path: ../lib/macos/configuration-profiles/date-time.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-bluetooth-file-sharing.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-content-caching.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-guest-account.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-guest-shares.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-internet-sharing.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-media-sharing.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-safari-safefiles.mobileconfig
+      - path: ../lib/macos/configuration-profiles/enable-doh.mobileconfig
+      - path: ../lib/macos/configuration-profiles/enable-firewall-logging.mobileconfig
+      - path: ../lib/macos/configuration-profiles/enable-gatekeeper.mobileconfig
+      - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
+      - path: ../lib/macos/configuration-profiles/firewall.mobileconfig
+      - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
+      - path: ../lib/macos/configuration-profiles/limit-ad-tracking.mobileconfig
+      - path: ../lib/macos/configuration-profiles/misc.mobileconfig
+      - path: ../lib/macos/configuration-profiles/prevent-autologon.mobileconfig
+      - path: ../lib/macos/configuration-profiles/secure-terminal-keyboard.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-update-notifications.mobileconfig
+      - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
+      - path: ../lib/macos/declaration-profiles/passcode-settings.json
   macos_setup:
     bootstrap_package: ""
-    enable_end_user_authentication: true
+    enable_end_user_authentication: false
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2024-08-23"
-    minimum_version: "14.6.1"
+    deadline: "2024-12-04"
+    minimum_version: "15.1.1"
   windows_settings:
     custom_settings:
-      - path: ../lib/configuration-profiles/windows-firewall.xml
-      - path: ../lib/configuration-profiles/windows-password.xml
-      - path: ../lib/configuration-profiles/windows-screen-lock.xml
+      - path: ../lib/windows/configuration-profiles/windows-firewall.xml
+      - path: ../lib/windows/configuration-profiles/windows-password.xml
+      - path: ../lib/windows/configuration-profiles/windows-screen-lock.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
   scripts:
-    - path: ../lib/collect-fleetd-logs.sh
-    - path: ../lib/macos-execute-disable-fleet-desktop.sh
-    - path: ../lib/macos-see-automatic-enrollment-profile.sh
-    - path: ../lib/macos-remove-old-nudge.sh
-    - path: ../lib/macos-mdm-migration.sh
-    - path: ../lib/macos-system-maintenance.sh
-    - path: ../lib/windows-remove-fleetd.ps1
-    - path: ../lib/windows-turn-off-mdm.ps1
-    - path: ../lib/windows-install-bitdefender.ps1
-    - path: ../lib/windows-enable-ms-defender.ps1
+    - path: ../lib/macos/scripts/collect-fleetd-logs.sh
+    - path: ../lib/macos/scripts/execute-disable-fleet-desktop.sh
+    - path: ../lib/macos/scripts/see-automatic-enrollment-profile.sh
+    - path: ../lib/macos/scripts/remove-old-nudge.sh
+    - path: ../lib/macos/scripts/mdm-migration.sh
+    - path: ../lib/macos/scripts/system-maintenance.sh
+    - path: ../lib/windows/scripts/remove-fleetd.ps1
+    - path: ../lib/windows/scripts/turn-off-mdm.ps1
+    - path: ../lib/windows/scripts/install-bitdefender.ps1
+    - path: ../lib/windows/scripts/enable-ms-defender.ps1
 policies:
-  - path: ../lib/macos-device-health.policies.yml
-  - path: ../lib/windows-device-health.policies.yml
-  - path: ../lib/linux-device-health.policies.yml
+  - path: ../lib/macos/policies/device-health.yml
+  - path: ../lib/macos/policies/upgrade-firefox.yml
+  - path: ../lib/windows/policies/device-health.yml
+  - path: ../lib/linux/policies/linux-device-health.yml
   - name: macOS - Check if latest version
-    query: SELECT 1 FROM os_version WHERE (major = '14' AND minor = '6') OR major = '15';
-    critical: false
+    query: SELECT 1 FROM os_version WHERE (major = '15' AND minor = '1' AND patch = '1');
+    critical: true
     description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
     resolution: We will update your macOS to the latest version.
-    platform: darwin
-    calendar_events_enabled: false  
-  - name: macOS - MDM migration complete
-    query: SELECT 1 AS result FROM system_info WHERE computer_name NOT IN ('Titanosauria2', 'Drew’s MacBook Pro2','fleetwoodmike2');
-    critical: false
-    description: Determines if the device has completed MDM migration to Fleet.
-    resolution: We will migrate your macOS MDM to Fleet.
     platform: darwin
     calendar_events_enabled: false
   - name: macOS - System maintenance complete
@@ -138,13 +132,6 @@ policies:
     resolution: We will perform system maintenance on your device.
     platform: darwin
     calendar_events_enabled: true
-  - name: macOS - Upgrade Firefox
-    query: SELECT 1 FROM apps WHERE name = 'Firefox.app' AND version_compare(bundle_short_version, '130.0.1') >= 0;
-    critical: false
-    description: The host may have an outdated or non-existent version of Firefox, potentially risking security vulnerabilities or compatibility issues.
-    resolution: During maintenance, the Firefox app could be updated to the correct version or installed if it's missing.
-    platform: darwin
-    calendar_events_enabled: false
   - name: macOS - Upgrade Slack
     query: SELECT 1 FROM apps WHERE name = 'Slack.app' AND version_compare(bundle_short_version, '4.40.126') >= 0;
     critical: false
@@ -153,14 +140,16 @@ policies:
     platform: darwin
     calendar_events_enabled: false
 queries:
-  - path: ../lib/collect-failed-login-attempts.queries.yml
-  - path: ../lib/collect-fleetd-information.yml
-  - path: ../lib/collect-usb-devices.queries.yml
-  - path: ../lib/collect-vs-code-extensions.queries.yml
-  - path: ../lib/collect-software-permissions-system.queries.yml
-  - path: ../lib/collect-software-permissions-user.queries.yml
-  - path: ../lib/collect-crowdstrike-info.queries.yml
+  - path: ../lib/macos/queries/collect-failed-login-attempts.yml
+  - path: ../lib/all/queries/collect-fleetd-information.yml
+  - path: ../lib/all/queries/collect-usb-devices.yml
+  - path: ../lib/all/queries/collect-vs-code-extensions.yml
+  - path: ../lib/macos/queries/collect-software-permissions-system.yml
+  - path: ../lib/macos/queries/collect-software-permissions-user.yml
+  - path: ../lib/all/queries/collect-crowdstrike-info.yml
 software:
+  packages:
+    - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
   app_store_apps:
       - app_store_id: '803453959' # Slack Desktop
       - app_store_id: '1333542190' # 1Password 7 Desktop

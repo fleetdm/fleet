@@ -88,6 +88,19 @@ will be disabled and/or hidden in the UI.
           from: sails.config.custom.fromEmailAddress,
           fromName: sails.config.custom.fromName,
         });
+
+        // Validate all values in the githubRepoDRIByPath config variable.
+        if(sails.config.custom.githubRepoDRIByPath) {
+          if(!_.isObject(sails.config.custom.githubRepoDRIByPath)) {
+            throw new Error(`Invalid configuration! An invalid "sails.config.custom.githubRepoDRIByPath" value was provided. If set, this value should be a dictionary, where each key is a path in the GitHub repo, and each value is a GitHub username. Please change this value to be a dictionary and try running this script again.`);
+          }
+          for(let path in sails.config.custom.githubRepoDRIByPath) {
+            if(typeof sails.config.custom.githubRepoDRIByPath[path] !== 'string') {
+              throw new Error(`Invalid configuration! A path (${path}) in the "sails.config.custom.githubRepoDRIByPath" config value contains a DRI value that is not a string (type: ${typeof sails.config.custom.githubRepoDRIByPath[path]}). Please change the DRI for this path to be a string containing a single GitHub username and try running this script again.`);
+            }
+          }
+        }
+
         // Send a request to our Algolia crawler to reindex the website.
         // FUTURE: If this breaks again, use the Platform model to store when the website was last crawled
         // (platform.algoliaLastCrawledWebsiteAt), and then only send a request if it was <30m ago, then remove dyno check.
@@ -325,6 +338,7 @@ will be disabled and/or hidden in the UI.
                       return await salesforceConnection.sobject('fleet_website_page_views__c')
                       .create({
                         Contact__c: recordIds.salesforceContactId,// eslint-disable-line camelcase
+                        Account__c: recordIds.salesforceAccountId,// eslint-disable-line camelcase
                         Page_URL__c: `https://fleetdm.com${req.url}`,// eslint-disable-line camelcase
                         Visited_on__c: nowOn,// eslint-disable-line camelcase
                         Website_visit_reason__c: websiteVisitReason// eslint-disable-line camelcase

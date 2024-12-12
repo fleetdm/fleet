@@ -18,9 +18,109 @@ import (
 
 // run uses sudo to run the given path as login user.
 func run(path string, opts eopts) (lastLogs string, err error) {
+	args, err := getUserAndDisplayArgs(path, opts)
+	if err != nil {
+		return "", fmt.Errorf("get args: %w", err)
+	}
+
+	args = append(args,
+		// Append the packaged libayatana-appindicator3 libraries path to LD_LIBRARY_PATH.
+		//
+		// Fleet Desktop doesn't use libayatana-appindicator3 since 1.18.3, but we need to
+		// keep this to support older versions of Fleet Desktop.
+		fmt.Sprintf("LD_LIBRARY_PATH=%s:%s", filepath.Dir(path), os.ExpandEnv("$LD_LIBRARY_PATH")),
+		path,
+	)
+
+	if len(opts.args) > 0 {
+		for _, arg := range opts.args {
+			args = append(args, arg[0], arg[1])
+		}
+	}
+
+	cmd := exec.Command("sudo", args...)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	log.Printf("cmd=%s", cmd.String())
+
+	if err := cmd.Start(); err != nil {
+		return "", fmt.Errorf("open path %q: %w", path, err)
+	}
+	return "", nil
+}
+
+// run uses sudo to run the given path as login user and waits for the process to finish.
+func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
+	args, err := getUserAndDisplayArgs(path, opts)
+	if err != nil {
+		return nil, -1, fmt.Errorf("get args: %w", err)
+	}
+
+	args = append(args, path)
+
+	if len(opts.args) > 0 {
+		for _, arg := range opts.args {
+			args = append(args, arg[0], arg[1])
+		}
+	}
+
+	// Prefix with "timeout" and "sudo" if applicable
+	var cmdArgs []string
+	if opts.timeout > 0 {
+		cmdArgs = append(cmdArgs, "timeout", fmt.Sprintf("%ds", int(opts.timeout.Seconds())))
+	}
+	cmdArgs = append(cmdArgs, "sudo")
+	cmdArgs = append(cmdArgs, args...)
+
+	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...) // #nosec G204
+
+	log.Printf("cmd=%s", cmd.String())
+
+	output, err = cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+			return output, exitCode, fmt.Errorf("%q exited with code %d: %w", path, exitCode, err)
+		}
+		return output, -1, fmt.Errorf("%q error: %w", path, err)
+	}
+
+	return output, exitCode, nil
+}
+
+func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
+	args, err := getUserAndDisplayArgs(path, opts)
+	if err != nil {
+		return nil, fmt.Errorf("get args: %w", err)
+	}
+
+	args = append(args, path)
+
+	if len(opts.args) > 0 {
+		for _, arg := range opts.args {
+			args = append(args, arg[0], arg[1])
+		}
+	}
+
+	cmd := exec.Command("sudo", args...)
+	log.Printf("cmd=%s", cmd.String())
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, fmt.Errorf("stdin pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("open path %q: %w", path, err)
+	}
+
+	return stdin, nil
+}
+
+func getUserAndDisplayArgs(path string, opts eopts) ([]string, error) {
 	user, err := getLoginUID()
 	if err != nil {
-		return "", fmt.Errorf("get user: %w", err)
+		return nil, fmt.Errorf("get user: %w", err)
 	}
 
 	// TODO(lucas): Default to display :0 if user DISPLAY environment variable
@@ -68,23 +168,9 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 		// This is required for Ubuntu 18, and not required for Ubuntu 21/22
 		// (because it's already part of the user).
 		fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%d/bus", user.id),
-		// Append the packaged libayatana-appindicator3 libraries path to LD_LIBRARY_PATH.
-		//
-		// Fleet Desktop doesn't use libayatana-appindicator3 since 1.18.3, but we need to
-		// keep this to support older versions of Fleet Desktop.
-		fmt.Sprintf("LD_LIBRARY_PATH=%s:%s", filepath.Dir(path), os.ExpandEnv("$LD_LIBRARY_PATH")),
-		path,
 	)
 
-	cmd := exec.Command("sudo", args...)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-	log.Printf("cmd=%s", cmd.String())
-
-	if err := cmd.Start(); err != nil {
-		return "", fmt.Errorf("open path %q: %w", path, err)
-	}
-	return "", nil
+	return args, nil
 }
 
 type user struct {

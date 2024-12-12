@@ -1,0 +1,1 @@
+Added cleanup job to delete stuck pending Apple profiles, and requeue them.

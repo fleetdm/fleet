@@ -128,8 +128,7 @@ A common use case for SCEP is connecting devices to a corporate WiFi network. Th
 1. Send the root CA certificate to the device using a [CertificateRoot profile](https://developer.apple.com/documentation/devicemanagement/certificateroot?language=objc).
 2. Create a profile with a SCEP payload and a [WiFi payload](https://developer.apple.com/documentation/devicemanagement/wifi?language=objc), and send it to the device.
   - The `PayloadCertificateUUID` in the WiFi payload should reference the `PayloadUUID` of the SCEP payload.
-
-
+  - For more information on connecting your Apple devices to 802.1X networks, see [this guide from Apple](https://support.apple.com/en-my/guide/deployment/depabc994b84/web).
 
 ## Assumptions and limitations
 * NDES SCEP proxy is currently supported for macOS devices via Apple config profiles. Support for DDM (Declarative Device Management) is coming soon, as is support for iOS, iPadOS, Windows, and Linux.

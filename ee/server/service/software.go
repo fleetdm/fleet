@@ -8,7 +8,11 @@ import (
 
 func (svc *Service) ListSoftware(ctx context.Context, opts fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
 	// reuse ListSoftware, but include cve scores in premium version
-	opts.IncludeCVEScores = true
+	// unless without_vulnerability_details is set to true
+	// including these details causes a lot of memory bloat
+	if !opts.WithoutVulnerabilityDetails {
+		opts.IncludeCVEScores = true
+	}
 	return svc.Service.ListSoftware(ctx, opts)
 }
 

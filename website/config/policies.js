@@ -45,8 +45,8 @@ module.exports.policies = {
   'deliver-mdm-beta-signup': true,
   'deliver-apple-csr': true,
   'download-rss-feed': true,
-  'view-endpoint-ops': true,
-  'view-vulnerability-management': true,
+  'view-observability': true,
+  'view-software-management': true,
   'deliver-mdm-demo-email': true,
   'view-support': true,
   'view-integrations': true,
@@ -58,4 +58,6 @@ module.exports.policies = {
   'deliver-deal-registration-submission': true,
   'get-est-device-certificate': true,
   'view-testimonials': true,
+  'view-app-library': true,
+  'view-app-details': true,
 };

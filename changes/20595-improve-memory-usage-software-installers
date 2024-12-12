@@ -1,1 +1,0 @@
-* Improved memory usage of the Fleet server when uploading a large software installer file. Note that the installer will now use (temporary) disk space and sufficient storage space is required.

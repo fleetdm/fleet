@@ -449,7 +449,7 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.False(t, ac.MDM.EnableDiskEncryption.Value)
 
-	enabled, err := ds.getConfigEnableDiskEncryption(ctx, nil)
+	enabled, err := ds.GetConfigEnableDiskEncryption(ctx, nil)
 	require.NoError(t, err)
 	require.False(t, enabled)
 
@@ -461,7 +461,7 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, ac.MDM.EnableDiskEncryption.Value)
 
-	enabled, err = ds.getConfigEnableDiskEncryption(ctx, nil)
+	enabled, err = ds.GetConfigEnableDiskEncryption(ctx, nil)
 	require.NoError(t, err)
 	require.True(t, enabled)
 
@@ -474,7 +474,7 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 	require.NotNil(t, tm)
 	require.False(t, tm.Config.MDM.EnableDiskEncryption)
 
-	enabled, err = ds.getConfigEnableDiskEncryption(ctx, &team1.ID)
+	enabled, err = ds.GetConfigEnableDiskEncryption(ctx, &team1.ID)
 	require.NoError(t, err)
 	require.False(t, enabled)
 

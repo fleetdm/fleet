@@ -2,12 +2,13 @@
 import { HostMdmDeviceStatus, HostMdmPendingAction } from "interfaces/host";
 import {
   IHostMdmProfile,
-  IWindowsDiskEncryptionStatus,
+  WindowsDiskEncryptionStatus,
   MdmProfileStatus,
+  LinuxDiskEncryptionStatus,
 } from "interfaces/mdm";
 
-const convertWinDiskEncryptionStatusToProfileStatus = (
-  diskEncryptionStatus: IWindowsDiskEncryptionStatus
+const convertWinDiskEncryptionStatusToSettingStatus = (
+  diskEncryptionStatus: WindowsDiskEncryptionStatus
 ): MdmProfileStatus => {
   return diskEncryptionStatus === "enforcing"
     ? "pending"
@@ -15,20 +16,40 @@ const convertWinDiskEncryptionStatusToProfileStatus = (
 };
 
 /**
- * Manually generates a profile for the windows disk encryption status. We need
+ * Manually generates a setting for the windows disk encryption status. We need
  * this as we don't have a windows disk encryption profile in the `profiles`
  * attribute coming back from the GET /hosts/:id API response.
  */
 // eslint-disable-next-line import/prefer-default-export
-export const generateWinDiskEncryptionProfile = (
-  diskEncryptionStatus: IWindowsDiskEncryptionStatus,
+export const generateWinDiskEncryptionSetting = (
+  diskEncryptionStatus: WindowsDiskEncryptionStatus,
   detail: string
 ): IHostMdmProfile => {
   return {
     profile_uuid: "0", // This s the only type of profile that can have this value
     platform: "windows",
     name: "Disk Encryption",
-    status: convertWinDiskEncryptionStatusToProfileStatus(diskEncryptionStatus),
+    status: convertWinDiskEncryptionStatusToSettingStatus(diskEncryptionStatus),
+    detail,
+    operation_type: null,
+  };
+};
+
+/**
+ * Manually generates a setting for the linux disk encryption status. We need
+ * this as we don't have a linux disk encryption setting in the `profiles`
+ * attribute coming back from the GET /hosts/:id API response.
+ */
+// eslint-disable-next-line import/prefer-default-export
+export const generateLinuxDiskEncryptionSetting = (
+  diskEncryptionStatus: LinuxDiskEncryptionStatus,
+  detail: string
+): IHostMdmProfile => {
+  return {
+    profile_uuid: "0", // This s the only type of profile that can have this value
+    platform: "linux",
+    name: "Disk Encryption",
+    status: diskEncryptionStatus,
     detail,
     operation_type: null,
   };
