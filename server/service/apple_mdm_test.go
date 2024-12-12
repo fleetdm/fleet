@@ -209,6 +209,9 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 	ds.MDMDeleteEULAFunc = func(ctx context.Context, token string) error {
 		return nil
 	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
 	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
 	require.NoError(t, err)
 	crt, key, err := apple_mdm.NewSCEPCACertKey()
