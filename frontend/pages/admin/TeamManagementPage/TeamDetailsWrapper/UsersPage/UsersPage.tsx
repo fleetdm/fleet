@@ -413,7 +413,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           defaultSortDirection="asc"
           actionButton={{
             name: isGlobalAdmin ? "add user" : "create user",
-            buttonText: isGlobalAdmin ? "Add users" : "Create users",
+            buttonText: isGlobalAdmin ? "Add users" : "Create user",
             variant: "brand",
             onActionButtonClick: isGlobalAdmin
               ? toggleAddUserModal
@@ -476,7 +476,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           onCancel={toggleCreateUserModal}
           onSubmit={onCreateUserSubmit}
           defaultGlobalRole={null}
-          defaultTeamRole="observer"
+          defaultTeamRole="Observer"
           defaultTeams={[
             { id: currentTeamDetails.id, name: "", role: "observer" },
           ]}
