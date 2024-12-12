@@ -7,14 +7,11 @@ Fleet's extremely wide and diverse set of data allows us to answer questions tha
 **— Principal Infrastructure Engineer**
 </div>
 
-## Challenge
-The leading gaming company was looking for better visibility into an expansive server infrastructure without impacting the performance for millions of users. Existing tools would either leave gaps in visibility or require incredible amounts of manual intervention to make sure configurations were set to specification.
+**Challenge:** The leading gaming company was looking for better visibility into an expansive server infrastructure without impacting the performance for millions of users. Existing tools would either leave gaps in visibility or require incredible amounts of manual intervention to make sure configurations were set to specification.
 
-## Solution
-Fleet is designed to scale seamlessly from tens of servers to hundreds of thousands of servers with negligible performance impact. This dramatically simplifies gathering data for compliance audits and makes it possible to build more advanced security paradigms.
+**Solution:** Fleet is designed to scale seamlessly from tens of servers to hundreds of thousands of servers with negligible performance impact. This dramatically simplifies gathering data for compliance audits and makes it possible to build more advanced security paradigms.
 
-## Impact
-They were able to save time utilizing native automations in Fleet, instead of writing logic manually and incorporating previous blind spots into their security program. With real-time data insights across hundreds of thousands of servers, they were able to answer questions before they had them, all without sacrificing performance or reliability.
+**Impact:** They were able to save time utilizing native automations in Fleet, instead of writing logic manually and incorporating previous blind spots into their security program. With real-time data insights across hundreds of thousands of servers, they were able to answer questions before they had them, all without sacrificing performance or reliability.
 
 ## Results
 
