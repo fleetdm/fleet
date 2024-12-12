@@ -152,11 +152,17 @@ func (svc *Service) AddFleetMaintainedApp(
 	return titleID, nil
 }
 
-func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{
-		TeamID: &teamID,
-	}, fleet.ActionRead); err != nil {
-		return nil, nil, err
+func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+	var authErr error
+	// viewing the maintained app list without showing team-specific info can be done by anyone who can view individual FMAs
+	if teamID == nil {
+		authErr = svc.authz.Authorize(ctx, &fleet.MaintainedApp{}, fleet.ActionRead)
+	} else { // viewing the maintained app list when showing team-specific info requires access to that team
+		authErr = svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead)
+	}
+
+	if authErr != nil {
+		return nil, nil, authErr
 	}
 
 	avail, meta, err := svc.ds.ListAvailableFleetMaintainedApps(ctx, teamID, opts)

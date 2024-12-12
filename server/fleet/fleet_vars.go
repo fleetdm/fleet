@@ -5,6 +5,10 @@ import (
 	"strings"
 )
 
+const (
+	ServerVarPrefix = "FLEET_VAR_"
+)
+
 // ContainsPrefixVars scans a string for variables in the form of $VAR
 // and ${VAR} that begin with prefix, and return an array of those
 // variables with the prefix removed.
