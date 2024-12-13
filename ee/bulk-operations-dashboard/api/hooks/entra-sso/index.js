@@ -8,8 +8,8 @@ const jwt = require('jsonwebtoken');
  * Entra SSO Hook
  */
 module.exports = function (sails) {
-  let confidentialClientApp;
 
+  let entraSSOClient;
   return {
     defaults: {
       entraSSO: {
@@ -32,16 +32,15 @@ module.exports = function (sails) {
         throw new Error(`Missing config! No sails.config.custom.entraClientSecret was configured. To replace this app's built-in authorization mechanism with Entra SSO, an entraClientSecret value is required.`);
       }
 
-      // Initialize MSAL ConfidentialClientApplication
       // [?]: https://learn.microsoft.com/en-us/entra/external-id/customers/tutorial-web-app-node-sign-in-sign-out#create-msal-configuration-object
-      const entraConfiguration = {
+      // Configure the SSO client application.
+      entraSSOClient = new ConfidentialClientApplication({
         auth: {
           clientId: sails.config.custom.entraClientId,
           authority: `https://login.microsoftonline.com/${sails.config.custom.entraTenantId}`,
           clientSecret: sails.config.custom.entraClientSecret,
         },
-      };
-      confidentialClientApp = new ConfidentialClientApplication(entraConfiguration);
+      });
 
       var err;
       // Validate `userModelIdentity` config
@@ -54,8 +53,8 @@ module.exports = function (sails) {
       if (!sails.hooks.orm) {
         err = new Error();
         err.code = 'E_HOOK_INITIALIZE';
-        err.name = 'Okta SSO Hook Error';
-        err.message = 'The "Okta SSO" hook depends on the "orm" hook- cannot load the "Okta SSO" hook without it!';
+        err.name = 'Entra SSO Hook Error';
+        err.message = 'The "Entra SSO" hook depends on the "orm" hook- cannot load the "Entra SSO" hook without it!';
         return cb(err);
       }
       sails.after('hook:orm:loaded', ()=>{
@@ -66,8 +65,8 @@ module.exports = function (sails) {
         if (!UserModel) {
           err = new Error();
           err.code = 'E_HOOK_INITIALIZE';
-          err.name = 'Okta SSO Hook Error';
-          err.message = 'Could not load the Okta SSO hook because `sails.config.passport.userModelIdentity` refers to an unknown model: "'+sails.config.entraSSO.userModelIdentity+'".';
+          err.name = 'Entra SSO Hook Error';
+          err.message = 'Could not load the Entra SSO hook because `sails.config.passport.userModelIdentity` refers to an unknown model: "'+sails.config.entraSSO.userModelIdentity+'".';
           if (sails.config.entraSSO.userModelIdentity === 'user') {
             err.message += '\nThis option defaults to `user` if unspecified or invalid- maybe you need to set or correct it?';
           }
@@ -82,7 +81,7 @@ module.exports = function (sails) {
         '/login': async (req, res) => {
           // Get the sso login url
           // [?]: https://learn.microsoft.com/en-us/javascript/api/%40azure/msal-node/confidentialclientapplication?view=msal-js-latest#@azure-msal-node-confidentialclientapplication-getauthcodeurl
-          let entraAuthorizationUrl = await confidentialClientApp.getAuthCodeUrl({
+          let entraAuthorizationUrl = await entraSSOClient.getAuthCodeUrl({
             redirectUri: `${sails.config.custom.baseUrl}/authorization-code/callback`,
             scopes: ['openid', 'profile', 'email', 'User.Read'],
           });
@@ -96,7 +95,7 @@ module.exports = function (sails) {
             res.unauthorized();
           }
           // [?]: https://learn.microsoft.com/en-us/javascript/api/%40azure/msal-node/confidentialclientapplication?view=msal-js-latest#@azure-msal-node-confidentialclientapplication-acquiretokenbycode
-          let responseFromEntra = await confidentialClientApp.acquireTokenByCode({
+          let responseFromEntra = await entraSSOClient.acquireTokenByCode({
             code: codeToGetToken,
             redirectUri: `${sails.config.custom.baseUrl}/authorization-code/callback`,
             scopes: ['openid', 'profile', 'email', 'User.Read'],
