@@ -2898,6 +2898,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 		OSVersion:       "Ubuntu 22.04",
 	})
 	require.NoError(t, err)
+
 	orbitKey := setOrbitEnrollment(t, noTeamHost, s.ds)
 	noTeamHost.OrbitNodeKey = &orbitKey
 
@@ -2938,16 +2939,35 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 	require.Equal(t, fleet.MDMProfilesSummary{}, profileSummary.MDMProfilesSummary)
 
 	// should be nil before disk encryption is turned on
+	// from host details
 	getHostResp := getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", noTeamHost.ID), nil, http.StatusOK, &getHostResp)
+	require.Nil(t, getHostResp.Host.MDM.OSSettings)
+
+	// and my device
+	deviceToken := "for_sure_secure"
+	updateDeviceTokenForHost(t, s.ds, noTeamHost.ID, deviceToken)
+
+	getDeviceHostResp := getDeviceHostResponse{}
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+deviceToken, nil, http.StatusOK)
+	err = json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+	require.NoError(t, err)
 	require.Nil(t, getHostResp.Host.MDM.OSSettings)
 
 	// turn on disk encryption enforcement
 	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
 
 	// should be populated after disk encryption is turned on
+	// from host details
 	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", noTeamHost.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
+
+	// and my device
+	getDeviceHostResp = getDeviceHostResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+deviceToken, nil, http.StatusOK)
+	err = json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+	require.NoError(t, err)
 	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
 
 	// should show the Linux host as pending
@@ -2968,7 +2988,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 		return err
 	})
 	// should fail because default Orbit version is too old
-	res := s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/mdm/linux/trigger_escrow", token), nil, http.StatusBadRequest)
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/mdm/linux/trigger_escrow", token), nil, http.StatusBadRequest)
 	res.Body.Close()
 
 	// should succeed now that Orbit version isn't too old
