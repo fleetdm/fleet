@@ -156,6 +156,9 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 				SMTPEnabled:    appConfig.SMTPSettings.SMTPConfigured,
 				SMTPConfigured: appConfig.SMTPSettings.SMTPConfigured,
 			}
+			ssoSettings = &fleet.SSOSettings{
+				EnableSSO: appConfig.SSOSettings.EnableSSO,
+			}
 		}
 	}
 

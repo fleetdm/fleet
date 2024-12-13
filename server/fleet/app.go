@@ -40,16 +40,16 @@ const (
 
 type SSOProviderSettings struct {
 	// EntityID is a uri that identifies this service provider
-	EntityID string `json:"entity_id"`
+	EntityID string `json:"entity_id,omitempty"`
 	// IssuerURI is the uri that identifies the identity provider
-	IssuerURI string `json:"issuer_uri"`
+	IssuerURI string `json:"issuer_uri,omitempty"`
 	// Metadata contains IDP metadata XML
-	Metadata string `json:"metadata"`
+	Metadata string `json:"metadata,omitempty"`
 	// MetadataURL is a URL provided by the IDP which can be used to download
 	// metadata
-	MetadataURL string `json:"metadata_url"`
+	MetadataURL string `json:"metadata_url,omitempty"`
 	// IDPName is a human friendly name for the IDP
-	IDPName string `json:"idp_name"`
+	IDPName string `json:"idp_name,omitempty"`
 }
 
 func (s SSOProviderSettings) IsEmpty() bool {
@@ -61,20 +61,20 @@ type SSOSettings struct {
 	SSOProviderSettings
 
 	// IDPImageURL is a link to a logo or other image that is used for UX
-	IDPImageURL string `json:"idp_image_url"`
+	IDPImageURL string `json:"idp_image_url,omitempty"`
 	// EnableSSO flag to determine whether or not to enable SSO
 	EnableSSO bool `json:"enable_sso"`
 	// EnableSSOIdPLogin flag to determine whether or not to allow IdP-initiated
 	// login.
-	EnableSSOIdPLogin bool `json:"enable_sso_idp_login"`
+	EnableSSOIdPLogin bool `json:"enable_sso_idp_login,omitempty"`
 	// EnableJITProvisioning allows user accounts to be created the first time
 	// users try to log in
-	EnableJITProvisioning bool `json:"enable_jit_provisioning"`
+	EnableJITProvisioning bool `json:"enable_jit_provisioning,omitempty"`
 	// EnableJITRoleSync is deprecated.
 	//
 	// EnableJITRoleSync sets whether the roles of existing accounts will be updated
 	// every time SSO users log in (does not have effect if EnableJITProvisioning is false).
-	EnableJITRoleSync bool `json:"enable_jit_role_sync"`
+	EnableJITRoleSync bool `json:"enable_jit_role_sync,omitempty"`
 }
 
 // SMTPSettings is part of the AppConfig which defines the wire representation
