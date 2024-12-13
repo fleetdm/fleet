@@ -33,7 +33,7 @@ module "aurora_mysql" { #tfsec:ignore:aws-rds-enable-performance-insights-encryp
 
   instances = {
     one = {}
-#    two = {}
+    two = {}
   }
 
   iam_database_authentication_enabled = true
