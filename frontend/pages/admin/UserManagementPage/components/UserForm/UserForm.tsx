@@ -437,8 +437,7 @@ const UserForm = ({
                   is configured in order to send invitation emails.
                   <br />
                   <br />
-                  SMTP can be configured by global admins in Settings &gt;
-                  Organization settings.
+                  SMTP can be configured in Settings &gt; Organization settings.
                 </>
               )
             }
@@ -587,8 +586,7 @@ const UserForm = ({
                 send authentication emails.
                 <br />
                 <br />
-                SMTP can be configured by global admins in Settings &gt;
-                Organization settings.
+                SMTP can be configured in Settings &gt; Organization settings.
               </>
             }
           >
