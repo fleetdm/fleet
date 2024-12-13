@@ -380,6 +380,12 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		})
 	}
 
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(b)}); err != nil {
+		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
+	}
+
+	// TODO expand secrets, swap out Mobileconfig after parsing
+
 	cp, err := fleet.NewMDMAppleConfigProfile(b, &teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
@@ -404,10 +410,6 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		cp.LabelsExcludeAny = labelMap
 	default:
 		// TODO what happens if mode is not set?s
-	}
-
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(cp.Mobileconfig)}); err != nil {
-		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
 	}
 
 	err = validateConfigProfileFleetVariables(string(cp.Mobileconfig))
@@ -509,7 +511,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 	}
 
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(data)}); err != nil {
-		return nil, err
+		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
 	}
 
 	if err := validateDeclarationFleetVariables(string(data)); err != nil {

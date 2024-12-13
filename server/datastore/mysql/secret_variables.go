@@ -69,6 +69,34 @@ func (ds *Datastore) GetSecretVariables(ctx context.Context, names []string) ([]
 	return secretVariables, nil
 }
 
+func (ds *Datastore) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
+	embeddedSecrets := fleet.ContainsPrefixVars(document, fleet.FLEET_SECRET_PREFIX)
+
+	secrets, err := ds.GetSecretVariables(ctx, embeddedSecrets)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "expanding embedded secrets")
+	}
+
+	secretMap := map[string]string{}
+
+	for _, secret := range secrets {
+		secretMap[secret.Name] = secret.Value
+	}
+
+	for _, wantSecret := range secrets {
+		if _, ok := secretMap[wantSecret.Name]; !ok {
+			return "", ctxerr.Errorf(ctx, "embedded secret missing from datastore: $FLEET_SECRET_%s", wantSecret)
+		}
+	}
+
+	expanded := fleet.MaybeExpand(document, func(s string) (string, bool) {
+		val, ok := secretMap[s]
+		return val, ok
+	})
+
+	return expanded, nil
+}
+
 func (ds *Datastore) ValidateEmbeddedSecrets(ctx context.Context, documents []string) error {
 	wantSecrets := make(map[string]struct{})
 	haveSecrets := make(map[string]struct{})
