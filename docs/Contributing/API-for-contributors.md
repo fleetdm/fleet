@@ -4065,7 +4065,7 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 | software.packages.pre_install_query        | string   | body  | Condition query that determines if the install will proceed. |
 | software.packages.post_install_script      | string   | body  | Script that runs after software install. |
 | software.packages.uninstall_script      | string   | body  | Command that Fleet runs to uninstall software. |
-| software.packages.self_service           | boolean   | body  | If `true` lists software in the self-service. |
+| software.packages.self_service           | boolean   | body  | Specifies whether or not end users can install self-service. |
 | software.packages.labels_include_any     | array   | body  | Target hosts that have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
 | software.packages.labels_exclude_any     | array   | body  | Target hosts that don't have any labels in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
 
