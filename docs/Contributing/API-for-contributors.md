@@ -1279,6 +1279,7 @@ These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet wit
 - [Get label](#get-label)
 - [Get enroll secrets](#get-enroll-secrets)
 - [Modify enroll secrets](#modify-enroll-secrets)
+- [Store secret variables](#store-secret-variables)
 
 ### Get queries
 
@@ -2130,6 +2131,41 @@ This replaces the active global enroll secrets with the secrets specified.
 
 `Status: 200`
 
+### Store secret variables
+
+Stores secret variables prefixed with `$FLEET_SECRET_` to Fleet.
+
+`PUT /api/v1/fleet/spec/secret_variables`
+
+#### Parameters
+
+| Name    | Type | In   | Description                                                                                                      |
+| ------- | ---- | ---- | ---------------------------------------------------------------------------------------------------------------- |
+| secrets | list | body | **Required.** List of objects consisting of fields: `name` and `value`
+| dry_run | boolean | body | **Optional.** If true, validates the provided secrets and returns any validation errors, but does not apply the changes.
+
+#### Example
+
+`PUT /api/v1/fleet/spec/secret_variables`
+
+##### Request body
+
+```json
+{
+  "secrets": [
+    {
+      "name": "FLEET_SECRET_SOME_API_TOKEN",
+      "value": "971ef02b93c74ca9b22b694a9251f1d6"
+    }
+  ]
+}
+
+```
+
+##### Default response
+
+`Status: 200`
+
 ---
 
 ## Live query
@@ -2420,7 +2456,7 @@ One of `query` and `query_id` must be specified.
 
 #### Example with one host targeted by hostname
 
-`POST /api/v1/fleet/queries/run_by_names`
+`POST /api/v1/fleet/queries/run_by_identifiers`
 
 ##### Request body
 
@@ -2459,7 +2495,7 @@ One of `query` and `query_id` must be specified.
 
 #### Example with multiple hosts targeted by label name
 
-`POST /api/v1/fleet/queries/run_by_names`
+`POST /api/v1/fleet/queries/run_by_identifiers`
 
 ##### Request body
 
@@ -2495,6 +2531,39 @@ One of `query` and `query_id` must be specified.
   }
 }
 ```
+
+#### Example with invalid label
+
+`POST /api/v1/fleet/queries/run_by_identifiers`
+
+##### Request body
+
+```json
+{
+  "query": "SELECT instance_id FROM system_info",
+  "selected": {
+    "labels": ["Windows", "Banana", "Apple"]
+  }
+}
+```
+
+##### Default response
+
+`Status: 400`
+
+```json
+{
+  "message": "Bad request",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Invalid label name(s): Banana, Apple."
+    }
+  ],
+  "uuid": "303649f4-5e45-4379-bae9-64ec0ef56287"
+}
+```
+
 
 ### Retrieve live query results (standard WebSocket API)
 
