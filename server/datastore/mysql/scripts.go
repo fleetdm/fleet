@@ -18,6 +18,15 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const whereFilterPendingScript = `
+	exit_code IS NULL
+    -- async requests + sync requests created within the given interval
+    AND (
+      sync_request = 0
+      OR created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
+    )
+`
+
 func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 	var res *fleet.HostScriptResult
 	return res, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -217,7 +226,7 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
 			%s
 		ORDER BY
 			created_at ASC
-	`, whereFilterPendingScript())
+	`, whereFilterPendingScript)
 
 	var results []*fleet.HostScriptResult
 	seconds := int(constants.MaxServerWaitTime.Seconds())
@@ -467,14 +476,15 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 	})
 }
 
-func (ds *Datastore) DeletePendingHostScriptExecutionsForPolicy(ctx context.Context, policyID uint) error {
+// deletePendingHostScriptExecutionsForPolicy should be called when a policy is deleted to remove any pending script executions
+func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Context, policyID uint) error {
 	deleteStmt := fmt.Sprintf(`
 		DELETE FROM
 			host_script_results
 		WHERE 
 			policy_id = ? AND
 			%s
-	`, whereFilterPendingScript())
+	`, whereFilterPendingScript)
 
 	seconds := int(constants.MaxServerWaitTime.Seconds())
 	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, policyID, seconds)
@@ -1300,15 +1310,4 @@ func (ds *Datastore) getOrGenerateScriptContentsID(ctx context.Context, contents
 		return 0, err
 	}
 	return scriptContentsID, nil
-}
-
-func whereFilterPendingScript() string {
-	return `
-	exit_code IS NULL
-    -- async requests + sync requests created within the given interval
-    AND (
-      sync_request = 0
-      OR created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
-    )
-	`
 }

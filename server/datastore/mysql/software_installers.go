@@ -461,7 +461,8 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 	})
 }
 
-func (ds *Datastore) DeletePendingSoftwareInstallsForPolicy(ctx context.Context, policyID uint) error {
+// deletePendingSoftwareInstallsForPolicy should be called after a policy is deleted to remove any pending software installs
+func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context, policyID uint) error {
 	const deleteStmt = `
 		DELETE FROM
 			host_software_installs

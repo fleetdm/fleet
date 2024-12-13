@@ -32,10 +32,12 @@ func TestPolicies(t *testing.T) {
 	}{
 		{"NewGlobalPolicyLegacy", testPoliciesNewGlobalPolicyLegacy},
 		{"NewGlobalPolicyProprietary", testPoliciesNewGlobalPolicyProprietary},
+		{"GlobalPolicyPendingScriptsAndInstalls", testGlobalPolicyPendingScriptsAndInstalls},
 		{"MembershipViewDeferred", func(t *testing.T, ds *Datastore) { testPoliciesMembershipView(true, t, ds) }},
 		{"MembershipViewNotDeferred", func(t *testing.T, ds *Datastore) { testPoliciesMembershipView(false, t, ds) }},
 		{"TeamPolicyLegacy", testTeamPolicyLegacy},
 		{"TeamPolicyProprietary", testTeamPolicyProprietary},
+		{"TeamPolicyPendingScriptsAndInstalls", testTeamPolicyPendingScriptsAndInstalls},
 		{"ListMergedTeamPolicies", testListMergedTeamPolicies},
 		{"PolicyQueriesForHost", testPolicyQueriesForHost},
 		{"PolicyQueriesForHostPlatforms", testPolicyQueriesForHostPlatforms},
@@ -217,6 +219,105 @@ func testPoliciesNewGlobalPolicyProprietary(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "query1 other resolution", *p3.Resolution)
 	require.NotNil(t, p3.AuthorID)
 	assert.Equal(t, user1.ID, *p3.AuthorID)
+}
+
+func testGlobalPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+
+	// create a new script and associate with global policy
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1.sh",
+		ScriptContents: "echo",
+		TeamID:         nil,
+	})
+	require.NoError(t, err)
+	policy1, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:        "query1",
+		Query:       "select 1;",
+		Description: "query1 desc",
+		Resolution:  "query1 resolution",
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE policies SET script_id = ?", script.ID)
+		return err
+	})
+	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+
+	// create pending script execution
+	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         host1.ID,
+		ScriptContents: "echo",
+		UserID:         &user.ID,
+		PolicyID:       &policy1.ID,
+		SyncRequest:    true,
+	})
+	require.NoError(t, err)
+	pendingScripts, err := ds.ListPendingHostScriptExecutions(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(pendingScripts))
+
+	// delete the policy
+	_, err = ds.DeleteGlobalPolicies(ctx, []uint{policy1.ID})
+	require.NoError(t, err)
+
+	pendingScripts, err = ds.ListPendingHostScriptExecutions(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(pendingScripts))
+
+	// create a new installer and associate with global policy
+	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	installerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		UninstallScript:   "goodbye",
+		InstallerFile:     tfr1,
+		StorageID:         "storage1",
+		Filename:          "file1",
+		Title:             "file1",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user.ID,
+	})
+	require.NoError(t, err)
+	policy2, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:        "query2",
+		Query:       "select 1;",
+		Description: "query2 desc",
+		Resolution:  "query2 resolution",
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE policies SET software_installer_id = ?", installerID)
+		return err
+	})
+	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+
+	// create a pending software install request
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID, false, &policy2.ID)
+	require.NoError(t, err)
+
+	pendingInstalls, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(pendingInstalls))
+
+	// delete the policy
+	_, err = ds.DeleteGlobalPolicies(ctx, []uint{policy2.ID})
+	require.NoError(t, err)
+
+	pendingInstalls, err = ds.ListPendingSoftwareInstalls(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(pendingInstalls))
 }
 
 func testPoliciesListOptions(t *testing.T, ds *Datastore) {
@@ -715,6 +816,98 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "query2 other resolution", *teamPolicies[0].Resolution)
 	require.NotNil(t, team2Policies[0].AuthorID)
 	require.Equal(t, user1.ID, *team2Policies[0].AuthorID)
+}
+
+func testTeamPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// create a script and associate it with a team policy
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1.sh",
+		ScriptContents: "echo",
+		TeamID:         &team1.ID,
+	})
+	require.NoError(t, err)
+	policy1, err := ds.NewTeamPolicy(ctx, team1.ID, nil, fleet.PolicyPayload{
+		Name:        "team1",
+		Query:       "select 1;",
+		Description: "description",
+		Resolution:  "resolution",
+		ScriptID:    &script.ID,
+	})
+	require.NoError(t, err)
+
+	// create pending script execution
+	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         host1.ID,
+		ScriptContents: "echo",
+		UserID:         &user.ID,
+		PolicyID:       &policy1.ID,
+		SyncRequest:    true,
+	})
+	require.NoError(t, err)
+	pendingScripts, err := ds.ListPendingHostScriptExecutions(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(pendingScripts))
+
+	// delete the policy
+	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{policy1.ID})
+	require.NoError(t, err)
+
+	pendingScripts, err = ds.ListPendingHostScriptExecutions(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(pendingScripts))
+
+	// create a software install and associate it with a team policy
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	installerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		UninstallScript:   "goodbye",
+		InstallerFile:     tfr1,
+		StorageID:         "storage1",
+		Filename:          "file1",
+		Title:             "file1",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user.ID,
+		TeamID:            &team2.ID,
+	})
+	require.NoError(t, err)
+	policy2, err := ds.NewTeamPolicy(ctx, team2.ID, nil, fleet.PolicyPayload{
+		Name:                "team2",
+		Query:               "select 1;",
+		Description:         "description2",
+		Resolution:          "resolution2",
+		SoftwareInstallerID: &installerID,
+	})
+	require.NoError(t, err)
+	// create a pending software install request
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID, false, &policy2.ID)
+	require.NoError(t, err)
+
+	pendingInstalls, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(pendingInstalls))
+
+	// delete the policy
+	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{policy2.ID})
+	require.NoError(t, err)
+
+	pendingInstalls, err = ds.ListPendingSoftwareInstalls(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(pendingInstalls))
 }
 
 func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {

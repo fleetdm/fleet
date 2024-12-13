@@ -1211,7 +1211,7 @@ func testDeletePendingSoftwareInstallsForPolicy(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
 
-	err = ds.DeletePendingSoftwareInstallsForPolicy(ctx, policy1.ID)
+	err = ds.deletePendingSoftwareInstallsForPolicy(ctx, policy1.ID)
 	require.NoError(t, err)
 
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, hostSoftwareInstallsCount, fleet.SoftwareInstallPending, executionID)
@@ -1226,7 +1226,7 @@ func testDeletePendingSoftwareInstallsForPolicy(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
 
-	err = ds.DeletePendingSoftwareInstallsForPolicy(ctx, policy1.ID)
+	err = ds.deletePendingSoftwareInstallsForPolicy(ctx, policy1.ID)
 	require.NoError(t, err)
 
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, hostSoftwareInstallsCount, fleet.SoftwareInstallPending, executionID)
@@ -1244,7 +1244,7 @@ func testDeletePendingSoftwareInstallsForPolicy(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	err = ds.DeletePendingSoftwareInstallsForPolicy(ctx, policy1.ID)
+	err = ds.deletePendingSoftwareInstallsForPolicy(ctx, policy1.ID)
 	require.NoError(t, err)
 
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT count(1) FROM host_software_installs WHERE execution_id = ?`, executionID)

@@ -1471,7 +1471,7 @@ func testDeletePendingHostScriptExecutionsForPolicy(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(pending))
 
-	err = ds.DeletePendingHostScriptExecutionsForPolicy(ctx, p1.ID)
+	err = ds.deletePendingHostScriptExecutionsForPolicy(ctx, p1.ID)
 	require.NoError(t, err)
 
 	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1)
@@ -1492,7 +1492,7 @@ func testDeletePendingHostScriptExecutionsForPolicy(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(pending))
 
-	err = ds.DeletePendingHostScriptExecutionsForPolicy(ctx, p1.ID)
+	err = ds.deletePendingHostScriptExecutionsForPolicy(ctx, p1.ID)
 	require.NoError(t, err)
 
 	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1)
@@ -1514,7 +1514,7 @@ func testDeletePendingHostScriptExecutionsForPolicy(t *testing.T, ds *Datastore)
 		return nil
 	})
 
-	err = ds.DeletePendingHostScriptExecutionsForPolicy(ctx, p1.ID)
+	err = ds.deletePendingHostScriptExecutionsForPolicy(ctx, p1.ID)
 	require.NoError(t, err)
 
 	var count int
