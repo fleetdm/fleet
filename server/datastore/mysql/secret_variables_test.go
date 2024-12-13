@@ -164,7 +164,7 @@ Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 	require.NoError(t, err)
 	require.Equal(t, validSecretExpanded, expanded)
 
-	expanded, err = ds.ExpandEmbeddedSecrets(ctx, invalidSecret)
+	_, err = ds.ExpandEmbeddedSecrets(ctx, invalidSecret)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "$FLEET_SECRET_INVALID")
 	require.ErrorContains(t, err, "$FLEET_SECRET_ALSO_INVALID")
