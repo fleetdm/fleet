@@ -66,8 +66,8 @@ controls:
       - app_store_id: '803453959' # Slack Desktop
       - app_store_id: '1333542190' # 1Password 7 Desktop
   macos_updates:
-    deadline: "2024-12-04"
-    minimum_version: "15.1.1"
+    deadline: "2025-01-03"
+    minimum_version: "15.2"
   windows_settings:
     custom_settings: null
   windows_updates:

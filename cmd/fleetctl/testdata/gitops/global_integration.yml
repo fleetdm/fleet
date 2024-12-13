@@ -3,6 +3,13 @@ queries:
 agent_options:
   path: ./lib/agent-options.yml
 controls:
+  macos_settings:
+    custom_settings:
+      - path: ./lib/macos-password-secret.mobileconfig
+  windows_enabled_and_configured: true
+  windows_settings:
+    custom_settings:
+      - path: ./lib/windows-screenlock-secret.xml
   scripts:
     - path: ./lib/fleet-secret.sh
 org_settings:
