@@ -407,7 +407,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	}
 
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(cp.Mobileconfig)}); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating fleet secrets")
+		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
 	}
 
 	err = validateConfigProfileFleetVariables(string(cp.Mobileconfig))
