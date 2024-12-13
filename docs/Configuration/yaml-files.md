@@ -330,7 +330,7 @@ software:
   app_store_apps:
     - app_store_id: '1091189122'
   fleet_maintained_apps:
-    - fleet_maintained_app_id: slack
+    - fleet_maintained_app_name: Microsoft Excel
 ```
 
 ### packages
@@ -364,7 +364,7 @@ self_service: true
 
 ### fleet_maintained_apps
 
-- `fleet_maintained_app_id` is the ID of the app. The ID can be found on the [App library page](https://fleetdm.com/app-library) on [Fleetdm.com](https://fleetdm.com) or in the list of Fleet-maintained apps on the "Add software" page within Fleet.
+- `fleet_maintained_app_name` is the name of the app. A full list of Fleet-maintained apps can be found on the [App library page](https://fleetdm.com/app-library) on [Fleetdm.com](https://fleetdm.com).
 
 ## org_settings and team_settings
 
