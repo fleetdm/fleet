@@ -114,7 +114,7 @@ jobs:
         continue-on-error: true
         with:
           subject-digest: ${{steps.image_digests.outputs.digest_fleet}}
-          subject-name: "fleetdm/fleet:${{ steps.commit.outputs.short_commit }}"
+          subject-name: "fleetdm/fleet"
           push-to-registry: true
 
       - name: Attest FleetCtl image
