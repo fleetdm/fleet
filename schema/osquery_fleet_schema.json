@@ -17203,6 +17203,49 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/nfs_shares.yml"
   },
   {
+    "name": "nftables",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "description": "Show configuration for Linux `nftables` network filters in JSON flattened format.",
+    "platforms": [
+      "linux"
+    ],
+    "evented": false,
+    "columns": [
+      {
+        "name": "fullkey",
+        "description": "Flattened full key with '/' as separator, e.g. `nftables/0/metainfo/json_schema_version`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "parent",
+        "description": "Parent key when keys are nested in the document.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "key",
+        "description": "JSON key or array index.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "value",
+        "description": "JSON value",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "query",
+        "description": "Specifies a query to flatten with. This is used both for re-writing arrays into maps, and for filtering.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/nftables",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/nftables.yml"
+  },
+  {
     "name": "npm_packages",
     "description": "Node.js packages globally installed on a system.",
     "url": "https://fleetdm.com/tables/npm_packages",
