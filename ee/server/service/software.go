@@ -10,7 +10,7 @@ func (svc *Service) ListSoftware(ctx context.Context, opts fleet.SoftwareListOpt
 	// reuse ListSoftware, but include cve scores in premium version
 	// unless without_vulnerability_details is set to true
 	// including these details causes a lot of memory bloat
-	if !opts.WithoutVulnerabilityDetails {
+	if (opts.MaximumCVSS > 0 || opts.MinimumCVSS > 0 || opts.KnownExploit) || !opts.WithoutVulnerabilityDetails {
 		opts.IncludeCVEScores = true
 	}
 	return svc.Service.ListSoftware(ctx, opts)
