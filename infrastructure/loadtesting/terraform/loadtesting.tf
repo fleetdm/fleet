@@ -51,14 +51,14 @@ resource "aws_ecs_task_definition" "loadtest" {
         command = [
           "/go/osquery-perf",
           "-enroll_secret", data.aws_secretsmanager_secret_version.enroll_secret.secret_string,
-          "-host_count", "100",
+          "-host_count", "250",
           "-server_url", "http://${aws_lb.internal.dns_name}",
           "--policy_pass_prob", "0.5",
           "--start_period", "5m",
           "--orbit_prob", "1",
           "--mdm_prob", "1",
           "--mdm_scep_challenge", "foo",
-          "--os_templates", "macos_14.1.2:100",
+          "--os_templates", "macos_14.1.2:250",
           "--mdm_check_in_interval", "1m"
         ]
       }
