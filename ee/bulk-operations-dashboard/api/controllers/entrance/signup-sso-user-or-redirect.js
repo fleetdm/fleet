@@ -23,7 +23,7 @@ module.exports = {
       throw {redirect: '/login'};
     }
     let ssoUserInfo = this.req.session.ssoUserInformation;
-
+    // Look for a user record with this sso user's email address.
     let possibleUserRecordForThisEntraUser = await User.findOne({emailAddress: ssoUserInfo.unique_name});
 
     if(possibleUserRecordForThisEntraUser) {
@@ -35,7 +35,7 @@ module.exports = {
         fullName: ssoUserInfo.given_name +' '+ssoUserInfo.family_name,
         emailAddress: ssoUserInfo.unique_name,
         password: await sails.helpers.passwords.hashPassword(ssoUserInfo.sub),// Note: this password cannot be changed.
-        // apiToken: await sails.helpers.strings.uuid(),
+        apiToken: await sails.helpers.strings.uuid(),
       }).fetch();
       this.req.session.userId = newUserRecord.id;
     }
