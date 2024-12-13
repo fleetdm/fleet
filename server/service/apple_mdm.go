@@ -384,14 +384,20 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
 	}
 
-	// TODO expand secrets, swap out Mobileconfig after parsing
+	// Expand secrets in profile for validation
+	expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(b))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "expanding secrets in profile for parsing")
+	}
 
-	cp, err := fleet.NewMDMAppleConfigProfile(b, &teamID)
+	cp, err := fleet.NewMDMAppleConfigProfile([]byte(expanded), &teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("failed to parse config profile: %s", err.Error()),
 		})
 	}
+	// Save the original, unexpanded profile
+	cp.Mobileconfig = b
 
 	if err := cp.ValidateUserProvided(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
