@@ -644,7 +644,6 @@ const UserForm = ({
             renderPasswordSection()}
           {(isPremiumTier || isMfaEnabled) &&
             !formData.sso_enabled &&
-            isModifiedByGlobalAdmin &&
             renderTwoFactorAuthenticationOption()}
           {isPremiumTier ? renderPremiumRoleOptions() : renderGlobalRoleForm()}
         </form>
