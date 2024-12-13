@@ -1,3 +1,5 @@
+import { IDropdownOption } from "interfaces/dropdownOption";
+
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 
@@ -97,3 +99,16 @@ export const generateFormValidation = (formData: IPackageFormData) => {
 };
 
 export default generateFormValidation;
+
+export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
+  {
+    value: "labelsIncludeAny",
+    label: "Include any",
+    disabled: false,
+  },
+  {
+    value: "labelsExcludeAny",
+    label: "Exclude any",
+    disabled: false,
+  },
+];

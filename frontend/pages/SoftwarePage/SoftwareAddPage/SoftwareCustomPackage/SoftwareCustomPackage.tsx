@@ -1,5 +1,6 @@
 import React, { useContext, useEffect } from "react";
 import { InjectedRouter } from "react-router";
+import { useQuery } from "react-query";
 import { isAxiosError } from "axios";
 
 import PATHS from "router/paths";
@@ -10,10 +11,12 @@ import softwareAPI, {
   MAX_FILE_SIZE_BYTES,
   MAX_FILE_SIZE_MB,
 } from "services/entities/software";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import { getErrorReason } from "interfaces/errors";
+import { ILabelSummary } from "interfaces/label";
 
 import CustomLink from "components/CustomLink";
 import FileProgressModal from "components/FileProgressModal";
@@ -44,6 +47,22 @@ const SoftwareCustomPackage = ({
   const [uploadProgress, setUploadProgress] = React.useState(0);
   const [uploadDetails, setUploadDetails] = React.useState<IFileDetails | null>(
     null
+  );
+
+  const {
+    data: labels,
+    isLoading: isLoadingLabels,
+    isFetching: isFetchingLabels,
+    isError: isErrorLabels,
+  } = useQuery<ILabelSummary[], Error>(
+    ["custom_labels"],
+    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+    {
+      enabled: isPremiumTier,
+      refetchOnWindowFocus: false,
+      retry: false,
+      staleTime: 10000,
+    }
   );
 
   useEffect(() => {
@@ -168,6 +187,7 @@ const SoftwareCustomPackage = ({
   return (
     <div className={baseClass}>
       <PackageForm
+        labels={labels || []}
         showSchemaButton={!isSidePanelOpen}
         onClickShowSchema={() => setSidePanelOpen(true)}
         className={`${baseClass}__package-form`}

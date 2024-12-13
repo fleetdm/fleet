@@ -6,15 +6,17 @@ import { NotificationContext } from "context/notification";
 import { getFileDetails } from "utilities/file/fileUtils";
 import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
+import { ILabelSummary } from "interfaces/label";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import FileUploader from "components/FileUploader";
 import TooltipWrapper from "components/TooltipWrapper";
+import TargetLabelSelector from "components/TargetLabelSelector";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
 
-import { generateFormValidation } from "./helpers";
+import { CUSTOM_TARGET_OPTIONS, generateFormValidation } from "./helpers";
 
 export const baseClass = "package-form";
 
@@ -37,6 +39,7 @@ export interface IFormValidation {
 }
 
 interface IPackageFormProps {
+  labels: ILabelSummary[];
   showSchemaButton?: boolean;
   onCancel: () => void;
   onSubmit: (formData: IPackageFormData) => void;
@@ -54,6 +57,7 @@ interface IPackageFormProps {
 const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb,.rpm";
 
 const PackageForm = ({
+  labels,
   showSchemaButton = false,
   onClickShowSchema,
   onCancel,
@@ -82,6 +86,13 @@ const PackageForm = ({
     isValid: false,
     software: { isValid: false },
   });
+  const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
+  const [selectedLabels, setSelectedLabels] = useState<Record<string, boolean>>(
+    {}
+  );
+  const [selectedCustomTarget, setSelectedCustomTarget] = useState(
+    "labelsIncludeAny"
+  );
 
   const onFileSelect = (files: FileList | null) => {
     if (files && files.length > 0) {
@@ -156,6 +167,18 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
+  const onSelectTargetType = (value: string) => {
+    setSelectedTargetType(value);
+  };
+
+  const onSelectCustomTargetOption = (value: string) => {
+    setSelectedCustomTarget(value);
+  };
+
+  const onSelectLabel = ({ name, value }: { name: string; value: boolean }) => {
+    setSelectedLabels((prevItems) => ({ ...prevItems, [name]: value }));
+  };
+
   const isSubmitDisabled = !formValidation.isValid;
 
   const classNames = classnames(baseClass, className);
@@ -175,6 +198,17 @@ const PackageForm = ({
           fileDetails={
             formData.software ? getFileDetails(formData.software) : undefined
           }
+        />
+        <TargetLabelSelector
+          selectedTargetType={selectedTargetType}
+          selectedCustomTarget={selectedCustomTarget}
+          selectedLabels={selectedLabels}
+          customTargetOptions={CUSTOM_TARGET_OPTIONS}
+          className={`${baseClass}__target`}
+          onSelectTargetType={onSelectTargetType}
+          onSelectCustomTarget={onSelectCustomTargetOption}
+          onSelectLabel={onSelectLabel}
+          labels={labels || []}
         />
         <Checkbox
           value={formData.selfService}
