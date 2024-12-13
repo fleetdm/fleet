@@ -8,11 +8,14 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
+	"github.com/micromdm/nanolib/log"
 )
 
-func enqueue(ctx context.Context, tx *sql.Tx, ids []string, cmd *mdm.Command) error {
+func enqueue(ctx context.Context, tx sqlx.ExtContext, ids []string, cmd *mdm.Command) error {
 	if len(ids) < 1 {
 		return errors.New("no id(s) supplied to queue command to")
 	}
@@ -50,19 +53,22 @@ func enqueue(ctx context.Context, tx *sql.Tx, ids []string, cmd *mdm.Command) er
 	return nil
 }
 
+type loggerWrapper struct {
+	logger log.Logger
+}
+
+func (l loggerWrapper) Log(keyvals ...interface{}) error {
+	l.logger.Info(keyvals...)
+	return nil
+}
+
 func (m *MySQLStorage) EnqueueCommand(ctx context.Context, ids []string, cmd *mdm.Command) (map[string]error, error) {
-	// TODO: We need to fix the deadlock caused by simultaneously updating seen_times and enqueuing a command.
-	tx, err := m.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	if err = enqueue(ctx, tx, ids, cmd); err != nil {
-		if rbErr := tx.Rollback(); rbErr != nil {
-			return nil, fmt.Errorf("rollback error: %w; while trying to handle error: %v", rbErr, err)
-		}
-		return nil, err
-	}
-	return nil, tx.Commit()
+	// We need to retry because this transaction may deadlock with updates to nano_enrollment.last_seen_at
+	// Deadlock seen in 2024/12/12 loadtest: https://docs.google.com/document/d/1-Q6qFTd7CDm-lh7MVRgpNlNNJijk6JZ4KO49R1fp80U
+	err := common_mysql.WithRetryTxx(ctx, sqlx.NewDb(m.db, ""), func(tx sqlx.ExtContext) error {
+		return enqueue(ctx, tx, ids, cmd)
+	}, loggerWrapper{m.logger})
+	return nil, err
 }
 
 func (m *MySQLStorage) deleteCommand(ctx context.Context, tx *sql.Tx, id, uuid string) error {
