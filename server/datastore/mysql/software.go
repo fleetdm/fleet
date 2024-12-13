@@ -2378,18 +2378,23 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			( si.id IS NOT NULL OR vat.platform = :host_platform ) AND
 			-- label membership check
 			(
-				NOT EXISTS (
-					SELECT
-						1 FROM software_installer_labels sil JOIN label_membership lm ON lm.label_id = sil.label_id AND lm.host_id = :host_id
-					WHERE
-						sil.software_installer_id = si.id
-						AND sil.exclude = 1)
-				OR EXISTS (
-					SELECT
-						1 FROM software_installer_labels sil JOIN label_membership lm ON lm.label_id = sil.label_id AND lm.host_id = :host_id
-					WHERE
-						sil.software_installer_id = si.id
-						AND sil.exclude = 0)
+					EXISTS (
+						SELECT
+							1 FROM software_installer_labels sil
+							JOIN label_membership lm ON lm.label_id = sil.label_id
+								AND lm.host_id != :host_id
+						WHERE
+							sil.software_installer_id = si.id
+							AND sil.exclude = 1)
+						OR EXISTS (
+							SELECT
+								1 FROM software_installer_labels sil
+								JOIN label_membership lm ON lm.label_id = sil.label_id
+									AND lm.host_id = :host_id
+							WHERE
+								sil.software_installer_id = si.id
+								AND sil.exclude = 0)
+						OR NOT EXISTS (SELECT 1 FROM software_installer_labels WHERE software_installer_id = si.id)
 			)
 			%s %s
 `, onlySelfServiceClause, excludeVPPAppsClause)
