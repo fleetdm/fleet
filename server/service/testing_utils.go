@@ -308,6 +308,10 @@ func (svc *mockMailService) SendEmail(e fleet.Email) error {
 	return svc.SendEmailFn(e)
 }
 
+func (svc *mockMailService) CanSendEmail(smtpSettings fleet.SMTPSettings) bool {
+	return smtpSettings.SMTPConfigured
+}
+
 type TestNewScheduleFunc func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc
 
 type TestServerOpts struct {
@@ -338,6 +342,7 @@ type TestServerOpts struct {
 	BootstrapPackageStore fleet.MDMBootstrapPackageStore
 	KeyValueStore         fleet.KeyValueStore
 	EnableSCEPProxy       bool
+	WithDEPWebview        bool
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -411,6 +416,14 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 				return nil
 			}
 		}
+	}
+
+	if len(opts) > 0 && opts[0].WithDEPWebview {
+		frontendHandler := WithMDMEnrollmentMiddleware(svc, logger, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// do nothing and return 200
+			w.WriteHeader(http.StatusOK)
+		}))
+		rootMux.Handle("/", frontendHandler)
 	}
 
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(1000)))

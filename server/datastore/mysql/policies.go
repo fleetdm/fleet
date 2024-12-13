@@ -465,7 +465,7 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, tea
 	var args []interface{}
 
 	query := `
-        SELECT 
+        SELECT
             ` + policyCols + `,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
@@ -705,7 +705,7 @@ func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, op
 	var args []interface{}
 
 	query := `
-		SELECT 
+		SELECT
 			` + policyCols + `,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
@@ -1473,15 +1473,15 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 				p.id as policy_id,
 				t.id AS inherited_team_id,
 				(
-					SELECT COUNT(*) 
-					FROM policy_membership pm 
-					INNER JOIN hosts h ON pm.host_id = h.id 
+					SELECT COUNT(*)
+					FROM policy_membership pm
+					INNER JOIN hosts h ON pm.host_id = h.id
 					WHERE pm.policy_id = p.id AND pm.passes = true AND h.team_id = t.id
 				) AS passing_host_count,
 				(
-					SELECT COUNT(*) 
-					FROM policy_membership pm 
-					INNER JOIN hosts h ON pm.host_id = h.id 
+					SELECT COUNT(*)
+					FROM policy_membership pm
+					INNER JOIN hosts h ON pm.host_id = h.id
 					WHERE pm.policy_id = p.id AND pm.passes = false AND h.team_id = t.id
 				) AS failing_host_count
 			FROM policies p
@@ -1555,12 +1555,12 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 		SELECT
 			p.id,
 			NULL AS inherited_team_id, -- using NULL to represent global scope
-			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 1)), 0), 
+			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 1)), 0),
 			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 0)), 0)
 		FROM policies p
 		LEFT JOIN policy_membership pm ON p.id = pm.policy_id
 		GROUP BY p.id
-		ON DUPLICATE KEY UPDATE 
+		ON DUPLICATE KEY UPDATE
 			updated_at = NOW(),
 			passing_host_count = VALUES(passing_host_count),
 			failing_host_count = VALUES(failing_host_count);
@@ -1622,7 +1622,7 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 	hostID *uint,
 ) ([]fleet.HostPolicyMembershipData, error) {
 	query := `
-	SELECT 
+	SELECT
 		COALESCE(sh.email, '') AS email,
 		COALESCE(pm.passing, 1) AS passing,
 		COALESCE(pm.failing_policy_ids, '') AS failing_policy_ids,
@@ -1640,7 +1640,7 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 		SELECT host_id, MIN(email) AS email
 		FROM host_emails
 		JOIN hosts ON host_emails.host_id=hosts.id
-		WHERE email LIKE CONCAT('%@', ?) AND team_id = ? 
+		WHERE email LIKE CONCAT('%@', ?) AND team_id = ?
 		GROUP BY host_id
 	) sh ON h.id = sh.host_id
 	LEFT JOIN host_display_names hdn ON h.id = hdn.host_id
@@ -1662,4 +1662,42 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 	}
 
 	return hosts, nil
+}
+
+// GetPoliciesBySoftwareTitleID returns the policies that are associated with a set of software titles.
+func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
+	ctx context.Context,
+	softwareTitleIDs []uint,
+	teamID *uint,
+) ([]fleet.AutomaticInstallPolicy, error) {
+	if len(softwareTitleIDs) == 0 {
+		return nil, nil
+	}
+
+	query := `
+	SELECT
+		p.id AS id,
+		p.name AS name,
+		st.id AS software_title_id
+	FROM policies p
+	JOIN software_installers si ON p.software_installer_id = si.id
+	JOIN software_titles st ON si.title_id = st.id
+	WHERE st.id IN (?) AND p.team_id = ?
+`
+
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	query, args, err := sqlx.In(query, softwareTitleIDs, tmID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build select get policies by software id query")
+	}
+
+	var policies []fleet.AutomaticInstallPolicy
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get policies by software installer id")
+	}
+	return policies, nil
 }

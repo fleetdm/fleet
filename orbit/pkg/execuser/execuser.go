@@ -2,12 +2,16 @@
 // SYSTEM service on Windows) as the current login user.
 package execuser
 
-import "context"
+import (
+	"io"
+	"time"
+)
 
 type eopts struct {
 	env        [][2]string
 	args       [][2]string
 	stderrPath string //nolint:structcheck,unused
+	timeout    time.Duration
 }
 
 // Option allows configuring the application.
@@ -24,6 +28,13 @@ func WithEnv(name, value string) Option {
 func WithArg(name, value string) Option {
 	return func(a *eopts) {
 		a.args = append(a.args, [2]string{name, value})
+	}
+}
+
+// WithTimeout sets the timeout for the application. Currently only supported on Linux.
+func WithTimeout(duration time.Duration) Option {
+	return func(a *eopts) {
+		a.timeout = duration
 	}
 }
 
@@ -52,13 +63,10 @@ func RunWithOutput(path string, opts ...Option) (output []byte, exitCode int, er
 	return runWithOutput(path, o)
 }
 
-// RunWithWait runs an application as the current login user and waits for it to finish
-// or to be canceled by the context.  Canceling the context will not return an error.
-// It assumes the caller is running with high privileges (root on UNIX).
-func RunWithWait(ctx context.Context, path string, opts ...Option) error {
+func RunWithStdin(path string, opts ...Option) (io.WriteCloser, error) {
 	var o eopts
 	for _, fn := range opts {
 		fn(&o)
 	}
-	return runWithWait(ctx, path, o)
+	return runWithStdin(path, o)
 }

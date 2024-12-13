@@ -157,6 +157,17 @@ func generateRandomString(sizeBytes int) string {
 }
 
 func ExpandEnv(s string) (string, error) {
+	out, err := expandEnv(s, nil)
+	return out, err
+}
+
+// expandEnv expands environment variables for a gitops file.
+// $ can be escaped with a backslash, e.g. \$VAR
+// \$ can be escaped with another backslash, etc., e.g. \\\$VAR
+// $FLEET_VAR_XXX will not be expanded. These variables are expanded on the server.
+// If secretsMap is not nil, $FLEET_SECRET_XXX will be evaluated and put in the map
+// If secretsMap is nil, $FLEET_SECRET_XXX will cause an error.
+func expandEnv(s string, secretsMap map[string]string) (string, error) {
 	// Generate a random escaping prefix that doesn't exist in s.
 	var preventEscapingPrefix string
 	for {
@@ -167,18 +178,36 @@ func ExpandEnv(s string) (string, error) {
 	}
 
 	s = escapeString(s, preventEscapingPrefix)
-	s = escapeFleetVar(s, preventEscapingPrefix)
 	var err *multierror.Error
-	s = os.Expand(s, func(env string) string {
-		if strings.HasPrefix(env, preventEscapingPrefix) {
-			return "$" + strings.TrimPrefix(env, preventEscapingPrefix)
+	s = fleet.MaybeExpand(s, func(env string) (string, bool) {
+		switch {
+		case strings.HasPrefix(env, preventEscapingPrefix):
+			return "$" + strings.TrimPrefix(env, preventEscapingPrefix), true
+		case strings.HasPrefix(env, fleet.ServerVarPrefix):
+			// Don't expand fleet vars -- they will be expanded on the server
+			return "", false
+		case strings.HasPrefix(env, fleet.FLEET_SECRET_PREFIX):
+			if secretsMap != nil {
+				// lookup the secret and save it, but don't replace
+				v, ok := os.LookupEnv(env)
+				if !ok {
+					err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
+					return "", false
+				}
+				secretsMap[env] = v
+				return "", false
+			} else {
+				err = multierror.Append(err, fmt.Errorf("environment variables with %q prefix are only allowed in profiles and scripts: %q",
+					fleet.FLEET_SECRET_PREFIX, env))
+				return "", false
+			}
 		}
 		v, ok := os.LookupEnv(env)
 		if !ok {
 			err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
-			return ""
+			return "", false
 		}
-		return v
+		return v, true
 	})
 	if err != nil {
 		return "", err
@@ -194,6 +223,35 @@ func ExpandEnvBytes(b []byte) ([]byte, error) {
 	return []byte(s), nil
 }
 
+// LookupEnvSecrets only looks up FLEET_SECRET_XXX environment variables. Escaping is not supported.
+// This is used for finding secrets in scripts only. The original string is not modified.
+// A map of secret names to values is updated.
+func LookupEnvSecrets(s string, secretsMap map[string]string) error {
+	if secretsMap == nil {
+		return errors.New("secretsMap cannot be nil")
+	}
+	var err *multierror.Error
+	_ = fleet.MaybeExpand(s, func(env string) (string, bool) {
+		if strings.HasPrefix(env, fleet.FLEET_SECRET_PREFIX) {
+			// lookup the secret and save it, but don't replace
+			v, ok := os.LookupEnv(env)
+			if !ok {
+				err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
+				return "", false
+			}
+			if secretsMap == nil {
+				secretsMap = make(map[string]string, 1)
+			}
+			secretsMap[env] = v
+		}
+		return "", false
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 var escapePattern = regexp.MustCompile(`(\\+\$)`)
 
 func escapeString(s string, preventEscapingPrefix string) string {
@@ -202,13 +260,5 @@ func escapeString(s string, preventEscapingPrefix string) string {
 			return match
 		}
 		return strings.Repeat("\\", (len(match)/2)-1) + "$" + preventEscapingPrefix
-	})
-}
-
-var escapeFleetVarPattern = regexp.MustCompile(`(\$FLEET_VAR_\w+)|(\${FLEET_VAR_\w+})`)
-
-func escapeFleetVar(s string, preventEscapingPrefix string) string {
-	return escapeFleetVarPattern.ReplaceAllStringFunc(s, func(match string) string {
-		return strings.ReplaceAll(match, "$", "$"+preventEscapingPrefix)
 	})
 }

@@ -18,6 +18,11 @@ const (
 	MDMAppleDeclarationUUIDPrefix = "d"
 	MDMAppleProfileUUIDPrefix     = "a"
 	MDMWindowsProfileUUIDPrefix   = "w"
+
+	// RefetchMDMUnenrollCriticalQueryDuration is the duration to set the
+	// RefetchCriticalQueriesUntil field when migrating a device from a
+	// third-party MDM solution to Fleet.
+	RefetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
 )
 
 type AppleMDM struct {
@@ -310,8 +315,8 @@ type MDMDiskEncryptionSummary struct {
 	RemovingEnforcement MDMPlatformsCounts `db:"removing_enforcement" json:"removing_enforcement"`
 }
 
-// MDMProfilesSummary reports the number of hosts being managed with MDM configuration
-// profiles. Each host may be counted in only one of four mutually-exclusive categories:
+// MDMProfilesSummary reports the number of hosts being managed with configuration
+// profiles and/or disk encryption. Each host may be counted in only one of four mutually-exclusive categories:
 // Failed, Pending, Verifying, or Verified.
 type MDMProfilesSummary struct {
 	// Verified includes each host where Fleet has verified the installation of all of the

@@ -3,7 +3,6 @@ package execuser
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -33,6 +32,12 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 		path,
 	)
 
+	if len(opts.args) > 0 {
+		for _, arg := range opts.args {
+			args = append(args, arg[0], arg[1])
+		}
+	}
+
 	cmd := exec.Command("sudo", args...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
@@ -59,7 +64,16 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 		}
 	}
 
-	cmd := exec.Command("sudo", args...)
+	// Prefix with "timeout" and "sudo" if applicable
+	var cmdArgs []string
+	if opts.timeout > 0 {
+		cmdArgs = append(cmdArgs, "timeout", fmt.Sprintf("%ds", int(opts.timeout.Seconds())))
+	}
+	cmdArgs = append(cmdArgs, "sudo")
+	cmdArgs = append(cmdArgs, args...)
+
+	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...) // #nosec G204
+
 	log.Printf("cmd=%s", cmd.String())
 
 	output, err = cmd.Output()
@@ -74,10 +88,10 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 	return output, exitCode, nil
 }
 
-func runWithWait(ctx context.Context, path string, opts eopts) error {
+func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
 	args, err := getUserAndDisplayArgs(path, opts)
 	if err != nil {
-		return fmt.Errorf("get args: %w", err)
+		return nil, fmt.Errorf("get args: %w", err)
 	}
 
 	args = append(args, path)
@@ -88,21 +102,19 @@ func runWithWait(ctx context.Context, path string, opts eopts) error {
 		}
 	}
 
-	cmd := exec.CommandContext(ctx, "sudo", args...)
+	cmd := exec.Command("sudo", args...)
 	log.Printf("cmd=%s", cmd.String())
 
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, fmt.Errorf("stdin pipe: %w", err)
+	}
+
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("cmd start %q: %w", path, err)
+		return nil, fmt.Errorf("open path %q: %w", path, err)
 	}
 
-	if err := cmd.Wait(); err != nil {
-		if errors.Is(ctx.Err(), context.Canceled) {
-			return nil
-		}
-		return fmt.Errorf("cmd wait %q: %w", path, err)
-	}
-
-	return nil
+	return stdin, nil
 }
 
 func getUserAndDisplayArgs(path string, opts eopts) ([]string, error) {

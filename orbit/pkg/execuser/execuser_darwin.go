@@ -1,7 +1,6 @@
 package execuser
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -10,6 +9,8 @@ import (
 )
 
 // run uses macOS open command to start application as the current login user.
+// Note that the child process spawns a new process in user space and thus it is not
+// effective to add a context to this function to cancel the child process.
 func run(path string, opts eopts) (lastLogs string, err error) {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -54,6 +55,6 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 	return nil, 0, errors.New("not implemented")
 }
 
-func runWithWait(ctx context.Context, path string, opts eopts) error {
-	return errors.New("not implemented")
+func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
+	return nil, errors.New("not implemented")
 }

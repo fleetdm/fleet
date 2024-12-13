@@ -59,6 +59,7 @@ const CustomSettings = ({
     setProfileLabelsModalData,
   ] = useState<IMdmProfile | null>(null);
   const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const selectedProfile = useRef<IMdmProfile | null>(null);
 
@@ -101,6 +102,7 @@ const CustomSettings = ({
   };
 
   const onDeleteProfile = async (profileId: string) => {
+    setIsDeleting(true);
     try {
       await mdmAPI.deleteProfile(profileId);
       refetchProfiles();
@@ -112,20 +114,20 @@ const CustomSettings = ({
       selectedProfile.current = null;
       setShowDeleteProfileModal(false);
     }
+    setIsDeleting(false);
   };
 
   // pagination controls
-  const path = PATHS.CONTROLS_CUSTOM_SETTINGS.concat(
-    `?team_id=${currentTeamId}`
-  );
+  const path = PATHS.CONTROLS_CUSTOM_SETTINGS;
+  const queryString = isPremiumTier ? `?team_id=${currentTeamId}&` : "?";
 
   const onPrevPage = useCallback(() => {
-    router.push(path.concat(`&page=${currentPage - 1}`));
-  }, [router, path, currentPage]);
+    router.push(path.concat(`${queryString}page=${currentPage - 1}`));
+  }, [router, path, currentPage, queryString]);
 
   const onNextPage = useCallback(() => {
-    router.push(path.concat(`&page=${currentPage + 1}`));
-  }, [router, path, currentPage]);
+    router.push(path.concat(`${queryString}page=${currentPage + 1}`));
+  }, [router, path, currentPage, queryString]);
 
   const onClickDelete = (profile: IMdmProfile) => {
     selectedProfile.current = profile;
@@ -213,6 +215,7 @@ const CustomSettings = ({
           profileId={selectedProfile.current?.profile_uuid}
           onCancel={onCancelDelete}
           onDelete={onDeleteProfile}
+          isDeleting={isDeleting}
         />
       )}
       {isPremiumTier && hasLabels && (
