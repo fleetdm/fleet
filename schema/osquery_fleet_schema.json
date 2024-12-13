@@ -17205,7 +17205,7 @@
   {
     "name": "nftables",
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
-    "description": "Show configuration for Linux `nftables` network filters in JSON flattened format.",
+    "description": "Show configuration for Linux `nftables` network filters in JSON flattened format. (Added in fleetd 1.37.0.)",
     "platforms": [
       "linux"
     ],
