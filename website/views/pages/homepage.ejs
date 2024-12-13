@@ -9,7 +9,7 @@
             <h1 class="mx-auto <%= primaryBuyingSituation%>"><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
             <p>Replace the sprawl with <%= primaryBuyingSituation === 'vm'? 'secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'open-source endpoint orchestration for every platform' : 'lightning fast device management that lets employees see what\'s going on' %>.</p>
             <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
-              <a purpose="cta-button" href="<%= primaryBuyingSituation === 'mdm' ? '/device-management' : primaryBuyingSituation === 'vm' ? '/vulnerability-management' : primaryBuyingSituation === 'eo-security' ? '/observability' : primaryBuyingSituation === 'eo-it' ? '/observability' : '/device-management' %>">Learn how</a>
+              <a purpose="cta-button" href="<%= primaryBuyingSituation === 'mdm' ? '/device-management' : primaryBuyingSituation === 'vm' ? '/vulnerability-management' : primaryBuyingSituation === 'eo-security' ? '/orchestration' : primaryBuyingSituation === 'eo-it' ? '/orchestration' : '/device-management' %>">Learn how</a>
               <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>
             </div>
           </div>
@@ -84,7 +84,7 @@
           <strong>In the cloud or on-prem</strong>
           <p>Fleet uses the same open-source code base regardless of where it’s installed. You can deploy and configure it to fit your needs.</p>
           <div>
-            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/observability?purpose=it">More about IT engineering</a>
+            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/orchestration?purpose=it">More about IT engineering</a>
           </div>
         </div>
       </div>
@@ -130,7 +130,7 @@
              <h2><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Talk to your computers'%></h2>
              <p>A <%= primaryBuyingSituation==='eo-security'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='eo-security'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
              <div>
-               <animated-arrow-button href="/observability">Start with <%= primaryBuyingSituation==='eo-security' ? 'security engineering' : 'IT engineering'%></animated-arrow-button>
+               <animated-arrow-button href="/orchestration">Start with <%= primaryBuyingSituation==='eo-security' ? 'security engineering' : 'IT engineering'%></animated-arrow-button>
              </div>
            </div>
            <div purpose="endpoint-ops-image" class="right">
@@ -197,7 +197,7 @@
              <h2><%= primaryBuyingSituation==='vm'? 'Instrument your endpoints' : 'Talk to your computers'%></h2>
              <p>A <%= primaryBuyingSituation==='vm'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='vm'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
              <div>
-               <animated-arrow-button href="/observability">Start with <%= primaryBuyingSituation==='mdm' ? 'IT engineering' : 'security engineering'%></animated-arrow-button>
+               <animated-arrow-button href="/orchestration">Start with <%= primaryBuyingSituation==='mdm' ? 'IT engineering' : 'security engineering'%></animated-arrow-button>
              </div>
            </div>
          </div>
