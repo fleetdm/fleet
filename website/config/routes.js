@@ -231,7 +231,7 @@ module.exports.routes = {
   'GET /observability': {
     action: 'view-observability',
     locals: {
-      pageTitleForMeta: 'Observability',
+      pageTitleForMeta: 'Orchestration',
       pageDescriptionForMeta: 'Pulse check anything, build reports, and ship data to any platform with Fleet.',
       currentSection: 'platform',
     }
