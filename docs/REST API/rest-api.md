@@ -9761,9 +9761,6 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 
 `Status: 200`
 
-##### Default response
-
-`Status: 200`
 
 ### List Fleet-maintained apps
 
