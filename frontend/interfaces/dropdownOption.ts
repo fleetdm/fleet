@@ -7,11 +7,13 @@ export default PropTypes.shape({
   value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 });
 
+export type TooltipContent = string | JSX.Element | undefined;
+
 export interface IDropdownOption {
   disabled?: boolean;
   label: string | JSX.Element;
   value: string | number;
   helpText?: ReactNode;
   premiumOnly?: boolean;
-  tooltipContent?: string | JSX.Element;
+  tooltipContent?: TooltipContent;
 }

@@ -1,0 +1,1 @@
+* Added better documentation around how the --label flag works in the fleetctl query command.
