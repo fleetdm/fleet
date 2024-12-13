@@ -1,0 +1,1 @@
+* Fixed bug when using the `without_vulnerability_details` param along with vulnerability filters in fleet premium.
