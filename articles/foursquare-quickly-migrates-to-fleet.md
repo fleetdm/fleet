@@ -1,4 +1,4 @@
-# Foursquare quickly migrates to Fleet for Device Management
+# Foursquare quickly migrates to Fleet for device management
 
 <div purpose="attribution-quote">
 
