@@ -1,16 +1,16 @@
 ## Orbit 1.37.0 (Dec 13, 2024)
 
-* added support for linux key escrow on ubuntu 20.04
+* Added support for key escrow on Ubuntu 20.04.
 
-* added support for kdialog linux key escrow prompts for compatibility with kubuntu systems
+* Added support for kdialog Linux key escrow prompts for compatibility with Kubuntu systems. Currently supported browser on Kubuntu for Fleet desktop is Chrome.
 
-* fixed issue where the linux encryption progress window in zenity was not displaying properly
+* Fixed issue where the Linux encryption progress window in zenity was not displaying properly.
 
 * Added support to migrate the MDM provider of Windows devices to Fleet.
 
-* Add `nftables` table to show configuration for Linux `nftables` network filters.
+* Added `nftables` table to show configuration for Linux `nftables` network filters.
 
-* Updated Go version to 1.23.4
+* Updated Go version to 1.23.4.
 
 ## Orbit 1.36.0 (Nov 25, 2024)
 
