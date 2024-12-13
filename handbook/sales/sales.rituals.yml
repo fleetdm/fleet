@@ -1,13 +1,4 @@
 # https://github.com/fleetdm/fleet/pull/13084
-
-
- -
-  task: "Close leads contacted ≥7 days ago"
-  startedOn: "2024-07-05"
-  frequency: "Daily"
-  description: "Close all of your leads in the 'Attempted to contact' stage and which have been there for 7 or more days.  If follow-up is appropriate, and won't be bothersome, it can be done after closing the lead.  (A new lead can always be opened for the contact later.)"
-  moreInfoUrl: ""
-  dri: "Every AE"
  -
   task: "Prioritize for next sprint" # Title that will actually show in rituals table
   startedOn: "2023-09-04" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
@@ -19,40 +10,12 @@
     labels: [ "#g-sales" ] # label to be applied to issue
     repo: "confidential"
  -
-  task: "g-sales standup" # Title that will actually show in rituals table
-  startedOn: "2023-09-04" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
-  frequency: "Daily" # must be supported by
-  description: "Review progress on priorities for Sprint. Discuss previous day accomplishments, goals for today and any blockers." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
-  moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
-  dri: "alexmitchelliii" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
- -
-  task: "Opportunity pipeline review" # Title that will actually show in rituals table
-  startedOn: "2023-09-04" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
-  frequency: "Weekly" # must be supported by
-  description: "Review status of sales opportunities and discuss next steps." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
-  moreInfoUrl: "https://fleetdm.com/handbook/customers#review-rep-activity" #URL used to highlight "description:" test in table
-  dri: "alexmitchelliii" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
+  task: "Review Salesforce opportunities"
+  startedOn: "2024-12-02"
+  frequency: "Weekly"
+  description: "https://fleetdm.com/handbook/sales#review-salesforce-opportunities"
+  moreInfoUrl: "https://fleetdm.com/handbook/sales#review-salesforce-opportunities"
+  dri: "alexmitchelliii"
   autoIssue:   # Enables automation of GitHub issues
     labels: [ "#g-sales" ] # label to be applied to issue
     repo: "confidential"
- -
-  task: "Review rep activity"
-  startedOn: "2023-09-18"
-  frequency: "Monthly"
-  description: "https://fleetdm.com/handbook/customers#review-rep-activity"
-  moreInfoUrl: "https://fleetdm.com/handbook/customers#review-rep-activity"
-  dri: "alexmitchelliii"
-  -
-  task: "Proposal sent <30 days"
-  startedOn: "2024-12-02"
-  frequency: "Weekly"
-  description: "https://fleetdm.com/handbook/sales#proposal-sent-<30-days"
-  moreInfoUrl: "https://fleetdm.com/handbook/sales#proposal-sent-<30-days"
-  dri: "alexmitchelliii"
-  -
-   task: "Sales retrospective"
-  startedOn: "2024-12-02"
-  frequency: "Weekly"
-  description: "https://fleetdm.com/handbook/sales#sales-retrospective"
-  moreInfoUrl: "https://fleetdm.com/handbook/sales#sales-retrospective"
-  dri: "alexmitchelliii"
