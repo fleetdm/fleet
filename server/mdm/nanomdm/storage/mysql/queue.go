@@ -51,6 +51,7 @@ func enqueue(ctx context.Context, tx *sql.Tx, ids []string, cmd *mdm.Command) er
 }
 
 func (m *MySQLStorage) EnqueueCommand(ctx context.Context, ids []string, cmd *mdm.Command) (map[string]error, error) {
+	// TODO: We need to fix the deadlock caused by simultaneously updating seen_times and enqueuing a command.
 	tx, err := m.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
