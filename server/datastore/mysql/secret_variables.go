@@ -77,20 +77,29 @@ func (ds *Datastore) ExpandEmbeddedSecrets(ctx context.Context, document string)
 		return "", ctxerr.Wrap(ctx, err, "expanding embedded secrets")
 	}
 
-	secretMap := map[string]string{}
+	secretMap := make(map[string]string, len(secrets))
 
 	for _, secret := range secrets {
 		secretMap[secret.Name] = secret.Value
 	}
 
-	for _, wantSecret := range secrets {
-		if _, ok := secretMap[wantSecret.Name]; !ok {
-			return "", ctxerr.Errorf(ctx, "embedded secret missing from datastore: $FLEET_SECRET_%s", wantSecret)
+	missingSecrets := []string{}
+
+	for _, wantSecret := range embeddedSecrets {
+		if _, ok := secretMap[wantSecret]; !ok {
+			missingSecrets = append(missingSecrets, fmt.Sprintf("$FLEET_SECRET_%s", wantSecret))
 		}
 	}
 
+	if len(missingSecrets) > 0 {
+		return "", ctxerr.Errorf(ctx, "embedded secrets missing from datastore: %s", strings.Join(missingSecrets, ", "))
+	}
+
 	expanded := fleet.MaybeExpand(document, func(s string) (string, bool) {
-		val, ok := secretMap[s]
+		if !strings.HasPrefix(s, fleet.FLEET_SECRET_PREFIX) {
+			return "", false
+		}
+		val, ok := secretMap[strings.TrimPrefix(s, fleet.FLEET_SECRET_PREFIX)]
 		return val, ok
 	})
 
