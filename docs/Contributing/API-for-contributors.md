@@ -1279,6 +1279,7 @@ These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet wit
 - [Get label](#get-label)
 - [Get enroll secrets](#get-enroll-secrets)
 - [Modify enroll secrets](#modify-enroll-secrets)
+- [Store secret variables](#store-secret-variables)
 
 ### Get queries
 
@@ -2115,6 +2116,41 @@ This replaces the active global enroll secrets with the secrets specified.
 ```
 
 `POST /api/v1/fleet/spec/enroll_secret`
+
+##### Default response
+
+`Status: 200`
+
+### Store secret variables
+
+Stores secret variables prefixed with `$FLEET_SECRET_` to Fleet.
+
+`PUT /api/v1/fleet/spec/secret_variables`
+
+#### Parameters
+
+| Name    | Type | In   | Description                                                                                                      |
+| ------- | ---- | ---- | ---------------------------------------------------------------------------------------------------------------- |
+| secrets | list | body | **Required.** List of objects consisting of fields: `name` and `value`
+| dry_run | boolean | body | **Optional.** If true, validates the provided secrets and returns any validation errors, but does not apply the changes.
+
+#### Example
+
+`PUT /api/v1/fleet/spec/secret_variables`
+
+##### Request body
+
+```json
+{
+  "secrets": [
+    {
+      "name": "FLEET_SECRET_SOME_API_TOKEN",
+      "value": "971ef02b93c74ca9b22b694a9251f1d6"
+    }
+  ]
+}
+
+```
 
 ##### Default response
 
