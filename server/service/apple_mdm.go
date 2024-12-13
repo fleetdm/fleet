@@ -396,7 +396,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 			Message: fmt.Sprintf("failed to parse config profile: %s", err.Error()),
 		})
 	}
-	// Save the original, unexpanded profile
+	// Save the original unexpanded profile
 	cp.Mobileconfig = b
 
 	if err := cp.ValidateUserProvided(); err != nil {
@@ -1985,13 +1985,21 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), "maximum configuration profile file size is 1 MB"),
 			)
 		}
-		// TODO substitute in secrets for parsing
-		mdmProf, err := fleet.NewMDMAppleConfigProfile(prof, tmID)
+		// Expand profile for validation
+		expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(prof))
+		if err != nil {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
+				"missing fleet secrets")
+		}
+		mdmProf, err := fleet.NewMDMAppleConfigProfile([]byte(expanded), tmID)
 		if err != nil {
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
 				"invalid mobileconfig profile")
 		}
+		// Store original unexpanded profile
+		mdmProf.Mobileconfig = prof
 
 		if err := mdmProf.ValidateUserProvided(); err != nil {
 			return ctxerr.Wrap(ctx,
