@@ -1,3 +1,17 @@
+## Orbit 1.37.0 (Dec 13, 2024)
+
+* added support for linux key escrow on ubuntu 20.04
+
+* added support for kdialog linux key escrow prompts for compatibility with kubuntu systems
+
+* fixed issue where the linux encryption progress window in zenity was not displaying properly
+
+* Added support to migrate the MDM provider of Windows devices to Fleet.
+
+* Add `nftables` table to show configuration for Linux `nftables` network filters.
+
+* Updated Go version to 1.23.4
+
 ## Orbit 1.36.0 (Nov 25, 2024)
 
 * Upgraded macadmins osquery-extension to v1.2.3.
