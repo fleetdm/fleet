@@ -477,17 +477,25 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 }
 
 // deletePendingHostScriptExecutionsForPolicy should be called when a policy is deleted to remove any pending script executions
-func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Context, policyID uint) error {
+func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Context, teamID *uint, policyID uint) error {
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
 	deleteStmt := fmt.Sprintf(`
 		DELETE FROM
 			host_script_results
 		WHERE 
 			policy_id = ? AND
+			script_id IN (
+				SELECT id FROM scripts WHERE scripts.global_or_team_id = ?
+			) AND
 			%s
 	`, whereFilterPendingScript)
 
 	seconds := int(constants.MaxServerWaitTime.Seconds())
-	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, policyID, seconds)
+	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, policyID, globalOrTeamID, seconds)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete pending host script executions for policy")
 	}

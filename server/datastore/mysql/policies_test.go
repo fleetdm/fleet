@@ -256,6 +256,7 @@ func testGlobalPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 		UserID:         &user.ID,
 		PolicyID:       &policy1.ID,
 		SyncRequest:    true,
+		ScriptID:       &script.ID,
 	})
 	require.NoError(t, err)
 	pendingScripts, err := ds.ListPendingHostScriptExecutions(ctx, policy1.ID)
@@ -274,7 +275,7 @@ func testGlobalPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
-	installerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
@@ -850,6 +851,7 @@ func testTeamPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 		UserID:         &user.ID,
 		PolicyID:       &policy1.ID,
 		SyncRequest:    true,
+		ScriptID:       &script.ID,
 	})
 	require.NoError(t, err)
 	pendingScripts, err := ds.ListPendingHostScriptExecutions(ctx, policy1.ID)
@@ -870,7 +872,7 @@ func testTeamPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
-	installerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
@@ -902,7 +904,7 @@ func testTeamPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, len(pendingInstalls))
 
 	// delete the policy
-	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{policy2.ID})
+	_, err = ds.DeleteTeamPolicies(ctx, team2.ID, []uint{policy2.ID})
 	require.NoError(t, err)
 
 	pendingInstalls, err = ds.ListPendingSoftwareInstalls(ctx, host2.ID)

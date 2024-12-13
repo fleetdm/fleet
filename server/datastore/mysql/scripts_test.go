@@ -1464,6 +1464,7 @@ func testDeletePendingHostScriptExecutionsForPolicy(t *testing.T, ds *Datastore)
 		UserID:         &user.ID,
 		PolicyID:       &p1.ID,
 		SyncRequest:    true,
+		ScriptID:       &script1.ID,
 	})
 	require.NoError(t, err)
 
@@ -1471,7 +1472,7 @@ func testDeletePendingHostScriptExecutionsForPolicy(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(pending))
 
-	err = ds.deletePendingHostScriptExecutionsForPolicy(ctx, p1.ID)
+	err = ds.deletePendingHostScriptExecutionsForPolicy(ctx, &team1.ID, p1.ID)
 	require.NoError(t, err)
 
 	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1)
@@ -1485,6 +1486,7 @@ func testDeletePendingHostScriptExecutionsForPolicy(t *testing.T, ds *Datastore)
 		UserID:         &user.ID,
 		PolicyID:       &p2.ID,
 		SyncRequest:    true,
+		ScriptID:       &script2.ID,
 	})
 	require.NoError(t, err)
 
@@ -1492,7 +1494,7 @@ func testDeletePendingHostScriptExecutionsForPolicy(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(pending))
 
-	err = ds.deletePendingHostScriptExecutionsForPolicy(ctx, p1.ID)
+	err = ds.deletePendingHostScriptExecutionsForPolicy(ctx, &team1.ID, p1.ID)
 	require.NoError(t, err)
 
 	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1)
@@ -1506,6 +1508,7 @@ func testDeletePendingHostScriptExecutionsForPolicy(t *testing.T, ds *Datastore)
 		UserID:         &user.ID,
 		PolicyID:       &p1.ID,
 		SyncRequest:    true,
+		ScriptID:       &script1.ID,
 	})
 	require.NoError(t, err)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -1514,7 +1517,7 @@ func testDeletePendingHostScriptExecutionsForPolicy(t *testing.T, ds *Datastore)
 		return nil
 	})
 
-	err = ds.deletePendingHostScriptExecutionsForPolicy(ctx, p1.ID)
+	err = ds.deletePendingHostScriptExecutionsForPolicy(ctx, &team1.ID, p1.ID)
 	require.NoError(t, err)
 
 	var count int

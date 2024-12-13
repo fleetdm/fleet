@@ -462,15 +462,23 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 }
 
 // deletePendingSoftwareInstallsForPolicy should be called after a policy is deleted to remove any pending software installs
-func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context, policyID uint) error {
+func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context, teamID *uint, policyID uint) error {
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
 	const deleteStmt = `
 		DELETE FROM
 			host_software_installs
-		WHERE 
+		WHERE
 			policy_id = ? AND
-			status = ?
+			status = ? AND
+			software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ?
+			)
 	`
-	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, policyID, fleet.SoftwareInstallPending)
+	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, policyID, fleet.SoftwareInstallPending, globalOrTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete pending software installs for policy")
 	}
