@@ -24,6 +24,9 @@ jobs:
     environment: Docker Hub
     permissions:
       contents: write
+      id-token: write
+      attestations: write
+      packages: write
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
@@ -119,7 +122,7 @@ jobs:
         continue-on-error: true
         with:
           subject-digest: ${{steps.image_digests.outputs.digest_fleetctl}}
-          subject-name: "fleetdm/fleetctl:${{ steps.commit.outputs.short_commit }}"
+          subject-name: "fleetdm/fleetctl"
           push-to-registry: true
 
       - name: Get tag
