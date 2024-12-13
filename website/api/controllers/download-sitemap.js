@@ -59,7 +59,7 @@ module.exports = {
       '/deploy',// « article category page
       '/podcasts',// « article category page
       // Product category pages:
-      '/endpoint-ops',
+      '/orchestration',
       '/device-management',
       '/vulnerability-management',
       // Other stuff:
