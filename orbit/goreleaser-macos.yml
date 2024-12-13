@@ -24,12 +24,6 @@ builds:
       - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit={{.Commit}}
       - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Date={{.Date}}
 
-universal_binaries:
-  - replace: true
-    id: orbit-macos
-    hooks:
-      post: ./orbit/tools/build/sign-macos.sh {{ .Path }}
-
 archives:
   - id: orbit-macos
     builds:
