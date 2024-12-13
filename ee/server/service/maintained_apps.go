@@ -122,6 +122,9 @@ func (svc *Service) AddFleetMaintainedApp(
 		UninstallScript:   uninstallScript,
 	}
 
+	// TODO: labels validations, for now just use empty struct
+	payload.ValidatedLabels = &fleet.LabelIndentsWithScope{}
+
 	// Create record in software installers table
 	_, titleID, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
 	if err != nil {
