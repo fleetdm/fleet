@@ -24,12 +24,6 @@ builds:
       - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit={{.Commit}}
       - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Date={{.Date}}
 
-archives:
-  - id: orbit-macos
-    builds:
-      - orbit-macos
-    name_template: orbit_{{.Version}}_macos
-
 checksum:
   name_template: 'checksums.txt'
 
