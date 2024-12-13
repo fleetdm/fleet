@@ -8767,6 +8767,9 @@ Uploads a script, making it available to run on hosts assigned to the specified 
 | script          | file    | form | **Required**. The file containing the script.    |
 | team_id         | integer | form | _Available in Fleet Premium_. The team ID. If specified, the script will only be available to hosts assigned to this team. If not specified, the script will only be available to hosts on **no team**.  |
 
+Script line endings are automatically converted from CRLF to LF for compatibility with both
+non-Windows shells and PowerShell.
+
 #### Example
 
 `POST /api/v1/fleet/scripts`

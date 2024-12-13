@@ -3965,7 +3965,10 @@ _Available in Fleet Premium_
 | dry_run   | bool   | query | Validate the provided scripts and return any validation errors, but do not apply the changes.                                                                         |
 | scripts   | array  | body  | An array of objects with the scripts payloads. Each item must contain `name` with the script name and `script_contents` with the script contents encoded in base64    |
 
-If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error. If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
+If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error.
+If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
+
+Script contents are uploaded verbatim, without CRLF -> LF conversion.
 
 > Note that this endpoint replaces all the active scripts for the specified team (or no team). Any existing script that is not included in the list will be removed, and existing scripts with the same name as a new script will be edited. Providing an empty list of scripts will remove existing scripts.
 
