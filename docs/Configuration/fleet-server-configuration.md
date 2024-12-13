@@ -2103,9 +2103,9 @@ Content distribution network (CDN) URL. Leave blank if you don't use CDN distrib
     software_intallers_cdn_url: https://jkl8dxv87sdh.cloudfront.net
   ```
 
-### s3_software_installers_cdn_url_sign_public_key_id
+### s3_software_installers_cdn_url_signing_public_key_id
 
-Public key ID for URL signing. Leave blank if you don't use URL signing.
+Public key ID for URL signing. If `s3_software_installers_cdn_url` is set, this is required.
 
 - Default value:
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CDN_URL_SIGN_PUBLIC_KEY_ID`
@@ -2115,9 +2115,9 @@ Public key ID for URL signing. Leave blank if you don't use URL signing.
     software_intallers_cdn_url_sign_public_key_id: 1babd7e98b03
   ```
 
-### s3_software_installers_cdn_url_sign_private_key
+### s3_software_installers_cdn_url_signing_private_key
 
-Private key for URL signing. Leave blank if you don't use URL signing.
+Private key for URL signing. If `s3_software_installers_cdn_url` is set, this is required.
 
 - Default value:
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CDN_URL_SIGN_PRIVATE_KEY`
