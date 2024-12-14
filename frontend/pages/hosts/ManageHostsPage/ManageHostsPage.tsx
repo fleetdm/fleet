@@ -85,10 +85,15 @@ import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import EmptyTable from "components/EmptyTable";
 import {
+  HostPlatform,
+  platformSupportsDiskEncryption,
+} from "interfaces/platform";
+import {
   defaultHiddenColumns,
   generateVisibleTableColumns,
   generateAvailableTableHeaders,
 } from "./HostTableConfig";
+
 import {
   LABEL_SLUG_PREFIX,
   DEFAULT_SORT_HEADER,
@@ -1565,7 +1570,52 @@ const ManageHostsPage = ({
       diskEncryptionStatus ||
       vulnerability
     );
+    const generateDiskTableConfig = ({
+      platform,
+      os_version,
+      diskEncryptionEnabled,
+    }: {
+      platform: HostPlatform;
+      os_version: string;
+      diskEncryptionEnabled: any;
+    }): string => {
+      // Check if the platform and OS version support disk encryption
+      if (!platformSupportsDiskEncryption(platform, os_version)) {
+        return "Unsupported";
+      }
 
+      let statusText;
+      const isChromeHost = platform === "chrome";
+
+      switch (true) {
+        case isChromeHost:
+          statusText = "Always on";
+          break;
+        case diskEncryptionEnabled === true:
+          statusText = "On";
+          break;
+        case diskEncryptionEnabled === false:
+          statusText = "Off";
+          break;
+        case (diskEncryptionEnabled === null ||
+          diskEncryptionEnabled === undefined) &&
+          platformSupportsDiskEncryption(platform, os_version):
+          statusText = "Unknown";
+          break;
+        default:
+          statusText = diskEncryptionEnabled || "Unknown";
+      }
+
+      return statusText;
+    };
+    // Loop through each host and assign `disk_encryption_status`
+    hostsData?.hosts.forEach((host) => {
+      host.disk_encryption_status = generateDiskTableConfig({
+        platform: host.platform,
+        os_version: host.os_version,
+        diskEncryptionEnabled: diskEncryptionStatus, // Find ways to pass and consume this data
+      });
+    });
     return (
       <TableContainer
         resultsTitle="hosts"

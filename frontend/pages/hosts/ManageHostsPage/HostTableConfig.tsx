@@ -18,7 +18,6 @@ import TooltipTruncatedTextCell from "components/TableContainer/DataTable/Toolti
 import TooltipWrapper from "components/TooltipWrapper";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import NotSupported from "components/NotSupported";
-
 import {
   humanHostMemory,
   humanHostLastSeen,
@@ -638,6 +637,20 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "hardware_model",
     id: "hardware_model",
     Cell: (cellProps: IHostTableStringCellProps) => (
+      <TextCell value={cellProps.cell.value} />
+    ),
+  },
+  {
+    title: "Disk Encryption",
+    Header: (cellProps: IHostTableHeaderProps) => (
+      <HeaderCell
+        value="Disk Encryption"
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "disk_encryption_status",
+    id: "disk_encryption_enabled",
+    Cell: (cellProps: IHostTableHeaderProps) => (
       <TextCell value={cellProps.cell.value} />
     ),
   },

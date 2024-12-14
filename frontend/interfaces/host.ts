@@ -267,6 +267,7 @@ export interface IHostIssues {
 }
 
 export interface IHost {
+  disk_encryption_status: string;
   created_at: string;
   updated_at: string;
   software_updated_at?: string;
