@@ -217,7 +217,7 @@ var (
 				// EAPs are treated as having all fixes from the previous year-based release, but no fixes from the
 				// year-based release they're an EAP of.
 				yearBasedMinorVersion -= 1
-				if yearBasedMinorVersion <= 0 { // wrap e.g. 2024.1 to 2023.4
+				if yearBasedMinorVersion <= 0 { // wrap e.g. 2024.1 to 2023.4 (not a real version, but has all 2023.3 fixes)
 					yearBasedMajorVersion -= 1
 					yearBasedMinorVersion = 4
 				}
