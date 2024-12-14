@@ -1,0 +1,1 @@
+* Parsed JetBrains IDE EAP versions to match expected CPE matching behavior (e.g. EAP 2024.3 -> version 243 -> has all fixes from 2024.2)
