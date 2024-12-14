@@ -147,8 +147,8 @@ const LabelChooser = ({
 
 interface ITargetLabelSelectorProps {
   selectedTargetType: string;
-  customTargetOptions: IDropdownOption[];
   selectedCustomTarget: string;
+  customTargetOptions: IDropdownOption[];
   selectedLabels: Record<string, boolean>;
   labels: ILabelSummary[];
   /** set this prop to show a help text. If it is encluded then it will override

@@ -36,6 +36,7 @@ export interface IFormValidation {
   postInstallScript?: { isValid: boolean; message?: string };
   uninstallScript?: { isValid: boolean; message?: string };
   selfService?: { isValid: boolean };
+  customTarget?: { isValid: boolean };
 }
 
 interface IPackageFormProps {

@@ -19,10 +19,7 @@ interface IValidation {
   message?: IValidationMessage;
 }
 
-const FORM_VALIDATION_CONFIG: Record<
-  "preInstallQuery",
-  { validations: IValidation[] }
-> = {
+const FORM_VALIDATION_CONFIG: Record<string, { validations: IValidation[] }> = {
   preInstallQuery: {
     validations: [
       {
@@ -34,6 +31,14 @@ const FORM_VALIDATION_CONFIG: Record<
           );
         },
         message: (formData) => validateQuery(formData.preInstallQuery).error,
+      },
+    ],
+  },
+  customTarget: {
+    validations: [
+      {
+        name: "required",
+        isValid: (formData) => formData.customTarget !== undefined,
       },
     ],
   },

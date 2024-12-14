@@ -26,11 +26,15 @@ export interface IFleetMaintainedAppFormData {
   postInstallScript?: string;
   uninstallScript?: string;
   installType: string;
+  targetType: string;
+  customTarget: string;
+  labelTargets: Record<string, boolean>;
 }
 
 export interface IFormValidation {
   isValid: boolean;
   preInstallQuery?: { isValid: boolean; message?: string };
+  customTarget?: { isValid: boolean };
 }
 
 interface IFleetAppDetailsFormProps {
@@ -63,18 +67,14 @@ const FleetAppDetailsForm = ({
     postInstallScript: defaultPostInstallScript,
     uninstallScript: defaultUninstallScript,
     installType: "manual",
+    targetType: "All hosts",
+    customTarget: "labelsIncludeAny",
+    labelTargets: {},
   });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: true,
     preInstallQuery: { isValid: false },
   });
-  const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
-  const [selectedLabels, setSelectedLabels] = useState<Record<string, boolean>>(
-    {}
-  );
-  const [selectedCustomTarget, setSelectedCustomTarget] = useState(
-    "labelsIncludeAny"
-  );
 
   const onChangePreInstallQuery = (value?: string) => {
     const newData = { ...formData, preInstallQuery: value };
@@ -112,15 +112,21 @@ const FleetAppDetailsForm = ({
   };
 
   const onSelectTargetType = (value: string) => {
-    setSelectedTargetType(value);
+    const newData = { ...formData, targetType: value };
+    setFormData(newData);
   };
 
   const onSelectCustomTargetOption = (value: string) => {
-    setSelectedCustomTarget(value);
+    const newData = { ...formData, customTarget: value };
+    setFormData(newData);
   };
 
   const onSelectLabel = ({ name, value }: { name: string; value: boolean }) => {
-    setSelectedLabels((prevItems) => ({ ...prevItems, [name]: value }));
+    const newData = {
+      ...formData,
+      labelTargets: { ...formData.labelTargets, [name]: value },
+    };
+    setFormData(newData);
   };
 
   const onSubmitForm = (evt: React.FormEvent<HTMLFormElement>) => {
@@ -165,14 +171,14 @@ const FleetAppDetailsForm = ({
         </div>
       </fieldset>
       <TargetLabelSelector
-        selectedTargetType={selectedTargetType}
-        selectedCustomTarget={selectedCustomTarget}
-        selectedLabels={selectedLabels}
+        selectedTargetType={formData.targetType}
+        selectedCustomTarget={formData.customTarget}
+        selectedLabels={formData.labelTargets}
         customTargetOptions={CUSTOM_TARGET_OPTIONS}
         className={`${baseClass}__target`}
         dropdownHelpText={
-          selectedTargetType === "Custom" &&
-          generateHelpText(formData.installType, selectedCustomTarget)
+          formData.targetType === "Custom" &&
+          generateHelpText(formData.installType, formData.customTarget)
         }
         onSelectTargetType={onSelectTargetType}
         onSelectCustomTarget={onSelectCustomTargetOption}
