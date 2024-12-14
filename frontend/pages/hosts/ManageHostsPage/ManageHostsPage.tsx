@@ -1608,7 +1608,7 @@ const ManageHostsPage = ({
 
       return statusText;
     };
-    // Loop through each host and assign `disk_encryption_status`
+    // This would be fixed by including the disk_encryption_status in the api response
     hostsData?.hosts.forEach((host) => {
       host.disk_encryption_status = generateDiskTableConfig({
         platform: host.platform,
