@@ -114,6 +114,7 @@ const FleetAppDetailsForm = ({
   const onSelectTargetType = (value: string) => {
     const newData = { ...formData, targetType: value };
     setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
   };
 
   const onSelectCustomTargetOption = (value: string) => {
@@ -127,6 +128,7 @@ const FleetAppDetailsForm = ({
       labelTargets: { ...formData.labelTargets, [name]: value },
     };
     setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
   };
 
   const onSubmitForm = (evt: React.FormEvent<HTMLFormElement>) => {

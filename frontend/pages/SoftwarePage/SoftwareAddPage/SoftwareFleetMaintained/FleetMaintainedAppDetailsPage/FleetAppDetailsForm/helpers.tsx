@@ -12,6 +12,7 @@ import {
 
 type IMessageFunc = (formData: IFleetMaintainedAppFormData) => string;
 type IValidationMessage = string | IMessageFunc;
+type IFormValidationKey = keyof Omit<IFormValidation, "isValid">;
 
 interface IValidation {
   name: string;
@@ -19,7 +20,10 @@ interface IValidation {
   message?: IValidationMessage;
 }
 
-const FORM_VALIDATION_CONFIG: Record<string, { validations: IValidation[] }> = {
+const FORM_VALIDATION_CONFIG: Record<
+  IFormValidationKey,
+  { validations: IValidation[] }
+> = {
   preInstallQuery: {
     validations: [
       {
@@ -37,8 +41,15 @@ const FORM_VALIDATION_CONFIG: Record<string, { validations: IValidation[] }> = {
   customTarget: {
     validations: [
       {
-        name: "required",
-        isValid: (formData) => formData.customTarget !== undefined,
+        name: "requiredLabelTargets",
+        isValid: (formData) => {
+          if (formData.targetType === "All hosts") return true;
+          return (
+            Object.keys(formData.labelTargets).find(
+              (key) => formData.labelTargets[key]
+            ) !== undefined
+          );
+        },
       },
     ],
   },
@@ -63,7 +74,7 @@ export const generateFormValidation = (
   };
 
   Object.keys(FORM_VALIDATION_CONFIG).forEach((key) => {
-    const objKey = key as keyof typeof FORM_VALIDATION_CONFIG;
+    const objKey = key as IFormValidationKey;
     const failedValidation = FORM_VALIDATION_CONFIG[objKey].validations.find(
       (validation) => !validation.isValid(formData)
     );

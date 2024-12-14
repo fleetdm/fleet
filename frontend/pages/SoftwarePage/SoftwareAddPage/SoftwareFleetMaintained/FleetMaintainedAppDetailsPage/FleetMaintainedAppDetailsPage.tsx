@@ -132,7 +132,6 @@ const FleetMaintainedAppDetailsPage = ({
   const {
     data: labels,
     isLoading: isLoadingLabels,
-    isFetching: isFetchingLabels,
     isError: isErrorLabels,
   } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
@@ -144,8 +143,6 @@ const FleetMaintainedAppDetailsPage = ({
       staleTime: 10000,
     }
   );
-
-  console.log(labels);
 
   const onOsqueryTableSelect = (tableName: string) => {
     setSelectedOsqueryTable(tableName);
