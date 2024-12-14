@@ -1599,15 +1599,9 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 var (
 	macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
 	citrixName          = regexp.MustCompile(`Citrix Workspace [0-9]+`)
-)
-
-// sanitizeSoftware performs any sanitization required to the ingested software fields.
-//
-// Some fields are reported with known incorrect values and we need to fix them before using them.
-func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
-	softwareSanitizers := []struct {
+	softwareSanitizers  = []struct {
 		checkSoftware  func(*fleet.Host, *fleet.Software) bool
-		mutateSoftware func(*fleet.Software)
+		mutateSoftware func(*fleet.Software, log.Logger)
 	}{
 		// "Microsoft Teams" on macOS defines the `bundle_short_version` (CFBundleShortVersionString) in a different
 		// unexpected version format. Thus here we transform the version string to the expected format
@@ -1623,7 +1617,7 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
 				return h.Platform == "darwin" && (s.Name == "Microsoft Teams.app" || s.Name == "Microsoft Teams classic.app")
 			},
-			mutateSoftware: func(s *fleet.Software) {
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
 				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
 					s.Version = fmt.Sprintf("%s.%s.00.%s", matches[1], matches[2], matches[3])
 				}
@@ -1635,7 +1629,7 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
 				return h.Platform == "windows" && s.Name == "Cloudflare WARP" && s.Source == "programs"
 			},
-			mutateSoftware: func(s *fleet.Software) {
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
 				// Perform some sanity check on the version before mutating it.
 				parts := strings.Split(s.Version, ".")
 				if len(parts) <= 1 {
@@ -1658,7 +1652,7 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
 				return citrixName.Match([]byte(s.Name)) || s.Name == "Citrix Workspace.app"
 			},
-			mutateSoftware: func(s *fleet.Software) {
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
 				parts := strings.Split(s.Version, ".")
 				if len(parts) <= 1 {
 					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
@@ -1694,7 +1688,7 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
 				return s.Name == "minio" && strings.Contains(s.Version, "RELEASE.")
 			},
-			mutateSoftware: func(s *fleet.Software) {
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
 				s.Version = strings.TrimPrefix(s.Version, "RELEASE.")
 			},
 		},
@@ -1705,7 +1699,7 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 
 				return s.Name == "minio" && regex.MatchString(s.Version)
 			},
-			mutateSoftware: func(s *fleet.Software) {
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
 				timestamp, err := time.Parse("20060102150405", s.Version)
 				if err != nil {
 					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
@@ -1715,10 +1709,15 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 			},
 		},
 	}
+)
 
+// sanitizeSoftware performs any sanitization required to the ingested software fields.
+//
+// Some fields are reported with known incorrect values and we need to fix them before using them.
+func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 	for _, softwareSanitizer := range softwareSanitizers {
 		if softwareSanitizer.checkSoftware(h, s) {
-			softwareSanitizer.mutateSoftware(s)
+			softwareSanitizer.mutateSoftware(s, logger)
 			return
 		}
 	}
