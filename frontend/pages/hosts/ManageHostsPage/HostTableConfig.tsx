@@ -73,49 +73,6 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
     : condensed;
 };
 
-const generateDiskTableConfig = ({
-  platform,
-  os_version,
-  diskEncryptionEnabled,
-}: {
-  platform: HostPlatform;
-  os_version: string;
-  diskEncryptionEnabled: boolean;
-}): any => {
-  if (!platformSupportsDiskEncryption(platform, os_version)) {
-    return <></>;
-  }
-  console.log(
-    "statusText",
-    diskEncryptionEnabled,
-    platformSupportsDiskEncryption(platform, os_version)
-  );
-  let statusText;
-  const isChromeHost = platform === "chrome";
-  switch (true) {
-    case isChromeHost:
-      statusText = "Always on";
-      break;
-    case diskEncryptionEnabled === true:
-      statusText = "On";
-      break;
-    case diskEncryptionEnabled === false:
-      statusText = "Off";
-      break;
-    case (diskEncryptionEnabled === null ||
-      diskEncryptionEnabled === undefined) &&
-      platformSupportsDiskEncryption(platform, os_version):
-      statusText = "Unknown";
-      // currently stops here but should be fixable once we pass the correct values
-      break;
-    default:
-      // something unexpected happened on the way to this component, display whatever we got or
-      // "Unknown" to draw attention to the issue.
-      statusText = diskEncryptionEnabled || "Unknown";
-      return statusText;
-  }
-};
-
 const lastSeenTime = (status: string, seenTime: string): string => {
   if (status !== "online") {
     return `Last Seen: ${humanHostLastSeen(seenTime)} UTC`;
@@ -695,26 +652,14 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
-    accessor: "disk_encryption_enabled",
+    accessor: "disk_encryption_status",
     id: "disk_encryption_enabled",
-    Cell: (cellProps: IHostTableHeaderProps) => {
-      const {
-        platform,
-        os_version,
-        disk_encryption_enabled,
-      } = cellProps.row.original;
-      return (
-        <TextCell
-          value={generateDiskTableConfig({
-            platform,
-            os_version,
-            diskEncryptionEnabled: disk_encryption_enabled,
-          })}
-        />
-      );
-    },
+    Cell: (cellProps: IHostTableHeaderProps) => (
+      <TextCell value={cellProps.cell.value} />
+    ),
   },
 ];
+// NB :  acccesor is what picks the data from the loop
 
 // LOOK FOR A  WAY TO GET THE DISK ENCRYPTION STATUS HERE
 
@@ -805,5 +750,4 @@ export {
   defaultHiddenColumns,
   generateAvailableTableHeaders,
   generateVisibleTableColumns,
-  generateDiskTableConfig,
 };

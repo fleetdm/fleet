@@ -210,7 +210,7 @@ const HostSummary = ({
     os_version,
     disk_encryption_enabled: diskEncryptionEnabled,
   } = summaryData;
-
+  console.log("summaryData >>>>", summaryData);
   const isChromeHost = platform === "chrome";
   const isIosOrIpadosHost = platform === "ios" || platform === "ipados";
 
