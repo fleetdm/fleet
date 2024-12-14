@@ -2521,15 +2521,15 @@ spec:
     /usr/bin/sudo /bin/chmod -R og-rwx /Users/<username>
     Or like this if there is a need for excutable access:
     /usr/bin/sudo /bin/chmod -R og-rw /Users/<username>
-  query: SELECT 1 WHERE NOT EXISTS (
-    SELECT 1 FROM file WHERE (
-    path LIKE '/Users/%'
-    AND path != '/Users/Shared/'
-    AND mode != "0700"
-    AND mode !="0701"
-    AND mode !="0710"
-    AND mode !="0711"
-    ));
+  query: |
+    SELECT 1 FROM find_cmd 
+    WHERE directory = '/System/Volumes/Data/Users' 
+      AND type = 'd' 
+      AND mindepth = '1' 
+      AND maxdepth = '1' 
+      AND not_perm = '700' 
+      AND path NOT LIKE '%/Shared' 
+      AND path NOT LIKE '%/Guest';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
@@ -3464,28 +3464,3 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure Home Folders Are Secure
-  platforms: macOS
-  platform: darwin
-  description: |
-    By default, macOS allows all valid users into the top level of every other user's home folder and restricts access to the Apple default folders within. Another user on the same system can see you have a "Documents" folder but cannot see inside it. This configuration does work for personal file sharing but can expose user files to standard accounts on the system.
-  resolution: |
-    Terminal method:
-    For each user, run the following command to secure all home folders:
-    /usr/bin/sudo /bin/chmod -R og-rwx /Users/<username>
-  query: |
-    SELECT 1 FROM find_cmd 
-    WHERE directory = '/System/Volumes/Data/Users' 
-      AND type = 'd' 
-      AND mindepth = '1' 
-      AND maxdepth = '1' 
-      AND not_perm = '700' 
-      AND path NOT LIKE '%/Shared' 
-      AND path NOT LIKE '%/Guest';
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: defensivedepth
