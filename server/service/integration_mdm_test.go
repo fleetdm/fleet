@@ -7712,7 +7712,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			// initialize our test app config
 			ac := appConfig.Copy()
 			ac.AgentOptions = nil
-			ac.MDM.EndUserAuthentication = fleet.MDMEndUserAuthentication{
+			ac.MDM.EndUserAuthentication = &fleet.MDMEndUserAuthentication{
 				SSOProviderSettings: fleet.SSOProviderSettings{
 					EntityID:    "sso-provider",
 					IDPName:     "sso-provider",
