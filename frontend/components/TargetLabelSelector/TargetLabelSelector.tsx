@@ -1,5 +1,10 @@
 import React, { ReactNode } from "react";
+import { Link } from "react-router";
 import classnames from "classnames";
+
+import PATHS from "router/paths";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { ILabelSummary } from "interfaces/label";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -7,8 +12,6 @@ import Radio from "components/forms/fields/Radio";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import Checkbox from "components/forms/fields/Checkbox";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import { ILabelSummary } from "interfaces/label";
 
 const baseClass = "target-label-selector";
 
@@ -107,8 +110,10 @@ const LabelChooser = ({
     if (!labels.length) {
       return (
         <div className={`${baseClass}__no-labels`}>
-          <b>No labels exist in Fleet</b>
-          <span>Add labels to target specific hosts.</span>
+          <span>
+            <Link to={PATHS.LABEL_NEW_DYNAMIC}>Add labels</Link> to target
+            specific hosts.
+          </span>
         </div>
       );
     }
