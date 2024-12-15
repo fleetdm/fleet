@@ -27,6 +27,9 @@ export interface IPackageFormData {
   postInstallScript?: string;
   uninstallScript?: string;
   selfService: boolean;
+  targetType: string;
+  customTarget: string;
+  labelTargets: Record<string, boolean>;
 }
 
 export interface IFormValidation {
@@ -74,26 +77,21 @@ const PackageForm = ({
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const initialFormData = {
+  const [formData, setFormData] = useState<IPackageFormData>({
     software: defaultSoftware || null,
     installScript: defaultInstallScript || "",
     preInstallQuery: defaultPreInstallQuery || "",
     postInstallScript: defaultPostInstallScript || "",
     uninstallScript: defaultUninstallScript || "",
     selfService: defaultSelfService || false,
-  };
-  const [formData, setFormData] = useState<IPackageFormData>(initialFormData);
+    targetType: "All hosts",
+    customTarget: "labelsIncludeAny",
+    labelTargets: {},
+  });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: false,
     software: { isValid: false },
   });
-  const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
-  const [selectedLabels, setSelectedLabels] = useState<Record<string, boolean>>(
-    {}
-  );
-  const [selectedCustomTarget, setSelectedCustomTarget] = useState(
-    "labelsIncludeAny"
-  );
 
   const onFileSelect = (files: FileList | null) => {
     if (files && files.length > 0) {
@@ -169,15 +167,23 @@ const PackageForm = ({
   };
 
   const onSelectTargetType = (value: string) => {
-    setSelectedTargetType(value);
+    const newData = { ...formData, targetType: value };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
   };
 
-  const onSelectCustomTargetOption = (value: string) => {
-    setSelectedCustomTarget(value);
+  const onSelectCustomTarget = (value: string) => {
+    const newData = { ...formData, customTarget: value };
+    setFormData(newData);
   };
 
   const onSelectLabel = ({ name, value }: { name: string; value: boolean }) => {
-    setSelectedLabels((prevItems) => ({ ...prevItems, [name]: value }));
+    const newData = {
+      ...formData,
+      labelTargets: { ...formData.labelTargets, [name]: value },
+    };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
   };
 
   const isSubmitDisabled = !formValidation.isValid;
@@ -201,13 +207,13 @@ const PackageForm = ({
           }
         />
         <TargetLabelSelector
-          selectedTargetType={selectedTargetType}
-          selectedCustomTarget={selectedCustomTarget}
-          selectedLabels={selectedLabels}
+          selectedTargetType={formData.targetType}
+          selectedCustomTarget={formData.customTarget}
+          selectedLabels={formData.labelTargets}
           customTargetOptions={CUSTOM_TARGET_OPTIONS}
           className={`${baseClass}__target`}
           onSelectTargetType={onSelectTargetType}
-          onSelectCustomTarget={onSelectCustomTargetOption}
+          onSelectCustomTarget={onSelectCustomTarget}
           onSelectLabel={onSelectLabel}
           labels={labels || []}
         />

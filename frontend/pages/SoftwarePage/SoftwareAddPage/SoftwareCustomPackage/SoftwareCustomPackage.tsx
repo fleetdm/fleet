@@ -21,6 +21,8 @@ import { ILabelSummary } from "interfaces/label";
 import CustomLink from "components/CustomLink";
 import FileProgressModal from "components/FileProgressModal";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 
 import PackageForm from "pages/SoftwarePage/components/PackageForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
@@ -178,30 +180,42 @@ const SoftwareCustomPackage = ({
     setUploadDetails(null);
   };
 
+  const renderContent = () => {
+    if (isLoadingLabels) {
+      return <Spinner />;
+    }
+
+    if (isErrorLabels) {
+      return <DataError className={`${baseClass}__data-error`} />;
+    }
+
+    return (
+      <>
+        <PackageForm
+          labels={labels || []}
+          showSchemaButton={!isSidePanelOpen}
+          onClickShowSchema={() => setSidePanelOpen(true)}
+          className={`${baseClass}__package-form`}
+          onCancel={onCancel}
+          onSubmit={onSubmit}
+        />
+        {uploadDetails && (
+          <FileProgressModal
+            fileDetails={uploadDetails}
+            fileProgress={uploadProgress}
+          />
+        )}
+      </>
+    );
+  };
+
   if (!isPremiumTier) {
     return (
       <PremiumFeatureMessage className={`${baseClass}__premium-message`} />
     );
   }
 
-  return (
-    <div className={baseClass}>
-      <PackageForm
-        labels={labels || []}
-        showSchemaButton={!isSidePanelOpen}
-        onClickShowSchema={() => setSidePanelOpen(true)}
-        className={`${baseClass}__package-form`}
-        onCancel={onCancel}
-        onSubmit={onSubmit}
-      />
-      {uploadDetails && (
-        <FileProgressModal
-          fileDetails={uploadDetails}
-          fileProgress={uploadProgress}
-        />
-      )}
-    </div>
-  );
+  return <div className={baseClass}>{renderContent()}</div>;
 };
 
 export default SoftwareCustomPackage;

@@ -12,6 +12,7 @@ type IPackageFormValidatorKey = Exclude<
 
 type IMessageFunc = (formData: IPackageFormData) => string;
 type IValidationMessage = string | IMessageFunc;
+type IFormValidationKey = keyof Omit<IFormValidation, "isValid">;
 
 interface IValidation {
   name: string;
@@ -23,7 +24,7 @@ interface IValidation {
  *  to determine if a field is valid, and rules for generating an error message.
  */
 const FORM_VALIDATION_CONFIG: Record<
-  IPackageFormValidatorKey,
+  IFormValidationKey,
   { validations: IValidation[] }
 > = {
   software: {
@@ -47,14 +48,6 @@ const FORM_VALIDATION_CONFIG: Record<
         message: (formData) => validateQuery(formData.preInstallQuery).error,
       },
     ],
-  },
-  postInstallScript: {
-    // no validations related to postInstallScript
-    validations: [],
-  },
-  selfService: {
-    // no validations related to self service
-    validations: [],
   },
 };
 

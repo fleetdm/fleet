@@ -44,6 +44,7 @@ const FORM_VALIDATION_CONFIG: Record<
         name: "requiredLabelTargets",
         isValid: (formData) => {
           if (formData.targetType === "All hosts") return true;
+          // there must be at least one label target selected
           return (
             Object.keys(formData.labelTargets).find(
               (key) => formData.labelTargets[key]
