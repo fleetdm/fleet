@@ -215,14 +215,16 @@ var (
 				}
 
 				// EAPs are treated as having all fixes from the previous year-based release, but no fixes from the
-				// year-based release they're an EAP of.
+				// year-based release they're an EAP of. The exception to this would be CVE-2024-37051, which was fixed
+				// in a second/third EAP depending on product, but at this point all vulnerable EAPs force exit on
+				// startup due to being expired, so that CVE can't be exploited.
 				yearBasedMinorVersion -= 1
 				if yearBasedMinorVersion <= 0 { // wrap e.g. 2024.1 to 2023.4 (not a real version, but has all 2023.3 fixes)
 					yearBasedMajorVersion -= 1
 					yearBasedMinorVersion = 4
 				}
 
-				s.Version = fmt.Sprintf("%d.%d.%s", yearBasedMajorVersion, yearBasedMinorVersion, "999")
+				s.Version = fmt.Sprintf("%d.%d.%s", yearBasedMajorVersion, yearBasedMinorVersion, "0")
 			},
 		},
 	}
