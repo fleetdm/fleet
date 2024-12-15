@@ -247,7 +247,7 @@ const FleetMaintainedAppDetailsPage = ({
     }
 
     if (isErrorFleetApp || isErrorLabels) {
-      return <DataError />;
+      return <DataError className={`${baseClass}__data-error`} />;
     }
 
     if (fleetApp) {
