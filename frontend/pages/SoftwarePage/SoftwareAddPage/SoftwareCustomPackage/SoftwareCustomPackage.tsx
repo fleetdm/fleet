@@ -4,7 +4,10 @@ import { useQuery } from "react-query";
 import { isAxiosError } from "axios";
 
 import PATHS from "router/paths";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 import { getFileDetails, IFileDetails } from "utilities/file/fileUtils";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 import softwareAPI, {
@@ -54,16 +57,13 @@ const SoftwareCustomPackage = ({
   const {
     data: labels,
     isLoading: isLoadingLabels,
-    isFetching: isFetchingLabels,
     isError: isErrorLabels,
   } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
     () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
     {
+      ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isPremiumTier,
-      refetchOnWindowFocus: false,
-      retry: false,
-      staleTime: 10000,
     }
   );
 

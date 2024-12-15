@@ -1,17 +1,22 @@
 import React, { useContext, useState, useEffect } from "react";
-import { InjectedRouter } from "react-router";
+import { useQuery } from "react-query";
 import classnames from "classnames";
 import { isAxiosError } from "axios";
 
 import { getErrorReason } from "interfaces/errors";
+import { ILabelSummary } from "interfaces/label";
 
 import { NotificationContext } from "context/notification";
 import softwareAPI, {
   MAX_FILE_SIZE_BYTES,
   MAX_FILE_SIZE_MB,
 } from "services/entities/software";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 import deepDifference from "utilities/deep_difference";
 import { getFileDetails } from "utilities/file/fileUtils";
 
@@ -29,7 +34,6 @@ const baseClass = "edit-software-modal";
 interface IEditSoftwareModalProps {
   softwareId: number;
   teamId: number;
-  router: InjectedRouter;
   software?: any; // TODO
   refetchSoftwareTitle: () => void;
   onExit: () => void;
@@ -56,8 +60,23 @@ const EditSoftwareModal = ({
     software: null,
     installScript: "",
     selfService: false,
+    targetType: "",
+    customTarget: "",
+    labelTargets: {},
   });
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  const {
+    data: labels,
+    isLoading: isLoadingLabels,
+    isError: isErrorLabels,
+  } = useQuery<ILabelSummary[], Error>(
+    ["custom_labels"],
+    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+    }
+  );
 
   // Work around to not lose Edit Software modal data when Save changes modal opens
   // by using CSS to hide Edit Software modal when Save changes modal is open
@@ -213,6 +232,7 @@ const EditSoftwareModal = ({
         width="large"
       >
         <PackageForm
+          labels={labels ?? []}
           className={`${baseClass}__package-form`}
           isEditingSoftware
           onCancel={onExit}

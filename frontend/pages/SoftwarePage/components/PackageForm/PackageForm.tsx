@@ -36,9 +36,6 @@ export interface IFormValidation {
   isValid: boolean;
   software: { isValid: boolean };
   preInstallQuery?: { isValid: boolean; message?: string };
-  postInstallScript?: { isValid: boolean; message?: string };
-  uninstallScript?: { isValid: boolean; message?: string };
-  selfService?: { isValid: boolean };
   customTarget?: { isValid: boolean };
 }
 
@@ -237,7 +234,6 @@ const PackageForm = ({
           selectedPackage={formData.software}
           errors={{
             preInstallQuery: formValidation.preInstallQuery?.message,
-            postInstallScript: formValidation.postInstallScript?.message,
           }}
           preInstallQuery={formData.preInstallQuery}
           installScript={formData.installScript}

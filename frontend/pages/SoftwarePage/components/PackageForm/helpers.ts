@@ -20,7 +20,7 @@ interface IValidation {
   message?: IValidationMessage;
 }
 
-/** configuration defines validations for each filed in the form. It defines rules
+/** configuration defines validations for each field in the form. It defines rules
  *  to determine if a field is valid, and rules for generating an error message.
  */
 const FORM_VALIDATION_CONFIG: Record<
@@ -46,6 +46,22 @@ const FORM_VALIDATION_CONFIG: Record<
           );
         },
         message: (formData) => validateQuery(formData.preInstallQuery).error,
+      },
+    ],
+  },
+  customTarget: {
+    validations: [
+      {
+        name: "requiredLabelTargets",
+        isValid: (formData) => {
+          if (formData.targetType === "All hosts") return true;
+          // there must be at least one label target selected
+          return (
+            Object.keys(formData.labelTargets).find(
+              (key) => formData.labelTargets[key]
+            ) !== undefined
+          );
+        },
       },
     ],
   },
