@@ -212,6 +212,9 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
 		return nil
 	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return document, nil
+	}
 	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
 	require.NoError(t, err)
 	crt, key, err := apple_mdm.NewSCEPCACertKey()
