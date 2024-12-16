@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useRef } from "react";
 import { Row } from "react-table";
 import { useQuery } from "react-query";
 import { useDebouncedCallback } from "use-debounce";
@@ -35,6 +35,8 @@ import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
+import SearchField from "components/forms/fields/SearchField";
+import RevealButton from "components/buttons/RevealButton";
 import { generateTableHeaders } from "./TargetsInput/TargetsInputHostsTableConfig";
 
 interface ITargetPillSelectorProps {
@@ -80,6 +82,7 @@ interface ITargetsQueryKey {
 
 const DEBOUNCE_DELAY = 500;
 const STALE_TIME = 60000;
+const SECTION_CHARACTER_LIMIT = 100;
 
 const isLabel = (entity: ISelectTargetsEntity) => "label_type" in entity;
 const isBuiltInLabel = (
@@ -105,6 +108,20 @@ const parseLabels = (list?: ILabelSummary[]) => {
   const other = list?.filter((l) => l.label_type === "regular") || [];
 
   return { allHosts, platforms, other };
+};
+
+/** Returns the index at which the sum of the names in the list exceed the maximum character length */
+const getTruncatedLength = (
+  list: ISelectLabel[] | ISelectTeam[],
+  maxLength: number
+): number => {
+  let totalLength = 0;
+  let index = 0;
+  while (index < list.length && totalLength < maxLength) {
+    totalLength += list[index].name.length;
+    index += 1;
+  }
+  return index;
 };
 
 const TargetPillSelector = ({
@@ -152,10 +169,19 @@ const SelectTargets = ({
   isLivePolicy,
   isObserverCanRunQuery,
 }: ISelectTargetsProps): JSX.Element => {
+  const isMountedRef = useRef(false);
   const { isPremiumTier, isOnGlobalTeam, currentUser } = useContext(AppContext);
 
   const [labels, setLabels] = useState<ILabelsByType | null>(null);
-  const [searchText, setSearchText] = useState("");
+  const [searchTextHosts, setSearchTextHosts] = useState("");
+  const [searchTextTeams, setSearchTextTeams] = useState<string | undefined>(
+    undefined
+  );
+  const [searchTextLabels, setSearchTextLabels] = useState<string | undefined>(
+    undefined
+  );
+  const [isTeamListExpanded, setIsTeamListExpanded] = useState(false);
+  const [isLabelsListExpanded, setIsLabelsListExpanded] = useState(false);
   const [debouncedSearchText, setDebouncedSearchText] = useState("");
   const [isDebouncing, setIsDebouncing] = useState(false);
 
@@ -253,6 +279,50 @@ const SelectTargets = ({
     }
   );
 
+  // Ensure that the team or label list is expanded on the first load only if a hidden entity is already selected
+  const shouldExpandList = (
+    list: ISelectLabel[] | ISelectTeam[],
+    truncatedList: ISelectLabel[] | ISelectTeam[]
+  ) => {
+    return list.some(
+      (entity) =>
+        !truncatedList.some(
+          (truncatedEntity) => truncatedEntity.id === entity.id
+        )
+    );
+  };
+
+  const expandListsOnInitialLoad = () => {
+    if (!isMountedRef.current && teams && labels) {
+      const truncatedLabels =
+        labels?.other?.slice(
+          0,
+          getTruncatedLength(labels?.other, SECTION_CHARACTER_LIMIT)
+        ) || [];
+      const truncatedTeams =
+        teams?.slice(0, getTruncatedLength(teams, SECTION_CHARACTER_LIMIT)) ||
+        [];
+
+      if (shouldExpandList(targetedLabels, truncatedLabels)) {
+        setIsLabelsListExpanded(true);
+      }
+
+      if (shouldExpandList(targetedTeams, truncatedTeams)) {
+        setIsTeamListExpanded(true);
+      }
+
+      isMountedRef.current = true;
+    }
+  };
+
+  useEffect(expandListsOnInitialLoad, [
+    targetedTeams,
+    targetedLabels,
+    labels,
+    teams,
+    isMountedRef,
+  ]);
+
   useEffect(() => {
     const selected = [...targetedHosts, ...targetedLabels, ...targetedTeams];
     setSelectedTargets(selected);
@@ -264,8 +334,8 @@ const SelectTargets = ({
 
   useEffect(() => {
     setIsDebouncing(true);
-    debounceSearch(searchText);
-  }, [searchText]);
+    debounceSearch(searchTextHosts);
+  }, [searchTextHosts]);
 
   const handleClickCancel = () => {
     goToQueryEditor();
@@ -313,7 +383,7 @@ const SelectTargets = ({
 
   const handleRowSelect = (row: Row<IHost>) => {
     setTargetedHosts((prevHosts) => prevHosts.concat(row.original));
-    setSearchText("");
+    setSearchTextHosts("");
 
     // If "all hosts" is already selected when using host target picker, deselect "all hosts"
     if (targetedLabels.some((t) => isAllHosts(t))) {
@@ -333,15 +403,60 @@ const SelectTargets = ({
     goToRunQuery();
   };
 
-  const renderTargetEntityList = (
+  const renderTargetEntitySection = (
     header: string,
     entityList: ISelectLabel[] | ISelectTeam[]
   ): JSX.Element => {
+    const isSearchEnabled = header === "Teams" || header === "Labels";
+    const arrFixed = entityList as Array<typeof entityList[number]>;
+    const filteredEntities = arrFixed.filter(
+      (entity: ISelectLabel | ISelectTeam) => {
+        if (isSearchEnabled) {
+          const searchTerm: string =
+            (header === "Teams" ? searchTextTeams : searchTextLabels) || "";
+          return searchTerm
+            ? entity.name.toLowerCase().includes(searchTerm.toLowerCase())
+            : true;
+        }
+        return true;
+      }
+    );
+
+    const isListExpanded =
+      header === "Teams" ? isTeamListExpanded : isLabelsListExpanded;
+    const truncatedEntities = filteredEntities.slice(
+      0,
+      getTruncatedLength(filteredEntities, SECTION_CHARACTER_LIMIT)
+    );
+    const hiddenEntityCount =
+      filteredEntities.length - truncatedEntities.length;
+
+    const toggleExpansion = () => {
+      header === "Teams"
+        ? setIsTeamListExpanded(!isTeamListExpanded)
+        : setIsLabelsListExpanded(!isLabelsListExpanded);
+    };
+
+    const entitiesToDisplay = isListExpanded
+      ? filteredEntities
+      : truncatedEntities;
+
     return (
       <>
         {header && <h3>{header}</h3>}
+        {isSearchEnabled && (
+          <SearchField
+            placeholder={header === "Teams" ? "Search teams" : "Search labels"}
+            onChange={(searchString) => {
+              header === "Teams"
+                ? setSearchTextTeams(searchString || undefined)
+                : setSearchTextLabels(searchString || undefined);
+            }}
+            clearButton
+          />
+        )}
         <div className="selector-block">
-          {entityList?.map((entity: ISelectLabel | ISelectTeam) => {
+          {entitiesToDisplay?.map((entity: ISelectLabel | ISelectTeam) => {
             const targetList = isLabel(entity) ? targetedLabels : targetedTeams;
             return (
               <TargetPillSelector
@@ -353,6 +468,17 @@ const SelectTargets = ({
             );
           })}
         </div>
+        {hiddenEntityCount > 0 && (
+          <div className="expand-button-wrap">
+            <RevealButton
+              onClick={toggleExpansion}
+              caretPosition="after"
+              showText="Show more"
+              hideText="Show less"
+              isShowing={isListExpanded}
+            />
+          </div>
+        )}
       </>
     );
   };
@@ -456,34 +582,38 @@ const SelectTargets = ({
     );
   };
 
+  if (isLoadingLabels || isLoadingTeams) {
+    return <Spinner />;
+  }
+
   return (
     <div className={`${baseClass}__wrapper`}>
       <h1>Select targets</h1>
       <div className={`${baseClass}__target-selectors`}>
         {!!labels?.allHosts.length &&
-          renderTargetEntityList("", labels.allHosts)}
+          renderTargetEntitySection("", labels.allHosts)}
         {!!labels?.platforms?.length &&
-          renderTargetEntityList("Platforms", labels.platforms)}
+          renderTargetEntitySection("Platforms", labels.platforms)}
         {!!teams?.length &&
           (isOnGlobalTeam
-            ? renderTargetEntityList("Teams", [
+            ? renderTargetEntitySection("Teams", [
                 { id: 0, name: "No team" },
                 ...teams,
               ])
-            : renderTargetEntityList("Teams", filterTeamObserverTeams()))}
+            : renderTargetEntitySection("Teams", filterTeamObserverTeams()))}
         {!!labels?.other?.length &&
-          renderTargetEntityList("Labels", labels.other)}
+          renderTargetEntitySection("Labels", labels.other)}
       </div>
       <TargetsInput
         autofocus
         searchResultsTableConfig={resultsTableConfig}
         selectedHostsTableConifg={selectedHostsTableConfig}
-        searchText={searchText}
+        searchText={searchTextHosts}
         searchResults={searchResults || []}
         isTargetsLoading={isFetchingSearchResults || isDebouncing}
         targetedHosts={targetedHosts}
         hasFetchError={!!errorSearchResults}
-        setSearchText={setSearchText}
+        setSearchText={setSearchTextHosts}
         handleRowSelect={handleRowSelect}
         disablePagination
       />

@@ -57,6 +57,15 @@
       display: flex;
       align-items: center;
       flex-wrap: wrap;
+      margin-top: $pad-small;
+    }
+
+    .input-icon-field {
+      width: 600px;
+    }
+
+    .expand-button-wrap {
+      margin-top: -$pad-small;
     }
   }
   &__targets-button-wrap {

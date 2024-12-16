@@ -147,7 +147,6 @@ const TargetDetails = ({
       query,
     } = labelTarget;
     const labelBaseClass = "label-target";
-    console.log("ERROR 1: labelTarget", labelTarget);
     return (
       <div className={`${labelBaseClass} ${className}`}>
         <button
