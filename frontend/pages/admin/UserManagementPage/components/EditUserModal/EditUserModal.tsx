@@ -69,7 +69,6 @@ const EditUserModal = ({
         onCancel={onCancel}
         onSubmit={onSubmit}
         availableTeams={availableTeams}
-        submitText="Save"
         isPremiumTier={isPremiumTier}
         smtpConfigured={smtpConfigured}
         sesConfigured={sesConfigured}

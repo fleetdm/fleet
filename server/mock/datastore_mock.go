@@ -1161,7 +1161,7 @@ type MaybeUpdateSetupExperienceSoftwareInstallStatusFunc func(ctx context.Contex
 
 type MaybeUpdateSetupExperienceVPPStatusFunc func(ctx context.Context, hostUUID string, commandUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error)
 
-type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
+type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
 
 type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint) (*fleet.MaintainedApp, error)
 
@@ -6905,7 +6905,7 @@ func (s *DataStore) MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hos
 	return s.MaybeUpdateSetupExperienceVPPStatusFunc(ctx, hostUUID, commandUUID, status)
 }
 
-func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListAvailableFleetMaintainedAppsFuncInvoked = true
 	s.mu.Unlock()

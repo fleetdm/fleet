@@ -461,8 +461,7 @@ This is the callback endpoint that the identity provider will use to send securi
 
 ### List activities
 
-Returns a list of the activities that have been performed in Fleet as well as additional metadata.
-for pagination. For a comprehensive list of activity types and detailed information, please see the [audit logs](https://fleetdm.com/docs/using-fleet/audit-activities) page.
+Returns a list of the activities that have been performed in Fleet. For a comprehensive list of activity types and detailed information, please see the [audit logs](https://fleetdm.com/docs/using-fleet/audit-activities) page.
 
 `GET /api/v1/fleet/activities`
 
@@ -8674,6 +8673,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
 - [Add script](#add-script)
+- [Modify script](#modify-script)
 - [Delete script](#delete-script)
 - [List scripts](#list-scripts)
 - [Get or download script](#get-or-download-script)
@@ -8732,7 +8732,7 @@ Gets the result of a script that was executed.
 
 `GET /api/v1/fleet/scripts/results/:execution_id`
 
-##### Default Response
+##### Default response
 
 `Status: 200`
 
@@ -8804,6 +8804,59 @@ echo "hello"
   "script_id": 1227
 }
 ```
+
+### Modify script
+
+Modifies an existing script.
+
+`PATCH /api/v1/fleet/scripts/:id`
+
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                           |
+| ----            | ------- | ---- | --------------------------------------------          |
+| id              | integer | path | **Required**. The ID of the script to modify. |
+| script          | file    | form | **Required**. The file containing the script. Filename will be ignored. |
+
+#### Example
+
+`PATCH /api/v1/fleet/scripts/1`
+
+
+##### Request headers
+
+```http
+Content-Length: 306
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="script"; filename="myscript.sh"
+Content-Type: application/octet-stream
+
+echo "hello"
+--------------------------f02md47480und42y--
+
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 1,
+  "team_id": null,
+  "name": "script_1.sh",
+  "created_at": "2023-07-30T13:41:07Z",
+  "updated_at": "2023-07-30T13:41:07Z"
+}
+```
+
 
 ### Delete script
 
@@ -9022,11 +9075,11 @@ Get a list of all software.
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
-| platform | string | query | Filter software by platform. Supported values are `darwin`, `windows`, and `linux`.  |
+| platform | string | query | Filter software titles by platforms. Options are: `"macos"`, `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`. This parameter can be specified more than once to filter by multiple platforms (e.g. `?platform=darwin&platform=windows`). |
 
 #### Example
 
-`GET /api/v1/fleet/software/titles?team_id=3`
+`GET /api/v1/fleet/software/titles?team_id=3&platform=darwin&platform=windows`
 
 ##### Default response
 
@@ -9372,6 +9425,12 @@ Returns information about the specified software. By default, `versions` are sor
       "latest_version": "2.04",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "self_service": true,
+      "automatic_install_policies": [
+        {
+          "id": 345,
+          "name": "[Install software] Logic Pro",
+        } 
+      ],
       "status": {
         "installed": 3,
         "pending": 1,
@@ -9582,12 +9641,13 @@ _Available in Fleet Premium._
 
 Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 
-`PATCH /api/v1/fleet/software/titles/:title_id/package`
+`PATCH /api/v1/fleet/software/titles/:id/package`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
+| id | integer | path | ID of the software title being updated. |
 | software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
@@ -9824,9 +9884,10 @@ Returns information about the specified Fleet-maintained app.
 {
   "fleet_maintained_app": {
     "id": 1,
+    "url": "https://downloads.1password.com/mac/1Password-8.10.50-aarch64.zip",
     "name": "1Password",
-    "filename": "1Password-8.10.44-aarch64.zip",
-    "version": "8.10.40",
+    "filename": "1Password-8.10.50-aarch64.zip",
+    "version": "8.10.50",
     "platform": "darwin",
     "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
     "uninstall_script": "#!/bin/sh\npkg_ids=$PACKAGE_ID\nfor pkg_id in '${pkg_ids[@]}'...",
@@ -9877,13 +9938,13 @@ Add Fleet-maintained app so it's available for install.
 
 _Available in Fleet Premium._
 
-`GET /api/v1/fleet/software/titles/:software_title_id/package?alt=media`
+`GET /api/v1/fleet/software/titles/:id/package?alt=media`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id   | integer | path | **Required**. The ID of the software title to download software package.|
+| id   | integer | path | **Required**. The ID of the software title to download software package.|
 | team_id | integer | query | **Required**. The team ID. Downloads a software package added to the specified team. |
 | alt             | integer | query | **Required**. If specified and set to "media", downloads the specified software package. |
 
