@@ -1173,15 +1173,16 @@ func testDeletePendingSoftwareInstallsForPolicy(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	installerID1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install",
-		InstallerFile: tfr0,
-		StorageID:     ins0,
-		Filename:      "installer.pkg",
-		Title:         "ins0",
-		Source:        "apps",
-		Platform:      "darwin",
-		TeamID:        &team1.ID,
-		UserID:        user1.ID,
+		InstallScript:   "install",
+		InstallerFile:   tfr0,
+		StorageID:       ins0,
+		Filename:        "installer.pkg",
+		Title:           "ins0",
+		Source:          "apps",
+		Platform:        "darwin",
+		TeamID:          &team1.ID,
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -1193,15 +1194,16 @@ func testDeletePendingSoftwareInstallsForPolicy(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	installerID2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install",
-		InstallerFile: tfr0,
-		StorageID:     ins0,
-		Filename:      "installer.pkg",
-		Title:         "ins1",
-		Source:        "apps",
-		Platform:      "darwin",
-		TeamID:        &team1.ID,
-		UserID:        user1.ID,
+		InstallScript:   "install",
+		InstallerFile:   tfr0,
+		StorageID:       ins0,
+		Filename:        "installer.pkg",
+		Title:           "ins1",
+		Source:          "apps",
+		Platform:        "darwin",
+		TeamID:          &team1.ID,
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 

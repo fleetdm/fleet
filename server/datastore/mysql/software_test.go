@@ -5275,6 +5275,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 		UserID:            user1.ID,
 		BundleIdentifier:  "bi1",
 		Platform:          "darwin",
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -5341,6 +5342,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 		UserID:            user1.ID,
 		BundleIdentifier:  "bi2",
 		Platform:          "darwin",
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -5382,6 +5384,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 		UserID:            user1.ID,
 		BundleIdentifier:  "bi3",
 		Platform:          "darwin",
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
