@@ -2091,40 +2091,40 @@ Minio users must set this to any nonempty value (eg. `minio`), as Minio does not
     software_intallers_region: us-east-1
   ```
 
-### s3_software_installers_cdn_url
+### s3_software_installers_cloudfront_url
 
-Content distribution network (CDN) URL. Leave blank if you don't use CDN distribution.
+CloudFront URL. Leave blank if you don't use CloudFront distribution.
 
 - Default value: none
-- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CDN_URL`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CLOUDFRONT_URL`
 - Config file format:
   ```yaml
   s3:
-    software_intallers_cdn_url: https://jkl8dxv87sdh.cloudfront.net
+    software_intallers_cloudfront_url: https://jkl8dxv87sdh.cloudfront.net
   ```
 
-### s3_software_installers_cdn_url_signing_public_key_id
+### s3_software_installers_cloudfront_url_signing_public_key_id
 
-Public key ID for URL signing. If `s3_software_installers_cdn_url` is set, this is required.
+Public key ID for URL signing. If `s3_software_installers_cloudfront_url` is set, this is required.
 
 - Default value: none
-- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CDN_URL_SIGN_PUBLIC_KEY_ID`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CLOUDFRONT_URL_SIGNING_PUBLIC_KEY_ID`
 - Config file format:
   ```yaml
   s3:
-    software_intallers_cdn_url_sign_public_key_id: 1babd7e98b03
+    software_intallers_cloudfront_url_signing_public_key_id: 1babd7e98b03
   ```
 
-### s3_software_installers_cdn_url_signing_private_key
+### s3_software_installers_cloudfront_url_signing_private_key
 
-Private key for URL signing. If `s3_software_installers_cdn_url` is set, this is required.
+Private key for URL signing. If `s3_software_installers_cloudfront_url` is set, this is required.
 
 - Default value: none
-- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CDN_URL_SIGN_PRIVATE_KEY`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CLOUDFRONT_URL_SIGNING_PRIVATE_KEY`
 - Config file format:
   ```yaml
   s3:
-    software_intallers_cdn_url_sign_private_key: |
+    software_intallers_cloudfront_url_signing_private_key: |
       ------BEGIN BEGIN RSA PRIVATE KEY-----
       3126756bd0c54fbc90c9928ef59e7037af8983afd10048929ae5
       7473e62c7aed...
