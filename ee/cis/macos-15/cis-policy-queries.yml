@@ -1890,6 +1890,7 @@ spec:
         4. Verify that Share Mac Analytics is not enabled
         5. Verify that Share with App Developers is not enabled
         6. Verify that Improve Siri & Dictation is not enabled
+        7. Verify that Improve Assistive Voice Features is not enabled 
   query: |
     SELECT 1 WHERE 
       EXISTS (
@@ -1903,6 +1904,13 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='allowDiagnosticSubmission' AND 
+            (value = 0 OR value = 'false') AND 
+            username = ''
+        )
+      AND EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.Accessibility' AND 
+            name='AXSAudioDonationSiriImprovementEnabled' AND 
             (value = 0 OR value = 'false') AND 
             username = ''
         )
