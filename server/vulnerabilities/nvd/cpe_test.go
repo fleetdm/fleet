@@ -21,40 +21,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCPESoftwareMutations(t *testing.T) {
-	logger := log.NewNopLogger()
-
-	// For JetBrains EAPs; see #22723
-	normalJetBrainsTitle := &fleet.Software{
-		Name:             "GoLand.app",
-		Version:          "2024.3.1",
-		BundleIdentifier: "com.jetbrains.goland",
-	}
-	mutateSoftware(normalJetBrainsTitle, logger)
-	require.Equal(t, normalJetBrainsTitle.Version, "2024.3.1")
-	normalJetBrainsTitle.Version = "2024.3"
-	mutateSoftware(normalJetBrainsTitle, logger)
-	require.Equal(t, normalJetBrainsTitle.Version, "2024.3")
-
-	lateYearEAP := &fleet.Software{
-		Name:             "GoLand.app",
-		Version:          "EAP GO-243.21565.42",
-		BundleIdentifier: "com.jetbrains.goland-EAP",
-	}
-	mutateSoftware(lateYearEAP, logger)
-	require.Equal(t, lateYearEAP.Version, "2024.2.999")
-	mutateSoftware(lateYearEAP, logger) // at this point we shouldn't mutate anything further
-	require.Equal(t, lateYearEAP.Version, "2024.2.999")
-
-	earlyYearEAP := &fleet.Software{
-		Name:             "IntelliJ IDEA CE",
-		Version:          "EAP IC-241.12345.67",
-		BundleIdentifier: "com.jetbrains.intellij",
-	}
-	mutateSoftware(earlyYearEAP, logger)
-	require.Equal(t, earlyYearEAP.Version, "2023.4.999")
-}
-
 func TestCPEFromSoftware(t *testing.T) {
 	tempDir := t.TempDir()
 

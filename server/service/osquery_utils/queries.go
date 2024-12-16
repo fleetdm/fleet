@@ -1708,6 +1708,44 @@ var (
 				s.Version = timestamp.Format("2006-01-02T15-04-05Z")
 			},
 		},
+		{
+			// JetBrains EAP version numbers aren't what are used in CPEs; this handles the translation for Mac versions.
+			// See #22723 for background. Bundle identifier for EAPs also ends with "-EAP" but checking version makes it
+			// a bit easier to add other platforms later. EAP version numbers are e.g. EAP GO-243.21565.42, and checking
+			// here for the dash ensures that string splitting in the mutator always works without a bounds check.
+			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+				return s.BundleIdentifier != "" && strings.HasPrefix(s.BundleIdentifier, "com.jetbrains.") &&
+					strings.HasPrefix(s.Version, "EAP ") && strings.Contains(s.Version, "-")
+			},
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
+				// 243 -> 2024.3
+				eapMajorVersion := strings.Split(strings.Split(s.Version, "-")[1], ".")[0]
+				yearBasedMajorVersion, err := strconv.Atoi("20" + eapMajorVersion[:2])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse JetBrains EAP major version", "version", s.Version, "err", err)
+					return
+				}
+				yearBasedMinorVersion, err := strconv.Atoi(eapMajorVersion[2:])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse JetBrains EAP minor version", "version", s.Version, "err", err)
+					return
+				}
+
+				// EAPs are treated as having all fixes from the previous year-based release, but no fixes from the
+				// year-based release they're an EAP of. The exception to this would be CVE-2024-37051, which was fixed
+				// in a second/third EAP depending on product, but at this point all vulnerable EAPs force exit on
+				// startup due to being expired, so that CVE can't be exploited.
+				yearBasedMinorVersion -= 1
+				if yearBasedMinorVersion <= 0 { // wrap e.g. 2024.1 to 2023.4 (not a real version, but has all 2023.3 fixes)
+					yearBasedMajorVersion -= 1
+					yearBasedMinorVersion = 4
+				}
+
+				// pass through minor and patch version for EAP to tell different EAP builds apart
+				eapMinorAndPatchVersion := strings.Join(strings.Split(strings.Split(s.Version, "-")[1], ".")[1:], ".")
+				s.Version = fmt.Sprintf("%d.%d.%s.%s", yearBasedMajorVersion, yearBasedMinorVersion, "99", eapMinorAndPatchVersion)
+			},
+		},
 	}
 )
 

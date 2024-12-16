@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -183,62 +182,6 @@ func cpeGeneralSearchQuery(software *fleet.Software) (string, []interface{}, err
 	return stm, args, nil
 }
 
-// softwareTransformers provide logic for tweaking e.g. software versions to match what's in the NVD database. These
-// changes are done here rather than in sanitizeSoftware to ensure that software versions visible in the UI are the
-// raw version strings.
-var (
-	softwareTransformers = []struct {
-		matches func(*fleet.Software) bool
-		mutate  func(*fleet.Software, log.Logger)
-	}{
-		{
-			// JetBrains EAP version numbers aren't what are used in CPEs; this handles the translation for Mac versions.
-			// See #22723 for background. Bundle identifier for EAPs also ends with "-EAP" but checking version makes it
-			// a bit easier to add other platforms later. EAP version numbers are e.g. EAP GO-243.21565.42, and checking
-			// here for the dash ensures that string splitting in the mutator always works without a bounds check.
-			matches: func(s *fleet.Software) bool {
-				return s.BundleIdentifier != "" && strings.HasPrefix(s.BundleIdentifier, "com.jetbrains.") &&
-					strings.HasPrefix(s.Version, "EAP ") && strings.Contains(s.Version, "-")
-			},
-			mutate: func(s *fleet.Software, logger log.Logger) {
-				// 243 -> 2024.3
-				eapMajorVersion := strings.Split(strings.Split(s.Version, "-")[1], ".")[0]
-				yearBasedMajorVersion, err := strconv.Atoi("20" + eapMajorVersion[:2])
-				if err != nil {
-					level.Debug(logger).Log("msg", "failed to parse JetBrains EAP major version", "version", s.Version, "err", err)
-					return
-				}
-				yearBasedMinorVersion, err := strconv.Atoi(eapMajorVersion[2:])
-				if err != nil {
-					level.Debug(logger).Log("msg", "failed to parse JetBrains EAP minor version", "version", s.Version, "err", err)
-					return
-				}
-
-				// EAPs are treated as having all fixes from the previous year-based release, but no fixes from the
-				// year-based release they're an EAP of. The exception to this would be CVE-2024-37051, which was fixed
-				// in a second/third EAP depending on product, but at this point all vulnerable EAPs force exit on
-				// startup due to being expired, so that CVE can't be exploited.
-				yearBasedMinorVersion -= 1
-				if yearBasedMinorVersion <= 0 { // wrap e.g. 2024.1 to 2023.4 (not a real version, but has all 2023.3 fixes)
-					yearBasedMajorVersion -= 1
-					yearBasedMinorVersion = 4
-				}
-
-				s.Version = fmt.Sprintf("%d.%d.%s", yearBasedMajorVersion, yearBasedMinorVersion, "0")
-			},
-		},
-	}
-)
-
-func mutateSoftware(software *fleet.Software, logger log.Logger) {
-	for _, transformer := range softwareTransformers {
-		if transformer.matches(software) {
-			transformer.mutate(software, logger)
-			break
-		}
-	}
-}
-
 // CPEFromSoftware attempts to find a matching cpe entry for the given software in the NVD CPE dictionary. `db` contains data from the NVD CPE dictionary
 // and is optimized for lookups, see `GenerateCPEDB`. `translations` are used to aid in cpe matching. When searching for cpes, we first check if it matches
 // any translations, and then lookup in the cpe database based on the title, product and vendor.
@@ -247,8 +190,6 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 		level.Debug(logger).Log("msg", "skipping software with non-ascii characters", "software", software.Name, "version", software.Version, "source", software.Source)
 		return "", nil
 	}
-
-	mutateSoftware(software, logger) // tweak e.g. software versions prior to CPE matching if needed
 
 	translation, match, err := translations.Translate(reCache, software)
 	if err != nil {
