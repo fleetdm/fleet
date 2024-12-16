@@ -295,7 +295,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	// load the pending script executions for that host
-	if !appConfig.ServerSettings.ScriptsDisabled {
+	if !appConfig.ServerSettings.ScriptsDisabled { // TODO filter to only "special" scripts rather than skipping entirely when scripts disabled
 		pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID)
 		if err != nil {
 			return fleet.OrbitConfig{}, err

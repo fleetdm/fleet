@@ -836,18 +836,6 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 }
 
 func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
-	// First check if scripts are disabled globally. If so, no need for further processing.
-	cfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		svc.authz.SkipAuthorization(ctx)
-		return err
-	}
-
-	if cfg.ServerSettings.ScriptsDisabled {
-		svc.authz.SkipAuthorization(ctx)
-		return fleet.NewUserMessageError(errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg), http.StatusForbidden)
-	}
-
 	// we need to use ds.Host because ds.HostLite doesn't return the orbit node key
 	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
