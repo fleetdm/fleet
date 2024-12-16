@@ -4,6 +4,7 @@ import PropTypes from "prop-types";
 import { IconNames } from "components/icons";
 
 import vulnerabilityInterface from "./vulnerability";
+import { ILabelSummary } from "./label";
 
 export default PropTypes.shape({
   type: PropTypes.string,
@@ -126,6 +127,8 @@ export interface ISoftwareTitleDetails {
   bundle_identifier?: string;
   browser?: BrowserType;
   versions_count?: number;
+  labels_include_any?: ILabelSummary[];
+  labels_exclude_any?: ILabelSummary[];
 }
 
 export interface ISoftwareVulnerability {
