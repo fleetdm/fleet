@@ -2404,7 +2404,6 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 						WHERE
 							sil.software_installer_id = si.id
 							AND sil.exclude = 0
-							AND lm.host_id = :host_id	
 						HAVING
 							count_installer_labels > 0 AND count_host_labels > 0 
 							
@@ -2421,7 +2420,6 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 						WHERE
 							sil.software_installer_id = si.id
 							AND sil.exclude = 1
-							AND lm.host_id = :host_id
 						HAVING
 							count_installer_labels > 0 AND count_host_labels = 0
 						) t

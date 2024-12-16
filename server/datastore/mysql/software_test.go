@@ -5394,7 +5394,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, software, 2)
 
-	// Now exclude from hosts with label4. No host has this label, so we shouldn't see installerID3 anymore.
+	// Now include hosts with label4. No host has this label, so we shouldn't see installerID3 anymore.
 	updateInstallerLabel(installerID3, label4.ID, false)
 
 	// We should have [installerID1]
