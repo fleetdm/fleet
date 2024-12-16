@@ -513,7 +513,7 @@ SELECT
 	si.title_id
 FROM
 	software_installer_labels sil
-	JOIN software_installers si ON sil.id = si.id
+	JOIN software_installers si ON si.id = sil.software_installer_id
 	JOIN labels l ON l.id = sil.label_id
 WHERE
 	software_installer_id = ?`
