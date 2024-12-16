@@ -128,6 +128,7 @@ export default {
     }`;
   },
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
+  MFA: `${URL_PREFIX}/login/mfa`,
   NO_ACCESS: `${URL_PREFIX}/login/denied`,
   API_ONLY_USER: `${URL_PREFIX}/apionlyuser`,
 

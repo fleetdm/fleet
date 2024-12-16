@@ -371,6 +371,7 @@ const DeviceUserPage = ({
           <div className={`${baseClass} main-content`}>
             <DeviceUserBanners
               hostPlatform={host.platform}
+              hostOsVersion={host.os_version}
               mdmEnrollmentStatus={host.mdm.enrollment_status}
               mdmEnabledAndConfigured={
                 !!globalConfig?.mdm.enabled_and_configured

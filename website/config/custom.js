@@ -132,7 +132,7 @@ module.exports.custom = {
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // 🫧 Articles and release notes
-    'articles': 'zayhanlon',
+    'articles': 'drew-p-drawers',
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
@@ -220,18 +220,17 @@ module.exports.custom = {
 
     // Articles and release notes
     'CHANGELOG.md': ['mikermcneil', 'noahtalerman', 'lukeheath'],
-    'articles': ['mike-j-thomas', 'mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw'],
-    'website/assets/images/articles': ['mike-j-thomas', 'mike-j-thomas', 'eashaw', 'mikermcneil'],
+    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw', 'drew-p-drawers', 'lukeheath'],
+    'website/assets/images/articles': ['mike-j-thomas', 'eashaw', 'mikermcneil'],
 
     // Website (fleetdm.com)
     'website': ['mikermcneil', 'eashaw'],// (default for website)
-    'website/views': 'eashaw',
+    'website/views': ['eashaw', 'mike-j-thomas'],
     'website/generators': 'eashaw',
     'website/assets': 'eashaw',
     'website/package.json': 'eashaw',
     'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
     'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
-    'website/api/controllers/imagine': ['eashaw', 'mike-j-thomas'],// landing pages
 
     // 🫧 Vulnerability dashboard
     'ee/vulnerability-dashboard': ['eashaw', 'mikermcneil'],// (catch-all)

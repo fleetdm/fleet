@@ -51,7 +51,7 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
-	"go.mozilla.org/pkcs7"
+	"github.com/smallstep/pkcs7"
 )
 
 const (
@@ -2778,20 +2778,21 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		return ctxerr.Wrap(r.Context, err, "cleaning SCEP refs")
 	}
 
+	var hasSetupExpItems bool
 	if m.AwaitingConfiguration {
 		// Enqueue setup experience items and mark the host as being in setup experience
-		_, err := svc.ds.EnqueueSetupExperienceItems(r.Context, r.ID, info.TeamID)
+		hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, r.ID, info.TeamID)
 		if err != nil {
 			return ctxerr.Wrap(r.Context, err, "queueing setup experience tasks")
 		}
-
 	}
 
 	return svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
-		Action:          mdmlifecycle.HostActionTurnOn,
-		Platform:        info.Platform,
-		UUID:            r.ID,
-		EnrollReference: r.Params[mobileconfig.FleetEnrollReferenceKey],
+		Action:                  mdmlifecycle.HostActionTurnOn,
+		Platform:                info.Platform,
+		UUID:                    r.ID,
+		EnrollReference:         r.Params[mobileconfig.FleetEnrollReferenceKey],
+		HasSetupExperienceItems: hasSetupExpItems,
 	})
 }
 
@@ -4477,6 +4478,35 @@ func (svc *Service) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+// //////////////////////////////////////////////////////////////////////////////
+// Count ABM tokens endpoint
+// //////////////////////////////////////////////////////////////////////////////
+
+type countABMTokensResponse struct {
+	Err   error `json:"error,omitempty"`
+	Count int   `json:"count"`
+}
+
+func (r countABMTokensResponse) error() error { return r.Err }
+
+func countABMTokensEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (errorer, error) {
+	tokenCount, err := svc.CountABMTokens(ctx)
+	if err != nil {
+		return &countABMTokensResponse{Err: err}, nil
+	}
+
+	return &countABMTokensResponse{Count: tokenCount}, nil
+}
+
+func (svc *Service) CountABMTokens(ctx context.Context) (int, error) {
+	// Automatic enrollment (ABM/ADE/DEP) is a feature that requires a license.
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return 0, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////

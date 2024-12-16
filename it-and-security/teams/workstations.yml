@@ -36,67 +36,66 @@ controls:
   enable_disk_encryption: true
   macos_settings:
     custom_settings:
-      - path: ../lib/configuration-profiles/macos-date-time.mobileconfig
-      - path: ../lib/configuration-profiles/macos-chrome-enrollment.mobileconfig
-      - path: ../lib/configuration-profiles/macos-disable-bluetooth-file-sharing.mobileconfig
-      - path: ../lib/configuration-profiles/macos-disable-content-caching.mobileconfig
-      - path: ../lib/configuration-profiles/macos-disable-guest-account.mobileconfig
-      - path: ../lib/configuration-profiles/macos-disable-guest-shares.mobileconfig
-      - path: ../lib/configuration-profiles/macos-disable-internet-sharing.mobileconfig
-      - path: ../lib/configuration-profiles/macos-disable-media-sharing.mobileconfig
-      - path: ../lib/configuration-profiles/macos-disable-safari-safefiles.mobileconfig
-      - path: ../lib/configuration-profiles/macos-enable-doh.mobileconfig
-      - path: ../lib/configuration-profiles/macos-enable-firewall-logging.mobileconfig
-      - path: ../lib/configuration-profiles/macos-enable-gatekeeper.mobileconfig
-      - path: ../lib/configuration-profiles/macos-enforce-library-validation.mobileconfig
-      - path: ../lib/configuration-profiles/macos-firewall.mobileconfig
-      - path: ../lib/configuration-profiles/macos-full-disk-access-for-fleetd.mobileconfig
-      - path: ../lib/configuration-profiles/macos-limit-ad-tracking.mobileconfig
-      - path: ../lib/configuration-profiles/macos-misc.mobileconfig
-      - path: ../lib/configuration-profiles/macos-prevent-autologon.mobileconfig
-      - path: ../lib/configuration-profiles/macos-secure-terminal-keyboard.mobileconfig
-      - path: ../lib/configuration-profiles/macos-passcode-settings.json
+      - path: ../lib/macos/configuration-profiles/date-time.mobileconfig
+      - path: ../lib/macos/configuration-profiles/chrome-enrollment.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-bluetooth-file-sharing.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-content-caching.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-guest-account.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-guest-shares.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-internet-sharing.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-media-sharing.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-safari-safefiles.mobileconfig
+      - path: ../lib/macos/configuration-profiles/enable-doh.mobileconfig
+      - path: ../lib/macos/configuration-profiles/enable-firewall-logging.mobileconfig
+      - path: ../lib/macos/configuration-profiles/enable-gatekeeper.mobileconfig
+      - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
+      - path: ../lib/macos/configuration-profiles/firewall.mobileconfig
+      - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
+      - path: ../lib/macos/configuration-profiles/limit-ad-tracking.mobileconfig
+      - path: ../lib/macos/configuration-profiles/misc.mobileconfig
+      - path: ../lib/macos/configuration-profiles/prevent-autologon.mobileconfig
+      - path: ../lib/macos/configuration-profiles/secure-terminal-keyboard.mobileconfig
+      - path: ../lib/macos/declaration-profiles/passcode-settings.json
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
-    macos_setup_assistant: ../lib/automatic-enrollment.dep.json
+    macos_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
     software:
-      - package_path: ../lib/software/mac-google-chrome.yml # Google Chrome for macOS
-      - package_path: ../lib/software/mac-zoom-arm.yml # Zoom for macOS
+      - package_path: ../lib/macos/software/google-chrome.yml # Google Chrome for macOS
+      - package_path: ../lib/macos/software/zoom.yml # Zoom for macOS
       - app_store_id: '803453959' # Slack Desktop
       - app_store_id: '1333542190' # 1Password 7 Desktop
   macos_updates:
-    deadline: "2024-12-02"
-    minimum_version: "15.1.1"
+    deadline: "2025-01-03"
+    minimum_version: "15.2"
   windows_settings:
     custom_settings: null
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
   scripts:
-    - path: ../lib/collect-fleetd-logs.sh
-    - path: ../lib/macos-see-automatic-enrollment-profile.sh
-    - path: ../lib/macos-remove-old-nudge.sh
-    - path: ../lib/install-update-homebrew.sh
-    - path: ../lib/windows-remove-fleetd.ps1
-    - path: ../lib/windows-turn-off-mdm.ps1
+    - path: ../lib/macos/scripts/collect-fleetd-logs.sh
+    - path: ../lib/macos/scripts/see-automatic-enrollment-profile.sh
+    - path: ../lib/macos/scripts/remove-old-nudge.sh
+    - path: ../lib/windows/scripts/remove-fleetd.ps1
+    - path: ../lib/windows/scripts/turn-off-mdm.ps1
 policies:
-  - path: ../lib/macos-device-health.policies.yml
-  - path: ../lib/windows-device-health.policies.yml
-  - path: ../lib/linux-device-health.policies.yml
-  - path: ../lib/macos-cis.policies.yml
-  - path: ../lib/windows-cis.policies.yml
+  - path: ../lib/macos/policies/device-health.yml
+  - path: ../lib/macos/policies/cis.yml
+  - path: ../lib/windows/policies/device-health.yml
+  - path: ../lib/windows/policies/cis.yml
+  - path: ../lib/linux/policies/linux-device-health.yml
   - name: macOS - Check if latest version
-    query: SELECT 1 FROM os_version WHERE (major = '14' AND minor = '6') OR major = '15';
-    critical: false
+    query: SELECT 1 FROM os_version WHERE (major = '15' AND minor = '1' AND patch = '1');
+    critical: true
     description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
     resolution: We will update your macOS to the latest version.
     platform: darwin
     calendar_events_enabled: false
 queries:
-  - path: ../lib/collect-failed-login-attempts.queries.yml
-  - path: ../lib/collect-usb-devices.queries.yml
-  - path: ../lib/collect-vs-code-extensions.queries.yml
+  - path: ../lib/macos/queries/collect-failed-login-attempts.yml
+  - path: ../lib/all/queries/collect-usb-devices.yml
+  - path: ../lib/all/queries/collect-vs-code-extensions.yml
   - name: Collect expiration date for MDM SCEP certificates
     description: "For the following issue: https://github.com/fleetdm/confidential/issues/4518. Returns expiration date for macOS hosts's MDM SCEP certs."
     query: "SELECT common_name, datetime(not_valid_after,'unixepoch') AS expires FROM certificates WHERE 'common_name' LIKE '%FleetDM Identity%';"
@@ -106,8 +105,8 @@ queries:
     observer_can_run: true
 software:
   packages:
-    - path: ../lib/software/mac-zoom-arm.yml # Zoom for macOS
-    - path: ../lib/software/mac-google-chrome.yml # Google Chrome for macOS
+    - path: ../lib/macos/software/zoom.yml # Zoom for macOS
+    - path: ../lib/macos/software/google-chrome.yml # Google Chrome for macOS
   app_store_apps:
     - app_store_id: '803453959' # Slack Desktop
     - app_store_id: '1333542190' # 1Password 7 Desktop

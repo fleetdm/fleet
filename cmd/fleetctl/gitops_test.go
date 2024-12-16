@@ -69,7 +69,9 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 		return nil
 	}
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
-	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) { return nil, nil }
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
+	}
 
 	// Mock appConfig
 	savedAppConfig := &fleet.AppConfig{}
@@ -224,7 +226,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		return nil
 	}
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
-	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) { return nil, nil }
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
+	}
 
 	// Mock appConfig
 	savedAppConfig := &fleet.AppConfig{}
@@ -364,7 +368,9 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) { return nil, nil }
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
+	}
 	team := &fleet.Team{
 		ID:        1,
 		CreatedAt: time.Now(),
@@ -600,8 +606,8 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	query.ID = 1
 	query.Name = "Query to delete"
 	queryDeleted := false
-	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) {
-		return []*fleet.Query{&query}, nil
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+		return []*fleet.Query{&query}, 1, nil, nil
 	}
 	ds.DeleteQueriesFunc = func(ctx context.Context, ids []uint) (uint, error) {
 		queryDeleted = true
@@ -861,8 +867,8 @@ func TestGitOpsFullTeam(t *testing.T) {
 	query.TeamID = ptr.Uint(teamID)
 	query.Name = "Query to delete"
 	queryDeleted := false
-	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) {
-		return []*fleet.Query{&query}, nil
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+		return []*fleet.Query{&query}, 1, nil, nil
 	}
 	ds.DeleteQueriesFunc = func(ctx context.Context, ids []uint) (uint, error) {
 		queryDeleted = true
@@ -1154,7 +1160,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		}
 		return nil, nil
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) { return nil, nil }
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
+	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {
@@ -1216,6 +1224,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{}, nil
+	}
+	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
+		return 0, nil
 	}
 	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
 		return nil
@@ -1482,7 +1493,9 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 		return nil, nil
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) { return nil, nil }
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
+	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {
@@ -1814,6 +1827,9 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{}, nil
+	}
+	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
+		return 0, nil
 	}
 
 	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
@@ -2435,7 +2451,9 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		}
 		return nil, nil
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) { return nil, nil }
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
+	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {
@@ -2854,6 +2872,9 @@ software:
 				}
 				return []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}, {OrganizationName: "Foo Inc."}}, nil
 			}
+			ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
+				return len(tt.tokens), nil
+			}
 
 			ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
 				var res []*fleet.TeamSummary
@@ -3177,6 +3198,9 @@ software:
 			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 				return []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}, {OrganizationName: "Foo Inc."}}, nil
 			}
+			ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
+				return 1, nil
+			}
 
 			ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
 				var res []*fleet.TeamSummary
@@ -3215,6 +3239,31 @@ software:
 			// Second real run, now that all the teams are saved
 			out, err = runAppNoChecks(args)
 			tt.realRunAssertion(t, *savedAppConfigPtr, ds, out.String(), err)
+		})
+	}
+}
+
+func TestGitOpsWindowsMigration(t *testing.T) {
+	cases := []struct {
+		file    string
+		wantErr string
+	}{
+		// booleans are Windows MDM enabled and Windows migration enabled
+		{"testdata/gitops/global_config_windows_migration_true_true.yml", ""},
+		{"testdata/gitops/global_config_windows_migration_false_true.yml", "Windows MDM is not enabled"},
+		{"testdata/gitops/global_config_windows_migration_true_false.yml", ""},
+		{"testdata/gitops/global_config_windows_migration_false_false.yml", ""},
+	}
+	for _, c := range cases {
+		t.Run(filepath.Base(c.file), func(t *testing.T) {
+			setupFullGitOpsPremiumServer(t)
+
+			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
+			if c.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, c.wantErr)
+			}
 		})
 	}
 }

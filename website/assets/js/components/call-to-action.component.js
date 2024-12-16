@@ -13,6 +13,7 @@ parasails.registerComponent('callToAction', {
   //  ╠═╝╠╦╝║ ║╠═╝╚═╗
   //  ╩  ╩╚═╚═╝╩  ╚═╝
   props: [
+    'type', // Required for a custom call-to-action. If undefined, the call to action component will default to a CTA that matches the landing pages (As of 2024-12-11)
     'title', // Required: The title of this call-to-action
     'text', // Required: The text of the call to action
     'primaryButtonText', // Required: The text of the call to action's button
@@ -49,7 +50,7 @@ parasails.registerComponent('callToAction', {
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
   <div id="cta-component">
-    <div purpose="custom-cta">
+    <div purpose="custom-cta" v-if="type && type === 'custom'">
       <div purpose="custom-cta-content" class="text-white text-center">
         <div purpose="custom-cta-title">{{callToActionTitle}}</div>
         <div purpose="custom-cta-text">{{callToActionText}}</div>
@@ -61,6 +62,10 @@ parasails.registerComponent('callToAction', {
         </span>
       </div>
     </div>
+    <div purpose="default-cta" v-else>
+      <a purpose="cta-button" href="/contact">Talk to an engineer</a>
+      <animated-arrow-button  href="/register">Try it yourself</animated-arrow-button>
+    </div>
   </div>
   `,
 
@@ -71,31 +76,36 @@ parasails.registerComponent('callToAction', {
 
   },
   mounted: async function() {
-    if (this.title) {
-      this.callToActionTitle = this.title;
-    } else {
-      throw new Error('Incomplete usage of <call-to-action>: Please provide a `title` example: title="Secure laptops & servers"');
-    }
-    if (this.text) {
-      this.callToActionText = this.text;
-    } else {
-      throw new Error('Incomplete usage of <call-to-action>: Please provide a `text` example: text="Get up and running with a test environment of Fleet within minutes"');
-    }
-    if (this.primaryButtonText) {
-      this.calltoActionPrimaryBtnText = this.primaryButtonText;
-    } else {
-      throw new Error('Incomplete usage of <call-to-action>: Please provide a `primaryButtonText`. example: primary-button-text="Get started"');
-    }
-    if (this.primaryButtonHref) {
-      this.calltoActionPrimaryBtnHref = this.primaryButtonHref;
-    } else {
-      throw new Error('Incomplete usage of <call-to-action>: Please provide a `primaryButtonHref` example: primary-button-href="/get-started?try-it-now"');
-    }
-    if (this.secondaryButtonText) {
-      this.calltoActionSecondaryBtnText = this.secondaryButtonText;
-    }
-    if (this.secondaryButtonHref) {
-      this.calltoActionSecondaryBtnHref = this.secondaryButtonHref;
+    if(this.type) {
+      if(this.type !== 'custom') {
+        throw new Error('Unsupported usage of <call-to-action>: The only supported "type" value at this time is "custom"');
+      }
+      if (this.title) {
+        this.callToActionTitle = this.title;
+      } else {
+        throw new Error('Incomplete usage of <call-to-action>: Please provide a `title` example: title="Secure laptops & servers"');
+      }
+      if (this.text) {
+        this.callToActionText = this.text;
+      } else {
+        throw new Error('Incomplete usage of <call-to-action>: Please provide a `text` example: text="Get up and running with a test environment of Fleet within minutes"');
+      }
+      if (this.primaryButtonText) {
+        this.calltoActionPrimaryBtnText = this.primaryButtonText;
+      } else {
+        throw new Error('Incomplete usage of <call-to-action>: Please provide a `primaryButtonText`. example: primary-button-text="Get started"');
+      }
+      if (this.primaryButtonHref) {
+        this.calltoActionPrimaryBtnHref = this.primaryButtonHref;
+      } else {
+        throw new Error('Incomplete usage of <call-to-action>: Please provide a `primaryButtonHref` example: primary-button-href="/get-started?try-it-now"');
+      }
+      if (this.secondaryButtonText) {
+        this.calltoActionSecondaryBtnText = this.secondaryButtonText;
+      }
+      if (this.secondaryButtonHref) {
+        this.calltoActionSecondaryBtnHref = this.secondaryButtonHref;
+      }
     }
   },
   watch: {

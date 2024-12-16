@@ -2,13 +2,10 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <link rel="preconnect" href="https://fonts.gstatic.com" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
       body {
-        font-family: "Nunito Sans", sans-serif;
+        font-family: "Inter", sans-serif;
         margin: 0;
       }
 
@@ -111,9 +108,11 @@
                 "
               >
                 <h1>You have been invited to Fleet!</h1>
-                <p>Hello,</p>
+                <p>Hello {{.Name}},</p>
                 <p>
-                  <strong style="text-transform: capitalize;">{{.InvitedBy}} </strong>has invited you to join <strong>{{.OrgName}}</strong>.
+                  <strong style="text-transform: capitalize"
+                    >{{.InvitedBy}} </strong
+                  >has invited you to join <strong>{{.OrgName}}</strong>.
                 </p>
                 <p>
                   Please click the button below to accept the invitation and
@@ -161,7 +160,11 @@
                   Accept invitation
                 </a>
                 {{end}}
-                
+
+                <p style="font-size: 14px; color: #515774; padding-top: 32px">
+                  Please do not reply to this automated message.
+                </p>
+
                 <div
                   style="border-bottom: 1px solid #e2e4ea; padding-top: 32px"
                 ></div>
@@ -182,15 +185,12 @@
                   </a>
                   <a href="https://twitter.com/fleetctl" target="_blank">
                     <img
-                      alt="Twitter logo"
-                      style="height: 20px; width: 25px; padding-right: 20px"
-                      src="{{.AssetURL}}/twitter-logo-50x40@2x.png"
+                      alt="X logo"
+                      style="height: 20px; width: 20px; padding-right: 20px"
+                      src="{{.AssetURL}}/x-logo-24x24@2x.png"
                     />
                   </a>
-                  <a
-                    href="https://fleetdm.com/support"
-                    target="_blank"
-                  >
+                  <a href="https://fleetdm.com/support" target="_blank">
                     <img
                       alt="Slack logo"
                       style="height: 20px; width: 20.5px; padding-right: 20px"

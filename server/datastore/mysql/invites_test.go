@@ -42,9 +42,10 @@ func testInvitesCreate(t *testing.T, ds *Datastore) {
 	}
 
 	invite := &fleet.Invite{
-		Email: "user@foo.com",
-		Name:  "user",
-		Token: "some_user",
+		Email:      "user@foo.com",
+		Name:       "user",
+		Token:      "some_user",
+		MFAEnabled: true,
 		Teams: []fleet.UserTeam{
 			{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
 			{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 3}},
@@ -58,6 +59,7 @@ func testInvitesCreate(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, invite.ID, verify.ID)
 	assert.Equal(t, invite.Email, verify.Email)
+	assert.True(t, invite.MFAEnabled)
 	assert.Len(t, invite.Teams, 2)
 
 	_, err = ds.NewInvite(context.Background(), &fleet.Invite{
@@ -245,6 +247,7 @@ func testInvitesUpdate(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	invite.Name = "someothername"
+	invite.MFAEnabled = true
 
 	invite, err = ds.UpdateInvite(context.Background(), invite.ID, invite)
 	require.NoError(t, err)
@@ -253,11 +256,13 @@ func testInvitesUpdate(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, invite.ID, verify.ID)
 	assert.Equal(t, verify.Name, "someothername")
+	assert.Equal(t, verify.MFAEnabled, true)
 
 	invite.Teams = []fleet.UserTeam{
 		{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
 		{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
 	}
+	invite.MFAEnabled = false
 
 	invite, err = ds.UpdateInvite(context.Background(), invite.ID, invite)
 	require.NoError(t, err)
@@ -266,8 +271,9 @@ func testInvitesUpdate(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, invite.ID, verify.ID)
 	require.Len(t, verify.Teams, 2)
-	assert.Equal(t, uint(1), invite.Teams[0].ID)
-	assert.Equal(t, uint(2), invite.Teams[1].ID)
+	assert.Equal(t, uint(1), verify.Teams[0].ID)
+	assert.Equal(t, uint(2), verify.Teams[1].ID)
+	assert.False(t, verify.MFAEnabled)
 
 	invite.GlobalRole = null.StringFrom(fleet.RoleAdmin)
 	invite.Teams = nil
@@ -288,5 +294,4 @@ func testInvitesUpdate(t *testing.T, ds *Datastore) {
 	assert.Equal(t, verify.Name, sentinelInvite.Name)
 	require.Len(t, verify.Teams, 1)
 	assert.Equal(t, fleet.RoleAdmin, verify.Teams[0].Role)
-
 }

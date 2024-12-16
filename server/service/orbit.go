@@ -249,15 +249,13 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 				notifs.RunSetupExperience = true
 			}
 
-			if inSetupAssistant || fleet.IsNotFound(err) {
-				// If the client is running a fleetd that doesn't support setup experience, or if no
-				// software/script has been configured for setup experience, then we should fall back to
-				// the "old way" of releasing the device. We do an additional check for
-				// !inSetupAssistant to prevent enqueuing a new job every time the /config
-				// endpoint is hit.
+			if inSetupAssistant {
+				// If the client is running a fleetd that doesn't support setup
+				// experience, then we should fall back to the "old way" of releasing
+				// the device.
 				mp, ok := capabilities.FromContext(ctx)
-				if !ok || !mp.Has(fleet.CapabilitySetupExperience) || !inSetupAssistant {
-					level.Debug(svc.logger).Log("msg", "host doesn't support setup experience or no setup experience configured, falling back to worker-based device release", "host_uuid", host.UUID)
+				if !ok || !mp.Has(fleet.CapabilitySetupExperience) {
+					level.Debug(svc.logger).Log("msg", "host doesn't support setup experience, falling back to worker-based device release", "host_uuid", host.UUID)
 					if err := svc.processReleaseDeviceForOldFleetd(ctx, host); err != nil {
 						return fleet.OrbitConfig{}, err
 					}
@@ -268,13 +266,26 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	// set the host's orbit notifications for Windows MDM
 	if appConfig.MDM.WindowsEnabledAndConfigured {
-		if IsEligibleForWindowsMDMEnrollment(host, mdmInfo) {
+		if isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
 			discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appConfig.ServerSettings.ServerURL)
 			if err != nil {
 				return fleet.OrbitConfig{}, err
 			}
 			notifs.WindowsMDMDiscoveryEndpoint = discoURL
 			notifs.NeedsProgrammaticWindowsMDMEnrollment = true
+		} else if appConfig.MDM.WindowsMigrationEnabled && isEligibleForWindowsMDMMigration(host, mdmInfo) {
+			notifs.NeedsMDMMigration = true
+
+			// Set the host to refetch the "critical queries" quickly for some time,
+			// to improve ingestion time of the unenroll and make the host eligible to
+			// enroll into Fleet faster.
+			if host.RefetchCriticalQueriesUntil == nil {
+				refetchUntil := svc.clock.Now().Add(fleet.RefetchMDMUnenrollCriticalQueryDuration)
+				host.RefetchCriticalQueriesUntil = &refetchUntil
+				if err := svc.ds.UpdateHostRefetchCriticalQueriesUntil(ctx, host.ID, &refetchUntil); err != nil {
+					return fleet.OrbitConfig{}, err
+				}
+			}
 		}
 	}
 	if !appConfig.MDM.WindowsEnabledAndConfigured {
@@ -521,7 +532,7 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 
 		// Enroll reference arg is not used in the release device task, passing empty string.
 		if err := worker.QueueAppleMDMJob(ctx, svc.ds, svc.logger, worker.AppleMDMPostDEPReleaseDeviceTask,
-			host.UUID, host.Platform, host.TeamID, "", bootstrapCmdUUID, acctConfigCmdUUID); err != nil {
+			host.UUID, host.Platform, host.TeamID, "", false, bootstrapCmdUUID, acctConfigCmdUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue Apple Post-DEP release device job")
 		}
 	}

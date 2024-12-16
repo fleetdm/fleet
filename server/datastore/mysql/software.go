@@ -917,7 +917,7 @@ func listSoftwareDB(
 				DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
 				CreatedAt:   *result.CreatedAt,
 			}
-			if opts.IncludeCVEScores {
+			if opts.IncludeCVEScores && !opts.WithoutVulnerabilityDetails {
 				cve.CVSSScore = &result.CVSSScore
 				cve.EPSSProbability = &result.EPSSProbability
 				cve.CISAKnownExploit = &result.CISAKnownExploit
@@ -1813,7 +1813,10 @@ FROM (
         AND COALESCE(s.bundle_identifier, '') = ''
 ) as combined_results
 ON DUPLICATE KEY UPDATE
-    software_titles.id = software_titles.id
+    software_titles.name = software_titles.name,
+    software_titles.source = software_titles.source,
+    software_titles.browser = software_titles.browser,
+    software_titles.bundle_identifier = software_titles.bundle_identifier
 `
 		res, err := tx.ExecContext(ctx, upsertTitlesStmt)
 		if err != nil {

@@ -1,0 +1,1 @@
+* Changed script upload endpoint (`POST /api/v1/fleet/scripts`) to automatically switch CRLF line endings to LF

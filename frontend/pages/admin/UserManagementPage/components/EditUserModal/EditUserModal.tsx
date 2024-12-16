@@ -4,11 +4,11 @@ import { ITeam } from "interfaces/team";
 import { IUserFormErrors, UserRole } from "interfaces/user";
 import Modal from "components/Modal";
 import UserForm from "../UserForm";
-import { IFormData } from "../UserForm/UserForm";
+import { IUserFormData } from "../UserForm/UserForm";
 
 interface IEditUserModalProps {
   onCancel: () => void;
-  onSubmit: (formData: IFormData) => void;
+  onSubmit: (formData: IUserFormData) => void;
   defaultName?: string;
   defaultEmail?: string;
   defaultGlobalRole?: UserRole | null;
@@ -21,8 +21,9 @@ interface IEditUserModalProps {
   sesConfigured: boolean;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
+  isMfaEnabled?: boolean; // corresponds to whether MFA is enabled for the individual user
   isApiOnly?: boolean;
-  editUserErrors?: IUserFormErrors;
+  editUserErrors: IUserFormErrors;
   isModifiedByGlobalAdmin?: boolean | false;
   isInvitePending?: boolean;
   isUpdatingUsers: boolean;
@@ -44,6 +45,7 @@ const EditUserModal = ({
   sesConfigured,
   canUseSso,
   isSsoEnabled,
+  isMfaEnabled,
   isApiOnly,
   currentTeam,
   editUserErrors,
@@ -58,7 +60,7 @@ const EditUserModal = ({
       className={`${baseClass}__edit-user-modal`}
     >
       <UserForm
-        createOrEditUserErrors={editUserErrors}
+        userFormErrors={editUserErrors}
         defaultName={defaultName}
         defaultEmail={defaultEmail}
         defaultGlobalRole={defaultGlobalRole}
@@ -67,12 +69,12 @@ const EditUserModal = ({
         onCancel={onCancel}
         onSubmit={onSubmit}
         availableTeams={availableTeams}
-        submitText="Save"
         isPremiumTier={isPremiumTier}
         smtpConfigured={smtpConfigured}
         sesConfigured={sesConfigured}
         canUseSso={canUseSso}
         isSsoEnabled={isSsoEnabled}
+        isMfaEnabled={isMfaEnabled}
         isApiOnly={isApiOnly}
         isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
         isInvitePending={isInvitePending}

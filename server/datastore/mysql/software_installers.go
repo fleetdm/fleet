@@ -73,31 +73,31 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 	return result, nil
 }
 
-func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
-	titleID, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, payload)
+func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (installerID, titleID uint, err error) {
+	titleID, err = ds.getOrGenerateSoftwareInstallerTitleID(ctx, payload)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "get or generate software installer title ID")
+		return 0, 0, ctxerr.Wrap(ctx, err, "get or generate software installer title ID")
 	}
 
 	if err := ds.addSoftwareTitleToMatchingSoftware(ctx, titleID, payload); err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "add software title to matching software")
+		return 0, 0, ctxerr.Wrap(ctx, err, "add software title to matching software")
 	}
 
 	installScriptID, err := ds.getOrGenerateScriptContentsID(ctx, payload.InstallScript)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "get or generate install script contents ID")
+		return 0, 0, ctxerr.Wrap(ctx, err, "get or generate install script contents ID")
 	}
 
 	uninstallScriptID, err := ds.getOrGenerateScriptContentsID(ctx, payload.UninstallScript)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "get or generate uninstall script contents ID")
+		return 0, 0, ctxerr.Wrap(ctx, err, "get or generate uninstall script contents ID")
 	}
 
 	var postInstallScriptID *uint
 	if payload.PostInstallScript != "" {
 		sid, err := ds.getOrGenerateScriptContentsID(ctx, payload.PostInstallScript)
 		if err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "get or generate post-install script contents ID")
+			return 0, 0, ctxerr.Wrap(ctx, err, "get or generate post-install script contents ID")
 		}
 		postInstallScriptID = &sid
 	}
@@ -161,12 +161,12 @@ INSERT INTO software_installers (
 			// already exists for this team/no team
 			err = alreadyExists("SoftwareInstaller", payload.Title)
 		}
-		return 0, ctxerr.Wrap(ctx, err, "insert software installer")
+		return 0, 0, ctxerr.Wrap(ctx, err, "insert software installer")
 	}
 
 	id, _ := res.LastInsertId()
 
-	return uint(id), nil //nolint:gosec // dismiss G115
+	return uint(id), titleID, nil //nolint:gosec // dismiss G115
 }
 
 func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
@@ -405,6 +405,12 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
 	}
 
+	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
+	}
+	dest.AutomaticInstallPolicies = policies
+
 	return &dest, nil
 }
 
@@ -453,6 +459,31 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 
 		return nil
 	})
+}
+
+// deletePendingSoftwareInstallsForPolicy should be called after a policy is deleted to remove any pending software installs
+func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context, teamID *uint, policyID uint) error {
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	const deleteStmt = `
+		DELETE FROM
+			host_software_installs
+		WHERE
+			policy_id = ? AND
+			status = ? AND
+			software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ?
+			)
+	`
+	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, policyID, fleet.SoftwareInstallPending, globalOrTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete pending software installs for policy")
+	}
+
+	return nil
 }
 
 func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool, policyID *uint) (string, error) {

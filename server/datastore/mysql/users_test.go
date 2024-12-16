@@ -42,14 +42,14 @@ func TestUsers(t *testing.T) {
 
 func testUsersCreate(t *testing.T, ds *Datastore) {
 	createTests := []struct {
-		password, email             string
-		isAdmin, passwordReset, sso bool
-		resultingPasswordReset      bool
+		password, email                  string
+		isAdmin, passwordReset, sso, mfa bool
+		resultingPasswordReset           bool
 	}{
-		{"foobar", "mike@fleet.co", true, false, true, false},
-		{"foobar", "jason@fleet.co", true, false, false, false},
-		{"foobar", "jason2@fleet.co", true, true, true, false},
-		{"foobar", "jason3@fleet.co", true, true, false, true},
+		{"foobar", "mike@fleet.co", true, false, true, false, false},
+		{"foobar", "jason@fleet.co", true, false, false, true, false},
+		{"foobar", "jason2@fleet.co", true, true, true, false, false},
+		{"foobar", "jason3@fleet.co", true, true, false, false, true},
 	}
 
 	for _, tt := range createTests {
@@ -58,6 +58,7 @@ func testUsersCreate(t *testing.T, ds *Datastore) {
 			AdminForcedPasswordReset: tt.passwordReset,
 			Email:                    tt.email,
 			SSOEnabled:               tt.sso,
+			MFAEnabled:               tt.mfa,
 			GlobalRole:               ptr.String(fleet.RoleObserver),
 		}
 
@@ -79,6 +80,7 @@ func testUsersCreate(t *testing.T, ds *Datastore) {
 		assert.Equal(t, tt.email, verify.Email)
 		assert.Equal(t, tt.email, verify.Email)
 		assert.Equal(t, tt.sso, verify.SSOEnabled)
+		assert.Equal(t, tt.mfa, verify.MFAEnabled)
 		assert.Equal(t, tt.resultingPasswordReset, verify.AdminForcedPasswordReset)
 
 		assert.LessOrEqual(t, beforeUserCreate, verify.CreatedAt)
@@ -103,11 +105,11 @@ func testUsersByID(t *testing.T, ds *Datastore) {
 
 func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
 	createTests := []struct {
-		password, email        string
-		isAdmin, passwordReset bool
+		password, email             string
+		isAdmin, passwordReset, mfa bool
 	}{
-		{"foobar", "mike@fleet.co", true, false},
-		{"foobar", "jason@fleet.co", false, false},
+		{"foobar", "mike@fleet.co", true, false, true},
+		{"foobar", "jason@fleet.co", false, false, false},
 	}
 
 	var users []*fleet.User
@@ -117,6 +119,7 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
 			Password:                 []byte(tt.password),
 			AdminForcedPasswordReset: tt.passwordReset,
 			Email:                    tt.email,
+			MFAEnabled:               tt.mfa,
 			GlobalRole:               ptr.String(fleet.RoleObserver),
 		}
 
@@ -134,6 +137,27 @@ func testUsersSave(t *testing.T, ds *Datastore) {
 	testUserGlobalRole(t, ds, users)
 	testEmailAttribute(t, ds, users)
 	testPasswordAttribute(t, ds, users)
+	testMFAAttribute(t, ds, users)
+}
+
+func testMFAAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
+	for _, user := range users {
+		user.MFAEnabled = true
+		err := ds.SaveUser(context.Background(), user)
+		assert.Nil(t, err)
+
+		verify, err := ds.UserByID(context.Background(), user.ID)
+		assert.Nil(t, err)
+		assert.True(t, verify.MFAEnabled)
+
+		user.MFAEnabled = false
+		err = ds.SaveUser(context.Background(), user)
+		assert.Nil(t, err)
+
+		verify, err = ds.UserByID(context.Background(), user.ID)
+		assert.Nil(t, err)
+		assert.False(t, verify.MFAEnabled)
+	}
 }
 
 func testPasswordAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {

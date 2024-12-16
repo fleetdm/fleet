@@ -96,6 +96,10 @@ func (m mailService) SendEmail(e fleet.Email) error {
 	return m.sendMail(e, msg)
 }
 
+func (m mailService) CanSendEmail(smtpSettings fleet.SMTPSettings) bool {
+	return smtpSettings.SMTPConfigured
+}
+
 type loginauth struct {
 	username string
 	password string

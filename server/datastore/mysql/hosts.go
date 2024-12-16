@@ -467,7 +467,12 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 		GROUP BY q.id
 	`
 
-	sqlQuery := baseQuery + filter1 + " UNION ALL " + baseQuery + filter2
+	finalColumns := `id, name, description, team_id, schedule_interval, discard_data, automations_enabled,
+		last_fetched, average_memory, denylisted, executions, last_executed, output_size, system_time,
+		user_time, wall_time`
+
+	sqlQuery := `SELECT ` + finalColumns + ` FROM (` +
+		baseQuery + filter1 + " UNION ALL " + baseQuery + filter2 + `) qs GROUP BY ` + finalColumns
 
 	args := []interface{}{
 		pastDate,
@@ -1404,20 +1409,32 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	// or are servers. Similar logic could be applied to macOS hosts but is not included in this
 	// current implementation.
 
-	sqlFmt := ` AND h.platform IN('windows', 'darwin', 'ios', 'ipados') AND (ne.id IS NOT NULL OR mwe.host_uuid IS NOT NULL) AND hmdm.enrolled = 1`
+	sqlFmt := ` AND (
+		(h.platform = 'windows' AND mwe.host_uuid IS NOT NULL AND hmdm.enrolled = 1) -- windows
+		OR (h.platform IN ('darwin', 'ios', 'ipados') AND ne.id IS NOT NULL AND hmdm.enrolled = 1) -- apple
+		OR (h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%%') -- linux
+	)`
+
 	if opt.TeamFilter == nil {
 		// OS settings filter is not compatible with the "all teams" option so append the "no team"
 		// filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
 		sqlFmt += ` AND h.team_id IS NULL`
 	}
-	var whereMacOS, whereWindows string
+	var whereMacOS, whereWindows, whereLinux string
 	sqlFmt += `
-AND ((h.platform = 'windows' AND (%s))
-OR ((h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND (%s)))`
+AND (
+	(h.platform = 'windows' AND (%s))
+	OR ((h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND (%s))
+	OR ((h.os_version LIKE 'Fedora%%' OR h.platform = 'ubuntu') AND (%s))
+)`
 
 	// construct the WHERE for macOS
 	whereMacOS = fmt.Sprintf(`(%s) = ?`, sqlCaseMDMAppleStatus())
 	paramsMacOS := []any{opt.OSSettingsFilter}
+
+	// construct the WHERE for linux
+	whereLinux = fmt.Sprintf(`(%s) = ?`, sqlCaseLinuxOSSettingsStatus())
+	paramsLinux := []any{opt.OSSettingsFilter}
 
 	// construct the WHERE for windows
 	whereWindows = `hmdm.is_server = 0`
@@ -1520,8 +1537,9 @@ OR ((h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND (
 	paramsWindows = append(paramsWindows, opt.OSSettingsFilter)
 	params = append(params, paramsWindows...)
 	params = append(params, paramsMacOS...)
+	params = append(params, paramsLinux...)
 
-	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS), params, nil
+	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS, whereLinux), params, nil
 }
 
 func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}, enableDiskEncryption bool) (string, []interface{}) {
@@ -1529,13 +1547,13 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt
 		return sql, params
 	}
 
-	sqlFmt := " AND h.platform IN('windows', 'darwin')"
+	sqlFmt := " AND h.platform IN('windows', 'darwin', 'ubuntu', 'rhel')"
 	if opt.TeamFilter == nil {
 		// OS settings filter is not compatible with the "all teams" option so append the "no
 		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
 		sqlFmt += ` AND h.team_id IS NULL`
 	}
-	sqlFmt += ` AND ((h.platform = 'windows' AND %s) OR (h.platform = 'darwin' AND %s))`
+	sqlFmt += ` AND ((h.platform = 'windows' AND %s) OR (h.platform = 'darwin' AND %s) OR ((h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%%') AND %s))`
 
 	var subqueryMacOS string
 	var subqueryParams []interface{}
@@ -1580,7 +1598,10 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt
 		whereMacOS = "EXISTS (" + subqueryMacOS + ")"
 	}
 
-	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS), append(params, subqueryParams...)
+	whereLinux := fmt.Sprintf(`(%s) = ?`, sqlCaseLinuxDiskEncryptionStatus())
+	subqueryParams = append(subqueryParams, opt.OSSettingsDiskEncryptionFilter)
+
+	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS, whereLinux), append(params, subqueryParams...)
 }
 
 func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
@@ -3839,16 +3860,19 @@ ON DUPLICATE KEY UPDATE
 `, hostID, encryptedBase64Passphrase, encryptedBase64Salt, keySlot)
 	return err
 }
+
 func (ds *Datastore) IsHostPendingEscrow(ctx context.Context, hostID uint) bool {
 	var pendingEscrowCount uint
 	_ = sqlx.GetContext(ctx, ds.reader(ctx), &pendingEscrowCount, `
           SELECT COUNT(*) FROM host_disk_encryption_keys WHERE host_id = ? AND reset_requested = TRUE`, hostID)
 	return pendingEscrowCount > 0
 }
+
 func (ds *Datastore) ClearPendingEscrow(ctx context.Context, hostID uint) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE host_disk_encryption_keys SET reset_requested = FALSE WHERE host_id = ?`, hostID)
 	return err
 }
+
 func (ds *Datastore) ReportEscrowError(ctx context.Context, hostID uint, errorMessage string) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 INSERT INTO host_disk_encryption_keys
@@ -3856,6 +3880,7 @@ INSERT INTO host_disk_encryption_keys
 `, hostID, errorMessage)
 	return err
 }
+
 func (ds *Datastore) QueueEscrow(ctx context.Context, hostID uint) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 INSERT INTO host_disk_encryption_keys
@@ -3863,6 +3888,7 @@ INSERT INTO host_disk_encryption_keys
 `, hostID)
 	return err
 }
+
 func (ds *Datastore) AssertHasNoEncryptionKeyStored(ctx context.Context, hostID uint) error {
 	var hasKeyCount uint
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasKeyCount, `
