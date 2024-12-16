@@ -26,32 +26,18 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 ## Current product groups
 
-| Product group                            | Goal _(value for customers and/or community)_                         | Capacity\*   |
-|:-----------------------------------------|:----------------------------------------------------------------------|:-------------|
-| [Endpoint ops](#endpoint-ops-group)      | Increase and exceed maturity in the "Endpoint operations" category.   | 156          |
-| [MDM](#mdm-group)                        | Reach maturity in the "MDM" product category.                         | 156          |
+| Product group                            | Goal _(value for customers and/or community)_                                                                          | Capacity |
+|:-----------------------------------------|:-----------------------------------------------------------------------------------------------------------------------|:---------|
+| [MDM](#mdm-group)                        | Increase and exceed maturity in the [device management](https://fleetdm.com/device-management) product category.       | 104      |
+| [Orchestration](#orchestration-group)    | Increase and exceed maturity in the [orchestration](https://fleetdm.com/orchestration) product category.               | 104      |
+| [Software](#software-group)              | Increase and exceed maturity in the [software management](https://fleetdm.com/software-management) product category.   | 104      |
 
 \* The number of [estimated story points](https://fleetdm.com/handbook/company/communications#estimation-points) this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
 
 
-### Endpoint ops group
-
-The goal of the endpoint ops group is to increase and exceed [Fleet's product maturity goals in the endpoint operations category](https://drive.google.com/file/d/11yQ_2WG7TbRErUpMBKWu_hQ5wRIZyQhr/view?usp=sharing).
-
-| Responsibility                    | Human(s)                  |
-|:----------------------------------|:--------------------------|
-| Product Designer                  | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_
-| Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
-| Product Manager                   | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/@noahtalerman))_
-| Quality Assurance                 | [Reed Haynes](https://www.linkedin.com/in/reed-haynes-633a69a3/) _([@xpkoala](https://github.com/xpkoala))_
-| Developer                         | [Jacob Shandling](https://www.linkedin.com/in/jacob-shandling/) _([@jacobshandling](https://github.com/jacobshandling))_, [Lucas Rodriguez](https://www.linkedin.com/in/lukmr/) _([@lucasmrod](https://github.com/lucasmrod))_, [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_, [Tim Lee](https://www.linkedin.com/in/mostlikelee/) _([@mostlikelee](https://github.com/mostlikelee))_, [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_, [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_
-
-> The [Slack channel](https://fleetdm.slack.com/archives/C01EZVBHFHU), [kanban release board](https://app.zenhub.com/workspaces/-g-endpoint-ops-current-sprint-63bd7e0bf75dba002a2343ac/board), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-endpoint-ops) for this product group is `#g-endpoint-ops`.
-
-
 ### MDM group
 
-The goal of the MDM group is to increase and exceed [Fleet's product maturity goals](https://drive.google.com/file/d/11yQ_2WG7TbRErUpMBKWu_hQ5wRIZyQhr/view?usp=sharing) in the "MDM" product category.
+The goal of the MDM group is to increase and exceed [Fleet's product maturity goals](https://fleetdm.com/device-management) in the "MDM" product category.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
@@ -59,10 +45,39 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Product Manager                   | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/@noahtalerman))_
 | Quality Assurance                 | [Gabe Lopez](https://www.linkedin.com/in/gabelopez/) _([@PezHub](https://github.com/PezHub))_
-| Developer                         | [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, [Jahziel Villasana-Espinoza](https://www.linkedin.com/in/jahziel-v/) _([@jahzielv](https://github.com/jahzielv))_, [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_, [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
+| Developer                         | [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this product group is `#g-mdm`.
 
+
+### Orchestration group
+
+The goal of the orchestration group is to increase and exceed [Fleet's product maturity goals in the orchestration category](https://fleetdm.com/orchestration).
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_
+| Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
+| Product Manager                   | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/@noahtalerman))_
+| Quality Assurance                 | [Reed Haynes](https://www.linkedin.com/in/reed-haynes-633a69a3/) _([@xpkoala](https://github.com/xpkoala))_
+| Developer                         | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_, [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_, [Lucas Rodriguez](https://www.linkedin.com/in/lukmr/) _([@lucasmrod](https://github.com/lucasmrod))_, [Jacob Shandling](https://www.linkedin.com/in/jacob-shandling/) _([@jacobshandling](https://github.com/jacobshandling))_
+
+> The [Slack channel](https://fleetdm.slack.com/archives/C01EZVBHFHU), [kanban release board](https://app.zenhub.com/workspaces/-g-endpoint-ops-current-sprint-63bd7e0bf75dba002a2343ac/board), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-endpoint-ops) for this product group is `#g-endpoint-ops`.
+
+
+### Software group
+
+The goal of the software group is to increase and exceed [Fleet's product maturity goals in the software management category](https://fleetdm.com/software-management).
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Eugene Kuo](https://www.linkedin.com/in/eugkuo/) _([@eugkuo](https://github.com/eugkuo))_
+| Engineering Manager               | [Tim Lee](https://www.linkedin.com/in/mostlikelee/) _([@mostlikelee](https://github.com/mostlikelee))_
+| Product Manager                   | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/@noahtalerman))_
+| Quality Assurance                 | [Janis Watts](https://www.linkedin.com/in/janis-watts-b080ab94/) _([@jmwatts](https://github.com/jmwatts))_
+| Developer                         | [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_, [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_, [Jahziel Villasana-Espinoza](https://www.linkedin.com/in/jahziel-v/) _([@jahzielv](https://github.com/jahzielv))_
+
+> The [Slack channel](https://fleetdm.slack.com/archives/C01EZVBHFHU), [kanban release board](https://app.zenhub.com/workspaces/-g-endpoint-ops-current-sprint-63bd7e0bf75dba002a2343ac/board), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-endpoint-ops) for this product group is `#g-endpoint-ops`.
 
 ## Making changes
 
@@ -485,18 +500,6 @@ During daily standup, the EM will filter the board to only `:incoming` bugs and 
 
 When fixing the bug, if the proposed solution requires changes that would affect the user experience (UI, API, or CLI), notify the EM and PM to align on the acceptability of the change.
 
-Engineering teams coordinate on bug fixes with the product team during the joint sprint kick-off review. If one team is at capacity and a bug needs attention, another team can step in to assist by following these steps:
-
-For MDM support on Endpoint ops bugs:
-- Remove the `#g-endpoint-ops` label and add `#g-mdm` label.
-- Add `~assisting g-endpoint-ops` to clarify the bug’s origin.
-
-For Endpoint ops support on MDM bugs:
-- Remove the `#g-mdm` label and add `#g-endpoint-ops` label.
-- Add `~assisting g-mdm` to clarify the bug’s origin.
-
-Fleet [always prioritizes bugs](https://fleetdm.com/handbook/product#prioritizing-improvements).
-
 
 #### Awaiting QA
 
@@ -540,7 +543,7 @@ PRs should remain in draft until they are ready to be reviewed for final approva
 All PRs from the community are routed through the on-call developer. For code changes, if the on-call developer has the knowledge and confidence to review, they should do so. Otherwise, they should request a review from an developer with the appropriate domain knowledge. It is the on-call developer's responsibility to monitor community PRs and make sure that they are moved forward (either by review with feedback or merge).
 
 - **Customer success meetings**
-The on-call developer is encouraged to attend some of the customer success meetings during the week. Post a message to the #g-endpoint-ops Slack channel requesting invitations to upcoming meetings.
+The on-call developer is encouraged to attend some of the customer success meetings during the week. Post a message to the #g-endpoint-o Slack channel requesting invitations to upcoming meetings.
 
 This has a dual purpose of providing more context for how our customers use Fleet. The developer should actively participate and provide input where appropriate (if not sure, please ask your manager or organizer of the call).
 
