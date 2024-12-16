@@ -38,7 +38,6 @@ import Icon from "components/Icon";
 import SearchField from "components/forms/fields/SearchField";
 import RevealButton from "components/buttons/RevealButton";
 import { generateTableHeaders } from "./TargetsInput/TargetsInputHostsTableConfig";
-import { isEmpty } from "lodash";
 
 interface ITargetPillSelectorProps {
   entity: ISelectLabel | ISelectTeam;
