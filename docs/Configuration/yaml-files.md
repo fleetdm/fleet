@@ -330,7 +330,7 @@ software:
   app_store_apps:
     - app_store_id: '1091189122'
   fleet_maintained_apps:
-    - fleet_maintained_app_name: Microsoft Excel
+    - name: Microsoft Excel
 ```
 
 ### packages
@@ -340,6 +340,7 @@ software:
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
+- `auto-install` specifies whether a policy will be written automatically. If true, the software will be installed everywhere it's absent.
 
 #### Example
 
@@ -352,6 +353,7 @@ install_script:
 uninstall_script:
   path: ../lib/software/tailscale-uninstall-script.ps1
 self_service: true
+auto-install: true
 ```
 
 ### app_store_apps
@@ -364,7 +366,7 @@ self_service: true
 
 ### fleet_maintained_apps
 
-- `fleet_maintained_app_name` is the name of the app. A full list of Fleet-maintained apps can be found on the [App library page](https://fleetdm.com/app-library) on [Fleetdm.com](https://fleetdm.com).
+- `name` is the name of the app. A full list of Fleet-maintained apps can be found on the [App library page](https://fleetdm.com/app-library) on [Fleetdm.com](https://fleetdm.com).
 
 ## org_settings and team_settings
 
