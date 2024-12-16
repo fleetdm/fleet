@@ -13,6 +13,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
@@ -238,7 +239,7 @@ func cleanupPolicy(
 		}
 		if _, isDB := extContext.(*sqlx.DB); isDB {
 			// wrapping in a retry to avoid deadlocks with the cleanups_then_aggregation cron job
-			err = withRetryTxx(ctx, extContext.(*sqlx.DB), fn, logger)
+			err = common_mysql.WithRetryTxx(ctx, extContext.(*sqlx.DB), fn, logger)
 		} else {
 			err = fn(extContext)
 		}
