@@ -2398,8 +2398,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 							COUNT(*) AS count_installer_labels,
 							COUNT(lm.label_id) AS count_host_labels
 						FROM
-							software_installers si2
-							JOIN software_installer_labels sil ON sil.software_installer_id = si2.id
+							software_installer_labels sil
 							LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
 							AND lm.host_id = :host_id
 						WHERE
@@ -2416,9 +2415,9 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 							COUNT(*) AS count_installer_labels,
 							COUNT(lm.label_id) AS count_host_labels
 						FROM
-							software_installers si2
-							JOIN software_installer_labels sil ON sil.software_installer_id = si2.id
+							software_installer_labels sil
 							LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+							AND lm.host_id = :host_id
 						WHERE
 							sil.software_installer_id = si.id
 							AND sil.exclude = 1
