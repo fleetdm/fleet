@@ -2410,7 +2410,7 @@ One of `query` and `query_id` must be specified.
 
 #### Example with one host targeted by hostname
 
-`POST /api/v1/fleet/queries/run_by_names`
+`POST /api/v1/fleet/queries/run_by_identifiers`
 
 ##### Request body
 
@@ -2449,7 +2449,7 @@ One of `query` and `query_id` must be specified.
 
 #### Example with multiple hosts targeted by label name
 
-`POST /api/v1/fleet/queries/run_by_names`
+`POST /api/v1/fleet/queries/run_by_identifiers`
 
 ##### Request body
 
@@ -2485,6 +2485,39 @@ One of `query` and `query_id` must be specified.
   }
 }
 ```
+
+#### Example with invalid label
+
+`POST /api/v1/fleet/queries/run_by_identifiers`
+
+##### Request body
+
+```json
+{
+  "query": "SELECT instance_id FROM system_info",
+  "selected": {
+    "labels": ["Windows", "Banana", "Apple"]
+  }
+}
+```
+
+##### Default response
+
+`Status: 400`
+
+```json
+{
+  "message": "Bad request",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Invalid label name(s): Banana, Apple."
+    }
+  ],
+  "uuid": "303649f4-5e45-4379-bae9-64ec0ef56287"
+}
+```
+
 
 ### Retrieve live query results (standard WebSocket API)
 

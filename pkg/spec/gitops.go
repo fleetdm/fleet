@@ -101,6 +101,8 @@ type GitOps struct {
 	Queries      []*fleet.QuerySpec
 	// Software is only allowed on teams, not on global config.
 	Software GitOpsSoftware
+	// FleetSecrets is a map of secret names to their values, extracted from FLEET_SECRET_ environment variables used in profiles and scripts.
+	FleetSecrets map[string]string
 }
 
 type GitOpsSoftware struct {
@@ -130,6 +132,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 
 	var multiError *multierror.Error
 	result := &GitOps{}
+	result.FleetSecrets = make(map[string]string)
 
 	topKeys := []string{"name", "team_settings", "org_settings", "agent_options", "controls", "policies", "queries", "software"}
 	for k := range top {
@@ -431,6 +434,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal controls: %v", err))
 	}
 	controlsTop.Defined = true
+	controlsDir := baseDir
 	if controlsTop.Path == nil {
 		controlsTop.Scripts, err = resolveScriptPaths(controlsTop.Scripts, baseDir)
 		if err != nil {
@@ -467,7 +471,69 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 			result.Controls = pathControls
 		}
+		controlsDir = filepath.Dir(controlsFilePath)
 	}
+
+	// Find Fleet secrets in scripts.
+	for _, script := range result.Controls.Scripts {
+		if script.Path == nil {
+			// This should never happen because we checked for missing paths above (with code added in https://github.com/fleetdm/fleet/pull/24639).
+			return multierror.Append(multiError, errors.New("controls.scripts.path is missing"))
+		}
+		fileBytes, err := os.ReadFile(*script.Path)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to read scripts file %s: %v", *script.Path, err))
+		}
+		err = LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
+		if err != nil {
+			return multierror.Append(multiError, err)
+		}
+	}
+
+	// Find Fleet secrets in profiles
+	var profiles []fleet.MDMProfileSpec
+	if result.Controls.MacOSSettings != nil {
+		// We are marshalling/unmarshalling to get the data into the fleet.MacOSSettings struct.
+		// This is inefficient, but it is more robust and less error-prone.
+		var macOSSettings fleet.MacOSSettings
+		data, err := json.Marshal(result.Controls.MacOSSettings)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to process controls.macos_settings: %v", err))
+		}
+		err = json.Unmarshal(data, &macOSSettings)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to process controls.macos_settings: %v", err))
+		}
+		profiles = append(profiles, macOSSettings.CustomSettings...)
+	}
+	if result.Controls.WindowsSettings != nil {
+		// We are marshalling/unmarshalling to get the data into the fleet.WindowsSettings struct.
+		// This is inefficient, but it is more robust and less error-prone.
+		var windowsSettings fleet.WindowsSettings
+		data, err := json.Marshal(result.Controls.WindowsSettings)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to process controls.windows_settings: %v", err))
+		}
+		err = json.Unmarshal(data, &windowsSettings)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to process controls.windows_settings: %v", err))
+		}
+		if windowsSettings.CustomSettings.Valid {
+			profiles = append(profiles, windowsSettings.CustomSettings.Value...)
+		}
+	}
+	for _, profile := range profiles {
+		resolvedPath := resolveApplyRelativePath(controlsDir, profile.Path)
+		fileBytes, err := os.ReadFile(resolvedPath)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to read profile file %s: %v", resolvedPath, err))
+		}
+		err = LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
+		if err != nil {
+			return multierror.Append(multiError, err)
+		}
+	}
+
 	return multiError
 }
 
