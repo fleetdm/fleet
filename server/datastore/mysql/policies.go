@@ -584,6 +584,15 @@ func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fl
 }
 
 func (ds *Datastore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
+	for _, id := range ids {
+		if err := ds.deletePendingSoftwareInstallsForPolicy(ctx, nil, id); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete pending software installs for policy")
+		}
+		if err := ds.deletePendingHostScriptExecutionsForPolicy(ctx, nil, id); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete pending host script executions for policy")
+		}
+	}
+
 	return deletePolicyDB(ctx, ds.writer(ctx), ids, nil)
 }
 
@@ -737,6 +746,15 @@ func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, op
 }
 
 func (ds *Datastore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
+	for _, id := range ids {
+		if err := ds.deletePendingSoftwareInstallsForPolicy(ctx, &teamID, id); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete pending software installs for policy")
+		}
+		if err := ds.deletePendingHostScriptExecutionsForPolicy(ctx, &teamID, id); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete pending host script executions for policy")
+		}
+	}
+
 	return deletePolicyDB(ctx, ds.writer(ctx), ids, &teamID)
 }
 

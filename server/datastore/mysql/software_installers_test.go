@@ -34,6 +34,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"GetSoftwareInstallerMetadataByTeamAndTitleID", testGetSoftwareInstallerMetadataByTeamAndTitleID},
 		{"HasSelfServiceSoftwareInstallers", testHasSelfServiceSoftwareInstallers},
 		{"DeleteSoftwareInstallers", testDeleteSoftwareInstallers},
+		{"testDeletePendingSoftwareInstallsForPolicy", testDeletePendingSoftwareInstallsForPolicy},
 		{"GetHostLastInstallData", testGetHostLastInstallData},
 		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
 	}
@@ -1135,6 +1136,120 @@ func testDeleteSoftwareInstallers(t *testing.T, ds *Datastore) {
 	err = ds.DeleteSoftwareInstaller(ctx, softwareInstallerID)
 	var nfe *notFoundError
 	require.ErrorAs(t, err, &nfe)
+}
+
+func testDeletePendingSoftwareInstallsForPolicy(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	dir := t.TempDir()
+	store, err := filesystem.NewSoftwareInstallerStore(dir)
+	require.NoError(t, err)
+	ins0 := "installer.pkg"
+	ins0File := bytes.NewReader([]byte("installer0"))
+	err = store.Put(ctx, ins0, ins0File)
+	require.NoError(t, err)
+	_, _ = ins0File.Seek(0, 0)
+
+	tfr0, err := fleet.NewTempFileReader(ins0File, t.TempDir)
+	require.NoError(t, err)
+
+	installerID1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		InstallerFile: tfr0,
+		StorageID:     ins0,
+		Filename:      "installer.pkg",
+		Title:         "ins0",
+		Source:        "apps",
+		Platform:      "darwin",
+		TeamID:        &team1.ID,
+		UserID:        user1.ID,
+	})
+	require.NoError(t, err)
+
+	policy1, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:                "p1",
+		Query:               "SELECT 1;",
+		SoftwareInstallerID: &installerID1,
+	})
+	require.NoError(t, err)
+
+	installerID2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		InstallerFile: tfr0,
+		StorageID:     ins0,
+		Filename:      "installer.pkg",
+		Title:         "ins1",
+		Source:        "apps",
+		Platform:      "darwin",
+		TeamID:        &team1.ID,
+		UserID:        user1.ID,
+	})
+	require.NoError(t, err)
+
+	policy2, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:                "p2",
+		Query:               "SELECT 2;",
+		SoftwareInstallerID: &installerID2,
+	})
+	require.NoError(t, err)
+
+	const hostSoftwareInstallsCount = "SELECT count(1) FROM host_software_installs WHERE status = ? and execution_id = ?"
+	var count int
+
+	// install for correct policy & correct status
+	executionID, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID1, false, &policy1.ID)
+	require.NoError(t, err)
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, hostSoftwareInstallsCount, fleet.SoftwareInstallPending, executionID)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+
+	err = ds.deletePendingSoftwareInstallsForPolicy(ctx, &team1.ID, policy1.ID)
+	require.NoError(t, err)
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, hostSoftwareInstallsCount, fleet.SoftwareInstallPending, executionID)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
+	// install for different policy & correct status
+	executionID, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID2, false, &policy2.ID)
+	require.NoError(t, err)
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, hostSoftwareInstallsCount, fleet.SoftwareInstallPending, executionID)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+
+	err = ds.deletePendingSoftwareInstallsForPolicy(ctx, &team1.ID, policy1.ID)
+	require.NoError(t, err)
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, hostSoftwareInstallsCount, fleet.SoftwareInstallPending, executionID)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+
+	// install for correct policy & incorrect status
+	executionID, err = ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID1, false, &policy1.ID)
+	require.NoError(t, err)
+
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host2.ID,
+		InstallUUID:           executionID,
+		InstallScriptExitCode: ptr.Int(0),
+	})
+	require.NoError(t, err)
+
+	err = ds.deletePendingSoftwareInstallsForPolicy(ctx, &team1.ID, policy1.ID)
+	require.NoError(t, err)
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT count(1) FROM host_software_installs WHERE execution_id = ?`, executionID)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
 }
 
 func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
