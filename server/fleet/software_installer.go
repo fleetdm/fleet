@@ -338,11 +338,9 @@ type UploadSoftwareInstallerPayload struct {
 	InstallDuringSetup *bool    // keep saved value if nil, otherwise set as indicated
 	LabelsIncludeAny   []string // names of "include any" labels
 	LabelsExcludeAny   []string // names of "exclude any" labels
-
-	// Those resolved fields are only filled once the string-version of the
-	// labels have been validated in the batch-set endpoint and known to exist.
-	ResolvedLabelsIncludeAny []*SoftwareScopeLabel `json:"-"`
-	ResolvedLabelsExcludeAny []*SoftwareScopeLabel `json:"-"`
+	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
+	// is nil if the labels have not been validated.
+	ValidatedLabels *LabelIdentsWithScope
 }
 
 type UpdateSoftwareInstallerPayload struct {

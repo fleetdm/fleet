@@ -1896,7 +1896,7 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_software_installer_invalid_both_include_exclude.yml", `only one of "labels_exclude_any" or "labels_include_any" can be specified`},
 		{"testdata/gitops/team_software_installer_valid_include.yml", ""},
 		{"testdata/gitops/team_software_installer_valid_exclude.yml", ""},
-		{"testdata/gitops/team_software_installer_invalid_unknown_label.yml", "zzzzz"},
+		{"testdata/gitops/team_software_installer_invalid_unknown_label.yml", "some or all the labels provided don't exist"},
 		// team tests for setup experience software/script
 		{"testdata/gitops/team_setup_software_valid.yml", ""},
 		{"testdata/gitops/team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
@@ -1999,7 +1999,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_invalid_both_include_exclude.yml", `only one of "labels_exclude_any" or "labels_include_any" can be specified`},
 		{"testdata/gitops/no_team_software_installer_valid_include.yml", ""},
 		{"testdata/gitops/no_team_software_installer_valid_exclude.yml", ""},
-		{"testdata/gitops/no_team_software_installer_invalid_unknown_label.yml", "zzzzz"},
+		{"testdata/gitops/no_team_software_installer_invalid_unknown_label.yml", "some or all the labels provided don't exist"},
 		// No team tests for setup experience software/script
 		{"testdata/gitops/no_team_setup_software_valid.yml", ""},
 		{"testdata/gitops/no_team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},

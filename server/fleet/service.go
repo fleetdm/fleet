@@ -259,6 +259,11 @@ type Service interface {
 	// ListHostsInLabel returns a slice of hosts in the label with the given ID.
 	ListHostsInLabel(ctx context.Context, lid uint, opt HostListOptions) ([]*Host, error)
 
+	// BatchValidateLabels validates that each of the provided label names exists. The returned map
+	// is keyed by label name. Caller must ensure that appropirate authorization checks are
+	// performed prior to calling this method.
+	BatchValidateLabels(ctx context.Context, labelNames []string) (map[string]LabelIdent, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// QueryService
 

@@ -391,11 +391,9 @@ type SoftwareInstallerPayload struct {
 	InstallDuringSetup *bool    `json:"install_during_setup"` // if nil, do not change saved value, otherwise set it
 	LabelsIncludeAny   []string `json:"labels_include_any"`
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
-
-	// Those resolved fields are only filled once the string-version of the
-	// labels have been validated in the batch-set endpoint and known to exist.
-	ResolvedLabelsIncludeAny []*SoftwareScopeLabel `json:"-"`
-	ResolvedLabelsExcludeAny []*SoftwareScopeLabel `json:"-"`
+	// ValidatedLabels is a struct that contains the validated labels for the
+	// software installer. It is nil if the labels have not been validated.
+	ValidatedLabels *LabelIdentsWithScope
 }
 
 type HostLockWipeStatus struct {
