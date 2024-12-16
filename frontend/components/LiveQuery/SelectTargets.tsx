@@ -83,7 +83,7 @@ interface ITargetsQueryKey {
 
 const DEBOUNCE_DELAY = 500;
 const STALE_TIME = 60000;
-const SECTION_CHARACTER_LIMIT = 100;
+const SECTION_CHARACTER_LIMIT = 600;
 
 const isLabel = (entity: ISelectTargetsEntity) => "label_type" in entity;
 const isBuiltInLabel = (
