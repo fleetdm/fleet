@@ -1749,7 +1749,7 @@ func (svc *Service) validateFleetSecrets(ctx context.Context, appleProfiles []*f
 		allProfiles = append(allProfiles, string(p.SyncML))
 	}
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, allProfiles); err != nil {
-		return ctxerr.Wrap(ctx, err, "validating fleet secrets in profiles")
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profiles", err.Error()))
 	}
 	return nil
 }
