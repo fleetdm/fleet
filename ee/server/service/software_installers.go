@@ -103,7 +103,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	return nil
 }
 
-func (svc *Service) validateSoftwareLabels(ctx context.Context, labelsIncludeAny, labelsExcludeAny []string) (*fleet.LabelIndentsWithScope, error) {
+func (svc *Service) validateSoftwareLabels(ctx context.Context, labelsIncludeAny, labelsExcludeAny []string) (*fleet.LabelIdentsWithScope, error) {
 	var names []string
 	var scope fleet.LabelScope
 	switch {
@@ -119,7 +119,7 @@ func (svc *Service) validateSoftwareLabels(ctx context.Context, labelsIncludeAny
 
 	if len(names) == 0 {
 		// nothing to validate, return empty result
-		return &fleet.LabelIndentsWithScope{}, nil
+		return &fleet.LabelIdentsWithScope{}, nil
 	}
 
 	byName, err := svc.BatchValidateLabels(ctx, names)
@@ -127,7 +127,7 @@ func (svc *Service) validateSoftwareLabels(ctx context.Context, labelsIncludeAny
 		return nil, err
 	}
 
-	return &fleet.LabelIndentsWithScope{
+	return &fleet.LabelIdentsWithScope{
 		LabelScope: scope,
 		ByName:     byName,
 	}, nil

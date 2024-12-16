@@ -217,7 +217,7 @@ const (
 	LabelScopeIncludeAll LabelScope = "include_all"
 )
 
-type LabelIndentsWithScope struct {
+type LabelIdentsWithScope struct {
 	LabelScope LabelScope
 	ByName     map[string]LabelIdent
 }

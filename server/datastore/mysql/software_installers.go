@@ -119,7 +119,8 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 		}
 	}
 
-	stmt := `
+	if err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		stmt := `
 INSERT INTO software_installers (
 	team_id,
 	global_or_team_id,
@@ -141,47 +142,49 @@ INSERT INTO software_installers (
 	fleet_library_app_id
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?)`
 
-	args := []interface{}{
-		tid,
-		globalOrTeamID,
-		titleID,
-		payload.StorageID,
-		payload.Filename,
-		payload.Extension,
-		payload.Version,
-		strings.Join(payload.PackageIDs, ","),
-		installScriptID,
-		payload.PreInstallQuery,
-		postInstallScriptID,
-		uninstallScriptID,
-		payload.Platform,
-		payload.SelfService,
-		payload.UserID,
-		payload.UserID,
-		payload.UserID,
-		payload.FleetLibraryAppID,
-	}
-
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
-	if err != nil {
-		if IsDuplicate(err) {
-			// already exists for this team/no team
-			err = alreadyExists("SoftwareInstaller", payload.Title)
+		args := []interface{}{
+			tid,
+			globalOrTeamID,
+			titleID,
+			payload.StorageID,
+			payload.Filename,
+			payload.Extension,
+			payload.Version,
+			strings.Join(payload.PackageIDs, ","),
+			installScriptID,
+			payload.PreInstallQuery,
+			postInstallScriptID,
+			uninstallScriptID,
+			payload.Platform,
+			payload.SelfService,
+			payload.UserID,
+			payload.UserID,
+			payload.UserID,
+			payload.FleetLibraryAppID,
 		}
+
+		res, err := tx.ExecContext(ctx, stmt, args...)
+		if err != nil {
+			if IsDuplicate(err) {
+				// already exists for this team/no team
+				err = alreadyExists("SoftwareInstaller", payload.Title)
+			}
+			return err
+		}
+
+		id, _ := res.LastInsertId()
+		installerID = uint(id) //nolint:gosec // dismiss G115
+
+		if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, installerID, *payload.ValidatedLabels); err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert software installer labels")
+		}
+
+		return nil
+	}); err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "insert software installer")
 	}
 
-	id, _ := res.LastInsertId()
-
-	// TODO: how does should this check work in the context of editng an existing software installer to
-	// remove existing labels (i.e. switching from custom targets to all hosts)?
-	if payload.ValidatedLabels.LabelScope != "" {
-		if err := ds.upsertSoftwareInstallerLabels(ctx, uint(id), *payload.ValidatedLabels); err != nil { //nolint:gosec // dismiss G115
-			return uint(id), titleID, ctxerr.Wrap(ctx, err, "upsert software installer labels") //nolint:gosec // dismiss G115
-		}
-	}
-
-	return uint(id), titleID, nil //nolint:gosec // dismiss G115
+	return installerID, titleID, nil
 }
 
 func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
@@ -234,29 +237,18 @@ func (ds *Datastore) addSoftwareTitleToMatchingSoftware(ctx context.Context, tit
 	return ctxerr.Wrap(ctx, err, "adding fk reference in software to software_titles")
 }
 
-func (ds *Datastore) upsertSoftwareInstallerLabels(ctx context.Context, installerID uint, labels fleet.LabelIndentsWithScope) error {
-	var exclude bool
-	switch labels.LabelScope {
-	case fleet.LabelScopeIncludeAny:
-		exclude = false
-	case fleet.LabelScopeExcludeAny:
-		exclude = true
-	default:
-		return errors.New("invalid label scope")
-	}
-
+// setOrUpdateSoftwareInstallerLabelsDB sets or updates the label associations for the specified software
+// installer. If no labels are provided, it will remove all label associations with the software installer.
+func setOrUpdateSoftwareInstallerLabelsDB(ctx context.Context, tx sqlx.ExtContext, installerID uint, labels fleet.LabelIdentsWithScope) error {
 	labelIds := make([]uint, 0, len(labels.ByName))
 	for _, label := range labels.ByName {
 		labelIds = append(labelIds, label.LabelID)
 	}
 
-	level.Debug(ds.logger).Log("msg", "upsert software installer labels", "installer_id", installerID, "label_ids", fmt.Sprintf("%v", labelIds), "exclude", exclude)
-
 	// remove existing labels
 	delArgs := []interface{}{installerID}
 	delStmt := `DELETE FROM software_installer_labels WHERE software_installer_id = ?`
 	if len(labelIds) > 0 {
-		// TODO: we might consider skipping this step which preserves existing labels and just deleting everything each time
 		inStmt, args, err := sqlx.In(` AND label_id NOT IN (?)`, labelIds)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build delete existing software installer labels query")
@@ -264,24 +256,37 @@ func (ds *Datastore) upsertSoftwareInstallerLabels(ctx context.Context, installe
 		delArgs = append(delArgs, args...)
 		delStmt += inStmt
 	}
-	_, err := ds.writer(ctx).ExecContext(ctx, delStmt, delArgs...)
+	_, err := tx.ExecContext(ctx, delStmt, delArgs...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete existing software installer labels")
 	}
 
 	// insert new labels
-	stmt := `INSERT INTO software_installer_labels (software_installer_id, label_id, exclude) VALUES %s ON DUPLICATE KEY UPDATE software_installer_id = software_installer_id, label_id = label_id, exclude = VALUES(exclude)`
-	var placeholders string
-	var insertArgs []interface{}
-	for _, lid := range labelIds {
-		placeholders += "(?, ?, ?),"
-		insertArgs = append(insertArgs, installerID, lid, exclude)
-	}
-	placeholders = strings.TrimSuffix(placeholders, ",")
+	if len(labelIds) > 0 {
+		var exclude bool
+		switch labels.LabelScope {
+		case fleet.LabelScopeIncludeAny:
+			exclude = false
+		case fleet.LabelScopeExcludeAny:
+			exclude = true
+		default:
+			// this should never happen
+			return ctxerr.New(ctx, "invalid label scope")
+		}
 
-	_, err = ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(stmt, placeholders), insertArgs...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "insert software installer label")
+		stmt := `INSERT INTO software_installer_labels (software_installer_id, label_id, exclude) VALUES %s ON DUPLICATE KEY UPDATE software_installer_id = software_installer_id, label_id = label_id, exclude = VALUES(exclude)`
+		var placeholders string
+		var insertArgs []interface{}
+		for _, lid := range labelIds {
+			placeholders += "(?, ?, ?),"
+			insertArgs = append(insertArgs, installerID, lid, exclude)
+		}
+		placeholders = strings.TrimSuffix(placeholders, ",")
+
+		_, err = tx.ExecContext(ctx, fmt.Sprintf(stmt, placeholders), insertArgs...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "insert software installer label")
+		}
 	}
 
 	return nil

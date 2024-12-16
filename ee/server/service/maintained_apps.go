@@ -123,7 +123,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	// TODO: labels validations, for now just use empty struct
-	payload.ValidatedLabels = &fleet.LabelIndentsWithScope{}
+	payload.ValidatedLabels = &fleet.LabelIdentsWithScope{}
 
 	// Create record in software installers table
 	_, titleID, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
