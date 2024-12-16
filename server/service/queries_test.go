@@ -725,7 +725,7 @@ func TestQueryReportReturnsNilIfDiscardDataIsTrue(t *testing.T) {
 		}, nil
 	}
 
-	results, reportClipped, err := svc.GetQueryReportResults(viewerCtx, 1)
+	results, reportClipped, err := svc.GetQueryReportResults(viewerCtx, 1, nil)
 	require.NoError(t, err)
 	require.Nil(t, results)
 	require.False(t, reportClipped)

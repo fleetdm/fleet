@@ -151,7 +151,8 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 ////////////////////////////////////////////////////////////////////////////////
 
 type getQueryReportRequest struct {
-	ID uint `url:"id"`
+	ID     uint  `url:"id"`
+	TeamID *uint `query:"team_id,optional"`
 }
 
 type getQueryReportResponse struct {
@@ -165,7 +166,7 @@ func (r getQueryReportResponse) error() error { return r.Err }
 
 func getQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getQueryReportRequest)
-	queryReportResults, reportClipped, err := svc.GetQueryReportResults(ctx, req.ID)
+	queryReportResults, reportClipped, err := svc.GetQueryReportResults(ctx, req.ID, req.TeamID)
 	if err != nil {
 		return listQueriesResponse{Err: err}, nil
 	}
@@ -181,7 +182,7 @@ func getQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.
 	}, nil
 }
 
-func (svc *Service) GetQueryReportResults(ctx context.Context, id uint) ([]fleet.HostQueryResultRow, bool, error) {
+func (svc *Service) GetQueryReportResults(ctx context.Context, id uint, teamID *uint) ([]fleet.HostQueryResultRow, bool, error) {
 	// Load query first to get its teamID.
 	query, err := svc.ds.Query(ctx, id)
 	if err != nil {
@@ -200,7 +201,7 @@ func (svc *Service) GetQueryReportResults(ctx context.Context, id uint) ([]fleet
 	if !ok {
 		return nil, false, fleet.ErrNoContext
 	}
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID}
 
 	queryReportResultRows, err := svc.ds.QueryResultRows(ctx, id, filter)
 	if err != nil {
