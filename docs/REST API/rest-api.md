@@ -9042,6 +9042,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Modify package](#modify-package)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
+- [Modify App Store app](#modify-app-store-app)
 - [List Fleet-maintained apps](#list-fleet-maintained-apps)
 - [Get Fleet-maintained app](#get-fleet-maintained-app)
 - [Add Fleet-maintained app](#add-fleet-maintained-app)
@@ -9785,6 +9786,10 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| labels_include_any        | array     | form | Target hosts that have any label in the array. |
+| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
 #### Example
 
@@ -9804,6 +9809,80 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 ##### Default response
 
 `Status: 200`
+
+### Modify App Store app
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+_Available in Fleet Premium._
+
+Modify App Store (VPP) app's options.
+
+`PATCH /api/v1/fleet/software/titles/:title_id/app_store_app`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| team_id       | integer | body | **Required**. The team ID. Edits App Store apps from the specified team.  |
+| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| labels_include_any        | array     | form | Target hosts that have any label in the array. |
+| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+
+#### Example
+
+`PATCH /api/v1/fleet/software/titles/3467/app_store_app`
+
+##### Request body
+
+```json
+{
+  "team_id": 2,
+  "self_service": true,
+  "labels_include_any": [
+    "Product",
+    "Marketing"
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "app_store_app": {
+    "name": "Logic Pro",
+    "app_store_id": 1091189122,
+    "latest_version": "2.04",
+    "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+    "self_service": true,
+    "labels_include_any": [
+      {
+        "name": "Product",
+        "id": 12
+      },
+      {
+        "name": "Marketing",
+        "id": 17
+      }
+    ],
+    "automatic_install_policies": [
+      {
+        "id": 345,
+        "name": "[Install software] Logic Pro",
+      } 
+    ],
+    "status": {
+      "installed": 3,
+      "pending": 1,
+      "failed": 2,
+    }
+  }
+}
+```
 
 ### List Fleet-maintained apps
 
