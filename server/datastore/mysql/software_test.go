@@ -4616,15 +4616,16 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
 	installerTm1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "hello",
-		InstallerFile: tfr1,
-		StorageID:     "storage1",
-		Filename:      "file1",
-		Title:         "file1",
-		Version:       "1.0",
-		Source:        "apps",
-		TeamID:        &team1.ID,
-		UserID:        user.ID,
+		InstallScript:   "hello",
+		InstallerFile:   tfr1,
+		StorageID:       "storage1",
+		Filename:        "file1",
+		Title:           "file1",
+		Version:         "1.0",
+		Source:          "apps",
+		TeamID:          &team1.ID,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -4728,15 +4729,16 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
 	installerTm1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "hello",
-		InstallerFile: tfr1,
-		StorageID:     "storage1",
-		Filename:      "file1",
-		Title:         "file1",
-		Version:       "1.0",
-		Source:        "apps",
-		TeamID:        &team1.ID,
-		UserID:        user.ID,
+		InstallScript:   "hello",
+		InstallerFile:   tfr1,
+		StorageID:       "storage1",
+		Filename:        "file1",
+		Title:           "file1",
+		Version:         "1.0",
+		Source:          "apps",
+		TeamID:          &team1.ID,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 

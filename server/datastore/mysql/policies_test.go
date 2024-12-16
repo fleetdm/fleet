@@ -1444,6 +1444,7 @@ func testPoliciesByID(t *testing.T, ds *Datastore) {
 		Source:            "apps",
 		UserID:            user1.ID,
 		TeamID:            &team1.ID,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	policy2.SoftwareInstallerID = ptr.Uint(installerID)
@@ -4192,6 +4193,7 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 		Source:            "apps",
 		UserID:            user1.ID,
 		TeamID:            &team1.ID,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.Nil(t, p1.SoftwareInstallerID)
@@ -4230,6 +4232,7 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 		Source:            "apps",
 		UserID:            user1.ID,
 		TeamID:            ptr.Uint(fleet.PolicyNoTeamID),
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	p4, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user1.ID, fleet.PolicyPayload{
@@ -4451,6 +4454,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 		Source:            "apps",
 		UserID:            user1.ID,
 		TeamID:            &team1.ID,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	installer1, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer1ID)
@@ -4470,6 +4474,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 		Source:            "deb_packages",
 		UserID:            user1.ID,
 		TeamID:            &team2.ID,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	installer2, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer2ID)
@@ -4489,6 +4494,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 		Source:            "rpm_packages",
 		UserID:            user1.ID,
 		TeamID:            nil,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	installer3, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer3ID)
@@ -4509,6 +4515,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 		Source:            "programs",
 		UserID:            user1.ID,
 		TeamID:            &team1.ID,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	installer5, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer5ID)
@@ -4700,6 +4707,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 		Source:            "apps",
 		UserID:            user1.ID,
 		TeamID:            &team2.ID,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	installer4, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer4ID)
@@ -5229,6 +5237,7 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 		Source:            "apps",
 		UserID:            user1.ID,
 		TeamID:            &team1.ID,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	policy1.SoftwareInstallerID = ptr.Uint(installer1ID)
@@ -5248,6 +5257,7 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 		Source:            "apps",
 		UserID:            user1.ID,
 		TeamID:            &team2.ID,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	policy2.SoftwareInstallerID = ptr.Uint(installer2ID)
@@ -5304,6 +5314,7 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 		Source:            "apps",
 		UserID:            user1.ID,
 		TeamID:            nil,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -5319,6 +5330,7 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 		Source:            "apps",
 		UserID:            user1.ID,
 		TeamID:            nil,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
