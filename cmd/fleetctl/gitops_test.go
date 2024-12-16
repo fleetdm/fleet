@@ -1872,7 +1872,6 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 	startSoftwareInstallerServer(t)
 	startAndServeVPPServer(t)
 
-	// TODO(mna): add cases for error include/exclude and valid only one
 	cases := []struct {
 		file    string
 		wantErr string
@@ -1977,7 +1976,6 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 	startSoftwareInstallerServer(t)
 	startAndServeVPPServer(t)
 
-	// TODO(mna): add cases for error include/exclude and valid only one
 	cases := []struct {
 		noTeamFile string
 		wantErr    string
