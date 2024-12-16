@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -113,7 +114,7 @@ func New(opts ...Option) (*MySQLStorage, error) {
 	mysqlStore := &MySQLStorage{db: cfg.db, logger: cfg.logger, rm: cfg.rm}
 	if cfg.reader == nil {
 		mysqlStore.reader = func(ctx context.Context) fleet.DBReader {
-			return sqlx.NewDb(mysqlStore.db, "mysql")
+			return sqlx.NewDb(mysqlStore.db, "")
 		}
 	} else {
 		mysqlStore.reader = cfg.reader
@@ -337,7 +338,10 @@ func (s *MySQLStorage) updateLastSeenBatch(ctx context.Context, ids []string) {
 		return
 	}
 
-	_, err = s.db.ExecContext(ctx, stmt, args...)
+	err = common_mysql.WithRetryTxx(ctx, sqlx.NewDb(s.db, ""), func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, stmt, args...)
+		return err
+	}, loggerWrapper{s.logger})
 	if err != nil {
 		s.logger.Info("msg", "error batch updating nano_enrollments.last_seen_at", "err", err)
 	}
