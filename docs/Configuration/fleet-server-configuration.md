@@ -2119,7 +2119,7 @@ Public key ID for URL signing. If `s3_software_installers_cdn_url` is set, this 
 
 Private key for URL signing. If `s3_software_installers_cdn_url` is set, this is required.
 
-- Default value:
+- Default value: none
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CDN_URL_SIGN_PRIVATE_KEY`
 - Config file format:
   ```yaml
