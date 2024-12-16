@@ -2380,59 +2380,54 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			(
 			 	-- do the label membership check only for software installers
 				CASE WHEN si.ID IS NOT NULL THEN
-				(EXISTS (
-				-- no labels
-				SELECT 1 FROM (SELECT
-					si.id as software_installer_id,
-					si.filename AS filename,
-					0 AS count_installer_labels,
-					0 AS count_host_labels
-				FROM
-					software_installers si
+				(
+					EXISTS (
 
-				WHERE NOT EXISTS (
-					SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id
+					SELECT 1 FROM (
+
+						-- no labels
+						SELECT 0 AS count_installer_labels, 0 AS count_host_labels
+						WHERE NOT EXISTS (
+							SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id
+						)
+
+						UNION
+
+						-- include any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels
+						FROM
+							software_installers si2
+							JOIN software_installer_labels sil ON sil.software_installer_id = si2.id
+							LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+							AND lm.host_id = :host_id
+						WHERE
+							sil.software_installer_id = si.id
+							AND sil.exclude = 0
+							AND lm.host_id = :host_id	
+						HAVING
+							count_installer_labels > 0 AND count_host_labels > 0 
+							
+						UNION
+
+						-- exclude any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels
+						FROM
+							software_installers si2
+							JOIN software_installer_labels sil ON sil.software_installer_id = si2.id
+							LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+						WHERE
+							sil.software_installer_id = si.id
+							AND sil.exclude = 1
+							AND lm.host_id = :host_id
+						HAVING
+							count_installer_labels > 0 AND count_host_labels = 0
+						) t
+					)
 				)
-
-				UNION
-
-				-- include any
-				SELECT
-					si.id as software_installer_id,
-					si.filename AS filename,
-					COUNT(*) AS count_installer_labels,
-					COUNT(lm.label_id) AS count_host_labels
-				FROM
-					software_installers si
-					JOIN software_installer_labels sil ON sil.software_installer_id = si.id
-						AND sil.exclude = 0
-					LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
-					AND lm.host_id = :host_id
-				GROUP BY
-					si.id,
-					filename
-				HAVING
-					count_installer_labels > 0 AND count_host_labels > 0 
-					
-				UNION
-
-				-- exclude any
-				SELECT
-					si.id as software_installer_id,
-					si.filename AS filename,
-					COUNT(*) AS count_installer_labels,
-					COUNT(lm.label_id) AS count_host_labels
-				FROM
-					software_installers si
-					JOIN software_installer_labels sil ON sil.software_installer_id = si.id
-						AND sil.exclude = 1
-					LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
-					AND lm.host_id = :host_id
-				GROUP BY
-					si.id,
-					filename
-				HAVING
-					count_installer_labels > 0 AND count_host_labels = 0) t WHERE t.software_installer_id = si.id))
 				-- it's some other type of software that has been checked above		
 				ELSE true END
 			)
