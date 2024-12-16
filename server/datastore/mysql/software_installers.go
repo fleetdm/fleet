@@ -997,7 +997,7 @@ ON DUPLICATE KEY UPDATE
   user_name = VALUES(user_name),
   user_email = VALUES(user_email),
   url = VALUES(url),
-	install_during_setup = COALESCE(?, install_during_setup)
+  install_during_setup = COALESCE(?, install_during_setup)
 `
 
 	const loadSoftwareInstallerID = `
@@ -1006,29 +1006,29 @@ SELECT
 FROM
 	software_installers
 WHERE
-  global_or_team_id = ?	AND
+	global_or_team_id = ?	AND
 	-- this is guaranteed to select a single title_id, due to unique index
 	title_id IN (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = '')
 `
 
 	const deleteInstallerLabelsNotInList = `
 DELETE
-  software_installer_labels
+	software_installer_labels
 WHERE
 	software_installer_id = ? AND
-  label_id NOT IN (?)
+	label_id NOT IN (?)
 `
 
 	const deleteAllInstallerLabels = `
 DELETE
-  software_installer_labels
+	software_installer_labels
 WHERE
 	software_installer_id = ?
 `
 
 	const upsertInstallerLabels = `
 INSERT INTO
-  software_installer_labels (
+	software_installer_labels (
 		software_installer_id,
 		label_id,
 		exclude
