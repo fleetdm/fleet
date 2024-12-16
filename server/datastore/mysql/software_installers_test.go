@@ -3,6 +3,7 @@ package mysql
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1365,4 +1366,38 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 
 func testBatchSetSoftwareInstallersScopedViaLabels(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+
+	// create a couple teams and a user
+	tm1, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "1"})
+	require.NoError(t, err)
+	tm2, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "2"})
+	require.NoError(t, err)
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// create some installer payloads to be used by test cases
+	installers := make([]*fleet.UploadSoftwareInstallerPayload, 3)
+	for i := range installers {
+		file := bytes.NewReader([]byte("installer" + fmt.Sprint(i)))
+		tfr, err := fleet.NewTempFileReader(file, t.TempDir)
+		require.NoError(t, err)
+		installers[i] = &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:   "install",
+			InstallerFile:   tfr,
+			StorageID:       "installer" + fmt.Sprint(i),
+			Filename:        "installer" + fmt.Sprint(i),
+			Title:           "ins" + fmt.Sprint(i),
+			Source:          "apps",
+			Version:         "1",
+			PreInstallQuery: "foo",
+			UserID:          user.ID,
+			Platform:        "darwin",
+			URL:             "https://example.com",
+		}
+	}
+
+	// create some labels to be used by test cases
+	labels := make([]*fleet.Label, 4)
+	for i := range labels {
+		lbl := ds.NewLabel()
+	}
 }
