@@ -39,6 +39,7 @@ func (s *integrationGitopsTestSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 	appConf.MDM.EnabledAndConfigured = true
 	appConf.MDM.AppleBMEnabledAndConfigured = true
+	appConf.MDM.WindowsEnabledAndConfigured = true
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 
@@ -152,30 +153,44 @@ contexts:
 
 func (s *integrationGitopsTestSuite) TestFleetGitopsWithFleetSecrets() {
 	t := s.T()
-	const secretName = "NAME"
+	const (
+		secretName1 = "NAME"
+		secretName2 = "length"
+	)
 	ctx := context.Background()
 	fleetctlConfig := s.createFleetctlConfig()
 
 	// Set the required environment variables
 	t.Setenv("FLEET_URL", s.server.URL)
 	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
-	t.Setenv("FLEET_SECRET_"+secretName, "secret_value")
+	t.Setenv("FLEET_SECRET_"+secretName1, "secret_value")
+	t.Setenv("FLEET_SECRET_"+secretName2, "2")
 	globalFile := path.Join("testdata", "gitops", "global_integration.yml")
 
-	// TODO this currently doesn't work
 	// Dry run
-	// _ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"})
-	// secrets, err := s.ds.GetSecretVariables(ctx, []string{secretName})
-	// require.NoError(t, err)
-	// require.Empty(t, secrets)
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"})
+	secrets, err := s.ds.GetSecretVariables(ctx, []string{secretName1})
+	require.NoError(t, err)
+	require.Empty(t, secrets)
 
 	// Real run
 	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile})
-	secrets, err := s.ds.GetSecretVariables(ctx, []string{secretName})
+	// Check secrets
+	secrets, err = s.ds.GetSecretVariables(ctx, []string{secretName1, secretName2})
 	require.NoError(t, err)
-	require.Len(t, secrets, 1)
-	assert.Equal(t, secretName, secrets[0].Name)
-	assert.Equal(t, "secret_value", secrets[0].Value)
+	require.Len(t, secrets, 2)
+	for _, secret := range secrets {
+		switch secret.Name {
+		case secretName1:
+			assert.Equal(t, "secret_value", secret.Value)
+		case secretName2:
+			assert.Equal(t, "2", secret.Value)
+		default:
+			t.Fatalf("unexpected secret %s", secret.Name)
+		}
+	}
+
+	// Check script(s)
 	scriptID, err := s.ds.GetScriptIDByName(ctx, "fleet-secret.sh", nil)
 	require.NoError(t, err)
 	expected, err := os.ReadFile("testdata/gitops/lib/fleet-secret.sh")
@@ -183,4 +198,25 @@ func (s *integrationGitopsTestSuite) TestFleetGitopsWithFleetSecrets() {
 	script, err := s.ds.GetScriptContents(ctx, scriptID)
 	require.NoError(t, err)
 	assert.Equal(t, expected, script)
+
+	// Check Apple profiles
+	profiles, err := s.ds.ListMDMAppleConfigProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+	assert.Contains(t, string(profiles[0].Mobileconfig), "$FLEET_SECRET_"+secretName1)
+	// Check Windows profiles
+	allProfiles, _, err := s.ds.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, allProfiles, 2)
+	var windowsProfileUUID string
+	for _, profile := range allProfiles {
+		if profile.Platform == "windows" {
+			windowsProfileUUID = profile.ProfileUUID
+		}
+	}
+	require.NotEmpty(t, windowsProfileUUID)
+	winProfile, err := s.ds.GetMDMWindowsConfigProfile(ctx, windowsProfileUUID)
+	require.NoError(t, err)
+	assert.Contains(t, string(winProfile.SyncML), "${FLEET_SECRET_"+secretName2+"}")
+
 }
