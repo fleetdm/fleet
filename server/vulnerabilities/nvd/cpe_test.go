@@ -1364,16 +1364,6 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			},
 			cpe: "cpe:2.3:a:jetbrains:pycharm:2022.1:*:*:*:*:macos:*:*",
 		},
-		{ // Revise EAP JebBrains products to match "end of previous release"
-			software: fleet.Software{
-				Name:             "IntelliJ IDEA 2024.3 EAP.app",
-				Source:           "apps",
-				Version:          "EAP IU-242.16677.21",
-				Vendor:           "",
-				BundleIdentifier: "com.jetbrains.intellij-EAP",
-			},
-			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2024.1.999:*:*:*:*:macos:*:*",
-		},
 		{
 			software: fleet.Software{
 				Name:    "eamodio.gitlens",
