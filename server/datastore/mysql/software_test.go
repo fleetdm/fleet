@@ -5291,7 +5291,6 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.Len(t, software, 1)
 	require.Equal(t, "file1", software[0].SoftwarePackage.Name)
 
-	// create some labels
 	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1" + t.Name()})
 	require.NoError(t, err)
 
@@ -5311,8 +5310,6 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 		})
 	}
 	updateInstallerLabel(installerID1, label1.ID, true)
-
-	// validate that the right ones are in listhostsoftware
 
 	// should be empty as the installer label is "exclude any"
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
@@ -5364,6 +5361,43 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{label2.ID}))
 
 	// List should be back to 1
+	software, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	// Add an installer. No label yet.
+	installerID3, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		UninstallScript:   "goodbye",
+		InstallerFile:     tfr1,
+		StorageID:         "storage3",
+		Filename:          "file3",
+		Title:             "file3",
+		Version:           "3.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		BundleIdentifier:  "bi3",
+		Platform:          "darwin",
+	})
+	require.NoError(t, err)
+
+	// Add a new label and apply it to the installer. There are no hosts with this label.
+	label4, err := ds.NewLabel(ctx, &fleet.Label{Name: "label4" + t.Name()})
+	require.NoError(t, err)
+
+	updateInstallerLabel(installerID3, label4.ID, true)
+
+	// We should have [installerID1, installerID3]
+	software, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, software, 2)
+
+	// Now exclude from hosts with label4. No host has this label, so we shouldn't see installerID3 anymore.
+	updateInstallerLabel(installerID3, label4.ID, false)
+
+	// We should have [installerID1]
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Len(t, software, 1)

@@ -2378,23 +2378,59 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			( si.id IS NOT NULL OR vat.platform = :host_platform ) AND
 			-- label membership check
 			(
-					EXISTS (
-						SELECT
-							1 FROM software_installer_labels sil
-							JOIN label_membership lm ON lm.label_id = sil.label_id
-								AND lm.host_id != :host_id
-						WHERE
-							sil.software_installer_id = si.id
-							AND sil.exclude = 1)
-						OR EXISTS (
-							SELECT
-								1 FROM software_installer_labels sil
-								JOIN label_membership lm ON lm.label_id = sil.label_id
-									AND lm.host_id = :host_id
-							WHERE
-								sil.software_installer_id = si.id
-								AND sil.exclude = 0)
-						OR NOT EXISTS (SELECT 1 FROM software_installer_labels WHERE software_installer_id = si.id)
+				-- no labels
+				EXISTS (
+				SELECT 1 FROM (SELECT
+					si.id as software_installer_id,
+					si.filename AS filename,
+					0 AS count_installer_labels,
+					0 AS count_host_labels
+				FROM
+					software_installers si
+
+				WHERE NOT EXISTS (
+					SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id
+				)
+
+				UNION
+
+				-- include any
+				SELECT
+					si.id as software_installer_id,
+					si.filename AS filename,
+					COUNT(*) AS count_installer_labels,
+					COUNT(lm.label_id) AS count_host_labels
+				FROM
+					software_installers si
+					JOIN software_installer_labels sil ON sil.software_installer_id = si.id
+						AND sil.exclude = 0
+					LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+					AND lm.host_id = :host_id
+				GROUP BY
+					si.id,
+					filename
+				HAVING
+					count_installer_labels > 0 AND count_host_labels > 0 
+					
+				UNION
+
+				-- exclude any
+				SELECT
+					si.id as software_installer_id,
+					si.filename AS filename,
+					COUNT(*) AS count_installer_labels,
+					COUNT(lm.label_id) AS count_host_labels
+				FROM
+					software_installers si
+					JOIN software_installer_labels sil ON sil.software_installer_id = si.id
+						AND sil.exclude = 1
+					LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+					AND lm.host_id = :host_id
+				GROUP BY
+					si.id,
+					filename
+				HAVING
+					count_installer_labels > 0 AND count_host_labels = 0) t WHERE t.software_installer_id = si.id)
 			)
 			%s %s
 `, onlySelfServiceClause, excludeVPPAppsClause)
