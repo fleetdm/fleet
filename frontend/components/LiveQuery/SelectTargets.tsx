@@ -38,6 +38,7 @@ import Icon from "components/Icon";
 import SearchField from "components/forms/fields/SearchField";
 import RevealButton from "components/buttons/RevealButton";
 import { generateTableHeaders } from "./TargetsInput/TargetsInputHostsTableConfig";
+import { isEmpty } from "lodash";
 
 interface ITargetPillSelectorProps {
   entity: ISelectLabel | ISelectTeam;
@@ -408,12 +409,12 @@ const SelectTargets = ({
     entityList: ISelectLabel[] | ISelectTeam[]
   ): JSX.Element => {
     const isSearchEnabled = header === "Teams" || header === "Labels";
+    const searchTerm: string =
+      (header === "Teams" ? searchTextTeams : searchTextLabels) || "";
     const arrFixed = entityList as Array<typeof entityList[number]>;
     const filteredEntities = arrFixed.filter(
       (entity: ISelectLabel | ISelectTeam) => {
         if (isSearchEnabled) {
-          const searchTerm: string =
-            (header === "Teams" ? searchTextTeams : searchTextLabels) || "";
           return searchTerm
             ? entity.name.toLowerCase().includes(searchTerm.toLowerCase())
             : true;
@@ -441,19 +442,39 @@ const SelectTargets = ({
       ? filteredEntities
       : truncatedEntities;
 
+    const emptySearchString = `No matching ${
+      header === "Teams" ? "teams" : "labels"
+    }.`;
+
+    const renderEmptySearchString = () => {
+      if (entitiesToDisplay.length === 0 && searchTerm !== "") {
+        return (
+          <div className={`${baseClass}__empty-entity-search`}>
+            {emptySearchString}
+          </div>
+        );
+      }
+      return undefined;
+    };
+
     return (
       <>
         {header && <h3>{header}</h3>}
         {isSearchEnabled && (
-          <SearchField
-            placeholder={header === "Teams" ? "Search teams" : "Search labels"}
-            onChange={(searchString) => {
-              header === "Teams"
-                ? setSearchTextTeams(searchString || undefined)
-                : setSearchTextLabels(searchString || undefined);
-            }}
-            clearButton
-          />
+          <>
+            <SearchField
+              placeholder={
+                header === "Teams" ? "Search teams" : "Search labels"
+              }
+              onChange={(searchString) => {
+                header === "Teams"
+                  ? setSearchTextTeams(searchString || undefined)
+                  : setSearchTextLabels(searchString || undefined);
+              }}
+              clearButton
+            />
+            {renderEmptySearchString()}
+          </>
         )}
         <div className="selector-block">
           {entitiesToDisplay?.map((entity: ISelectLabel | ISelectTeam) => {
