@@ -2095,7 +2095,7 @@ Minio users must set this to any nonempty value (eg. `minio`), as Minio does not
 
 Content distribution network (CDN) URL. Leave blank if you don't use CDN distribution.
 
-- Default value:
+- Default value: none
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CDN_URL`
 - Config file format:
   ```yaml
