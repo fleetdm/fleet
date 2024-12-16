@@ -1,8 +1,8 @@
 /**
  * Module dependencies
  */
-const { ConfidentialClientApplication } = require('@azure/msal-node');
-const jwt = require('jsonwebtoken');
+let { ConfidentialClientApplication } = require('@azure/msal-node');
+let jwt = require('jsonwebtoken');
 
 /**
  * Entra SSO Hook
@@ -79,7 +79,7 @@ module.exports = function (sails) {
     routes: {
       before: {
         '/login': async (req, res) => {
-          // Get the sso login url
+          // Get the sso login url and redirect the user
           // [?]: https://learn.microsoft.com/en-us/javascript/api/%40azure/msal-node/confidentialclientapplication?view=msal-js-latest#@azure-msal-node-confidentialclientapplication-getauthcodeurl
           let entraAuthorizationUrl = await entraSSOClient.getAuthCodeUrl({
             redirectUri: `${sails.config.custom.baseUrl}/authorization-code/callback`,
