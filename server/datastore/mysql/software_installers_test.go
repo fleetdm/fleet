@@ -36,6 +36,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"DeleteSoftwareInstallers", testDeleteSoftwareInstallers},
 		{"GetHostLastInstallData", testGetHostLastInstallData},
 		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
+		{"BatchSetSoftwareInstallersScopedViaLabels", testBatchSetSoftwareInstallersScopedViaLabels},
 	}
 
 	for _, c := range cases {
@@ -1360,4 +1361,8 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			require.NotEmpty(t, id)
 		})
 	}
+}
+
+func testBatchSetSoftwareInstallersScopedViaLabels(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
 }

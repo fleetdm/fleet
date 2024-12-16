@@ -832,8 +832,6 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 }
 
 func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-	// TODO(mna): handle the include/exclude labels...
-
 	const upsertSoftwareTitles = `
 INSERT INTO software_titles
   (name, source, browser)
@@ -1003,27 +1001,27 @@ ON DUPLICATE KEY UPDATE
 `
 
 	const loadSoftwareInstallerID = `
-SELECT 
-	id 
-FROM 
-	software_installers 
-WHERE 
+SELECT
+	id
+FROM
+	software_installers
+WHERE
   global_or_team_id = ?	AND
 	-- this is guaranteed to select a single title_id, due to unique index
-	title_id IN (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = '') 
+	title_id IN (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = '')
 `
 
 	const deleteInstallerLabelsNotInList = `
 DELETE
-  software_installer_labels 
+  software_installer_labels
 WHERE
 	software_installer_id = ? AND
   label_id NOT IN (?)
 `
 
 	const deleteAllInstallerLabels = `
-DELETE 
-  software_installer_labels 
+DELETE
+  software_installer_labels
 WHERE
 	software_installer_id = ?
 `
@@ -1042,11 +1040,11 @@ ON DUPLICATE KEY UPDATE
 `
 
 	const loadExistingInstallerLabels = `
-SELECT 
+SELECT
 	label_id,
-	exclude 
-FROM 
-	software_installer_labels 
+	exclude
+FROM
+	software_installer_labels
 WHERE
 	software_installer_id = ?
 `
@@ -1333,7 +1331,7 @@ WHERE
 				}
 			}
 
-			// perform side effects if this was an update
+			// perform side effects if this was an update (related to pending (un)install requests)
 			if len(existing) > 0 {
 				if err := ds.runInstallerUpdateSideEffectsInTransaction(
 					ctx,
