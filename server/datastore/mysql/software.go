@@ -2378,8 +2378,10 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			( si.id IS NOT NULL OR vat.platform = :host_platform ) AND
 			-- label membership check
 			(
+			 	-- do the label membership check only for software installers
+				CASE WHEN si.ID IS NOT NULL THEN
+				(EXISTS (
 				-- no labels
-				EXISTS (
 				SELECT 1 FROM (SELECT
 					si.id as software_installer_id,
 					si.filename AS filename,
@@ -2430,7 +2432,9 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 					si.id,
 					filename
 				HAVING
-					count_installer_labels > 0 AND count_host_labels = 0) t WHERE t.software_installer_id = si.id)
+					count_installer_labels > 0 AND count_host_labels = 0) t WHERE t.software_installer_id = si.id))
+				-- it's some other type of software that has been checked above		
+				ELSE true END
 			)
 			%s %s
 `, onlySelfServiceClause, excludeVPPAppsClause)
