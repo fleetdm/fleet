@@ -148,7 +148,7 @@ class InputFieldWithIcon extends InputField {
               variant="icon"
               className={`${baseClass}__clear-button`}
             >
-              <Icon name="close-filled" />
+              <Icon name="close-filled" color="core-fleet-black" />
             </Button>
           )}
         </div>

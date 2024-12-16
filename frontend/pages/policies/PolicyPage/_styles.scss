@@ -70,9 +70,7 @@
   }
 
   &__empty-entity-search {
-    color: #000;
-    text-align: center;
-
+    margin-top: $pad-small;
     font-size: $x-small;
     line-height: 21px; /* 150% */
   }
