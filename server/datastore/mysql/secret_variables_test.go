@@ -112,12 +112,10 @@ Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 	require.NoError(t, err)
 
 	err = ds.ValidateEmbeddedSecrets(ctx, []string{invalidSecret})
-	require.Error(t, err)
 	require.ErrorContains(t, err, "$FLEET_SECRET_INVALID")
 	require.ErrorContains(t, err, "$FLEET_SECRET_ALSO_INVALID")
 
 	err = ds.ValidateEmbeddedSecrets(ctx, []string{noSecrets, validSecret, invalidSecret})
-	require.Error(t, err)
 	require.ErrorContains(t, err, "$FLEET_SECRET_INVALID")
 	require.ErrorContains(t, err, "$FLEET_SECRET_ALSO_INVALID")
 }
@@ -165,7 +163,6 @@ Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 	require.Equal(t, validSecretExpanded, expanded)
 
 	_, err = ds.ExpandEmbeddedSecrets(ctx, invalidSecret)
-	require.Error(t, err)
 	require.ErrorContains(t, err, "$FLEET_SECRET_INVALID")
 	require.ErrorContains(t, err, "$FLEET_SECRET_ALSO_INVALID")
 }
