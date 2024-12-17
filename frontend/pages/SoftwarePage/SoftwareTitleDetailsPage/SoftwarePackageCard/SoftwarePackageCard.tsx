@@ -4,7 +4,6 @@ import React, {
   useLayoutEffect,
   useState,
 } from "react";
-import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -239,7 +238,6 @@ interface ISoftwarePackageCardProps {
   // NOTE: we will only have this if we are working with a software package.
   softwarePackage?: ISoftwarePackage;
   onDelete: () => void;
-  router: InjectedRouter;
   refetchSoftwareTitle: () => void;
 }
 
@@ -256,7 +254,6 @@ const SoftwarePackageCard = ({
   softwareId,
   teamId,
   onDelete,
-  router,
   refetchSoftwareTitle,
 }: ISoftwarePackageCardProps) => {
   const {
