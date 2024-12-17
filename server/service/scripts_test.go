@@ -542,6 +542,12 @@ func TestSavedScripts(t *testing.T) {
 	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: 0}, nil
 	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return document, nil
+	}
 
 	testCases := []struct {
 		name                  string
