@@ -23,21 +23,41 @@ module.exports = {
   exits: {
     success: {
       description: 'A list of software has been returned to the requesting user.',
+    },
+    unauthorized: {
+      description: 'The provided token was invalid.',
+      responseType: 'unauthorized'
     }
   },
 
 
   fn: async function ({ platform }) {
+
+    if (!this.req.get('authorization')) {
+      return this.res.unauthorized();
+    }
+    let authorizationHeader = this.req.get('authorization');
+    if(!_.startsWith(authorizationHeader, 'Bearer ')) {
+      return this.res.unauthorized();
+    }
+    let tokenInAuthorizationHeader = authorizationHeader.split('Bearer ')[1];
+    if(!tokenInAuthorizationHeader) {
+      return this.res.unauthorized();
+    }
+
+
+
     // Get teams information.
     let teamsResponseData = await sails.helpers.http.get.with({
       url: '/api/v1/fleet/teams',
       baseUrl: sails.config.custom.fleetBaseUrl,
       headers: {
-        Authorization: `Bearer ${sails.config.custom.fleetApiToken}`
+        Authorization: `Bearer ${tokenInAuthorizationHeader}`
       }
     })
     .timeout(120000)
-    .retry(['requestFailed', {name: 'TimeoutError'}]);
+    .retry(['requestFailed', {name: 'TimeoutError'}])
+    .intercept('non200Response', 'unauthorized');
 
     let allTeams = teamsResponseData.teams;
     let teams = [];
@@ -65,11 +85,12 @@ module.exports = {
         url: `/api/latest/fleet/software/titles?team_id=${teamApid}`,
         baseUrl: sails.config.custom.fleetBaseUrl,
         headers: {
-          Authorization: `Bearer ${sails.config.custom.fleetApiToken}`
+          Authorization: `Bearer ${tokenInAuthorizationHeader}`
         }
       })
       .timeout(120000)
-      .retry(['requestFailed', {name: 'TimeoutError'}]);
+      .retry(['requestFailed', {name: 'TimeoutError'}])
+      .intercept('non200Response', 'unauthorized');
       let softwareForThisTeam = configurationProfilesResponseData.software_titles;
       let softwareWithSoftwarePackages = _.filter(softwareForThisTeam, (software)=>{
         return !_.isEmpty(software.software_package);
@@ -79,11 +100,12 @@ module.exports = {
           url: `/api/latest/fleet/software/titles/${softwareWithInstaller.id}?team_id=${teamApid}&available_for_install=true`,
           baseUrl: sails.config.custom.fleetBaseUrl,
           headers: {
-            Authorization: `Bearer ${sails.config.custom.fleetApiToken}`
+            Authorization: `Bearer ${tokenInAuthorizationHeader}`
           }
         })
         .timeout(120000)
-        .retry(['requestFailed', {name: 'TimeoutError'}]);
+        .retry(['requestFailed', {name: 'TimeoutError'}])
+        .intercept('non200Response', 'unauthorized');
         let packageInformation = softwareWithInstallerResponse.software_title.software_package;
         let packageInfo = {
           software_title_name: softwareWithInstaller.name,// eslint-disable-line camelcase

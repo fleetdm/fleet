@@ -11,10 +11,10 @@
 module.exports.policies = {
 
   '*': 'is-logged-in',
-  'list-software': 'is-authorized-by-bearer-token',
 
   // Bypass the `is-logged-in` policy for:
   'entrance/*': true,
+  'list-software': true,
   'account/logout': true,
   'legal/view-terms': true,
   'legal/view-privacy': true,
