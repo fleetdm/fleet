@@ -12,8 +12,8 @@ team_settings:
 agent_options:
 controls:
   ipados_updates:
-    deadline: "2024-08-23"
-    minimum_version: "17.6"
+    deadline: "2025-01-06"
+    minimum_version: "18.2"
   macos_settings:
     custom_settings:
   scripts:
