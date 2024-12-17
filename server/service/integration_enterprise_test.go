@@ -10699,11 +10699,23 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		_, titleID := checkSoftwareInstaller(t, payload)
 
 		// check activity
-		activityData := fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": null, "self_service": false, "software_title_id": %d}`, titleID)
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
+		activityData := fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
+		"team_id": null, "self_service": false, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}]}`,
+			titleID, labelResp.Label.ID, t.Name())
+		s.lastActivityMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
 
 		// upload again fails
 		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already exists")
+
+		// update the installer succeeds
+		body, headers := generateMultipartRequest(t, "software",
+			"", []byte{}, s.token, map[string][]string{"self_service": {"true"}, "team_id": {"0"}})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+
+		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
+		"team_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}]}`,
+			labelResp.Label.ID, t.Name())
+		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 		// orbit-downloading fails with invalid orbit node key
 		s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
@@ -10719,6 +10731,10 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// delete from team 0 succeeds
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
+		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
+		"team_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}]}`,
+			labelResp.Label.ID, t.Name())
+		s.lastActivityMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), activityData, 0)
 	})
 
 	t.Run("create team software installer", func(t *testing.T) {
@@ -10935,7 +10951,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// check activity
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(),
-			`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": 0, "self_service": true}`, 0)
+			`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": null, "self_service": true}`, 0)
 
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", 0))

@@ -22,7 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -217,16 +216,17 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		dirty["SelfService"] = true
 	}
 
-	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(
-		existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny)
+	// activity team ID must be null if no team, not zero
+	var actTeamID *uint
+	if payload.TeamID != nil && *payload.TeamID != 0 {
+		actTeamID = payload.TeamID
+	}
 	activity := fleet.ActivityTypeEditedSoftware{
-		SoftwareTitle:    existingInstaller.SoftwareTitle,
-		TeamName:         teamName,
-		TeamID:           payload.TeamID,
-		SelfService:      existingInstaller.SelfService,
-		SoftwarePackage:  &existingInstaller.Name,
-		LabelsIncludeAny: actLabelsIncl,
-		LabelsExcludeAny: actLabelsExcl,
+		SoftwareTitle:   existingInstaller.SoftwareTitle,
+		TeamName:        teamName,
+		TeamID:          actTeamID,
+		SelfService:     existingInstaller.SelfService,
+		SoftwarePackage: &existingInstaller.Name,
 	}
 
 	var payloadForNewInstallerFile *fleet.UploadSoftwareInstallerPayload
@@ -367,6 +367,15 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			}
 		}
 
+		// now that the payload has been updated with any patches, we can set the
+		// final fields of the activity
+		actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(
+			existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny)
+		activity.LabelsIncludeAny = actLabelsIncl
+		activity.LabelsExcludeAny = actLabelsExcl
+		if payload.SelfService != nil {
+			activity.SelfService = *payload.SelfService
+		}
 		if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "creating activity for edited software")
 		}
@@ -465,20 +474,12 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		teamName = &t.Name
 	}
 
-	var teamID *uint
-	switch {
-	case meta.TeamID == nil:
-		teamID = ptr.Uint(0)
-	case meta.TeamID != nil:
-		teamID = meta.TeamID
-	}
-
 	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny)
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedSoftware{
 		SoftwareTitle:    meta.SoftwareTitle,
 		SoftwarePackage:  meta.Name,
 		TeamName:         teamName,
-		TeamID:           teamID,
+		TeamID:           meta.TeamID,
 		SelfService:      meta.SelfService,
 		LabelsIncludeAny: actLabelsIncl,
 		LabelsExcludeAny: actLabelsExcl,
