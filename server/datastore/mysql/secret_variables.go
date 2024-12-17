@@ -87,7 +87,7 @@ func (ds *Datastore) ExpandEmbeddedSecrets(ctx context.Context, document string)
 
 	for _, wantSecret := range embeddedSecrets {
 		if _, ok := secretMap[wantSecret]; !ok {
-			missingSecrets = append(missingSecrets, fmt.Sprintf("$FLEET_SECRET_%s", wantSecret))
+			missingSecrets = append(missingSecrets, wantSecret)
 		}
 	}
 
