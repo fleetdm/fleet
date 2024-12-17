@@ -1636,13 +1636,13 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating cross-platform profile names")
 	}
 
+	if dryRun {
+		return nil
+	}
+
 	err = svc.validateFleetSecrets(ctx, appleProfiles, windowsProfiles, appleDecls)
 	if err != nil {
 		return err
-	}
-
-	if dryRun {
-		return nil
 	}
 
 	err = validateFleetVariables(ctx, appleProfiles, windowsProfiles, appleDecls)
