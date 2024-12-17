@@ -1349,3 +1349,67 @@ WHERE global_or_team_id = ?
 	}
 	return softwarePackages, nil
 }
+
+func (ds *Datastore) IsSoftwareInstallerLabelScoped(ctx context.Context, installerID, hostID uint) (bool, error) {
+	stmt := `
+		SELECT 1 FROM (
+
+			-- no labels
+			SELECT 0 AS count_installer_labels, 0 AS count_host_labels
+			WHERE NOT EXISTS (
+				SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = :installer_id
+			)
+
+			UNION
+
+			-- include any
+			SELECT
+				COUNT(*) AS count_installer_labels,
+				COUNT(lm.label_id) AS count_host_labels
+			FROM
+				software_installer_labels sil
+				LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+				AND lm.host_id = :host_id
+			WHERE
+				sil.software_installer_id = :installer_id
+				AND sil.exclude = 0
+			HAVING
+				count_installer_labels > 0 AND count_host_labels > 0 
+				
+			UNION
+
+			-- exclude any
+			SELECT
+				COUNT(*) AS count_installer_labels,
+				COUNT(lm.label_id) AS count_host_labels
+			FROM
+				software_installer_labels sil
+				LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+				AND lm.host_id = :host_id
+			WHERE
+				sil.software_installer_id = :installer_id
+				AND sil.exclude = 1
+			HAVING
+				count_installer_labels > 0 AND count_host_labels = 0
+			) t
+	`
+	namedArgs := map[string]any{
+		"host_id":      hostID,
+		"installer_id": installerID,
+	}
+	stmt, args, err := sqlx.Named(stmt, namedArgs)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "build named query for is software installer label scoped")
+	}
+
+	var res bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, args...); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+
+		return false, ctxerr.Wrap(ctx, err, "is software installer label scoped")
+	}
+
+	return res, nil
+}

@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -1793,6 +1795,17 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		)
 		if fleet.PlatformFromHost(hostPlatform) != installerMetadata.Platform {
 			level.Debug(logger).Log("msg", "installer platform does not match host platform")
+			continue
+		}
+		scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, failingPolicyWithInstaller.InstallerID, hostID)
+		if err != nil {
+			slog.With("filename", "server/service/osquery.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: ERROR ", "err", err)
+			return ctxerr.Wrap(ctx, err, "checking if software installer is label scoped to host")
+		}
+		if !scoped {
+			incomingPolicyResults[failingPolicyWithInstaller.ID] = nil
+			slog.With("filename", "server/service/osquery.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: SKIPPING SOFTWARE INSTALL ", "hostID", hostID, "installerID", failingPolicyWithInstaller.InstallerID, "policyID", failingPolicyWithInstaller.ID)
+			level.Debug(logger).Log("msg", "not marking policy as failed since software is out of scope for host")
 			continue
 		}
 		hostLastInstall, err := svc.ds.GetHostLastInstallData(ctx, hostID, installerMetadata.InstallerID)
