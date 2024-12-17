@@ -13,10 +13,10 @@
     width: auto;
     max-width: 120px;
   }
-
 }
 
-@media (max-width: 1120px) {
+@media (max-width: 1250px) {
+  // Prevents unnecessary status new line wrap
   .view-hosts-link {
     span {
       display: none;
@@ -32,6 +32,5 @@
     &__cell {
       width: min-content;
     }
-
   }
 }

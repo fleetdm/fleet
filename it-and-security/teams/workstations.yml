@@ -56,6 +56,7 @@ controls:
       - path: ../lib/macos/configuration-profiles/prevent-autologon.mobileconfig
       - path: ../lib/macos/configuration-profiles/secure-terminal-keyboard.mobileconfig
       - path: ../lib/macos/declaration-profiles/passcode-settings.json
+      - path: ../lib/macos/declaration-profiles/software-update-settings.json
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
