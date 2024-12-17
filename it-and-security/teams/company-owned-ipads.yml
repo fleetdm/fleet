@@ -16,6 +16,7 @@ controls:
     minimum_version: "17.6"
   macos_settings:
     custom_settings:
+      - path: ../lib/ipados/declaration-profiles/software-update-settings.json
   scripts:
 policies:
 queries:
