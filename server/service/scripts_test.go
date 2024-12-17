@@ -60,6 +60,9 @@ func TestHostRunScript(t *testing.T) {
 		return []byte("echo"), nil
 	}
 	ds.IsExecutionPendingForHostFunc = func(ctx context.Context, hostID, scriptID uint) (bool, error) { return false, nil }
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
 
 	t.Run("authorization checks", func(t *testing.T) {
 		testCases := []struct {
