@@ -640,6 +640,11 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		return err
 	})
 
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM cron_stats")
+		return err
+	})
+
 	// clear any host dep assignments
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM host_dep_assignments")
