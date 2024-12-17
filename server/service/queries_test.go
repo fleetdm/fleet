@@ -732,7 +732,7 @@ func TestQueryReportReturnsNilIfDiscardDataIsTrue(t *testing.T) {
 	require.False(t, reportClipped)
 }
 
-func TestQueryReportTeamPermissions(t *testing.T) {
+func TestInheritedQueryReportTeamPermissions(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
 
@@ -767,7 +767,26 @@ func TestQueryReportTeamPermissions(t *testing.T) {
 	require.NoError(t, err)
 	err = ds.AddHostsToTeam(ctx, &team2.ID, []uint{hostTeam2.ID})
 	require.NoError(t, err)
-	team2Query, err := ds.NewQuery(ctx, &fleet.Query{
+
+	hostTeam1, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("42"),
+		UUID:            "42",
+		ComputerName:    "bar Local",
+		Hostname:        "bar.local",
+		OsqueryHostID:   ptr.String("42"),
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-62",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{hostTeam1.ID})
+	require.NoError(t, err)
+
+	globalQuery, err := ds.NewQuery(ctx, &fleet.Query{
 		ID:      77,
 		Name:    "team2 query",
 		TeamID:  nil,
@@ -777,15 +796,25 @@ func TestQueryReportTeamPermissions(t *testing.T) {
 	require.NoError(t, err)
 	// Insert initial Result Rows
 	mockTime := time.Now().UTC().Truncate(time.Second)
-	initialRow := []*fleet.ScheduledQueryResultRow{
+	host2Row := []*fleet.ScheduledQueryResultRow{
 		{
-			QueryID:     team2Query.ID,
+			QueryID:     globalQuery.ID,
 			HostID:      hostTeam2.ID,
 			LastFetched: mockTime,
 			Data:        ptr.RawMessage([]byte(`{"model": "USB Keyboard", "vendor": "Apple Inc."}`)),
 		},
 	}
-	err = ds.OverwriteQueryResultRows(ctx, initialRow, fleet.DefaultMaxQueryReportRows)
+	err = ds.OverwriteQueryResultRows(ctx, host2Row, fleet.DefaultMaxQueryReportRows)
+	require.NoError(t, err)
+	host1Row := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     globalQuery.ID,
+			HostID:      hostTeam1.ID,
+			LastFetched: mockTime,
+			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Apple Inc."}`)),
+		},
+	}
+	err = ds.OverwriteQueryResultRows(ctx, host1Row, fleet.DefaultMaxQueryReportRows)
 	require.NoError(t, err)
 
 	team2Admin := &fleet.User{
@@ -797,9 +826,11 @@ func TestQueryReportTeamPermissions(t *testing.T) {
 		},
 	}
 
-	queryReportResults, _, err := svc.GetQueryReportResults(viewer.NewContext(ctx, viewer.Viewer{User: team2Admin}), team2Query.ID, &team2.ID)
+	queryReportResults, _, err := svc.GetQueryReportResults(viewer.NewContext(ctx, viewer.Viewer{User: team2Admin}), globalQuery.ID, &team2.ID)
 	require.NoError(t, err)
 	require.Len(t, queryReportResults, 1)
+
+	// team admins requesting query results filtered to not-their-team should get no rows back
 
 	teamAdmin := &fleet.User{
 		Teams: []fleet.UserTeam{
@@ -858,7 +889,7 @@ func TestQueryReportTeamPermissions(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			queryReportResults, _, err := svc.GetQueryReportResults(viewer.NewContext(ctx, viewer.Viewer{User: tt.user}), team2Query.ID, &team2.ID)
+			queryReportResults, _, err := svc.GetQueryReportResults(viewer.NewContext(ctx, viewer.Viewer{User: tt.user}), globalQuery.ID, &team2.ID)
 			require.NoError(t, err)
 			require.Len(t, queryReportResults, 0)
 		})
