@@ -4,7 +4,7 @@
 
 Context is king for device data, and Fleet provides a way to surface that information to our other teams and partners.
 
-**- Systems and infrastructure manager**
+**- Systems and Infrastructure Manager**
 </div>
 
 ##  Challenge
