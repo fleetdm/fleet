@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-const FLEET_SECRET_PREFIX = "FLEET_SECRET_"
+const ServerSecretPrefix = "FLEET_SECRET_"
 
 type MissingSecretsError struct {
 	MissingSecrets []string

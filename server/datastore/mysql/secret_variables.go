@@ -70,7 +70,7 @@ func (ds *Datastore) GetSecretVariables(ctx context.Context, names []string) ([]
 }
 
 func (ds *Datastore) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
-	embeddedSecrets := fleet.ContainsPrefixVars(document, fleet.FLEET_SECRET_PREFIX)
+	embeddedSecrets := fleet.ContainsPrefixVars(document, fleet.ServerSecretPrefix)
 
 	secrets, err := ds.GetSecretVariables(ctx, embeddedSecrets)
 	if err != nil {
@@ -96,10 +96,10 @@ func (ds *Datastore) ExpandEmbeddedSecrets(ctx context.Context, document string)
 	}
 
 	expanded := fleet.MaybeExpand(document, func(s string) (string, bool) {
-		if !strings.HasPrefix(s, fleet.FLEET_SECRET_PREFIX) {
+		if !strings.HasPrefix(s, fleet.ServerSecretPrefix) {
 			return "", false
 		}
-		val, ok := secretMap[strings.TrimPrefix(s, fleet.FLEET_SECRET_PREFIX)]
+		val, ok := secretMap[strings.TrimPrefix(s, fleet.ServerSecretPrefix)]
 		return val, ok
 	})
 
@@ -111,7 +111,7 @@ func (ds *Datastore) ValidateEmbeddedSecrets(ctx context.Context, documents []st
 	haveSecrets := make(map[string]struct{})
 
 	for _, document := range documents {
-		vars := fleet.ContainsPrefixVars(document, fleet.FLEET_SECRET_PREFIX)
+		vars := fleet.ContainsPrefixVars(document, fleet.ServerSecretPrefix)
 		for _, v := range vars {
 			wantSecrets[v] = struct{}{}
 		}
