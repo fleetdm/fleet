@@ -56,7 +56,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 
 3. Add page names (e.g. "Host details" page) to the user story's title and/or description to help contributors find Figma wireframes for the area of the UI you're making changes to.
 
-4. If the story requires API or YAML file changes, open a pull request to the reference docs with the proposed design. Pay attention to existing conventions (URL structure, parameter names, response format) and aim to be consistent. Once your changes are ready, make a PR following these guidelines:
+4. If the story requires API or YAML file changes, open a pull request (PR) to the reference docs with the proposed design. Pay attention to existing conventions (URL structure, parameter names, response format) and aim to be consistent. Your PR should follow these guidelines:
   - Make a PR against the docs release branch for the version you expect this feature to be in. Docs release branches are named using the format `docs-vX.X.X`, so if you're designing for Fleet 4.61, you would make a PR to `docs-v4.61.0`.
   - Add a link to the issue in the PR description.
   - Attach the `~api-design` label.
