@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 )
 
 // PolicyPayload holds data for policy creation.
@@ -162,12 +164,12 @@ type ModifyPolicyPayload struct {
 	// Value 0 will unset the current installer from the policy.
 	//
 	// Only applies to team policies.
-	SoftwareTitleID *uint `json:"software_title_id" premium:"true"`
+	SoftwareTitleID optjson.Any[uint] `json:"software_title_id" premium:"true"`
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	// Value 0 will unset the current script from the policy.
 	//
 	// Only applies to team policies.
-	ScriptID *uint `json:"script_id" premium:"true"`
+	ScriptID optjson.Any[uint] `json:"script_id" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.

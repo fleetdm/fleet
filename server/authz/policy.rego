@@ -643,6 +643,20 @@ allow {
   action == read
 }
 
+# Global admins and maintainers can read all maintained apps.
+allow {
+  object.type == "maintained_app"
+  subject.global_role == [admin, maintainer][_]
+  action == read
+}
+
+# Team admins and maintainers can read all maintained apps (no team constraint, unlike installers)
+allow {
+  object.type == "maintained_app"
+  team_role(subject, subject.teams[_].id) == [admin, maintainer][_]
+  action == read
+}
+
 # Global admins and maintainers can read any installable entity (software installer or VPP app)
 allow {
   object.type == "installable_entity"
@@ -993,4 +1007,15 @@ allow {
   not is_null(object.team_id)
   team_role(subject, object.team_id) == [admin, maintainer, observer_plus, observer][_]
   action == read
+}
+
+##
+# Secret variables
+##
+
+# Global admins, maintainers, and gitops can write secret variables.
+allow {
+  object.type == "secret_variable"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == write
 }

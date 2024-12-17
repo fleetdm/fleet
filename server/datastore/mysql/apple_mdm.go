@@ -2814,11 +2814,16 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 		status = &fleet.MDMDeliveryVerified
 	}
 
-	_, err := ds.writer(ctx).ExecContext(ctx, `
+	// We need to run with retry due to potential deadlocks with BulkSetPendingMDMHostProfiles.
+	// Deadlock seen in 2024/12/12 loadtest: https://docs.google.com/document/d/1-Q6qFTd7CDm-lh7MVRgpNlNNJijk6JZ4KO49R1fp80U
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `
           UPDATE host_mdm_apple_profiles
           SET status = ?, operation_type = ?, detail = ?
           WHERE host_uuid = ? AND command_uuid = ?
         `, status, profile.OperationType, detail, profile.HostUUID, profile.CommandUUID)
+		return err
+	})
 	return err
 }
 
@@ -5714,11 +5719,13 @@ func (ds *Datastore) CleanupHostMDMCommands(ctx context.Context) error {
 
 func (ds *Datastore) CleanupHostMDMAppleProfiles(ctx context.Context) error {
 	// Delete pending commands that don't have a corresponding entry in nano_enrollment_queue.
-	// This could occur due to errors (i.e., large server/DB load) or server being stopped while processing the profiles.
+	// This could occur when the host re-enrolls in MDM with outstanding Pending commands.
+	// This could also occur due to errors (i.e., large server/DB load) or server being stopped while processing the profiles.
 	// After the entry is deleted, the mdm_apple_profile_manager job will try to requeue the profile.
 	stmt := fmt.Sprintf(`
 		DELETE hmap FROM host_mdm_apple_profiles AS hmap
-		LEFT JOIN nano_enrollment_queue neq ON hmap.host_uuid = neq.id AND hmap.command_uuid = neq.command_uuid
+        -- ANTIJOIN: Delete rows that don't have a corresponding entry in nano_enrollment_queue
+		LEFT JOIN nano_enrollment_queue neq ON hmap.host_uuid = neq.id AND hmap.command_uuid = neq.command_uuid AND neq.active = 1
 		WHERE neq.id IS NULL AND (hmap.status IS NULL OR hmap.status = '%s') AND hmap.updated_at < NOW() - INTERVAL 1 HOUR`,
 		fleet.MDMDeliveryPending)
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {

@@ -39,7 +39,9 @@ const getEnabledEndUserAuth = (
 const isIdPConfigured = ({
   end_user_authentication: idp,
 }: Pick<IMdmConfig, "end_user_authentication">) => {
-  return !!idp.entity_id && !!idp.metadata_url && !!idp.idp_name;
+  return (
+    !!idp.entity_id && !!idp.idp_name && (!!idp.metadata_url || !!idp.metadata)
+  );
 };
 
 interface IEndUserAuthenticationProps {

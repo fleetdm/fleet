@@ -1,5 +1,5 @@
 agent_options:
-  path: ./lib/agent-options.yml
+  path: ./lib/all/agent-options/agent-options.yml
 org_settings:
   features:
     enable_host_users: true
@@ -78,4 +78,4 @@ org_settings:
       host_batch_size: 0
 policies:
 queries:
-  - path: ./lib/collect-fleetd-update-channels.queries.yml
+  - path: ./lib/all/queries/collect-fleetd-update-channels.yml

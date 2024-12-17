@@ -917,7 +917,7 @@ func listSoftwareDB(
 				DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
 				CreatedAt:   *result.CreatedAt,
 			}
-			if opts.IncludeCVEScores {
+			if opts.IncludeCVEScores && !opts.WithoutVulnerabilityDetails {
 				cve.CVSSScore = &result.CVSSScore
 				cve.EPSSProbability = &result.EPSSProbability
 				cve.CISAKnownExploit = &result.CISAKnownExploit

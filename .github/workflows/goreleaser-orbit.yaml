@@ -132,7 +132,7 @@ jobs:
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
           name: orbit-linux-arm64
-          path: dist/orbit_linux_arm64/orbit
+          path: dist/orbit_linux_arm64_v8.0/orbit
 
   goreleaser-windows:
     runs-on: windows-2022

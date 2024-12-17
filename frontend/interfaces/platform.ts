@@ -22,12 +22,17 @@ export type QueryableDisplayPlatform = Exclude<
 >;
 export type QueryablePlatform = Exclude<Platform, "ios" | "ipados">;
 
-export const SUPPORTED_PLATFORMS: QueryablePlatform[] = [
+export const QUERYABLE_PLATFORMS: QueryablePlatform[] = [
   "darwin",
   "windows",
   "linux",
   "chrome",
 ];
+
+export const isQueryablePlatform = (
+  platform: string | undefined
+): platform is QueryablePlatform =>
+  QUERYABLE_PLATFORMS.includes(platform as QueryablePlatform);
 
 // TODO - add "iOS" and "iPadOS" once we support them
 export const VULN_SUPPORTED_PLATFORMS: Platform[] = ["darwin", "windows"];

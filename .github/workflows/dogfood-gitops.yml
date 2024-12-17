@@ -76,3 +76,32 @@ jobs:
           DOGFOOD_COMPANY_OWNED_IPHONES_ENROLL_SECRET: ${{ secrets.DOGFOOD_COMPANY_OWNED_IPHONES_ENROLL_SECRET }}
           DOGFOOD_COMPANY_OWNED_IPADS_ENROLL_SECRET: ${{ secrets.DOGFOOD_COMPANY_OWNED_IPADS_ENROLL_SECRET }}
           MANAGED_CHROME_ENROLLMENT_TOKEN: ${{ secrets.CLOUD_MANAGEMENT_ENROLLMENT_TOKEN }}
+
+      - name: Notify on Gitops failure
+        if: failure() && github.ref_name == 'main'
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "GitOps run failed for ${{ env.RUN_URL }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "GitOps run failed on ${{ github.ref_name }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "For more details see:\n${{ env.RUN_URL }}"
+                  }
+                }
+              ]
+            }
+        env:
+          RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_DOGFOODING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
