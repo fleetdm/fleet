@@ -12199,9 +12199,16 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		PendingUninstall: 1,
 	}, *titleResp.SoftwareTitle.SoftwarePackage.Status)
 
-	// Another install/uninstall cannot be send once an uninstall is pending
+	// Another install/uninstall cannot be sent once an uninstall is pending
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h.ID, titleID), nil, http.StatusBadRequest, &resp)
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", h.ID, titleID), nil, http.StatusBadRequest, &resp)
+
+	// expect uninstall script to be pending
+	var orbitResp orbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)),
+		http.StatusOK, &orbitResp)
+	require.Len(t, orbitResp.Notifications.PendingScriptExecutionIDs, 1)
 
 	// Host sends successful uninstall result
 	var orbitPostScriptResp orbitPostScriptResultResponse
