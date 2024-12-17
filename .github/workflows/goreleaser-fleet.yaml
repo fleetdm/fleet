@@ -93,7 +93,7 @@ jobs:
       - name: Attest binaries and archives
         uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
         with:
-          subject-path: "dist/fleet*"
+          subject-path: "dist/**"
 
       # Get the commit hash so we can get image digests
       - name: Get the short commit hash
