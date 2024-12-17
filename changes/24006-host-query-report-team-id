@@ -1,1 +1,1 @@
-* Added optional team_id parameter to queries report endpoint (/api/latest/fleet/queries/{query_id}/report) that filters report results by team. 
+* Fixed cases where showing results of an inherited query viewed inside a team would include results from hosts not on thta team by adding an optional team_id parameter to queries report endpoint (`GET /api/latest/fleet/queries/{query_id}/report`)
