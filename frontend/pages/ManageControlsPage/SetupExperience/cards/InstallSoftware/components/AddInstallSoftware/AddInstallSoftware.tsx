@@ -6,6 +6,7 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import { ISoftwareTitle } from "interfaces/software";
 import LinkWithContext from "components/LinkWithContext";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "add-install-software";
 
@@ -45,9 +46,17 @@ const AddInstallSoftware = ({
         software.app_store_app?.install_during_setup
     ).length;
 
-    return installDuringSetupCount === 0
-      ? "No software added."
-      : `${installDuringSetupCount} software will be installed during setup.`;
+    return installDuringSetupCount === 0 ? (
+      "No software added."
+    ) : (
+      <>
+        {installDuringSetupCount} software will be{" "}
+        <TooltipWrapper position="top" tipContent="Software order will vary.">
+          installed during setup
+        </TooltipWrapper>
+        .
+      </>
+    );
   };
 
   const getButtonText = () => {
