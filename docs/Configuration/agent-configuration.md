@@ -2,7 +2,7 @@
 
 Agent configuration options (agent options) update the settings of Fleet's agent (fleed) installed on all your hosts.
 
-You can modify agent options in **Settings > Organization settings > Agent options** or via Fleet's [API](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) or [YAML](https://fleetdm.com/docs/configuration/yaml-files).
+You can modify agent options in **Settings > Organization settings > Agent options** or via Fleet's [API](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) or [YAML files](https://fleetdm.com/docs/configuration/yaml-files).
 
 ## config 
 
@@ -16,13 +16,15 @@ The `config` section allows you to update settings like performance and and how 
 
 ### `options` and `command_line_flags`
 
-To see a description for all available settings, with your host enrolled to Fleet, run `sudo orbit shell` (or the equivalent on Windows) to open an interactive osquery shell. Then run the following osquery query:
+To see a description for all available settings, first [enroll your host](https://fleetdm.com/guides/enroll-hosts) to Fleet and then run `sudo orbit shell` to open an interactive osquery shell. Then run the following osquery query:
 
 ```
 osquery > SELECT name, value, description FROM osquery; 
 ```
 
-You can also use this query to verify that settings have taken effect on the hosts.
+You can also run this query to verify that the latest settings have been applied to your hosts.
+
+#### Advanced
 
 `options` and `command_line_flags` are validated using the latest version of osquery. If you are not using the latest version of osquery, you can create a YAML file and apply it with `fleetctl apply --force` command to override the validation:
 
