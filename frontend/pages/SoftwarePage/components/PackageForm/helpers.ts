@@ -1,3 +1,5 @@
+import { IDropdownOption } from "interfaces/dropdownOption";
+
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 
@@ -10,6 +12,7 @@ type IPackageFormValidatorKey = Exclude<
 
 type IMessageFunc = (formData: IPackageFormData) => string;
 type IValidationMessage = string | IMessageFunc;
+type IFormValidationKey = keyof Omit<IFormValidation, "isValid">;
 
 interface IValidation {
   name: string;
@@ -17,11 +20,11 @@ interface IValidation {
   message?: IValidationMessage;
 }
 
-/** configuration defines validations for each filed in the form. It defines rules
+/** configuration defines validations for each field in the form. It defines rules
  *  to determine if a field is valid, and rules for generating an error message.
  */
 const FORM_VALIDATION_CONFIG: Record<
-  IPackageFormValidatorKey,
+  IFormValidationKey,
   { validations: IValidation[] }
 > = {
   software: {
@@ -46,13 +49,21 @@ const FORM_VALIDATION_CONFIG: Record<
       },
     ],
   },
-  postInstallScript: {
-    // no validations related to postInstallScript
-    validations: [],
-  },
-  selfService: {
-    // no validations related to self service
-    validations: [],
+  customTarget: {
+    validations: [
+      {
+        name: "requiredLabelTargets",
+        isValid: (formData) => {
+          if (formData.targetType === "All hosts") return true;
+          // there must be at least one label target selected
+          return (
+            Object.keys(formData.labelTargets).find(
+              (key) => formData.labelTargets[key]
+            ) !== undefined
+          );
+        },
+      },
+    ],
   },
 };
 
@@ -97,3 +108,16 @@ export const generateFormValidation = (formData: IPackageFormData) => {
 };
 
 export default generateFormValidation;
+
+export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
+  {
+    value: "labelsIncludeAny",
+    label: "Include any",
+    disabled: false,
+  },
+  {
+    value: "labelsExcludeAny",
+    label: "Exclude any",
+    disabled: false,
+  },
+];

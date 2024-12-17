@@ -17,6 +17,7 @@ import {
 } from "utilities/url";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
 import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
+import { listNamesFromSelectedLabels } from "components/TargetLabelSelector/TargetLabelSelector";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -138,6 +139,8 @@ interface IAddFleetMaintainedAppPostBody {
   post_install_script?: string;
   uninstall_script?: string;
   self_service?: boolean;
+  labels_include_any?: string[];
+  labels_exclude_any?: string[];
 }
 
 const ORDER_KEY = "name";
@@ -276,6 +279,15 @@ export default {
       formData.append("post_install_script", data.postInstallScript);
     teamId && formData.append("team_id", teamId.toString());
 
+    if (data.targetType === "Custom") {
+      const selectedLabels = listNamesFromSelectedLabels(data.labelTargets);
+      if (data.customTarget === "labelsIncludeAny") {
+        formData.append("labels_include_any", selectedLabels.join(","));
+      } else {
+        formData.append("labels_exclude_any", selectedLabels.join(","));
+      }
+    }
+
     return sendRequestWithProgress({
       method: "POST",
       path: SOFTWARE_PACKAGE_ADD,
@@ -379,6 +391,15 @@ export default {
       uninstall_script: formData.uninstallScript,
       self_service: formData.selfService,
     };
+
+    if (formData.targetType === "Custom") {
+      const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
+      if (formData.customTarget === "labelsIncludeAny") {
+        body.labels_include_any = selectedLabels;
+      } else {
+        body.labels_exclude_any = selectedLabels;
+      }
+    }
 
     return sendRequest("POST", SOFTWARE_FLEET_MAINTAINED_APPS, body);
   },
