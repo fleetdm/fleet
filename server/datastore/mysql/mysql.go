@@ -14,15 +14,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VividCortex/mysqlerr"
 	"github.com/WatchBeam/clock"
 	"github.com/XSAM/otelsql"
-	"github.com/cenkalti/backoff/v4"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -175,8 +174,6 @@ func (ds *Datastore) NewSCEPDepot() (scep_depot.Depot, error) {
 	return newSCEPDepot(ds.primary.DB, ds)
 }
 
-type txFn func(tx sqlx.ExtContext) error
-
 type entity struct {
 	name string
 }
@@ -190,88 +187,12 @@ var (
 	usersTable    = entity{"users"}
 )
 
-var doRetryErr = errors.New("fleet datastore retry")
-
-// retryableError determines whether a MySQL error can be retried. By default
-// errors are considered non-retryable. Only errors that we know have a
-// possibility of succeeding on a retry should return true in this function.
-func retryableError(err error) bool {
-	base := ctxerr.Cause(err)
-	if b, ok := base.(*mysql.MySQLError); ok {
-		switch b.Number {
-		// Consider lock related errors to be retryable
-		case mysqlerr.ER_LOCK_DEADLOCK, mysqlerr.ER_LOCK_WAIT_TIMEOUT:
-			return true
-		}
-	}
-	if errors.Is(err, doRetryErr) {
-		return true
-	}
-
-	return false
-}
-
-func (ds *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
-	return withRetryTxx(ctx, ds.writer(ctx), fn, ds.logger)
-}
-
-// withRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
-func withRetryTxx(ctx context.Context, db *sqlx.DB, fn txFn, logger log.Logger) (err error) {
-	operation := func() error {
-		tx, err := db.BeginTxx(ctx, nil)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "create transaction")
-		}
-
-		defer func() {
-			if p := recover(); p != nil {
-				if err := tx.Rollback(); err != nil {
-					logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
-				}
-				panic(p)
-			}
-		}()
-
-		if err := fn(tx); err != nil {
-			rbErr := tx.Rollback()
-			if rbErr != nil && rbErr != sql.ErrTxDone {
-				// Consider rollback errors to be non-retryable
-				return backoff.Permanent(ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error()))
-			}
-
-			if retryableError(err) {
-				return err
-			}
-
-			// Consider any other errors to be non-retryable
-			return backoff.Permanent(err)
-		}
-
-		if err := tx.Commit(); err != nil {
-			err = ctxerr.Wrap(ctx, err, "commit transaction")
-
-			if retryableError(err) {
-				return err
-			}
-
-			return backoff.Permanent(err)
-		}
-
-		return nil
-	}
-
-	expBo := backoff.NewExponentialBackOff()
-	// MySQL innodb_lock_wait_timeout default is 50 seconds, so transaction can be waiting for a lock for several seconds.
-	// Setting a higher MaxElapsedTime to increase probability that transaction will be retried.
-	// This will reduce the number of retryable 'Deadlock found' errors. However, with a loaded DB, we will still see
-	// 'Context cancelled' errors when the server drops long-lasting connections.
-	expBo.MaxElapsedTime = 1 * time.Minute
-	bo := backoff.WithMaxRetries(expBo, 5)
-	return backoff.Retry(operation, bo)
+func (ds *Datastore) withRetryTxx(ctx context.Context, fn common_mysql.TxFn) (err error) {
+	return common_mysql.WithRetryTxx(ctx, ds.writer(ctx), fn, ds.logger)
 }
 
 // withTx provides a common way to commit/rollback a txFn
-func (ds *Datastore) withTx(ctx context.Context, fn txFn) (err error) {
+func (ds *Datastore) withTx(ctx context.Context, fn common_mysql.TxFn) (err error) {
 	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "create transaction")
