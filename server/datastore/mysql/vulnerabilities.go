@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -360,15 +361,24 @@ func (ds *Datastore) distinctCVEs(ctx context.Context) ([]string, error) {
 }
 
 func (ds *Datastore) batchFetchGlobalVulnerabilityCounts(ctx context.Context) ([]hostCount, error) {
-	batchSize := 20
-	var allCVEs []string
+	const batchSize = 20
+	const maxConcurrentBatches = 5
 
+	var allCVEs []string
+	var globalHostCounts []hostCount
+	var mu sync.Mutex
+
+	// Fetch distinct CVEs
 	allCVEs, err := ds.distinctCVEs(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var globalHostCounts []hostCount
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, maxConcurrentBatches)      // Semaphore to limit concurrency
+	errChan := make(chan error, len(allCVEs)/batchSize+1) // Collect errors from goroutines
+
+	// Process CVEs in batches
 	for i := 0; i < len(allCVEs); i += batchSize {
 		end := i + batchSize
 		if end > len(allCVEs) {
@@ -376,36 +386,57 @@ func (ds *Datastore) batchFetchGlobalVulnerabilityCounts(ctx context.Context) ([
 		}
 
 		cves := allCVEs[i:end]
-		selectStmt := `
-			SELECT 0 as team_id, 1 as global_stats, cve, COUNT(*) AS host_count
-			FROM (
-				SELECT sc.cve, hs.host_id
-				FROM software_cve sc
-				INNER JOIN host_software hs ON sc.software_id = hs.software_id
-				WHERE sc.cve IN (?)
-			
-				UNION
-			
-				SELECT osv.cve, hos.host_id
-				FROM operating_system_vulnerabilities osv
-				INNER JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
-				WHERE osv.cve IN (?)
-			) AS combined_results
-			GROUP BY cve;
-		`
+		wg.Add(1)
+		sem <- struct{}{} // Acquire semaphore
 
-		query, args, err := sqlx.In(selectStmt, cves, cves)
+		go func(batchCVEs []string) {
+			defer wg.Done()
+			defer func() { <-sem }() // Release semaphore
+
+			selectStmt := `
+				SELECT 0 as team_id, 1 as global_stats, cve, COUNT(*) AS host_count
+				FROM (
+					SELECT sc.cve, hs.host_id
+					FROM software_cve sc
+					INNER JOIN host_software hs ON sc.software_id = hs.software_id
+					WHERE sc.cve IN (?)
+				
+					UNION
+				
+					SELECT osv.cve, hos.host_id
+					FROM operating_system_vulnerabilities osv
+					INNER JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
+					WHERE osv.cve IN (?)
+				) AS combined_results
+				GROUP BY cve;
+			`
+
+			query, args, err := sqlx.In(selectStmt, batchCVEs, batchCVEs)
+			if err != nil {
+				errChan <- err
+				return
+			}
+
+			var counts []hostCount
+			err = sqlx.SelectContext(ctx, ds.reader(ctx), &counts, query, args...)
+			if err != nil {
+				errChan <- err
+				return
+			}
+
+			mu.Lock()
+			globalHostCounts = append(globalHostCounts, counts...)
+			mu.Unlock()
+		}(cves)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
 		if err != nil {
 			return nil, err
 		}
-
-		var counts []hostCount
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &counts, query, args...)
-		if err != nil {
-			return nil, err
-		}
-
-		globalHostCounts = append(globalHostCounts, counts...)
 	}
 
 	return globalHostCounts, nil
