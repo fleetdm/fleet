@@ -18,7 +18,7 @@
 - Added UI changes for windows MDM page and allow for automatic migration for windows hosts.
 - Bypassed the setup experience UI if there is no setup experience item to process (no software to install, no script to execute), so that releasing the device is done without going through that window.
 
-## Vulnerability Management
+## Vulnerability management
 - Added `without_vulnerability_details` to software versions endpoint (/api/latest/fleet/software/versions) so CVE details can be truncated when on Fleet Premium.
 - Fixed an issue where the github cli software name was not matching against the cpe vulnerability name.
 
