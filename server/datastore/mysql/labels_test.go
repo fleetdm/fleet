@@ -951,14 +951,15 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 	installer, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
 	require.NoError(t, err)
 	installerID, _, err := db.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install foo",
-		InstallerFile: installer,
-		StorageID:     uuid.NewString(),
-		Filename:      "foo.pkg",
-		Title:         "foo",
-		Source:        "apps",
-		Version:       "0.0.1",
-		UserID:        u.ID,
+		InstallScript:   "install foo",
+		InstallerFile:   installer,
+		StorageID:       uuid.NewString(),
+		Filename:        "foo.pkg",
+		Title:           "foo",
+		Source:          "apps",
+		Version:         "0.0.1",
+		UserID:          u.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 

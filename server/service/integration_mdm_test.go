@@ -12017,6 +12017,7 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 		UserID:            user1.ID,
 		TeamID:            &team1.ID,
 		Platform:          string(fleet.MacOSPlatform),
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	_ = installerID1
 	require.NoError(t, err)

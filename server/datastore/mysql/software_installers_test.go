@@ -68,6 +68,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 		Version:           "1.0",
 		Source:            "apps",
 		UserID:            user1.ID,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -84,6 +85,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 		Version:           "2.0",
 		Source:            "apps",
 		UserID:            user1.ID,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -101,6 +103,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 		Source:            "apps",
 		SelfService:       true,
 		UserID:            user1.ID,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -203,12 +206,13 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			require.Nil(t, si)
 
 			installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-				Title:         "foo",
-				Source:        "bar",
-				InstallScript: "echo",
-				TeamID:        teamID,
-				Filename:      "foo.pkg",
-				UserID:        user1.ID,
+				Title:           "foo",
+				Source:          "bar",
+				InstallScript:   "echo",
+				TeamID:          teamID,
+				Filename:        "foo.pkg",
+				UserID:          user1.ID,
+				ValidatedLabels: &fleet.LabelIdentsWithScope{},
 			})
 			require.NoError(t, err)
 			installerMeta, err := ds.GetSoftwareInstallerMetadataByID(ctx, installerID)
@@ -503,13 +507,14 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			// create a host and software installer
 			swFilename := "file_" + tc.name + ".pkg"
 			installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-				Title:         "foo" + tc.name,
-				Source:        "bar" + tc.name,
-				InstallScript: "echo " + tc.name,
-				Version:       "1.11",
-				TeamID:        &teamID,
-				Filename:      swFilename,
-				UserID:        user1.ID,
+				Title:           "foo" + tc.name,
+				Source:          "bar" + tc.name,
+				InstallScript:   "echo " + tc.name,
+				Version:         "1.11",
+				TeamID:          &teamID,
+				Filename:        swFilename,
+				UserID:          user1.ID,
+				ValidatedLabels: &fleet.LabelIdentsWithScope{},
 			})
 			require.NoError(t, err)
 			host, err := ds.NewHost(ctx, &fleet.Host{
@@ -634,13 +639,14 @@ func testCleanupUnusedSoftwareInstallers(t *testing.T, ds *Datastore) {
 	assertExisting([]string{ins0})
 
 	swi, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install",
-		InstallerFile: tfr0,
-		StorageID:     ins0,
-		Filename:      "installer0",
-		Title:         "ins0",
-		Source:        "apps",
-		UserID:        user1.ID,
+		InstallScript:   "install",
+		InstallerFile:   tfr0,
+		StorageID:       ins0,
+		Filename:        "installer0",
+		Title:           "ins0",
+		Source:          "apps",
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -925,6 +931,7 @@ func testGetSoftwareInstallerMetadataByTeamAndTitleID(t *testing.T, ds *Datastor
 		Filename:          "foo.pkg",
 		Platform:          "darwin",
 		UserID:            user1.ID,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	installerMeta, err := ds.GetSoftwareInstallerMetadataByID(ctx, installerID)
@@ -939,12 +946,13 @@ func testGetSoftwareInstallerMetadataByTeamAndTitleID(t *testing.T, ds *Datastor
 	require.Equal(t, "SELECT 1", metaByTeamAndTitle.PreInstallQuery)
 
 	installerID, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "bar",
-		Source:        "bar",
-		InstallScript: "echo install",
-		TeamID:        &team.ID,
-		Filename:      "foo.pkg",
-		UserID:        user1.ID,
+		Title:           "bar",
+		Source:          "bar",
+		InstallScript:   "echo install",
+		TeamID:          &team.ID,
+		Filename:        "foo.pkg",
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	installerMeta, err = ds.GetSoftwareInstallerMetadataByID(ctx, installerID)
@@ -978,14 +986,15 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 
 	// Create a non-self service installer
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "foo",
-		Source:        "bar",
-		InstallScript: "echo install",
-		TeamID:        &team.ID,
-		Filename:      "foo.pkg",
-		Platform:      platform,
-		SelfService:   false,
-		UserID:        user1.ID,
+		Title:           "foo",
+		Source:          "bar",
+		InstallScript:   "echo install",
+		TeamID:          &team.ID,
+		Filename:        "foo.pkg",
+		Platform:        platform,
+		SelfService:     false,
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, nil)
@@ -997,14 +1006,15 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 
 	// Create a self-service installer for team
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "foo2",
-		Source:        "bar2",
-		InstallScript: "echo install",
-		TeamID:        &team.ID,
-		Filename:      "foo2.pkg",
-		Platform:      platform,
-		SelfService:   true,
-		UserID:        user1.ID,
+		Title:           "foo2",
+		Source:          "bar2",
+		InstallScript:   "echo install",
+		TeamID:          &team.ID,
+		Filename:        "foo2.pkg",
+		Platform:        platform,
+		SelfService:     true,
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, nil)
@@ -1036,14 +1046,15 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 
 	// Create a global self-service installer
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "foo global",
-		Source:        "bar",
-		InstallScript: "echo install",
-		TeamID:        nil,
-		Filename:      "foo global.pkg",
-		Platform:      platform,
-		SelfService:   true,
-		UserID:        user1.ID,
+		Title:           "foo global",
+		Source:          "bar",
+		InstallScript:   "echo install",
+		TeamID:          nil,
+		Filename:        "foo global.pkg",
+		Platform:        platform,
+		SelfService:     true,
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "ubuntu", nil)
@@ -1087,15 +1098,16 @@ func testDeleteSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	softwareInstallerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install",
-		InstallerFile: tfr0,
-		StorageID:     ins0,
-		Filename:      "installer.pkg",
-		Title:         "ins0",
-		Source:        "apps",
-		Platform:      "darwin",
-		TeamID:        &team1.ID,
-		UserID:        user1.ID,
+		InstallScript:   "install",
+		InstallerFile:   tfr0,
+		StorageID:       ins0,
+		Filename:        "installer.pkg",
+		Title:           "ins0",
+		Source:          "apps",
+		Platform:        "darwin",
+		TeamID:          &team1.ID,
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -1161,15 +1173,16 @@ func testDeletePendingSoftwareInstallsForPolicy(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	installerID1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install",
-		InstallerFile: tfr0,
-		StorageID:     ins0,
-		Filename:      "installer.pkg",
-		Title:         "ins0",
-		Source:        "apps",
-		Platform:      "darwin",
-		TeamID:        &team1.ID,
-		UserID:        user1.ID,
+		InstallScript:   "install",
+		InstallerFile:   tfr0,
+		StorageID:       ins0,
+		Filename:        "installer.pkg",
+		Title:           "ins0",
+		Source:          "apps",
+		Platform:        "darwin",
+		TeamID:          &team1.ID,
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -1181,15 +1194,16 @@ func testDeletePendingSoftwareInstallsForPolicy(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	installerID2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install",
-		InstallerFile: tfr0,
-		StorageID:     ins0,
-		Filename:      "installer.pkg",
-		Title:         "ins1",
-		Source:        "apps",
-		Platform:      "darwin",
-		TeamID:        &team1.ID,
-		UserID:        user1.ID,
+		InstallScript:   "install",
+		InstallerFile:   tfr0,
+		StorageID:       ins0,
+		Filename:        "installer.pkg",
+		Title:           "ins1",
+		Source:          "apps",
+		Platform:        "darwin",
+		TeamID:          &team1.ID,
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -1276,27 +1290,29 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	softwareInstallerID1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install",
-		InstallerFile: tfr0,
-		StorageID:     ins0,
-		Filename:      "installer.pkg",
-		Title:         "ins1",
-		Source:        "apps",
-		Platform:      "darwin",
-		TeamID:        &team1.ID,
-		UserID:        user1.ID,
+		InstallScript:   "install",
+		InstallerFile:   tfr0,
+		StorageID:       ins0,
+		Filename:        "installer.pkg",
+		Title:           "ins1",
+		Source:          "apps",
+		Platform:        "darwin",
+		TeamID:          &team1.ID,
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	softwareInstallerID2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install2",
-		InstallerFile: tfr0,
-		StorageID:     ins0,
-		Filename:      "installer2.pkg",
-		Title:         "ins2",
-		Source:        "apps",
-		Platform:      "darwin",
-		TeamID:        &team1.ID,
-		UserID:        user1.ID,
+		InstallScript:   "install2",
+		InstallerFile:   tfr0,
+		StorageID:       ins0,
+		Filename:        "installer2.pkg",
+		Title:           "ins2",
+		Source:          "apps",
+		Platform:        "darwin",
+		TeamID:          &team1.ID,
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 

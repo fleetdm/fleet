@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -581,6 +582,12 @@ func (ts *withServer) uploadSoftwareInstaller(
 	require.NoError(t, w.WriteField("uninstall_script", payload.UninstallScript))
 	if payload.SelfService {
 		require.NoError(t, w.WriteField("self_service", "true"))
+	}
+	if payload.LabelsIncludeAny != nil {
+		require.NoError(t, w.WriteField("labels_include_any", strings.Join(payload.LabelsIncludeAny, ",")))
+	}
+	if payload.LabelsExcludeAny != nil {
+		require.NoError(t, w.WriteField("labels_exclude_any", strings.Join(payload.LabelsExcludeAny, ",")))
 	}
 
 	w.Close()

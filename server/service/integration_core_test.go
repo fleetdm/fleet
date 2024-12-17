@@ -11904,14 +11904,15 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
 	require.NoError(t, err)
 	sw1, _, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install foo",
-		InstallerFile: tfr1,
-		StorageID:     uuid.NewString(),
-		Filename:      "foo.pkg",
-		Title:         "foo",
-		Source:        "apps",
-		Version:       "0.0.1",
-		UserID:        adminUser.ID,
+		InstallScript:   "install foo",
+		InstallerFile:   tfr1,
+		StorageID:       uuid.NewString(),
+		Filename:        "foo.pkg",
+		Title:           "foo",
+		Source:          "apps",
+		Version:         "0.0.1",
+		UserID:          adminUser.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	s1Meta, err := s.ds.GetSoftwareInstallerMetadataByID(ctx, sw1)

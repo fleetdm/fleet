@@ -26,9 +26,14 @@ func (svc *Service) AddFleetMaintainedApp(
 	appID uint,
 	installScript, preInstallQuery, postInstallScript, uninstallScript string,
 	selfService bool,
+	labelsIncludeAny, labelsExcludeAny []string,
 ) (titleID uint, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return 0, err
+	}
+
+	if len(labelsIncludeAny) > 0 && len(labelsExcludeAny) > 0 {
+		return 0, &fleet.BadRequestError{Message: `Only one of "labels_include_any" or "labels_exclude_any" can be included.`}
 	}
 
 	vc, ok := viewer.FromContext(ctx)
@@ -116,6 +121,9 @@ func (svc *Service) AddFleetMaintainedApp(
 		InstallScript:     installScript,
 		UninstallScript:   uninstallScript,
 	}
+
+	// TODO: labels validations, for now just use empty struct
+	payload.ValidatedLabels = &fleet.LabelIdentsWithScope{}
 
 	// Create record in software installers table
 	_, titleID, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)

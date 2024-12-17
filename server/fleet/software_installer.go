@@ -338,6 +338,9 @@ type UploadSoftwareInstallerPayload struct {
 	InstallDuringSetup *bool    // keep saved value if nil, otherwise set as indicated
 	LabelsIncludeAny   []string // names of "include any" labels
 	LabelsExcludeAny   []string // names of "exclude any" labels
+	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
+	// is nil if the labels have not been validated.
+	ValidatedLabels *LabelIdentsWithScope
 }
 
 type UpdateSoftwareInstallerPayload struct {
