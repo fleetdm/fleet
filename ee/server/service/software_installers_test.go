@@ -112,7 +112,7 @@ func TestInstallUninstallAuth(t *testing.T) {
 	ds.GetAnyScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
 		return []byte("script"), nil
 	}
-	ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult,
+	ds.NewInternalScriptExecutionRequestFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult,
 		error) {
 		return &fleet.HostScriptResult{
 			ExecutionID: "execution_id",
