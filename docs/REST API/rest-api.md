@@ -4535,7 +4535,8 @@ To unlock a Windows or Linux host, the host must have [scripts enabled](https://
 
 ```json
 {
-  "host_id": 8
+  "host_id": 8,
+  "unlock_pin": "123456"
 }
 ```
 
