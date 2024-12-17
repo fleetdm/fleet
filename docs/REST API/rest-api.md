@@ -7774,9 +7774,10 @@ Returns the query report specified by ID.
 
 #### Parameters
 
-| Name      | Type    | In    | Description                                |
-| --------- | ------- | ----- | ------------------------------------------ |
-| id        | integer | path  | **Required**. The ID of the desired query. |
+| Name      | Type    | In    | Description                                                                               |
+| --------- | ------- | ----- | ----------------------------------------------------------------------------------------- |
+| id        | integer | path  | **Required**. The ID of the desired query.                                                |
+| team_id   | integer | query | Filter the query report to only include hosts that are associated with the team specified |
 
 #### Example
 
