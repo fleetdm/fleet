@@ -20,7 +20,9 @@ Missing items:
 1. 2.6.3.1 Ensure Share Mac Analytics Is Disabled
 2. 2.6.3.3 Ensure Improve Assistive Voice Features Is Disabled
 3. 2.6.3.4 Ensure 'Share with app developers' Is Disabled
-4. 5.11 Ensure Logging Is Enabled for Sudo
+4. 2.6.3.5 Ensure Share iCloud Analytics Is Disabled
+5. 2.7.2 Audit iPhone Mirroring
+6. 5.11 Ensure Logging Is Enabled for Sudo
 
 ### Checks that require decision
 
