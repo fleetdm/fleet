@@ -464,7 +464,7 @@ resource "aws_cloudwatch_event_rule" "cron_monitoring_lambda" {
   count               = var.cron_monitoring == null ? 0 : 1
   name                = "${var.customer_prefix}-cron-monitoring"
   schedule_expression = "rate(${var.cron_monitoring.run_interval})"
-  is_enabled          = true
+  state               = "ENABLED"
 }
 
 resource "aws_cloudwatch_event_target" "cron_monitoring_lambda" {

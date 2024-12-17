@@ -157,7 +157,7 @@ func generateRandomString(sizeBytes int) string {
 }
 
 func ExpandEnv(s string) (string, error) {
-	out, err := expandEnv(s, nil)
+	out, err := expandEnv(s, true)
 	return out, err
 }
 
@@ -167,7 +167,7 @@ func ExpandEnv(s string) (string, error) {
 // $FLEET_VAR_XXX will not be expanded. These variables are expanded on the server.
 // If secretsMap is not nil, $FLEET_SECRET_XXX will be evaluated and put in the map
 // If secretsMap is nil, $FLEET_SECRET_XXX will cause an error.
-func expandEnv(s string, secretsMap map[string]string) (string, error) {
+func expandEnv(s string, failOnSecret bool) (string, error) {
 	// Generate a random escaping prefix that doesn't exist in s.
 	var preventEscapingPrefix string
 	for {
@@ -187,20 +187,11 @@ func expandEnv(s string, secretsMap map[string]string) (string, error) {
 			// Don't expand fleet vars -- they will be expanded on the server
 			return "", false
 		case strings.HasPrefix(env, fleet.FLEET_SECRET_PREFIX):
-			if secretsMap != nil {
-				// lookup the secret and save it, but don't replace
-				v, ok := os.LookupEnv(env)
-				if !ok {
-					err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
-					return "", false
-				}
-				secretsMap[env] = v
-				return "", false
-			} else {
+			if failOnSecret {
 				err = multierror.Append(err, fmt.Errorf("environment variables with %q prefix are only allowed in profiles and scripts: %q",
 					fleet.FLEET_SECRET_PREFIX, env))
-				return "", false
 			}
+			return "", false
 		}
 		v, ok := os.LookupEnv(env)
 		if !ok {
@@ -223,6 +214,14 @@ func ExpandEnvBytes(b []byte) ([]byte, error) {
 	return []byte(s), nil
 }
 
+func ExpandEnvBytesIgnoreSecrets(b []byte) ([]byte, error) {
+	s, err := expandEnv(string(b), false)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(s), nil
+}
+
 // LookupEnvSecrets only looks up FLEET_SECRET_XXX environment variables. Escaping is not supported.
 // This is used for finding secrets in scripts only. The original string is not modified.
 // A map of secret names to values is updated.
@@ -238,9 +237,6 @@ func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 			if !ok {
 				err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
 				return "", false
-			}
-			if secretsMap == nil {
-				secretsMap = make(map[string]string, 1)
 			}
 			secretsMap[env] = v
 		}

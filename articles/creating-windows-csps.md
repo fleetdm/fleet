@@ -27,7 +27,7 @@ Windows maps the name and category path of a Group Policy to an MDM policy by pa
 
 ## Unpacking the “How”
 
-Unfortunately, to capture handling of ADMX the admin building the policies must use a UI, such as the Group Policy Editor, to gather the necessary data. For this example, we will use the ```WindowsPowerShell`` which controls PowerShell settings and is an ADMX-backed policy. [This](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-windowspowershell) is the official documentation that we will work from if you want to follow along. Notice this banner that indicates the ADMX requirement:
+Unfortunately, to capture handling of ADMX the admin building the policies must use a UI, such as the Group Policy Editor, to gather the necessary data. For this example, we will use the ```WindowsPowerShell``` which controls PowerShell settings and is an ADMX-backed policy. [This](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-windowspowershell) is the official documentation that we will work from if you want to follow along. Notice this banner that indicates the ADMX requirement:
 
 ![ADMX Tool Tip](../website/assets/images/articles/admx-tool-tip.png)
 
@@ -37,7 +37,7 @@ In the Windows documentation, you will notice a section called ADMX Mapping:
 ![ADMX Mapping](../website/assets/images/articles/admx-mapping.png)
 
 Pay attention to the line **ADMX File Name**, which will show you the name of the .admx file you need to open to help craft your CSP. All ADMX files are located at: 
-```C:\Windows\PolicyDefinitions\{ADMXFileName.admx```
+```C:\Windows\PolicyDefinitions\{ADMXFileName.admx}```
 
 In this XML file are the keys, and their type listed which indicates the values the CSP can modify. In this example there are 5 parameters:
  - ExecutionPolicy
@@ -92,7 +92,7 @@ To write this into the CSP, pull out the `id`, “ExecutionPolicy”, and the ac
 
 ```<data id="ExecutionPolicy" value="AllSigned"/>```
 
-Going through all the keys in this polcies, will resort in like:
+Going through all the keys in this policies, the payload will look like such:
 
 ```
 <data id="ExecutionPolicy" value="AllSigned"/>
