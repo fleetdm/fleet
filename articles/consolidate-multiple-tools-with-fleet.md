@@ -9,8 +9,6 @@ We've been using Fleet for a few years and we couldn't be happier. The fact that
 
 ## Challenge
 
-Scaling organizations face a common challenge: managing every device efficiently across varying teams and locations. Here, we take a deeper look at the impact that Fleet has made at a leading financial technology company.
-
 The leading financial company looked to simplify how they manage devices and reduce tool overlap without sacrificing control over their infrastructure. The use of multiple proprietary device management tools was creating operational silos, and it required specialized expertise for different legacy systems, leading to inefficiencies.
 
 ## Solution

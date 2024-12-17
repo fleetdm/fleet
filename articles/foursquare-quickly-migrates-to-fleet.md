@@ -2,7 +2,7 @@
 
 <div purpose="attribution-quote">
 
-“After several fast-paced weeks of planning, testing, and collaboration, our corporate engineering team at Foursquare has officially completed the migration to Fleet Device Management as our new device management platform. This move represents a big step forward for us.”
+After several fast-paced weeks of planning, testing, and collaboration, our corporate engineering team at Foursquare has officially completed the migration to Fleet Device Management as our new device management platform. This move represents a big step forward for us.
 
 **— Mike Meyer, Manager, Corporate Engineering at Foursquare**
 </div>

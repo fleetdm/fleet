@@ -37,6 +37,13 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return err
 	}
 
+	// validate labels before we do anything else
+	validatedLabels, err := svc.validateSoftwareLabels(ctx, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "validating software labels")
+	}
+	payload.ValidatedLabels = validatedLabels
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return fleet.ErrNoContext
@@ -94,6 +101,36 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	return nil
+}
+
+func (svc *Service) validateSoftwareLabels(ctx context.Context, labelsIncludeAny, labelsExcludeAny []string) (*fleet.LabelIdentsWithScope, error) {
+	var names []string
+	var scope fleet.LabelScope
+	switch {
+	case len(labelsIncludeAny) > 0 && len(labelsExcludeAny) > 0:
+		return nil, &fleet.BadRequestError{Message: `Only one of "labels_include_any" or "labels_exclude_any" can be included.`}
+	case len(labelsIncludeAny) > 0:
+		names = labelsIncludeAny
+		scope = fleet.LabelScopeIncludeAny
+	case len(labelsExcludeAny) > 0:
+		names = labelsExcludeAny
+		scope = fleet.LabelScopeExcludeAny
+	}
+
+	if len(names) == 0 {
+		// nothing to validate, return empty result
+		return &fleet.LabelIdentsWithScope{}, nil
+	}
+
+	byName, err := svc.BatchValidateLabels(ctx, names)
+	if err != nil {
+		return nil, err
+	}
+
+	return &fleet.LabelIdentsWithScope{
+		LabelScope: scope,
+		ByName:     byName,
+	}, nil
 }
 
 var packageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<suffix>\W|$))|(("\${PACKAGE_ID}")|(\${PACKAGE_ID}))`)
@@ -1121,7 +1158,7 @@ const (
 )
 
 func (svc *Service) BatchSetSoftwareInstallers(
-	ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool,
+	ctx context.Context, tmName string, payloads []*fleet.SoftwareInstallerPayload, dryRun bool,
 ) (string, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return "", err
@@ -1163,6 +1200,11 @@ func (svc *Service) BatchSetSoftwareInstallers(
 				fmt.Sprintf("Couldn't edit software. URL (%q) is invalid", payload.URL),
 			)
 		}
+		validatedLabels, err := svc.validateSoftwareLabels(ctx, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+		if err != nil {
+			return "", err
+		}
+		payload.ValidatedLabels = validatedLabels
 	}
 
 	// keyExpireTime is the current maximum time supported for retrieving
@@ -1202,7 +1244,7 @@ func (svc *Service) softwareBatchUpload(
 	requestUUID string,
 	teamID *uint,
 	userID uint,
-	payloads []fleet.SoftwareInstallerPayload,
+	payloads []*fleet.SoftwareInstallerPayload,
 	dryRun bool,
 ) {
 	var batchErr error
@@ -1314,6 +1356,9 @@ func (svc *Service) softwareBatchUpload(
 				UserID:             userID,
 				URL:                p.URL,
 				InstallDuringSetup: p.InstallDuringSetup,
+				LabelsIncludeAny:   p.LabelsIncludeAny,
+				LabelsExcludeAny:   p.LabelsExcludeAny,
+				ValidatedLabels:    p.ValidatedLabels,
 			}
 
 			// set the filename before adding metadata, as it is used as fallback

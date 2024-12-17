@@ -338,6 +338,9 @@ type UploadSoftwareInstallerPayload struct {
 	InstallDuringSetup *bool    // keep saved value if nil, otherwise set as indicated
 	LabelsIncludeAny   []string // names of "include any" labels
 	LabelsExcludeAny   []string // names of "exclude any" labels
+	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
+	// is nil if the labels have not been validated.
+	ValidatedLabels *LabelIdentsWithScope
 }
 
 type UpdateSoftwareInstallerPayload struct {
@@ -460,6 +463,8 @@ type SoftwarePackageSpec struct {
 	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
 	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
 	UninstallScript   TeamSpecSoftwareAsset `json:"uninstall_script"`
+	LabelsIncludeAny  []string              `json:"labels_include_any"`
+	LabelsExcludeAny  []string              `json:"labels_exclude_any"`
 
 	// ReferencedYamlPath is the resolved path of the file used to fill the
 	// software package. Only present after parsing a GitOps file on the fleetctl
