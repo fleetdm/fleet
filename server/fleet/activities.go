@@ -79,6 +79,8 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeEnabledWindowsMDM{},
 	ActivityTypeDisabledWindowsMDM{},
+	ActivityTypeEnabledWindowsMDMMigration{},
+	ActivityTypeDisabledWindowsMDMMigration{},
 
 	ActivityTypeRanScript{},
 	ActivityTypeAddedScript{},
@@ -1236,6 +1238,28 @@ func (a ActivityTypeDisabledWindowsMDM) Documentation() (activity, details, deta
 		`This activity does not contain any detail fields.`, ``
 }
 
+type ActivityTypeEnabledWindowsMDMMigration struct{}
+
+func (a ActivityTypeEnabledWindowsMDMMigration) ActivityName() string {
+	return "enabled_windows_mdm_migration"
+}
+
+func (a ActivityTypeEnabledWindowsMDMMigration) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user enables automatic MDM migration for Windows hosts, if Windows MDM is turned on.`,
+		`This activity does not contain any detail fields.`, ``
+}
+
+type ActivityTypeDisabledWindowsMDMMigration struct{}
+
+func (a ActivityTypeDisabledWindowsMDMMigration) ActivityName() string {
+	return "disabled_windows_mdm_migration"
+}
+
+func (a ActivityTypeDisabledWindowsMDMMigration) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user disables automatic MDM migration for Windows hosts, if Windows MDM is turned on.`,
+		`This activity does not contain any detail fields.`, ``
+}
+
 type ActivityTypeRanScript struct {
 	HostID            uint    `json:"host_id"`
 	HostDisplayName   string  `json:"host_display_name"`
@@ -1645,6 +1669,7 @@ type ActivityTypeAddedSoftware struct {
 	TeamName        *string `json:"team_name"`
 	TeamID          *uint   `json:"team_id"`
 	SelfService     bool    `json:"self_service"`
+	SoftwareTitleID uint    `json:"software_title_id"`
 }
 
 func (a ActivityTypeAddedSoftware) ActivityName() string {
@@ -1657,12 +1682,14 @@ func (a ActivityTypeAddedSoftware) Documentation() (string, string, string) {
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added.` + " `null` " + `if it was added to no team." +
 - "team_id": The ID of the team to which this software was added.` + " `null` " + `if it was added to no team.
-- "self_service": Whether the software is available for installation by the end user.`, `{
+- "self_service": Whether the software is available for installation by the end user.
+- "software_title_id": ID of the added software title.`, `{
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
   "team_id": 123,
-  "self_service": true
+  "self_service": true,
+  "software_title_id": 2234
 }`
 }
 

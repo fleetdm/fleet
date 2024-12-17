@@ -1,0 +1,2 @@
+- Add App Store app UI: Added different empty state when VPP token is not added at all vs. when it's
+  not assigned to a team to prevent confusion.

@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/google/uuid"
 )
 
 func enqueue(ctx context.Context, tx *sql.Tx, ids []string, cmd *mdm.Command) error {
@@ -22,15 +24,30 @@ func enqueue(ctx context.Context, tx *sql.Tx, ids []string, cmd *mdm.Command) er
 	if err != nil {
 		return err
 	}
-	query := `INSERT INTO nano_enrollment_queue (id, command_uuid) VALUES (?, ?)`
-	query += strings.Repeat(", (?, ?)", len(ids)-1)
-	args := make([]interface{}, len(ids)*2)
-	for i, id := range ids {
-		args[i*2] = id
-		args[i*2+1] = cmd.CommandUUID
+	const mySQLPlaceholderLimit = 65536 - 1
+	const placeholdersPerInsert = 2
+	const batchSize = mySQLPlaceholderLimit / placeholdersPerInsert
+	for i := 0; i < len(ids); i += batchSize {
+		end := i + batchSize
+		if end > len(ids) {
+			end = len(ids)
+		}
+		idsBatch := ids[i:end]
+
+		// Process batch
+		query := `INSERT INTO nano_enrollment_queue (id, command_uuid) VALUES (?, ?)`
+		query += strings.Repeat(", (?, ?)", len(idsBatch)-1)
+		args := make([]interface{}, len(idsBatch)*placeholdersPerInsert)
+		for i, id := range idsBatch {
+			args[i*2] = id
+			args[i*2+1] = cmd.CommandUUID
+		}
+		_, err = tx.ExecContext(ctx, query+";", args...)
+		if err != nil {
+			return err
+		}
 	}
-	_, err = tx.ExecContext(ctx, query+";", args...)
-	return err
+	return nil
 }
 
 func (m *MySQLStorage) EnqueueCommand(ctx context.Context, ids []string, cmd *mdm.Command) (map[string]error, error) {
@@ -52,7 +69,7 @@ func (m *MySQLStorage) deleteCommand(ctx context.Context, tx *sql.Tx, id, uuid s
 	// trying to each delete it do not race
 	_, err := tx.ExecContext(
 		ctx, `
-SELECT command_uuid FROM commands WHERE command_uuid = ? FOR UPDATE;
+SELECT command_uuid FROM nano_commands WHERE command_uuid = ? FOR UPDATE;
 `,
 		uuid,
 	)
@@ -168,22 +185,38 @@ UPDATE
 
 func (m *MySQLStorage) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.Command, error) {
 	command := new(mdm.Command)
-	err := m.db.QueryRowContext(
-		r.Context, `
+	id := "?"
+	var args []interface{}
+	// Validate the ID to avoid SQL injection.
+	// This performance optimization eliminates the prepare statement for this frequent query.
+	// Eventually, we should use binary storage for id (UUID).
+	if err := uuid.Validate(r.ID); err == nil {
+		id = "'" + r.ID + "'"
+	} else {
+		err = ctxerr.Wrap(r.Context, err, "device ID is not a valid UUID: %s", r.ID)
+		m.logger.Info("msg", "device ID is not a UUID", "device_id", r.ID, "err", err)
+		// Handle the error by sending it to Redis to be included in aggregated statistics.
+		// Before switching UUID to use binary storage, we should ensure that this error rate is low/none.
+		ctxerr.Handle(r.Context, err)
+		args = append(args, r.ID)
+	}
+	err := m.reader(r.Context).QueryRowxContext(
+		r.Context, fmt.Sprintf(
+			// The query should use the ANTIJOIN (NOT EXISTS) optimization on the nano_command_results table.
+			`
 SELECT c.command_uuid, c.request_type, c.command
 FROM nano_enrollment_queue AS q
     INNER JOIN nano_commands AS c
         ON q.command_uuid = c.command_uuid
     LEFT JOIN nano_command_results r
-        ON r.command_uuid = q.command_uuid AND r.id = q.id
-WHERE q.id = ?
+        ON r.command_uuid = q.command_uuid AND r.id = q.id AND (r.status != 'NotNow' OR %t)
+WHERE q.id = %s
     AND q.active = 1
-    AND (r.status IS NULL OR (r.status = 'NotNow' AND NOT ?))
+    AND r.status IS NULL
 ORDER BY
     q.priority DESC,
     q.created_at
-LIMIT 1;`,
-		r.ID, skipNotNow,
+LIMIT 1;`, skipNotNow, id), args...,
 	).Scan(&command.CommandUUID, &command.Command.RequestType, &command.Raw)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil

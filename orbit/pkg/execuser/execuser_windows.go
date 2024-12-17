@@ -8,6 +8,7 @@ package execuser
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"unsafe"
 
@@ -115,6 +116,14 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 		os.Setenv(nv[0], nv[1])
 	}
 	return "", startProcessAsCurrentUser(path, "", "")
+}
+
+func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
+	return nil, 0, errors.New("not implemented")
+}
+
+func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
+	return nil, errors.New("not implemented")
 }
 
 // getCurrentUserSessionId will attempt to resolve

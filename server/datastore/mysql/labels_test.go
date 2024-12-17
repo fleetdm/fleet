@@ -1550,7 +1550,8 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 
 	// add two hosts to MDM to enforce disk encryption, fleet doesn't enforce settings on centos so h3 is not included
 	for _, h := range []*fleet.Host{h1, h2} {
-		nanoEnrollAndSetHostMDMData(t, db, h, false)
+		windowsEnroll(t, db, h)
+		require.NoError(t, db.SetOrUpdateMDMData(context.Background(), h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
 	}
 	// add disk encryption key for h1
 	require.NoError(t, db.SetOrUpdateHostDiskEncryptionKey(context.Background(), h1.ID, "test-key", "", ptr.Bool(true)))
@@ -1568,14 +1569,14 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 	hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{}, 3)
 	checkHosts(t, hosts, []uint{h1.ID, h2.ID, h3.ID})
 
-	t.Run("os_settings", func(t *testing.T) {
+	t.Run("os_settings_disk_encryption", func(t *testing.T) {
 		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 1)
 		checkHosts(t, hosts, []uint{h1.ID})
 		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1)
 		checkHosts(t, hosts, []uint{h2.ID})
 	})
 
-	t.Run("os_settings_disk_encryption", func(t *testing.T) {
+	t.Run("os_settings", func(t *testing.T) {
 		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsVerified}, 1)
 		checkHosts(t, hosts, []uint{h1.ID})
 		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsPending}, 1)

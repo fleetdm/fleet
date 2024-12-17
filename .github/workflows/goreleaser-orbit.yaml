@@ -51,16 +51,21 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version-file: 'go.mod'
+          go-version-file: "go.mod"
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser@56c9d09a1b925e2549631c6d180b0a1c2ebfac82 release --debug --rm-dist --skip-publish -f orbit/goreleaser-macos.yml # v1.20.0
+        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-macos.yml # v2.4.4
         env:
           GITHUB_TOKEN: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CODESIGN_IDENTITY: 51049B247B25B3119FAE7E9C0CC4375A43E47237
+
+      - name: Attest binary
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: "dist/orbit-macos_darwin_all/orbit"
 
       - name: Upload
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
@@ -90,10 +95,15 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version-file: 'go.mod'
+          go-version-file: "go.mod"
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser@56c9d09a1b925e2549631c6d180b0a1c2ebfac82 release --debug --rm-dist --skip-publish -f orbit/goreleaser-linux.yml # v1.20.0
+        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-linux.yml # v2.4.4
+
+      - name: Attest binary
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: "dist/orbit_linux_amd64_v1/orbit"
 
       - name: Upload
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
@@ -123,10 +133,15 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version-file: 'go.mod'
+          go-version-file: "go.mod"
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser@56c9d09a1b925e2549631c6d180b0a1c2ebfac82 release --debug --rm-dist --skip-publish -f orbit/goreleaser-linux-arm64.yml # v1.20.0
+        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-linux-arm64.yml # v2.4.4
+
+      - name: Attest binary
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: "dist/orbit_linux_arm64/orbit"
 
       - name: Upload
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
@@ -156,10 +171,15 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version-file: 'go.mod'
+          go-version-file: "go.mod"
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser@56c9d09a1b925e2549631c6d180b0a1c2ebfac82 release --debug --rm-dist --skip-publish -f orbit/goreleaser-windows.yml # v1.20.0
+        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-windows.yml # v2.4.4
+
+      - name: Attest binary
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: "dist/orbit_windows_amd64_v1/orbit.exe"
 
       - name: Upload
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3

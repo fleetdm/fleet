@@ -461,8 +461,7 @@ This is the callback endpoint that the identity provider will use to send securi
 
 ### List activities
 
-Returns a list of the activities that have been performed in Fleet as well as additional metadata.
-for pagination. For a comprehensive list of activity types and detailed information, please see the [audit logs](https://fleetdm.com/docs/using-fleet/audit-activities) page.
+Returns a list of the activities that have been performed in Fleet. For a comprehensive list of activity types and detailed information, please see the [audit logs](https://fleetdm.com/docs/using-fleet/audit-activities) page.
 
 `GET /api/v1/fleet/activities`
 
@@ -498,6 +497,19 @@ for pagination. For a comprehensive list of activity types and detailed informat
         "software_title": "Adobe Acrobat.app",
         "script_execution_id": "eeeddb94-52d3-4071-8b18-7322cd382abb",
         "status": "failed_install"
+      }
+    },
+    {
+      "created_at": "2021-07-29T14:40:27Z",
+      "id": 21,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "created_team",
+      "details": {
+        "team_id": 2,
+        "team_name": "Apples"
       }
     },
     {
@@ -539,80 +551,6 @@ for pagination. For a comprehensive list of activity types and detailed informat
       "details": {
         "team_id": 3,
         "team_name": "Oranges"
-      }
-    },
-    {
-      "created_at": "2021-07-29T14:40:27Z",
-      "id": 21,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "created_team",
-      "details": {
-        "team_id": 2,
-        "team_name": "Apples"
-      }
-    },
-    {
-      "created_at": "2021-07-27T14:35:08Z",
-      "id": 20,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "created_pack",
-      "details": {
-        "pack_id": 2,
-        "pack_name": "New pack"
-      }
-    },
-    {
-      "created_at": "2021-07-27T13:25:21Z",
-      "id": 19,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "targets_count": 14
-      }
-    },
-    {
-      "created_at": "2021-07-27T13:25:14Z",
-      "id": 18,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "targets_count": 14
-      }
-    },
-    {
-      "created_at": "2021-07-26T19:28:24Z",
-      "id": 17,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "target_counts": 1
-      }
-    },
-    {
-      "created_at": "2021-07-26T17:27:37Z",
-      "id": 16,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "target_counts": 14
       }
     },
     {
@@ -1219,6 +1157,10 @@ Modifies the Fleet's configuration with the supplied information.
         {
           "path": "path/to/profile2.json",
           "labels_include_all": ["Label 3", "Label 4"]
+        },
+	{
+          "path": "path/to/profile3.json",
+          "labels_include_any": ["Label 5", "Label 6"]
         },
       ]
     },
@@ -2437,7 +2379,7 @@ None.
   "branch": "version",
   "revision": "1b67826fe4bf40b2f45ec53e01db9bf467752e74",
   "go_version": "go1.15.7",
-  "build_date": "2021-03-27T00:28:48Z",
+  "build_date": "2021-03-27",
   "build_user": "zwass"
 }
 ```
@@ -2539,16 +2481,16 @@ the `software` table.
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | disable_failing_policies| boolean | query | If `true`, hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
-| macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
+| macos_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
-| os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
-| populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. (Note that software lists can be large, so this may cause significant CPU and RAM usage depending on page size and request concurrency.) |
+| os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
+| populate_software     | string | query | If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. See notes below on performance. |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host. |
-| populate_users     | boolean | query | If `true`, the response will include user data for each host. |
-| populate_labels     | boolean | query | If `true`, the response will include labels for each host. |
 
 > `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
+
+> `populate_software` returns a lot of data per host when set, and drastically more data when set to `true` on Fleet Premium. If you need vulnerability details for a large number of hosts, consider setting `populate_software` to `without_vulnerability_details` and pulling vulnerability details from the [Get vulnerability](#get-vulnerability) endpoint, as this returns details once per vulnerability rather than once per vulnerability per host.
 
 If `software_title_id` is specified, an additional top-level key `"software_title"` is returned with the software title object corresponding to the `software_title_id`. See [List software](#list-software) response payload for details about this object.
 
@@ -2566,7 +2508,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
 
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true&populate_users=true&populate_labels=true`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true`
 
 ##### Request query parameters
 
@@ -2712,57 +2654,6 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
           "response": "fail",
           "critical": false
         }
-      ],
-      "users": [
-        {
-          "uid": 0,
-          "username": "root",
-          "type": "",
-          "groupname": "root",
-          "shell": "/bin/bash"
-        },
-        {
-          "uid": 1,
-          "username": "bin",
-          "type": "",
-          "groupname": "bin",
-          "shell": "/sbin/nologin"
-        }
-      ],
-      "labels": [
-        {
-          "created_at": "2021-08-19T02:02:17Z",
-          "updated_at": "2021-08-19T02:02:17Z",
-          "id": 6,
-          "name": "All Hosts",
-          "description": "All hosts which have enrolled in Fleet",
-          "query": "SELECT 1;",
-          "platform": "",
-          "label_type": "builtin",
-          "label_membership_type": "dynamic"
-        },
-        {
-          "created_at": "2021-08-19T02:02:17Z",
-          "updated_at": "2021-08-19T02:02:17Z",
-          "id": 9,
-          "name": "CentOS Linux",
-          "description": "All CentOS hosts",
-          "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
-          "platform": "",
-          "label_type": "builtin",
-          "label_membership_type": "dynamic"
-        },
-        {
-          "created_at": "2021-08-19T02:02:17Z",
-          "updated_at": "2021-08-19T02:02:17Z",
-          "id": 12,
-          "name": "All Linux",
-          "description": "All Linux distributions",
-          "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
-          "platform": "",
-          "label_type": "builtin",
-          "label_membership_type": "dynamic"
-        }
       ]
     }
   ]
@@ -2826,10 +2717,10 @@ Response payload with the `munki_issue_id` filter provided:
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
-| macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
+| macos_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
-| os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
+| os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -4492,7 +4383,7 @@ created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,la
 
 Retrieves the disk encryption key for a host.
 
-Requires that disk encryption is enforced and the host has MDM turned on.
+The host will only return a key if its disk encryption status is "Verified." Get hosts' disk encryption statuses using the [List hosts endpoint](#list-hosts) and `os_settings_disk_encryption` parameter.
 
 `GET /api/v1/fleet/hosts/:id/encryption_key`
 
@@ -4500,7 +4391,7 @@ Requires that disk encryption is enforced and the host has MDM turned on.
 
 | Name | Type    | In   | Description                                                        |
 | ---- | ------- | ---- | ------------------------------------------------------------------ |
-| id   | integer | path | **Required** The id of the host to get the disk encryption key for |
+| id   | integer | path | **Required** The id of the host to get the disk encryption key for. |
 
 
 #### Example
@@ -5329,10 +5220,10 @@ Returns a list of the hosts that belong to the specified label.
 | mdm_enrollment_status    | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
 | macos_settings           | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | low_disk_space           | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                 |
-| macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
+| macos_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
-| os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
+| os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 
 If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings_disk_encryption` is specified, then Windows Servers are excluded from the results.
 
@@ -5469,8 +5360,11 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | profile                   | file     | form | **Required.** The .mobileconfig and JSON for macOS or XML for Windows file containing the profile. |
 | team_id                   | string   | form | _Available in Fleet Premium_. The team ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
-| labels_include_all        | array     | form | _Available in Fleet Premium_. Profile will only be applied to hosts that have all of these labels. Only one of either `labels_include_all` or `labels_exclude_any` can be included in the request. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Profile will be applied to hosts that don’t have any of these labels. Only one of either `labels_include_all` or `labels_exclude_any` can be included in the request. |
+| labels_include_all        | array     | form | _Available in Fleet Premium_. Target hosts that have all labels in the array. |
+| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label in the array. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label in the array. |
+
+Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 #### Example
 
@@ -5772,8 +5666,6 @@ The summary can optionally be filtered by team ID.
 
 #### Example
 
-Get aggregate disk encryption status counts of macOS and Windows hosts enrolled to Fleet's MDM that are not assigned to any team.
-
 `GET /api/v1/fleet/disk_encryption`
 
 ##### Default response
@@ -5782,12 +5674,12 @@ Get aggregate disk encryption status counts of macOS and Windows hosts enrolled 
 
 ```json
 {
-  "verified": {"macos": 123, "windows": 123},
-  "verifying": {"macos": 123, "windows": 0},
-  "action_required": {"macos": 123, "windows": 0},
-  "enforcing": {"macos": 123, "windows": 123},
-  "failed": {"macos": 123, "windows": 123},
-  "removing_enforcement": {"macos": 123, "windows": 0},
+  "verified": {"macos": 123, "windows": 123, "linux": 13},
+  "verifying": {"macos": 123, "windows": 0, "linux": 0},
+  "action_required": {"macos": 123, "windows": 0, "linux": 37},
+  "enforcing": {"macos": 123, "windows": 123, "linux": 0},
+  "failed": {"macos": 123, "windows": 123, "linux": 0},
+  "removing_enforcement": {"macos": 123, "windows": 0, "linux": 0}
 }
 ```
 
@@ -5890,6 +5782,8 @@ Sets the custom MDM setup enrollment profile for a team or no team.
   }
 }
 ```
+
+> NOTE: The `ConfigurationWebURL` and `URL` values in the custom MDM setup enrollment profile are automatically populated. Attempting to populate them with custom values may generate server response errors.
 
 ### Get custom MDM setup enrollment profile
 
@@ -7510,7 +7404,7 @@ The semantics for creating a team policy are the same as for global policies, se
 | resolution        | string  | body | The resolution steps for the policy.                                                                                                                   |
 | platform          | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical          | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact.                                                                                     |
-| software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails.                                                                     |
+| software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
 
 Either `query` or `query_id` must be provided.
@@ -7620,8 +7514,8 @@ Either `query` or `query_id` must be provided.
 | platform                | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical                | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact.                                                                                      |
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
-| software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `0` to remove the automation.                                   |
-| script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `0` to remove the automation.                                               |
+| software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
+| script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 
 #### Example
 
@@ -7709,6 +7603,9 @@ Returns a list of global queries or team queries.
 | team_id         | integer | query | _Available in Fleet Premium_. The ID of the parent team for the queries to be listed. When omitted, returns global queries.                  |
 | query           | string  | query | Search query keywords. Searchable fields include `name`.                                                                      |
 | merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global queries in addition to team queries when filtering by `team_id`. (If no `team_id` is provided, this parameter is ignored.) |
+| compatible_platform | string | query | Return queries that only reference tables compatible with this platform (not a strict compatibility check). One of: `"macos"`, `"windows"`, `"linux"`, `"chrome"` (case-insensitive). |
+| page                    | integer | query | Page number of the results to fetch. |
+| per_page                | integer | query | Results per page. |
 
 #### Example
 
@@ -7797,7 +7694,12 @@ Returns a list of global queries or team queries.
         "total_executions": null
       }
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  },
+  "count": 200
 }
 ```
 
@@ -8795,10 +8697,12 @@ By default, script runs time out after 5 minutes. You can modify this default in
 | Name            | Type    | In   | Description                                                                                    |
 | ----            | ------- | ---- | --------------------------------------------                                                   |
 | host_id         | integer | body | **Required**. The ID of the host to run the script on.                                                |
-| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents`.  |
-| script_contents | string  | body | The contents of the script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_id`. |
+| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_contents`, or `script_name` can be included. |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_id`, `script_contents`, or `script_name` can be included. |
+| script_name       | integer | body | The name of the existing saved script to run. If specified, requires `team_id`. Only one of either `script_id`, `script_contents`, or `script_name` can be included in the request.   |
+| team_id       | integer | body | The ID of the existing saved script to run. If specified, requires `script_name`. Only one of either `script_id`, `script_contents`, or `script_name` can be included in the request.  |
 
-> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
+> Note that if any combination of `script_id`, `script_contents`, and `script_name` are included in the request, this endpoint will respond with an error.
 
 #### Example
 
@@ -8829,7 +8733,7 @@ Gets the result of a script that was executed.
 
 `GET /api/v1/fleet/scripts/results/:execution_id`
 
-##### Default Response
+##### Default response
 
 `Status: 200`
 
@@ -8864,6 +8768,9 @@ Uploads a script, making it available to run on hosts assigned to the specified 
 | ----            | ------- | ---- | --------------------------------------------     |
 | script          | file    | form | **Required**. The file containing the script.    |
 | team_id         | integer | form | _Available in Fleet Premium_. The team ID. If specified, the script will only be available to hosts assigned to this team. If not specified, the script will only be available to hosts on **no team**.  |
+
+Script line endings are automatically converted from [CRLF to LF](https://en.wikipedia.org/wiki/Newline) for compatibility with both
+non-Windows shells and PowerShell.
 
 #### Example
 
@@ -9411,6 +9318,12 @@ Returns information about the specified software. By default, `versions` are sor
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
       "uninstall_script": "/Library/CS/falconctl uninstall",
       "self_service": true,
+      "labels_include_any": [
+        {
+          "name": "Engineering",
+          "id": 294
+        }
+      ]
       "status": {
         "installed": 3,
         "pending_install": 1,
@@ -9420,6 +9333,7 @@ Returns information about the specified software. By default, `versions` are sor
       }
     },
     "app_store_app": null,
+    "counts_updated_at": "2024-11-03T22:39:36Z",
     "source": "apps",
     "browser": "",
     "hosts_count": 48,
@@ -9628,7 +9542,11 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Li
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
+| labels_include_any        | array     | form | Target hosts that have any label in the array. |
+| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+| automatic_install | boolean | form | Automatically create policy that triggers install if software isn't installed on the host. |
 
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
 #### Example
 
@@ -9678,20 +9596,26 @@ _Available in Fleet Premium._
 
 Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 
-`PATCH /api/v1/fleet/software/titles/:title_id/package`
+`PATCH /api/v1/fleet/software/titles/:id/package`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
+| id | integer | path | ID of the software title being updated. |
 | software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Whether this is optional self-service software that can be installed by the end user. |
+| labels_include_any        | array     | form | Target hosts that have any label in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
+| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
 > Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
+
 #### Example
 
 `PATCH /api/v1/fleet/software/titles/1/package`
@@ -9841,6 +9765,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 
 `Status: 200`
 
+
 ### List Fleet-maintained apps
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -9949,6 +9874,10 @@ Add Fleet-maintained app so it's available for install.
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| labels_include_any        | array     | form | Target hosts that have any label in the array. |
+| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
 #### Example
 
@@ -9973,13 +9902,13 @@ Add Fleet-maintained app so it's available for install.
 
 _Available in Fleet Premium._
 
-`GET /api/v1/fleet/software/titles/:software_title_id/package?alt=media`
+`GET /api/v1/fleet/software/titles/:id/package?alt=media`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id   | integer | path | **Required**. The ID of the software title to download software package.|
+| id   | integer | path | **Required**. The ID of the software title to download software package.|
 | team_id | integer | query | **Required**. The team ID. Downloads a software package added to the specified team. |
 | alt             | integer | query | **Required**. If specified and set to "media", downloads the specified software package. |
 
@@ -10761,7 +10690,7 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;&nbsp;&nbsp;grace_period_days               | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates.                                                                    |
 | &nbsp;&nbsp;macos_settings                              | object  | body | macOS-specific settings.                                                                                                                                                                                  |
 | &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | array    | body | The list of objects where each object includes .mobileconfig or JSON file (configuration profile) and label name to apply to macOS hosts that belong to this team and are members of the specified label.                                                                                                                                        |
-| &nbsp;&nbsp;&nbsp;&nbsp;enable_disk_encryption          | boolean | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true.                                                                                        |
+| &nbsp;&nbsp;&nbsp;&nbsp;enable_disk_encryption          | boolean | body | Hosts that belong to this team will have disk encryption enabled if set to true.                                                                                        |
 | &nbsp;&nbsp;windows_settings                            | object  | body | Windows-specific settings.                                                                                                                                                                                |
 | &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | array    | body | The list of objects where each object includes XML file (configuration profile) and label name to apply to Windows hosts that belong to this team and are members of the specified label.                                                                                                                               |
 | &nbsp;&nbsp;macos_setup                                 | object  | body | Setup for automatic MDM enrollment of macOS hosts.                                                                                                                                                      |

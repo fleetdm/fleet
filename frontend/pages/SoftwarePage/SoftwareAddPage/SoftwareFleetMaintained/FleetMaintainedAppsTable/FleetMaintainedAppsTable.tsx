@@ -27,7 +27,7 @@ const EmptyFleetAppsTable = () => (
         Can&apos;t find app?{" "}
         <CustomLink
           newTab
-          url="https://github.com/fleetdm/fleet/issues/new/choose"
+          url="https://fleetdm.com/feature-request"
           text="File an issue on GitHub"
         />
       </>

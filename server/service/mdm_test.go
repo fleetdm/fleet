@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"database/sql"
+	"encoding/pem"
 	"errors"
 	"math/big"
 	"net/http"
@@ -606,6 +607,11 @@ func TestMDMCommonAuthorization(t *testing.T) {
 	ds.GetMDMWindowsProfilesSummaryFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
 		return &fleet.MDMProfilesSummary{}, nil
 	}
+
+	ds.GetLinuxDiskEncryptionSummaryFunc = func(ctx context.Context, teamID *uint) (fleet.MDMLinuxDiskEncryptionSummary, error) {
+		return fleet.MDMLinuxDiskEncryptionSummary{}, nil
+	}
+
 	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
 		res := make(map[string]bool, len(hosts))
 		for _, h := range hosts {
@@ -874,6 +880,11 @@ func TestGetMDMDiskEncryptionSummary(t *testing.T) {
 		return res, nil
 	}
 
+	ds.GetLinuxDiskEncryptionSummaryFunc = func(ctx context.Context, teamID *uint) (fleet.MDMLinuxDiskEncryptionSummary, error) {
+		require.Nil(t, teamID)
+		return fleet.MDMLinuxDiskEncryptionSummary{Verified: 1, ActionRequired: 2, Failed: 3}, nil
+	}
+
 	// Test that the summary properly combines the results of the two methods
 	des, err := svc.GetMDMDiskEncryptionSummary(ctx, nil)
 	require.NoError(t, err)
@@ -882,6 +893,7 @@ func TestGetMDMDiskEncryptionSummary(t *testing.T) {
 		Verified: fleet.MDMPlatformsCounts{
 			MacOS:   1,
 			Windows: 7,
+			Linux:   1,
 		},
 		Verifying: fleet.MDMPlatformsCounts{
 			MacOS:   2,
@@ -890,10 +902,12 @@ func TestGetMDMDiskEncryptionSummary(t *testing.T) {
 		ActionRequired: fleet.MDMPlatformsCounts{
 			MacOS:   3,
 			Windows: 0,
+			Linux:   2,
 		},
 		Failed: fleet.MDMPlatformsCounts{
 			MacOS:   4,
 			Windows: 8,
+			Linux:   3,
 		},
 		Enforcing: fleet.MDMPlatformsCounts{
 			MacOS:   5,
@@ -2144,4 +2158,45 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	assert.Equal(t, ProfileLabels{IncludeAll: true}, *profileLabels["DIncAll"])
 	assert.Equal(t, ProfileLabels{IncludeAny: true}, *profileLabels["DIncAny"])
 	assert.Equal(t, ProfileLabels{ExcludeAny: true}, *profileLabels["DExclAny"])
+}
+
+func TestParseAPNSPrivateKey(t *testing.T) {
+	t.Parallel()
+	// nil block not allowed
+	ctx := context.Background()
+	_, err := parseAPNSPrivateKey(ctx, nil)
+	assert.ErrorContains(t, err, "failed to decode")
+
+	// encrypted pkcs8 not supported
+	pkcs8Encrypted, err := os.ReadFile("testdata/pkcs8-encrypted.key")
+	require.NoError(t, err)
+	block, _ := pem.Decode(pkcs8Encrypted)
+	assert.NotNil(t, block)
+	_, err = parseAPNSPrivateKey(ctx, block)
+	assert.ErrorContains(t, err, "failed to parse APNS private key of type ENCRYPTED PRIVATE KEY")
+
+	// X25519 pkcs8 not supported
+	pkcs8Encrypted, err = os.ReadFile("testdata/pkcs8-x25519.key")
+	require.NoError(t, err)
+	block, _ = pem.Decode(pkcs8Encrypted)
+	assert.NotNil(t, block)
+	_, err = parseAPNSPrivateKey(ctx, block)
+	assert.ErrorContains(t, err, "unmarshaled PKCS8 APNS key is not")
+
+	// In this test, the pkcs1 key and pkcs8 keys are the same key, just different formats
+	pkcs1, err := os.ReadFile("testdata/pkcs1.key")
+	require.NoError(t, err)
+	block, _ = pem.Decode(pkcs1)
+	assert.NotNil(t, block)
+	pkcs1Key, err := parseAPNSPrivateKey(ctx, block)
+	require.NoError(t, err)
+
+	pkcs8, err := os.ReadFile("testdata/pkcs8-rsa.key")
+	require.NoError(t, err)
+	block, _ = pem.Decode(pkcs8)
+	assert.NotNil(t, block)
+	pkcs8Key, err := parseAPNSPrivateKey(ctx, block)
+	require.NoError(t, err)
+
+	assert.Equal(t, pkcs1Key, pkcs8Key)
 }

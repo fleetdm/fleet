@@ -1,0 +1,2 @@
+* Only show the "follow instructions on My device" banner for Linux hosts whose disks are encrypted
+but for which Fleet hasn't escrowed a valid key.

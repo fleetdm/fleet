@@ -193,8 +193,9 @@ type Service interface {
 
 	// SSOSettings returns non-sensitive single sign on information used before authentication
 	SSOSettings(ctx context.Context) (*SessionSSOSettings, error)
-	Login(ctx context.Context, email, password string) (user *User, session *Session, err error)
+	Login(ctx context.Context, email, password string, supportsEmailVerification bool) (user *User, session *Session, err error)
 	Logout(ctx context.Context) (err error)
+	CompleteMFA(ctx context.Context, token string) (*Session, *User, error)
 	DestroySession(ctx context.Context) (err error)
 	GetInfoAboutSessionsForUser(ctx context.Context, id uint) (sessions []*Session, err error)
 	DeleteSessionsForUser(ctx context.Context, id uint) (err error)
@@ -275,7 +276,7 @@ type Service interface {
 	// and only non-scheduled queries will be returned if `*scheduled == false`.
 	// If mergeInherited is true and a teamID is provided, then queries from the global team will be
 	// included in the results.
-	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool, mergeInherited bool) ([]*Query, error)
+	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, platform *string) ([]*Query, int, *PaginationMetadata, error)
 	GetQuery(ctx context.Context, id uint) (*Query, error)
 	// GetQueryReportResults returns all the stored results of a query for hosts the requestor has access to.
 	// Returns a boolean indicating whether the report is clipped.
@@ -394,7 +395,7 @@ type Service interface {
 	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
 	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
-	EscrowLUKSData(ctx context.Context, passphrase string, slotKey string, clientError string) error
+	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string) error
 
 	// AddLabelsToHost adds the given label names to the host's label membership.
 	//
@@ -851,6 +852,9 @@ type Service interface {
 	// ListABMTokens lists all the ABM tokens in Fleet.
 	ListABMTokens(ctx context.Context) ([]*ABMToken, error)
 
+	// CountABMTokens counts the ABM tokens in Fleet.
+	CountABMTokens(ctx context.Context) (int, error)
+
 	// UpdateABMTokenTeams updates the default macOS, iOS, and iPadOS team IDs for a given ABM token.
 	UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*ABMToken, error)
 
@@ -1053,10 +1057,22 @@ type Service interface {
 	) error
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Linux MDM
+
+	// LinuxHostDiskEncryptionStatus returns the current disk encryption status of the specified Linux host
+	// Returns empty status if the host is not a supported Linux host
+	LinuxHostDiskEncryptionStatus(ctx context.Context, host Host) (HostMDMDiskEncryption, error)
+
+	// GetMDMLinuxProfilesSummary summarizes the current status of Linux disk encryption for
+	// the provided team (or hosts without a team if teamId is nil), or returns zeroes if disk
+	// encryption is not enforced on the selected team
+	GetMDMLinuxProfilesSummary(ctx context.Context, teamId *uint) (MDMProfilesSummary, error)
+
+	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM
 
-	// GetMDMDiskEncryptionSummary returns the current disk encryption status of all macOS and
-	// Windows hosts in the specified team (or, if no team is specified, each host that is not
+	// GetMDMDiskEncryptionSummary returns the current disk encryption status of all macOS, Windows, and
+	// Linux hosts in the specified team (or, if no team is specified, each host that is not
 	// assigned to any team).
 	GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uint) (*MDMDiskEncryptionSummary, error)
 
@@ -1147,9 +1163,9 @@ type Service interface {
 	// Fleet-maintained apps
 
 	// AddFleetMaintainedApp adds a Fleet-maintained app to the given team.
-	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool) error
+	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool) (uint, error)
 	// ListFleetMaintainedApps lists Fleet-maintained apps available to a specific team
-	ListFleetMaintainedApps(ctx context.Context, teamID uint, opts ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
+	ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 	// GetFleetMaintainedApp returns a Fleet-maintained app by ID
 	GetFleetMaintainedApp(ctx context.Context, appID uint) (*MaintainedApp, error)
 
@@ -1158,6 +1174,12 @@ type Service interface {
 
 	// CalendarWebhook handles incoming calendar callback requests.
 	CalendarWebhook(ctx context.Context, eventUUID string, channelID string, resourceState string) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Secret variables
+
+	// CreateSecretVariables creates secret variables for scripts and profiles.
+	CreateSecretVariables(ctx context.Context, secretVariables []SecretVariable, dryRun bool) error
 }
 
 type KeyValueStore interface {
@@ -1174,4 +1196,6 @@ const (
 	BatchSetSoftwareInstallersStatusFailed = "failed"
 	// MinOrbitLUKSVersion is the earliest version of Orbit that can escrow LUKS passphrases
 	MinOrbitLUKSVersion = "1.36.0"
+	// MFALinkTTL is how long MFA verification links stay active
+	MFALinkTTL = time.Minute * 15
 )

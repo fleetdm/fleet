@@ -71,7 +71,7 @@ type DeleteQueriesFunc func(ctx context.Context, ids []uint) (uint, error)
 
 type QueryFunc func(ctx context.Context, id uint) (*fleet.Query, error)
 
-type ListQueriesFunc func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error)
+type ListQueriesFunc func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error)
 
 type ListScheduledQueriesForAgentsFunc func(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error)
 
@@ -261,6 +261,8 @@ type RemoveHostMDMCommandFunc func(ctx context.Context, command fleet.HostMDMCom
 
 type CleanupHostMDMCommandsFunc func(ctx context.Context) error
 
+type CleanupHostMDMAppleProfilesFunc func(ctx context.Context) error
+
 type IsHostConnectedToFleetMDMFunc func(ctx context.Context, host *fleet.Host) (bool, error)
 
 type AreHostsConnectedToFleetMDMFunc func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error)
@@ -307,13 +309,17 @@ type SessionByIDFunc func(ctx context.Context, id uint) (*fleet.Session, error)
 
 type ListSessionsForUserFunc func(ctx context.Context, id uint) ([]*fleet.Session, error)
 
-type NewSessionFunc func(ctx context.Context, userID uint, sessionKey string) (*fleet.Session, error)
+type NewSessionFunc func(ctx context.Context, userID uint, sessionKeySize int) (*fleet.Session, error)
 
 type DestroySessionFunc func(ctx context.Context, session *fleet.Session) error
 
 type DestroyAllSessionsForUserFunc func(ctx context.Context, id uint) error
 
 type MarkSessionAccessedFunc func(ctx context.Context, session *fleet.Session) error
+
+type SessionByMFATokenFunc func(ctx context.Context, token string, sessionKeySize int) (*fleet.Session, *fleet.User, error)
+
+type NewMFATokenFunc func(ctx context.Context, userID uint) (string, error)
 
 type NewAppConfigFunc func(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error)
 
@@ -635,11 +641,13 @@ type GetHostEmailsFunc func(ctx context.Context, hostUUID string, source string)
 
 type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64) error
 
+type GetConfigEnableDiskEncryptionFunc func(ctx context.Context, teamID *uint) (bool, error)
+
 type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, encrypted bool) error
 
 type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint, encryptedBase64Key string, clientError string, decryptable *bool) error
 
-type SaveLUKSDataFunc func(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64SlotKey string) error
+type SaveLUKSDataFunc func(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error
 
 type GetUnverifiedDiskEncryptionKeysFunc func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error)
 
@@ -987,6 +995,8 @@ type ResendHostMDMProfileFunc func(ctx context.Context, hostUUID string, profile
 
 type GetHostMDMProfileInstallStatusFunc func(ctx context.Context, hostUUID string, profileUUID string) (fleet.MDMDeliveryStatus, error)
 
+type GetLinuxDiskEncryptionSummaryFunc func(ctx context.Context, teamID *uint) (fleet.MDMLinuxDiskEncryptionSummary, error)
+
 type GetMDMCommandPlatformFunc func(ctx context.Context, commandUUID string) (string, error)
 
 type ListMDMCommandsFunc func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error)
@@ -1069,7 +1079,7 @@ type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]s
 
 type GetHostLastInstallDataFunc func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error)
 
-type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error)
+type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, titleID uint, err error)
 
 type GetSoftwareInstallerMetadataByIDFunc func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error)
 
@@ -1139,6 +1149,8 @@ type EnqueueSetupExperienceItemsFunc func(ctx context.Context, hostUUID string, 
 
 type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) (*fleet.Script, error)
 
+type GetSetupExperienceScriptByIDFunc func(ctx context.Context, scriptID uint) (*fleet.Script, error)
+
 type SetSetupExperienceScriptFunc func(ctx context.Context, script *fleet.Script) error
 
 type DeleteSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) error
@@ -1149,7 +1161,7 @@ type MaybeUpdateSetupExperienceSoftwareInstallStatusFunc func(ctx context.Contex
 
 type MaybeUpdateSetupExperienceVPPStatusFunc func(ctx context.Context, hostUUID string, commandUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error)
 
-type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
+type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
 
 type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint) (*fleet.MaintainedApp, error)
 
@@ -1160,6 +1172,10 @@ type BulkUpsertMDMManagedCertificatesFunc func(ctx context.Context, payload []*f
 type GetHostMDMCertificateProfileFunc func(ctx context.Context, hostUUID string, profileUUID string) (*fleet.HostMDMCertificateProfile, error)
 
 type CleanUpMDMManagedCertificatesFunc func(ctx context.Context) error
+
+type UpsertSecretVariablesFunc func(ctx context.Context, secretVariables []fleet.SecretVariable) error
+
+type GetSecretVariablesFunc func(ctx context.Context, names []string) ([]fleet.SecretVariable, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1522,6 +1538,9 @@ type DataStore struct {
 	CleanupHostMDMCommandsFunc        CleanupHostMDMCommandsFunc
 	CleanupHostMDMCommandsFuncInvoked bool
 
+	CleanupHostMDMAppleProfilesFunc        CleanupHostMDMAppleProfilesFunc
+	CleanupHostMDMAppleProfilesFuncInvoked bool
+
 	IsHostConnectedToFleetMDMFunc        IsHostConnectedToFleetMDMFunc
 	IsHostConnectedToFleetMDMFuncInvoked bool
 
@@ -1602,6 +1621,12 @@ type DataStore struct {
 
 	MarkSessionAccessedFunc        MarkSessionAccessedFunc
 	MarkSessionAccessedFuncInvoked bool
+
+	SessionByMFATokenFunc        SessionByMFATokenFunc
+	SessionByMFATokenFuncInvoked bool
+
+	NewMFATokenFunc        NewMFATokenFunc
+	NewMFATokenFuncInvoked bool
 
 	NewAppConfigFunc        NewAppConfigFunc
 	NewAppConfigFuncInvoked bool
@@ -2082,6 +2107,9 @@ type DataStore struct {
 
 	SetOrUpdateHostDisksSpaceFunc        SetOrUpdateHostDisksSpaceFunc
 	SetOrUpdateHostDisksSpaceFuncInvoked bool
+
+	GetConfigEnableDiskEncryptionFunc        GetConfigEnableDiskEncryptionFunc
+	GetConfigEnableDiskEncryptionFuncInvoked bool
 
 	SetOrUpdateHostDisksEncryptionFunc        SetOrUpdateHostDisksEncryptionFunc
 	SetOrUpdateHostDisksEncryptionFuncInvoked bool
@@ -2611,6 +2639,9 @@ type DataStore struct {
 	GetHostMDMProfileInstallStatusFunc        GetHostMDMProfileInstallStatusFunc
 	GetHostMDMProfileInstallStatusFuncInvoked bool
 
+	GetLinuxDiskEncryptionSummaryFunc        GetLinuxDiskEncryptionSummaryFunc
+	GetLinuxDiskEncryptionSummaryFuncInvoked bool
+
 	GetMDMCommandPlatformFunc        GetMDMCommandPlatformFunc
 	GetMDMCommandPlatformFuncInvoked bool
 
@@ -2839,6 +2870,9 @@ type DataStore struct {
 	GetSetupExperienceScriptFunc        GetSetupExperienceScriptFunc
 	GetSetupExperienceScriptFuncInvoked bool
 
+	GetSetupExperienceScriptByIDFunc        GetSetupExperienceScriptByIDFunc
+	GetSetupExperienceScriptByIDFuncInvoked bool
+
 	SetSetupExperienceScriptFunc        SetSetupExperienceScriptFunc
 	SetSetupExperienceScriptFuncInvoked bool
 
@@ -2871,6 +2905,12 @@ type DataStore struct {
 
 	CleanUpMDMManagedCertificatesFunc        CleanUpMDMManagedCertificatesFunc
 	CleanUpMDMManagedCertificatesFuncInvoked bool
+
+	UpsertSecretVariablesFunc        UpsertSecretVariablesFunc
+	UpsertSecretVariablesFuncInvoked bool
+
+	GetSecretVariablesFunc        GetSecretVariablesFunc
+	GetSecretVariablesFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3050,7 +3090,7 @@ func (s *DataStore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 	return s.QueryFunc(ctx, id)
 }
 
-func (s *DataStore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+func (s *DataStore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListQueriesFuncInvoked = true
 	s.mu.Unlock()
@@ -3715,6 +3755,13 @@ func (s *DataStore) CleanupHostMDMCommands(ctx context.Context) error {
 	return s.CleanupHostMDMCommandsFunc(ctx)
 }
 
+func (s *DataStore) CleanupHostMDMAppleProfiles(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupHostMDMAppleProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupHostMDMAppleProfilesFunc(ctx)
+}
+
 func (s *DataStore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
 	s.mu.Lock()
 	s.IsHostConnectedToFleetMDMFuncInvoked = true
@@ -3876,11 +3923,11 @@ func (s *DataStore) ListSessionsForUser(ctx context.Context, id uint) ([]*fleet.
 	return s.ListSessionsForUserFunc(ctx, id)
 }
 
-func (s *DataStore) NewSession(ctx context.Context, userID uint, sessionKey string) (*fleet.Session, error) {
+func (s *DataStore) NewSession(ctx context.Context, userID uint, sessionKeySize int) (*fleet.Session, error) {
 	s.mu.Lock()
 	s.NewSessionFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewSessionFunc(ctx, userID, sessionKey)
+	return s.NewSessionFunc(ctx, userID, sessionKeySize)
 }
 
 func (s *DataStore) DestroySession(ctx context.Context, session *fleet.Session) error {
@@ -3902,6 +3949,20 @@ func (s *DataStore) MarkSessionAccessed(ctx context.Context, session *fleet.Sess
 	s.MarkSessionAccessedFuncInvoked = true
 	s.mu.Unlock()
 	return s.MarkSessionAccessedFunc(ctx, session)
+}
+
+func (s *DataStore) SessionByMFAToken(ctx context.Context, token string, sessionKeySize int) (*fleet.Session, *fleet.User, error) {
+	s.mu.Lock()
+	s.SessionByMFATokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.SessionByMFATokenFunc(ctx, token, sessionKeySize)
+}
+
+func (s *DataStore) NewMFAToken(ctx context.Context, userID uint) (string, error) {
+	s.mu.Lock()
+	s.NewMFATokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewMFATokenFunc(ctx, userID)
 }
 
 func (s *DataStore) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error) {
@@ -5024,6 +5085,13 @@ func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, 
 	return s.SetOrUpdateHostDisksSpaceFunc(ctx, hostID, gigsAvailable, percentAvailable, gigsTotal)
 }
 
+func (s *DataStore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error) {
+	s.mu.Lock()
+	s.GetConfigEnableDiskEncryptionFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetConfigEnableDiskEncryptionFunc(ctx, teamID)
+}
+
 func (s *DataStore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error {
 	s.mu.Lock()
 	s.SetOrUpdateHostDisksEncryptionFuncInvoked = true
@@ -5038,11 +5106,11 @@ func (s *DataStore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID
 	return s.SetOrUpdateHostDiskEncryptionKeyFunc(ctx, hostID, encryptedBase64Key, clientError, decryptable)
 }
 
-func (s *DataStore) SaveLUKSData(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64SlotKey string) error {
+func (s *DataStore) SaveLUKSData(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error {
 	s.mu.Lock()
 	s.SaveLUKSDataFuncInvoked = true
 	s.mu.Unlock()
-	return s.SaveLUKSDataFunc(ctx, hostID, encryptedBase64Passphrase, encryptedBase64SlotKey)
+	return s.SaveLUKSDataFunc(ctx, hostID, encryptedBase64Passphrase, encryptedBase64Salt, keySlot)
 }
 
 func (s *DataStore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
@@ -6256,6 +6324,13 @@ func (s *DataStore) GetHostMDMProfileInstallStatus(ctx context.Context, hostUUID
 	return s.GetHostMDMProfileInstallStatusFunc(ctx, hostUUID, profileUUID)
 }
 
+func (s *DataStore) GetLinuxDiskEncryptionSummary(ctx context.Context, teamID *uint) (fleet.MDMLinuxDiskEncryptionSummary, error) {
+	s.mu.Lock()
+	s.GetLinuxDiskEncryptionSummaryFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetLinuxDiskEncryptionSummaryFunc(ctx, teamID)
+}
+
 func (s *DataStore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {
 	s.mu.Lock()
 	s.GetMDMCommandPlatformFuncInvoked = true
@@ -6543,7 +6618,7 @@ func (s *DataStore) GetHostLastInstallData(ctx context.Context, hostID uint, ins
 	return s.GetHostLastInstallDataFunc(ctx, hostID, installerID)
 }
 
-func (s *DataStore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+func (s *DataStore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, titleID uint, err error) {
 	s.mu.Lock()
 	s.MatchOrCreateSoftwareInstallerFuncInvoked = true
 	s.mu.Unlock()
@@ -6788,6 +6863,13 @@ func (s *DataStore) GetSetupExperienceScript(ctx context.Context, teamID *uint) 
 	return s.GetSetupExperienceScriptFunc(ctx, teamID)
 }
 
+func (s *DataStore) GetSetupExperienceScriptByID(ctx context.Context, scriptID uint) (*fleet.Script, error) {
+	s.mu.Lock()
+	s.GetSetupExperienceScriptByIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSetupExperienceScriptByIDFunc(ctx, scriptID)
+}
+
 func (s *DataStore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) error {
 	s.mu.Lock()
 	s.SetSetupExperienceScriptFuncInvoked = true
@@ -6823,7 +6905,7 @@ func (s *DataStore) MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hos
 	return s.MaybeUpdateSetupExperienceVPPStatusFunc(ctx, hostUUID, commandUUID, status)
 }
 
-func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListAvailableFleetMaintainedAppsFuncInvoked = true
 	s.mu.Unlock()
@@ -6863,4 +6945,18 @@ func (s *DataStore) CleanUpMDMManagedCertificates(ctx context.Context) error {
 	s.CleanUpMDMManagedCertificatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanUpMDMManagedCertificatesFunc(ctx)
+}
+
+func (s *DataStore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) error {
+	s.mu.Lock()
+	s.UpsertSecretVariablesFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertSecretVariablesFunc(ctx, secretVariables)
+}
+
+func (s *DataStore) GetSecretVariables(ctx context.Context, names []string) ([]fleet.SecretVariable, error) {
+	s.mu.Lock()
+	s.GetSecretVariablesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSecretVariablesFunc(ctx, names)
 }

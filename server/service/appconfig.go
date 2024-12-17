@@ -337,6 +337,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	// if turning off Windows MDM and Windows Migration is not explicitly set to
+	// on in the same update, set it to off (otherwise, if it is explicitly set
+	// to true, return an error that it can't be done when MDM is off, this is
+	// addressed in validateMDM).
+	if oldAppConfig.MDM.WindowsEnabledAndConfigured != appConfig.MDM.WindowsEnabledAndConfigured &&
+		!appConfig.MDM.WindowsEnabledAndConfigured && !newAppConfig.MDM.WindowsMigrationEnabled {
+		appConfig.MDM.WindowsMigrationEnabled = false
+	}
+
 	type ndesStatusType string
 	const (
 		ndesStatusAdded   ndesStatusType = "added"
@@ -416,6 +425,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// 1. To get the JSON value from the database
 	// 2. To update fields with the incoming values
 	if newAppConfig.MDM.EnableDiskEncryption.Valid {
+		if newAppConfig.MDM.EnableDiskEncryption.Value && svc.config.Server.PrivateKey == "" {
+			return nil, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		}
 		appConfig.MDM.EnableDiskEncryption = newAppConfig.MDM.EnableDiskEncryption
 	} else if appConfig.MDM.EnableDiskEncryption.Set && !appConfig.MDM.EnableDiskEncryption.Valid {
 		appConfig.MDM.EnableDiskEncryption = oldAppConfig.MDM.EnableDiskEncryption
@@ -866,6 +878,18 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	if appConfig.MDM.WindowsEnabledAndConfigured && oldAppConfig.MDM.WindowsMigrationEnabled != appConfig.MDM.WindowsMigrationEnabled {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.WindowsMigrationEnabled {
+			act = fleet.ActivityTypeEnabledWindowsMDMMigration{}
+		} else {
+			act = fleet.ActivityTypeDisabledWindowsMDMMigration{}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+		}
+	}
+
 	return obfuscatedAppConfig, nil
 }
 
@@ -954,6 +978,9 @@ func (svc *Service) validateMDM(
 	}
 	if mdm.MacOSSetup.EnableEndUserAuthentication && oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication && !license.IsPremium() {
 		invalid.Append("macos_setup.enable_end_user_authentication", ErrMissingLicense.Error())
+	}
+	if mdm.WindowsMigrationEnabled && !license.IsPremium() {
+		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())
 	}
 
 	// we want to use `oldMdm` here as this boolean is set by the fleet
@@ -1130,15 +1157,9 @@ func (svc *Service) validateMDM(
 			return nil
 		}
 	}
-
-	// if either macOS or Windows MDM is enabled, this setting can be set.
-	if !mdm.AtLeastOnePlatformEnabledAndConfigured() {
-		if mdm.EnableDiskEncryption.Valid && mdm.EnableDiskEncryption.Value && mdm.EnableDiskEncryption.Value != oldMdm.EnableDiskEncryption.Value {
-			invalid.Append("mdm.enable_disk_encryption",
-				`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
-		}
+	if !mdm.WindowsEnabledAndConfigured && mdm.WindowsMigrationEnabled {
+		invalid.Append("mdm.windows_migration_enabled", "Couldn't enable Windows MDM migration, Windows MDM is not enabled.")
 	}
-
 	return nil
 }
 
