@@ -340,7 +340,7 @@ software:
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
-- `auto-install` specifies whether a policy to install the software will be written automatically. If true, the software will be installed on every host that’s missing this software.
+- `auto_install` specifies whether a policy to install the software will be written automatically. If true, the software will be installed on every host that’s missing this software.
 
 #### Example
 
@@ -353,7 +353,7 @@ install_script:
 uninstall_script:
   path: ../lib/software/tailscale-uninstall-script.ps1
 self_service: true
-auto-install: true
+auto_install: true
 ```
 
 ### app_store_apps
