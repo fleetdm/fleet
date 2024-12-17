@@ -10868,6 +10868,12 @@ func (s *integrationTestSuite) TestQueryReports() {
 		Description: "desc team1",
 	})
 	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{
+		ID:          43,
+		Name:        "team2",
+		Description: "desc team2",
+	})
+	require.NoError(t, err)
 
 	host1Global, err := s.ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -10916,6 +10922,25 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.NoError(t, err)
 
 	err = s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{host2Team1.ID})
+	require.NoError(t, err)
+
+	host1Team2, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("4"),
+		UUID:            "4",
+		ComputerName:    "Foo Local4",
+		Hostname:        "foo.local4",
+		OsqueryHostID:   ptr.String("4"),
+		PrimaryIP:       "192.168.1.4",
+		PrimaryMac:      "30-65-EC-6F-C4-61",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	err = s.ds.AddHostsToTeam(ctx, &team2.ID, []uint{host1Team2.ID})
 	require.NoError(t, err)
 
 	osqueryInfoQuery, err := s.ds.NewQuery(ctx, &fleet.Query{
@@ -11083,6 +11108,44 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
 
+	slreq = submitLogsRequest{
+		NodeKey: *host1Team2.NodeKey,
+		LogType: "result",
+		Data: json.RawMessage(`[{
+  "snapshot": [
+    {
+      "build_distro": "10.14",
+      "build_platform": "darwin",
+      "config_hash": "ca2bc81cd5e79132cb0f842c433ad7f84c056c12",
+      "config_valid": "1",
+      "extensions": "active",
+      "instance_id": "975f2ce1-8672-4932-85f8-340272820e79",
+      "pid": "1039",
+      "platform_mask": "21",
+      "start_time": "1733334052",
+      "uuid": "` + host1Team2.UUID + `",
+      "version": "5.14.1",
+      "watcher": "1037"
+    }
+  ],
+  "action": "snapshot",
+  "name": "pack/Global/` + osqueryInfoQuery.Name + `",
+  "hostIdentifier": "` + *host1Team2.OsqueryHostID + `",
+  "calendarTime": "Mon Dec  16 13:28:00 2024 UTC",
+  "unixTime": 1734377280,
+  "epoch": 0,
+  "counter": 0,
+  "numerics": false,
+  "decorations": {
+    "host_uuid": "` + host1Team2.UUID + `",
+    "hostname": "` + host1Team2.Hostname + `"
+  }
+}]`),
+	}
+	slres = submitLogsResponse{}
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+
 	emptyslreq := submitLogsRequest{
 		NodeKey: *host2Global.NodeKey,
 		LogType: "result",
@@ -11195,7 +11258,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.NoError(t, gqrr.Err)
 	require.Equal(t, osqueryInfoQuery.ID, gqrr.QueryID)
-	require.Len(t, gqrr.Results, 2)
+	require.Len(t, gqrr.Results, 3)
 	sort.Slice(gqrr.Results, func(i, j int) bool {
 		// Let's just pick a known column of the query to sort.
 		return gqrr.Results[i].Columns["version"] > gqrr.Results[j].Columns["version"]
@@ -11234,6 +11297,29 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"version":        "5.9.1",
 		"watcher":        "95636",
 	}, gqrr.Results[1].Columns)
+	require.Equal(t, host1Team2.ID, gqrr.Results[2].HostID)
+	require.Equal(t, host1Team2.DisplayName(), gqrr.Results[2].Hostname)
+	require.NotZero(t, gqrr.Results[2].LastFetched)
+	require.Equal(t, map[string]string{
+		"build_distro":   "10.14",
+		"build_platform": "darwin",
+		"config_hash":    "ca2bc81cd5e79132cb0f842c433ad7f84c056c12",
+		"config_valid":   "1",
+		"extensions":     "active",
+		"instance_id":    "975f2ce1-8672-4932-85f8-340272820e79",
+		"pid":            "1039",
+		"platform_mask":  "21",
+		"start_time":     "1733334052",
+		"uuid":           host1Team2.UUID,
+		"version":        "5.14.1",
+		"watcher":        "1037",
+	}, gqrr.Results[2].Columns)
+
+	gqrr = getQueryReportResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report?team_id=%d", osqueryInfoQuery.ID, team2.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.NoError(t, gqrr.Err)
+	require.Equal(t, osqueryInfoQuery.ID, gqrr.QueryID)
+	require.Len(t, gqrr.Results, 1)
 
 	ghqrr = getHostQueryReportResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/queries/%d", host1Global.ID, osqueryInfoQuery.ID), getHostQueryReportRequest{}, http.StatusOK, &ghqrr)
@@ -11273,7 +11359,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{ID: osqueryInfoQuery.ID, QueryPayload: fleet.QueryPayload{Description: &updatedDesc}}, http.StatusOK, &modifyQueryResp)
 	require.Equal(t, updatedDesc, modifyQueryResp.Query.Description)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
-	require.Len(t, gqrr.Results, 2)
+	require.Len(t, gqrr.Results, 3)
 
 	// now update the query and verify that results are deleted
 	updatedQuery := "SELECT * FROM some_new_table;"

@@ -390,7 +390,7 @@ org_settings:
 
 ### fleet_desktop
 
-Direct end users to a custom URL when they select **Transparency** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
+Direct end users to a custom URL when they select **About Fleet** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
 
 Can only be configured for all teams (`org_settings`).
 
@@ -715,6 +715,26 @@ org_settings:
 ```
 
 Can only be configured for all teams (`org_settings`).
+
+#### yara_rules
+
+The `yara_rules` section lets you define [YARA rules](https://virustotal.github.io/yara/) that will be served by Fleet's authenticated
+YARA rule functionality. Learn more about authenticated YARA rules in Fleet
+[here](https://fleetdm.com/guides/remote-yara-rules).
+
+Each entry should be the relative path to a valid YARA rule file.
+
+##### Example
+
+```yaml
+org_settings:
+  yara_rules:
+    - path: ./lib/rule1.yar
+    - path: ./lib/rule2.yar
+```
+
+Can only be configured for all teams (`org_settings`). To target rules to specific teams, target the
+queries referencing the rules to the desired teams.
 
 <meta name="title" value="YAML files">
 <meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">

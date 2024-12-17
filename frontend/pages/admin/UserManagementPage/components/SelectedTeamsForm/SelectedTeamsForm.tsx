@@ -17,6 +17,7 @@ interface ISelectedTeamsFormProps {
   usersCurrentTeams: ITeam[];
   onFormChange: (teams: ITeam[]) => void;
   isApiOnly?: boolean;
+  onMenuOpen?: () => void;
 }
 
 const baseClass = "selected-teams-form";
@@ -106,6 +107,7 @@ const SelectedTeamsForm = ({
   usersCurrentTeams,
   onFormChange,
   isApiOnly,
+  onMenuOpen,
 }: ISelectedTeamsFormProps): JSX.Element => {
   const [teamsFormList, updateSelectedTeams] = useSelectedTeamState(
     availableTeams,
@@ -137,6 +139,7 @@ const SelectedTeamsForm = ({
               onChange={(newValue: SingleValue<CustomOptionType>) =>
                 updateSelectedTeams(teamItem.id, newValue as CustomOptionType)
               }
+              onMenuOpen={onMenuOpen}
             />
           </div>
         );
