@@ -34,7 +34,8 @@ By switching to Fleet, they were able to institute more stringent compliance pol
 
 This social media platform is one of the largest globally, connecting thousands of communities and millions of users. With a vast user base and a significant global presence, effective visibility is essential to maintaining their required performance, security, and compliance standards.
 
-The decision to switch to Fleet was driven by four primary factors. First, ensuring adherence to strict compliance standards was the top priority. Maintaining both proactive and reactive security measures while ensuring data protection did not fall behind compliance efforts was also critical. Third, making device data easily accessible and parsable was critical for better decision-making, eliminating the inefficiencies of manual data handling and gaps in communication across teams. 
+The decision to switch to Fleet was driven by a few key factors. Strict adherence to compliance standards, balancing proactive and reactive security measures to protect sensitive data, and streamlining device data accessibility. By making data easily accessible and parsable, Fleet eliminated the inefficiencies of manual workflows and addressed communication gaps across teams, enabling better, faster decision-making.
+
 
 With Fleet, they achieved this through:
 
