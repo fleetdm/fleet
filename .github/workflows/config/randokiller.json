@@ -4,5 +4,5 @@
   ],
   "pkg_to_test": "server/service",
   "tests_to_run": "^TestIntegrations\\$$",
-  "num_tries": 20
+  "num_tries": 50
 }
