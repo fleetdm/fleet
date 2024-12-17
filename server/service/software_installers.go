@@ -30,6 +30,8 @@ type uploadSoftwareInstallerRequest struct {
 	PostInstallScript string
 	SelfService       bool
 	UninstallScript   string
+	LabelsIncludeAny  []string
+	LabelsExcludeAny  []string
 }
 
 type updateSoftwareInstallerRequest struct {
@@ -41,6 +43,8 @@ type updateSoftwareInstallerRequest struct {
 	PostInstallScript *string
 	UninstallScript   *string
 	SelfService       *bool
+	LabelsIncludeAny  []string
+	LabelsExcludeAny  []string
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -131,6 +135,16 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.SelfService = &parsed
 	}
 
+	// decode labels
+	var existsInclAny, existsExclAny bool
+	decoded.LabelsIncludeAny, existsInclAny = r.MultipartForm.Value[string(fleet.LabelsIncludeAny)]
+	decoded.LabelsExcludeAny, existsExclAny = r.MultipartForm.Value[string(fleet.LabelsExcludeAny)]
+
+	// validate that only one of the labels type is provided
+	if existsInclAny && existsExclAny {
+		return nil, &fleet.BadRequestError{Message: `Only one of "labels_include_any" or "labels_exclude_any" can be included.`}
+	}
+
 	return &decoded, nil
 }
 
@@ -145,6 +159,8 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		PostInstallScript: req.PostInstallScript,
 		UninstallScript:   req.UninstallScript,
 		SelfService:       req.SelfService,
+		LabelsIncludeAny:  req.LabelsIncludeAny,
+		LabelsExcludeAny:  req.LabelsExcludeAny,
 	}
 	if req.File != nil {
 		ff, err := req.File.Open()
@@ -261,6 +277,16 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.SelfService = parsed
 	}
 
+	// decode labels
+	var existsInclAny, existsExclAny bool
+	decoded.LabelsIncludeAny, existsInclAny = r.MultipartForm.Value[string(fleet.LabelsIncludeAny)]
+	decoded.LabelsExcludeAny, existsExclAny = r.MultipartForm.Value[string(fleet.LabelsExcludeAny)]
+
+	// validate that only one of the labels type is provided
+	if existsInclAny && existsExclAny {
+		return nil, &fleet.BadRequestError{Message: `Only one of "labels_include_any" or "labels_exclude_any" can be included.`}
+	}
+
 	return &decoded, nil
 }
 
@@ -289,6 +315,8 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		Filename:          req.File.Filename,
 		SelfService:       req.SelfService,
 		UninstallScript:   req.UninstallScript,
+		LabelsIncludeAny:  req.LabelsIncludeAny,
+		LabelsExcludeAny:  req.LabelsExcludeAny,
 	}
 
 	if err := svc.UploadSoftwareInstaller(ctx, payload); err != nil {

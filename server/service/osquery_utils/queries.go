@@ -416,8 +416,12 @@ func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.
 		}
 	}
 
-	if len(rows) != 1 {
-		logger.Log("err", fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
+	switch {
+	case len(rows) == 0:
+		level.Debug(logger).Log("err", "detail_query_network_interface did not find a private IP address")
+		return nil
+	case len(rows) > 1:
+		level.Error(logger).Log("msg", fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
 		return nil
 	}
 

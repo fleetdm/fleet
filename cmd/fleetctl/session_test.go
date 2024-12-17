@@ -14,8 +14,8 @@ import (
 
 func TestEarlySessionCheck(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
-		return nil, nil
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
 	}
 	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
 		return nil, errors.New("invalid session")

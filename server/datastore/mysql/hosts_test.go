@@ -6908,6 +6908,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		PreInstallQuery: "",
 		Title:           "ChocolateRain",
 		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, softwareInstaller, false, nil)

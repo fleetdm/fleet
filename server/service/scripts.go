@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -507,7 +508,7 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 	script := &fleet.Script{
 		TeamID:         teamID,
 		Name:           name,
-		ScriptContents: string(b),
+		ScriptContents: file.Dos2UnixNewlines(string(b)),
 	}
 	if err := script.ValidateNewScript(); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())

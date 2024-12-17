@@ -26,9 +26,14 @@ func (svc *Service) AddFleetMaintainedApp(
 	appID uint,
 	installScript, preInstallQuery, postInstallScript, uninstallScript string,
 	selfService bool,
+	labelsIncludeAny, labelsExcludeAny []string,
 ) (titleID uint, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return 0, err
+	}
+
+	if len(labelsIncludeAny) > 0 && len(labelsExcludeAny) > 0 {
+		return 0, &fleet.BadRequestError{Message: `Only one of "labels_include_any" or "labels_exclude_any" can be included.`}
 	}
 
 	vc, ok := viewer.FromContext(ctx)
@@ -117,6 +122,9 @@ func (svc *Service) AddFleetMaintainedApp(
 		UninstallScript:   uninstallScript,
 	}
 
+	// TODO: labels validations, for now just use empty struct
+	payload.ValidatedLabels = &fleet.LabelIdentsWithScope{}
+
 	// Create record in software installers table
 	_, titleID, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
 	if err != nil {
@@ -152,11 +160,17 @@ func (svc *Service) AddFleetMaintainedApp(
 	return titleID, nil
 }
 
-func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{
-		TeamID: &teamID,
-	}, fleet.ActionRead); err != nil {
-		return nil, nil, err
+func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+	var authErr error
+	// viewing the maintained app list without showing team-specific info can be done by anyone who can view individual FMAs
+	if teamID == nil {
+		authErr = svc.authz.Authorize(ctx, &fleet.MaintainedApp{}, fleet.ActionRead)
+	} else { // viewing the maintained app list when showing team-specific info requires access to that team
+		authErr = svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead)
+	}
+
+	if authErr != nil {
+		return nil, nil, authErr
 	}
 
 	avail, meta, err := svc.ds.ListAvailableFleetMaintainedApps(ctx, teamID, opts)

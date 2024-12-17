@@ -8,6 +8,7 @@ import Button from "components/buttons/Button";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 interface IHeaderProps {
   column: {
@@ -82,7 +83,7 @@ const generatePolicyTableHeaders = (
             onClick={onClickPolicyName}
             variant="text-icon"
           >
-            <span className={`policy-info-text`}>{name}</span>
+            <TooltipTruncatedText value={name} />
           </Button>
         );
       },

@@ -37,6 +37,13 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return err
 	}
 
+	// validate labels before we do anything else
+	validatedLabels, err := svc.validateSoftwareLabels(ctx, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "validating software labels")
+	}
+	payload.ValidatedLabels = validatedLabels
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return fleet.ErrNoContext

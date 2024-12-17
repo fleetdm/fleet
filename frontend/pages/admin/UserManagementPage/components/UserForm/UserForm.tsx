@@ -32,7 +32,7 @@ import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
 import { roleOptions } from "../../helpers/userManagementHelpers";
 
-const baseClass = "add-user-form";
+const baseClass = "user-form";
 
 export enum NewUserType {
   AdminInvited = "ADMIN_INVITED",
@@ -63,7 +63,6 @@ interface IUserFormProps {
   availableTeams: ITeam[];
   onCancel: () => void;
   onSubmit: (formData: IUserFormData) => void;
-  submitText: string;
   defaultName?: string;
   defaultEmail?: string;
   currentUserId?: number;
@@ -90,7 +89,6 @@ const UserForm = ({
   availableTeams,
   onCancel,
   onSubmit,
-  submitText,
   defaultName,
   defaultEmail,
   currentUserId,
@@ -140,6 +138,14 @@ const UserForm = ({
 
   const [isGlobalUser, setIsGlobalUser] = useState(!!defaultGlobalRole);
 
+  useEffect(() => {
+    // If SSO is globally disabled but user previously signed in via SSO,
+    // require password is automatically selected on first render
+    if (!canUseSso && !isNewUser && isSsoEnabled) {
+      setFormData({ ...formData, sso_enabled: false });
+    }
+  }, []);
+
   // For scrollable modal (re-rerun when formData changes)
   useEffect(() => {
     checkScroll();
@@ -158,6 +164,19 @@ const UserForm = ({
         [formField]: value,
       });
     };
+  };
+
+  // Used to show entire dropdown when a dropdown menu is open in scrollable component of a modal
+  // menuPortalTarget solution not used as scrolling is weird
+  const scrollToFitDropdownMenu = () => {
+    if (topDivRef?.current) {
+      setTimeout(() => {
+        if (topDivRef.current) {
+          topDivRef.current.scrollTop =
+            topDivRef.current.scrollHeight - topDivRef.current.clientHeight;
+        }
+      }, 50); // Delay needed for scrollHeight to update first
+    }
   };
 
   const onCheckboxChange = (formField: string): ((evt: string) => void) => {
@@ -248,12 +267,16 @@ const UserForm = ({
     } else if (!validEmail(formData.email)) {
       newErrors.email = `${formData.email} is not a valid email`;
     }
-    // Only test password on new created user (not invited user) or if sso not enabled
-    if (
+
+    // Password auth required for new "create user" (not new "invite user") with SSO disabled
+    const isNewAdminCreatedUserWithoutSSO =
       isNewUser &&
       formData.newUserType === NewUserType.AdminCreated &&
-      !formData.sso_enabled
-    ) {
+      !formData.sso_enabled;
+    // Force switch existing user to password auth if SSO is disabled globally but was enabled
+    const isExistingUserForcedToPasswordAuth = !canUseSso && isSsoEnabled;
+
+    if (isNewAdminCreatedUserWithoutSSO || isExistingUserForcedToPasswordAuth) {
       if (formData.password !== null && !validPassword(formData.password)) {
         newErrors.password = "Password must meet the criteria below";
       }
@@ -308,6 +331,7 @@ const UserForm = ({
             }
           }}
           isSearchable={false}
+          onMenuOpen={scrollToFitDropdownMenu}
         />
       </>
     );
@@ -356,15 +380,17 @@ const UserForm = ({
                 usersCurrentTeams={formData.teams}
                 onFormChange={onSelectedTeamChange}
                 isApiOnly={isApiOnly}
+                onMenuOpen={scrollToFitDropdownMenu}
               />
             </>
           ) : (
             <SelectRoleForm
               currentTeam={currentTeam || formData.teams[0]}
               teams={formData.teams}
-              defaultTeamRole={defaultTeamRole || "observer"}
+              defaultTeamRole={defaultTeamRole || "Observer"}
               onFormChange={onTeamRoleChange}
               isApiOnly={isApiOnly}
+              onMenuOpen={scrollToFitDropdownMenu}
             />
           ))}
         {!availableTeams.length && renderNoTeamsMessage()}
@@ -470,50 +496,39 @@ const UserForm = ({
       <div className="form-field__label">Authentication</div>
       <Radio
         className={`${baseClass}__radio-input`}
-        label="Enable single sign-on"
-        id="enable-single-sign-on"
+        label={
+          canUseSso ? (
+            "Single sign-on"
+          ) : (
+            <TooltipWrapper
+              tipContent={
+                <>
+                  SSO is not enabled in organization settings.
+                  <br />
+                  User must sign in with a password.
+                </>
+              }
+            >
+              Single sign-on
+            </TooltipWrapper>
+          )
+        }
+        id="single-sign-on-authentication"
         checked={!!formData.sso_enabled}
         value="true"
         name="authentication-type"
         onChange={() => onSsoChange(true)}
+        disabled={!canUseSso}
       />
       <Radio
         className={`${baseClass}__radio-input`}
-        label="Require password"
-        id="require-password"
+        label="Password"
+        id="password-authentication"
         disabled={!(smtpConfigured || sesConfigured)}
         checked={!formData.sso_enabled}
         value="false"
         name="authentication-type"
         onChange={() => onSsoChange(false)}
-        /** Note: This was a checkbox that is now a radio button, waiting on
-         * product to confirm if we're adding help text to radio buttons as
-         * it's not in Figma design system, the Figma here, or in the Radio
-         * component, but the helpText already existed on the checkbox version
-         */
-        // helpText={
-        //   canUseSso ? (
-        //     <p className={`${baseClass}__sso-input sublabel`}>
-        //       Password authentication will be disabled for this user.
-        //     </p>
-        //   ) : (
-        //     <span className={`${baseClass}__sso-input sublabel-nosso`}>
-        //       This user previously signed in via SSO, which has been
-        //       globally disabled.{" "}
-        //       <button
-        //         className="button--text-link"
-        //         onClick={onSsoDisable}
-        //       >
-        //         Add password instead
-        //         <Icon
-        //           name="chevron-right"
-        //           color="core-fleet-blue"
-        //           size="small"
-        //         />
-        //       </button>
-        //     </span>
-        //   )
-        // }
       />
     </div>
   );
@@ -622,14 +637,14 @@ const UserForm = ({
         <form autoComplete="off">
           {isNewUser && renderAccountSection()}
           {renderNameAndEmailSection()}
-          {((!isNewUser && formData.sso_enabled) || canUseSso) &&
-            renderAuthenticationSection()}
+          {renderAuthenticationSection()}
           {((isNewUser && formData.newUserType !== NewUserType.AdminInvited) ||
             (!isNewUser && !isInvitePending && isModifiedByGlobalAdmin)) &&
             !formData.sso_enabled &&
             renderPasswordSection()}
           {(isPremiumTier || isMfaEnabled) &&
             !formData.sso_enabled &&
+            isModifiedByGlobalAdmin &&
             renderTwoFactorAuthenticationOption()}
           {isPremiumTier ? renderPremiumRoleOptions() : renderGlobalRoleForm()}
         </form>
@@ -649,11 +664,11 @@ const UserForm = ({
             type="submit"
             variant="brand"
             onClick={onFormSubmit}
-            className={`${submitText === "Add" ? "add" : "save"}-loading
+            className={`${isNewUser ? "add" : "save"}-loading
           `}
             isLoading={isUpdatingUsers}
           >
-            {submitText}
+            {isNewUser ? "Add" : "Save"}
           </Button>
         </>
       }

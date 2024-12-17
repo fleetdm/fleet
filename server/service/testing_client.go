@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -149,7 +150,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		}
 	}
 
-	queries, err := ts.ds.ListQueries(ctx, fleet.ListQueryOptions{})
+	queries, _, _, err := ts.ds.ListQueries(ctx, fleet.ListQueryOptions{})
 	require.NoError(t, err)
 	queryIDs := make([]uint, 0, len(queries))
 	for _, query := range queries {
@@ -581,6 +582,12 @@ func (ts *withServer) uploadSoftwareInstaller(
 	require.NoError(t, w.WriteField("uninstall_script", payload.UninstallScript))
 	if payload.SelfService {
 		require.NoError(t, w.WriteField("self_service", "true"))
+	}
+	if payload.LabelsIncludeAny != nil {
+		require.NoError(t, w.WriteField("labels_include_any", strings.Join(payload.LabelsIncludeAny, ",")))
+	}
+	if payload.LabelsExcludeAny != nil {
+		require.NoError(t, w.WriteField("labels_exclude_any", strings.Join(payload.LabelsExcludeAny, ",")))
 	}
 
 	w.Close()
