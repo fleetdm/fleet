@@ -56,6 +56,7 @@ controls:
       - path: ../lib/macos/configuration-profiles/prevent-autologon.mobileconfig
       - path: ../lib/macos/configuration-profiles/secure-terminal-keyboard.mobileconfig
       - path: ../lib/macos/declaration-profiles/passcode-settings.json
+      - path: ../lib/macos/declaration-profiles/software-update-settings.json
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
@@ -66,8 +67,8 @@ controls:
       - app_store_id: '803453959' # Slack Desktop
       - app_store_id: '1333542190' # 1Password 7 Desktop
   macos_updates:
-    deadline: "2024-12-04"
-    minimum_version: "15.1.1"
+    deadline: "2025-01-03"
+    minimum_version: "15.2"
   windows_settings:
     custom_settings: null
   windows_updates:
