@@ -2105,6 +2105,12 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 		}
 		return m, nil
 	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return document, nil
+	}
 
 	profiles := []fleet.MDMProfileBatchPayload{
 		// macOS
