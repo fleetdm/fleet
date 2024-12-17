@@ -1,10 +1,10 @@
-# Fleet 4.61.0 | Auto-install Fleet-maintained apps, email two-factor authentication (2FA), automatic Windows migration
+# Fleet 4.61.0 | Auto-install software, email two-factor authentication (2FA), automatic Windows migration
 
 Fleet 4.61.0 is live. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.61.0) or continue reading to get the highlights.
 For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
 ## Highlights
-- Auto-install Fleet-maintained apps
+- Auto-install software
 - Email two-factor authentication (2FA)
 - Automatic Windows migration
 
@@ -96,5 +96,5 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2024-12-17">
-<meta name="articleTitle" value="Fleet 4.61.0 | Auto-install Fleet-maintained apps, email two-factor authentication (2FA), automatic Windows migration">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.60.0-1600x900@2x.png">
+<meta name="articleTitle" value="Fleet 4.61.0 | Auto-install software, email two-factor authentication (2FA), automatic Windows migration">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.61.0-1600x900@2x.png">
