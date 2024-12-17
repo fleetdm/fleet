@@ -1,14 +1,10 @@
 import { IDropdownOption } from "interfaces/dropdownOption";
+import { ISoftwarePackage } from "interfaces/software";
 
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 
 import { IPackageFormData, IFormValidation } from "./PackageForm";
-
-type IPackageFormValidatorKey = Exclude<
-  keyof IPackageFormData,
-  "installScript" | "uninstallScript"
->;
 
 type IMessageFunc = (formData: IPackageFormData) => string;
 type IValidationMessage = string | IMessageFunc;
@@ -121,3 +117,39 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
     disabled: false,
   },
 ];
+
+export const getTargetType = (softwarePackage: ISoftwarePackage) => {
+  return !softwarePackage.labels_include_any &&
+    !softwarePackage.labels_exclude_any
+    ? "All hosts"
+    : "Custom";
+};
+
+export const getCustomTarget = (softwarePackage: ISoftwarePackage) => {
+  return softwarePackage.labels_include_any
+    ? "labelsIncludeAny"
+    : "labelsExcludeAny";
+};
+
+export const generateSelectedLabels = (softwarePackage: ISoftwarePackage) => {
+  if (
+    !softwarePackage.labels_include_any &&
+    !softwarePackage.labels_exclude_any
+  ) {
+    return {};
+  }
+
+  const customTypeKey = softwarePackage.labels_include_any
+    ? "labels_include_any"
+    : "labels_exclude_any";
+
+  return (
+    softwarePackage[customTypeKey]?.reduce<Record<string, boolean>>(
+      (acc, label) => {
+        acc[label.name] = true;
+        return acc;
+      },
+      {}
+    ) ?? {}
+  );
+};
