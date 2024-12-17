@@ -14,7 +14,7 @@ type MissingSecretsError struct {
 func (e MissingSecretsError) Error() string {
 	secretVars := make([]string, 0, len(e.MissingSecrets))
 	for _, secret := range e.MissingSecrets {
-		secretVars = append(secretVars, fmt.Sprintf("\"$FLEET_SECRET_%s\"", secret))
+		secretVars = append(secretVars, fmt.Sprintf("\"$%s_%s\"", ServerSecretPrefix, secret))
 	}
 	plural := ""
 	if len(secretVars) > 1 {
