@@ -16,7 +16,12 @@ const OSTypeCell = ({ platform, versionName }: IOSTypeCellProps) => {
   return (
     <div className={baseClass}>
       <Icon name={platform} />
-      <TooltipTruncatedText value={versionName} />
+      <div className={`${baseClass}__tooltip-wrapper`}>
+        <TooltipTruncatedText
+          value={versionName}
+          className={`${baseClass}__inner-text`}
+        />
+      </div>
     </div>
   );
 };
