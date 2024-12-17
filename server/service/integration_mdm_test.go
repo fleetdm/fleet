@@ -2945,6 +2945,80 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	}, profileListCommands[0])
 }
 
+func (s *integrationMDMTestSuite) TestEnqueueMDMCommandWithSecret() {
+	t := s.T()
+
+	// list commands should return all the commands we sent
+	var listCmdResp0 listMDMAppleCommandsResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commands", nil, http.StatusOK, &listCmdResp0)
+	require.Empty(t, listCmdResp0.Results)
+
+	_, mdmClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	base64Cmd := func(rawCmd string) string {
+		return base64.RawStdEncoding.EncodeToString([]byte(rawCmd))
+	}
+
+	newRawCmd := func(cmdUUID string) string {
+		return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>ManagedOnly</key>
+        <false/>
+        <key>RequestType</key>
+        <string>ProfileList</string>
+		<key>SecretValue</key>
+		<string>$FLEET_SECRET_VALUE</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+</dict>
+</plist>`, cmdUUID)
+	}
+
+	// Load secret(s)
+	secretValue := "*abc123*"
+	req := secretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{
+				Name:  "FLEET_SECRET_VALUE",
+				Value: secretValue,
+			},
+		},
+	}
+	secretResp := secretVariablesResponse{}
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
+
+	// call with enrolled host UUID
+	uuid2 := uuid.New().String()
+	rawCmd := newRawCmd(uuid2)
+	var resp enqueueMDMAppleCommandResponse
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enqueue",
+		enqueueMDMAppleCommandRequest{
+			Command:   base64Cmd(rawCmd),
+			DeviceIDs: []string{mdmClient.UUID},
+		}, http.StatusOK, &resp)
+	require.NotEmpty(t, resp.CommandUUID)
+	require.Contains(t, rawCmd, resp.CommandUUID)
+	require.Equal(t, resp.Platform, "darwin")
+	require.Empty(t, resp.FailedUUIDs)
+	require.Equal(t, "ProfileList", resp.RequestType)
+
+	// the command exists but no results yet
+	var getMDMCmdResp getMDMCommandResultsResponse
+	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", uuid2)
+	require.Len(t, getMDMCmdResp.Results, 0)
+
+	cmd, err := mdmClient.Idle()
+	require.NoError(t, err)
+	assert.Contains(t, string(cmd.Raw), secretValue)
+	assert.NotContains(t, string(cmd.Raw), "FLEET_SECRET_VALUE")
+
+}
+
 func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {
 	ctx := context.Background()
 	t := s.T()

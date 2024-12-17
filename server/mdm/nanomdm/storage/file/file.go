@@ -240,3 +240,8 @@ func (s *FileStorage) Disable(r *mdm.Request) error {
 	}
 	return e.removeSubEnrollments()
 }
+
+func (s *FileStorage) ExpandEmbeddedSecrets(_ context.Context, document string) (string, error) {
+	// NOT IMPLEMENTED
+	return document, nil
+}

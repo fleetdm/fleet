@@ -71,6 +71,9 @@ func (ds *Datastore) GetSecretVariables(ctx context.Context, names []string) ([]
 
 func (ds *Datastore) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
 	embeddedSecrets := fleet.ContainsPrefixVars(document, fleet.ServerSecretPrefix)
+	if len(embeddedSecrets) == 0 {
+		return document, nil
+	}
 
 	secrets, err := ds.GetSecretVariables(ctx, embeddedSecrets)
 	if err != nil {
@@ -83,7 +86,7 @@ func (ds *Datastore) ExpandEmbeddedSecrets(ctx context.Context, document string)
 		secretMap[secret.Name] = secret.Value
 	}
 
-	missingSecrets := []string{}
+	var missingSecrets []string
 
 	for _, wantSecret := range embeddedSecrets {
 		if _, ok := secretMap[wantSecret]; !ok {

@@ -187,6 +187,10 @@ func (s *NanoMDMStorage) GetABMTokenByOrgName(ctx context.Context, orgName strin
 	return s.ds.GetABMTokenByOrgName(ctx, orgName)
 }
 
+func (s *NanoMDMStorage) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
+	return s.ds.ExpandEmbeddedSecrets(ctx, document)
+}
+
 // NewMDMAppleDEPStorage returns a MySQL nanodep storage that uses the Datastore
 // underlying MySQL writer *sql.DB.
 func (ds *Datastore) NewMDMAppleDEPStorage() (*NanoDEPStorage, error) {
