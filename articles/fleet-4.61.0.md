@@ -97,4 +97,4 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2024-12-17">
 <meta name="articleTitle" value="Fleet 4.61.0 | Auto-install Fleet-maintained apps, email two-factor authentication (2FA), automatic Windows migration">
-<meta name="articleImageUrl" value="TODO">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.60.0-1600x900@2x.png">
