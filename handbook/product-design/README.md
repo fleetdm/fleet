@@ -61,7 +61,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
   - Add a link to the issue in the PR description.
   - Attach the `~api-design` label.
   - Mark the PR ready for review. (Draft PRs do not auto-request reviews.)
-  - After your changes are approved by the API design DRI and the design is settled, merge your changes into the docs release branch.
+  - After your changes are approved by the API design DRI, they will merge your changes into the docs release branch.
 
 5. Add links to the user story as specified in the [issue template](https://github.com/fleetdm/fleet/issues/new?template=story.md).
 
