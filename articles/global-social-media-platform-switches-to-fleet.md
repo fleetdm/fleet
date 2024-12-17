@@ -3,7 +3,8 @@
 <div purpose="attribution-quote">
 
 Context is king for device data, and Fleet provides a way to surface that information to our other teams and partners.
-**- Systems and infrastructure manager**
+
+**- Systems and Infrastructure Manager**
 </div>
 
 ##  Challenge
@@ -73,6 +74,6 @@ Transitioning to Fleet provided the platform with a strategic solution that addr
 <meta name="category" value="announcements">
 <meta name="authorGitHubUsername" value="Drew-P-drawers">
 <meta name="authorFullName" value="Andrew Baker">
-<meta name="publishedOn" value="2024-12-13">
+<meta name="publishedOn" value="2024-12-16">
 <meta name="articleTitle" value="Global social media platform migrates to Fleet">
 <meta name="description" value="Global social media platform migrates to Fleet">
