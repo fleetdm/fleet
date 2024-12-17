@@ -1630,6 +1630,14 @@ func testBatchSetSoftwareInstallersScopedViaLabels(t *testing.T, ds *Datastore) 
 			},
 		},
 		{
+			desc: "team 1, installer0 switch to labels 1 and 3, installer2 no change",
+			team: tm1,
+			payload: []testPayload{
+				{Installer: installers[0], Labels: []*fleet.Label{labels[1], labels[3]}, ShouldCancelPending: ptr.Bool(true)},
+				{Installer: installers[2], ShouldCancelPending: ptr.Bool(false)},
+			},
+		},
+		{
 			desc: "team 2, remove installer0, labels of install1 and no change installer2",
 			team: tm2,
 			payload: []testPayload{
@@ -1669,7 +1677,7 @@ func testBatchSetSoftwareInstallersScopedViaLabels(t *testing.T, ds *Datastore) 
 					// the installer must exist
 					var swID uint
 					ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-						err := sqlx.GetContext(ctx, q, &swID, `SELECT id FROM software_installers WHERE global_or_team_id = ?	
+						err := sqlx.GetContext(ctx, q, &swID, `SELECT id FROM software_installers WHERE global_or_team_id = ?
 						AND title_id IN (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = '')`,
 							globalOrTeamID, payload.Installer.Title, payload.Installer.Source)
 						return err
