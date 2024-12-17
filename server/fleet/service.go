@@ -280,7 +280,7 @@ type Service interface {
 	GetQuery(ctx context.Context, id uint) (*Query, error)
 	// GetQueryReportResults returns all the stored results of a query for hosts the requestor has access to.
 	// Returns a boolean indicating whether the report is clipped.
-	GetQueryReportResults(ctx context.Context, id uint) ([]HostQueryResultRow, bool, error)
+	GetQueryReportResults(ctx context.Context, id uint, teamID *uint) ([]HostQueryResultRow, bool, error)
 	// GetHostQueryReportResults returns all stored results of a query for a specific host
 	GetHostQueryReportResults(ctx context.Context, hid uint, queryID uint) (rows []HostQueryReportResult, lastFetched *time.Time, err error)
 	// QueryReportIsClipped returns true if the number of query report rows exceeds the maximum
