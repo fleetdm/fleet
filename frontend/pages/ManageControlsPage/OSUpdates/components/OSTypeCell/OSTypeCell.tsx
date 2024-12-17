@@ -1,6 +1,7 @@
 import React from "react";
 
 import Icon from "components/Icon";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
 
@@ -15,7 +16,7 @@ const OSTypeCell = ({ platform, versionName }: IOSTypeCellProps) => {
   return (
     <div className={baseClass}>
       <Icon name={platform} />
-      <span>{versionName}</span>
+      <TooltipTruncatedText value={versionName} />
     </div>
   );
 };
