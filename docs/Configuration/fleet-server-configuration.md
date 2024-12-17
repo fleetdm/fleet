@@ -2091,6 +2091,46 @@ Minio users must set this to any nonempty value (eg. `minio`), as Minio does not
     software_intallers_region: us-east-1
   ```
 
+### s3_software_installers_cloudfront_url
+
+CloudFront URL. Leave blank if you don't use CloudFront distribution.
+
+- Default value: none
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CLOUDFRONT_URL`
+- Config file format:
+  ```yaml
+  s3:
+    software_intallers_cloudfront_url: https://jkl8dxv87sdh.cloudfront.net
+  ```
+
+### s3_software_installers_cloudfront_url_signing_public_key_id
+
+Public key ID for URL signing. If `s3_software_installers_cloudfront_url` is set, this is required.
+
+- Default value: none
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CLOUDFRONT_URL_SIGNING_PUBLIC_KEY_ID`
+- Config file format:
+  ```yaml
+  s3:
+    software_intallers_cloudfront_url_signing_public_key_id: 1babd7e98b03
+  ```
+
+### s3_software_installers_cloudfront_url_signing_private_key
+
+Private key for URL signing. If `s3_software_installers_cloudfront_url` is set, this is required.
+
+- Default value: none
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CLOUDFRONT_URL_SIGNING_PRIVATE_KEY`
+- Config file format:
+  ```yaml
+  s3:
+    software_intallers_cloudfront_url_signing_private_key: |
+      ------BEGIN BEGIN RSA PRIVATE KEY-----
+      3126756bd0c54fbc90c9928ef59e7037af8983afd10048929ae5
+      7473e62c7aed...
+  ```
+
+
 ### s3_carves_bucket
 
 Name of the S3 bucket for file carves.
