@@ -342,6 +342,129 @@ func (ds *Datastore) CountVulnerabilities(ctx context.Context, opt fleet.VulnLis
 	return count, nil
 }
 
+func (ds *Datastore) distinctCVEs(ctx context.Context) ([]string, error) {
+	uniqueCVEQuery := `
+        SELECT DISTINCT cve FROM (
+            SELECT cve FROM software_cve
+            UNION
+            SELECT cve FROM operating_system_vulnerabilities
+        ) AS combined_cves;
+    `
+
+	var cves []string
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &cves, uniqueCVEQuery)
+	if err != nil {
+		return nil, err
+	}
+	return cves, nil
+}
+
+func (ds *Datastore) batchFetchGlobalVulnerabilityCounts(ctx context.Context) ([]hostCount, error) {
+	batchSize := 20
+	var allCVEs []string
+
+	allCVEs, err := ds.distinctCVEs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var globalHostCounts []hostCount
+	for i := 0; i < len(allCVEs); i += batchSize {
+		end := i + batchSize
+		if end > len(allCVEs) {
+			end = len(allCVEs)
+		}
+
+		cves := allCVEs[i:end]
+		selectStmt := `
+			SELECT 0 as team_id, 1 as global_stats, cve, COUNT(*) AS host_count
+			FROM (
+				SELECT sc.cve, hs.host_id
+				FROM software_cve sc
+				INNER JOIN host_software hs ON sc.software_id = hs.software_id
+				WHERE sc.cve IN (?)
+			
+				UNION
+			
+				SELECT osv.cve, hos.host_id
+				FROM operating_system_vulnerabilities osv
+				INNER JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
+				WHERE osv.cve IN (?)
+			) AS combined_results
+			GROUP BY cve;
+		`
+
+		query, args, err := sqlx.In(selectStmt, cves, cves)
+		if err != nil {
+			return nil, err
+		}
+
+		var counts []hostCount
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &counts, query, args...)
+		if err != nil {
+			return nil, err
+		}
+
+		globalHostCounts = append(globalHostCounts, counts...)
+	}
+
+	return globalHostCounts, nil
+}
+
+func (ds *Datastore) batchFetchNoTeamVulnerabilityCounts(ctx context.Context) ([]hostCount, error) {
+	batchSize := 20
+	var allCVEs []string
+
+	allCVEs, err := ds.distinctCVEs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var globalHostCounts []hostCount
+	for i := 0; i < len(allCVEs); i += batchSize {
+		end := i + batchSize
+		if end > len(allCVEs) {
+			end = len(allCVEs)
+		}
+
+		cves := allCVEs[i:end]
+		selectStmt := `
+			SELECT 0 as team_id, 0 as global_stats, cve, COUNT(*) AS host_count
+			FROM (
+				SELECT sc.cve, hs.host_id
+				FROM software_cve sc
+				INNER JOIN host_software hs ON sc.software_id = hs.software_id
+				WHERE sc.cve IN (?)
+			
+				UNION
+			
+				SELECT osv.cve, hos.host_id
+				FROM operating_system_vulnerabilities osv
+				INNER JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
+				WHERE osv.cve IN (?)
+			) AS combined_results
+			 INNER JOIN hosts h ON combined_results.host_id = h.id
+			WHERE h.team_id IS NULL
+			GROUP BY cve
+		`
+
+		query, args, err := sqlx.In(selectStmt, cves, cves)
+		if err != nil {
+			return nil, err
+		}
+
+		var counts []hostCount
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &counts, query, args...)
+		if err != nil {
+			return nil, err
+		}
+
+		globalHostCounts = append(globalHostCounts, counts...)
+	}
+
+	return globalHostCounts, nil
+}
+
 func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 	// set all counts to 0 to later identify rows to delete
 	_, err := ds.writer(ctx).ExecContext(ctx, "UPDATE vulnerability_host_counts SET host_count = 0")
@@ -349,31 +472,19 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "initializing vulnerability host counts")
 	}
 
-	globalSelectStmt := `
-		SELECT 0 as team_id, 1 as global_stats, cve, COUNT(*) AS host_count
-		FROM (
-			SELECT sc.cve, hs.host_id
-			FROM software_cve sc
-			INNER JOIN host_software hs ON sc.software_id = hs.software_id
-		
-			UNION
-		
-			SELECT osv.cve, hos.host_id
-			FROM operating_system_vulnerabilities osv
-			INNER JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
-		) AS combined_results
-		GROUP BY cve;
-	`
-
-	globalHostCounts, err := ds.fetchHostCounts(ctx, globalSelectStmt)
+	start := time.Now()
+	globalHostCounts, err := ds.batchFetchGlobalVulnerabilityCounts(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching global vulnerability host counts")
 	}
+	fmt.Printf("fetching global vulnerability host counts took %f\n", time.Since(start).Seconds())
 
+	start = time.Now()
 	err = ds.batchInsertHostCounts(ctx, globalHostCounts)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting global vulnerability host counts")
 	}
+	fmt.Printf("inserting global vulnerability host counts took %f\n", time.Since(start).Seconds())
 
 	teamSelectStmt := `
 		SELECT h.team_id, 0 as global_stats, combined_results.cve, COUNT(*) AS host_count
@@ -393,48 +504,40 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 		GROUP BY h.team_id, combined_results.cve
 	`
 
+	start = time.Now()
 	teamHostCounts, err := ds.fetchHostCounts(ctx, teamSelectStmt)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching team vulnerability host counts")
 	}
+	fmt.Printf("fetching team vulnerability host counts took %f\n", time.Since(start).Seconds())
 
+	start = time.Now()
 	err = ds.batchInsertHostCounts(ctx, teamHostCounts)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
 	}
+	fmt.Printf("inserting team vulnerability host counts took %f\n", time.Since(start).Seconds())
 
-	noTeamSelectStmt := `
-		SELECT 0 as team_id, 0 as global_stats, cve, COUNT(*) AS host_count
-		FROM (
-			SELECT hs.host_id, sc.cve
-			FROM software_cve sc
-			INNER JOIN host_software hs ON sc.software_id = hs.software_id
-
-			UNION
-
-			SELECT hos.host_id, osv.cve
-			FROM operating_system_vulnerabilities osv
-			INNER JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
-		) AS combined_results
-		INNER JOIN hosts h ON combined_results.host_id = h.id
-		WHERE h.team_id IS NULL
-		GROUP BY cve
-	`
-
-	noTeamHostCounts, err := ds.fetchHostCounts(ctx, noTeamSelectStmt)
+	start = time.Now()
+	noTeamHostCounts, err := ds.batchFetchNoTeamVulnerabilityCounts(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching team vulnerability host counts")
+		return ctxerr.Wrap(ctx, err, "fetching no team vulnerability host counts")
 	}
+	fmt.Printf("fetching no team vulnerability host counts took %f\n", time.Since(start).Seconds())
 
+	start = time.Now()
 	err = ds.batchInsertHostCounts(ctx, noTeamHostCounts)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
 	}
+	fmt.Printf("inserting no team vulnerability host counts took %f\n", time.Since(start).Seconds())
 
+	start = time.Now()
 	err = ds.cleanupVulnerabilityHostCounts(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up vulnerability host counts")
 	}
+	fmt.Printf("cleaning up vulnerability host counts took %f\n", time.Since(start).Seconds())
 
 	return nil
 }
