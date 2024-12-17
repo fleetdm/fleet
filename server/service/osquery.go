@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"regexp"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -1012,6 +1010,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
+		// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
+		// host details.
 		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults); err != nil {
 			logging.WithErr(ctx, err)
 		}
@@ -1799,12 +1799,12 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		}
 		scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, failingPolicyWithInstaller.InstallerID, hostID)
 		if err != nil {
-			slog.With("filename", "server/service/osquery.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: ERROR ", "err", err)
 			return ctxerr.Wrap(ctx, err, "checking if software installer is label scoped to host")
 		}
 		if !scoped {
+			// NOTE: we update the policy status here to stop it from showing up as "failed" in the
+			// host details.
 			incomingPolicyResults[failingPolicyWithInstaller.ID] = nil
-			slog.With("filename", "server/service/osquery.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: SKIPPING SOFTWARE INSTALL ", "hostID", hostID, "installerID", failingPolicyWithInstaller.InstallerID, "policyID", failingPolicyWithInstaller.ID)
 			level.Debug(logger).Log("msg", "not marking policy as failed since software is out of scope for host")
 			continue
 		}
