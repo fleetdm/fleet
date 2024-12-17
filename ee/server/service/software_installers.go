@@ -89,13 +89,16 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	// Create activity
+	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
-		SoftwareTitle:   payload.Title,
-		SoftwarePackage: payload.Filename,
-		TeamName:        teamName,
-		TeamID:          payload.TeamID,
-		SelfService:     payload.SelfService,
-		SoftwareTitleID: titleID,
+		SoftwareTitle:    payload.Title,
+		SoftwarePackage:  payload.Filename,
+		TeamName:         teamName,
+		TeamID:           payload.TeamID,
+		SelfService:      payload.SelfService,
+		SoftwareTitleID:  titleID,
+		LabelsIncludeAny: actLabelsIncl,
+		LabelsExcludeAny: actLabelsExcl,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for added software")
 	}
@@ -214,12 +217,16 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		dirty["SelfService"] = true
 	}
 
+	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(
+		existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny)
 	activity := fleet.ActivityTypeEditedSoftware{
-		SoftwareTitle:   existingInstaller.SoftwareTitle,
-		TeamName:        teamName,
-		TeamID:          payload.TeamID,
-		SelfService:     existingInstaller.SelfService,
-		SoftwarePackage: &existingInstaller.Name,
+		SoftwareTitle:    existingInstaller.SoftwareTitle,
+		TeamName:         teamName,
+		TeamID:           payload.TeamID,
+		SelfService:      existingInstaller.SelfService,
+		SoftwarePackage:  &existingInstaller.Name,
+		LabelsIncludeAny: actLabelsIncl,
+		LabelsExcludeAny: actLabelsExcl,
 	}
 
 	var payloadForNewInstallerFile *fleet.UploadSoftwareInstallerPayload
@@ -466,12 +473,15 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		teamID = meta.TeamID
 	}
 
+	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny)
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedSoftware{
-		SoftwareTitle:   meta.SoftwareTitle,
-		SoftwarePackage: meta.Name,
-		TeamName:        teamName,
-		TeamID:          teamID,
-		SelfService:     meta.SelfService,
+		SoftwareTitle:    meta.SoftwareTitle,
+		SoftwarePackage:  meta.Name,
+		TeamName:         teamName,
+		TeamID:           teamID,
+		SelfService:      meta.SelfService,
+		LabelsIncludeAny: actLabelsIncl,
+		LabelsExcludeAny: actLabelsExcl,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted software")
 	}
@@ -1659,4 +1669,41 @@ func UninstallSoftwareMigration(
 	}
 
 	return nil
+}
+
+func activitySoftwareLabelsFromValidatedLabels(validatedLabels *fleet.LabelIdentsWithScope) (include, exclude []fleet.ActivitySoftwareLabel) {
+	if validatedLabels == nil || len(validatedLabels.ByName) == 0 {
+		return nil, nil
+	}
+
+	excludeAny := validatedLabels.LabelScope == fleet.LabelScopeExcludeAny
+	labels := make([]fleet.ActivitySoftwareLabel, 0, len(validatedLabels.ByName))
+	for _, lbl := range validatedLabels.ByName {
+		labels = append(labels, fleet.ActivitySoftwareLabel{
+			ID:   lbl.LabelID,
+			Name: lbl.LabelName,
+		})
+	}
+	if excludeAny {
+		exclude = labels
+	} else {
+		include = labels
+	}
+	return include, exclude
+}
+
+func activitySoftwareLabelsFromSoftwareScopeLabels(includeScopeLabels, excludeScopeLabels []fleet.SoftwareScopeLabel) (include, exclude []fleet.ActivitySoftwareLabel) {
+	for _, label := range includeScopeLabels {
+		include = append(include, fleet.ActivitySoftwareLabel{
+			ID:   label.LabelID,
+			Name: label.LabelName,
+		})
+	}
+	for _, label := range excludeScopeLabels {
+		exclude = append(exclude, fleet.ActivitySoftwareLabel{
+			ID:   label.LabelID,
+			Name: label.LabelName,
+		})
+	}
+	return include, exclude
 }
