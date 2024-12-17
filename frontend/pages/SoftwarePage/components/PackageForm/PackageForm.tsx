@@ -6,15 +6,17 @@ import { NotificationContext } from "context/notification";
 import { getFileDetails } from "utilities/file/fileUtils";
 import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
+import { ILabelSummary } from "interfaces/label";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import FileUploader from "components/FileUploader";
 import TooltipWrapper from "components/TooltipWrapper";
+import TargetLabelSelector from "components/TargetLabelSelector";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
 
-import { generateFormValidation } from "./helpers";
+import { CUSTOM_TARGET_OPTIONS, generateFormValidation } from "./helpers";
 
 export const baseClass = "package-form";
 
@@ -25,18 +27,20 @@ export interface IPackageFormData {
   postInstallScript?: string;
   uninstallScript?: string;
   selfService: boolean;
+  targetType: string;
+  customTarget: string;
+  labelTargets: Record<string, boolean>;
 }
 
 export interface IFormValidation {
   isValid: boolean;
   software: { isValid: boolean };
   preInstallQuery?: { isValid: boolean; message?: string };
-  postInstallScript?: { isValid: boolean; message?: string };
-  uninstallScript?: { isValid: boolean; message?: string };
-  selfService?: { isValid: boolean };
+  customTarget?: { isValid: boolean };
 }
 
 interface IPackageFormProps {
+  labels: ILabelSummary[];
   showSchemaButton?: boolean;
   onCancel: () => void;
   onSubmit: (formData: IPackageFormData) => void;
@@ -54,6 +58,7 @@ interface IPackageFormProps {
 const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb,.rpm";
 
 const PackageForm = ({
+  labels,
   showSchemaButton = false,
   onClickShowSchema,
   onCancel,
@@ -69,15 +74,17 @@ const PackageForm = ({
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const initialFormData = {
+  const [formData, setFormData] = useState<IPackageFormData>({
     software: defaultSoftware || null,
     installScript: defaultInstallScript || "",
     preInstallQuery: defaultPreInstallQuery || "",
     postInstallScript: defaultPostInstallScript || "",
     uninstallScript: defaultUninstallScript || "",
     selfService: defaultSelfService || false,
-  };
-  const [formData, setFormData] = useState<IPackageFormData>(initialFormData);
+    targetType: "All hosts",
+    customTarget: "labelsIncludeAny",
+    labelTargets: {},
+  });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: false,
     software: { isValid: false },
@@ -156,6 +163,26 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
+  const onSelectTargetType = (value: string) => {
+    const newData = { ...formData, targetType: value };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
+  const onSelectCustomTarget = (value: string) => {
+    const newData = { ...formData, customTarget: value };
+    setFormData(newData);
+  };
+
+  const onSelectLabel = ({ name, value }: { name: string; value: boolean }) => {
+    const newData = {
+      ...formData,
+      labelTargets: { ...formData.labelTargets, [name]: value },
+    };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
   const isSubmitDisabled = !formValidation.isValid;
 
   const classNames = classnames(baseClass, className);
@@ -175,6 +202,17 @@ const PackageForm = ({
           fileDetails={
             formData.software ? getFileDetails(formData.software) : undefined
           }
+        />
+        <TargetLabelSelector
+          selectedTargetType={formData.targetType}
+          selectedCustomTarget={formData.customTarget}
+          selectedLabels={formData.labelTargets}
+          customTargetOptions={CUSTOM_TARGET_OPTIONS}
+          className={`${baseClass}__target`}
+          onSelectTargetType={onSelectTargetType}
+          onSelectCustomTarget={onSelectCustomTarget}
+          onSelectLabel={onSelectLabel}
+          labels={labels || []}
         />
         <Checkbox
           value={formData.selfService}
@@ -196,7 +234,6 @@ const PackageForm = ({
           selectedPackage={formData.software}
           errors={{
             preInstallQuery: formValidation.preInstallQuery?.message,
-            postInstallScript: formValidation.postInstallScript?.message,
           }}
           preInstallQuery={formData.preInstallQuery}
           installScript={formData.installScript}

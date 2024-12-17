@@ -47,14 +47,9 @@ export const listNamesFromSelectedLabels = (dict: Record<string, boolean>) => {
   }, [] as string[]);
 };
 
-export type CustomTargetOption =
-  | "labelsIncludeAll"
-  | "labelsIncldeAny"
-  | "labelsExcludeAny";
-
 export const generateLabelKey = (
   target: string,
-  customTargetOption: CustomTargetOption,
+  customTargetOption: string,
   selectedLabels: Record<string, boolean>
 ) => {
   if (target !== "Custom") {
@@ -64,9 +59,4 @@ export const generateLabelKey = (
   return {
     [customTargetOption]: listNamesFromSelectedLabels(selectedLabels),
   };
-};
-
-export const getDescriptionText = (value: string) => {
-  return CUSTOM_TARGET_OPTIONS.find((option) => option.value === value)
-    ?.helpText;
 };

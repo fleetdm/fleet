@@ -399,7 +399,6 @@ const SoftwarePackageCard = ({
           teamId={teamId}
           software={softwarePackage}
           onExit={() => setShowEditSoftwareModal(false)}
-          router={router}
           refetchSoftwareTitle={refetchSoftwareTitle}
         />
       )}
