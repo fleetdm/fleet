@@ -45,7 +45,7 @@ When you collect data with Fleet, the [performance impact](https://fleetdm.com/r
 
 You can test changes on a small subset of hosts first, then roll them out to the rest of your organization.
 
-## What browsers does Fleet supported?
+## What browsers does Fleet support?
 
 Fleet supports the latest, stable releases of all major browsers and platforms.
 

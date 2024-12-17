@@ -146,7 +146,7 @@
 #   ║ ║║║║ ║───╠╣ ╠═╣║   ║ ║ ║╠╦╝  ╠═╣║ ║ ║ ╠═╣║╣ ║║║ ║ ║║  ╠═╣ ║ ║║ ║║║║
 #   ╩ ╚╩╝╚═╝   ╚  ╩ ╩╚═╝ ╩ ╚═╝╩╚═  ╩ ╩╚═╝ ╩ ╩ ╩╚═╝╝╚╝ ╩ ╩╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝
 - industryName: Two-factor authentication
-  moreInfoUrl: https://github.com/fleetdm/fleet/issues/5478
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/22078
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Configuration]
   usualDepartment: IT
@@ -155,7 +155,6 @@
   jamfProtectHasFeature: yes
   waysToUse:
     - description: Enforce two-factor authentication when logging in to Fleet for added security.
-  comingSoonOn: 2024-12-31
 #  
 #  ╦═╗╔═╗╦  ╔═╗  ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ╔═╗╔═╗╔╗╔╔╦╗╦═╗╔═╗╦  
 #  ╠╦╝║ ║║  ║╣───╠╩╗╠═╣╚═╗║╣  ║║  ╠═╣║  ║  ║╣ ╚═╗╚═╗  ║  ║ ║║║║ ║ ╠╦╝║ ║║  
