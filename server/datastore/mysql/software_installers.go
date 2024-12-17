@@ -1154,7 +1154,7 @@ WHERE
 `
 
 	const deleteInstallerLabelsNotInList = `
-DELETE
+DELETE FROM
 	software_installer_labels
 WHERE
 	software_installer_id = ? AND
@@ -1162,7 +1162,7 @@ WHERE
 `
 
 	const deleteAllInstallerLabels = `
-DELETE
+DELETE FROM 
 	software_installer_labels
 WHERE
 	software_installer_id = ?
@@ -1206,7 +1206,7 @@ WHERE
 		replacingInstallDuringSetup = true
 	}
 
-	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// if no installers are provided, just delete whatever was in
 		// the table
 		if len(installers) == 0 {
@@ -1308,7 +1308,7 @@ WHERE
 
 		for _, installer := range installers {
 			if installer.ValidatedLabels == nil {
-				return ctxerr.Wrapf(ctx, err, "labels have not been validated for installer with name %s", installer.Filename)
+				return ctxerr.Errorf(ctx, "labels have not been validated for installer with name %s", installer.Filename)
 			}
 
 			isRes, err := insertScriptContents(ctx, tx, installer.InstallScript)
@@ -1488,10 +1488,7 @@ WHERE
 		}
 
 		return nil
-	}); err != nil {
-		return err
-	}
-	return nil
+	})
 }
 
 func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostPlatform string, hostTeamID *uint) (bool, error) {

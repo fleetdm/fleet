@@ -730,6 +730,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		UserID:          user1.ID,
 		Platform:        "darwin",
 		URL:             "https://example.com",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	}})
 	require.NoError(t, err)
 	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
@@ -763,6 +764,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			Platform:           "darwin",
 			URL:                "https://example.com",
 			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
 		},
 		{
 			InstallScript:     "install",
@@ -777,6 +779,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			UserID:            user1.ID,
 			Platform:          "darwin",
 			URL:               "https://example2.com",
+			ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 		},
 	})
 	require.NoError(t, err)
@@ -809,6 +812,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			Version:           "2",
 			PreInstallQuery:   "select 1 from bar;",
 			UserID:            user1.ID,
+			ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 		},
 	})
 	require.Error(t, err)
@@ -830,6 +834,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			Platform:           "darwin",
 			URL:                "https://example.com",
 			InstallDuringSetup: nil,
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
 		},
 		{
 			InstallScript:     "install",
@@ -844,6 +849,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			UserID:            user1.ID,
 			Platform:          "darwin",
 			URL:               "https://example2.com",
+			ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 		},
 	})
 	require.NoError(t, err)
@@ -863,6 +869,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			Platform:           "darwin",
 			URL:                "https://example.com",
 			InstallDuringSetup: ptr.Bool(false),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
 		},
 		{
 			InstallScript:     "install",
@@ -877,6 +884,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			UserID:            user1.ID,
 			Platform:          "darwin",
 			URL:               "https://example2.com",
+			ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 		},
 	})
 	require.NoError(t, err)
@@ -894,6 +902,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			Version:           "2",
 			PreInstallQuery:   "select 1 from bar;",
 			UserID:            user1.ID,
+			ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 		},
 	})
 	require.NoError(t, err)
@@ -1495,39 +1504,41 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 }
 
 func testBatchSetSoftwareInstallersScopedViaLabels(t *testing.T, ds *Datastore) {
-	//ctx := context.Background()
-
-	//// create a couple teams and a user
-	//tm1, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "1"})
-	//require.NoError(t, err)
-	//tm2, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "2"})
-	//require.NoError(t, err)
-	//user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-
-	//// create some installer payloads to be used by test cases
-	//installers := make([]*fleet.UploadSoftwareInstallerPayload, 3)
-	//for i := range installers {
-	//	file := bytes.NewReader([]byte("installer" + fmt.Sprint(i)))
-	//	tfr, err := fleet.NewTempFileReader(file, t.TempDir)
-	//	require.NoError(t, err)
-	//	installers[i] = &fleet.UploadSoftwareInstallerPayload{
-	//		InstallScript:   "install",
-	//		InstallerFile:   tfr,
-	//		StorageID:       "installer" + fmt.Sprint(i),
-	//		Filename:        "installer" + fmt.Sprint(i),
-	//		Title:           "ins" + fmt.Sprint(i),
-	//		Source:          "apps",
-	//		Version:         "1",
-	//		PreInstallQuery: "foo",
-	//		UserID:          user.ID,
-	//		Platform:        "darwin",
-	//		URL:             "https://example.com",
-	//	}
-	//}
-
-	//// create some labels to be used by test cases
-	//labels := make([]*fleet.Label, 4)
-	//for i := range labels {
-	//	lbl := ds.NewLabel()
-	//}
+	// ctx := context.Background()
+	//
+	// // create a couple teams and a user
+	// tm1, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "1"})
+	// require.NoError(t, err)
+	// tm2, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "2"})
+	// require.NoError(t, err)
+	// user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	//
+	// // create some installer payloads to be used by test cases
+	// installers := make([]*fleet.UploadSoftwareInstallerPayload, 3)
+	// for i := range installers {
+	// 	file := bytes.NewReader([]byte("installer" + fmt.Sprint(i)))
+	// 	tfr, err := fleet.NewTempFileReader(file, t.TempDir)
+	// 	require.NoError(t, err)
+	// 	installers[i] = &fleet.UploadSoftwareInstallerPayload{
+	// 		InstallScript:   "install",
+	// 		InstallerFile:   tfr,
+	// 		StorageID:       "installer" + fmt.Sprint(i),
+	// 		Filename:        "installer" + fmt.Sprint(i),
+	// 		Title:           "ins" + fmt.Sprint(i),
+	// 		Source:          "apps",
+	// 		Version:         "1",
+	// 		PreInstallQuery: "foo",
+	// 		UserID:          user.ID,
+	// 		Platform:        "darwin",
+	// 		URL:             "https://example.com",
+	// 	}
+	// }
+	//
+	// // create some labels to be used by test cases
+	// labels := make([]*fleet.Label, 4)
+	// for i := range labels {
+	// 	lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "label" + fmt.Sprint(i)})
+	// 	require.NoError(t, err)
+	// 	labels[i] = lbl
+	// }
 }
