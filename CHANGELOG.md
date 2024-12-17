@@ -1,6 +1,5 @@
 ## Fleet 4.61.0 (Dec 17, 2024)
 
-
 ## Endpoint operations
 - Added support to require email verification (MFA) on each login when setting up a Fleet user outside SSO.
 - Added missing APM instrumentation for Fleet API routes.
