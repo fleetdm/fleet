@@ -1920,6 +1920,48 @@ func TestSanitizeSoftware(t *testing.T) {
 				Version: "2020-03-10T00-00-00Z",
 			},
 		},
+		{
+			name: "JetBrains non-EAP",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:             "GoLand.app",
+				Version:          "2024.3.1",
+				BundleIdentifier: "com.jetbrains.goland",
+			},
+			sanitized: &fleet.Software{
+				Name:             "GoLand.app",
+				Version:          "2024.3.1",
+				BundleIdentifier: "com.jetbrains.goland",
+			},
+		},
+		{
+			name: "JetBrains EAP",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:             "GoLand.app",
+				Version:          "EAP GO-243.21565.42",
+				BundleIdentifier: "com.jetbrains.goland-EAP",
+			},
+			sanitized: &fleet.Software{
+				Name:             "GoLand.app",
+				Version:          "2024.2.99.21565.42",
+				BundleIdentifier: "com.jetbrains.goland-EAP",
+			},
+		},
+		{
+			name: "JetBrains year-wrapped EAP",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:             "IntelliJ IDEA CE",
+				Version:          "EAP IC-241.12345.67",
+				BundleIdentifier: "com.jetbrains.intellij-EAP",
+			},
+			sanitized: &fleet.Software{
+				Name:             "IntelliJ IDEA CE",
+				Version:          "2023.4.99.12345.67",
+				BundleIdentifier: "com.jetbrains.intellij-EAP",
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sanitizeSoftware(tc.h, tc.s, log.NewNopLogger())
