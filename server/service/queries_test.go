@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -729,6 +730,139 @@ func TestQueryReportReturnsNilIfDiscardDataIsTrue(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, results)
 	require.False(t, reportClipped)
+}
+
+func TestQueryReportTeamPermissions(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{
+		Name:        "team2",
+		Description: "desc team2",
+	})
+	require.NoError(t, err)
+
+	hostTeam2, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		ComputerName:    "Foo Local",
+		Hostname:        "foo.local",
+		OsqueryHostID:   ptr.String("1"),
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-61",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, &team2.ID, []uint{hostTeam2.ID})
+	require.NoError(t, err)
+	team2Query, err := ds.NewQuery(ctx, &fleet.Query{
+		ID:      77,
+		Name:    "team2 query",
+		TeamID:  nil,
+		Query:   "select * from usb_devices;",
+		Logging: fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+	// Insert initial Result Rows
+	mockTime := time.Now().UTC().Truncate(time.Second)
+	initialRow := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     team2Query.ID,
+			HostID:      hostTeam2.ID,
+			LastFetched: mockTime,
+			Data:        ptr.RawMessage([]byte(`{"model": "USB Keyboard", "vendor": "Apple Inc."}`)),
+		},
+	}
+	err = ds.OverwriteQueryResultRows(ctx, initialRow, fleet.DefaultMaxQueryReportRows)
+	require.NoError(t, err)
+
+	team2Admin := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: team2.ID},
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+
+	queryReportResults, _, err := svc.GetQueryReportResults(viewer.NewContext(ctx, viewer.Viewer{User: team2Admin}), team2Query.ID, &team2.ID)
+	require.NoError(t, err)
+	require.Len(t, queryReportResults, 1)
+
+	teamAdmin := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: team1.ID},
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+	teamMaintainer := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: team1.ID},
+				Role: fleet.RoleMaintainer,
+			},
+		},
+	}
+	teamObserver := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: team1.ID},
+				Role: fleet.RoleObserver,
+			},
+		},
+	}
+	teamObserverPlus := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: team1.ID},
+				Role: fleet.RoleObserverPlus,
+			},
+		},
+	}
+
+	testCases := []struct {
+		name string
+		user *fleet.User
+	}{
+		{
+			name: "team admin",
+			user: teamAdmin,
+		},
+		{
+			name: "team maintainer",
+			user: teamMaintainer,
+		},
+		{
+			name: "team observer",
+			user: teamObserver,
+		},
+		{
+			name: "team observer+",
+			user: teamObserverPlus,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			queryReportResults, _, err := svc.GetQueryReportResults(viewer.NewContext(ctx, viewer.Viewer{User: tt.user}), team2Query.ID, &team2.ID)
+			require.NoError(t, err)
+			require.Len(t, queryReportResults, 0)
+		})
+	}
 }
 
 func TestComparePlatforms(t *testing.T) {
