@@ -15680,6 +15680,83 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.NotNil(t, policies[0].InstallSoftware)
 	require.Equal(t, tpResp.Policy.InstallSoftware.Name, policies[0].InstallSoftware.Name)
 	require.Equal(t, tpResp.Policy.InstallSoftware.SoftwareTitleID, policies[0].InstallSoftware.SoftwareTitleID)
+
+	// ===========================================================================================
+	// Adding label-scoped FMA
+	// ===========================================================================================
+
+	// Add some labels
+	var newLabelResp createLabelResponse
+	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
+		Name:     t.Name() + "1",
+		Platform: "darwin",
+		Query:    "SELECT 1",
+	}, http.StatusOK, &newLabelResp)
+	lbl1 := newLabelResp.Label
+	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
+		Name:     t.Name() + "2",
+		Platform: "darwin",
+		Query:    "SELECT 1",
+	}, http.StatusOK, &newLabelResp)
+	lbl2 := newLabelResp.Label
+
+	// Add another FMA
+	req = &addFleetMaintainedAppRequest{
+		AppID:             6,
+		SelfService:       false,
+		PreInstallQuery:   "SELECT 1",
+		InstallScript:     "echo foo",
+		PostInstallScript: "echo done",
+		TeamID:            ptr.Uint(0),
+		LabelsIncludeAny:  []string{lbl1.Name, lbl2.Name},
+	}
+
+	addMAResp = addFleetMaintainedAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAResp)
+	require.NoError(t, addMAResp.Err)
+	require.NotEmpty(t, addMAResp.SoftwareTitleID)
+
+	// Get software title details
+	titleResp = getSoftwareTitleResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addMAResp.SoftwareTitleID),
+		getSoftwareTitleRequest{},
+		http.StatusOK, &titleResp,
+		"team_id", "0",
+	)
+
+	require.NotNil(t, titleResp.SoftwareTitle)
+	swTitle = titleResp.SoftwareTitle
+	require.NotNil(t, swTitle.SoftwarePackage)
+	require.Empty(t, swTitle.SoftwarePackage.LabelsExcludeAny)
+	require.Len(t, swTitle.SoftwarePackage.LabelsIncludeAny, 2)
+	gotNames := make(map[string]bool)
+	for _, lbl := range swTitle.SoftwarePackage.LabelsIncludeAny {
+		gotNames[lbl.LabelName] = true
+	}
+	require.True(t, gotNames[lbl1.Name])
+	require.True(t, gotNames[lbl2.Name])
+
+	// Can't set non-existent label
+	req = &addFleetMaintainedAppRequest{
+		AppID:             7,
+		SelfService:       false,
+		PreInstallQuery:   "SELECT 1",
+		InstallScript:     "echo foo",
+		PostInstallScript: "echo done",
+		TeamID:            ptr.Uint(0),
+		LabelsIncludeAny:  []string{"no-such-label"},
+	}
+	addMAResp = addFleetMaintainedAppResponse{}
+	r = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(r.Body), "some or all the labels provided don't exist")
+
+	// Can't set both labels_include_any and labels_exclude_any
+	req.LabelsIncludeAny = []string{lbl1.Name, lbl2.Name}
+	req.LabelsExcludeAny = []string{lbl1.Name}
+	addMAResp = addFleetMaintainedAppResponse{}
+	r = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(r.Body), `Only one of "labels_include_any" or "labels_exclude_any" can be included`)
 }
 
 func (s *integrationEnterpriseTestSuite) TestWindowsMigrateMDMNotEnabled() {

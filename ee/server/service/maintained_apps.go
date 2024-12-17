@@ -32,13 +32,15 @@ func (svc *Service) AddFleetMaintainedApp(
 		return 0, err
 	}
 
-	if len(labelsIncludeAny) > 0 && len(labelsExcludeAny) > 0 {
-		return 0, &fleet.BadRequestError{Message: `Only one of "labels_include_any" or "labels_exclude_any" can be included.`}
-	}
-
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return 0, fleet.ErrNoContext
+	}
+
+	// validate labels before we do anything else
+	validatedLabels, err := svc.validateSoftwareLabels(ctx, labelsIncludeAny, labelsExcludeAny)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "validating software labels")
 	}
 
 	app, err := svc.ds.GetMaintainedAppByID(ctx, appID)
@@ -120,10 +122,8 @@ func (svc *Service) AddFleetMaintainedApp(
 		SelfService:       selfService,
 		InstallScript:     installScript,
 		UninstallScript:   uninstallScript,
+		ValidatedLabels:   validatedLabels,
 	}
-
-	// TODO: labels validations, for now just use empty struct
-	payload.ValidatedLabels = &fleet.LabelIdentsWithScope{}
 
 	// Create record in software installers table
 	_, titleID, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
