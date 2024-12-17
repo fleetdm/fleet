@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 
-const child = require("child_process");
-const fs = require("fs");
-const os = require("os");
-const path = require("path");
+import { spawnSync } from "child_process";
+import { mkdirSync, existsSync } from "fs";
+import { type } from "os";
+import { join } from "path";
 
-const axios = require("axios");
-const rimraf = require("rimraf");
-const tar = require("tar");
+import axios from "axios";
+import { rimrafSync } from "rimraf";
+import { extract } from "tar";
 
-const { version } = require("./package.json");
+import { version } from "./package.json";
 
 // Strip any v4.0.0-1 style suffix (but not -rc1) so that the correct package is
 // downloaded if there is a mistake in the NPM publish and we need to release a
@@ -19,13 +19,13 @@ if (!strippedVersion.startsWith("v")) {
   strippedVersion = `v${strippedVersion}`;
 }
 
-const binDir = path.join(__dirname, "install");
+const binDir = join(__dirname, "install");
 // Determine the install directory by version so that we can detect when we need
 // to upgrade to a new version.
-const installDir = path.join(binDir, strippedVersion);
+const installDir = join(binDir, strippedVersion);
 
 const platform = (() => {
-  switch (os.type()) {
+  switch (type()) {
     case "Windows_NT":
       return "windows";
     case "Linux":
@@ -33,23 +33,23 @@ const platform = (() => {
     case "Darwin":
       return "macos";
     default:
-      throw new Error(`platform ${os.type} unrecognized`);
+      throw new Error(`platform ${type} unrecognized`);
   }
 })();
 
 const binName = platform === "windows" ? "fleetctl.exe" : "fleetctl";
-const binPath = path.join(installDir, binName);
+const binPath = join(installDir, binName);
 
 const install = async () => {
   const url = `https://github.com/fleetdm/fleet/releases/download/fleet-${strippedVersion}/fleetctl_${strippedVersion}_${platform}.tar.gz`;
 
-  fs.mkdirSync(installDir, { recursive: true });
+  mkdirSync(installDir, { recursive: true });
 
   try {
     const response = await axios({ url, responseType: "stream" });
 
     // Strip the outer directory when extracting. Just get the binary.
-    const tarWriter = tar.extract({ strip: 1, cwd: installDir });
+    const tarWriter = extract({ strip: 1, cwd: installDir });
     response.data.pipe(tarWriter);
 
     // Need to return a promise with the writer to ensure we can await for it to complete.
@@ -58,14 +58,18 @@ const install = async () => {
       tarWriter.on("error", reject);
     });
   } catch (err) {
-    throw new Error(`download archive ${url}: ${err.message}`);
+    if (axios.isAxiosError(err)) {
+      throw new Error(`download archive ${url}: ${err.message}`);
+    } else {
+      throw err;
+    }
   }
 };
 
 const run = async () => {
-  if (!fs.existsSync(binPath)) {
+  if (!existsSync(binPath)) {
     // Remove any existing binaries before installing the new one.
-    rimraf.sync(binDir);
+    rimrafSync(binDir);
     console.log(`Installing fleetctl ${strippedVersion}...`);
     try {
       await install();
@@ -105,7 +109,7 @@ const run = async () => {
 
   const [, , ...args] = process.argv;
   const options = { cwd: process.cwd(), stdio: "inherit" };
-  const { status, error } = child.spawnSync(binPath, args, options);
+  const { status, error } = spawnSync(binPath, args, options);
 
   if (error) {
     console.error(error);
