@@ -92,7 +92,7 @@ func (ds *Datastore) ExpandEmbeddedSecrets(ctx context.Context, document string)
 	}
 
 	if len(missingSecrets) > 0 {
-		return "", ctxerr.Errorf(ctx, "embedded secrets missing from datastore: %s", strings.Join(missingSecrets, ", "))
+		return "", fleet.MissingSecretsError{MissingSecrets: missingSecrets}
 	}
 
 	expanded := fleet.MaybeExpand(document, func(s string) (string, bool) {
