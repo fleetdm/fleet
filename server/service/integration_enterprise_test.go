@@ -11266,6 +11266,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	t := s.T()
+	ctx := context.Background()
 
 	// non-existent team
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{}, http.StatusNotFound, "team_name", "foo")
@@ -11278,13 +11279,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.NoError(t, err)
 
 	// software with a bad URL
-	softwareToInstall := []fleet.SoftwareInstallerPayload{
+	softwareToInstall := []*fleet.SoftwareInstallerPayload{
 		{URL: "."},
 	}
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", tm.Name)
 
 	// software with a too big URL
-	softwareToInstall = []fleet.SoftwareInstallerPayload{
+	softwareToInstall = []*fleet.SoftwareInstallerPayload{
 		{URL: "https://ftp.mozilla.org/" + strings.Repeat("a", 233)},
 	}
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", tm.Name)
@@ -11307,7 +11308,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	t.Cleanup(srv.Close)
 
 	// do a request with a URL that returns a 404.
-	softwareToInstall = []fleet.SoftwareInstallerPayload{
+	softwareToInstall = []*fleet.SoftwareInstallerPayload{
 		{URL: srv.URL + "/not_found.pkg"},
 	}
 	var batchResponse batchSetSoftwareInstallersResponse
@@ -11318,7 +11319,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 
 	// do a request with a valid URL
 	rubyURL := srv.URL + "/ruby.deb"
-	softwareToInstall = []fleet.SoftwareInstallerPayload{
+	softwareToInstall = []*fleet.SoftwareInstallerPayload{
 		{URL: rubyURL},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
@@ -11380,7 +11381,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Equal(t, titlesResp, newTitlesResp)
 
 	// empty payload cleans the software items
-	softwareToInstall = []fleet.SoftwareInstallerPayload{}
+	softwareToInstall = []*fleet.SoftwareInstallerPayload{}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, s, tm.Name, batchResponse.RequestUUID)
 	require.Empty(t, packages)
@@ -11393,7 +11394,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	//////////////////////////
 	// Do a request with a valid URL with no team
 	//////////////////////////
-	softwareToInstall = []fleet.SoftwareInstallerPayload{
+	softwareToInstall = []*fleet.SoftwareInstallerPayload{
 		{URL: rubyURL},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
@@ -11433,8 +11434,45 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = ptr.Bool(true)
 	require.Equal(t, titlesResp, newTitlesResp)
 
+	// create some labels A and B
+	lblA, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "A"})
+	require.NoError(t, err)
+	lblB, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "B"})
+	require.NoError(t, err)
+
+	// providing both labels include/exclude results in an error
+	softwareToInstall = []*fleet.SoftwareInstallerPayload{
+		{URL: rubyURL, LabelsIncludeAny: []string{lblA.Name}, LabelsExcludeAny: []string{lblB.Name}},
+	}
+	res := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_any" or "labels_exclude_any" can be included.`)
+
+	// providing a non-existing label results in an error
+	softwareToInstall = []*fleet.SoftwareInstallerPayload{
+		{URL: rubyURL, LabelsIncludeAny: []string{"no-such-label"}},
+	}
+	res = s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `some or all the labels provided don't exist`)
+
+	// valid installer scoped by label
+	softwareToInstall = []*fleet.SoftwareInstallerPayload{
+		{URL: rubyURL, LabelsIncludeAny: []string{lblA.Name}},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, "", batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Equal(t, rubyURL, packages[0].URL)
+	require.Nil(t, packages[0].TeamID)
+	meta, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, *packages[0].TitleID, false)
+	require.NoError(t, err)
+	require.Empty(t, meta.LabelsExcludeAny)
+	require.Len(t, meta.LabelsIncludeAny, 1)
+	require.Equal(t, lblA.ID, meta.LabelsIncludeAny[0].LabelID)
+	require.Equal(t, lblA.Name, meta.LabelsIncludeAny[0].LabelName)
+
 	// empty payload cleans the software items
-	softwareToInstall = []fleet.SoftwareInstallerPayload{}
+	softwareToInstall = []*fleet.SoftwareInstallerPayload{}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, s, "", batchResponse.RequestUUID)
 	require.Empty(t, packages)
@@ -11506,7 +11544,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	t.Cleanup(srv.Close)
 
 	// set up software to install
-	softwareToInstall := []fleet.SoftwareInstallerPayload{
+	softwareToInstall := []*fleet.SoftwareInstallerPayload{
 		{URL: srv.URL},
 	}
 	var batchResponse batchSetSoftwareInstallersResponse
@@ -11594,7 +11632,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	require.Equal(t, fleet.SoftwareInstallPending, *getHostSoftwareResp.Software[0].Status)
 
 	// update pre-install query
-	withUpdatedPreinstallQuery := []fleet.SoftwareInstallerPayload{
+	withUpdatedPreinstallQuery := []*fleet.SoftwareInstallerPayload{
 		{URL: srv.URL, PreInstallQuery: "SELECT * FROM os_version"},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: withUpdatedPreinstallQuery}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
@@ -11639,7 +11677,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	require.Equal(t, fleet.SoftwareInstalled, *hostResp.Software[0].Status)
 
 	// update install script
-	withUpdatedInstallScript := []fleet.SoftwareInstallerPayload{
+	withUpdatedInstallScript := []*fleet.SoftwareInstallerPayload{
 		{URL: srv.URL, InstallScript: "apt install ruby"},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: withUpdatedInstallScript}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
@@ -11707,7 +11745,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	require.Equal(t, fleet.SoftwareUninstallPending, *afterPreinstallHostResp.Software[0].Status)
 
 	// delete all installers
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: []fleet.SoftwareInstallerPayload{}}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{}}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, s, tm.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 0)
 
@@ -11767,7 +11805,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPolic
 	t.Cleanup(srv.Close)
 
 	// team1 has ruby.deb
-	softwareToInstall := []fleet.SoftwareInstallerPayload{
+	softwareToInstall := []*fleet.SoftwareInstallerPayload{
 		{
 			URL: srv.URL + "/ruby.deb",
 		},
@@ -11782,7 +11820,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPolic
 	require.Equal(t, srv.URL+"/ruby.deb", packages[0].URL)
 
 	// team2 has dummy_installer.pkg and ruby.deb.
-	softwareToInstall = []fleet.SoftwareInstallerPayload{
+	softwareToInstall = []*fleet.SoftwareInstallerPayload{
 		{
 			URL: srv.URL + "/dummy_installer.pkg",
 		},
@@ -11832,7 +11870,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPolic
 	}, http.StatusOK, &mtplr)
 
 	// Get rid of all installers in team1.
-	softwareToInstall = []fleet.SoftwareInstallerPayload{}
+	softwareToInstall = []*fleet.SoftwareInstallerPayload{}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team1.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 0)

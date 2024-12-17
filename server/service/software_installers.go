@@ -577,9 +577,9 @@ func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID st
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetSoftwareInstallersRequest struct {
-	TeamName string                           `json:"-" query:"team_name,optional"`
-	DryRun   bool                             `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
-	Software []fleet.SoftwareInstallerPayload `json:"software"`
+	TeamName string                            `json:"-" query:"team_name,optional"`
+	DryRun   bool                              `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
+	Software []*fleet.SoftwareInstallerPayload `json:"software"`
 }
 
 type batchSetSoftwareInstallersResponse struct {
@@ -599,7 +599,7 @@ func batchSetSoftwareInstallersEndpoint(ctx context.Context, request interface{}
 	return batchSetSoftwareInstallersResponse{RequestUUID: requestUUID}, nil
 }
 
-func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool) (string, error) {
+func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []*fleet.SoftwareInstallerPayload, dryRun bool) (string, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

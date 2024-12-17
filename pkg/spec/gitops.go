@@ -861,6 +861,10 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			multiError = multierror.Append(multiError, fmt.Errorf("software URL %q is too long, must be less than 256 characters", softwarePackageSpec.URL))
 			continue
 		}
+		if len(softwarePackageSpec.LabelsExcludeAny) > 0 && len(softwarePackageSpec.LabelsIncludeAny) > 0 {
+			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for software URL %q`, softwarePackageSpec.URL))
+			continue
+		}
 		result.Software.Packages = append(result.Software.Packages, &softwarePackageSpec)
 	}
 

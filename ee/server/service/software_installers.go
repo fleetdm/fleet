@@ -1158,7 +1158,7 @@ const (
 )
 
 func (svc *Service) BatchSetSoftwareInstallers(
-	ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool,
+	ctx context.Context, tmName string, payloads []*fleet.SoftwareInstallerPayload, dryRun bool,
 ) (string, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return "", err
@@ -1200,6 +1200,11 @@ func (svc *Service) BatchSetSoftwareInstallers(
 				fmt.Sprintf("Couldn't edit software. URL (%q) is invalid", payload.URL),
 			)
 		}
+		validatedLabels, err := svc.validateSoftwareLabels(ctx, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+		if err != nil {
+			return "", err
+		}
+		payload.ValidatedLabels = validatedLabels
 	}
 
 	// keyExpireTime is the current maximum time supported for retrieving
@@ -1239,7 +1244,7 @@ func (svc *Service) softwareBatchUpload(
 	requestUUID string,
 	teamID *uint,
 	userID uint,
-	payloads []fleet.SoftwareInstallerPayload,
+	payloads []*fleet.SoftwareInstallerPayload,
 	dryRun bool,
 ) {
 	var batchErr error
@@ -1351,6 +1356,9 @@ func (svc *Service) softwareBatchUpload(
 				UserID:             userID,
 				URL:                p.URL,
 				InstallDuringSetup: p.InstallDuringSetup,
+				LabelsIncludeAny:   p.LabelsIncludeAny,
+				LabelsExcludeAny:   p.LabelsExcludeAny,
+				ValidatedLabels:    p.ValidatedLabels,
 			}
 
 			// set the filename before adding metadata, as it is used as fallback

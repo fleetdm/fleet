@@ -654,7 +654,7 @@ type Service interface {
 
 	// BatchSetSoftwareInstallers asynchronously replaces the software installers for a specified team.
 	// Returns a request UUID that can be used to track an ongoing batch request (with GetBatchSetSoftwareInstallersResult).
-	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []SoftwareInstallerPayload, dryRun bool) (string, error)
+	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []*SoftwareInstallerPayload, dryRun bool) (string, error)
 	// GetBatchSetSoftwareInstallersResult polls for the status of a batch-apply started by BatchSetSoftwareInstallers.
 	// Return values:
 	//	- 'status': status of the batch-apply which can be "processing", "completed" or "failed".

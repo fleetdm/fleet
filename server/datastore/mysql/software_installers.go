@@ -1139,7 +1139,56 @@ ON DUPLICATE KEY UPDATE
   user_name = VALUES(user_name),
   user_email = VALUES(user_email),
   url = VALUES(url),
-	install_during_setup = COALESCE(?, install_during_setup)
+  install_during_setup = COALESCE(?, install_during_setup)
+`
+
+	const loadSoftwareInstallerID = `
+SELECT
+	id
+FROM
+	software_installers
+WHERE
+	global_or_team_id = ?	AND
+	-- this is guaranteed to select a single title_id, due to unique index
+	title_id IN (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = '')
+`
+
+	const deleteInstallerLabelsNotInList = `
+DELETE FROM
+	software_installer_labels
+WHERE
+	software_installer_id = ? AND
+	label_id NOT IN (?)
+`
+
+	const deleteAllInstallerLabels = `
+DELETE FROM 
+	software_installer_labels
+WHERE
+	software_installer_id = ?
+`
+
+	const upsertInstallerLabels = `
+INSERT INTO
+	software_installer_labels (
+		software_installer_id,
+		label_id,
+		exclude
+	)
+VALUES
+	%s
+ON DUPLICATE KEY UPDATE
+	exclude = VALUES(exclude)
+`
+
+	const loadExistingInstallerLabels = `
+SELECT
+	label_id,
+	exclude
+FROM
+	software_installer_labels
+WHERE
+	software_installer_id = ?
 `
 
 	// use a team id of 0 if no-team
@@ -1157,7 +1206,7 @@ ON DUPLICATE KEY UPDATE
 		replacingInstallDuringSetup = true
 	}
 
-	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// if no installers are provided, just delete whatever was in
 		// the table
 		if len(installers) == 0 {
@@ -1258,6 +1307,10 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		for _, installer := range installers {
+			if installer.ValidatedLabels == nil {
+				return ctxerr.Errorf(ctx, "labels have not been validated for installer with name %s", installer.Filename)
+			}
+
 			isRes, err := insertScriptContents(ctx, tx, installer.InstallScript)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "inserting install script contents for software installer with name %q", installer.Filename)
@@ -1343,7 +1396,84 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrapf(ctx, err, "insert new/edited installer with name %q", installer.Filename)
 			}
 
-			// perform side effects if this was an update
+			// now that the software installer is created/updated, load its installer
+			// ID (cannot use res.LastInsertID due to the upsert statement, won't
+			// give the id in case of update)
+			var installerID uint
+			if err := sqlx.GetContext(ctx, tx, &installerID, loadSoftwareInstallerID, globalOrTeamID, installer.Title, installer.Source); err != nil {
+				return ctxerr.Wrapf(ctx, err, "load id of new/edited installer with name %q", installer.Filename)
+			}
+
+			// process the labels associated with that software installer
+			if len(installer.ValidatedLabels.ByName) == 0 {
+				// no label to apply, so just delete all existing labels if any
+				res, err := tx.ExecContext(ctx, deleteAllInstallerLabels, installerID)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "delete installer labels for %s", installer.Filename)
+				}
+
+				if n, _ := res.RowsAffected(); n > 0 && len(existing) > 0 {
+					// if it did delete a row, then the target changed so pending
+					// installs/uninstalls must be deleted
+					existing[0].IsMetadataModified = true
+				}
+			} else {
+				// there are new labels to apply, delete only the obsolete ones
+				labelIDs := make([]uint, 0, len(installer.ValidatedLabels.ByName))
+				for _, lbl := range installer.ValidatedLabels.ByName {
+					labelIDs = append(labelIDs, lbl.LabelID)
+				}
+				stmt, args, err := sqlx.In(deleteInstallerLabelsNotInList, installerID, labelIDs)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "build statement to delete installer labels not in list")
+				}
+
+				res, err := tx.ExecContext(ctx, stmt, args...)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "delete installer labels not in list for %s", installer.Filename)
+				}
+				if n, _ := res.RowsAffected(); n > 0 && len(existing) > 0 {
+					// if it did delete a row, then the target changed so pending
+					// installs/uninstalls must be deleted
+					existing[0].IsMetadataModified = true
+				}
+
+				excludeLabels := installer.ValidatedLabels.LabelScope == fleet.LabelScopeExcludeAny
+				if len(existing) > 0 && !existing[0].IsMetadataModified {
+					// load the remaining labels for that installer, so that we can detect
+					// if any label changed (if the counts differ, then labels did change,
+					// otherwise if the exclude bool changed, the target did change).
+					var existingLabels []struct {
+						LabelID uint `db:"label_id"`
+						Exclude bool `db:"exclude"`
+					}
+					if err := sqlx.SelectContext(ctx, tx, &existingLabels, loadExistingInstallerLabels, installerID); err != nil {
+						return ctxerr.Wrapf(ctx, err, "load existing labels for installer with name %q", installer.Filename)
+					}
+
+					if len(existingLabels) != len(labelIDs) {
+						existing[0].IsMetadataModified = true
+					}
+					if len(existingLabels) > 0 && existingLabels[0].Exclude != excludeLabels {
+						// same labels are provided, but the include <-> exclude changed
+						existing[0].IsMetadataModified = true
+					}
+				}
+
+				// upsert the new labels now that obsolete ones have been deleted
+				var upsertLabelArgs []any
+				for _, lblID := range labelIDs {
+					upsertLabelArgs = append(upsertLabelArgs, installerID, lblID, excludeLabels)
+				}
+				upsertLabelValues := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(installer.ValidatedLabels.ByName)), ",")
+
+				_, err = tx.ExecContext(ctx, fmt.Sprintf(upsertInstallerLabels, upsertLabelValues), upsertLabelArgs...)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "insert new/edited labels for installer with name %q", installer.Filename)
+				}
+			}
+
+			// perform side effects if this was an update (related to pending (un)install requests)
 			if len(existing) > 0 {
 				if err := ds.runInstallerUpdateSideEffectsInTransaction(
 					ctx,
@@ -1358,10 +1488,7 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		return nil
-	}); err != nil {
-		return err
-	}
-	return nil
+	})
 }
 
 func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostPlatform string, hostTeamID *uint) (bool, error) {

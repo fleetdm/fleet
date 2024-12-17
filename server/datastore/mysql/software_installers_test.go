@@ -3,6 +3,7 @@ package mysql
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,6 +38,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"testDeletePendingSoftwareInstallsForPolicy", testDeletePendingSoftwareInstallsForPolicy},
 		{"GetHostLastInstallData", testGetHostLastInstallData},
 		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
+		{"BatchSetSoftwareInstallersScopedViaLabels", testBatchSetSoftwareInstallersScopedViaLabels},
 	}
 
 	for _, c := range cases {
@@ -729,6 +731,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		UserID:          user1.ID,
 		Platform:        "darwin",
 		URL:             "https://example.com",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	}})
 	require.NoError(t, err)
 	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
@@ -762,6 +765,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			Platform:           "darwin",
 			URL:                "https://example.com",
 			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
 		},
 		{
 			InstallScript:     "install",
@@ -776,6 +780,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			UserID:            user1.ID,
 			Platform:          "darwin",
 			URL:               "https://example2.com",
+			ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 		},
 	})
 	require.NoError(t, err)
@@ -808,6 +813,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			Version:           "2",
 			PreInstallQuery:   "select 1 from bar;",
 			UserID:            user1.ID,
+			ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 		},
 	})
 	require.Error(t, err)
@@ -829,6 +835,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			Platform:           "darwin",
 			URL:                "https://example.com",
 			InstallDuringSetup: nil,
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
 		},
 		{
 			InstallScript:     "install",
@@ -843,6 +850,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			UserID:            user1.ID,
 			Platform:          "darwin",
 			URL:               "https://example2.com",
+			ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 		},
 	})
 	require.NoError(t, err)
@@ -862,6 +870,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			Platform:           "darwin",
 			URL:                "https://example.com",
 			InstallDuringSetup: ptr.Bool(false),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
 		},
 		{
 			InstallScript:     "install",
@@ -876,6 +885,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			UserID:            user1.ID,
 			Platform:          "darwin",
 			URL:               "https://example2.com",
+			ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 		},
 	})
 	require.NoError(t, err)
@@ -893,6 +903,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 			Version:           "2",
 			PreInstallQuery:   "select 1 from bar;",
 			UserID:            user1.ID,
+			ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 		},
 	})
 	require.NoError(t, err)
@@ -1490,5 +1501,262 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			require.NotEmpty(t, id)
 		})
+	}
+}
+
+func testBatchSetSoftwareInstallersScopedViaLabels(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create a host to have a pending install request
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+
+	// create a couple teams and a user
+	tm1, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "1"})
+	require.NoError(t, err)
+	tm2, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "2"})
+	require.NoError(t, err)
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// create some installer payloads to be used by test cases
+	installers := make([]*fleet.UploadSoftwareInstallerPayload, 3)
+	for i := range installers {
+		file := bytes.NewReader([]byte("installer" + fmt.Sprint(i)))
+		tfr, err := fleet.NewTempFileReader(file, t.TempDir)
+		require.NoError(t, err)
+		installers[i] = &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:   "install",
+			InstallerFile:   tfr,
+			StorageID:       "installer" + fmt.Sprint(i),
+			Filename:        "installer" + fmt.Sprint(i),
+			Title:           "ins" + fmt.Sprint(i),
+			Source:          "apps",
+			Version:         "1",
+			PreInstallQuery: "foo",
+			UserID:          user.ID,
+			Platform:        "darwin",
+			URL:             "https://example.com",
+		}
+	}
+
+	// create some labels to be used by test cases
+	labels := make([]*fleet.Label, 4)
+	for i := range labels {
+		lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "label" + fmt.Sprint(i)})
+		require.NoError(t, err)
+		labels[i] = lbl
+	}
+
+	type testPayload struct {
+		Installer           *fleet.UploadSoftwareInstallerPayload
+		Labels              []*fleet.Label
+		Exclude             bool
+		ShouldCancelPending *bool // nil if the installer is new (could not have pending), otherwise true/false if it was edited
+	}
+
+	// test scenarios - note that subtests must NOT be used as the sequence of
+	// tests matters - they cannot be run in isolation.
+	cases := []struct {
+		desc    string
+		team    *fleet.Team
+		payload []testPayload
+	}{
+		{
+			desc:    "empty payload",
+			payload: nil,
+		},
+		{
+			desc: "no team, installer0, no label",
+			payload: []testPayload{
+				{Installer: installers[0]},
+			},
+		},
+		{
+			desc: "team 1, installer0, include label0",
+			team: tm1,
+			payload: []testPayload{
+				{Installer: installers[0], Labels: []*fleet.Label{labels[0]}},
+			},
+		},
+		{
+			desc: "no team, installer0 no change, add installer1 with exclude label1",
+			payload: []testPayload{
+				{Installer: installers[0], ShouldCancelPending: ptr.Bool(false)},
+				{Installer: installers[1], Labels: []*fleet.Label{labels[1]}, Exclude: true},
+			},
+		},
+		{
+			desc: "no team, installer0 no change, installer1 change to include label1",
+			payload: []testPayload{
+				{Installer: installers[0], ShouldCancelPending: ptr.Bool(false)},
+				{Installer: installers[1], Labels: []*fleet.Label{labels[1]}, Exclude: false, ShouldCancelPending: ptr.Bool(true)},
+			},
+		},
+		{
+			desc: "team 1, installer0, include label0 and add label1",
+			team: tm1,
+			payload: []testPayload{
+				{Installer: installers[0], Labels: []*fleet.Label{labels[0], labels[1]}, ShouldCancelPending: ptr.Bool(true)},
+			},
+		},
+		{
+			desc: "team 1, installer0, remove label0 and keep label1",
+			team: tm1,
+			payload: []testPayload{
+				{Installer: installers[0], Labels: []*fleet.Label{labels[1]}, ShouldCancelPending: ptr.Bool(true)},
+			},
+		},
+		{
+			desc: "team 1, installer0, switch to label0 and label2",
+			team: tm1,
+			payload: []testPayload{
+				{Installer: installers[0], Labels: []*fleet.Label{labels[0], labels[2]}, ShouldCancelPending: ptr.Bool(true)},
+			},
+		},
+		{
+			desc: "team 2, 3 installers, mix of labels",
+			team: tm2,
+			payload: []testPayload{
+				{Installer: installers[0], Labels: []*fleet.Label{labels[0]}, Exclude: false},
+				{Installer: installers[1], Labels: []*fleet.Label{labels[0], labels[1], labels[2]}, Exclude: true},
+				{Installer: installers[2], Labels: []*fleet.Label{labels[1], labels[2]}, Exclude: false},
+			},
+		},
+		{
+			desc: "team 1, installer0 no change and add installer2",
+			team: tm1,
+			payload: []testPayload{
+				{Installer: installers[0], Labels: []*fleet.Label{labels[0], labels[2]}, ShouldCancelPending: ptr.Bool(false)},
+				{Installer: installers[2]},
+			},
+		},
+		{
+			desc: "team 1, installer0 switch to labels 1 and 3, installer2 no change",
+			team: tm1,
+			payload: []testPayload{
+				{Installer: installers[0], Labels: []*fleet.Label{labels[1], labels[3]}, ShouldCancelPending: ptr.Bool(true)},
+				{Installer: installers[2], ShouldCancelPending: ptr.Bool(false)},
+			},
+		},
+		{
+			desc: "team 2, remove installer0, labels of install1 and no change installer2",
+			team: tm2,
+			payload: []testPayload{
+				{Installer: installers[1], ShouldCancelPending: ptr.Bool(true)},
+				{Installer: installers[2], Labels: []*fleet.Label{labels[1], labels[2]}, Exclude: false, ShouldCancelPending: ptr.Bool(false)},
+			},
+		},
+		{
+			desc:    "no team, remove all",
+			payload: []testPayload{},
+		},
+	}
+	for _, c := range cases {
+		t.Log("Running test case ", c.desc)
+
+		var teamID *uint
+		var globalOrTeamID uint
+		if c.team != nil {
+			teamID = &c.team.ID
+			globalOrTeamID = c.team.ID
+		}
+
+		// cleanup any existing install requests for the host
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM host_software_installs WHERE host_id = ?`, host.ID)
+			return err
+		})
+
+		installerIDs := make([]uint, len(c.payload))
+		if len(c.payload) > 0 {
+			// create pending install requests for each updated installer, to see if
+			// it cancels it or not as expected.
+			err := ds.AddHostsToTeam(ctx, teamID, []uint{host.ID})
+			require.NoError(t, err)
+			for i, payload := range c.payload {
+				if payload.ShouldCancelPending != nil {
+					// the installer must exist
+					var swID uint
+					ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+						err := sqlx.GetContext(ctx, q, &swID, `SELECT id FROM software_installers WHERE global_or_team_id = ?
+						AND title_id IN (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = '')`,
+							globalOrTeamID, payload.Installer.Title, payload.Installer.Source)
+						return err
+					})
+					_, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, swID, false, nil)
+					require.NoError(t, err)
+					installerIDs[i] = swID
+				}
+			}
+		}
+
+		// create the payload by copying the test one, so that the original installers
+		// structs are not modified
+		payload := make([]*fleet.UploadSoftwareInstallerPayload, len(c.payload))
+		for i, p := range c.payload {
+			installer := *p.Installer
+			installer.ValidatedLabels = &fleet.LabelIdentsWithScope{LabelScope: fleet.LabelScopeIncludeAny}
+			if p.Exclude {
+				installer.ValidatedLabels.LabelScope = fleet.LabelScopeExcludeAny
+			}
+			byName := make(map[string]fleet.LabelIdent, len(p.Labels))
+			for _, lbl := range p.Labels {
+				byName[lbl.Name] = fleet.LabelIdent{LabelName: lbl.Name, LabelID: lbl.ID}
+			}
+			installer.ValidatedLabels.ByName = byName
+			payload[i] = &installer
+		}
+
+		err := ds.BatchSetSoftwareInstallers(ctx, teamID, payload)
+		require.NoError(t, err)
+		installers, err := ds.GetSoftwareInstallers(ctx, globalOrTeamID)
+		require.NoError(t, err)
+		require.Len(t, installers, len(c.payload))
+
+		// get the metadata for each installer to assert the batch did set the
+		// expected ones.
+		installersByFilename := make(map[string]*fleet.SoftwareInstaller, len(installers))
+		for _, ins := range installers {
+			meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, *ins.TitleID, false)
+			require.NoError(t, err)
+			installersByFilename[meta.Name] = meta
+		}
+
+		// validate that the inserted software is as expected
+		for i, payload := range c.payload {
+			meta, ok := installersByFilename[payload.Installer.Filename]
+			require.True(t, ok, "installer %s was not created", payload.Installer.Filename)
+			require.Equal(t, meta.SoftwareTitle, payload.Installer.Title)
+
+			wantLabelIDs := make([]uint, len(payload.Labels))
+			for j, lbl := range payload.Labels {
+				wantLabelIDs[j] = lbl.ID
+			}
+			if payload.Exclude {
+				require.Empty(t, meta.LabelsIncludeAny)
+				gotLabelIDs := make([]uint, len(meta.LabelsExcludeAny))
+				for i, lbl := range meta.LabelsExcludeAny {
+					gotLabelIDs[i] = lbl.LabelID
+				}
+				require.ElementsMatch(t, wantLabelIDs, gotLabelIDs)
+			} else {
+				require.Empty(t, meta.LabelsExcludeAny)
+				gotLabelIDs := make([]uint, len(meta.LabelsIncludeAny))
+				for j, lbl := range meta.LabelsIncludeAny {
+					gotLabelIDs[j] = lbl.LabelID
+				}
+				require.ElementsMatch(t, wantLabelIDs, gotLabelIDs)
+			}
+
+			// check if it deleted pending installs or not
+			if payload.ShouldCancelPending != nil {
+				lastInstall, err := ds.GetHostLastInstallData(ctx, host.ID, installerIDs[i])
+				require.NoError(t, err)
+				if *payload.ShouldCancelPending {
+					require.Nil(t, lastInstall, "should have cancelled pending installs")
+				} else {
+					require.NotNil(t, lastInstall, "should not have cancelled pending installs")
+				}
+			}
+		}
 	}
 }
