@@ -2,12 +2,12 @@
 
 ### Bug fixes
 
-## Endpoint Operations
+## Endpoint operations
 - Added support to require email verification (MFA) on each login when setting up a Fleet user outside SSO.
 - Added missing APM instrumentation for Fleet API routes.
 - Improved label validation when running live queries. Previously, when passing label(s) that do not exist, the labels were ignored. Now, an error is returned indicating which labels were not found. This change affects both the API and `fleetctl query` command.
 
-## Device Management (MDM)
+## Device management (MDM)
 - Added functionality for creating an automatic install policy for Fleet-maintained apps.
 - Replaced Zoom Fleet-maintained app with Zoom for IT, which does not open any windows during installation.
 - Added support for the new `windows_migration_enabled` setting (can be set via `fleetctl`, the `PATCH /api/latest/fleet/config` API endpoint and the UI). Requires a premium license.
