@@ -82,3 +82,4 @@ The decision to purchase Fleet was driven by the need for a more reliable, compr
 <meta name="publishedOn" value="2024-12-12">
 <meta name="articleTitle" value="Vehicle manufacturer transitions to Fleet for endpoint security">
 <meta name="description" value="Vehicle manufacturer transitions to Fleet for endpoint security">
+<meta name="showOnTestimonialsPageWithEmoji" value="🚪">
