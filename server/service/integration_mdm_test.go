@@ -4753,10 +4753,12 @@ func generateMultipartRequest(t *testing.T,
 	writer := multipart.NewWriter(&body)
 
 	// add file content
-	ff, err := writer.CreateFormFile(uploadFileField, fileName)
-	require.NoError(t, err)
-	_, err = io.Copy(ff, bytes.NewReader(fileContent))
-	require.NoError(t, err)
+	if fileName != "" || len(fileContent) > 0 {
+		ff, err := writer.CreateFormFile(uploadFileField, fileName)
+		require.NoError(t, err)
+		_, err = io.Copy(ff, bytes.NewReader(fileContent))
+		require.NoError(t, err)
+	}
 
 	// add extra fields
 	for key, values := range extraFields {
@@ -4766,7 +4768,7 @@ func generateMultipartRequest(t *testing.T,
 		}
 	}
 
-	err = writer.Close()
+	err := writer.Close()
 	require.NoError(t, err)
 
 	headers := map[string]string{
