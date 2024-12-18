@@ -381,6 +381,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		// final fields of the activity
 		actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(
 			existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny)
+		if payload.ValidatedLabels != nil {
+			actLabelsIncl, actLabelsExcl = activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
+		}
 		activity.LabelsIncludeAny = actLabelsIncl
 		activity.LabelsExcludeAny = actLabelsExcl
 		if payload.SelfService != nil {

@@ -15876,27 +15876,15 @@ func (s *integrationEnterpriseTestSuite) TestDeleteLabels() {
 	}, http.StatusOK, &newLabelResp)
 	lbl2 := newLabelResp.Label.ID
 
-	// create a software installer
+	// create a software installer associated with the label
 	installer := &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install",
-		Filename:      "ruby.deb",
-		SelfService:   false,
-		TeamID:        nil,
+		InstallScript:    "install",
+		Filename:         "ruby.deb",
+		SelfService:      false,
+		TeamID:           nil,
+		LabelsIncludeAny: []string{"TestDeleteLabels1"},
 	}
 	s.uploadSoftwareInstaller(t, installer, http.StatusOK, "")
-
-	// associate lbl1 with the installer
-	// TODO(mna): use API or Datastore method once implemented
-	ctx := context.Background()
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		var id uint
-		err := sqlx.GetContext(ctx, q, &id, `SELECT id FROM software_installers WHERE global_or_team_id = 0 AND filename = ?`, installer.Filename)
-		if err != nil {
-			return err
-		}
-		_, err = q.ExecContext(ctx, `INSERT INTO software_installer_labels (software_installer_id, label_id) VALUES (?, ?)`, id, lbl1)
-		return err
-	})
 
 	// try to delete the label associated with the installer
 	res := s.Do("DELETE", "/api/v1/fleet/labels/id/"+fmt.Sprint(lbl1), nil, http.StatusUnprocessableEntity)
