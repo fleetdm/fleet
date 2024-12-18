@@ -171,10 +171,10 @@ const ActivityFeed = ({
   // const activities = activitiesData?.activities;
   const activities = [
     createMockActivity({
-      type: ActivityType.DeletedSoftware,
+      type: ActivityType.AddedSoftware,
       details: {
-        software_title: "Software Title",
-        software_package: "Software Package",
+        software_title: "Software Title name",
+        software_package: "Software Package.Pkg",
         self_service: true,
         labels_include_any: [
           { id: 1, name: "Label 1" },
