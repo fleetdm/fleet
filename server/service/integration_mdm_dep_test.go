@@ -1846,6 +1846,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
 
+	// test script secret validation
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script.sh", []byte(`echo "$FLEET_SECRET_INVALID"`), s.token, map[string][]string{})
+	s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusUnprocessableEntity, headers)
+
 	// get team script metadata
 	var getScriptResp getSetupExperienceScriptResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/script?team_id=%d", tm.ID), nil, http.StatusOK, &getScriptResp)

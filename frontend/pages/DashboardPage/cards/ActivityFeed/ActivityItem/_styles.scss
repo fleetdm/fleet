@@ -10,7 +10,7 @@
   }
 
   &__dash {
-    border-right: 1px dashed $ui-fleet-black-10;
+    border-right: 1px dashed $ui-fleet-black-25;
     grid-column-start: 1;
     grid-row-start: 2;
     grid-row-end: 3;
@@ -46,7 +46,7 @@
 
   &__details-bottomline {
     font-size: $xx-small;
-    color: $ui-fleet-black-25;
+    color: $ui-fleet-black-50;
   }
 
   &__show-query-icon {

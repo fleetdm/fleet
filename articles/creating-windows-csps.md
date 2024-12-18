@@ -6,6 +6,7 @@ Deploying Configuration Service Providers (CSPs) for Windows devices—the Windo
 
 This guide will help you understand the building blocks to crafting CSPs of varying complexity – from simple payloads to more complex ones that involve modification of ADMX underpinnings.
 
+> In Fleet, Windows CSPs are called "Custom OS settings." Learn more about Custom OS settings [here](https://fleetdm.com/guides/custom-os-settings).
 
 ## What is ADMX and why should you care?
 
@@ -26,7 +27,7 @@ Windows maps the name and category path of a Group Policy to an MDM policy by pa
 
 ## Unpacking the “How”
 
-Unfortunately, to capture handling of ADMX the admin building the policies must use a UI, such as the Group Policy Editor, to gather the necessary data. For this example, we will use the ```WindowsPowerShell`` which controls PowerShell settings and is an ADMX-backed policy. [This](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-windowspowershell) is the official documentation that we will work from if you want to follow along. Notice this banner that indicates the ADMX requirement:
+Unfortunately, to capture handling of ADMX the admin building the policies must use a UI, such as the Group Policy Editor, to gather the necessary data. For this example, we will use the ```WindowsPowerShell``` which controls PowerShell settings and is an ADMX-backed policy. [This](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-windowspowershell) is the official documentation that we will work from if you want to follow along. Notice this banner that indicates the ADMX requirement:
 
 ![ADMX Tool Tip](../website/assets/images/articles/admx-tool-tip.png)
 
@@ -36,7 +37,7 @@ In the Windows documentation, you will notice a section called ADMX Mapping:
 ![ADMX Mapping](../website/assets/images/articles/admx-mapping.png)
 
 Pay attention to the line **ADMX File Name**, which will show you the name of the .admx file you need to open to help craft your CSP. All ADMX files are located at: 
-```C:\Windows\PolicyDefinitions\{ADMXFileName.admx```
+```C:\Windows\PolicyDefinitions\{ADMXFileName.admx}```
 
 In this XML file are the keys, and their type listed which indicates the values the CSP can modify. In this example there are 5 parameters:
  - ExecutionPolicy
@@ -91,7 +92,7 @@ To write this into the CSP, pull out the `id`, “ExecutionPolicy”, and the ac
 
 ```<data id="ExecutionPolicy" value="AllSigned"/>```
 
-Going through all the keys in this polcies, will resort in like:
+Going through all the keys in this policies, the payload will look like such:
 
 ```
 <data id="ExecutionPolicy" value="AllSigned"/>
@@ -165,13 +166,13 @@ The `Admin` logs will show you all profiles that have been pushed to the device 
 
 ## Conclusion
 
-Deploying CSPs for your Windows fleet may seem complex at first, but with a structured approach and the right tools, it becomes a powerful way to standardize and secure your device configurations. FleetDM provides the flexibility to deploy MDM profiles across platforms from a single, centralized management platform, enabling IT teams to maintain consistency, security, and efficiency.
+Deploying CSPs for your Windows fleet may seem complex at first, but with a structured approach and the right tools, it becomes a powerful way to standardize and secure your device configurations. Fleet provides the flexibility to deploy MDM profiles across platforms from a single, centralized management platform, enabling IT teams to maintain consistency, security, and efficiency.
 
-Ready to take control of your Windows device configurations? Explore FleetDM’s powerful API and GitOps workflows to start building and managing your CSPs today. Visit fleetdm.com to learn more or get in touch with our team to see how we can help streamline your device management strategy.
+Ready to take control of your Windows device configurations? Explore Fleet’s powerful API and GitOps workflows to start building and managing your CSPs today. Visit fleetdm.com to learn more or get in touch with our team to see how we can help streamline your device management strategy.
 
 <meta name="articleTitle" value="Creating Windows CSPs">
 <meta name="authorFullName" value="Harrison Ravazzolo">
 <meta name="authorGitHubUsername" value="harrisonravazzolo">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2024-12-12">
-<meta name="description" value="Learn how to create and deploy Windows CSPs with FleetDM, leveraging ADMX-backed policies for streamlined and secure device management.">
+<meta name="description" value="Learn how to create and deploy Windows CSPs with Fleet, leveraging ADMX-backed policies for streamlined and secure device management.">

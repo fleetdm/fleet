@@ -81,6 +81,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 		"global_config_no_paths": {
 			environment: map[string]string{
 				"FLEET_SECRET_FLEET_SECRET_": "fleet_secret",
+				"FLEET_SECRET_NAME":          "secret_name",
+				"FLEET_SECRET_length":        "10",
 			},
 			filePath: "testdata/global_config_no_paths.yml",
 		},
@@ -90,12 +92,16 @@ func TestValidGitOpsYaml(t *testing.T) {
 				"DISTRIBUTED_DENYLIST_DURATION": "0",
 				"ORG_NAME":                      "Fleet Device Management",
 				"FLEET_SECRET_FLEET_SECRET_":    "fleet_secret",
+				"FLEET_SECRET_NAME":             "secret_name",
+				"FLEET_SECRET_length":           "10",
 			},
 			filePath: "testdata/global_config.yml",
 		},
 		"team_config_no_paths": {
 			environment: map[string]string{
 				"FLEET_SECRET_FLEET_SECRET_": "fleet_secret",
+				"FLEET_SECRET_NAME":          "secret_name",
+				"FLEET_SECRET_length":        "10",
 			},
 			filePath: "testdata/team_config_no_paths.yml",
 			isTeam:   true,
@@ -107,6 +113,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 				"DISTRIBUTED_DENYLIST_DURATION":   "0",
 				"ENABLE_FAILING_POLICIES_WEBHOOK": "true",
 				"FLEET_SECRET_FLEET_SECRET_":      "fleet_secret",
+				"FLEET_SECRET_NAME":               "secret_name",
+				"FLEET_SECRET_length":             "10",
 			},
 			filePath: "testdata/team_config.yml",
 			isTeam:   true,
@@ -228,8 +236,10 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "windows_migration_enabled not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
-				require.Len(t, gitops.FleetSecrets, 1)
+				require.Len(t, gitops.FleetSecrets, 3)
 				assert.Equal(t, "fleet_secret", gitops.FleetSecrets["FLEET_SECRET_FLEET_SECRET_"])
+				assert.Equal(t, "secret_name", gitops.FleetSecrets["FLEET_SECRET_NAME"])
+				assert.Equal(t, "10", gitops.FleetSecrets["FLEET_SECRET_length"])
 
 				// Check agent options
 				assert.NotNil(t, gitops.AgentOptions)

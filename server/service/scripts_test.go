@@ -60,6 +60,9 @@ func TestHostRunScript(t *testing.T) {
 		return []byte("echo"), nil
 	}
 	ds.IsExecutionPendingForHostFunc = func(ctx context.Context, hostID, scriptID uint) (bool, error) { return false, nil }
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
 
 	t.Run("authorization checks", func(t *testing.T) {
 		testCases := []struct {
@@ -498,10 +501,14 @@ func TestSavedScripts(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 
+	withLFContents := "echo\necho"
+	withCRLFContents := "echo\r\necho"
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 	ds.NewScriptFunc = func(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {
+		require.Equal(t, withLFContents, script.ScriptContents)
 		newScript := *script
 		newScript.ID = 1
 		return &newScript, nil
@@ -534,6 +541,12 @@ func TestSavedScripts(t *testing.T) {
 	}
 	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: 0}, nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return document, nil
 	}
 
 	testCases := []struct {
@@ -669,7 +682,7 @@ func TestSavedScripts(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx = viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			_, err := svc.NewScript(ctx, nil, "test.sh", strings.NewReader("echo"))
+			_, err := svc.NewScript(ctx, nil, "test.ps1", strings.NewReader(withCRLFContents))
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 			err = svc.DeleteScript(ctx, noTeamScriptID)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
@@ -680,7 +693,7 @@ func TestSavedScripts(t *testing.T) {
 			_, _, err = svc.GetScript(ctx, noTeamScriptID, true)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
-			_, err = svc.NewScript(ctx, ptr.Uint(1), "test.sh", strings.NewReader("echo"))
+			_, err = svc.NewScript(ctx, ptr.Uint(1), "test.sh", strings.NewReader(withLFContents))
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 			err = svc.DeleteScript(ctx, team1ScriptID)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)

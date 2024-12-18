@@ -450,6 +450,23 @@ Steps to renew the certificate:
 Instructions for creating and maintaining a TUF repo are available on our [TUF handbook page](https://fleetdm.com/handbook/engineering/tuf). 
 
 
+### Fix flaky Go tests
+
+Sometimes automated tests fail intermittently, causing PRs to become blocked and engineers to become sad and vengeful. Debugging a "flaky" or "rando" test failure typically involves:
+
+* Adding extra logs to the test and/or related code to get more information about the failure.
+* Running the test multiple times to reproduce the failure.
+* Implementing an attempted fix to the test (or the related code, if there's an actual bug).
+* Running the test multiple times to try and verify that the test no longer fails.
+
+To aid in this process, we have the Stress Test Go Test action (aka the RandoKiller™).  This is a Github Actions workflow that can be used to run one or more Go tests repeatedly until they fail (or until they pass a certain number of times).  To use the RandoKiller:
+
+* Create a branch whose name ends with `-randokiller` (for example `sgress454/enqueue-mdm-command-randokiller`).
+* Modify the [.github/workflows/config/randokiller.json](https://github.com/fleetdm/fleet/blob/main/.github/workflows/config/randokiller.json) file to your specifications (choosing the packages and tests to run, the mysql matrix, and the number of runs to do).
+* Push up the branch with whatever logs/changes you need to help diagnose or fix the flaky test.
+* Monitor the [Stress Test Go Test](https://github.com/fleetdm/fleet/actions/workflows/randokiller-go.yml) workflow for your branch.  
+* Repeat until the stress test passes!  Every push to your branch will trigger a new run of the workflow.
+
 ## Rituals
 
 <rituals :rituals="rituals['handbook/engineering/engineering.rituals.yml']"></rituals>

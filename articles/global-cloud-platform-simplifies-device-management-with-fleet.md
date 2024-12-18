@@ -95,3 +95,4 @@ I love Fleet.
 <meta name="publishedOn" value="2024-12-09">
 <meta name="articleTitle" value="Global edge cloud platform simplifies device management with Fleet">
 <meta name="description" value="Global edge cloud platform simplifies device management">
+<meta name="showOnTestimonialsPageWithEmoji" value="🪟">

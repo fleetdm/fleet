@@ -112,6 +112,17 @@
         </div>
       </div>
       <div purpose="page-section">
+        <div purpose="section-headline">
+          <h2>Case studies</h2>
+          <p>Real-world stories of why the community and customers love Fleet.</p>
+        </div>
+        <div purpose="articles">
+          <%for(let article of articlesForThisPage) {%>
+            <div purpose="article-link">
+              <animated-arrow-button arrow-color="#3E4771" class="w-100" href="<%= article.url%>"><%= article.meta.showOnTestimonialsPageWithEmoji %> <%= article.meta.articleTitle %></animated-arrow-button>
+            </div>
+          <% } %>
+        </div>
         <div class="d-flex flex-row align-items-center justify-content-center">
           <a purpose="share-button" href="https://github.com/fleetdm/fleet/edit/main/handbook/company/testimonials.yml" target="_blank">Share your story</a>
         </div>
