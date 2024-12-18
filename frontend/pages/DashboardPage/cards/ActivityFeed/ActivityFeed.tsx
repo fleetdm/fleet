@@ -23,6 +23,8 @@ import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDet
 import ActivityItem from "./ActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
 import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
+import SoftwareDetailsModal from "./components/SoftwareDetailsModal";
+import createMockActivity from "__mocks__/activityMock";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {
@@ -57,6 +59,11 @@ const ActivityFeed = ({
     activityAutomationDetails,
     setActivityAutomationDetails,
   ] = useState<IActivityDetails | null>(null);
+  const [
+    softwareDetails,
+    setSoftwareDetails,
+  ] = useState<IActivityDetails | null>(null);
+
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
   const scriptExecutionId = useRef("");
@@ -131,6 +138,9 @@ const ActivityFeed = ({
       case ActivityType.EditedActivityAutomations:
         setActivityAutomationDetails({ ...details });
         break;
+      case ActivityType.AddedSoftware:
+        setSoftwareDetails({ ...details });
+        break;
       default:
         break;
     }
@@ -156,7 +166,22 @@ const ActivityFeed = ({
   // Renders opaque information as activity feed is loading
   const opacity = isFetchingActivities ? { opacity: 0.4 } : { opacity: 1 };
 
-  const activities = activitiesData?.activities;
+  // const activities = activitiesData?.activities;
+  const activities = [
+    createMockActivity({
+      type: ActivityType.AddedSoftware,
+      details: {
+        software_title: "Software Title",
+        software_package: "Software Package",
+        self_service: true,
+        labels_include_any: [
+          { id: 1, name: "Label 1" },
+          { id: 2, name: "Label 2" },
+          { id: 3, name: "Label 3" },
+        ],
+      },
+    }),
+  ];
   const meta = activitiesData?.meta;
 
   return (
@@ -243,6 +268,12 @@ const ActivityFeed = ({
         <ActivityAutomationDetailsModal
           details={activityAutomationDetails}
           onCancel={() => setActivityAutomationDetails(null)}
+        />
+      )}
+      {softwareDetails && (
+        <SoftwareDetailsModal
+          details={softwareDetails}
+          onCancel={() => setSoftwareDetails(null)}
         />
       )}
     </div>
