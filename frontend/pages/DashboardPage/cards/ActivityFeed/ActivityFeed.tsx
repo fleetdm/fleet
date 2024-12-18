@@ -139,6 +139,8 @@ const ActivityFeed = ({
         setActivityAutomationDetails({ ...details });
         break;
       case ActivityType.AddedSoftware:
+      case ActivityType.EditedSoftware:
+      case ActivityType.DeletedSoftware:
         setSoftwareDetails({ ...details });
         break;
       default:
@@ -169,7 +171,7 @@ const ActivityFeed = ({
   // const activities = activitiesData?.activities;
   const activities = [
     createMockActivity({
-      type: ActivityType.AddedSoftware,
+      type: ActivityType.DeletedSoftware,
       details: {
         software_title: "Software Title",
         software_package: "Software Package",

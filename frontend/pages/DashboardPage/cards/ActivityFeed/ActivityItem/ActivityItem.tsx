@@ -936,7 +936,18 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  editedSoftware: (activity: IActivity) => {
+  editedSoftware: (
+    activity: IActivity,
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
+  ) => {
+    const {
+      software_title,
+      software_package,
+      self_service,
+      labels_include_any,
+      labels_exclude_any,
+    } = activity.details || {};
+
     return (
       <>
         {" "}
@@ -949,11 +960,38 @@ const TAGGED_TEMPLATES = {
           </>
         ) : (
           "no team."
-        )}
+        )}{" "}
+        <Button
+          className={`${baseClass}__show-query-link`}
+          variant="text-link"
+          onClick={() =>
+            onDetailsClick?.(activity.type, {
+              software_title,
+              software_package,
+              self_service,
+              labels_include_any,
+              labels_exclude_any,
+            })
+          }
+        >
+          Show details{" "}
+          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+        </Button>
       </>
     );
   },
-  deletedSoftware: (activity: IActivity) => {
+  deletedSoftware: (
+    activity: IActivity,
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
+  ) => {
+    const {
+      software_title,
+      software_package,
+      self_service,
+      labels_include_any,
+      labels_exclude_any,
+    } = activity.details || {};
+
     return (
       <>
         {" "}
@@ -966,7 +1004,23 @@ const TAGGED_TEMPLATES = {
           </>
         ) : (
           "no team."
-        )}
+        )}{" "}
+        <Button
+          className={`${baseClass}__show-query-link`}
+          variant="text-link"
+          onClick={() =>
+            onDetailsClick?.(activity.type, {
+              software_title,
+              software_package,
+              self_service,
+              labels_include_any,
+              labels_exclude_any,
+            })
+          }
+        >
+          Show details{" "}
+          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+        </Button>
       </>
     );
   },
@@ -1364,10 +1418,10 @@ const getDetail = (
       return TAGGED_TEMPLATES.addedSoftware(activity, onDetailsClick);
     }
     case ActivityType.EditedSoftware: {
-      return TAGGED_TEMPLATES.editedSoftware(activity);
+      return TAGGED_TEMPLATES.editedSoftware(activity, onDetailsClick);
     }
     case ActivityType.DeletedSoftware: {
-      return TAGGED_TEMPLATES.deletedSoftware(activity);
+      return TAGGED_TEMPLATES.deletedSoftware(activity, onDetailsClick);
     }
     case ActivityType.InstalledSoftware: {
       return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
