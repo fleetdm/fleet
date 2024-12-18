@@ -106,7 +106,11 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	}
 
 	// Vulnerability filters are only available in premium (opt.IncludeCVEScores is only true in premium)
-	if !opt.IncludeCVEScores && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
 		return nil, nil, fleet.ErrMissingLicense
 	}
 

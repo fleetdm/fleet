@@ -14,6 +14,11 @@ services:
       sails_models__migrate: safe
       sails_custom__fleetBaseUrl: '' #Add the base url of your Fleet instance: ex: https://fleet.example.com
       sails_custom__fleetApiToken: '' # Add the API token of an API-only user [?] Here's how you get one: https://fleetdm.com/docs/using-fleet/fleetctl-cli#get-the-api-token-of-an-api-only-user
+      sails_uploads__secret: '' # (Required to enable software features) The secret for the S3 bucket where unassigned software installers will be stored.
+      sails_uploads__bucket: '' # (Required to enable software features) The name of the S3 bucket where software installers will be stored.
+      sails_uploads__region: '' # (Required to enable software features) The region where the S3 bucket is located.
+      sails_uploads__bucketWithPostfix: '' # (Required to enable software features) This value should be set to the same value as the bucket unless the files are stored in a folder in the S3 bucket. In that case, this value needs to be set to `{bucket name}{folder name}` e.g., unassigned-software-installers/staging
+      sails_uploads__prefixForFileDeletion: '' # (Required to enable software features) Only required if the software installers are stored in a folder in the S3 bucket. The name of the folder where the software installers are stored in the S3 bucket with a trailing slash. e.g., staging/
 
   postgres:
     image: "postgres:alpine"

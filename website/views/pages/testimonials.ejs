@@ -30,7 +30,7 @@
       <div v-if="selectedContent === 'mdm'">
         <div purpose="testimonials-container" class="card-columns">
           <% for(let testimonial of testimonialsForMdm) {%>
-            <div purpose="testimonial-card" class="card">
+            <a href="<%- testimonial.quoteLinkUrl%>" target="_blank" purpose="testimonial-card" class="card" >
               <% if(testimonial.quoteImageFilename){ %>
                 <div purpose="logo" class="mb-4">
                   <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>
@@ -39,7 +39,7 @@
               <p purpose="quote">
                 <%- testimonial.quote %>
                 <%if(testimonial.youtubeVideoUrl) {%>
-                  <a purpose="video-link" @click="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</a>
+                  <span purpose="video-link" @click.prevent.self="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</span>
                 <% } %>
               </p>
               <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
@@ -51,14 +51,14 @@
                   <p purpose="job-title" class="m-0"><%- testimonial.quoteAuthorJobTitle %></p>
                 </div>
               </div>
-            </div>
+            </a>
           <% } %>
         </div>
       </div>
       <div v-if="selectedContent === 'it'">
         <div purpose="testimonials-container" class="card-columns">
           <% for(let testimonial of testimonialsForObservability) {%>
-            <div purpose="testimonial-card" class="card">
+            <a href="<%- testimonial.quoteLinkUrl%>" target="_blank" purpose="testimonial-card" class="card" >
               <% if(testimonial.quoteImageFilename){ %>
                 <div purpose="logo" class="mb-4">
                   <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>
@@ -67,7 +67,7 @@
               <p purpose="quote">
                 <%- testimonial.quote %>
                 <%if(testimonial.youtubeVideoUrl) {%>
-                  <a purpose="video-link" @click="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</a>
+                  <span purpose="video-link" @click.prevent.self="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</span>
                 <% } %>
               </p>
               <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
@@ -79,14 +79,14 @@
                   <p purpose="job-title" class="m-0"><%- testimonial.quoteAuthorJobTitle %></p>
                 </div>
               </div>
-            </div>
+            </a>
           <% } %>
         </div>
       </div>
       <div v-if="selectedContent === 'security'">
         <div purpose="testimonials-container" class="card-columns">
           <% for(let testimonial of testimonialsForSoftwareManagement) {%>
-            <div purpose="testimonial-card" class="card">
+            <a href="<%- testimonial.quoteLinkUrl%>" target="_blank" purpose="testimonial-card" class="card" >
               <% if(testimonial.quoteImageFilename){ %>
                 <div purpose="logo" class="mb-4">
                   <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>
@@ -95,7 +95,7 @@
               <p purpose="quote">
                 <%- testimonial.quote %>
                 <%if(testimonial.youtubeVideoUrl) {%>
-                  <a purpose="video-link" @click="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</a>
+                  <span purpose="video-link" @click.prevent.self="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</span>
                 <% } %>
               </p>
               <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
@@ -107,11 +107,37 @@
                   <p purpose="job-title" class="m-0"><%- testimonial.quoteAuthorJobTitle %></p>
                 </div>
               </div>
-            </div>
+            </a>
           <% } %>
         </div>
       </div>
       <div purpose="page-section">
+        <div purpose="section-headline">
+          <h2>Case strudies</h2>
+          <p>Real-world stories of why the community and customers love Fleet.</p>
+        </div>
+        <div purpose="articles">
+          <div purpose="articles">
+            <div purpose="article-link">
+              <animated-arrow-button arrow-color="#3E4771" class="w-100" href="/announcements/consolidate-multiple-tools-with-fleet">🥀 Leading financial company consolidates multiple tools with Fleet</animated-arrow-button>
+            </div>
+            <div purpose="article-link">
+              <animated-arrow-button arrow-color="#3E4771" class="w-100" href="/announcements/global-cloud-platform-simplifies-device-management-with-fleet">🪟 Global edge cloud platform simplifies device management with Fleet</animated-arrow-button>
+            </div>
+            <div purpose="article-link">
+              <animated-arrow-button arrow-color="#3E4771" class="w-100" href="/announcements/worldwide-security-and-authentication-platform-chooses-fleet-for-linux">🚪 Worldwide security and authentication platform chooses Fleet for Linux management</animated-arrow-button>
+            </div>
+            <div purpose="article-link">
+              <animated-arrow-button arrow-color="#3E4771" class="w-100" href="/announcements/large-gaming-company-enhances-server-observability-with-fleet">🔌 Large gaming company enhances server observability with Fleet</animated-arrow-button>
+            </div>
+            <div purpose="article-link">
+              <animated-arrow-button arrow-color="#3E4771" class="w-100" href="/announcements/vehicle-manufacturer-transitions-to-fleet-for-endpoint-security">🚪 Vehicle manufacturer transitions to Fleet for endpoint security</animated-arrow-button>
+            </div>
+            <div purpose="article-link">
+              <animated-arrow-button arrow-color="#3E4771" class="w-100" href="/announcements/foursquare-quickly-migrates-to-fleet">🚪 Foursquare quickly migrates to Fleet for Device Management</animated-arrow-button>
+            </div>
+          </div>
+        </div>
         <div class="d-flex flex-row align-items-center justify-content-center">
           <a purpose="share-button" href="https://github.com/fleetdm/fleet/edit/main/handbook/company/testimonials.yml" target="_blank">Share your story</a>
         </div>

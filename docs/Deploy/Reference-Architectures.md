@@ -14,6 +14,13 @@ The `fleetctl` binary is the CLI interface which allows management of your deplo
 
 Both binaries are available for download from our [repo](https://github.com/fleetdm/fleet/releases).
 
+Once you've downloaded the binaries, extract the files to your desired location:
+
+```
+tar -xf fleet_v*_linux.tar.gz # Extract the Fleet binary
+sudo cp fleet_v*_linux/fleet /usr/bin/ # Copy the the Fleet binary to /usr/bin
+fleet version # Sanity check to make sure it runs as expected
+```
 
 ## Infrastructure dependencies
 
