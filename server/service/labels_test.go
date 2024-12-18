@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -311,4 +312,109 @@ func TestLabelsWithReplica(t *testing.T) {
 	require.NoError(t, err)
 	require.ElementsMatch(t, []uint{h1.ID}, hostIDs)
 	require.Equal(t, 1, lbl.HostCount)
+}
+
+func TestBatchValidateLabels(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	t.Run("no auth context", func(t *testing.T) {
+		_, err := svc.BatchValidateLabels(context.Background(), nil)
+		require.ErrorContains(t, err, "Authentication required")
+	})
+
+	authCtx := authz_ctx.AuthorizationContext{}
+	ctx = authz_ctx.NewContext(ctx, &authCtx)
+
+	t.Run("no auth checked", func(t *testing.T) {
+		_, err := svc.BatchValidateLabels(ctx, nil)
+		require.ErrorContains(t, err, "Authentication required")
+	})
+
+	// validator requires that an authz check has been performed upstream so we'll set it now for
+	// the rest of the tests
+	authCtx.SetChecked()
+
+	mockLabels := map[string]uint{
+		"foo": 1,
+		"bar": 2,
+		"baz": 3,
+	}
+
+	mockLabelIdent := func(name string, id uint) fleet.LabelIdent {
+		return fleet.LabelIdent{LabelID: id, LabelName: name}
+	}
+
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+		res := make(map[string]uint)
+		if names == nil {
+			return res, nil
+		}
+		for _, name := range names {
+			if id, ok := mockLabels[name]; ok {
+				res[name] = id
+			}
+		}
+		return res, nil
+	}
+
+	testCases := []struct {
+		name         string
+		labelNames   []string
+		expectLabels map[string]fleet.LabelIdent
+		expectError  string
+	}{
+		{
+			"no labels",
+			nil,
+			nil,
+			"",
+		},
+		{
+			"include labels",
+			[]string{"foo", "bar"},
+			map[string]fleet.LabelIdent{
+				"foo": mockLabelIdent("foo", 1),
+				"bar": mockLabelIdent("bar", 2),
+			},
+			"",
+		},
+		{
+			"non-existent label",
+			[]string{"foo", "qux"},
+			nil,
+			"some or all the labels provided don't exist",
+		},
+		{
+			"duplicate label",
+			[]string{"foo", "foo"},
+			map[string]fleet.LabelIdent{
+				"foo": mockLabelIdent("foo", 1),
+			},
+			"",
+		},
+		{
+			"empty slice",
+			[]string{},
+			nil,
+			"",
+		},
+		{
+			"empty string",
+			[]string{""},
+			nil,
+			"some or all the labels provided don't exist",
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := svc.BatchValidateLabels(ctx, tt.labelNames)
+			if tt.expectError != "" {
+				require.Contains(t, err.Error(), tt.expectError)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectLabels, got)
+			}
+		})
+	}
 }
