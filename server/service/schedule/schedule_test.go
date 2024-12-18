@@ -192,6 +192,9 @@ func TestMultipleSchedules(t *testing.T) {
 }
 
 func TestMultipleJobsInOrder(t *testing.T) {
+	os.Setenv("TEST_CRON_NO_RECOVER", "0")
+	defer os.Unsetenv("TEST_CRON_NO_RECOVER")
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	jobs := make(chan int)
