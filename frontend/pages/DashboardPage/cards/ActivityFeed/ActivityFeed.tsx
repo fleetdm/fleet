@@ -24,7 +24,6 @@ import ActivityItem from "./ActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
 import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
 import SoftwareDetailsModal from "./components/SoftwareDetailsModal";
-import createMockActivity from "__mocks__/activityMock";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {
@@ -168,22 +167,7 @@ const ActivityFeed = ({
   // Renders opaque information as activity feed is loading
   const opacity = isFetchingActivities ? { opacity: 0.4 } : { opacity: 1 };
 
-  // const activities = activitiesData?.activities;
-  const activities = [
-    createMockActivity({
-      type: ActivityType.AddedSoftware,
-      details: {
-        software_title: "Software Title name",
-        software_package: "Software Package.Pkg",
-        self_service: true,
-        labels_include_any: [
-          { id: 1, name: "Label 1" },
-          { id: 2, name: "Label 2" },
-          { id: 3, name: "Label 3" },
-        ],
-      },
-    }),
-  ];
+  const activities = activitiesData?.activities;
   const meta = activitiesData?.meta;
 
   return (
