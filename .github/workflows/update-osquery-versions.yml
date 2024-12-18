@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: "3.x"
       - name: Install dependencies
-        run: pip install requests
+        run: pip install requests==2.32.3 --hash=sha256:7f22e2e5c3c90c0c1c5ca4e7a1ac79b88cab99b2f9c261a4b0e0c2f5f58b1ba4
       - name: Update Osquery versions in UI
         run: python .github/scripts/update_osquery_versions.py
       - name: PR changes
