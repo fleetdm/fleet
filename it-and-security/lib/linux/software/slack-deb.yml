@@ -1,0 +1,4 @@
+url: https://downloads.slack-edge.com/desktop-releases/linux/x64/4.41.105/slack-desktop-4.41.105-amd64.deb
+self-service: true
+pre_install_query:
+  path: ../queries/all-debian-hosts.yml
