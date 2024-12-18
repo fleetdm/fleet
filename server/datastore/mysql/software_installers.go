@@ -330,7 +330,8 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 		touchUploaded = ", uploaded_at = NOW()"
 	}
 
-	stmt := fmt.Sprintf(`UPDATE software_installers SET
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		stmt := fmt.Sprintf(`UPDATE software_installers SET
 	storage_id = ?,
 	filename = ?,
 	version = ?,
@@ -345,23 +346,34 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 	user_email = (SELECT email FROM users WHERE id = ?) %s
 	WHERE id = ?`, touchUploaded)
 
-	args := []interface{}{
-		payload.StorageID,
-		payload.Filename,
-		payload.Version,
-		strings.Join(payload.PackageIDs, ","),
-		installScriptID,
-		*payload.PreInstallQuery,
-		postInstallScriptID,
-		uninstallScriptID,
-		*payload.SelfService,
-		payload.UserID,
-		payload.UserID,
-		payload.UserID,
-		payload.InstallerID,
-	}
+		args := []interface{}{
+			payload.StorageID,
+			payload.Filename,
+			payload.Version,
+			strings.Join(payload.PackageIDs, ","),
+			installScriptID,
+			*payload.PreInstallQuery,
+			postInstallScriptID,
+			uninstallScriptID,
+			*payload.SelfService,
+			payload.UserID,
+			payload.UserID,
+			payload.UserID,
+			payload.InstallerID,
+		}
 
-	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "update software installer")
+		}
+
+		if payload.ValidatedLabels != nil {
+			if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, payload.InstallerID, *payload.ValidatedLabels); err != nil {
+				return ctxerr.Wrap(ctx, err, "upsert software installer labels")
+			}
+		}
+
+		return nil
+	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update software installer")
 	}

@@ -138,11 +138,12 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	// decode labels
 	var existsInclAny, existsExclAny bool
 	decoded.LabelsIncludeAny, existsInclAny = r.MultipartForm.Value[string(fleet.LabelsIncludeAny)]
+	if !existsInclAny {
+		decoded.LabelsIncludeAny = nil
+	}
 	decoded.LabelsExcludeAny, existsExclAny = r.MultipartForm.Value[string(fleet.LabelsExcludeAny)]
-
-	// validate that only one of the labels type is provided
-	if existsInclAny && existsExclAny {
-		return nil, &fleet.BadRequestError{Message: `Only one of "labels_include_any" or "labels_exclude_any" can be included.`}
+	if !existsExclAny {
+		decoded.LabelsExcludeAny = nil
 	}
 
 	return &decoded, nil
