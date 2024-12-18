@@ -768,6 +768,18 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 
 		// if we found an installer, use that
 		if installer != nil {
+			// check the label scoping for this installer and host
+			scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, installer.InstallerID, hostID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "checking label scoping during software install attempt")
+			}
+
+			if !scoped {
+				return &fleet.BadRequestError{
+					Message: "Couldn't install. Host isn't member of the labels defined for this software title.",
+				}
+			}
+
 			lastInstallRequest, err := svc.ds.GetHostLastInstallData(ctx, host.ID, installer.InstallerID)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "getting last install data for host %d and installer %d", host.ID, installer.InstallerID)
@@ -1593,6 +1605,17 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 					ctx, "software title not available through self-service",
 					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
 				),
+			}
+		}
+
+		scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, installer.InstallerID, host.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking label scoping during software install attempt")
+		}
+
+		if !scoped {
+			return &fleet.BadRequestError{
+				Message: "Couldn't install. Host isn't member of the labels defined for this software title.",
 			}
 		}
 

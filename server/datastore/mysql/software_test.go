@@ -5258,7 +5258,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, host, false)
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
-	// create some software: custom installers and FMA
+	// create a software installer
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
 	installerID1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -5294,6 +5294,11 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.Len(t, software, 1)
 	require.Equal(t, "file1", software[0].SoftwarePackage.Name)
 
+	// installer1 should be in scope since it has no labels
+	scoped, err := ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+
 	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1" + t.Name()})
 	require.NoError(t, err)
 
@@ -5301,31 +5306,38 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{label1.ID}))
 
 	// assign the label to the software installer
-	// TODO(JVE): update this once the DS method exists
-	updateInstallerLabel := func(siID, labelID uint, exclude bool) {
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err = q.ExecContext(
-				ctx,
-				`INSERT INTO software_installer_labels (software_installer_id, label_id, exclude) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE exclude = VALUES(exclude)`,
-				siID, labelID, exclude,
-			)
-			return err
-		})
-	}
-	updateInstallerLabel(installerID1, label1.ID, true)
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID1, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeExcludeAny,
+		ByName:     map[string]fleet.LabelIdent{label1.Name: {LabelName: label1.Name, LabelID: label1.ID}},
+	})
+	require.NoError(t, err)
 
 	// should be empty as the installer label is "exclude any"
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Empty(t, software)
 
+	// installer1 should be out of scope since the label is "exclude any"
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
+
 	// Update the label to be "include any"
-	updateInstallerLabel(installerID1, label1.ID, false)
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID1, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAny,
+		ByName:     map[string]fleet.LabelIdent{label1.Name: {LabelName: label1.Name, LabelID: label1.ID}},
+	})
+	require.NoError(t, err)
 
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Len(t, software, 1)
 	require.Equal(t, "file1", software[0].SoftwarePackage.Name)
+
+	// Now installer1 is in scope again: label is "include any"
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
 
 	// Add an installer. No label yet.
 	installerID2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -5358,8 +5370,14 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	label3, err := ds.NewLabel(ctx, &fleet.Label{Name: "label3" + t.Name()})
 	require.NoError(t, err)
 
-	updateInstallerLabel(installerID2, label2.ID, true)
-	updateInstallerLabel(installerID2, label3.ID, true)
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID2, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeExcludeAny,
+		ByName: map[string]fleet.LabelIdent{
+			label2.Name: {LabelName: label2.Name, LabelID: label2.ID},
+			label3.Name: {LabelName: label3.Name, LabelID: label3.ID},
+		},
+	})
+	require.NoError(t, err)
 
 	// Now host has label1, label2
 	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{label2.ID}))
@@ -5368,6 +5386,16 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Len(t, software, 1)
+
+	// installer1 is still in scope
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+
+	// installer2 is out of scope, because host has label2
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID2, host.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
 
 	// Add an installer. No label yet.
 	installerID3, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -5392,18 +5420,41 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	label4, err := ds.NewLabel(ctx, &fleet.Label{Name: "label4" + t.Name()})
 	require.NoError(t, err)
 
-	updateInstallerLabel(installerID3, label4.ID, true)
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID3, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeExcludeAny,
+		ByName:     map[string]fleet.LabelIdent{label4.Name: {LabelName: label4.Name, LabelID: label4.ID}},
+	})
+	require.NoError(t, err)
 
 	// We should have [installerID1, installerID3]
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Len(t, software, 2)
 
+	// installer1 is still in scope
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+
+	// installer3 is in scope, because label is "exclude any" and host doesn't have the label
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID2, host.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
+
 	// Now include hosts with label4. No host has this label, so we shouldn't see installerID3 anymore.
-	updateInstallerLabel(installerID3, label4.ID, false)
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID3, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAny,
+		ByName:     map[string]fleet.LabelIdent{label4.Name: {LabelName: label4.Name, LabelID: label4.ID}},
+	})
+	require.NoError(t, err)
 
 	// We should have [installerID1]
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Len(t, software, 1)
+
+	// installer1 is still in scope
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
 }
