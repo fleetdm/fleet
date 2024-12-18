@@ -451,6 +451,8 @@ type ListCVEsFunc func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMe
 
 type ListHostSoftwareFunc func(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error)
 
+type IsSoftwareInstallerLabelScopedFunc func(ctx context.Context, installerID uint, hostID uint) (bool, error)
+
 type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error
 
 type UploadedSoftwareExistsFunc func(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
@@ -1822,6 +1824,9 @@ type DataStore struct {
 
 	ListHostSoftwareFunc        ListHostSoftwareFunc
 	ListHostSoftwareFuncInvoked bool
+
+	IsSoftwareInstallerLabelScopedFunc        IsSoftwareInstallerLabelScopedFunc
+	IsSoftwareInstallerLabelScopedFuncInvoked bool
 
 	SetHostSoftwareInstallResultFunc        SetHostSoftwareInstallResultFunc
 	SetHostSoftwareInstallResultFuncInvoked bool
@@ -4418,6 +4423,13 @@ func (s *DataStore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts
 	s.ListHostSoftwareFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostSoftwareFunc(ctx, host, opts)
+}
+
+func (s *DataStore) IsSoftwareInstallerLabelScoped(ctx context.Context, installerID uint, hostID uint) (bool, error) {
+	s.mu.Lock()
+	s.IsSoftwareInstallerLabelScopedFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsSoftwareInstallerLabelScopedFunc(ctx, installerID, hostID)
 }
 
 func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error {
