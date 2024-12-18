@@ -348,7 +348,7 @@ software:
 
 - Use `labels_include_any` to target hosts that have any label in the array or `labels_exclude_any` to target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
-- `auto_install` specifies whether a policy to install the software will be written automatically. If true, the software will be installed on every host that’s missing this software.
+- Use `auto_install` to specify whether to automatically write a policy to install the software. If true, the software will be installed on every host that’s missing this software.
 
 
 ### packages
