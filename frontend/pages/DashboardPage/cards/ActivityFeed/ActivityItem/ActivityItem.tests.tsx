@@ -1160,9 +1160,7 @@ describe("Activity Feed", () => {
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
-    expect(
-      screen.getByText("added software ", { exact: false })
-    ).toBeInTheDocument();
+    expect(screen.getByText("added", { exact: false })).toBeInTheDocument();
     expect(
       screen.getByText("foobar.pkg", { exact: false })
     ).toBeInTheDocument();
@@ -1188,9 +1186,7 @@ describe("Activity Feed", () => {
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
-    expect(
-      screen.getByText("edited software", { exact: false })
-    ).toBeInTheDocument();
+    expect(screen.getByText("edited", { exact: false })).toBeInTheDocument();
     expect(
       screen.getByText(" on the ", {
         exact: false,
@@ -1213,9 +1209,7 @@ describe("Activity Feed", () => {
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
-    expect(
-      screen.getByText("deleted software ", { exact: false })
-    ).toBeInTheDocument();
+    expect(screen.getByText("deleted", { exact: false })).toBeInTheDocument();
     expect(
       screen.getByText("foobar.pkg", { exact: false })
     ).toBeInTheDocument();
@@ -1237,9 +1231,7 @@ describe("Activity Feed", () => {
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
-    expect(
-      screen.getByText("added software ", { exact: false })
-    ).toBeInTheDocument();
+    expect(screen.getByText("added", { exact: false })).toBeInTheDocument();
     expect(
       screen.getByText("foobar.pkg", { exact: false })
     ).toBeInTheDocument();
@@ -1258,9 +1250,7 @@ describe("Activity Feed", () => {
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
-    expect(
-      screen.getByText("edited software", { exact: false })
-    ).toBeInTheDocument();
+    expect(screen.getByText("edited", { exact: false })).toBeInTheDocument();
     expect(
       screen.getByText("on no team", { exact: false })
     ).toBeInTheDocument();
@@ -1273,9 +1263,7 @@ describe("Activity Feed", () => {
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
-    expect(
-      screen.getByText("deleted software ", { exact: false })
-    ).toBeInTheDocument();
+    expect(screen.getByText("deleted", { exact: false })).toBeInTheDocument();
     expect(
       screen.getByText("foobar.pkg", { exact: false })
     ).toBeInTheDocument();
