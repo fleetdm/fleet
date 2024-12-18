@@ -176,7 +176,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	var teamName *string
 	if *payload.TeamID != 0 {
-		t, err := svc.ds.Team(ctx, *payload.TeamID)
+		t, err := svc.ds.TeamWithoutExtras(ctx, *payload.TeamID)
 		if err != nil {
 			return nil, err
 		}
@@ -205,7 +205,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	if payload.SelfService == nil && payload.InstallerFile == nil && payload.PreInstallQuery == nil &&
-		payload.InstallScript == nil && payload.PostInstallScript == nil && payload.UninstallScript == nil {
+		payload.InstallScript == nil && payload.PostInstallScript == nil && payload.UninstallScript == nil &&
+		payload.LabelsIncludeAny == nil && payload.LabelsExcludeAny == nil {
 		return existingInstaller, nil // no payload, noop
 	}
 
@@ -215,6 +216,15 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	if payload.SelfService != nil && *payload.SelfService != existingInstaller.SelfService {
 		dirty["SelfService"] = true
 	}
+
+	shouldUpdateLabels, validatedLabels, err := svc.validateSoftwareLabelsForUpdate(ctx, existingInstaller, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating software labels for update")
+	}
+	if shouldUpdateLabels {
+		dirty["Labels"] = true
+	}
+	payload.ValidatedLabels = validatedLabels
 
 	// activity team ID must be null if no team, not zero
 	var actTeamID *uint
@@ -394,6 +404,63 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	updatedInstaller.Status = statuses
 
 	return updatedInstaller, nil
+}
+
+func (svc *Service) validateSoftwareLabelsForUpdate(ctx context.Context, existingInstaller *fleet.SoftwareInstaller, includeAny, excludeAny []string) (shouldUpdate bool, validatedLabels *fleet.LabelIdentsWithScope, err error) {
+	if existingInstaller == nil {
+		return false, nil, errors.New("existing installer must be provided")
+	}
+
+	if len(existingInstaller.LabelsIncludeAny) > 0 && len(existingInstaller.LabelsExcludeAny) > 0 {
+		return false, nil, errors.New("existing installer must have only one label scope")
+	}
+
+	if includeAny == nil && excludeAny == nil {
+		// nothing to do
+		return false, nil, nil
+	}
+
+	incoming, err := svc.validateSoftwareLabels(ctx, includeAny, excludeAny)
+	if err != nil {
+		return false, nil, err
+	}
+
+	var prevScope fleet.LabelScope
+	var prevLabels []fleet.SoftwareScopeLabel
+	switch {
+	case len(existingInstaller.LabelsIncludeAny) > 0:
+		prevScope = fleet.LabelScopeIncludeAny
+		prevLabels = existingInstaller.LabelsIncludeAny
+	case len(existingInstaller.LabelsExcludeAny) > 0:
+		prevScope = fleet.LabelScopeExcludeAny
+		prevLabels = existingInstaller.LabelsExcludeAny
+	}
+
+	prevByName := make(map[string]fleet.LabelIdent, len(prevLabels))
+	for _, pl := range prevLabels {
+		prevByName[pl.LabelName] = fleet.LabelIdent{
+			LabelID:   pl.LabelID,
+			LabelName: pl.LabelName,
+		}
+	}
+
+	if prevScope != incoming.LabelScope {
+		return true, incoming, nil
+	}
+
+	if len(prevByName) != len(incoming.ByName) {
+		return true, incoming, nil
+	}
+
+	// compare labels by name
+	for n, il := range incoming.ByName {
+		pl, ok := prevByName[n]
+		if !ok || pl != il {
+			return true, incoming, nil
+		}
+	}
+
+	return false, nil, nil
 }
 
 func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10655,7 +10656,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		// check labels exclude any
 		require.Len(t, meta2.LabelsExcludeAny, len(payload.LabelsExcludeAny))
 		byName = make(map[string]struct{}, len(meta2.LabelsExcludeAny))
-		for _, l := range meta.LabelsExcludeAny {
+		for _, l := range meta2.LabelsExcludeAny {
 			byName[l.LabelName] = struct{}{}
 			require.Equal(t, *meta2.TitleID, l.TitleID)
 			require.True(t, l.Exclude)
@@ -10707,13 +10708,47 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		// upload again fails
 		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already exists")
 
+		// patch the software installer to change the labels
+		var b bytes.Buffer
+		w := multipart.NewWriter(&b)
+		require.NoError(t, w.WriteField("team_id", "0"))
+		require.NoError(t, w.WriteField("labels_exclude_any", t.Name()))
+		w.Close()
+		headers := map[string]string{
+			"Content-Type":  w.FormDataContentType(),
+			"Accept":        "application/json",
+			"Authorization": fmt.Sprintf("Bearer %s", s.token),
+		}
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), b.Bytes(), http.StatusOK, headers)
+		expectedPayload := *payload
+		expectedPayload.LabelsIncludeAny = nil
+		expectedPayload.LabelsExcludeAny = []string{t.Name()}
+		checkSoftwareInstaller(t, &expectedPayload)
+
+		// patch the software installer again but this time change the pre install query and leave the labels as is
+		var b2 bytes.Buffer
+		w2 := multipart.NewWriter(&b2)
+		require.NoError(t, w2.WriteField("team_id", "0"))
+		require.NoError(t, w2.WriteField("pre_install_query", "some other pre install query"))
+		w2.Close()
+		headers = map[string]string{
+			"Content-Type":  w2.FormDataContentType(),
+			"Accept":        "application/json",
+			"Authorization": fmt.Sprintf("Bearer %s", s.token),
+		}
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), b2.Bytes(), http.StatusOK, headers)
+		expectedPayload.PreInstallQuery = "some other pre install query"
+		expectedPayload.LabelsIncludeAny = nil                // no change
+		expectedPayload.LabelsExcludeAny = []string{t.Name()} // no change
+		checkSoftwareInstaller(t, &expectedPayload)
+
 		// update the installer succeeds
 		body, headers := generateMultipartRequest(t, "software",
 			"", []byte{}, s.token, map[string][]string{"self_service": {"true"}, "team_id": {"0"}})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
-		"team_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}]}`,
+		"team_id": null, "self_service": true, "labels_exclude_any": [{"id": %d, "name": %q}]}`,
 			labelResp.Label.ID, t.Name())
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
@@ -10732,7 +10767,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		// delete from team 0 succeeds
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
-		"team_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}]}`,
+		"team_id": null, "self_service": true, "labels_exclude_any": [{"id": %d, "name": %q}]}`,
 			labelResp.Label.ID, t.Name())
 		s.lastActivityMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), activityData, 0)
 	})
