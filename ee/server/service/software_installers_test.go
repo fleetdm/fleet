@@ -15,7 +15,7 @@ import (
 
 func TestPreProcessUninstallScript(t *testing.T) {
 	t.Parallel()
-	var input = `
+	input := `
 blah$PACKAGE_IDS
 pkgids=$PACKAGE_ID
 they are $PACKAGE_ID, right $MY_SECRET?
@@ -74,7 +74,6 @@ quotes and braces for (
   "com.bar"
 )`
 	assert.Equal(t, expected, payload.UninstallScript)
-
 }
 
 func TestInstallUninstallAuth(t *testing.T) {
@@ -93,7 +92,8 @@ func TestInstallUninstallAuth(t *testing.T) {
 		}, nil
 	}
 	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint,
-		withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		withScriptContents bool,
+	) (*fleet.SoftwareInstaller, error) {
 		return &fleet.SoftwareInstaller{
 			Name:     "installer.pkg",
 			Platform: "darwin",
@@ -104,20 +104,26 @@ func TestInstallUninstallAuth(t *testing.T) {
 		return nil, nil
 	}
 	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool, policyID *uint) (string,
-		error) {
+		error,
+	) {
 		return "request_id", nil
 	}
 	ds.GetAnyScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
 		return []byte("script"), nil
 	}
 	ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult,
-		error) {
+		error,
+	) {
 		return &fleet.HostScriptResult{
 			ExecutionID: "execution_id",
 		}, nil
 	}
 	ds.InsertSoftwareUninstallRequestFunc = func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error {
 		return nil
+	}
+
+	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+		return true, nil
 	}
 
 	testCases := []struct {
@@ -197,7 +203,6 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 	// Host scripts disabled
 	host.ScriptsEnabled = ptr.Bool(false)
 	require.ErrorContains(t, svc.UninstallSoftwareTitle(context.Background(), 1, 10), fleet.RunScriptsOrbitDisabledErrMsg)
-
 }
 
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {
