@@ -330,17 +330,26 @@ software:
       labels_include_any:
         - Engineering
         - Customer Support
+      auto_install: true
   # path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
   app_store_apps:
     - app_store_id: '1091189122'
       labels_include_any:
         - Product
         - Marketing
+      auto_install: true
   fleet_maintained_apps:
     - name: Microsoft Excel
+      labels_include_any:
+        - Design
+        - Sales
+      auto_install: true
 ```
 
-Use `labels_include_any` to target hosts that have any label in the array or `labels_exclude_any` to target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+- Use `labels_include_any` to target hosts that have any label in the array or `labels_exclude_any` to target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+
+- `auto_install` specifies whether a policy to install the software will be written automatically. If true, the software will be installed on every host that’s missing this software.
+
 
 ### packages
 
@@ -349,7 +358,6 @@ Use `labels_include_any` to target hosts that have any label in the array or `la
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
-- `auto_install` specifies whether a policy to install the software will be written automatically. If true, the software will be installed on every host that’s missing this software.
 
 #### Example
 
