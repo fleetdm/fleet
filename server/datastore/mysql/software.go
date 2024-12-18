@@ -2386,7 +2386,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 					SELECT 1 FROM (
 
 						-- no labels
-						SELECT 0 AS count_installer_labels, 0 AS count_host_labels
+						SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
 						WHERE NOT EXISTS (
 							SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id
 						)
@@ -2396,7 +2396,8 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 						-- include any
 						SELECT
 							COUNT(*) AS count_installer_labels,
-							COUNT(lm.label_id) AS count_host_labels
+							COUNT(lm.label_id) AS count_host_labels,
+							0 as count_host_updated_after_labels
 						FROM
 							software_installer_labels sil
 							LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
@@ -2405,27 +2406,33 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 							sil.software_installer_id = si.id
 							AND sil.exclude = 0
 						HAVING
-							count_installer_labels > 0 AND count_host_labels > 0 
-							
+							count_installer_labels > 0 AND count_host_labels > 0
+
 						UNION
 
-						-- exclude any
+						-- exclude any, ignore profiles that depend on labels created 
+						-- _after_ the label_updated_at timestamp of the host (because 
+						-- we don't have results for that label yet, the host may or may 
+						-- not be a member).
 						SELECT
 							COUNT(*) AS count_installer_labels,
-							COUNT(lm.label_id) AS count_host_labels
+							COUNT(lm.label_id) AS count_host_labels,
+							SUM(CASE WHEN lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
 						FROM
 							software_installer_labels sil
-							LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
-							AND lm.host_id = :host_id
+							LEFT OUTER JOIN labels lbl
+								ON lbl.id = sil.label_id
+							LEFT OUTER JOIN label_membership lm 
+								ON lm.label_id = sil.label_id AND lm.host_id = :host_id
 						WHERE
 							sil.software_installer_id = si.id
 							AND sil.exclude = 1
 						HAVING
-							count_installer_labels > 0 AND count_host_labels = 0
+							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
 						) t
 					)
 				)
-				-- it's some other type of software that has been checked above		
+				-- it's some other type of software that has been checked above
 				ELSE true END
 			)
 			%s %s
@@ -2472,6 +2479,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 	stmt := stmtInstalled
 	if opts.OnlyAvailableForInstall || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
 		namedArgs["vpp_apps_platforms"] = fleet.VPPAppsPlatforms
+		namedArgs["host_label_updated_at"] = host.LabelUpdatedAt
 		if fleet.IsLinux(host.Platform) {
 			namedArgs["host_compatible_platforms"] = fleet.HostLinuxOSs
 		} else {
