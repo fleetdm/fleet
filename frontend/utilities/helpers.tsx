@@ -173,87 +173,6 @@ const filterTarget = (targetType: string) => {
   };
 };
 
-export const formatConfigDataForServer = (config: any): any => {
-  const orgInfoAttrs = pick(config, ["org_logo_url", "org_name"]);
-  const serverSettingsAttrs = pick(config, [
-    "server_url",
-    "osquery_enroll_secret",
-    "live_query_disabled",
-    "enable_analytics",
-  ]);
-  const smtpSettingsAttrs = pick(config, [
-    "authentication_method",
-    "authentication_type",
-    "domain",
-    "enable_ssl_tls",
-    "enable_start_tls",
-    "password",
-    "port",
-    "sender_address",
-    "server",
-    "user_name",
-    "verify_ssl_certs",
-    "enable_smtp",
-  ]);
-  const ssoSettingsAttrs = pick(config, [
-    "entity_id",
-    "idp_image_url",
-    "metadata",
-    "metadata_url",
-    "idp_name",
-    "enable_sso",
-    "enable_sso_idp_login",
-  ]);
-  const hostExpirySettingsAttrs = pick(config, [
-    "host_expiry_enabled",
-    "host_expiry_window",
-  ]);
-  const webhookSettingsAttrs = pick(config, [
-    "enable_host_status_webhook",
-    "destination_url",
-    "host_percentage",
-    "days_count",
-  ]);
-  // because agent_options is already an object
-  const agentOptionsSettingsAttrs = config.agent_options;
-
-  const orgInfo = size(orgInfoAttrs) && { org_info: orgInfoAttrs };
-  const serverSettings = size(serverSettingsAttrs) && {
-    server_settings: serverSettingsAttrs,
-  };
-  const smtpSettings = size(smtpSettingsAttrs) && {
-    smtp_settings: smtpSettingsAttrs,
-  };
-  const ssoSettings = size(ssoSettingsAttrs) && {
-    sso_settings: ssoSettingsAttrs,
-  };
-  const hostExpirySettings = size(hostExpirySettingsAttrs) && {
-    host_expiry_settings: hostExpirySettingsAttrs,
-  };
-  const agentOptionsSettings = size(agentOptionsSettingsAttrs) && {
-    agent_options: yaml.load(agentOptionsSettingsAttrs),
-  };
-  const webhookSettings = size(webhookSettingsAttrs) && {
-    webhook_settings: { host_status_webhook: webhookSettingsAttrs }, // nested to server
-  };
-
-  if (hostExpirySettings) {
-    hostExpirySettings.host_expiry_settings.host_expiry_window = Number(
-      hostExpirySettings.host_expiry_settings.host_expiry_window
-    );
-  }
-
-  return {
-    ...orgInfo,
-    ...serverSettings,
-    ...smtpSettings,
-    ...ssoSettings,
-    ...hostExpirySettings,
-    ...agentOptionsSettings,
-    ...webhookSettings,
-  };
-};
-
 export const formatFloatAsPercentage = (float?: number): string => {
   if (float === undefined) {
     return DEFAULT_EMPTY_CELL_VALUE;
@@ -1002,7 +921,6 @@ export default {
   removeOSPrefix,
   compareVersions,
   createHostsByPolicyPath,
-  formatConfigDataForServer,
   formatLabelResponse,
   formatFloatAsPercentage,
   formatSeverity,
