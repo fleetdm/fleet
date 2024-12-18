@@ -1509,19 +1509,20 @@ func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 //   - The detail of the resulting command should be an aggregate of all the
 //     status responses of every nested `Replace` operation
 func BuildMDMWindowsProfilePayloadFromMDMResponse(
-	cmd MDMWindowsCommand,
+	// IMPORTANT: The cmdWithSecret.RawCommand may contain a Fleet secret variable value, so it should never be exposed or saved.
+	cmdWithSecret MDMWindowsCommand,
 	statuses map[string]SyncMLCmd,
 	hostUUID string,
 ) (*MDMWindowsProfilePayload, error) {
-	status, ok := statuses[cmd.CommandUUID]
+	status, ok := statuses[cmdWithSecret.CommandUUID]
 	if !ok {
-		return nil, fmt.Errorf("missing status for root command %s", cmd.CommandUUID)
+		return nil, fmt.Errorf("missing status for root command %s", cmdWithSecret.CommandUUID)
 	}
 	commandStatus := WindowsResponseToDeliveryStatus(*status.Data)
 	var details []string
 	if status.Data != nil && commandStatus == MDMDeliveryFailed {
 		syncML := new(SyncMLCmd)
-		if err := xml.Unmarshal(cmd.RawCommand, syncML); err != nil {
+		if err := xml.Unmarshal(cmdWithSecret.RawCommand, syncML); err != nil {
 			return nil, err
 		}
 		for _, nested := range syncML.ReplaceCommands {
@@ -1542,7 +1543,7 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 		Status:        &commandStatus,
 		OperationType: "",
 		Detail:        detail,
-		CommandUUID:   cmd.CommandUUID,
+		CommandUUID:   cmdWithSecret.CommandUUID,
 	}, nil
 }
 
