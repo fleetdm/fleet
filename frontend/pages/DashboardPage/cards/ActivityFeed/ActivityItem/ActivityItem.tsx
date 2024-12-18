@@ -907,11 +907,9 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        added software <b>{activity.details?.software_title}</b> (
-        {activity.details?.software_package}) to{" "}
+        added <b>{activity.details?.software_package}</b> to{" "}
         {activity.details?.team_name ? (
           <>
-            {" "}
             the <b>{activity.details?.team_name}</b> team.
           </>
         ) : (
@@ -951,11 +949,9 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        edited software <b>{activity.details?.software_title}</b> (
-        {activity.details?.software_package}) on{" "}
+        edited <b>{activity.details?.software_package}</b> on{" "}
         {activity.details?.team_name ? (
           <>
-            {" "}
             the <b>{activity.details?.team_name}</b> team.
           </>
         ) : (
@@ -995,11 +991,9 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted software <b>{activity.details?.software_title}</b> (
-        {activity.details?.software_package}) from{" "}
+        deleted <b>{activity.details?.software_package}</b> from{" "}
         {activity.details?.team_name ? (
           <>
-            {" "}
             the <b>{activity.details?.team_name}</b> team.
           </>
         ) : (
