@@ -1,6 +1,6 @@
 # Agent configuration
 
-Agent configuration options (agent options) update the settings of Fleet's agent (fleed) installed on all your hosts.
+Agent configuration options (agent options) update the settings of [Fleet's agent (fleed)](https://fleetdm.com/docs/get-started/anatomy#fleetd) installed on all your hosts.
 
 You can modify agent options in **Settings > Organization settings > Agent options** or via Fleet's [API](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) or [YAML files](https://fleetdm.com/docs/configuration/yaml-files).
 
@@ -8,15 +8,53 @@ You can modify agent options in **Settings > Organization settings > Agent optio
 
 The `config` section allows you to update settings like performance and and how often the agent checks-in.
 
-- `options` can include the agent settings listed under `osqueryOptions` [here](https://github.com/fleetdm/fleet/blob/main/server/fleet/agent_options_generated.go). These can be updated without a fleetd restart.
-- `command_line_flags` can include the agent settings listed under osqueryCommandLineFlags [here](https://github.com/fleetdm/fleet/blob/main/server/fleet/agent_options_generated.go). These are only updated when fleetd restarts. 
+####Example
+
+```yaml
+config:
+  options:
+    distributed_interval: 3
+    distributed_tls_max_attempts: 3
+    logger_tls_endpoint: /api/osquery/log
+    logger_tls_period: 10
+  command_line_flags: # requires Fleet's agent (fleetd)
+    verbose: true
+    disable_watchdog: false
+    disable_tables: chrome_extensions
+    logger_path: /path/to/logger
+  decorators:
+    load:
+      - "SELECT version FROM osquery_info"
+      - "SELECT uuid AS host_uuid FROM system_info"
+    always:
+      - "SELECT user AS username FROM logged_in_users WHERE user <> '' ORDER BY time LIMIT 1"
+    interval:
+      3600: "SELECT total_seconds AS uptime FROM uptime"
+  yara:
+    file_paths:
+      system_binaries:
+      - sig_group_1
+      tmp:
+      - sig_group_1
+      - sig_group_2
+    signatures:
+      sig_group_1:
+      - /Users/wxs/sigs/foo.sig
+      - /Users/wxs/sigs/bar.sig
+      sig_group_2:
+      - /Users/wxs/sigs/baz.sig
+```
+
 - `decorators`
 - `yara`
 - `auto_table_contructions`
 
-### `options` and `command_line_flags`
+### options and command_line_flags
 
-To see a description for all available settings, first [enroll your host](https://fleetdm.com/guides/enroll-hosts) to Fleet and then run `sudo orbit shell` to open an interactive osquery shell. Then run the following osquery query:
+- `options` include the agent settings listed under `osqueryOptions` [here](https://github.com/fleetdm/fleet/blob/main/server/fleet/agent_options_generated.go). These can be updated without a fleetd restart.
+- `command_line_flags` include the agent settings listed under osqueryCommandLineFlags [here](https://github.com/fleetdm/fleet/blob/main/server/fleet/agent_options_generated.go). These are only updated when fleetd restarts. 
+
+To see a description for all available settings, first [enroll your host](https://fleetdm.com/guides/enroll-hosts) to Fleet. Then, open your **Terminal** app and run `sudo orbit shell` to open an interactive osquery shell. Then run the following osquery query:
 
 ```
 osquery > SELECT name, value, description FROM osquery; 
@@ -24,15 +62,7 @@ osquery > SELECT name, value, description FROM osquery;
 
 You can also run this query to verify that the latest settings have been applied to your hosts.
 
-#### Advanced
-
-`options` and `command_line_flags` are validated using the latest version of osquery. If you are not using the latest version of osquery, you can create a YAML file and apply it with `fleetctl apply --force` command to override the validation:
-
-```sh
-fleetctl apply --force -f config.yaml
-```
-
-> If you revoked an old enroll secret, this feature won't update for hosts that enrolled to Fleet using this old enroll secret. This is because fleetd uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
+> If you revoked an old enroll secret, the `command_line_flags` won't update for hosts that enrolled to Fleet using this old enroll secret. This is because fleetd uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
 
 How to rotate enroll secrets:
 
@@ -46,49 +76,25 @@ How to rotate enroll secrets:
 
 4. Done!
 
+#### Advanced
+
+`options` and `command_line_flags` are validated using the latest version of osquery. If you are not using the latest version of osquery, you can create a YAML file and apply it with `fleetctl apply --force` command to override the validation:
+
+```sh
+fleetctl apply --force -f config.yaml
+```
+
 ### decorators
 
 In the `decorators` key, you can specify queries to include additional information in your osquery results logs.
 
-Use `load` for details you want to update values when the configuration loads, `always` to update every time a scheduled query is run, and `interval` if you want to update on a schedule.
-
-```yaml
-agent_options:
-    config:
-      options: ~
-      decorators:
-        load:
-          - "SELECT version FROM osquery_info"
-          - "SELECT uuid AS host_uuid FROM system_info"
-        always:
-          - "SELECT user AS username FROM logged_in_users WHERE user <> '' ORDER BY time LIMIT 1"
-        interval:
-          3600: "SELECT total_seconds AS uptime FROM uptime"
-```
+- `load` is are queries you want to update values when the configuration loads.
+- `always` are queries to update every time a scheduled query is run.
+- `interval` are queries you want to update on a schedule.
 
 ### yara
 
 You can use Fleet to configure the `yara` and `yara_events` osquery tables. Fore more information on YARA configuration and continuous monitoring using the `yara_events` table, check out the [YARA-based scanning with osquery section](https://osquery.readthedocs.io/en/stable/deployment/yara/) of the osquery documentation.
-
-The following is an example Fleet configuration file with YARA configuration. The values are taken from an example config supplied in the above link to the osquery documentation.
-
-```yaml
-agent_options:
-  config:
-    yara:
-      file_paths:
-        system_binaries:
-        - sig_group_1
-        tmp:
-        - sig_group_1
-        - sig_group_2
-      signatures:
-        sig_group_1:
-        - /Users/wxs/sigs/foo.sig
-        - /Users/wxs/sigs/bar.sig
-        sig_group_2:
-        - /Users/wxs/sigs/baz.sig
-```
 
 ### auto_table_construction
 
