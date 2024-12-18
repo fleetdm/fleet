@@ -1,15 +1,15 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-var-requires */
 
-import { spawnSync } from "child_process";
-import { mkdirSync, existsSync } from "fs";
-import { type } from "os";
-import { join } from "path";
+const { spawnSync } = require("child_process");
+const { existsSync, mkdirSync } = require("fs");
+const { type } = require("os");
+const { join } = require("path");
 
-import axios from "axios";
-import { rimrafSync } from "rimraf";
-import { extract } from "tar";
-
-import { version } from "./package.json";
+const axios = require("axios");
+const { rimrafSync } = require("rimraf");
+const { extract } = require("tar");
+const { version } = require("./package.json");
 
 // Strip any v4.0.0-1 style suffix (but not -rc1) so that the correct package is
 // downloaded if there is a mistake in the NPM publish and we need to release a
