@@ -80,8 +80,6 @@ const PackageForm = ({
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  console.log(defaultSoftware);
-
   const [formData, setFormData] = useState<IPackageFormData>({
     software: defaultSoftware || null,
     installScript: defaultInstallScript || "",

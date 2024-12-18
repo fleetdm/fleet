@@ -119,6 +119,8 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
 ];
 
 export const getTargetType = (softwarePackage: ISoftwarePackage) => {
+  if (!softwarePackage) return "All hosts";
+
   return !softwarePackage.labels_include_any &&
     !softwarePackage.labels_exclude_any
     ? "All hosts"
@@ -126,6 +128,8 @@ export const getTargetType = (softwarePackage: ISoftwarePackage) => {
 };
 
 export const getCustomTarget = (softwarePackage: ISoftwarePackage) => {
+  if (!softwarePackage) return "labelsIncludeAny";
+
   return softwarePackage.labels_include_any
     ? "labelsIncludeAny"
     : "labelsExcludeAny";
@@ -133,8 +137,8 @@ export const getCustomTarget = (softwarePackage: ISoftwarePackage) => {
 
 export const generateSelectedLabels = (softwarePackage: ISoftwarePackage) => {
   if (
-    !softwarePackage.labels_include_any &&
-    !softwarePackage.labels_exclude_any
+    !softwarePackage ||
+    (!softwarePackage.labels_include_any && !softwarePackage.labels_exclude_any)
   ) {
     return {};
   }
