@@ -98,7 +98,7 @@ type integrationMDMTestSuite struct {
 	mdmStorage                 *mysql.NanoMDMStorage
 	worker                     *worker.Worker
 	// Flag to skip jobs processing by worker
-	skipWorkerJobs            bool
+	skipWorkerJobs            atomic.Bool
 	mdmCommander              *apple_mdm.MDMAppleCommander
 	logger                    kitlog.Logger
 	scepChallenge             string
@@ -263,13 +263,13 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Minute, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("integrations_worker", func(ctx context.Context) error {
-							if s.skipWorkerJobs {
+							if s.skipWorkerJobs.Load() {
 								return nil
 							}
 							return s.worker.ProcessJobs(ctx)
 						}),
 						schedule.WithJob("dep_cooldowns", func(ctx context.Context) error {
-							if s.skipWorkerJobs {
+							if s.skipWorkerJobs.Load() {
 								return nil
 							}
 							if s.onIntegrationsScheduleDone != nil {
@@ -2766,8 +2766,8 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 
 	// Skip worker jobs to avoid running into timing issues with this test.
 	// We can manually run the jobs if needed with s.runWorker().
-	s.skipWorkerJobs = true
-	t.Cleanup(func() { s.skipWorkerJobs = false })
+	s.skipWorkerJobs.Store(true)
+	t.Cleanup(func() { s.skipWorkerJobs.Store(false) })
 
 	// list commands should return all the commands we sent
 	var listCmdResp0 listMDMAppleCommandsResponse
@@ -2958,8 +2958,8 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommandWithSecret() {
 
 	// Skip worker jobs to avoid running into timing issues with this test.
 	// We can manually run the jobs if needed with s.runWorker().
-	s.skipWorkerJobs = true
-	t.Cleanup(func() { s.skipWorkerJobs = false })
+	s.skipWorkerJobs.Store(true)
+	t.Cleanup(func() { s.skipWorkerJobs.Store(false) })
 
 	_, mdmClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 
