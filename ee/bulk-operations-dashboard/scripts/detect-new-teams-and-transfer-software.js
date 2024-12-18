@@ -41,7 +41,7 @@ module.exports = {
         sails.log.info(`${teamsThisSoftwareIsNotDeployedOn.length} New team(s) detected!`);
         // Get software installer:
         let teamIdToGetInstallerFrom = software.teamApids[0];
-        sails.log.info(`Getting information about this installer`);
+        sails.log.info(`Getting information about an installer (ID: ${software.fleetApid})`);
         let softwareResponse = await sails.helpers.http.get.with({
           url: `${sails.config.custom.fleetBaseUrl}/api/v1/fleet/software/titles/${software.fleetApid}`,
           headers: {
@@ -60,10 +60,10 @@ module.exports = {
         .intercept((error)=>{
           return new Error(`When sending an API request to get the streaming bytes of a software installer (${software.name}), an error occurred., Full error: ${require('util').inspect(error, {depth: null})}`);
         });
-        sails.log.info(`Uploading installer to s3 bucket.`);
+        sails.log.info(`Uploading ${installerInformation.name} to s3 bucket.`);
         let tempUploadedSoftware = await sails.uploadOne(softwareStream, {bucket: sails.config.uploads.bucketWithPostfix});
         let softwareFd = tempUploadedSoftware.fd;
-        sails.log.info(`Upload complete, starting transfer to Fleet instance for added teams.`);
+        sails.log.info(`${installerInformation.name} upload complete, starting transfer to Fleet instance for added teams.`);
 
         await sails.helpers.flow.simultaneouslyForEach(teamsThisSoftwareIsNotDeployedOn, async (team)=>{
           sails.log.info(`Copying ${installerInformation.name} to team_id ${team}`);
