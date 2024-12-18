@@ -1663,13 +1663,20 @@ func (a ActivityTypeUninstalledSoftware) Documentation() (activity, details, det
 }`
 }
 
+type ActivitySoftwareLabel struct {
+	Name string `json:"name"`
+	ID   uint   `json:"id"`
+}
+
 type ActivityTypeAddedSoftware struct {
-	SoftwareTitle   string  `json:"software_title"`
-	SoftwarePackage string  `json:"software_package"`
-	TeamName        *string `json:"team_name"`
-	TeamID          *uint   `json:"team_id"`
-	SelfService     bool    `json:"self_service"`
-	SoftwareTitleID uint    `json:"software_title_id"`
+	SoftwareTitle    string                  `json:"software_title"`
+	SoftwarePackage  string                  `json:"software_package"`
+	TeamName         *string                 `json:"team_name"`
+	TeamID           *uint                   `json:"team_id"`
+	SelfService      bool                    `json:"self_service"`
+	SoftwareTitleID  uint                    `json:"software_title_id"`
+	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
 
 func (a ActivityTypeAddedSoftware) ActivityName() string {
@@ -1683,22 +1690,36 @@ func (a ActivityTypeAddedSoftware) Documentation() (string, string, string) {
 - "team_name": Name of the team to which this software was added.` + " `null` " + `if it was added to no team." +
 - "team_id": The ID of the team to which this software was added.` + " `null` " + `if it was added to no team.
 - "self_service": Whether the software is available for installation by the end user.
-- "software_title_id": ID of the added software title.`, `{
+- "software_title_id": ID of the added software title.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.`, `{
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
   "team_id": 123,
   "self_service": true,
-  "software_title_id": 2234
+  "software_title_id": 2234,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }`
 }
 
 type ActivityTypeEditedSoftware struct {
-	SoftwareTitle   string  `json:"software_title"`
-	SoftwarePackage *string `json:"software_package"`
-	TeamName        *string `json:"team_name"`
-	TeamID          *uint   `json:"team_id"`
-	SelfService     bool    `json:"self_service"`
+	SoftwareTitle    string                  `json:"software_title"`
+	SoftwarePackage  *string                 `json:"software_package"`
+	TeamName         *string                 `json:"team_name"`
+	TeamID           *uint                   `json:"team_id"`
+	SelfService      bool                    `json:"self_service"`
+	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
 
 func (a ActivityTypeEditedSoftware) ActivityName() string {
@@ -1711,21 +1732,35 @@ func (a ActivityTypeEditedSoftware) Documentation() (string, string, string) {
 - "software_package": Filename of the installer as of this update (including if unchanged).
 - "team_name": Name of the team on which this software was updated.` + " `null` " + `if it was updated on no team.
 - "team_id": The ID of the team on which this software was updated.` + " `null` " + `if it was updated on no team.
-- "self_service": Whether the software is available for installation by the end user.`, `{
+- "self_service": Whether the software is available for installation by the end user.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.`, `{
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
   "team_id": 123,
-  "self_service": true
+  "self_service": true,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }`
 }
 
 type ActivityTypeDeletedSoftware struct {
-	SoftwareTitle   string  `json:"software_title"`
-	SoftwarePackage string  `json:"software_package"`
-	TeamName        *string `json:"team_name"`
-	TeamID          *uint   `json:"team_id"`
-	SelfService     bool    `json:"self_service"`
+	SoftwareTitle    string                  `json:"software_title"`
+	SoftwarePackage  string                  `json:"software_package"`
+	TeamName         *string                 `json:"team_name"`
+	TeamID           *uint                   `json:"team_id"`
+	SelfService      bool                    `json:"self_service"`
+	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
 
 func (a ActivityTypeDeletedSoftware) ActivityName() string {
@@ -1738,12 +1773,24 @@ func (a ActivityTypeDeletedSoftware) Documentation() (string, string, string) {
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added.` + " `null` " + `if it was added to no team.
 - "team_id": The ID of the team to which this software was added.` + " `null` " + `if it was added to no team.
-- "self_service": Whether the software was available for installation by the end user.`, `{
+- "self_service": Whether the software was available for installation by the end user.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.`, `{
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
   "team_id": 123,
-  "self_service": true
+  "self_service": true,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }`
 }
 
