@@ -1887,6 +1887,14 @@ type Datastore interface {
 
 	// GetSecretVariables retrieves secret variables from the database.
 	GetSecretVariables(ctx context.Context, names []string) ([]SecretVariable, error)
+
+	// ValidateEmbeddedSecrets parses fleet secrets from a list of
+	// documents and checks that they exist in the database.
+	ValidateEmbeddedSecrets(ctx context.Context, documents []string) error
+
+	// ExpandEmbeddedSecrets expands the fleet secrets in a
+	// document using the secrets stored in the datastore.
+	ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

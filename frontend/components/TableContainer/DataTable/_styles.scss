@@ -203,6 +203,10 @@ $shadow-transition-width: 10px;
         &:hover {
           background-color: $ui-off-white-opaque; // opaque needed for horizontal scroll shadow
         }
+        &:focus-visible {
+          outline: 2px solid $ui-vibrant-blue-25;
+          background: $ui-off-white;
+        }
       }
 
       .single-row {

@@ -1179,6 +1179,10 @@ type UpsertSecretVariablesFunc func(ctx context.Context, secretVariables []fleet
 
 type GetSecretVariablesFunc func(ctx context.Context, names []string) ([]fleet.SecretVariable, error)
 
+type ValidateEmbeddedSecretsFunc func(ctx context.Context, documents []string) error
+
+type ExpandEmbeddedSecretsFunc func(ctx context.Context, document string) (string, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -2916,6 +2920,12 @@ type DataStore struct {
 
 	GetSecretVariablesFunc        GetSecretVariablesFunc
 	GetSecretVariablesFuncInvoked bool
+
+	ValidateEmbeddedSecretsFunc        ValidateEmbeddedSecretsFunc
+	ValidateEmbeddedSecretsFuncInvoked bool
+
+	ExpandEmbeddedSecretsFunc        ExpandEmbeddedSecretsFunc
+	ExpandEmbeddedSecretsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -6971,4 +6981,18 @@ func (s *DataStore) GetSecretVariables(ctx context.Context, names []string) ([]f
 	s.GetSecretVariablesFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSecretVariablesFunc(ctx, names)
+}
+
+func (s *DataStore) ValidateEmbeddedSecrets(ctx context.Context, documents []string) error {
+	s.mu.Lock()
+	s.ValidateEmbeddedSecretsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ValidateEmbeddedSecretsFunc(ctx, documents)
+}
+
+func (s *DataStore) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
+	s.mu.Lock()
+	s.ExpandEmbeddedSecretsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ExpandEmbeddedSecretsFunc(ctx, document)
 }
