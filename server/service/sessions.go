@@ -169,10 +169,13 @@ func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) 
 
 //goland:noinspection GoErrorStringFormat
 var sendingMFAEmail = errors.New("sending MFA email")
-var noMFASupported = errors.New("client with no MFA email support")
-var mfaNotSupportedForClient = badRequestErr(
-	"Your login client does not support MFA. Please log in via the web, then use an API token to authenticate.",
-	noMFASupported,
+
+var (
+	noMFASupported           = errors.New("client with no MFA email support")
+	mfaNotSupportedForClient = badRequestErr(
+		"Your login client does not support MFA. Please log in via the web, then use an API token to authenticate.",
+		noMFASupported,
+	)
 )
 
 func (svc *Service) Login(ctx context.Context, email, password string, supportsEmailVerification bool) (*fleet.User, *fleet.Session, error) {
@@ -397,7 +400,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 		return "", ctxerr.Wrap(ctx, newSSOError(err, ssoOrgDisabled), "initiate sso")
 	}
 
-	metadata, err := sso.GetMetadata(&appConfig.SSOSettings.SSOProviderSettings)
+	metadata, err := sso.GetMetadata(appConfig.SSOSettings.SSOProviderSettings)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, badRequestErr("Could not get SSO Metadata. Check your SSO settings.", err))
 	}
@@ -557,7 +560,7 @@ func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth) (strin
 	if appConfig.SSOSettings.EnableSSOIdPLogin && auth.RequestID() == "" {
 		// Missing request ID indicates this was IdP-initiated. Only allow if
 		// configured to do so.
-		metadata, err = sso.GetMetadata(&appConfig.SSOSettings.SSOProviderSettings)
+		metadata, err = sso.GetMetadata(appConfig.SSOSettings.SSOProviderSettings)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "get sso metadata")
 		}

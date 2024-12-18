@@ -1394,9 +1394,9 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 
 		var existingSSOProviderSettings fleet.SSOProviderSettings
 		if existing.SSOSettings != nil {
-			existingSSOProviderSettings = existing.SSOSettings.SSOProviderSettings
+			existingSSOProviderSettings = *existing.SSOSettings.SSOProviderSettings
 		}
-		validateSSOProviderSettings(p.SSOSettings.SSOProviderSettings, existingSSOProviderSettings, invalid)
+		validateSSOProviderSettings(*p.SSOSettings.SSOProviderSettings, existingSSOProviderSettings, invalid)
 
 		if !license.IsPremium() {
 			if p.SSOSettings.EnableJITProvisioning {

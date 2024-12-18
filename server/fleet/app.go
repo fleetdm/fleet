@@ -39,6 +39,13 @@ const (
 )
 
 type SSOProviderSettings struct {
+	// The non-embedded fields of `SSOSettings`, since now `omitempty`ed, won't
+	// show up for any viewer when they are unset. Since this struct is embedded there, these fields are returned at the same nesting
+	// level, and so should also be `omitempty`ed for consistency.
+
+	// Since this struct is also embedded in `MDMEndUserAuthentication` which is embedded in `MDM`,
+	// this omits these fields from that object as well.
+
 	// EntityID is a uri that identifies this service provider
 	EntityID string `json:"entity_id,omitempty"`
 	// IssuerURI is the uri that identifies the identity provider
@@ -58,7 +65,11 @@ func (s SSOProviderSettings) IsEmpty() bool {
 
 // SSOSettings wire format for SSO settings
 type SSOSettings struct {
-	SSOProviderSettings
+	// `json:",omitempty"`ing all but `enable_sso` allows surfacing only that field for team-level
+	// admins
+
+	// pointer to be able to omit
+	*SSOProviderSettings `json:",omitempty"`
 
 	// IDPImageURL is a link to a logo or other image that is used for UX
 	IDPImageURL string `json:"idp_image_url,omitempty"`
@@ -189,11 +200,13 @@ type MDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
-	MacOSSettings           MacOSSettings            `json:"macos_settings"`
-	MacOSSetup              MacOSSetup               `json:"macos_setup"`
-	MacOSMigration          MacOSMigration           `json:"macos_migration"`
-	WindowsMigrationEnabled bool                     `json:"windows_migration_enabled"`
-	EndUserAuthentication   MDMEndUserAuthentication `json:"end_user_authentication"`
+	MacOSSettings           MacOSSettings  `json:"macos_settings"`
+	MacOSSetup              MacOSSetup     `json:"macos_setup"`
+	MacOSMigration          MacOSMigration `json:"macos_migration"`
+	WindowsMigrationEnabled bool           `json:"windows_migration_enabled"`
+	// all subfields of `MDMEndUserAuthentication` (which just embedds `SSOProviderSettings`) are
+	// `omitempty`ed, so `omitempty`ing it as well for consistency
+	EndUserAuthentication *MDMEndUserAuthentication `json:"end_user_authentication,omitempty"`
 
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
