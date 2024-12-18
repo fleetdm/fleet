@@ -187,6 +187,7 @@ func (s *NanoMDMStorage) GetABMTokenByOrgName(ctx context.Context, orgName strin
 	return s.ds.GetABMTokenByOrgName(ctx, orgName)
 }
 
+// ExpandEmbeddedSecrets in NanoMDMStorage overrides the implementation in nanomdm_mysql.MySQLStorage.
 func (s *NanoMDMStorage) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
 	return s.ds.ExpandEmbeddedSecrets(ctx, document)
 }
