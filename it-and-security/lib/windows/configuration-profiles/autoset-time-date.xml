@@ -1,0 +1,12 @@
+<Replace>
+  <!-- Disallows the user to change date and time settings -->     
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Settings/AllowDateTime</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>
