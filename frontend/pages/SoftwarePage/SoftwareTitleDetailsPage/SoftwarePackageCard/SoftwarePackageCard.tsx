@@ -390,7 +390,7 @@ const SoftwarePackageCard = ({
           teamId={teamId}
         />
       </div>
-      {showEditSoftwareModal && (
+      {showEditSoftwareModal && softwarePackage && (
         <EditSoftwareModal
           softwareId={softwareId}
           teamId={teamId}

@@ -69,6 +69,7 @@ export interface ISoftwarePackage {
   version: string;
   uploaded_at: string;
   install_script: string;
+  uninstall_script: string;
   pre_install_query?: string;
   post_install_script?: string;
   self_service: boolean;

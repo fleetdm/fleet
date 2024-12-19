@@ -178,6 +178,7 @@ const PackageForm = ({
   const onSelectCustomTarget = (value: string) => {
     const newData = { ...formData, customTarget: value };
     setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
   };
 
   const onSelectLabel = ({ name, value }: { name: string; value: boolean }) => {
