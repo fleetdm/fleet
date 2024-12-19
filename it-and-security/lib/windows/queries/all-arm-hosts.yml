@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: query
+spec:
+  name: All ARM hosts
+  query: SELECT * FROM os_version WHERE arch LIKE 'ARM%';
+  platform: "windows"
+  

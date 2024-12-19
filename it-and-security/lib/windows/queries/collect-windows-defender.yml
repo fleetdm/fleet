@@ -8,3 +8,4 @@
   observer_can_run: true
   platform: "windows"
   query: SELECT processes.pid, processes.name, users.username, processes.path, processes.cmdline FROM processes LEFT JOIN users ON processes.uid = users.uid WHERE processes.path != '' AND name LIKE 'MpCmdRun.exe';
+  
