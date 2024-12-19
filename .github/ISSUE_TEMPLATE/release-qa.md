@@ -156,7 +156,7 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 
 <tr><td>iOS/iPadOS</td><td>Verify enrollment, profiles, & software installs</td><td>
 
- 1. Verfify ADE enrollment.
+1. Verify ADE enrollment.
 2. Verify OTA enrollment.
 3. Verify Profiles are delivered to host and applied.
 4. Verify VPP apps install & display correctly in Activity feed.
