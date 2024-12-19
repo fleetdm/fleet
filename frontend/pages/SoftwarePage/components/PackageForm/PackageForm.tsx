@@ -11,6 +11,10 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import FileUploader from "components/FileUploader";
 import TooltipWrapper from "components/TooltipWrapper";
+import {
+  InstallType,
+  InstallTypeSection,
+} from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
 
@@ -25,15 +29,17 @@ export interface IPackageFormData {
   postInstallScript?: string;
   uninstallScript?: string;
   selfService: boolean;
+  installType: InstallType; // Used on add but not edit
 }
 
-export interface IFormValidation {
+export interface IPackageFormValidation {
   isValid: boolean;
   software: { isValid: boolean };
   preInstallQuery?: { isValid: boolean; message?: string };
   postInstallScript?: { isValid: boolean; message?: string };
   uninstallScript?: { isValid: boolean; message?: string };
   selfService?: { isValid: boolean };
+  installType?: { isValid: boolean };
 }
 
 interface IPackageFormProps {
@@ -69,16 +75,17 @@ const PackageForm = ({
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const initialFormData = {
+  const initialFormData: IPackageFormData = {
     software: defaultSoftware || null,
     installScript: defaultInstallScript || "",
     preInstallQuery: defaultPreInstallQuery || "",
     postInstallScript: defaultPostInstallScript || "",
     uninstallScript: defaultUninstallScript || "",
     selfService: defaultSelfService || false,
+    installType: "manual",
   };
   const [formData, setFormData] = useState<IPackageFormData>(initialFormData);
-  const [formValidation, setFormValidation] = useState<IFormValidation>({
+  const [formValidation, setFormValidation] = useState<IPackageFormValidation>({
     isValid: false,
     software: { isValid: false },
   });
@@ -150,6 +157,12 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
+  const onChangeInstallType = (value: string) => {
+    const installType = value as InstallType;
+    const newData = { ...formData, installType };
+    setFormData(newData);
+  };
+
   const onToggleSelfServiceCheckbox = (value: boolean) => {
     const newData = { ...formData, selfService: value };
     setFormData(newData);
@@ -175,6 +188,10 @@ const PackageForm = ({
           fileDetails={
             formData.software ? getFileDetails(formData.software) : undefined
           }
+        />
+        <InstallTypeSection
+          installType={formData.installType}
+          onChangeInstallType={onChangeInstallType}
         />
         <Checkbox
           value={formData.selfService}

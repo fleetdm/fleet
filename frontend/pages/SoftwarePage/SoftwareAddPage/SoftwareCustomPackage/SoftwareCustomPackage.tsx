@@ -76,7 +76,6 @@ const SoftwareCustomPackage = ({
   };
 
   const onSubmit = async (formData: IPackageFormData) => {
-    console.log("submit", formData);
     if (!formData.software) {
       renderFlash(
         "error",
@@ -134,10 +133,18 @@ const SoftwareCustomPackage = ({
         (e.response?.status === 504 || e.response?.status === 408);
       const reason = getErrorReason(e);
 
+      const isAutomaticInstallPolicyFailure =
+        isAxiosError(e) && e.response?.status === 424;
+
       if (isTimeout) {
         renderFlash(
           "error",
-          `Couldn’t upload. Request timeout. Please make sure your server and load balancer timeout is long enough.`
+          `Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough.`
+        );
+      } else if (isAutomaticInstallPolicyFailure) {
+        renderFlash(
+          "error",
+          "Couldn't add automatic install policy. Software is successfuly added. To retry delete software and add it again."
         );
       } else if (reason.includes("Fleet couldn't read the version from")) {
         renderFlash(
