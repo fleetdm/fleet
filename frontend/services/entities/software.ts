@@ -16,6 +16,7 @@ import {
   convertParamsToSnakeCase,
 } from "utilities/url";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
+import { IEditPackageFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/EditSoftwareModal";
 import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
 
 export interface ISoftwareApiParams {
@@ -274,6 +275,11 @@ export default {
       formData.append("pre_install_query", data.preInstallQuery);
     data.postInstallScript &&
       formData.append("post_install_script", data.postInstallScript);
+    data.installType &&
+      formData.append(
+        "automatic_install",
+        (data.installType === "automatic").toString()
+      );
     teamId && formData.append("team_id", teamId.toString());
 
     return sendRequestWithProgress({
@@ -295,7 +301,7 @@ export default {
     onUploadProgress,
     signal,
   }: {
-    data: IPackageFormData;
+    data: IEditPackageFormData;
     softwareId: number;
     teamId: number;
     timeout?: number;

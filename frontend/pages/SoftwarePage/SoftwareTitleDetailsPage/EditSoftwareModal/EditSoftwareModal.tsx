@@ -26,6 +26,9 @@ import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 
 const baseClass = "edit-software-modal";
 
+// Install type used on add but not edit
+export type IEditPackageFormData = Omit<IPackageFormData, "installType">;
+
 interface IEditSoftwareModalProps {
   softwareId: number;
   teamId: number;
@@ -52,7 +55,7 @@ const EditSoftwareModal = ({
     showConfirmSaveChangesModal,
     setShowConfirmSaveChangesModal,
   ] = useState(false);
-  const [pendingUpdates, setPendingUpdates] = useState<IPackageFormData>({
+  const [pendingUpdates, setPendingUpdates] = useState<IEditPackageFormData>({
     software: null,
     installScript: "",
     selfService: false,
@@ -101,7 +104,7 @@ const EditSoftwareModal = ({
     setShowConfirmSaveChangesModal(!showConfirmSaveChangesModal);
   };
 
-  const onSaveSoftwareChanges = async (formData: IPackageFormData) => {
+  const onSaveSoftwareChanges = async (formData: IEditPackageFormData) => {
     setIsUpdatingSoftware(true);
 
     if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {

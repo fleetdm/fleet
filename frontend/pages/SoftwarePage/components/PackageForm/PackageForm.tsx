@@ -8,10 +8,13 @@ import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 
 import Button from "components/buttons/Button";
-import Radio from "components/forms/fields/Radio";
 import Checkbox from "components/forms/fields/Checkbox";
 import FileUploader from "components/FileUploader";
 import TooltipWrapper from "components/TooltipWrapper";
+import {
+  InstallType,
+  InstallTypeSection,
+} from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
 
@@ -21,22 +24,22 @@ export const baseClass = "package-form";
 
 export interface IPackageFormData {
   software: File | null;
-  automaticInstall?: boolean;
   preInstallQuery?: string;
   installScript: string;
   postInstallScript?: string;
   uninstallScript?: string;
   selfService: boolean;
+  installType: InstallType; // Used on add but not edit
 }
 
-export interface IFormValidation {
+export interface IPackageFormValidation {
   isValid: boolean;
   software: { isValid: boolean };
-  automaticInstall?: { isValid: boolean };
   preInstallQuery?: { isValid: boolean; message?: string };
   postInstallScript?: { isValid: boolean; message?: string };
   uninstallScript?: { isValid: boolean; message?: string };
   selfService?: { isValid: boolean };
+  installType?: { isValid: boolean };
 }
 
 interface IPackageFormProps {
@@ -72,16 +75,17 @@ const PackageForm = ({
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const initialFormData = {
+  const initialFormData: IPackageFormData = {
     software: defaultSoftware || null,
     installScript: defaultInstallScript || "",
     preInstallQuery: defaultPreInstallQuery || "",
     postInstallScript: defaultPostInstallScript || "",
     uninstallScript: defaultUninstallScript || "",
     selfService: defaultSelfService || false,
+    installType: "manual",
   };
   const [formData, setFormData] = useState<IPackageFormData>(initialFormData);
-  const [formValidation, setFormValidation] = useState<IFormValidation>({
+  const [formValidation, setFormValidation] = useState<IPackageFormValidation>({
     isValid: false,
     software: { isValid: false },
   });
@@ -154,7 +158,8 @@ const PackageForm = ({
   };
 
   const onChangeInstallType = (value: string) => {
-    const newData = { ...formData, automaticInstall: value === "automatic" };
+    const installType = value as InstallType;
+    const newData = { ...formData, installType };
     setFormData(newData);
   };
 
@@ -184,45 +189,10 @@ const PackageForm = ({
             formData.software ? getFileDetails(formData.software) : undefined
           }
         />
-        <div className={`form-field ${baseClass}__install-type`}>
-          <div className="form-field__label">Install</div>
-          <Radio
-            className={`${baseClass}__radio-input`}
-            label="Manual"
-            id="manual-radio-button"
-            checked={!formData.automaticInstall}
-            value="manual"
-            name="install-type"
-            onChange={onChangeInstallType}
-            helpText="Manually install on Host details page for each host."
-          />
-          <Radio
-            className={`${baseClass}__radio-input`}
-            label="Automatic"
-            id="automatic-radio-btn"
-            checked={formData.automaticInstall}
-            value="automatic"
-            name="install-type"
-            onChange={onChangeInstallType}
-            helpText={
-              <>
-                Automatically install on each host that&apos;s missing{" "}
-                <TooltipWrapper
-                  tipContent={
-                    <>
-                      If the host already has any version of this
-                      <br /> software, it won&apos;t be installed.
-                    </>
-                  }
-                >
-                  this software
-                </TooltipWrapper>
-                . Policy that triggers install can be customized after software
-                is added.
-              </>
-            }
-          />
-        </div>
+        <InstallTypeSection
+          installType={formData.installType}
+          onChangeInstallType={onChangeInstallType}
+        />
         <Checkbox
           value={formData.selfService}
           onChange={onToggleSelfServiceCheckbox}

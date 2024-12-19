@@ -1,7 +1,7 @@
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 
-import { IPackageFormData, IFormValidation } from "./PackageForm";
+import { IPackageFormData, IPackageFormValidation } from "./PackageForm";
 
 type IPackageFormValidatorKey = Exclude<
   keyof IPackageFormData,
@@ -32,7 +32,7 @@ const FORM_VALIDATION_CONFIG: Record<
       },
     ],
   },
-  automaticInstall: {
+  installType: {
     // no validations related to self service
     validations: [],
   },
@@ -71,7 +71,7 @@ const getErrorMessage = (
 };
 
 export const generateFormValidation = (formData: IPackageFormData) => {
-  const formValidation: IFormValidation = {
+  const formValidation: IPackageFormValidation = {
     isValid: true,
     software: {
       isValid: false,

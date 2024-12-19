@@ -12,13 +12,14 @@ import { generateFormValidation } from "./helpers";
 
 const baseClass = "fleet-app-details-form";
 
+export type InstallType = "manual" | "automatic";
 export interface IFleetMaintainedAppFormData {
   selfService: boolean;
   installScript: string;
   preInstallQuery?: string;
   postInstallScript?: string;
   uninstallScript?: string;
-  installType: string;
+  installType: InstallType;
 }
 
 export interface IFormValidation {
@@ -35,6 +36,57 @@ interface IFleetAppDetailsFormProps {
   onCancel: () => void;
   onSubmit: (formData: IFleetMaintainedAppFormData) => void;
 }
+
+interface IInstallTypeSection {
+  installType: InstallType;
+  onChangeInstallType: (value: string) => void;
+}
+
+// Also used in custom package form (PackageForm.tsx)
+export const InstallTypeSection = ({
+  installType,
+  onChangeInstallType,
+}: IInstallTypeSection) => (
+  <fieldset>
+    <legend>Install</legend>
+    <div className={`${baseClass}__radio-input`}>
+      <Radio
+        checked={installType === "manual"}
+        id="manual-radio-btn"
+        value="manual"
+        name="install-type"
+        label="Manual"
+        onChange={onChangeInstallType}
+        helpText="Manually install on Host details page for each host."
+      />
+      <Radio
+        checked={installType === "automatic"}
+        id="automatic-radio-btn"
+        value="automatic"
+        name="install-type"
+        label="Automatic"
+        onChange={onChangeInstallType}
+        helpText={
+          <>
+            Automatically install on each host that&apos;s missing{" "}
+            <TooltipWrapper
+              tipContent={
+                <>
+                  If the host already has any version of this
+                  <br /> software, it won&apos;t be installed.
+                </>
+              }
+            >
+              this software
+            </TooltipWrapper>
+            . Policy that triggers install can be customized after software is
+            added.
+          </>
+        }
+      />
+    </div>
+  </fieldset>
+);
 
 const FleetAppDetailsForm = ({
   defaultInstallScript,
@@ -91,7 +143,8 @@ const FleetAppDetailsForm = ({
   };
 
   const onChangeInstallType = (value: string) => {
-    const newData = { ...formData, installType: value };
+    const installType = value as InstallType;
+    const newData = { ...formData, installType };
     setFormData(newData);
   };
 
@@ -104,38 +157,10 @@ const FleetAppDetailsForm = ({
 
   return (
     <form className={baseClass} onSubmit={onSubmitForm}>
-      <fieldset>
-        <legend>Install</legend>
-        <div className={`${baseClass}__radio-inputs`}>
-          <Radio
-            checked={formData.installType === "manual"}
-            id="manual"
-            value="manual"
-            name="install-type"
-            label="Manual"
-            onChange={onChangeInstallType}
-            helpText="Manually install on Host details page for each host."
-          />
-          <Radio
-            checked={formData.installType === "automatic"}
-            id="automatic"
-            value="automatic"
-            name="install-type"
-            label="Automatic"
-            onChange={onChangeInstallType}
-            helpText={
-              <>
-                Automatically install on each host that&apos;s{" "}
-                <TooltipWrapper tipContent="If the host already has any version of this software, it won't be installed.">
-                  missing this software.
-                </TooltipWrapper>{" "}
-                Policy that triggers install can be customized after software is
-                added.
-              </>
-            }
-          />
-        </div>
-      </fieldset>
+      <InstallTypeSection
+        installType={formData.installType}
+        onChangeInstallType={onChangeInstallType}
+      />
       <Checkbox
         value={formData.selfService}
         onChange={onToggleSelfServiceCheckbox}
