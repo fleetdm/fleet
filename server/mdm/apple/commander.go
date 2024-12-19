@@ -46,9 +46,18 @@ func NewMDMAppleCommander(mdmStorage fleet.MDMAppleStore, mdmPushService nanomdm
 // InstallProfile sends the homonymous MDM command to the given hosts, it also
 // takes care of the base64 encoding of the provided profile bytes.
 func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error {
+	raw, err := svc.SignAndEncodeInstallProfile(ctx, profile, uuid)
+	if err != nil {
+		return err
+	}
+	err = svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	return ctxerr.Wrap(ctx, err, "commander install profile")
+}
+
+func (svc *MDMAppleCommander) SignAndEncodeInstallProfile(ctx context.Context, profile []byte, commandUUID string) (string, error) {
 	signedProfile, err := mdmcrypto.Sign(ctx, profile, svc.storage)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "signing profile")
+		return "", ctxerr.Wrap(ctx, err, "signing profile")
 	}
 
 	base64Profile := base64.StdEncoding.EncodeToString(signedProfile)
@@ -66,12 +75,11 @@ func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []st
 		<data>%s</data>
 	</dict>
 </dict>
-</plist>`, uuid, base64Profile)
-	err = svc.EnqueueCommand(ctx, hostUUIDs, raw)
-	return ctxerr.Wrap(ctx, err, "commander install profile")
+</plist>`, commandUUID, base64Profile)
+	return raw, nil
 }
 
-// InstallProfile sends the homonymous MDM command to the given hosts.
+// RemoveProfile sends the homonymous MDM command to the given hosts.
 func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []string, profileIdentifier string, uuid string) error {
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
