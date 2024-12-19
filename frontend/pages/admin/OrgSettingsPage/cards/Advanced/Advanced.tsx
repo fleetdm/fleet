@@ -347,15 +347,18 @@ const Advanced = ({
             parseTarget
             tooltipContent={
               <>
-                Disabling scripts will block access to run scripts. Scripts{" "}
-                <br /> may still be added and removed in the UI and API. <br />
+                Disabling script execution will block access to run scripts.
+                <br />
+                Scripts may still be added and removed in the UI and API.
+                <br />
                 <em>
-                  (Default: <strong>Off</strong>)
+                  (Default: <b>Off</b>)
                 </em>
               </>
             }
+            helpText="Features that run scripts under-the-hood (e.g. software install, lock/wipe) will still be available."
           >
-            Disable scripts
+            Disable script execution features
           </Checkbox>
           <Checkbox
             onChange={onInputChange}

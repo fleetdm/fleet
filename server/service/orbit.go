@@ -295,18 +295,16 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	// load the pending script executions for that host
-	if !appConfig.ServerSettings.ScriptsDisabled {
-		pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID)
-		if err != nil {
-			return fleet.OrbitConfig{}, err
+	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID, appConfig.ServerSettings.ScriptsDisabled)
+	if err != nil {
+		return fleet.OrbitConfig{}, err
+	}
+	if len(pending) > 0 {
+		execIDs := make([]string, 0, len(pending))
+		for _, p := range pending {
+			execIDs = append(execIDs, p.ExecutionID)
 		}
-		if len(pending) > 0 {
-			execIDs := make([]string, 0, len(pending))
-			for _, p := range pending {
-				execIDs = append(execIDs, p.ExecutionID)
-			}
-			notifs.PendingScriptExecutionIDs = execIDs
-		}
+		notifs.PendingScriptExecutionIDs = execIDs
 	}
 
 	notifs.RunDiskEncryptionEscrow = host.IsLUKSSupported() &&
