@@ -201,6 +201,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	secretIdentifier := "secret-identifier-1"
 	secretType := "secret.type.1"
 	secretName := "secretName"
+	secretProfile := string(mobileconfigForTest("NS1", "IS1"))
 	req := secretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
@@ -215,6 +216,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 				Name:  "FLEET_SECRET_NAME",
 				Value: secretName,
 			},
+			{
+				Name:  "FLEET_SECRET_PROFILE",
+				Value: secretProfile,
+			},
 		},
 	}
 	secretResp := secretVariablesResponse{}
@@ -225,6 +230,8 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 		mobileconfigForTest("N4", "I4"),
 		mobileconfigForTestWithContent("N5", "I5", "$FLEET_SECRET_IDENTIFIER", "${FLEET_SECRET_TYPE}",
 			"$FLEET_SECRET_NAME"),
+		// The whole profile is one big secret.
+		[]byte("$FLEET_SECRET_PROFILE"),
 	}
 	wantTeamProfiles = teamProfiles
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent,
@@ -237,6 +244,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	wantTeamProfiles[1] = []byte(strings.ReplaceAll(string(teamProfiles[1]), "$FLEET_SECRET_IDENTIFIER", secretIdentifier))
 	wantTeamProfiles[1] = []byte(strings.ReplaceAll(string(teamProfiles[1]), "${FLEET_SECRET_TYPE}", secretType))
 	wantTeamProfiles[1] = []byte(strings.ReplaceAll(string(teamProfiles[1]), "$FLEET_SECRET_NAME", secretName))
+	wantTeamProfiles[2] = []byte(secretProfile)
 	// verify that we should install the team profiles
 	s.signedProfilesMatch(wantTeamProfiles, installs)
 	// verify that we should delete the old team profiles

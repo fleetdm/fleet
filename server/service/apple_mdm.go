@@ -1994,13 +1994,14 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
 				"invalid mobileconfig profile")
 		}
-		// Store original unexpanded profile
-		mdmProf.Mobileconfig = prof
 
 		if err := mdmProf.ValidateUserProvided(); err != nil {
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()))
 		}
+
+		// Store original unexpanded profile
+		mdmProf.Mobileconfig = prof
 
 		if byName[mdmProf.Name] {
 			return ctxerr.Wrap(ctx,
@@ -2022,10 +2023,6 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	profStrings := make([]string, 0, len(profs))
 	for _, prof := range profs {
 		profStrings = append(profStrings, string(prof.Mobileconfig))
-	}
-
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, profStrings); err != nil {
-		return fleet.NewInvalidArgumentError("profiles", err.Error())
 	}
 
 	if !skipBulkPending {
