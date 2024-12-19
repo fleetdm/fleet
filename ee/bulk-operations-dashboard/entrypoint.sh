@@ -11,12 +11,5 @@ elif [ -z "$sails_custom__fleetApiToken" ]; then
   exit 1
 fi
 
-# Check if the vulnerability dashboard has been initialized before
-if [ ! -f "/usr/src/app/.initialized" ]; then
-  # if it hasn't, lift the app with in console mode with the --drop flag to create our databsae tables.
-  echo '.exit' | node ./node_modules/sails/bin/sails console --drop
-
-fi
-
 # Start the dashboard
 exec node app.js
