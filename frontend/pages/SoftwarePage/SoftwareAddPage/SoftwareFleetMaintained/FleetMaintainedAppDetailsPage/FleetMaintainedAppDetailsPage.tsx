@@ -98,6 +98,9 @@ const FleetMaintainedAppDetailsPage = ({
 }: IFleetMaintainedAppDetailsPageProps) => {
   const teamId = location.query.team_id;
   const appId = parseInt(routeParams.id, 10);
+  if (isNaN(appId)) {
+    router.push(PATHS.SOFTWARE_ADD_FLEET_MAINTAINED);
+  }
 
   const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier } = useContext(AppContext);
@@ -189,12 +192,13 @@ const FleetMaintainedAppDetailsPage = ({
           "success",
           <>
             <b>{fleetApp?.name}</b> successfully added.
-          </>
+          </>,
+          { persistOnPageChange: true }
         );
       } catch (e) {
         renderFlash(
           "error",
-          "Couldn't add automatic install policy. Software is successfuly added. To try again delete software and add it again.",
+          "Couldn't add automatic install policy. Software is successfully added. To retry, delete software and add it again.",
           { persistOnPageChange: true }
         );
       }

@@ -276,11 +276,11 @@ type Service interface {
 	// and only non-scheduled queries will be returned if `*scheduled == false`.
 	// If mergeInherited is true and a teamID is provided, then queries from the global team will be
 	// included in the results.
-	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool, mergeInherited bool) ([]*Query, error)
+	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, platform *string) ([]*Query, int, *PaginationMetadata, error)
 	GetQuery(ctx context.Context, id uint) (*Query, error)
 	// GetQueryReportResults returns all the stored results of a query for hosts the requestor has access to.
 	// Returns a boolean indicating whether the report is clipped.
-	GetQueryReportResults(ctx context.Context, id uint) ([]HostQueryResultRow, bool, error)
+	GetQueryReportResults(ctx context.Context, id uint, teamID *uint) ([]HostQueryResultRow, bool, error)
 	// GetHostQueryReportResults returns all stored results of a query for a specific host
 	GetHostQueryReportResults(ctx context.Context, hid uint, queryID uint) (rows []HostQueryReportResult, lastFetched *time.Time, err error)
 	// QueryReportIsClipped returns true if the number of query report rows exceeds the maximum
@@ -1165,7 +1165,7 @@ type Service interface {
 	// AddFleetMaintainedApp adds a Fleet-maintained app to the given team.
 	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool) (uint, error)
 	// ListFleetMaintainedApps lists Fleet-maintained apps available to a specific team
-	ListFleetMaintainedApps(ctx context.Context, teamID uint, opts ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
+	ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 	// GetFleetMaintainedApp returns a Fleet-maintained app by ID
 	GetFleetMaintainedApp(ctx context.Context, appID uint) (*MaintainedApp, error)
 
@@ -1174,6 +1174,12 @@ type Service interface {
 
 	// CalendarWebhook handles incoming calendar callback requests.
 	CalendarWebhook(ctx context.Context, eventUUID string, channelID string, resourceState string) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Secret variables
+
+	// CreateSecretVariables creates secret variables for scripts and profiles.
+	CreateSecretVariables(ctx context.Context, secretVariables []SecretVariable, dryRun bool) error
 }
 
 type KeyValueStore interface {
@@ -1190,4 +1196,6 @@ const (
 	BatchSetSoftwareInstallersStatusFailed = "failed"
 	// MinOrbitLUKSVersion is the earliest version of Orbit that can escrow LUKS passphrases
 	MinOrbitLUKSVersion = "1.36.0"
+	// MFALinkTTL is how long MFA verification links stay active
+	MFALinkTTL = time.Minute * 15
 )

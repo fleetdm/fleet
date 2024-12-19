@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"database/sql"
+	"encoding/pem"
 	"errors"
 	"math/big"
 	"net/http"
@@ -1109,6 +1110,9 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
 
 	checkShouldFail := func(t *testing.T, err error, shouldFail bool) {
 		if !shouldFail {
@@ -1184,6 +1188,12 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		hostUUIDs []string,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return document, nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
 	}
 
 	cases := []struct {
@@ -1280,6 +1290,12 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 		hostUUIDs []string,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return document, nil
 	}
 
 	testCases := []struct {
@@ -2089,6 +2105,12 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 		}
 		return m, nil
 	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return document, nil
+	}
 
 	profiles := []fleet.MDMProfileBatchPayload{
 		// macOS
@@ -2157,4 +2179,45 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	assert.Equal(t, ProfileLabels{IncludeAll: true}, *profileLabels["DIncAll"])
 	assert.Equal(t, ProfileLabels{IncludeAny: true}, *profileLabels["DIncAny"])
 	assert.Equal(t, ProfileLabels{ExcludeAny: true}, *profileLabels["DExclAny"])
+}
+
+func TestParseAPNSPrivateKey(t *testing.T) {
+	t.Parallel()
+	// nil block not allowed
+	ctx := context.Background()
+	_, err := parseAPNSPrivateKey(ctx, nil)
+	assert.ErrorContains(t, err, "failed to decode")
+
+	// encrypted pkcs8 not supported
+	pkcs8Encrypted, err := os.ReadFile("testdata/pkcs8-encrypted.key")
+	require.NoError(t, err)
+	block, _ := pem.Decode(pkcs8Encrypted)
+	assert.NotNil(t, block)
+	_, err = parseAPNSPrivateKey(ctx, block)
+	assert.ErrorContains(t, err, "failed to parse APNS private key of type ENCRYPTED PRIVATE KEY")
+
+	// X25519 pkcs8 not supported
+	pkcs8Encrypted, err = os.ReadFile("testdata/pkcs8-x25519.key")
+	require.NoError(t, err)
+	block, _ = pem.Decode(pkcs8Encrypted)
+	assert.NotNil(t, block)
+	_, err = parseAPNSPrivateKey(ctx, block)
+	assert.ErrorContains(t, err, "unmarshaled PKCS8 APNS key is not")
+
+	// In this test, the pkcs1 key and pkcs8 keys are the same key, just different formats
+	pkcs1, err := os.ReadFile("testdata/pkcs1.key")
+	require.NoError(t, err)
+	block, _ = pem.Decode(pkcs1)
+	assert.NotNil(t, block)
+	pkcs1Key, err := parseAPNSPrivateKey(ctx, block)
+	require.NoError(t, err)
+
+	pkcs8, err := os.ReadFile("testdata/pkcs8-rsa.key")
+	require.NoError(t, err)
+	block, _ = pem.Decode(pkcs8)
+	assert.NotNil(t, block)
+	pkcs8Key, err := parseAPNSPrivateKey(ctx, block)
+	require.NoError(t, err)
+
+	assert.Equal(t, pkcs1Key, pkcs8Key)
 }

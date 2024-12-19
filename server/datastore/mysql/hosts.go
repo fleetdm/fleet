@@ -467,7 +467,12 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 		GROUP BY q.id
 	`
 
-	sqlQuery := baseQuery + filter1 + " UNION ALL " + baseQuery + filter2
+	finalColumns := `id, name, description, team_id, schedule_interval, discard_data, automations_enabled,
+		last_fetched, average_memory, denylisted, executions, last_executed, output_size, system_time,
+		user_time, wall_time`
+
+	sqlQuery := `SELECT ` + finalColumns + ` FROM (` +
+		baseQuery + filter1 + " UNION ALL " + baseQuery + filter2 + `) qs GROUP BY ` + finalColumns
 
 	args := []interface{}{
 		pastDate,
@@ -1404,16 +1409,10 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	// or are servers. Similar logic could be applied to macOS hosts but is not included in this
 	// current implementation.
 
-	// TODO once testLabelsListHostsInLabelOSSettings enrolls hosts into the correct MDM, switch to this:
-	/*sqlFmt := ` AND (
+	sqlFmt := ` AND (
 		(h.platform = 'windows' AND mwe.host_uuid IS NOT NULL AND hmdm.enrolled = 1) -- windows
 		OR (h.platform IN ('darwin', 'ios', 'ipados') AND ne.id IS NOT NULL AND hmdm.enrolled = 1) -- apple
 		OR (h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%%') -- linux
-	)`*/
-
-	sqlFmt := ` AND (
-		(h.platform IN('windows', 'darwin', 'ios', 'ipados') AND (ne.id IS NOT NULL OR mwe.host_uuid IS NOT NULL) AND hmdm.enrolled = 1)
-		OR (h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%%')
 	)`
 
 	if opt.TeamFilter == nil {

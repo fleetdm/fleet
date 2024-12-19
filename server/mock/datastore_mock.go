@@ -71,7 +71,7 @@ type DeleteQueriesFunc func(ctx context.Context, ids []uint) (uint, error)
 
 type QueryFunc func(ctx context.Context, id uint) (*fleet.Query, error)
 
-type ListQueriesFunc func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error)
+type ListQueriesFunc func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error)
 
 type ListScheduledQueriesForAgentsFunc func(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error)
 
@@ -1079,7 +1079,7 @@ type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]s
 
 type GetHostLastInstallDataFunc func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error)
 
-type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error)
+type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, titleID uint, err error)
 
 type GetSoftwareInstallerMetadataByIDFunc func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error)
 
@@ -1161,7 +1161,7 @@ type MaybeUpdateSetupExperienceSoftwareInstallStatusFunc func(ctx context.Contex
 
 type MaybeUpdateSetupExperienceVPPStatusFunc func(ctx context.Context, hostUUID string, commandUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error)
 
-type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
+type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
 
 type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint) (*fleet.MaintainedApp, error)
 
@@ -1173,7 +1173,13 @@ type GetHostMDMCertificateProfileFunc func(ctx context.Context, hostUUID string,
 
 type CleanUpMDMManagedCertificatesFunc func(ctx context.Context) error
 
-type GetSoftwareTitleIDByMaintainedAppIDFunc func(ctx context.Context, appID uint, teamID *uint) (uint, error)
+type UpsertSecretVariablesFunc func(ctx context.Context, secretVariables []fleet.SecretVariable) error
+
+type GetSecretVariablesFunc func(ctx context.Context, names []string) ([]fleet.SecretVariable, error)
+
+type ValidateEmbeddedSecretsFunc func(ctx context.Context, documents []string) error
+
+type ExpandEmbeddedSecretsFunc func(ctx context.Context, document string) (string, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -2904,8 +2910,17 @@ type DataStore struct {
 	CleanUpMDMManagedCertificatesFunc        CleanUpMDMManagedCertificatesFunc
 	CleanUpMDMManagedCertificatesFuncInvoked bool
 
-	GetSoftwareTitleIDByMaintainedAppIDFunc        GetSoftwareTitleIDByMaintainedAppIDFunc
-	GetSoftwareTitleIDByMaintainedAppIDFuncInvoked bool
+	UpsertSecretVariablesFunc        UpsertSecretVariablesFunc
+	UpsertSecretVariablesFuncInvoked bool
+
+	GetSecretVariablesFunc        GetSecretVariablesFunc
+	GetSecretVariablesFuncInvoked bool
+
+	ValidateEmbeddedSecretsFunc        ValidateEmbeddedSecretsFunc
+	ValidateEmbeddedSecretsFuncInvoked bool
+
+	ExpandEmbeddedSecretsFunc        ExpandEmbeddedSecretsFunc
+	ExpandEmbeddedSecretsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3085,7 +3100,7 @@ func (s *DataStore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 	return s.QueryFunc(ctx, id)
 }
 
-func (s *DataStore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+func (s *DataStore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListQueriesFuncInvoked = true
 	s.mu.Unlock()
@@ -6613,7 +6628,7 @@ func (s *DataStore) GetHostLastInstallData(ctx context.Context, hostID uint, ins
 	return s.GetHostLastInstallDataFunc(ctx, hostID, installerID)
 }
 
-func (s *DataStore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+func (s *DataStore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, titleID uint, err error) {
 	s.mu.Lock()
 	s.MatchOrCreateSoftwareInstallerFuncInvoked = true
 	s.mu.Unlock()
@@ -6900,7 +6915,7 @@ func (s *DataStore) MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hos
 	return s.MaybeUpdateSetupExperienceVPPStatusFunc(ctx, hostUUID, commandUUID, status)
 }
 
-func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListAvailableFleetMaintainedAppsFuncInvoked = true
 	s.mu.Unlock()
@@ -6942,9 +6957,30 @@ func (s *DataStore) CleanUpMDMManagedCertificates(ctx context.Context) error {
 	return s.CleanUpMDMManagedCertificatesFunc(ctx)
 }
 
-func (s *DataStore) GetSoftwareTitleIDByMaintainedAppID(ctx context.Context, appID uint, teamID *uint) (uint, error) {
+func (s *DataStore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) error {
 	s.mu.Lock()
-	s.GetSoftwareTitleIDByMaintainedAppIDFuncInvoked = true
+	s.UpsertSecretVariablesFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetSoftwareTitleIDByMaintainedAppIDFunc(ctx, appID, teamID)
+	return s.UpsertSecretVariablesFunc(ctx, secretVariables)
+}
+
+func (s *DataStore) GetSecretVariables(ctx context.Context, names []string) ([]fleet.SecretVariable, error) {
+	s.mu.Lock()
+	s.GetSecretVariablesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSecretVariablesFunc(ctx, names)
+}
+
+func (s *DataStore) ValidateEmbeddedSecrets(ctx context.Context, documents []string) error {
+	s.mu.Lock()
+	s.ValidateEmbeddedSecretsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ValidateEmbeddedSecretsFunc(ctx, documents)
+}
+
+func (s *DataStore) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
+	s.mu.Lock()
+	s.ExpandEmbeddedSecretsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ExpandEmbeddedSecretsFunc(ctx, document)
 }

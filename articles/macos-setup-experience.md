@@ -24,9 +24,12 @@ Using Fleet, you can require end users to authenticate with your identity provid
 
 ### End user authentication
 
-To require end user authentication, first [configure single sign-on (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso). Next, enable end user authentication by heading to to **Controls > Setup experience End user authentication** or use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
+To require end user authentication, first configure your MDM IdP integration by heading to
+**Settings > Mobile device management (MDM) > End user authentication**. Then, enable end user
+authentication by heading to to **Controls > Setup experience > End user authentication**.
+Alternatively, you can use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops) to configure your MDM IdP integration and enable end user authentication.
 
-If you've already configured SSO in Fleet, create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL.
+If you've already configured your MDM IdP integration in Fleet, create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL.
 
 In your IdP, make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate and lock the macOS local account **Full Name** with any of these.
 
@@ -174,6 +177,8 @@ If you configure software and/or a script for setup experience, users will see a
 ![screen shot of Fleet setup experience window](../website/assets/images/install-software-preview.png)
 
 This window shows the status of the software installations as well as the script exectution. Once all steps have completed, the window can be closed and Setup Assistant will proceed as usual.
+
+> The setup experience script always runs after setup experience software is installed. Currently, software that [automatically installs](https://fleetdm.com/guides/automatic-software-install-in-fleet) and scripts that [automatically run](https://fleetdm.com/guides/policy-automation-run-script) are also installed and run during Setup Assistant but won't appear in the window. Automatic software and scripts may run before or after setup the experience software/script. They aren't installed/run in any particular order.
 
 ### Install software
 

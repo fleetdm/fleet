@@ -511,17 +511,23 @@ module.exports = {
                     if (!isExternal) { // If the image is hosted on fleetdm.com, we'll modify the meta value to reference the file directly in the `website/assets/` folder
                       embeddedMetadata.articleImageUrl = embeddedMetadata.articleImageUrl.replace(/https?:\/\//, '').replace(/^fleetdm\.com/, '');
                     } else { // If the value is a link to an image that will not be hosted on fleetdm.com, we'll throw an error.
-                      throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be an image that will be hosted on fleetdm.com`);
+                      throw new Error(`Failed compiling markdown content: An article page has an invalid articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be an image that will be hosted on fleetdm.com`);
                     }
                   } else if(inWebsiteAssetFolder) { // If the `articleImageUrl` value is a relative link to the `website/assets/` folder, we'll modify the value to link directly to that folder.
                     embeddedMetadata.articleImageUrl = embeddedMetadata.articleImageUrl.replace(/^\.\.\/website\/assets/g, '');
                   } else { // If the value is not a url and the relative link does not go to the 'website/assets/' folder, we'll throw an error.
-                    throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be a URL or repo relative link to an image in the 'website/assets/images' folder`);
+                    throw new Error(`Failed compiling markdown content: An article page has an invalid articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be a URL or repo relative link to an image in the 'website/assets/images' folder`);
                   }
                 }
                 if(embeddedMetadata.description && embeddedMetadata.description.length > 150) {
                   // Throwing an error if the article's description meta tag value is over 150 characters long
                   throw new Error(`Failed compiling markdown content: An article page has an invalid description meta tag (<meta name="description" value="${embeddedMetadata.description}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, make sure the value of the meta description is less than 150 characters long.`);
+                }
+                if(embeddedMetadata.showOnTestimonialsPageWithEmoji){
+                  // Throw an error if a showOnTestimonialsPageWithEmoji value is not one of: 🥀, 🔌, 🚪, or 🪟.
+                  if(!['🥀', '🔌', '🚪', '🪟'].includes(embeddedMetadata.showOnTestimonialsPageWithEmoji)){
+                    throw new Error(`Failed compiling markdown content: An article page has an invalid showOnTestimonialsPageWithEmoji meta tag (<meta name="showOnTestimonialsPageWithEmoji" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be one of 🥀, 🔌, 🚪, or 🪟 and try running this script again.`);
+                  }
                 }
                 // For article pages, we'll attach the category to the `rootRelativeUrlPath`.
                 // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
@@ -641,7 +647,7 @@ module.exports = {
 
             let pageTitle = openPosition.jobTitle;
 
-            let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices/) Series A startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n<div purpose="open-position-quote-card"><div><img alt="Deloitte logo" src="/images/logo-deloitte-166x36@2x.png"></div><div purpose="open-position-quote"><div purpose="quote-text"><p>“One of the best teams out there to go work for and help shape security platforms.”</p></div><div purpose="quote-attribution"><strong>Dhruv Majumdar</strong><p>Director Of Cyber Risk & Advisory</p></div></div></div>\n\n\n## Want to join the team?\n\nWant to join the team?\n\nReach out to [${openPosition.hiringManagerName} on Linkedin](${openPosition.hiringManagerLinkedInUrl}). \n\n\n >The salary range for this role is $48,000 - $480,000. Fleet provides competitive compensation based on our [compensation philosophy](https://fleetdm.com/handbook/company/communications#compensation), as well as comprehensive [benefits](https://fleetdm.com/handbook/company/communications#benefits).`;
+            let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices/) Series A startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n<div purpose="open-position-quote-card"><div><img alt="Deloitte logo" src="/images/logo-deloitte-166x36@2x.png"></div><div purpose="open-position-quote"><div purpose="quote-text"><p>“One of the best teams out there to go work for and help shape security platforms.”</p></div><div purpose="quote-attribution"><strong>Dhruv Majumdar</strong><p>Director Of Cyber Risk & Advisory</p></div></div></div>\n\n\n## Want to join the team?\n\nWant to join the team?\n\nMessage us on [LinkedIn](https://www.linkedin.com/company/fleetdm/). \n\n\n >The salary range for this role is $48,000 - $480,000. Fleet provides competitive compensation based on our [compensation philosophy](https://fleetdm.com/handbook/company/communications#compensation), as well as comprehensive [benefits](https://fleetdm.com/handbook/company/communications#benefits).`;
 
 
             let htmlStringForThisPosition = await sails.helpers.strings.toHtml.with({mdString: mdStringForThisOpenPosition});
@@ -1146,11 +1152,47 @@ module.exports = {
           // .intercept((error)=>{
           //   return new Error(`Could not build app library configuration. When attempting to send a request to the homebrew API to get the latest information about ${app.identifier}, an error occured. Full error: ${util.inspect(error, {depth: null})}`);
           // });
-          // let scriptToUninstallThisApp = await sails.helpers.fs.read(path.join(topLvlRepoPath, `/server/mdm/maintainedapps/testdata/scripts/${app.identifier}_uninstall.golden.sh`))
-          // .intercept('doesNotExist', ()=>{
-          //   return new Error(`Could not build app library configuration from testdata folder. When attempting to read an uninstall script for ${app.identifier}, no file was found at ${path.join(topLvlRepoPath, '/server/mdm/maintainedapps/testdata/scripts/'+app.identifier+'_uninstall.golden.sh. Was it moved?')}.`);
-          // });
-          // appInformation.uninstallScript = scriptToUninstallThisApp;
+          let scriptToUninstallThisApp = await sails.helpers.fs.read(path.join(topLvlRepoPath, `/server/mdm/maintainedapps/testdata/scripts/${app.identifier}_uninstall.golden.sh`))
+          .intercept('doesNotExist', ()=>{
+            return new Error(`Could not build app library configuration from testdata folder. When attempting to read an uninstall script for ${app.identifier}, no file was found at ${path.join(topLvlRepoPath, '/server/mdm/maintainedapps/testdata/scripts/'+app.identifier+'_uninstall.golden.sh. Was it moved?')}.`);
+          });
+          // Remove lines that only contain comments.
+          scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/^\s*#.*$/gm, '');
+
+          // Condense functions onto a single line.
+          // For each function in the script:
+          scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/(\w+)\s*\(\)\s*\{([\s\S]*?)^\}/gm, (match, functionName, functionContent)=> {
+            // Split the function content into an array
+            let linesInFunction = functionContent.split('\n');
+
+            // Remove extra leading or trailing whitespace from each line.
+            linesInFunction = linesInFunction.map((line)=>{ return line.trim();});
+
+            // Remove any empty lines
+            linesInFunction = linesInFunction.filter((lineText)=>{
+              return lineText.length > 0;
+            });
+            // Iterate through the lines in the function, adding semicolons to lines with commands.
+            linesInFunction = linesInFunction.map((text, lineIndex, lines)=>{
+              // If this is not the last line in the function, and it does not only contain a control stucture keyword, append a semi colon to it.
+              if(lineIndex !== lines.length - 1 && !/^\s*(if|while|for|do|else|then|done|return)/.test(text)) {
+                return text + ';';
+              }
+              // Otherwise, do not add a semicolon
+              return text;
+            });
+            // Join the lines into a single string
+            let condensedBodyOfFunction = linesInFunction.join(' ');
+
+            // Return the condensed single-line function.
+            return `${functionName}() { ${condensedBodyOfFunction} }`;
+          });
+
+          // Remove newlines with "&&" and remove any that are added to the end and beginning of the condensed command.
+          scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/\n\s*/g, ' && ').replace(/ && $/, '').replace(/^ && /, '');
+
+
+          appInformation.uninstallScript = scriptToUninstallThisApp;
           appInformation.version = detailedInformationAboutThisApp.version.split(',')[0];
           appInformation.description = detailedInformationAboutThisApp.desc;
           appInformation.name = detailedInformationAboutThisApp.name[0];

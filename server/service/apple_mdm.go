@@ -380,12 +380,20 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		})
 	}
 
-	cp, err := fleet.NewMDMAppleConfigProfile(b, &teamID)
+	// Expand and validate secrets in profile
+	expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(b))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
+	}
+
+	cp, err := fleet.NewMDMAppleConfigProfile([]byte(expanded), &teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("failed to parse config profile: %s", err.Error()),
 		})
 	}
+	// Save the original unexpanded profile
+	cp.Mobileconfig = b
 
 	if err := cp.ValidateUserProvided(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
@@ -405,6 +413,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	default:
 		// TODO what happens if mode is not set?s
 	}
+
 	err = validateConfigProfileFleetVariables(string(cp.Mobileconfig))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
@@ -501,6 +510,10 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 	validatedLabels, err := svc.validateDeclarationLabels(ctx, labels)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(data)}); err != nil {
+		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
 	}
 
 	if err := validateDeclarationFleetVariables(string(data)); err != nil {
@@ -1968,12 +1981,21 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), "maximum configuration profile file size is 1 MB"),
 			)
 		}
-		mdmProf, err := fleet.NewMDMAppleConfigProfile(prof, tmID)
+		// Expand profile for validation
+		expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(prof))
+		if err != nil {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
+				"missing fleet secrets")
+		}
+		mdmProf, err := fleet.NewMDMAppleConfigProfile([]byte(expanded), tmID)
 		if err != nil {
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
 				"invalid mobileconfig profile")
 		}
+		// Store original unexpanded profile
+		mdmProf.Mobileconfig = prof
 
 		if err := mdmProf.ValidateUserProvided(); err != nil {
 			return ctxerr.Wrap(ctx,
@@ -1995,6 +2017,15 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		byIdent[mdmProf.Identifier] = true
 
 		profs = append(profs, mdmProf)
+	}
+
+	profStrings := make([]string, 0, len(profs))
+	for _, prof := range profs {
+		profStrings = append(profStrings, string(prof.Mobileconfig))
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, profStrings); err != nil {
+		return fleet.NewInvalidArgumentError("profiles", err.Error())
 	}
 
 	if !skipBulkPending {

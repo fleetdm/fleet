@@ -1,5 +1,6 @@
 # API for contributors
 
+- [Authentication](#authentication)
 - [Packs](#packs)
 - [Mobile device management (MDM)](#mobile-device-management-mdm)
 - [Get or apply configuration files](#get-or-apply-configuration-files)
@@ -17,6 +18,22 @@
 This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
 
 If you are interested in gathering information from Fleet in a production environment, please see the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api).
+
+## Authentication
+
+### Create session
+
+`POST /api/v1/fleet/sessions`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| token | string | body | **Required**. The token retrieved from the magic link email. |
+
+#### Response
+
+See [the Log in endpoint](https://fleetdm.com/docs/rest-api/rest-api#log-in) for the current
+successful response format.
 
 ## Packs
 
@@ -2396,7 +2413,7 @@ Runs the specified saved query as a live query on the specified targets. Returns
 
 After the query has been initiated, [get results via WebSocket](#retrieve-live-query-results-standard-websocket-api).
 
-`POST /api/v1/fleet/queries/run_by_names`
+`POST /api/v1/fleet/queries/run_by_identifiers`
 
 #### Parameters
 
@@ -2404,13 +2421,13 @@ After the query has been initiated, [get results via WebSocket](#retrieve-live-q
 | -------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | query    | string  | body | The SQL of the query.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| selected | object  | body | **Required.** The object includes lists of selected hostnames (`selected.hosts`), label names (`labels`). When provided, builtin label names and custom label names become `AND` filters. Within each selector, selecting two or more builtin labels, or two or more custom labels, behave as `OR` filters. There's one special case for the builtin label `"All hosts"`, if such label is selected, then all other label and team selectors are ignored (and all hosts will be selected). If a host's hostname is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels`). See examples below. |
+| selected | object  | body | **Required.** The object includes lists of selected hostnames (`selected.hosts`), label names (`labels`). When provided, builtin label names and custom label names become `AND` filters. Within each selector, selecting two or more builtin labels, or two or more custom labels, behave as `OR` filters. If a label provided could not be found in the database, a 400 bad request will be returned specifying which label is invalid. There's one special case for the builtin label `"All hosts"`, if such label is selected, then all other label and team selectors are ignored (and all hosts will be selected). If a host's hostname is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels`). See examples below. |
 
 One of `query` and `query_id` must be specified.
 
 #### Example with one host targeted by hostname
 
-`POST /api/v1/fleet/queries/run_by_names`
+`POST /api/v1/fleet/queries/run_by_identifiers`
 
 ##### Request body
 
@@ -2449,7 +2466,7 @@ One of `query` and `query_id` must be specified.
 
 #### Example with multiple hosts targeted by label name
 
-`POST /api/v1/fleet/queries/run_by_names`
+`POST /api/v1/fleet/queries/run_by_identifiers`
 
 ##### Request body
 
@@ -2485,6 +2502,39 @@ One of `query` and `query_id` must be specified.
   }
 }
 ```
+
+#### Example with invalid label
+
+`POST /api/v1/fleet/queries/run_by_identifiers`
+
+##### Request body
+
+```json
+{
+  "query": "SELECT instance_id FROM system_info",
+  "selected": {
+    "labels": ["Windows", "Banana", "Apple"]
+  }
+}
+```
+
+##### Default response
+
+`Status: 400`
+
+```json
+{
+  "message": "Bad request",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Invalid label name(s): Banana, Apple."
+    }
+  ],
+  "uuid": "303649f4-5e45-4379-bae9-64ec0ef56287"
+}
+```
+
 
 ### Retrieve live query results (standard WebSocket API)
 
@@ -3933,16 +3983,15 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 
 #### Parameters
 
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| host_id         | integer | body | **Required**. The host ID to run the script on.  |
-| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_name` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_name`.  |
-| script_contents | string  | body | The contents of the script to run. Only one of either `script_contents`, `script_id` or `script_name` can be included in the request; omit this parameter if using `script_id` or `script_name`. |
-| script_name       | string | body | The name of the existing saved script to run. Only one of either `script_name`, `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_id`.  |
-| team_id       | integer | body | ID of the team the saved script referenced by `script_name` belongs to. Default: `0` (hosts assigned to "No team") |
+| Name            | Type    | In   | Description                                                                                    |
+| ----            | ------- | ---- | --------------------------------------------                                                   |
+| host_id         | integer | body | **Required**. The ID of the host to run the script on.                                                |
+| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_contents`, or `script_name` can be included. |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_id`, `script_contents`, or `script_name` can be included. |
+| script_name       | integer | body | The name of the existing saved script to run. If specified, requires `team_id`. Only one of either `script_id`, `script_contents`, or `script_name` can be included.   |
+| team_id       | integer | body | The ID of the existing saved script to run. If specified, requires `script_name`. Only one of either `script_id`, `script_contents`, or `script_name` can be included in the request.  |
 
-
-> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
+> Note that if any combination of `script_id`, `script_contents`, and `script_name` are included in the request, this endpoint will respond with an error.
 
 #### Example
 

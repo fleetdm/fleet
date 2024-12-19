@@ -12,14 +12,15 @@ team_settings:
 agent_options:
 controls:
   ios_updates:
-    deadline: "2024-08-23"
-    minimum_version: "17.6"
+    deadline: "2025-01-06"
+    minimum_version: "18.2"
   macos_settings:
     custom_settings:
-      - path: ../lib/configuration-profiles/ios-restrictions.mobileconfig
-      - path: ../lib/configuration-profiles/ios-passcode-settings-ddm.json
-      - path: ../lib/configuration-profiles/ios-lock-screen-message.mobileconfig
-      - path: ../lib/configuration-profiles/ios-content-filtering.mobileconfig
+      - path: ../lib/ios/configuration-profiles/restrictions.mobileconfig
+      - path: ../lib/ios/configuration-profiles/lock-screen-message.mobileconfig
+      - path: ../lib/ios/configuration-profiles/content-filtering.mobileconfig
+      - path: ../lib/ios/declaration-profiles/passcode-settings-ddm.json
+      - path: ../lib/ios/declaration-profiles/software-update-settings.json
   scripts:
 policies:
 queries:

@@ -54,7 +54,8 @@ export interface IDropdownWrapper {
   isSearchable?: boolean;
   isDisabled?: boolean;
   placeholder?: string;
-  menuPortalTarget?: HTMLElement | null;
+  /** E.g. scroll to view dropdown menu in a scrollable parent container */
+  onMenuOpen?: () => void;
 }
 
 const baseClass = "dropdown-wrapper";
@@ -72,7 +73,7 @@ const DropdownWrapper = ({
   isSearchable,
   isDisabled = false,
   placeholder,
-  menuPortalTarget,
+  onMenuOpen,
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className);
 
@@ -326,12 +327,10 @@ const DropdownWrapper = ({
         value={getCurrentValue()}
         onChange={handleChange}
         isDisabled={isDisabled}
-        menuPortalTarget={
-          menuPortalTarget === undefined ? document.body : menuPortalTarget
-        }
         noOptionsMessage={() => "No results found"}
         tabIndex={isDisabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
         placeholder={placeholder}
+        onMenuOpen={onMenuOpen}
       />
     </FormField>
   );

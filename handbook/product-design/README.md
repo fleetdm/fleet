@@ -50,13 +50,18 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 1. Take the top user story that is assigned to you in the "Ready" column of the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board) and move it to "In progress."
   
 2. Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project). The starter file includes three predefined pages: "Cover," "Ready," and "Scratchpad."
--  **Cover**: This page has a component with issue number, issue name, and status fields. There are three statuses: "Work In Progress (WIP)," "Approved," and "Released" (the drafting board is still the source of truth).
--  **Ready**: Use this page to communicate design reviews and development.
--  **Scratchpad**: Use this page to keep "work in progress" designs that might be useful in the future.
+   -  **Cover**: This page has a component with issue number, issue name, and status fields. There are three statuses: "Work In Progress (WIP)," "Approved," and "Released" (the drafting board is still the source of truth).
+   -  **Ready**: Use this page to communicate design reviews and development.
+   -  **Scratchpad**: Use this page to keep "work in progress" designs that might be useful in the future.
 
 3. Add page names (e.g. "Host details" page) to the user story's title and/or description to help contributors find Figma wireframes for the area of the UI you're making changes to.
 
-4. If the story requires API or YAML file changes, open a pull request to the reference docs release branch (e.g. `docs-v4.58.0`) with the proposed design. Mark the PR "Ready for review" as soon as it's ready for feedback from the [API design DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris).
+4. If the story requires API or YAML file changes, open a pull request (PR) to the reference docs with the proposed design. Pay attention to existing conventions (URL structure, parameter names, response format) and aim to be consistent. Your PR should follow these guidelines:
+  - Make a PR against the docs release branch for the version you expect this feature to be in. Docs release branches are named using the format `docs-vX.X.X`, so if you're designing for Fleet 4.61.0, you would make a PR to `docs-v4.61.0`.
+  - Add a link to the issue in the PR description.
+  - Attach the `~api-or-yaml-design` label.
+  - Mark the PR ready for review. (Draft PRs do not auto-request reviews.)
+  - After your changes are approved by the API design DRI, they will merge your changes into the docs release branch.
 
 5. Add links to the user story as specified in the [issue template](https://github.com/fleetdm/fleet/issues/new?template=story.md).
 
@@ -67,7 +72,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 
 Additionally:
 
-- To make changes to the design system or a component (e.g. button border-radius or modal width), [make a new request](#making-a-request) and attach the `:design system improvement` label. Updates will be reviewed and, if accepted, be incorporated back into the design system by the designer who proposed the change.
+- To make changes to the design system or a component (e.g. button border-radius or modal width), [make a new request](#making-a-request) and attach the `:improve design system` label.
 
 - If the story has a requester and the title and/or description change during drafting (scope change), notify the requester. The customer DRI should confirm that the updated scope still meets the requester's needs.
 

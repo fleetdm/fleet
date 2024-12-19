@@ -46,6 +46,7 @@ interface IDataTableProps {
   sortDirection: any;
   onSort: any; // TODO: an event type
   disableMultiRowSelect: boolean;
+  keyboardSelectableRow?: boolean;
   showMarkAllPages: boolean;
   isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
@@ -94,6 +95,7 @@ const DataTable = ({
   sortDirection,
   onSort,
   disableMultiRowSelect,
+  keyboardSelectableRow,
   showMarkAllPages,
   isAllPagesSelected,
   toggleAllPagesSelected,
@@ -562,7 +564,18 @@ const DataTable = ({
                         onSelectRowClick(row)) ||
                         (onClickRow && onClickRow(row));
                     },
+                    // For accessibility when tabable
+                    onKeyDown: (e: KeyboardEvent) => {
+                      if (e.key === "Enter") {
+                        (onSelectRowClick &&
+                          disableMultiRowSelect &&
+                          onSelectRowClick(row)) ||
+                          (onClickRow && onClickRow(row));
+                      }
+                    },
                   })}
+                  // Can tab onto an entire row if a child element does not have the same onClick functionality as clicking the whole row
+                  tabIndex={keyboardSelectableRow ? 0 : -1}
                 >
                   {row.cells.map((cell: any) => {
                     return (

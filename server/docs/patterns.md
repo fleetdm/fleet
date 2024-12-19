@@ -7,6 +7,7 @@ The backend software patterns that we follow in Fleet.
 
 Table of Contents
 - [API Inputs](#api-inputs)
+- [Go](#go)
 - [MySQL](#mysql)
 
 ## API Inputs
@@ -20,6 +21,17 @@ Inputs corresponding to sortable or indexed DB fields should be preprocessed (tr
 ### JSON unmarshaling
 
 `PATCH` API calls often need to distinguish between a field being set to `null` and a field not being present in the JSON. Use the structs from `optjson` package to handle this. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=4055688254267958899). [JSON unmarshaling article and example](https://victoronsoftware.com/posts/go-json-unmarshal/).
+
+## Go
+
+### Integer number types
+
+Use `int` number type for general integer numbers. See [Why does len() returned a signed value?](https://stackoverflow.com/questions/39088945/why-does-len-returned-a-signed-value) for some context.
+
+Exceptions:
+- Database IDs
+- Extra range of unsigned needed for a specific use case
+- Specific performance/memory requirements
 
 ## MySQL
 

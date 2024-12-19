@@ -796,40 +796,31 @@ You can learn more about how Fleet approaches security in the [security handbook
 In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/digital-experience/security#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/digital-experience/security#application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/digital-experience//security#vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
 
 
-
 ## Getting a contract reviewed
 
-> If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and use the signature process documented above.
+The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#team) will review all contracts within **2 business days**. 
 
-To get a contract reviewed, upload the agreement to [Google Drive](https://drive.google.com/drive/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c).
+> If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and [get the contract signed](https://fleetdm.com/handbook/company/communications#getting-a-contract-signed). Please submit other legal questions and requests to [Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us).
 
-Complete the [contract review issue template in GitHub](https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn&labels=%23g-digital-experience&projects=&template=contract-review.md&title=Review%3A++%F0%9F%96%8B%EF%B8%8F+__________________________), being sure to include the link to the document you uploaded and using the Calendly link in the issue template to schedule time to discuss the agreement with Nathan Holliday (allowing for sufficient time for him to have reviewed the contract prior to the call).
+To get a contract reviewed, complete the [contract review issue template in GitHub](https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn&labels=%23g-digital-experience&projects=&template=contract-review.md&title=Review%3A++%F0%9F%96%8B%EF%B8%8F+__________________________). Upload the docx version whenever possible and be sure to include the link to the document in the issue. Follow-up comments should be made in the GitHub issue and in the document itself to avoid losing context.
 
-Follow up comments should be made in the GitHub issue and in the document itself so it is all in the same place.
+If an agreement requires additional review during the negotiation process, the requestor will need to upload the new draft agreement and repeat the process. When no further review or action is required, the requestor is responsible for [routing the document](https://fleetdm.com/handbook/company/communications#getting-a-contract-signed) for signature.
 
-The SLA for contract review is **2 business days**.
-
-Once the review is complete, the issue will be closed.
-
-If an agreement requires an additional review during the negotiation process, the requestor will need to follow these steps again. Uploading the new draft and creating a new issue in GitHub. 
-
-When no further review or action is required for an agreement and the document is ready to be signed, the requestor is then responsible for routing the document for signature.
-
-> **Note:** Please submit other legal questions and requests to [Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us).
 
 ## Getting a contract signed
 
-If a contract is ready for signature and requires no review or revision, log into DocuSign (credentials in 1Password) and route the agreement to the CEO for signature. 
+The SLA for contract signature is **2 business days**. Please do not follow up on signatures unless this time has elapsed. If a contract is ready for signature and **DOES NOT** require [review or revision](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) (i.e. no contract review issue necessary), follow the steps below:
 
-When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
+First, log into DocuSign (credentials in 1Password) and route the agreement to the CEO for signature. When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
 
-The SLA for contract signature is **2 business days**. Please do not follow up on signature unless this time has elapsed.
+Then, at-mention the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) in the appropriate internal Slack channel (e.g. op channel, #g-digital-experience) with the following template:
 
-_**Note:** Signature open time for the CEO is not currently measured, to avoid the overhead of creating separate signature issues to measure open and close time. This may change as signature volume increases._
+```
+@Sam Pfluger - :writing_hand Signature request
+The following contract is ready to sign and has been routed to the CEO for signature: CONTRACT_DOC_URL_FROM_GOOGLE_DRIVE
+```
 
-> _**Note:** If a contract is ready for signature and requires no review or revision, log into DocuSign (credentials in 1Password) and route the agreement to the CEO for signature._ 
-
-Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts, and never use individual emails except for signature.  If the page to sign includes any individual emails in the docusign contract, please remove it before routing to the CEO for signature.
+Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts and never include individual emails in any company agreement. If the agreement includes any individual emails, please remove them before routing the agreement to the CEO for signature.
 
 
 ## Trust
@@ -1703,7 +1694,6 @@ This glossary provides definitions to commonly used terms within our space.
 | **Internet Engineering Task Force (IETF)** | See: IETF |
 | **IR** | (Incident Response) The actions one takes in response to a security breach or cyberattack. |
 | **Linux** | An open source operating system. |
-| **Logica** | An IT and management consultancy company based in the United Kingdom. |
 | **macOS** | The operating system used in all of Apple's Mac computers. |
 | **Munki** | Open-source software deployment tool for macOS. |
 | **open core** | Is the business model where a company has a core version of a product with some of the features as (FOSS) Free Open Source Software in addition to a paid commercial version that is proprietary software. |

@@ -3,30 +3,30 @@
     <div purpose="page-content" class="mx-auto">
     <div purpose="hero">
       <div purpose="page-headline">
-        <h4>Observability <%= ['eo-security', 'vm'].includes(pagePersonalization) ? 'for security' : ['eo-it', 'mdm'].includes(pagePersonalization) ? 'for IT' : '' %></h4>
+        <h4>Orchestration</h4>
         <h1><%= pagePersonalization==='eo-security'? 'Deeper, faster visibility for every OS' : 'Talk to your computers'%></h1>
       </div>
       <div purpose="hero-content" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
         <div purpose="hero-image">
-          <img alt="A device verifying compliance for every endpoint" src="/images/endpoint-operations-hero-image-380x380@2x.png">
+          <img alt="A device verifying compliance for every endpoint" src="/images/observability-hero-image-528x428@2x.png">
         </div>
         <div purpose="hero-text">
           <% if(['eo-security', 'vm'].includes(pagePersonalization)) { %>
             <strong>Osquery on easy mode</strong>
             <p>Build the agent in "read-only" mode or enable remote scripting to automatically mitigate misconfigurations and vulnerabilities.</p>
-            <strong>Pulse check anything</strong>
+            <strong>On-demand data</strong>
             <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
-            <strong>Ship data to any platform</strong>
-            <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
+            <strong>Data portability</strong>
+            <p>Ship data to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
           <% } else { %>
-            <strong>Automate anything</strong>
-            <p>Remotely run scripts and prompts to complete tasks on every kind of computer, including Linux.</p>
-            <strong>Pulse check anything</strong>
+            <strong>On-demand data</strong>
             <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
-            <strong>Ship data to any platform</strong>
-            <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
+            <strong>Deep context from your environment</strong>
+            <p>Get data down to the chip level on every endpoint to help you make the right decisions from IT to InfoSec and beyond.</p>
+            <strong>Data portability</strong>
+            <p>Ship data to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
           <% }%>
-          <div purpose="button-row" class="d-flex flex-md-row flex-column justify-content-start align-items-center">
+          <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-start align-items-center">
             <a purpose="cta-button" href="/contact">Take a tour</a>
             <animated-arrow-button href="/register">Try it yourself</animated-arrow-button>
           </div>
@@ -70,25 +70,8 @@
     </div>
     <logo-carousel></logo-carousel>
 
-
-    <% if(!pagePersonalization || ['mdm', 'eo-it'].includes(pagePersonalization)){%>
-    <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
-      <div purpose="feature-text" class="d-flex flex-column">
-        <h3>Automate anything</h3>
-        <p>Remote-control IT tasks on every kind of computer – even you, Linux.</p>
-        <div purpose="checklist" class="flex-column d-flex">
-          <p>Write and run scripts remotely, report progress, and replay queued up tasks on computers that went offline.</p>
-          <p>Optionally integrate Google Calendar to make changes when certain users’ devices are actually free.</p>
-        </div>
-      </div>
-      <div purpose="feature-image">
-        <img alt="Ship data to any platform" src="/images/device-management-clickops-or-devops-380x280@2x.png">
-      </div>
-    </div>
-    <% } %>
-
     <div purpose="feature-headline" class="mr-auto">
-      <h3>Pulse check anything</h3>
+      <h3>On-demand data</h3>
       <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
     </div>
 
@@ -133,20 +116,53 @@
       <p purpose="feature-footnote">*Currently limited to: Apple, Linux, Windows, Chromebooks, OT, data centers, Amazon Web Services (AWS), Google Cloud (GCP), and the Microsoft Cloud (Azure).</p>
     </div>
 
+    <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
+      <div purpose="feature-image">
+        <img alt="Orchestrate anything" src="/images/feature-image-orchestrate-anything-528x377@2x.png">
+      </div>
+      <div purpose="feature-text" class="d-flex flex-column">
+        <h3>Orchestrate anything</h3>
+        <p>Remote-control IT tasks on every kind of computer – even you, Linux.</p>
+        <div purpose="checklist" class="flex-column d-flex">
+          <p>Write and run scripts remotely, report progress, and replay queued up tasks on computers that went offline.</p>
+          <p>Optionally integrate Google Calendar to make changes when certain users’ devices are actually free.</p>
+        </div>
+      </div>
+    </div>
+
     <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
       <div purpose="feature-text" class="d-flex flex-column">
-        <h3>Ship data to any platform</h3>
-        <p>Export anything. Ship data to any platform like Splunk, Snowflake, or any streaming infrastructure like AWS Kinesis and Apache Kafka.</p>
+        <h3>Deep context from your environment</h3>
+        <p>Get device context down to the chip level on every endpoint to help you make the right decisions.</p>
+        <div purpose="checklist" class="flex-column d-flex">
+          <p>Gather real-time data by executing lightweight queries across all devices.</p>
+          <p>Access over 300 tables of system state data. Use presets or create your own queries.</p>
+        </div>
+        <div purpose="feature-link">
+            <animated-arrow-button href="/tables">Explore data</animated-arrow-button>
+        </div>
+      </div>
+      <div purpose="feature-image">
+        <img alt="On-demand data" src="/images/feature-image-on-demand-data-528x377@2x.png">
+      </div>
+    </div>
+
+    <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
+      <div purpose="feature-image">
+        <img alt="Data portability" src="/images/feature-image-data-portability-528x377@2x.png">
+      </div>
+      <div purpose="feature-text" class="d-flex flex-column">
+        <h3>Data portability</h3>
+        <p>Ship data to any platform like Splunk, Snowflake, or any streaming infrastructure like AWS Kinesis and Apache Kafka.</p>
         <div purpose="checklist" class="flex-column d-flex">
           <p>Extract data and correlate it with your log aggregator, SIEM, or data lake.</p>
           <p>Ease your logging burden, pull the data you need.</p>
         </div>
       </div>
-      <div purpose="feature-image">
-        <img alt="Ship data to any platform" src="/images/endpoint-ops-feature-image-1-381x282@2x.png">
-      </div>
     </div>
+
     <%/* Implement “zero trust” faster section */%>
+    <% if(!pagePersonalization || ['vm', 'eo-security'].includes(pagePersonalization)) {%>
     <div purpose="page-section">
       <div purpose="feature-headline" style="max-width: 580px;">
         <h3>“Zero” trust, fewer tickets</h3>
@@ -174,13 +190,14 @@
         </div>
       </div>
     </div>
+
     <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
       <div purpose="feature-image">
-        <img alt="Ship data to any platform" src="/images/endpoint-ops-feature-image-2-380x380@2x.png">
+        <img alt="Osquery on easy mode" src="/images/endpoint-ops-feature-image-2-380x380@2x.png">
       </div>
       <div purpose="feature-text" class="d-flex flex-column">
         <h3>Osquery on easy mode</h3>
-        <p>Accelerate deployment and get more out of osquery. You don’t need to be an osquery expert to get the answers you need from your <%= ['vm', 'eo-security'].includes(pagePersonalization) ? 'endpoints' : 'devices' %>.</p>
+        <p>Accelerate deployment and get more out of osquery. You don’t need to be an osquery expert to get the answers you need from your endpoints.</p>
         <div purpose="checklist" class="flex-column d-flex">
           <p>Remotely disable/enable agent features, choose plugins, and keep osquery up to date.</p>
           <p>Import community queries from other security teams at top brands like Palantir and Fastly.</p>
@@ -190,7 +207,6 @@
       </div>
     </div>
 
-    <% if(!pagePersonalization || ['vm', 'eo-security'].includes(pagePersonalization)) {%>
     <div purpose="feature-headline" class="mr-auto">
       <h3>Open security tooling</h3>
       <p>Consolidate your security tooling on top of open data standards like YAML, SQL, and JSON.</p>
@@ -251,9 +267,9 @@
     <div purpose="page-container" class="pb-0">
 
       <div purpose="section-heading" class="text-center">
-        <h4>Observability</h4>
+        <h4>Orchestration</h4>
         <h3><%= pagePersonalization==='eo-security'? 'Instrument your endpoints' : 'Talk to your computers'%></h3>
-        <div purpose="button-row" style="margin-top: 32px;" class="d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto">
+        <div purpose="button-row" style="margin-top: 32px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" href="/register">Start now</a>
           <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>
         </div>
