@@ -3,6 +3,7 @@
 <div purpose="attribution-quote">
 
 “I don't want one bad actor to brick my fleet, I want them to make a pull request first.”
+
 **— Client Platform Engineering Manager**
 </div>
 
