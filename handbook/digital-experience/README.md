@@ -781,6 +781,18 @@ To check for pending connect requests, perform the following steps:
   1. Log into the CEO's LinkedIn (if you're not already) and click "My Network".
   2. Bring all pending connect requests to the CEO during the daily roundup.
 
+To add the most recent connections from Linkedin to our CSM, follow these steps:
+  1. Log into the CEO's Linkedin (if you're not already) and click "My Network".
+  2. Click "Connections" under "Manage my network".
+  3. Middle click a person's Linkedin page (this will open it to a new tab).
+  4. Log into our CSM using the "billing@fleetdm.com" login in another tab.
+  5. Search the company under the person's Linekdin and be sure to click the account (the company must be a 🦄 if they are not, move on to the following person).
+  6. Click "All contacts" and make sure they are not a contact already.
+  7. Click the "New" button and fill out their full name, title, role, buying situation, and Linkedin URL.
+  8. Click "Save"
+  9. Click on the new contact (their name) that you created and change their psychological stage to "intrigued" (we consider them intrigued since they've reached out to the CEO via Linkedin).
+  10. Click "Mark as current stage".
+
 
 ### Schedule travel for the CEO
 
