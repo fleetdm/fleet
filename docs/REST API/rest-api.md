@@ -6790,7 +6790,7 @@ _Available in Fleet Premium_
 - [Add policy](#add-policy)
 - [Remove policies](#remove-policies)
 - [Edit policy](#edit-policy)
-- [Reset automations for all hosts failing a policy](#reset-automations-for-all-hosts-failing-a-policy)
+- [Reset automations for all hosts failing policies](#reset-automations-for-all-hosts-failing-policies)
 
 Policies are yes or no questions you can ask about your hosts.
 
