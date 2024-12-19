@@ -203,7 +203,7 @@
         </div>
         <div class="invalid-feedback text-center" v-if="formErrors.teams">Please select the teams you want to deploy this software to.</div>
         <cloud-error v-if="cloudError && cloudError === 'softwareAlreadyExistsOnThisTeam'">A software with the same name as the uploaded software already exists on one or more of the selected teams.</cloud-error>
-        <cloud-error v-if="cloudError && cloudError === 'couldNotReadVersion'">The Fleet instance could not read version information from the provided software installer.</cloud-error>
+        <cloud-error v-else-if="cloudError && cloudError === 'couldNotReadVersion'">The Fleet instance could not read version information from the provided software installer.</cloud-error>
         <cloud-error v-else-if="cloudError"></cloud-error>
         <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
           <a purpose="cancel-button" @click="closeModal()">Cancel</a>
