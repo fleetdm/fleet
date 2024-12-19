@@ -2421,6 +2421,7 @@ None.
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
 - [Get host's scripts](#get-hosts-scripts)
 - [Get host's software](#get-hosts-software)
+- [Get host's certificates](#get-hosts-certificates)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
 - [Lock host](#lock-host)
@@ -4337,6 +4338,43 @@ Resends a configuration profile for the specified host.
 }
 ```
 
+### Get host's certificates
+
+`GET /api/v1/fleet/hosts/:id/certificates`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's ID. |
+| query   | string | query | Search query keywords. Searchable fields include `name`. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/certificates`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 297,
+  "certificates": [
+    {
+      "TODO": "TODO"
+    },
+  ],
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  }
+}
+```
+
+
 ### Get hosts report in CSV
 
 Returns the list of hosts corresponding to the search criteria in CSV format, ready for download when
@@ -4487,7 +4525,14 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 
 ##### Default response
 
-`Status: 204`
+`Status: 200`
+
+```json
+{
+  "device_status": "unlocked",
+  "pending_action": "lock"
+}
+```
 
 
 #### Example
@@ -4500,9 +4545,14 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 
 ```json
 {
-  "unlock_pin": "123456"
+  "unlock_pin": "123456",
+  "device_status": "unlocked",
+  "pending_action": "lock",
 }
 ```
+
+
+> To verify the host successfully locked, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`.
 
 ### Unlock host
 
@@ -4526,7 +4576,14 @@ To unlock a Windows or Linux host, the host must have [scripts enabled](https://
 
 ##### Default response (Windows or Linux hosts)
 
-`Status: 204`
+`Status: 200`
+
+```json
+{
+  "device_status": "locked",
+  "pending_action": "unlock"
+}
+```
 
 
 ##### Default response (macOS hosts)
@@ -4536,9 +4593,13 @@ To unlock a Windows or Linux host, the host must have [scripts enabled](https://
 ```json
 {
   "host_id": 8,
-  "unlock_pin": "123456"
+  "unlock_pin": "123456",
+  "device_status": "locked",
+  "pending_action": ""
 }
 ```
+
+> To verify the host successfully unlocked, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`.
 
 ### Wipe host
 
@@ -4560,7 +4621,16 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 
 ##### Default response
 
-`Status: 204`
+`Status: 200`
+
+```json
+{
+  "device_status": "unlocked",
+  "pending_action": "wipe"
+}
+```
+
+> To verify the host was successfully wiped, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`.
 
 
 ### Get host's past activity
