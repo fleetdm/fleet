@@ -144,6 +144,7 @@ const EditSoftwareModal = ({
     try {
       await softwareAPI.editSoftwarePackage({
         data: formData,
+        orignalPackage: software,
         softwareId,
         teamId,
         onUploadProgress: (progressEvent) => {
