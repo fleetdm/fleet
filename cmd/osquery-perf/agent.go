@@ -779,6 +779,12 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		now := time.Now().Unix()
 		prevCount := a.countBuffered()
 
+		// NOTE The goroutine that pulls in new configurations
+		// MAY replace this map if it happens to run at the
+		// exact same time. The result would be. The result
+		// would be that the query lastRun does not get
+		// updated and cause the query to run more times than
+		// expected.
 		queryData := a.scheduledQueryData
 		queryData.Range(func(key, value any) bool {
 			queryName := key.(string)
