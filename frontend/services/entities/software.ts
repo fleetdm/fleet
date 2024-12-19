@@ -282,9 +282,9 @@ export default {
     if (data.targetType === "Custom") {
       const selectedLabels = listNamesFromSelectedLabels(data.labelTargets);
       if (data.customTarget === "labelsIncludeAny") {
-        formData.append("labels_include_any", selectedLabels.join(","));
+        formData.append("labels_include_any", JSON.stringify(selectedLabels));
       } else {
-        formData.append("labels_exclude_any", selectedLabels.join(","));
+        formData.append("labels_exclude_any", JSON.stringify(selectedLabels));
       }
     }
 
@@ -334,6 +334,15 @@ export default {
         formData.append("labels_include_any", "[]");
       } else {
         formData.append("labels_exclude_any", "[]");
+      }
+    }
+
+    if (data.targetType === "Custom") {
+      const selectedLabels = listNamesFromSelectedLabels(data.labelTargets);
+      if (data.customTarget === "labelsIncludeAny") {
+        formData.append("labels_include_any", JSON.stringify(selectedLabels));
+      } else {
+        formData.append("labels_exclude_any", JSON.stringify(selectedLabels));
       }
     }
 

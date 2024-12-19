@@ -67,9 +67,6 @@ const EditSoftwareModal = ({
     software: null,
     installScript: "",
     selfService: false,
-    // targetType: getTargetType(defaultSoftware),
-    // customTarget: getCustomTarget(defaultSoftware),
-    // labelTargets: generateSelectedLabels(defaultSoftware),
     targetType: "",
     customTarget: "",
     labelTargets: {},
@@ -205,7 +202,6 @@ const EditSoftwareModal = ({
   };
 
   const onEditSoftware = (formData: IPackageFormData) => {
-    console.log(formData);
     // Check for changes to conditionally confirm save changes modal
     const updates = deepDifference(formData, {
       software,
@@ -215,8 +211,8 @@ const EditSoftwareModal = ({
       uninstallScript: software.uninstall_script || "",
       selfService: software.self_service || false,
       targetType: getTargetType(software),
-      // customTarget: getCustomTarget(software),
-      // labelTargets: generateSelectedLabels(software),
+      customTarget: getCustomTarget(software),
+      labelTargets: generateSelectedLabels(software),
     });
 
     setPendingUpdates(formData);
