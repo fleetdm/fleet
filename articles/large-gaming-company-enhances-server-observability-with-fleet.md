@@ -78,3 +78,4 @@ By adopting Fleet for server observability, they've successfully addressed scala
 <meta name="publishedOn" value="2024-12-11">
 <meta name="articleTitle" value="Large gaming company enhances server observability with Fleet">
 <meta name="description" value="Large gaming company enhances server observability with Fleet">
+<meta name="showOnTestimonialsPageWithEmoji" value="🔌">

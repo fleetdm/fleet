@@ -511,17 +511,23 @@ module.exports = {
                     if (!isExternal) { // If the image is hosted on fleetdm.com, we'll modify the meta value to reference the file directly in the `website/assets/` folder
                       embeddedMetadata.articleImageUrl = embeddedMetadata.articleImageUrl.replace(/https?:\/\//, '').replace(/^fleetdm\.com/, '');
                     } else { // If the value is a link to an image that will not be hosted on fleetdm.com, we'll throw an error.
-                      throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be an image that will be hosted on fleetdm.com`);
+                      throw new Error(`Failed compiling markdown content: An article page has an invalid articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be an image that will be hosted on fleetdm.com`);
                     }
                   } else if(inWebsiteAssetFolder) { // If the `articleImageUrl` value is a relative link to the `website/assets/` folder, we'll modify the value to link directly to that folder.
                     embeddedMetadata.articleImageUrl = embeddedMetadata.articleImageUrl.replace(/^\.\.\/website\/assets/g, '');
                   } else { // If the value is not a url and the relative link does not go to the 'website/assets/' folder, we'll throw an error.
-                    throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be a URL or repo relative link to an image in the 'website/assets/images' folder`);
+                    throw new Error(`Failed compiling markdown content: An article page has an invalid articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be a URL or repo relative link to an image in the 'website/assets/images' folder`);
                   }
                 }
                 if(embeddedMetadata.description && embeddedMetadata.description.length > 150) {
                   // Throwing an error if the article's description meta tag value is over 150 characters long
                   throw new Error(`Failed compiling markdown content: An article page has an invalid description meta tag (<meta name="description" value="${embeddedMetadata.description}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, make sure the value of the meta description is less than 150 characters long.`);
+                }
+                if(embeddedMetadata.showOnTestimonialsPageWithEmoji){
+                  // Throw an error if a showOnTestimonialsPageWithEmoji value is not one of: 🥀, 🔌, 🚪, or 🪟.
+                  if(!['🥀', '🔌', '🚪', '🪟'].includes(embeddedMetadata.showOnTestimonialsPageWithEmoji)){
+                    throw new Error(`Failed compiling markdown content: An article page has an invalid showOnTestimonialsPageWithEmoji meta tag (<meta name="showOnTestimonialsPageWithEmoji" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be one of 🥀, 🔌, 🚪, or 🪟 and try running this script again.`);
+                  }
                 }
                 // For article pages, we'll attach the category to the `rootRelativeUrlPath`.
                 // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'

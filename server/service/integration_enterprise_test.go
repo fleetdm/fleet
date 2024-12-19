@@ -6197,22 +6197,38 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `$FLEET_SECRET_INVALID`)
 
+	// Upload a valid secret
+	secretValue := "abc123"
+	req := secretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{
+				Name:  "FLEET_SECRET_TestRunHostScript",
+				Value: secretValue,
+			},
+		},
+	}
+	secretResp := secretVariablesResponse{}
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
+
 	// create a valid script execution request
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
+	expectedScriptContents := "echo ${FLEET_SECRET_TestRunHostScript}"
+	expectedScriptContentsWithSecret := fmt.Sprintf("echo %s", secretValue)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run",
+		fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: expectedScriptContents}, http.StatusAccepted, &runResp)
 	require.Equal(t, host.ID, runResp.HostID)
 	require.NotEmpty(t, runResp.ExecutionID)
 
 	result, err := s.ds.GetHostScriptExecutionResult(ctx, runResp.ExecutionID)
 	require.NoError(t, err)
 	require.Equal(t, host.ID, result.HostID)
-	require.Equal(t, "echo", result.ScriptContents)
+	require.Equal(t, expectedScriptContents, result.ScriptContents)
 	require.Nil(t, result.ExitCode)
 
 	// get script result
 	var scriptResultResp getScriptResultResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
 	require.Equal(t, host.ID, scriptResultResp.HostID)
-	require.Equal(t, "echo", scriptResultResp.ScriptContents)
+	require.Equal(t, expectedScriptContents, scriptResultResp.ScriptContents)
 	require.Nil(t, scriptResultResp.ExitCode)
 	require.False(t, scriptResultResp.HostTimeout)
 	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedMsg)
@@ -6229,7 +6245,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	scriptResultResp = getScriptResultResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
 	require.Equal(t, host.ID, scriptResultResp.HostID)
-	require.Equal(t, "echo", scriptResultResp.ScriptContents)
+	require.Equal(t, expectedScriptContents, scriptResultResp.ScriptContents)
 	require.Nil(t, scriptResultResp.ExitCode)
 	require.False(t, scriptResultResp.HostTimeout)
 	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedMsg)
@@ -6277,7 +6293,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 		http.StatusOK, &orbitGetScriptResp)
 	require.Equal(t, host.ID, orbitGetScriptResp.HostID)
 	require.Equal(t, scriptResultResp.ExecutionID, orbitGetScriptResp.ExecutionID)
-	require.Equal(t, "echo", orbitGetScriptResp.ScriptContents)
+	require.Equal(t, expectedScriptContentsWithSecret, orbitGetScriptResp.ScriptContents)
 
 	// trying to get that script via its execution ID but a different host returns not found
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/request",

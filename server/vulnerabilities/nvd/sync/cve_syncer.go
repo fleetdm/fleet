@@ -628,7 +628,6 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 	var modCount int
 	for _, file := range zipReader.File {
 		cvesByYear := make(map[int][]VulnCheckCVE)
-		var stopProcessing bool
 
 		gzFile, err := file.Open()
 		if err != nil {
@@ -655,9 +654,8 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 			}
 
 			// Stop processing files if the last modified date is older than the vulncheck start
-			// date in order to avoid processing unnecessary files.
+			// date in order to avoid processing unnecessary CVEs.
 			if lastMod.Before(vulnCheckStartDate) {
-				stopProcessing = true
 				continue
 			}
 
@@ -675,10 +673,6 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 			if err := s.updateVulnCheckYearFile(year, cvesInYear, &modCount, &addCount); err != nil {
 				return err
 			}
-		}
-
-		if stopProcessing {
-			break
 		}
 
 		gReader.Close()
