@@ -1,6 +1,6 @@
 cp /var/log/orbit/orbit.stderr.log ~/Library/Logs/Fleet/fleet-desktop.log /Users/Shared
 
-echo "Successfully copied fleetd logs to the /Users/Shared folder."
+echo "Successfully copied fleetd logs to the /Users/Shared folder!"
 
 echo "To retrieve logs, ask the end user to open Finder and in the menu bar select Go > Go to Folder."
 
