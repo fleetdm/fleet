@@ -7086,7 +7086,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 ### Reset automations for all failing hosts of a policy
 
-Resets [automation](https://fleetdm.com/docs/using-fleet/automations#policy-automations) status for *all* hosts failing the specified policies. On the next automation run, any failing host will considered newly failing,
+Resets [automation](https://fleetdm.com/docs/using-fleet/automations#policy-automations) status for *all* hosts failing the specified policies. On the next automation run, any failing host will be considered newly failing.
 
 `POST /api/v1/fleet/automations/reset`
 
