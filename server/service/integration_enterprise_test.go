@@ -15163,8 +15163,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	policy2, err = s.ds.Policy(ctx, policy2.ID)
 	require.NoError(t, err)
 	// Because the installer is in scope, we do mark the policy as failed.
-	require.Equal(t, uint(0), policy1.PassingHostCount)
-	require.Equal(t, uint(1), policy1.FailingHostCount)
+	require.Equal(t, uint(0), policy2.PassingHostCount)
+	require.Equal(t, uint(1), policy2.FailingHostCount)
 
 	// We have an installation attempt for vim, because it's in scope
 	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, rubyDebTitleID)
