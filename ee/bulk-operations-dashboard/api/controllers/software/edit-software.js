@@ -91,7 +91,7 @@ module.exports = {
       } else if(isDeployedToAllTeams) {
         // Otherwise if this software was previosuly deployed to all teams, we'll update the database record to include the new lsit of team IDs.
         await AllTeamsSoftware.updateOne({ fleetApid: software.fleetApid}).set({teamApids: newTeamIds});
-      } else {
+      } else if(software.isDeployedToAllTeams) {
         // Destory an AllTeamsSoftware record (if it exists)
         await AllTeamsSoftware.destroyOne({fleetApid: software.fleetApid});
       }
