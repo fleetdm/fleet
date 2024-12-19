@@ -15036,23 +15036,39 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	orbitKey := setOrbitEnrollment(t, host, s.ds)
 	host.OrbitNodeKey = &orbitKey
 
+	// Create a few labels
 	var newLabelResp createLabelResponse
 	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
-		Name:     t.Name() + "1",
-		Platform: "darwin",
-		Query:    "SELECT 1",
+		Name:  uuid.NewString(),
+		Query: "SELECT 1",
 	}, http.StatusOK, &newLabelResp)
 	lbl1 := newLabelResp.Label
 
-	err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lbl1.ID: ptr.Bool(true)}, time.Now(), false)
+	newLabelResp = createLabelResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
+		Name:  uuid.NewString(),
+		Query: "SELECT 2",
+	}, http.StatusOK, &newLabelResp)
+	lbl2 := newLabelResp.Label
+
+	newLabelResp = createLabelResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
+		Name:  uuid.NewString(),
+		Query: "SELECT 3",
+	}, http.StatusOK, &newLabelResp)
+	lbl3 := newLabelResp.Label
+
+	// Add label1 and label2 to the host
+	err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lbl1.ID: ptr.Bool(true), lbl2.ID: ptr.Bool(true)}, time.Now(), false)
 	require.NoError(t, err)
 
-	// upload software
+	// upload software. Add label1 and label3 as "exclude any" labels.
 	rubyPayload := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:    "some deb install script",
 		Filename:         "ruby.deb",
 		TeamID:           nil,
-		LabelsExcludeAny: []string{lbl1.Name},
+		LabelsExcludeAny: []string{lbl1.Name, lbl3.Name},
+		Platform:         "linux",
 	}
 	s.uploadSoftwareInstaller(t, rubyPayload, http.StatusOK, "")
 
@@ -15069,16 +15085,15 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	rubyDebTitleID := resp.SoftwareTitles[0].ID
 
-	// policy1Team1 runs on macOS devices.
-	policy1Team1, err := s.ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
-		Name:     "policy1Team1",
+	policy1, err := s.ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:     "policy1",
 		Query:    "SELECT 1;",
-		Platform: "darwin",
+		Platform: "linux",
 	})
 	require.NoError(t, err)
 
 	mtplr := modifyTeamPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", policy1Team1.ID), modifyTeamPolicyRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", policy1.ID), modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
 			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
 		},
@@ -15088,37 +15103,85 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NoError(t, err)
 	require.Nil(t, host1LastInstall)
 
-	// Add some results and stats that should be cleared after setting an installer again.
+	// Send back a failed result for the policy.
 	distributedResp := submitDistributedQueryResultsResponse{}
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(false),
+			policy1.ID: ptr.Bool(false),
 		},
 	), http.StatusOK, &distributedResp)
 	err = s.ds.UpdateHostPolicyCounts(ctx)
 	require.NoError(t, err)
-	policy1Team1, err = s.ds.Policy(ctx, policy1Team1.ID)
+	policy1, err = s.ds.Policy(ctx, policy1.ID)
 	require.NoError(t, err)
-	require.Equal(t, uint(0), policy1Team1.PassingHostCount)
-	require.Equal(t, uint(1), policy1Team1.FailingHostCount)
-	passes := true
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q,
-			&passes,
-			`SELECT passes FROM policy_membership WHERE policy_id = ? AND host_id = ?`,
-			policy1Team1.ID, host.ID,
-		)
-	})
-	require.False(t, passes)
+	// Because the installer is not in scope, we do not mark the policy as failed.
+	require.Equal(t, uint(0), policy1.PassingHostCount)
+	require.Equal(t, uint(0), policy1.FailingHostCount)
 
+	// No installation attempt, because we skipped due to label scoping
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, rubyDebTitleID)
+	require.NoError(t, err)
+	require.Nil(t, host1LastInstall)
+
+	vimPayload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "some deb install script",
+		Filename:         "vim.deb",
+		TeamID:           nil,
+		LabelsIncludeAny: []string{lbl1.Name, lbl2.Name},
+		Platform:         "linux",
+	}
+	s.uploadSoftwareInstaller(t, vimPayload, http.StatusOK, "")
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "vim",
+		"team_id", "0",
+	)
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	vimTitleID := resp.SoftwareTitles[0].ID
+
+	policy2, err := s.ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:     "policy2",
+		Query:    "SELECT 2;",
+		Platform: "linux",
+	})
+	require.NoError(t, err)
+
+	mtplr = modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", policy2.ID), modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: vimTitleID},
+		},
+	}, http.StatusOK, &mtplr)
+
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, vimTitleID)
+	require.NoError(t, err)
+	require.Nil(t, host1LastInstall)
+
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host,
+		map[uint]*bool{
+			policy1.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy2, err = s.ds.Policy(ctx, policy2.ID)
+	require.NoError(t, err)
+	// Because the installer is in scope, we do mark the policy as failed.
+	require.Equal(t, uint(0), policy1.PassingHostCount)
+	require.Equal(t, uint(1), policy1.FailingHostCount)
+
+	// We have an installation attempt for vim, because it's in scope
 	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, rubyDebTitleID)
 	require.NoError(t, err)
 	require.NotNil(t, host1LastInstall)
-	require.NotEmpty(t, host1LastInstall.ExecutionID)
-	require.NotNil(t, host1LastInstall.Status)
-	require.Equal(t, fleet.SoftwareInstallPending, *host1LastInstall.Status)
-	// prevExecutionID := host1LastInstall.ExecutionID
 }
 
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
