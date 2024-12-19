@@ -181,7 +181,7 @@ func RawCommandEnqueueHandler(enqueuer storage.CommandEnqueuer, pusher push.Push
 		logs := []interface{}{
 			"msg", "enqueue",
 		}
-		idErrs, err := enqueuer.EnqueueCommand(ctx, ids, command)
+		idErrs, err := enqueuer.EnqueueCommand(ctx, ids, &mdm.CommandWithSubtype{Command: *command, Subtype: mdm.CommandSubtypeNone})
 		ct := len(ids) - len(idErrs)
 		if err != nil {
 			logs = append(logs, "err", err)

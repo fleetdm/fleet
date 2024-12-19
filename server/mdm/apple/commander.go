@@ -366,7 +366,30 @@ func (svc *MDMAppleCommander) EnqueueCommand(ctx context.Context, hostUUIDs []st
 		return ctxerr.Wrap(ctx, err, "decoding command")
 	}
 
-	if _, err := svc.storage.EnqueueCommand(ctx, hostUUIDs, cmd); err != nil {
+	if _, err := svc.storage.EnqueueCommand(ctx, hostUUIDs,
+		&mdm.CommandWithSubtype{Command: *cmd, Subtype: mdm.CommandSubtypeNone}); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing command")
+	}
+
+	if err := svc.SendNotifications(ctx, hostUUIDs); err != nil {
+		return ctxerr.Wrap(ctx, err, "sending notifications")
+	}
+
+	return nil
+}
+
+// EnqueueCommandInstallProfileWithSecrets is a special case of EnqueueCommand that does not expand secret variables.
+// Secret variables are expanded when the command is sent to the device, and secrets are never stored in the database unencrypted.
+func (svc *MDMAppleCommander) EnqueueCommandInstallProfileWithSecrets(ctx context.Context, hostUUIDs []string,
+	rawCommand mobileconfig.Mobileconfig, commandUUID string) error {
+	cmd := &mdm.Command{
+		CommandUUID: commandUUID,
+		Raw:         []byte(rawCommand),
+	}
+	cmd.Command.RequestType = "InstallProfile"
+
+	if _, err := svc.storage.EnqueueCommand(ctx, hostUUIDs,
+		&mdm.CommandWithSubtype{Command: *cmd, Subtype: mdm.CommandSubtypeProfileWithSecrets}); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing command")
 	}
 

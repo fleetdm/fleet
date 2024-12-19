@@ -257,7 +257,7 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 		logger.Debug(
 			"msg", "command retrieved",
 			"command_uuid", cmd.CommandUUID,
-			"request_type", cmd.Command.RequestType,
+			"request_type", cmd.Command.Command.RequestType,
 		)
 		// We expand secrets in the command before returning it to the caller so that we never store unencrypted secrets in the database.
 		expanded, err := s.store.ExpandEmbeddedSecrets(r.Context, string(cmd.Raw))
@@ -268,7 +268,7 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 		} else {
 			cmd.Raw = []byte(expanded)
 		}
-		return cmd, nil
+		return &cmd.Command, nil
 	}
 	logger.Debug(
 		"msg", "no command retrieved",
