@@ -3,7 +3,7 @@ name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
 labels: '#g-mdm,#g-endpoint-ops,:release'
-assignees: 'xpkoala,pezhub'
+assignees: 'xpkoala,pezhub,jmwatts'
 
 ---
 
@@ -111,8 +111,8 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 
 1. Verify able to run a script on all host types from CLI.
 2. Verify scripts library upload/download/delete.
-3. From Host details (Windows and macOS) run a script that should PASS, verify.
-4. From Host details (Windows and macOS) run a script that should FAIL, verify.
+3. From Host details (macOS, Windows, & Linux) run a script that should PASS, verify.
+4. From Host details (macOS, Windows, & Linux) run a script that should FAIL, verify.
 5. Verify UI loading state and statuses for scripts.
 6. Disable scripts globally and verify unable to run.
 7. Verify scripts display correctly in Activity feed.
@@ -121,40 +121,51 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 <tr><td>Software</td><td>Verify software library and install / download</td><td>
 
 1. Verify software library upload/download/delete.
-2. From Host details (Windows and macOS) run an install that should PASS, verify.
-3. From My Device (Windows and macOS) software tab should have self-service items available, verify.
+2. From Host details (macOS, Windows, & Linux) run an install that should PASS, verify.
+3. From My Device (macOS, Windows, & Linux) software tab should have self-service items available, verify.
 4. Verify UI loading state and statuses for installing software.
 6. Verify software installs display correctly in Activity feed.
 </td><td>pass/fail</td></tr>
 
 <tr><td>OS settings</td><td>Verify OS settings functionality</td><td>
 
-1. Verify able to configure Disk encryption.
+1. Verify able to configure Disk encryption (macOS, Windows, & Linux).
 2. Verify host enrolled with Disk encryption enforced successfully encrypts.
 3. Verify Profiles upload/download/delete (macOS & Windows).
-4. Verify profiles are delivered to host and applied. 
+4. Verify Profiles are delivered to host and applied. 
 </td><td>pass/fail</td></tr>
 
 <tr><td>Setup experience</td><td>Verify macOS Setup experience</td><td>
 
 1. Configure End user authentication.
 2. Upload a Bootstrap package.
-3. Enroll an ADE-eligible macOS host and verify successful authentication.
-4. Verify Bootstrap package is delivered.
+3. Add software (FMA, VPP, & Custom pkg)
+4. Add a script
+5. Enroll an ADE-eligible macOS host and verify successful authentication.
+6. Verify Bootstrap package is delivered.
+7. Verify SwiftDialogue window displays.
+8. Verify software installs and script runs.
 </td><td>pass/fail</td></tr>
 
 <tr><td>OS updates</td><td>Verify OS updates flow</td><td>
 
 1. Configure OS updates (macOS & Windows).
-2. Verify on-device that Nudge prompt appears (macOS). 
+2. Verify on-device that Nudge prompt appears (macOS 13).
+3. Verify enforce minimumOS occurs during enrollment (macOS 14+).
 </td><td>pass/fail</td></tr>
 
+<tr><td>iOS/iPadOS</td><td>Verify enrollment, profiles, & software installs</td><td>
 
+1. Verify ADE enrollment.
+2. Verify OTA enrollment.
+3. Verify Profiles are delivered to host and applied.
+4. Verify VPP apps install & display correctly in Activity feed.
+ 
 <tr><td>Certificates Upload</td><td>APNs cert and ABM token renewal workflow</td><td>
 
 1. Renew APNs Certificate.
 2. Renew ABM Token.
-3. Ensure ADE host can enroll.
+3. Ensure ADE hosts can enroll.
 </td><td>pass/fail</td></tr>
 
 <tr><td>Migration Test</td><td>Verify Fleet can migrate to the next version with no issues.</td><td>
