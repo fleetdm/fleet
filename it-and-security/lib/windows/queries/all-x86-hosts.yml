@@ -4,3 +4,4 @@ spec:
   name: All ARM hosts
   query: SELECT * FROM os_version WHERE arch NOT LIKE 'ARM%';
   platform: "windows"
+  

@@ -2,3 +2,4 @@ url: https://zoom.us/client/6.3.0.52884/ZoomInstallerFull.exe?archType=winarm64
 self-service: true
 pre_install_query:
   path: ../queries/all-arm-hosts.yml
+  

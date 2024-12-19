@@ -2,3 +2,4 @@ url: https://downloads.slack-edge.com/desktop-releases/windows/x64/4.41.105/Slac
 self_service: true
 pre_install_query:
   path: ../queries/all-x86-hosts.yml
+  
