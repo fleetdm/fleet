@@ -57,6 +57,8 @@
           <a class="nav-item nav-link ml-3 mr-3 d-flex align-items-center" href="/scripts">Scripts</a>
           <a class="nav-item nav-link ml-3 mr-3 d-flex align-items-center" href="/software">Software</a>
           <% if(me) { %>
+
+          <a class="nav-item nav-link ml-3 d-flex align-items-center" href="/account">Account</a>
           <a class="nav-item nav-link ml-3 d-flex align-items-center" href="/logout">Sign out</a>
           <% } else { %>
           <a class="nav-item nav-link ml-3 d-flex align-items-center mr-2" href="/login">Log in</a>
@@ -68,6 +70,7 @@
             <a class="dropdown-item nav-link" href="/dashboard">Configuration profiles</a>
             <a class="dropdown-item nav-link" href="/patch-progress">Scripts</a>
             <% if(me) { %>
+            <a class="dropdown-item nav-link" href="/account">Account</a>
             <a class="dropdown-item nav-link" href="/logout">Sign out</a>
             <% } else { %>
             <a class="dropdown-item nav-link" href="/login">Log in</a>
