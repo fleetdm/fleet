@@ -374,15 +374,19 @@ func (svc *MDMAppleCommander) EnqueueCommand(ctx context.Context, hostUUIDs []st
 		return ctxerr.Wrap(ctx, err, "decoding command")
 	}
 
+	return svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeNone)
+}
+
+func (svc *MDMAppleCommander) enqueueAndNotify(ctx context.Context, hostUUIDs []string, cmd *mdm.Command,
+	subtype mdm.CommandSubtype) error {
 	if _, err := svc.storage.EnqueueCommand(ctx, hostUUIDs,
-		&mdm.CommandWithSubtype{Command: *cmd, Subtype: mdm.CommandSubtypeNone}); err != nil {
+		&mdm.CommandWithSubtype{Command: *cmd, Subtype: subtype}); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing command")
 	}
 
 	if err := svc.SendNotifications(ctx, hostUUIDs); err != nil {
 		return ctxerr.Wrap(ctx, err, "sending notifications")
 	}
-
 	return nil
 }
 
@@ -396,16 +400,7 @@ func (svc *MDMAppleCommander) EnqueueCommandInstallProfileWithSecrets(ctx contex
 	}
 	cmd.Command.RequestType = "InstallProfile"
 
-	if _, err := svc.storage.EnqueueCommand(ctx, hostUUIDs,
-		&mdm.CommandWithSubtype{Command: *cmd, Subtype: mdm.CommandSubtypeProfileWithSecrets}); err != nil {
-		return ctxerr.Wrap(ctx, err, "enqueuing command")
-	}
-
-	if err := svc.SendNotifications(ctx, hostUUIDs); err != nil {
-		return ctxerr.Wrap(ctx, err, "sending notifications")
-	}
-
-	return nil
+	return svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeProfileWithSecrets)
 }
 
 func (svc *MDMAppleCommander) SendNotifications(ctx context.Context, hostUUIDs []string) error {
