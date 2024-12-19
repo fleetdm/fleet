@@ -3,7 +3,7 @@ name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
 labels: '#g-mdm,#g-endpoint-ops,:release'
-assignees: 'xpkoala,pezhub'
+assignees: 'xpkoala,pezhub,jmwatts'
 
 ---
 
@@ -143,7 +143,7 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 4. Add a script
 5. Enroll an ADE-eligible macOS host and verify successful authentication.
 6. Verify Bootstrap package is delivered.
-7. Verify SwiftDialogue window dispplays.
+7. Verify SwiftDialogue window displays.
 8. Verify software installs and script runs.
 </td><td>pass/fail</td></tr>
 
