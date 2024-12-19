@@ -31,7 +31,7 @@ The 🚀 Engineering department at Fleet is directly responsible for writing and
 We write [guides](https://fleetdm.com/guides) for all new features. Feature guides are published before the feature is released so that our users understand how the feature is intended to work. A guide is a type of article, so the process for writing a guide and article is the same.
 
 1. Review and follow the [Fleet writing style guide](https://fleetdm.com/handbook/company/communications#writing).
-2. Make a copy of a guide in the `/articles` directory and replace the content with your article. Make sure to maintain the same heading sizes and update the metadata tags at the bottom.
+2. Make a copy of a guide in the [/articles](https://github.com/fleetdm/fleet/tree/main/articles) directory and replace the content with your article. Make sure to maintain the same heading sizes and update the metadata tags at the bottom.
 3. Open a new pull request containing your article into `main` and add the pull request to the milestone this feature will be shipped in. The pull request will automatically be assigned to the appropriate reviewer.
 
 
@@ -43,9 +43,9 @@ It is important to frame engineering-initiated user stories the same way we fram
 
 To [create an engineering-initiated user story](https://fleetdm.com/handbook/engineering#creating-an-engineering-initiated-story), follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=lukeheath&labels=story,~engineering-initiated&projects=&template=story.md&title=), make sure the `~engineering-initiated` label is added, the `:product` label is removed, and the engineering output and architecture DRI (@lukeheath) is assigned. 
 
-What happens next? The engineering output and architecture DRI reviews engineering-initiated stories weekly. 
+What happens next? The engineering output and architecture DRI reviews and triages engineering-initiated stories weekly on the [engineering board](https://app.zenhub.com/workspaces/engineering-672a4556609a0d000f391584/board). 
 
-If there are product changes (i.e. interface, documentation, or dependency changes), the story is added to the "New requests" column on the drafting board.
+If there are product changes (i.e. interface, documentation, or dependency changes), leave the default labels in place so that it is triaged on the product [drafting board](https://app.zenhub.com/workspaces/drafting-6192dd66ea2562000faea25c/board).
 
 If there are no product changes, and the DRI decides to prioritize the story, the story is added to the "Specified" column on the drafting board so that it can be estimated.
 
@@ -54,10 +54,7 @@ If there are no product changes, and the DRI decides to prioritize the story, th
 
 ### Fix a bug
 
-All bug fix pull requests should have a mention back to the issue they resolve with `#<ticket_number>` in the description or even in a comment. Please do not use any [automated words](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword) since we don't want the tickets auto-closing when PR's are merged. 
-If the bug is labeled `~unreleased bug`, branch off and put your PR into `main`. These issues can be closed as soon as they complete QA.
-
-If the bug is labeled `~released bug`, branch off and put your PR into `main`. After merging checkout the latest tag, for example `git checkout fleet-v4.48.2`, then `git fetch; git cherry-pick <commit>`. If the cherry-pick fails with a conflict call out in the ticket how to resolve or if it is sufficiently complicated call out this fix is not suited for the patch release process and should only be included in the end of sprint release. This approach makes sure the bug fix is not built on top of unreleased feature code, which can cause merge conflicts during patch releases. 
+All bug fix pull requests should reference the issue they resolve with the issue number in the description. Please do not use any [automated words](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword) since we don't want the issues to auto-close when the PR is merged.
 
 
 ### Create a release candidate
@@ -76,13 +73,19 @@ During the release candidate period, the release candidate is deployed to our QA
 Open the [confidential repo environment variables](https://github.com/fleetdm/confidential/settings/variables/actions) page and update the `QAWOLF_DEPLOY_TAG` repository variable with the name of the release candidate branch. 
 
 
-### Merge bug fixes into the release candidate
+### Merge unreleased bug fixes into the release candidate
 
-Only merge bug fixes during the release candidate period to minimize code churn and help ensure a stable release. To merge a bug fix into the release candidate, it should first be merged into `main`. Then, `git checkout` the release candidate branch and create a new local branch. Next, `git cherry-pick` your commit from `main` into your new local branch, then create a pull request from your new branch to the release candidate. This process ensures your bug fix is included in `main` for future releases, as well as the release candidate branch for the pending release.
+Only merge unreleased bug fixes during the release candidate period to minimize code churn and help ensure a stable release. To merge a bug fix into the release candidate:
 
-> To allow a stable release test, the final 24 hours before release is a deep freeze when only bugs with the `~release-blocker` or `~unreleased-bug` labels are merged.
+1. Merge the fix into `main`. 
+2. `git checkout` the release candidate branch and create a new local branch. 
+3. `git cherry-pick` your commit from `main` into your new local branch.
+4. Create a pull request from your new branch to the release candidate. 
+
+This process ensures your bug fix is included in `main` for future releases, as well as the release candidate branch for the pending release.
 
 If there is partially merged feature work when the release candidate is created, the previously merged code must be reverted. If there is an exceptional, business-critical need to merge feature work into the release candidate, as determined by the [release ritual DRI](#rituals), the release candidate [feature merge exception process](https://fleetdm.com/handbook/engineering#request-release-candidate-feature-merge-exception) may be followed.
+
 
 ### Request release candidate feature merge exception
 
@@ -104,6 +107,7 @@ Before kicking off release QA, confirm that we are using the latest versions of 
 - If the latest major version is greater than the version included in Fleet, [create a story](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the current oncall engineer. This will be considered for an upcoming sprint. The release can proceed without upgrading the major version.
 
 > In Go versioning, the number after the first dot is the "major" version, while the number after the second dot is the "minor" version. For example, in Go 1.19.9, "19" is the major version and "9" is the minor version. Major version upgrades are assessed separately by engineering.
+
 
 2. **macadmins-extension**: Latest release
 - Check the [latest version of the macadmins-extension](https://github.com/macadmins/osquery-extension/releases).
@@ -142,7 +146,12 @@ Once a product group completes its QA process during the release candidate perio
 
 ### Prepare Fleet release
 
-Documentation on completing the release process can be found [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md).
+Documentation on completing the Fleet release process can be found [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md).
+
+
+### Prepare fleetd agent release
+
+Documentation on completing the fleetd agent release process can be found [here](https://github.com/fleetdm/fleet/tree/main/tools/tuf/).
 
 
 ### Deploy a new release to dogfood
@@ -196,59 +205,16 @@ The [Fleet releases Google calendar](https://calendar.google.com/calendar/embed?
 
 ### Handle process exceptions for non-released code
 
-Some of our code does not go through a scheduled release process, but is released immediately via GitHub workflows. 
-This includes:
-- Our [fleetdm/nvd](https://github.com/fleetdm/nvd) repository
-- Our [fleetdm/vulnerabilities](https://github.com/fleetdm/vulnerabilities) repository
-- Our [website](https://github.com/fleetdm/fleet/tree/main/website) directory
+Some of our code does not go through a scheduled release process, but is released immediately via GitHub workflows. This includes:
+
+- The [fleetdm/nvd](https://github.com/fleetdm/nvd) repository.
+- The [fleetdm/vulnerabilities](https://github.com/fleetdm/vulnerabilities) repository.
+- Our [website](https://github.com/fleetdm/fleet/tree/main/website) directory.
 
 In these cases there are two differences in our process:
+
 - QA is done before merging the code change to the main branch.
 - Tickets are not moved to "Ready for release". Bug are closed, and user stories are moved to the product drafting board's "Confirm and celebrate" column.
-
-
-### Register a domain for Fleet
-
-Domain name registrations are handled through Namecheap. Access is managed via 1Password.
-
-
-### Fix a laptop that's not checking in
-
-It is [possible for end users to remove launch agents](https://github.com/fleetdm/confidential/issues/6088) (this is true not just for osquery, but for anything). 
-
-If the host has MDM turned on, use the `fleetctl mdm run-command` CLI command to push the XML file located at https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/commands/macos-send-fleetd.xml to the device, which will reinstall fleetd.
-
-If the host doesn't have MDM turned on or isn't enrolled to dogfood, it is beyond our ability to control remotely.
-
-
-### Enroll a macOS host in dogfood
-
-When a device is purchased using the Apple eCommerce store, the device is automatically enrolled in Apple Business Manager (ABM) and assigned to the correct server to ensure the device is in dogfood.
-You can confirm that the device has been ordered correctly by following these steps:
-- Log into ABM
-- Use the device serial number to find the device.
-  - Note: if the device cannot be found, you will need to manually enroll the device.
-- View device settings and ensure the "MDM Server" selected is "Fleet Dogfood".
-
-On occasion there will be a need to manually enroll a macOS host in dogfood. This could be due to a BYOD arrangement, or because the Fleetie getting the device is in a country when DEP (automatic enrollment) isn't supported. To manually enroll a macOS host in dogfood, follow these steps:
-- If you have physical access to the macOS host, use Apple Configurator (docs are [here](https://support.apple.com/guide/apple-business-manager/add-devices-from-apple-configurator-axm200a54d59/web)).
-- If you do not have physical access to the device, the user will need to undertake the following steps:
-  - Install the fleetd package for your device from shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
-  - Once fleetd is installed, click on Fleet desktop icon in top right menu bar, and select "My device".
-  - In Fleet desktop, follow the instructions to turn on MDM.
-  - Once complete, follow instructions to reset disk encryption key.
-- Disk encryption key will now be stored in Fleet dogfood, which signifies that the device is now enrolled in dogfood.
-
-
-### Enroll a Windows or Ubuntu Linux device in dogfood
-
-To enroll a windows or Ubuntu Linux device in dogfood, instruct the user to install fleetd for their platform from internal shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
-Once the user has installed fleetd, verify the device is correctly enrolled by confirming the device encryption key is in dogfood.
-
-
-### Enroll a ChromeOS device in dogfood
-
-ChromeOS devices are automatically enrolled in dogfood after the IT admin sets up automatic enrollment. This is done in dogfood by following the steps found in the dialog popup when selecting "Add hosts > ChromeOS" from the dogfood Hosts page.
 
 
 ### Review a community pull request
@@ -305,20 +271,15 @@ On-call engineers are available during the business hours of 9am - 5pm Pacific. 
 
 ### Assume developer on-call alias
 
-The on-call developer is responsible for: 
+The on-call developer is responsible for:
+
 - Knowing [the on-call rotation](https://fleetdm.com/handbook/company/product-groups#the-developer-on-call-rotation).
 - Performing the [on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities).
 - [Escalating community questions and issues](https://fleetdm.com/handbook/company/product-groups#escalations).
 - Successfully [transferring the on-call persona to the next developer](https://fleetdm.com/handbook/company/product-groups#changing-of-the-guard).
-- Work on an [engineering-initiated story](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story).
+- Working on an [engineering-initiated story](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story).
 
-Some additional ideas:
-
-- Do training/learning relevant to your work.
-- Improve the Fleet contributor experience.
-- Hack on a product idea. Note: Experiments are encouraged, but not all experiments will ship! Check in with the product team before shipping user-visible changes.
-- Create a blog post (or other content) for fleetdm.com.
-- Try out an experimental refactor. 
+To provide full-time focus to the role, the on-call engineer is not expected to work on sprint issues during their on-call assignment.
 
 
 ### Notify stakeholders when a user story is pushed to the next release
@@ -373,7 +334,7 @@ Conduct a postmortem meetings for every service or feature outage and every crit
 
 ### Provide same-day support for major version macOS releases
 
-Beginning with macOS 16, Fleet will offer same-day support for all major version macOS releases. 
+Beginning with macOS 16, Fleet offers same-day support for all major version macOS releases. 
 
 1. Install major version macOS beta release on test devices. 
 2. Create a new [QA release issue](https://github.com/fleetdm/fleet/issues/new?assignees=xpkoala%2Cpezhub&labels=%23g-mdm%2C%23g-endpoint-ops%2C%3Arelease&projects=&template=release-qa.md&title=Release+QA%3A+macOS+16) with the new major version in the issue title.
@@ -381,6 +342,24 @@ Beginning with macOS 16, Fleet will offer same-day support for all major version
 4. Confirm all automated tests are passing.
 5. [File bugs](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=P1%2Cbug%2C%3Areproduce%2C%3Aincoming&projects=&template=bug-report.md&title=) with a `P1` label and assign to the appropriate [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups).
 6. When all bugs are fixed, follow the [writing a feature guide](https://fleetdm.com/handbook/engineering#write-a-feature-guide) process to publish an article announcing Fleet same-day support for the new major release.
+
+
+### Fix flaky Go tests
+
+Sometimes automated tests fail intermittently, causing PRs to become blocked and engineers to become sad and vengeful. Debugging a "flaky" or "rando" test failure typically involves:
+
+- Adding extra logs to the test and/or related code to get more information about the failure.
+- Running the test multiple times to reproduce the failure.
+- Implementing an attempted fix to the test (or the related code, if there's an actual bug).
+- Running the test multiple times to try and verify that the test no longer fails.
+
+To aid in this process, we have the Stress Test Go Test action (aka the RandoKiller™).  This is a Github Actions workflow that can be used to run one or more Go tests repeatedly until they fail (or until they pass a certain number of times).  To use the RandoKiller:
+
+- Create a branch whose name ends with `-randokiller` (for example `sgress454/enqueue-mdm-command-randokiller`).
+- Modify the [.github/workflows/config/randokiller.json](https://github.com/fleetdm/fleet/blob/main/.github/workflows/config/randokiller.json) file to your specifications (choosing the packages and tests to run, the mysql matrix, and the number of runs to do).
+- Push up the branch with whatever logs/changes you need to help diagnose or fix the flaky test.
+- Monitor the [Stress Test Go Test](https://github.com/fleetdm/fleet/actions/workflows/randokiller-go.yml) workflow for your branch.  
+- Repeat until the stress test passes!  Every push to your branch will trigger a new run of the workflow.
 
 
 ### Record engineering KPIs
@@ -449,23 +428,6 @@ Steps to renew the certificate:
 
 Instructions for creating and maintaining a TUF repo are available on our [TUF handbook page](https://fleetdm.com/handbook/engineering/tuf). 
 
-
-### Fix flaky Go tests
-
-Sometimes automated tests fail intermittently, causing PRs to become blocked and engineers to become sad and vengeful. Debugging a "flaky" or "rando" test failure typically involves:
-
-* Adding extra logs to the test and/or related code to get more information about the failure.
-* Running the test multiple times to reproduce the failure.
-* Implementing an attempted fix to the test (or the related code, if there's an actual bug).
-* Running the test multiple times to try and verify that the test no longer fails.
-
-To aid in this process, we have the Stress Test Go Test action (aka the RandoKiller™).  This is a Github Actions workflow that can be used to run one or more Go tests repeatedly until they fail (or until they pass a certain number of times).  To use the RandoKiller:
-
-* Create a branch whose name ends with `-randokiller` (for example `sgress454/enqueue-mdm-command-randokiller`).
-* Modify the [.github/workflows/config/randokiller.json](https://github.com/fleetdm/fleet/blob/main/.github/workflows/config/randokiller.json) file to your specifications (choosing the packages and tests to run, the mysql matrix, and the number of runs to do).
-* Push up the branch with whatever logs/changes you need to help diagnose or fix the flaky test.
-* Monitor the [Stress Test Go Test](https://github.com/fleetdm/fleet/actions/workflows/randokiller-go.yml) workflow for your branch.  
-* Repeat until the stress test passes!  Every push to your branch will trigger a new run of the workflow.
 
 ## Rituals
 
