@@ -13,6 +13,7 @@ import (
 
 	eefleetctl "github.com/fleetdm/fleet/v4/ee/fleetctl"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/filepath_windows"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog"
@@ -127,7 +128,7 @@ func packageCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:        "update-url",
 				Usage:       "URL for update server",
-				Value:       "https://tuf.fleetctl.com",
+				Value:       update.DefaultURL,
 				Destination: &opt.UpdateURL,
 			},
 			&cli.StringFlag{

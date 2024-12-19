@@ -61,7 +61,8 @@ LINUX_TEST_EXTENSIONS="./tools/test_extensions/hello_world/linux/hello_world_lin
 To build for a specific architecture, you can pass the `GOARCH` environment variable:
 ``` shell
 [...]
-GOARCH=arm64 # defaults to amd64
+# defaults to amd64
+GOARCH=arm64 \
 [...]
 ./tools/tuf/test/main.sh
 ```
