@@ -8,6 +8,7 @@ import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 
 import Button from "components/buttons/Button";
+import Radio from "components/forms/fields/Radio";
 import Checkbox from "components/forms/fields/Checkbox";
 import FileUploader from "components/FileUploader";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -20,6 +21,7 @@ export const baseClass = "package-form";
 
 export interface IPackageFormData {
   software: File | null;
+  automaticInstall?: boolean;
   preInstallQuery?: string;
   installScript: string;
   postInstallScript?: string;
@@ -30,6 +32,7 @@ export interface IPackageFormData {
 export interface IFormValidation {
   isValid: boolean;
   software: { isValid: boolean };
+  automaticInstall?: { isValid: boolean };
   preInstallQuery?: { isValid: boolean; message?: string };
   postInstallScript?: { isValid: boolean; message?: string };
   uninstallScript?: { isValid: boolean; message?: string };
@@ -150,6 +153,11 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
+  const onChangeInstallType = (value: string) => {
+    const newData = { ...formData, automaticInstall: value === "automatic" };
+    setFormData(newData);
+  };
+
   const onToggleSelfServiceCheckbox = (value: boolean) => {
     const newData = { ...formData, selfService: value };
     setFormData(newData);
@@ -176,6 +184,45 @@ const PackageForm = ({
             formData.software ? getFileDetails(formData.software) : undefined
           }
         />
+        <div className={`form-field ${baseClass}__install-type`}>
+          <div className="form-field__label">Install</div>
+          <Radio
+            className={`${baseClass}__radio-input`}
+            label="Manual"
+            id="manual-radio-button"
+            checked={!formData.automaticInstall}
+            value="manual"
+            name="install-type"
+            onChange={onChangeInstallType}
+            helpText="Manually install on Host details page for each host."
+          />
+          <Radio
+            className={`${baseClass}__radio-input`}
+            label="Automatic"
+            id="automatic-radio-btn"
+            checked={formData.automaticInstall}
+            value="automatic"
+            name="install-type"
+            onChange={onChangeInstallType}
+            helpText={
+              <>
+                Automatically install on each host that&apos;s missing{" "}
+                <TooltipWrapper
+                  tipContent={
+                    <>
+                      If the host already has any version of this
+                      <br /> software, it won&apos;t be installed.
+                    </>
+                  }
+                >
+                  this software
+                </TooltipWrapper>
+                . Policy that triggers install can be customized after software
+                is added.
+              </>
+            }
+          />
+        </div>
         <Checkbox
           value={formData.selfService}
           onChange={onToggleSelfServiceCheckbox}

@@ -32,6 +32,10 @@ const FORM_VALIDATION_CONFIG: Record<
       },
     ],
   },
+  automaticInstall: {
+    // no validations related to self service
+    validations: [],
+  },
   preInstallQuery: {
     validations: [
       {
