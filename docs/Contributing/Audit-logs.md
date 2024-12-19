@@ -1302,6 +1302,24 @@ This activity contains the following fields:
 }
 ```
 
+## applied_spec_software
+
+Generated when a user edits the software of a team (or no team) via the fleetctl CLI.
+This activity contains the following fields:
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the software applies to, null if they apply to devices that are not in a team.
+- "team_name": The name of the team that the software applies to, null if they apply to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 ## enabled_vpp
 
 Generated when VPP features are enabled in Fleet.
