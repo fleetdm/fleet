@@ -325,6 +325,18 @@ export default {
     formData.append("post_install_script", data.postInstallScript || "");
     formData.append("uninstall_script", data.uninstallScript || "");
 
+    // clear out labels if targetType is "All hosts"
+    if (
+      data.targetType === "All hosts" &&
+      Object.keys(data.labelTargets).length > 0
+    ) {
+      if (data.customTarget === "labelsIncludeAny") {
+        formData.append("labels_include_any", "[]");
+      } else {
+        formData.append("labels_exclude_any", "[]");
+      }
+    }
+
     return sendRequestWithProgress({
       method: "PATCH",
       path: EDIT_SOFTWARE_PACKAGE(softwareId),

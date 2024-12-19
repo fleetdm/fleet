@@ -23,6 +23,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
             failed_uninstall: 1,
           },
           install_script: "echo foo",
+          uninstall_script: "echo bar",
           icon_url: "https://example.com/icon.png",
           automatic_install_policies: [],
           last_install: null,
