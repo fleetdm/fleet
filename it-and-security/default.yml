@@ -80,6 +80,11 @@ policies:
 queries:
   - path: ./lib/all/queries/collect-fleetd-update-channels.yml
 controls: 
+  enable_disk_encryption: true
+  macos_migration:
+    enable: true
+    mode: voluntary
+    webhook_url: $DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL
   windows_enabled_and_configured: true
   windows_migration:
     enable: true
