@@ -131,7 +131,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 	}
 	appConfig := &fleet.AppConfig{MDM: fleet.MDM{
 		EnabledAndConfigured:  true,
-		EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: ssoSettings},
+		EndUserAuthentication: &fleet.MDMEndUserAuthentication{SSOProviderSettings: ssoSettings},
 		MacOSSetup: fleet.MacOSSetup{
 			BootstrapPackage:            optjson.SetString("https://example.com/bootstrap.pkg"),
 			EnableEndUserAuthentication: true,
@@ -239,7 +239,8 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		certPEM, keyPEM, tokenBytes, err := mysql.GenerateTestABMAssets(t)
 		require.NoError(t, err)
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-			_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			_ sqlx.QueryerContext,
+		) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 				fleet.MDMAssetABMCert:            {Name: fleet.MDMAssetABMCert, Value: certPEM},
 				fleet.MDMAssetABMKey:             {Name: fleet.MDMAssetABMKey, Value: keyPEM},
