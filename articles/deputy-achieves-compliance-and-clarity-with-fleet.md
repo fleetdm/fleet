@@ -1,12 +1,5 @@
 # How Deputy achieved compliance and clarity with Fleet—keeping shift work in sync
 
-<div purpose="attribution-quote">
-
-“We were using Fleet to get some accurate reporting on browsers that people are using - it's useful to have that clear picture when we go and talk to SLT and can back those decisions up with some actual stats” 
-
-**- John Howell, Director of IT**
-</div>
-
 ## Challenge
 
 [Deputy](https://www.deputy.com/), a global leader in workforce management software, needed a reliable way to capture device telemetry, troubleshoot issues, and ensure accurate reporting on OS and software updates to maintain SLA compliance. The increasing number of software applications and browser extensions introduced additional complexity, leading to compliance challenges and gaps across cross-functional teams.
@@ -15,13 +8,6 @@
 Deputy immediately leveraged Fleet’s robust [API](https://fleetdm.com/docs/rest-api/rest-api) to streamline reporting and enhance visibility across their infrastructure. The engineering team quickly automated reporting processes, delivering regular snapshots of their hosts directly into [Slack](https://slack.com/) channels. This provided security and operations teams with the transparency needed to monitor system health effectively. Using creative solutions, the team built a ‘rolling’ delta to track changes as OS updates were released and patched, enabling real-time updates to the Director of Security.
 
 Previously reliant on [Kolide](https://www.kolide.com/), Deputy reduced costs by transitioning to Fleet while benefiting from hands-on support and direct access to Fleet’s engineers. They spun up a [dedicated Fleet instance](https://fleetdm.com/docs/deploy/deploy-fleet) on their managed infrastructure, tailoring configurations and deployments to meet the unique needs of their organization.
-
-<div>
-
-“We want to use Fleet to specifically build a catalog of what's currently in use across our hosts. I've said to the team, get that reporting out of Fleet. Let's see what people are using. if we found something that we weren't happy with through that reporting, it'd be quite useful to pick that up."
-
-**- John Howell, Director of IT**
-</div>
 
 ## Results
 

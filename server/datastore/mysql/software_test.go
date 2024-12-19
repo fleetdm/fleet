@@ -5258,6 +5258,8 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, host, false)
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
+	time.Sleep(time.Second) // ensure the labels_updated_at timestamp is before labels creation
+
 	// create a software installer
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
@@ -5324,6 +5326,10 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 
 	// assign the label to the host
 	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{label1.ID}))
+	host.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
 
 	// assign the label to the software installer
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID1, fleet.LabelIdentsWithScope{
@@ -5407,6 +5413,10 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 
 	// Now host has label1, label2
 	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{label2.ID}))
+	host.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
 
 	// List should be back to just installer1
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
@@ -5443,6 +5453,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	installerID3, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, installer3)
 	require.NoError(t, err)
 
+	time.Sleep(time.Second)
 	expectedInstallers[installer3.Filename] = &fleet.SoftwarePackageOrApp{
 		Name:        installer3.Filename,
 		Version:     installer3.Version,
@@ -5459,7 +5470,29 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// We should have [installerID1, installerID3]
+	// We should have [installerID1, installerID3], but the exclude any label has
+	// no results for this host yet, so it's just installerID1 for now.
+	software, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	// installer1 is still in scope
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+
+	// installer3 is not in scope yet, because label is "exclude any" and host doesn't have results
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID3, host.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
+
+	// mark as if label had been reported (but host is still not a member)
+	host.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
+	// now has 2 software (installer1 and 3)
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	checkSoftware(software, installer2.Filename)
@@ -5470,9 +5503,9 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.True(t, scoped)
 
 	// installer3 is in scope, because label is "exclude any" and host doesn't have the label
-	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID2, host.ID)
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID3, host.ID)
 	require.NoError(t, err)
-	require.False(t, scoped)
+	require.True(t, scoped)
 
 	// Now include hosts with label4. No host has this label, so we shouldn't see installerID3 anymore.
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID3, fleet.LabelIdentsWithScope{
@@ -5490,4 +5523,9 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
 	require.NoError(t, err)
 	require.True(t, scoped)
+
+	// installer3 is not in scope
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID3, host.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
 }
