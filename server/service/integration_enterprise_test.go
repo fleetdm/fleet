@@ -10779,8 +10779,17 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), b.Bytes(), http.StatusOK, headers)
 		expectedPayload := *payload
 		expectedPayload.LabelsIncludeAny = nil
-		expectedPayload.LabelsExcludeAny = []string{t.Name()}
+		expectedPayload.LabelsExcludeAny = []string{labelResp.Label.Name}
 		checkSoftwareInstaller(t, &expectedPayload)
+
+		// Create a host and assign the label to it
+		host := createOrbitEnrolledHost(t, "linux", "label_host", s.ds)
+		err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{labelResp.Label.ID: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+
+		// Attempt to install. Should fail because label is "exclude any"
+		resp := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(resp.Body), "Couldn't install. Host isn't member of the labels defined for this software title.")
 
 		// patch the software installer again but this time change the pre install query and leave the labels as is
 		var b2 bytes.Buffer
@@ -10795,9 +10804,29 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		}
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), b2.Bytes(), http.StatusOK, headers)
 		expectedPayload.PreInstallQuery = "some other pre install query"
-		expectedPayload.LabelsIncludeAny = nil                // no change
-		expectedPayload.LabelsExcludeAny = []string{t.Name()} // no change
+		expectedPayload.LabelsIncludeAny = nil                            // no change
+		expectedPayload.LabelsExcludeAny = []string{labelResp.Label.Name} // no change
 		checkSoftwareInstaller(t, &expectedPayload)
+
+		// update the label to be "include any". This should allow for the installation to happen.
+		var b3 bytes.Buffer
+		w3 := multipart.NewWriter(&b3)
+		require.NoError(t, w3.WriteField("team_id", "0"))
+		require.NoError(t, w3.WriteField("pre_install_query", "some other pre install query"))
+		require.NoError(t, w3.WriteField("labels_include_any", labelResp.Label.Name))
+		w3.Close()
+		headers = map[string]string{
+			"Content-Type":  w3.FormDataContentType(),
+			"Accept":        "application/json",
+			"Authorization": fmt.Sprintf("Bearer %s", s.token),
+		}
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), b3.Bytes(), http.StatusOK, headers)
+		expectedPayload.PreInstallQuery = "some other pre install query"
+		expectedPayload.LabelsIncludeAny = []string{labelResp.Label.Name}
+		expectedPayload.LabelsExcludeAny = nil
+		checkSoftwareInstaller(t, &expectedPayload)
+
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusAccepted)
 
 		// update the installer succeeds
 		body, headers := generateMultipartRequest(t, "software",
@@ -10805,8 +10834,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
-		"team_id": null, "self_service": true, "labels_exclude_any": [{"id": %d, "name": %q}]}`,
-			labelResp.Label.ID, t.Name())
+		"team_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}]}`,
+			labelResp.Label.ID, labelResp.Label.Name)
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 		// orbit-downloading fails with invalid orbit node key
@@ -10824,8 +10853,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		// delete from team 0 succeeds
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
-		"team_id": null, "self_service": true, "labels_exclude_any": [{"id": %d, "name": %q}]}`,
-			labelResp.Label.ID, t.Name())
+		"team_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}]}`,
+			labelResp.Label.ID, labelResp.Label.Name)
 		s.lastActivityMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), activityData, 0)
 	})
 
@@ -12536,6 +12565,17 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 	token := "secret_token"
 	createDeviceTokenForHost(t, s.ds, host1.ID, token)
 
+	// Create a label and assign it to the host
+	var labelResp createLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+		Name:  t.Name(),
+		Query: "select 1",
+	}}, http.StatusOK, &labelResp)
+	require.NotZero(t, labelResp.Label.ID)
+
+	err := s.ds.RecordLabelQueryExecutions(context.Background(), host1, map[uint]*bool{labelResp.Label.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+
 	payloadNoSS := &fleet.UploadSoftwareInstallerPayload{
 		PreInstallQuery:   "SELECT 1",
 		InstallScript:     "install",
@@ -12554,6 +12594,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 		Filename:          "emacs.deb",
 		Title:             "emacs",
 		SelfService:       true,
+		LabelsIncludeAny:  []string{labelResp.Label.Name},
 	}
 	s.uploadSoftwareInstaller(t, payloadSS, http.StatusOK, "")
 	titleIDSS := getSoftwareTitleID(t, s.ds, payloadSS.Title, "deb_packages")
@@ -12563,7 +12604,23 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Software title is not available through self-service")
 
-	// request self-install of software that allows it
+	// Add an installer with an exclude any label. Installation attempt should fail.
+	payloadLabelSS := &fleet.UploadSoftwareInstallerPayload{
+		PreInstallQuery:   "SELECT 42",
+		InstallScript:     "install again",
+		PostInstallScript: "echo bye",
+		Filename:          "vim.deb",
+		Title:             "vim",
+		SelfService:       true,
+		LabelsExcludeAny:  []string{labelResp.Label.Name},
+	}
+	s.uploadSoftwareInstaller(t, payloadLabelSS, http.StatusOK, "")
+	titleIDLabelSS := getSoftwareTitleID(t, s.ds, payloadLabelSS.Title, "deb_packages")
+
+	resp := s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token, titleIDLabelSS), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(resp.Body), "Couldn't install. Host isn't member of the labels defined for this software title.")
+
+	// request self-install of software that allows it (is self-service + label scoped)
 	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token, titleIDSS), nil, http.StatusAccepted)
 
 	// it shows up as "self-installed" in the upcoming activities of the host
@@ -12573,7 +12630,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 	require.Nil(t, listUpcomingAct.Activities[0].ActorID)
 
 	var details fleet.ActivityTypeInstalledSoftware
-	err := json.Unmarshal([]byte(*listUpcomingAct.Activities[0].Details), &details)
+	err = json.Unmarshal([]byte(*listUpcomingAct.Activities[0].Details), &details)
 	require.NoError(t, err)
 	require.Equal(t, host1.ID, details.HostID)
 	require.Equal(t, details.SoftwareTitle, payloadSS.Title)
