@@ -25,8 +25,24 @@
       display: flex;
       align-items: center;
       flex-wrap: wrap;
+      margin-top: $pad-small;
+    }
+
+    .input-icon-field {
+      width: 600px;
+    }
+
+    .expand-button-wrap {
+      margin-top: -$pad-small;
     }
   }
+
+  &__empty-entity-search {
+    margin-top: $pad-small;
+    font-size: $x-small;
+    line-height: 21px; /* 150% */
+  }
+
   &__targets-button-wrap {
     margin-top: 30px;
     display: flex;
