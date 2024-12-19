@@ -360,17 +360,22 @@ func (ds *Datastore) distinctCVEs(ctx context.Context) ([]string, error) {
 	return cves, nil
 }
 
+type CountScope int
+
+const (
+	GlobalCount CountScope = iota
+	NoTeamCount
+	TeamCount
+)
+
 func (ds *Datastore) batchFetchVulnerabilityCounts(
 	ctx context.Context,
-	teamID string,
-	globalStats int,
+	scope CountScope,
 ) ([]hostCount, error) {
-	const batchSize = 20
-	const maxConcurrentBatches = 5
-
-	var allCVEs []string
-	var hostCounts []hostCount
-	var mu sync.Mutex
+	const (
+		batchSize            = 20
+		maxConcurrentBatches = 5
+	)
 
 	// Fetch distinct CVEs
 	allCVEs, err := ds.distinctCVEs(ctx)
@@ -378,19 +383,18 @@ func (ds *Datastore) batchFetchVulnerabilityCounts(
 		return nil, err
 	}
 
-	var teamIDCondition string
-	switch {
-	case teamID == "0" && globalStats == 0: // "No team" counts
-		teamIDCondition = "INNER JOIN hosts h ON combined_results.host_id = h.id WHERE h.team_id IS NULL GROUP BY cve"
-	case teamID != "0" && globalStats == 0: // Team counts
-		teamIDCondition = "INNER JOIN hosts h ON combined_results.host_id = h.id WHERE h.team_id IS NOT NULL GROUP BY h.team_id, combined_results.cve"
-	default: // Global counts
-		teamIDCondition = " GROUP BY cve"
+	query := getVulnHostCountQuery(scope)
+	if query == "" {
+		return nil, ctxerr.Errorf(ctx, "invalid scope: %d", scope)
 	}
 
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, maxConcurrentBatches)
-	errChan := make(chan error, len(allCVEs)/batchSize+1)
+	var (
+		hostCounts []hostCount
+		mu         sync.Mutex
+		wg         sync.WaitGroup
+		sem        = make(chan struct{}, maxConcurrentBatches)
+		errChan    = make(chan error, len(allCVEs)/batchSize+1)
+	)
 
 	// Process CVEs in batches concurrently
 	for i := 0; i < len(allCVEs); i += batchSize {
@@ -399,40 +403,15 @@ func (ds *Datastore) batchFetchVulnerabilityCounts(
 			end = len(allCVEs)
 		}
 
-		cves := allCVEs[i:end]
+		batchCVEs := allCVEs[i:end]
 		wg.Add(1)
 		sem <- struct{}{} // Acquire semaphore
 
-		go func(batchCVEs []string) {
+		go func(cves []string) {
 			defer wg.Done()
 			defer func() { <-sem }() // Release semaphore
 
-			selectStmt := fmt.Sprintf(`
-				SELECT %s as team_id, %d as global_stats, combined_results.cve, COUNT(*) AS host_count
-				FROM (
-					SELECT sc.cve, hs.host_id
-					FROM software_cve sc
-					INNER JOIN host_software hs ON sc.software_id = hs.software_id
-					WHERE sc.cve IN (?)
-
-					UNION
-
-					SELECT osv.cve, hos.host_id
-					FROM operating_system_vulnerabilities osv
-					INNER JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
-					WHERE osv.cve IN (?)
-				) AS combined_results
-				%s
-			`, teamID, globalStats, teamIDCondition)
-
-			query, args, err := sqlx.In(selectStmt, batchCVEs, batchCVEs)
-			if err != nil {
-				errChan <- err
-				return
-			}
-
-			var counts []hostCount
-			err = sqlx.SelectContext(ctx, ds.reader(ctx), &counts, query, args...)
+			counts, err := ds.fetchBatchCounts(ctx, cves, query)
 			if err != nil {
 				errChan <- err
 				return
@@ -441,7 +420,7 @@ func (ds *Datastore) batchFetchVulnerabilityCounts(
 			mu.Lock()
 			hostCounts = append(hostCounts, counts...)
 			mu.Unlock()
-		}(cves)
+		}(batchCVEs)
 	}
 
 	wg.Wait()
@@ -457,12 +436,90 @@ func (ds *Datastore) batchFetchVulnerabilityCounts(
 	return hostCounts, nil
 }
 
-func (ds *Datastore) batchFetchGlobalVulnerabilityCounts(ctx context.Context) ([]hostCount, error) {
-	return ds.batchFetchVulnerabilityCounts(ctx, "0", 1)
+// fetchBatchCounts executes the query for a batch of CVEs.
+func (ds *Datastore) fetchBatchCounts(
+	ctx context.Context,
+	batchCVEs []string,
+	scopeConfig string,
+) ([]hostCount, error) {
+	query, args, err := sqlx.In(scopeConfig, batchCVEs, batchCVEs)
+	if err != nil {
+		return nil, err
+	}
+
+	var counts []hostCount
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &counts, query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return counts, nil
 }
 
-func (ds *Datastore) batchFetchNoTeamVulnerabilityCounts(ctx context.Context) ([]hostCount, error) {
-	return ds.batchFetchVulnerabilityCounts(ctx, "0", 0)
+// getScopeConfig returns the query configuration for the given scope.
+func getVulnHostCountQuery(scope CountScope) string {
+	switch scope {
+	case GlobalCount:
+		return `
+				SELECT 0 as team_id, 1 as global_stats, combined_results.cve, COUNT(*) AS host_count
+				FROM (
+					SELECT sc.cve, hs.host_id
+					FROM software_cve sc
+					INNER JOIN host_software hs ON sc.software_id = hs.software_id
+					WHERE sc.cve IN (?)
+
+					UNION
+
+					SELECT osv.cve, hos.host_id
+					FROM operating_system_vulnerabilities osv
+					INNER JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
+					WHERE osv.cve IN (?)
+				) AS combined_results
+				GROUP BY cve
+			`
+	case NoTeamCount:
+		return `
+				SELECT 0 as team_id, 0 as global_stats, combined_results.cve, COUNT(*) AS host_count
+				FROM (
+					SELECT sc.cve, hs.host_id
+					FROM software_cve sc
+					INNER JOIN host_software hs ON sc.software_id = hs.software_id
+					WHERE sc.cve IN (?)
+
+					UNION
+
+					SELECT osv.cve, hos.host_id
+					FROM operating_system_vulnerabilities osv
+					INNER JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
+					WHERE osv.cve IN (?)
+				) AS combined_results
+				INNER JOIN hosts h ON combined_results.host_id = h.id
+				WHERE h.team_id IS NULL
+				GROUP BY cve
+			`
+	case TeamCount:
+		return `
+				SELECT h.team_id as team_id, 0 as global_stats, combined_results.cve, COUNT(*) AS host_count
+				FROM (
+					SELECT sc.cve, hs.host_id
+					FROM software_cve sc
+					INNER JOIN host_software hs ON sc.software_id = hs.software_id
+					WHERE sc.cve IN (?)
+
+					UNION
+
+					SELECT osv.cve, hos.host_id
+					FROM operating_system_vulnerabilities osv
+					INNER JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
+					WHERE osv.cve IN (?)
+				) AS combined_results
+				INNER JOIN hosts h ON combined_results.host_id = h.id
+				WHERE h.team_id IS NOT NULL
+				GROUP BY h.team_id, combined_results.cve
+			`
+	default:
+		return ""
+	}
 }
 
 func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
@@ -472,7 +529,7 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "initializing vulnerability host counts")
 	}
 
-	globalHostCounts, err := ds.batchFetchGlobalVulnerabilityCounts(ctx)
+	globalHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, GlobalCount)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching global vulnerability host counts")
 	}
@@ -482,7 +539,7 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "inserting global vulnerability host counts")
 	}
 
-	teamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, "h.team_id", 0)
+	teamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, TeamCount)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching team vulnerability host counts")
 	}
@@ -492,7 +549,7 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
 	}
 
-	noTeamHostCounts, err := ds.batchFetchNoTeamVulnerabilityCounts(ctx)
+	noTeamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, NoTeamCount)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching no team vulnerability host counts")
 	}
