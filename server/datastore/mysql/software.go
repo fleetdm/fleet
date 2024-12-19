@@ -2410,7 +2410,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 
 						UNION
 
-						-- exclude any, ignore profiles that depend on labels created 
+						-- exclude any, ignore software that depends on labels created 
 						-- _after_ the label_updated_at timestamp of the host (because 
 						-- we don't have results for that label yet, the host may or may 
 						-- not be a member).
