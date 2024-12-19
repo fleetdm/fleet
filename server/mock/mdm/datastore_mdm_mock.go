@@ -33,6 +33,8 @@ type StoreBootstrapTokenFunc func(r *mdm.Request, msg *mdm.SetBootstrapToken) er
 
 type RetrieveBootstrapTokenFunc func(r *mdm.Request, msg *mdm.GetBootstrapToken) (*mdm.BootstrapToken, error)
 
+type ExpandEmbeddedSecretsFunc func(ctx context.Context, document string) (string, error)
+
 type RetrievePushInfoFunc func(ctx context.Context, ids []string) (map[string]*mdm.Push, error)
 
 type IsPushCertStaleFunc func(ctx context.Context, topic string, staleToken string) (bool, error)
@@ -92,6 +94,9 @@ type MDMAppleStore struct {
 
 	RetrieveBootstrapTokenFunc        RetrieveBootstrapTokenFunc
 	RetrieveBootstrapTokenFuncInvoked bool
+
+	ExpandEmbeddedSecretsFunc        ExpandEmbeddedSecretsFunc
+	ExpandEmbeddedSecretsFuncInvoked bool
 
 	RetrievePushInfoFunc        RetrievePushInfoFunc
 	RetrievePushInfoFuncInvoked bool
@@ -205,6 +210,13 @@ func (fs *MDMAppleStore) RetrieveBootstrapToken(r *mdm.Request, msg *mdm.GetBoot
 	fs.RetrieveBootstrapTokenFuncInvoked = true
 	fs.mu.Unlock()
 	return fs.RetrieveBootstrapTokenFunc(r, msg)
+}
+
+func (fs *MDMAppleStore) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
+	fs.mu.Lock()
+	fs.ExpandEmbeddedSecretsFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.ExpandEmbeddedSecretsFunc(ctx, document)
 }
 
 func (fs *MDMAppleStore) RetrievePushInfo(ctx context.Context, ids []string) (map[string]*mdm.Push, error) {

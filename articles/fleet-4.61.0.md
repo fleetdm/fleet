@@ -22,7 +22,7 @@ You can now enable email 2FA for Fleet user accounts. This adds an extra layer o
 
 ### Automatic Windows migration
 
-Fleet now supports migrating Windows workstations from your old MDM solution without end user interaction. Once migrated, you can enforce [disk encryption](https://fleetdm.com/guides/enforce-disk-encryption), [OS updates](https://fleetdm.com/guides/enforce-os-updates), and other [custom OS settings](https://fleetdm.com/guides/custom-os-settings) to consolidating device management into a single, cross-platform MDM.
+Fleet now supports migrating Windows workstations from your old MDM solution without end user interaction. Once migrated, you can enforce [disk encryption](https://fleetdm.com/guides/enforce-disk-encryption), [OS updates](https://fleetdm.com/guides/enforce-os-updates), and other [custom OS settings](https://fleetdm.com/guides/custom-os-settings) to consolidate device management into a single, cross-platform MDM.
 
 ## Changes
 

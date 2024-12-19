@@ -346,3 +346,8 @@ func (s *MySQLStorage) updateLastSeenBatch(ctx context.Context, ids []string) {
 		s.logger.Info("msg", "error batch updating nano_enrollments.last_seen_at", "err", err)
 	}
 }
+
+func (s *MySQLStorage) ExpandEmbeddedSecrets(_ context.Context, document string) (string, error) {
+	s.logger.Info("level", "error", "err", "MySQLStorage.ExpandEmbeddedSecrets not implemented")
+	return document, nil
+}

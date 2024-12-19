@@ -1543,8 +1543,14 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, deviceID string) ([]*
 	// Converting the pending commands to its target SyncML types
 	var cmds []*mdm_types.SyncMLCmd
 	for _, pendingCmd := range pendingCmds {
+		// The raw MDM command may contain a $FLEET_SECRET_XXX, the value of which should never be exposed or stored unencrypted.
+		rawCommandWithSecret, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(pendingCmd.RawCommand))
+		if err != nil {
+			// This error should never happen since we validate the presence of needed secrets on profile upload.
+			return nil, ctxerr.Wrap(ctx, err, "expanding embedded secrets for Windows pending commands")
+		}
 		cmd := new(mdm_types.SyncMLCmd)
-		if err := xml.Unmarshal(pendingCmd.RawCommand, cmd); err != nil {
+		if err := xml.Unmarshal([]byte(rawCommandWithSecret), cmd); err != nil {
 			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "getPendingMDMCmds syncML cmd creation"))
 			continue
 		}

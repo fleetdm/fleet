@@ -1694,7 +1694,6 @@ This glossary provides definitions to commonly used terms within our space.
 | **Internet Engineering Task Force (IETF)** | See: IETF |
 | **IR** | (Incident Response) The actions one takes in response to a security breach or cyberattack. |
 | **Linux** | An open source operating system. |
-| **Logica** | An IT and management consultancy company based in the United Kingdom. |
 | **macOS** | The operating system used in all of Apple's Mac computers. |
 | **Munki** | Open-source software deployment tool for macOS. |
 | **open core** | Is the business model where a company has a core version of a product with some of the features as (FOSS) Free Open Source Software in addition to a paid commercial version that is proprietary software. |
