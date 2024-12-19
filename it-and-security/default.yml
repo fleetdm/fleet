@@ -86,5 +86,4 @@ controls:
     mode: voluntary
     webhook_url: $DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL
   windows_enabled_and_configured: true
-  windows_migration:
-    enable: true
+  windows_migration_enabled: true
