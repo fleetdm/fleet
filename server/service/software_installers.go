@@ -136,14 +136,27 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	// decode labels
+	var inclAny, exclAny []string
 	var existsInclAny, existsExclAny bool
-	decoded.LabelsIncludeAny, existsInclAny = r.MultipartForm.Value[string(fleet.LabelsIncludeAny)]
-	if !existsInclAny {
+
+	inclAny, existsInclAny = r.MultipartForm.Value[string(fleet.LabelsIncludeAny)]
+	switch {
+	case !existsInclAny:
 		decoded.LabelsIncludeAny = nil
+	case len(inclAny) == 1 && inclAny[0] == "":
+		decoded.LabelsIncludeAny = []string{}
+	default:
+		decoded.LabelsIncludeAny = inclAny
 	}
-	decoded.LabelsExcludeAny, existsExclAny = r.MultipartForm.Value[string(fleet.LabelsExcludeAny)]
-	if !existsExclAny {
+
+	exclAny, existsExclAny = r.MultipartForm.Value[string(fleet.LabelsExcludeAny)]
+	switch {
+	case !existsExclAny:
 		decoded.LabelsExcludeAny = nil
+	case len(exclAny) == 1 && exclAny[0] == "":
+		decoded.LabelsExcludeAny = []string{}
+	default:
+		decoded.LabelsExcludeAny = exclAny
 	}
 
 	return &decoded, nil
@@ -279,13 +292,28 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	// decode labels
+	// decode labels
+	var inclAny, exclAny []string
 	var existsInclAny, existsExclAny bool
-	decoded.LabelsIncludeAny, existsInclAny = r.MultipartForm.Value[string(fleet.LabelsIncludeAny)]
-	decoded.LabelsExcludeAny, existsExclAny = r.MultipartForm.Value[string(fleet.LabelsExcludeAny)]
 
-	// validate that only one of the labels type is provided
-	if existsInclAny && existsExclAny {
-		return nil, &fleet.BadRequestError{Message: `Only one of "labels_include_any" or "labels_exclude_any" can be included.`}
+	inclAny, existsInclAny = r.MultipartForm.Value[string(fleet.LabelsIncludeAny)]
+	switch {
+	case !existsInclAny:
+		decoded.LabelsIncludeAny = nil
+	case len(inclAny) == 1 && inclAny[0] == "":
+		decoded.LabelsIncludeAny = []string{}
+	default:
+		decoded.LabelsIncludeAny = inclAny
+	}
+
+	exclAny, existsExclAny = r.MultipartForm.Value[string(fleet.LabelsExcludeAny)]
+	switch {
+	case !existsExclAny:
+		decoded.LabelsExcludeAny = nil
+	case len(exclAny) == 1 && exclAny[0] == "":
+		decoded.LabelsExcludeAny = []string{}
+	default:
+		decoded.LabelsExcludeAny = exclAny
 	}
 
 	return &decoded, nil
