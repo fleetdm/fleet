@@ -1,1 +1,0 @@
-* Allowed calling `/api/v1/fleet/software/fleet_maintained_apps` with no team ID to retrieve the full global list of maintained apps

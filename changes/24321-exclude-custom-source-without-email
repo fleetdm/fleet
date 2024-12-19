@@ -1,2 +1,0 @@
-- Exclude any custom sourced "users" from the host details "used by" display if Fleet doesn't have
-  an email for them.
