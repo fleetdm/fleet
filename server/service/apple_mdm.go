@@ -3523,8 +3523,14 @@ func ReconcileAppleProfiles(
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
 
-	// Insert variables into profile contents
+	// Insert variables into profile contents of install targets. Variables may be host-specific.
 	err = preprocessProfileContents(ctx, appConfig, ds, installTargets, profileContents, hostProfilesToInstallMap)
+	if err != nil {
+		return err
+	}
+
+	// Find the profiles containing secret variables.
+	profilesWithSecrets, err := findProfilesWithSecrets(logger, installTargets, profileContents)
 	if err != nil {
 		return err
 	}
@@ -3544,7 +3550,11 @@ func ReconcileAppleProfiles(
 		var err error
 		switch op {
 		case fleet.MDMOperationTypeInstall:
-			err = commander.InstallProfile(ctx, target.hostUUIDs, profileContents[profUUID], target.cmdUUID)
+			if _, ok := profilesWithSecrets[profUUID]; ok {
+				err = commander.EnqueueCommandInstallProfileWithSecrets(ctx, target.hostUUIDs, profileContents[profUUID], target.cmdUUID)
+			} else {
+				err = commander.InstallProfile(ctx, target.hostUUIDs, profileContents[profUUID], target.cmdUUID)
+			}
 		case fleet.MDMOperationTypeRemove:
 			err = commander.RemoveProfile(ctx, target.hostUUIDs, target.profIdent, target.cmdUUID)
 		}
@@ -3606,6 +3616,27 @@ func ReconcileAppleProfiles(
 	}
 
 	return nil
+}
+
+func findProfilesWithSecrets(
+	logger kitlog.Logger,
+	installTargets map[string]*cmdTarget,
+	profileContents map[string]mobileconfig.Mobileconfig,
+) (map[string]struct{}, error) {
+	profilesWithSecrets := make(map[string]struct{})
+	for profUUID := range installTargets {
+		p, ok := profileContents[profUUID]
+		if !ok { // Should never happen
+			level.Error(logger).Log("msg", "profile content not found in ReconcileAppleProfiles", "profile_uuid", profUUID)
+			continue
+		}
+		profileStr := string(p)
+		vars := fleet.ContainsPrefixVars(profileStr, fleet.ServerSecretPrefix)
+		if len(vars) > 0 {
+			profilesWithSecrets[profUUID] = struct{}{}
+		}
+	}
+	return profilesWithSecrets, nil
 }
 
 func preprocessProfileContents(

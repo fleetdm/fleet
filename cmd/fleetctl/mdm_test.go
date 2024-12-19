@@ -274,7 +274,7 @@ func TestMDMRunCommand(t *testing.T) {
 				return res, nil
 			}
 
-			enqueuer.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+			enqueuer.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 				return map[string]error{}, nil
 			}
 

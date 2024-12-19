@@ -1132,6 +1132,7 @@ the way that the Fleet server works.
 					logger,
 					mdmCheckinAndCommandService,
 					ddmService,
+					commander,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}

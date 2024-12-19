@@ -218,6 +218,11 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_tokens;")
 		return err
 	})
+
+	mysql.ExecAdhocSQL(t, ts.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DELETE FROM secret_variables")
+		return err
+	})
 }
 
 func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCode int, queryParams ...string) *http.Response {

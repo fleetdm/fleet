@@ -14,11 +14,11 @@ func (ms *MultiAllStorage) StoreCommandReport(r *mdm.Request, report *mdm.Comman
 	return err
 }
 
-func (ms *MultiAllStorage) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.Command, error) {
+func (ms *MultiAllStorage) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.CommandWithSubtype, error) {
 	val, err := ms.execStores(r.Context, func(s storage.AllStorage) (interface{}, error) {
 		return s.RetrieveNextCommand(r, skipNotNow)
 	})
-	return val.(*mdm.Command), err
+	return val.(*mdm.CommandWithSubtype), err
 }
 
 func (ms *MultiAllStorage) ClearQueue(r *mdm.Request) error {
@@ -28,7 +28,8 @@ func (ms *MultiAllStorage) ClearQueue(r *mdm.Request) error {
 	return err
 }
 
-func (ms *MultiAllStorage) EnqueueCommand(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+func (ms *MultiAllStorage) EnqueueCommand(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error,
+	error) {
 	val, err := ms.execStores(ctx, func(s storage.AllStorage) (interface{}, error) {
 		return s.EnqueueCommand(ctx, id, cmd)
 	})
