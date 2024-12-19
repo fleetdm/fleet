@@ -197,10 +197,34 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary) // empty because host was transferred
 	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)  // host now verifying team profiles
 
+	// Use secret variables in a profile
+	secretIdentifier := "secret-identifier-1"
+	secretType := "secret.type.1"
+	secretName := "secretName"
+	req := secretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{
+				Name:  "FLEET_SECRET_IDENTIFIER",
+				Value: secretIdentifier,
+			},
+			{
+				Name:  "FLEET_SECRET_TYPE",
+				Value: secretType,
+			},
+			{
+				Name:  "FLEET_SECRET_NAME",
+				Value: secretName,
+			},
+		},
+	}
+	secretResp := secretVariablesResponse{}
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
+
 	// set new team profiles (delete + addition)
 	teamProfiles = [][]byte{
 		mobileconfigForTest("N4", "I4"),
-		mobileconfigForTest("N5", "I5"),
+		mobileconfigForTestWithContent("N5", "I5", "$FLEET_SECRET_IDENTIFIER", "${FLEET_SECRET_TYPE}",
+			"$FLEET_SECRET_NAME"),
 	}
 	wantTeamProfiles = teamProfiles
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent,
@@ -209,6 +233,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
 	installs, removes = checkNextPayloads(t, mdmDevice, false)
+	// Manually replace the expected secret variables in the profile
+	wantTeamProfiles[1] = []byte(strings.ReplaceAll(string(teamProfiles[1]), "$FLEET_SECRET_IDENTIFIER", secretIdentifier))
+	wantTeamProfiles[1] = []byte(strings.ReplaceAll(string(teamProfiles[1]), "${FLEET_SECRET_TYPE}", secretType))
+	wantTeamProfiles[1] = []byte(strings.ReplaceAll(string(teamProfiles[1]), "$FLEET_SECRET_NAME", secretName))
 	// verify that we should install the team profiles
 	s.signedProfilesMatch(wantTeamProfiles, installs)
 	// verify that we should delete the old team profiles
