@@ -216,6 +216,8 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
   last_install: null,
   last_uninstall: null,
   package_url: "",
+  labels_include_any: null,
+  labels_exclude_any: null,
 };
 
 export const createMockSoftwarePackage = (

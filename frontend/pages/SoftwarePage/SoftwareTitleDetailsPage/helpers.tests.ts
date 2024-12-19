@@ -9,6 +9,8 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         name: "Test Software",
         versions: [{ id: 1, version: "1.0.0", vulnerabilities: [] }],
         software_package: {
+          labels_include_any: null,
+          labels_exclude_any: null,
           name: "TestPackage.pkg",
           version: "1.0.0",
           self_service: true,

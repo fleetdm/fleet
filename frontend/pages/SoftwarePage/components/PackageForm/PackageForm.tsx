@@ -16,7 +16,13 @@ import TargetLabelSelector from "components/TargetLabelSelector";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
 
-import { CUSTOM_TARGET_OPTIONS, generateFormValidation } from "./helpers";
+import {
+  CUSTOM_TARGET_OPTIONS,
+  generateFormValidation,
+  generateSelectedLabels,
+  getCustomTarget,
+  getTargetType,
+} from "./helpers";
 
 export const baseClass = "package-form";
 
@@ -81,9 +87,9 @@ const PackageForm = ({
     postInstallScript: defaultPostInstallScript || "",
     uninstallScript: defaultUninstallScript || "",
     selfService: defaultSelfService || false,
-    targetType: "All hosts",
-    customTarget: "labelsIncludeAny",
-    labelTargets: {},
+    targetType: getTargetType(defaultSoftware),
+    customTarget: getCustomTarget(defaultSoftware),
+    labelTargets: generateSelectedLabels(defaultSoftware),
   });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: false,
