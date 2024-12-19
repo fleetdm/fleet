@@ -30,10 +30,56 @@ INSERT INTO setup_experience_status_results (
 	'pending',
 	si.id
 FROM software_installers si
+JOIN hosts h ON h.uuid = ?
 INNER JOIN software_titles st
 	ON si.title_id = st.id
 WHERE install_during_setup = true
-AND global_or_team_id = ?`
+AND global_or_team_id = ?
+AND 
+EXISTS (
+
+	SELECT 1 FROM (
+
+		-- no labels
+		SELECT 0 AS count_installer_labels, 0 AS count_host_labels
+		WHERE NOT EXISTS (
+			SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id
+		)
+
+		UNION
+
+		-- include any
+		SELECT
+			COUNT(*) AS count_installer_labels,
+			COUNT(lm.label_id) AS count_host_labels
+		FROM
+			software_installer_labels sil
+			LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+			AND lm.host_id = h.id
+		WHERE
+			sil.software_installer_id = si.id
+			AND sil.exclude = 0
+		HAVING
+			count_installer_labels > 0 AND count_host_labels > 0 
+			
+		UNION
+
+		-- exclude any
+		SELECT
+			COUNT(*) AS count_installer_labels,
+			COUNT(lm.label_id) AS count_host_labels
+		FROM
+			software_installer_labels sil
+			LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+			AND lm.host_id = h.id
+		WHERE
+			sil.software_installer_id = si.id
+			AND sil.exclude = 1
+		HAVING
+			count_installer_labels > 0 AND count_host_labels = 0
+		) t
+)
+`
 
 	stmtVPPApps := `
 INSERT INTO setup_experience_status_results (
@@ -77,7 +123,7 @@ WHERE global_or_team_id = ?`
 		}
 
 		// Software installers
-		res, err := tx.ExecContext(ctx, stmtSoftwareInstallers, hostUUID, teamID)
+		res, err := tx.ExecContext(ctx, stmtSoftwareInstallers, hostUUID, hostUUID, teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting setup experience software installers")
 		}

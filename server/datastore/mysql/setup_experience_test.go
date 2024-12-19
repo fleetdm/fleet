@@ -127,9 +127,13 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	script2, err := ds.GetSetupExperienceScript(ctx, &team2.ID)
 	require.NoError(t, err)
 
-	hostTeam1 := "123"
-	hostTeam2 := "456"
-	hostTeam3 := "789"
+	h1 := newTestHostWithPlatform(t, ds, "123", "darwin", &team1.ID)
+	h2 := newTestHostWithPlatform(t, ds, "456", "darwin", &team2.ID)
+	h3 := newTestHostWithPlatform(t, ds, "789", "darwin", &team3.ID)
+
+	hostTeam1 := h1.UUID
+	hostTeam2 := h2.UUID
+	hostTeam3 := h3.UUID
 
 	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, hostTeam1, team1.ID)
 	require.NoError(t, err)
@@ -159,6 +163,29 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &seRows, "SELECT host_uuid, name, status, software_installer_id, setup_experience_script_id, vpp_app_team_id FROM setup_experience_status_results")
+	})
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		DumpTable(t, q, "software_installer_labels")
+		return nil
+	})
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		var x struct {
+			CIL uint `db:"count_installer_labels"`
+			CHL uint `db:"count_host_labels"`
+		}
+		stmt := `		SELECT 0 AS count_installer_labels, 0 AS count_host_labels
+		WHERE NOT EXISTS (
+			SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = ?
+		)
+`
+		if err := sqlx.GetContext(ctx, q, &x, stmt, installerID2); err != nil {
+			return err
+		}
+
+		t.Logf("x: %v\n", x)
+		return nil
 	})
 
 	require.Len(t, seRows, 6)
