@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -37,7 +38,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	// validate labels before we do anything else
-	validatedLabels, err := svc.validateSoftwareLabels(ctx, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating software labels")
 	}
@@ -105,7 +106,13 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	return nil
 }
 
-func (svc *Service) validateSoftwareLabels(ctx context.Context, labelsIncludeAny, labelsExcludeAny []string) (*fleet.LabelIdentsWithScope, error) {
+func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, labelsIncludeAny, labelsExcludeAny []string) (*fleet.LabelIdentsWithScope, error) {
+	if authctx, ok := authz_ctx.FromContext(ctx); !ok {
+		return nil, fleet.NewAuthRequiredError("validate software labels: missing authorization context")
+	} else if !authctx.Checked() {
+		return nil, fleet.NewAuthRequiredError("validate software labels: method requires previous authorization")
+	}
+
 	var names []string
 	var scope fleet.LabelScope
 	switch {
@@ -217,7 +224,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		dirty["SelfService"] = true
 	}
 
-	shouldUpdateLabels, validatedLabels, err := svc.validateSoftwareLabelsForUpdate(ctx, existingInstaller, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+	shouldUpdateLabels, validatedLabels, err := ValidateSoftwareLabelsForUpdate(ctx, svc, existingInstaller, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating software labels for update")
 	}
@@ -409,7 +416,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	return updatedInstaller, nil
 }
 
-func (svc *Service) validateSoftwareLabelsForUpdate(ctx context.Context, existingInstaller *fleet.SoftwareInstaller, includeAny, excludeAny []string) (shouldUpdate bool, validatedLabels *fleet.LabelIdentsWithScope, err error) {
+func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, existingInstaller *fleet.SoftwareInstaller, includeAny, excludeAny []string) (shouldUpdate bool, validatedLabels *fleet.LabelIdentsWithScope, err error) {
+	if authctx, ok := authz_ctx.FromContext(ctx); !ok {
+		return false, nil, fleet.NewAuthRequiredError("batch validate labels: missing authorization context")
+	} else if !authctx.Checked() {
+		return false, nil, fleet.NewAuthRequiredError("batch validate labels: method requires previous authorization")
+	}
+
 	if existingInstaller == nil {
 		return false, nil, errors.New("existing installer must be provided")
 	}
@@ -423,7 +436,7 @@ func (svc *Service) validateSoftwareLabelsForUpdate(ctx context.Context, existin
 		return false, nil, nil
 	}
 
-	incoming, err := svc.validateSoftwareLabels(ctx, includeAny, excludeAny)
+	incoming, err := ValidateSoftwareLabels(ctx, svc, includeAny, excludeAny)
 	if err != nil {
 		return false, nil, err
 	}
@@ -1293,7 +1306,7 @@ func (svc *Service) BatchSetSoftwareInstallers(
 				fmt.Sprintf("Couldn't edit software. URL (%q) is invalid", payload.URL),
 			)
 		}
-		validatedLabels, err := svc.validateSoftwareLabels(ctx, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+		validatedLabels, err := ValidateSoftwareLabels(ctx, svc, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
 		if err != nil {
 			return "", err
 		}
