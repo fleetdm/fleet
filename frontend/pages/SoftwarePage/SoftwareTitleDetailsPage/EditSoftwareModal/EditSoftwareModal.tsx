@@ -5,6 +5,7 @@ import { isAxiosError } from "axios";
 
 import { getErrorReason } from "interfaces/errors";
 import { ILabelSummary } from "interfaces/label";
+import { ISoftwarePackage } from "interfaces/software";
 
 import { NotificationContext } from "context/notification";
 import softwareAPI, {
@@ -26,6 +27,12 @@ import Modal from "components/Modal";
 
 import PackageForm from "pages/SoftwarePage/components/PackageForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
+import {
+  generateSelectedLabels,
+  getCustomTarget,
+  getTargetType,
+} from "pages/SoftwarePage/components/PackageForm/helpers";
+
 import { getErrorMessage } from "./helpers";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 
@@ -34,7 +41,7 @@ const baseClass = "edit-software-modal";
 interface IEditSoftwareModalProps {
   softwareId: number;
   teamId: number;
-  software?: any; // TODO
+  software: ISoftwarePackage; // TODO
   refetchSoftwareTitle: () => void;
   onExit: () => void;
 }
@@ -137,6 +144,7 @@ const EditSoftwareModal = ({
     try {
       await softwareAPI.editSoftwarePackage({
         data: formData,
+        orignalPackage: software,
         softwareId,
         teamId,
         onUploadProgress: (progressEvent) => {
@@ -166,7 +174,7 @@ const EditSoftwareModal = ({
       if (isTimeout) {
         renderFlash(
           "error",
-          `Couldn’t upload. Request timeout. Please make sure your server and load balancer timeout is long enough.`
+          `Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough.`
         );
       } else if (reason.includes("Fleet couldn't read the version from")) {
         renderFlash(
@@ -203,18 +211,21 @@ const EditSoftwareModal = ({
       postInstallScript: software.post_install_script || "",
       uninstallScript: software.uninstall_script || "",
       selfService: software.self_service || false,
+      targetType: getTargetType(software),
+      customTarget: getCustomTarget(software),
+      labelTargets: generateSelectedLabels(software),
     });
 
     setPendingUpdates(formData);
 
     const onlySelfServiceUpdated =
       Object.keys(updates).length === 1 && "selfService" in updates;
-    if (!onlySelfServiceUpdated) {
-      // Open the confirm save changes modal
-      setShowConfirmSaveChangesModal(true);
-    } else {
+    if (onlySelfServiceUpdated) {
       // Proceed with saving changes (API expects only changes)
       onSaveSoftwareChanges(formData);
+    } else {
+      // Open the confirm save changes modal
+      setShowConfirmSaveChangesModal(true);
     }
   };
 

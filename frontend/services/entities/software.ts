@@ -10,6 +10,7 @@ import {
   ISoftwareTitleDetails,
   IFleetMaintainedApp,
   IFleetMaintainedAppDetails,
+  ISoftwarePackage,
 } from "interfaces/software";
 import {
   buildQueryStringFromParams,
@@ -18,6 +19,7 @@ import {
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
 import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
 import { listNamesFromSelectedLabels } from "components/TargetLabelSelector/TargetLabelSelector";
+import { join } from "path";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -281,11 +283,15 @@ export default {
 
     if (data.targetType === "Custom") {
       const selectedLabels = listNamesFromSelectedLabels(data.labelTargets);
+      let labelKey = "";
       if (data.customTarget === "labelsIncludeAny") {
-        formData.append("labels_include_any", selectedLabels.join(","));
+        labelKey = "labels_include_any";
       } else {
-        formData.append("labels_exclude_any", selectedLabels.join(","));
+        labelKey = "labels_exclude_any";
       }
+      selectedLabels?.forEach((label) => {
+        formData.append(labelKey, label);
+      });
     }
 
     return sendRequestWithProgress({
@@ -301,6 +307,7 @@ export default {
 
   editSoftwarePackage: ({
     data,
+    orignalPackage,
     softwareId,
     teamId,
     timeout,
@@ -308,6 +315,7 @@ export default {
     signal,
   }: {
     data: IPackageFormData;
+    orignalPackage: ISoftwarePackage;
     softwareId: number;
     teamId: number;
     timeout?: number;
@@ -324,6 +332,29 @@ export default {
     formData.append("pre_install_query", data.preInstallQuery || "");
     formData.append("post_install_script", data.postInstallScript || "");
     formData.append("uninstall_script", data.uninstallScript || "");
+
+    // clear out labels if targetType is "All hosts"
+    if (data.targetType === "All hosts") {
+      if (orignalPackage.labels_include_any) {
+        formData.append("labels_include_any", "");
+      } else {
+        formData.append("labels_exclude_any", "");
+      }
+    }
+
+    // add custom labels if targetType is "Custom"
+    if (data.targetType === "Custom") {
+      const selectedLabels = listNamesFromSelectedLabels(data.labelTargets);
+      let labelKey = "";
+      if (data.customTarget === "labelsIncludeAny") {
+        labelKey = "labels_include_any";
+      } else {
+        labelKey = "labels_exclude_any";
+      }
+      selectedLabels?.forEach((label) => {
+        formData.append(labelKey, label);
+      });
+    }
 
     return sendRequestWithProgress({
       method: "PATCH",
