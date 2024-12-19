@@ -64,6 +64,18 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	// Update $PACKAGE_ID in uninstall script
 	preProcessUninstallScript(payload)
 
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.InstallScript}); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("install_script", err.Error()))
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.PostInstallScript}); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("post_install_script", err.Error()))
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.UninstallScript}); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("uninstall_script", err.Error()))
+	}
+
 	installerID, titleID, err := svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "matching or creating software installer")
@@ -1149,6 +1161,8 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		return "", ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
+	allScripts := []string{}
+
 	// Verify payloads first, to prevent starting the download+upload process if the data is invalid.
 	for _, payload := range payloads {
 		if len(payload.URL) > fleet.SoftwareInstallerURLMaxLength {
@@ -1163,6 +1177,11 @@ func (svc *Service) BatchSetSoftwareInstallers(
 				fmt.Sprintf("Couldn't edit software. URL (%q) is invalid", payload.URL),
 			)
 		}
+		allScripts = append(allScripts, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript)
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, allScripts); err != nil {
+		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
 	}
 
 	// keyExpireTime is the current maximum time supported for retrieving
