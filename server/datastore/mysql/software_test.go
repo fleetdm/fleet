@@ -5263,7 +5263,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	// create a software installer
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
-	installerID1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installer1 := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
@@ -5278,7 +5278,8 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 		BundleIdentifier:  "bi1",
 		Platform:          "darwin",
 		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
-	})
+	}
+	installerID1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, installer1)
 	require.NoError(t, err)
 
 	// we should see installer1, since it has no label associated yet
@@ -5291,10 +5292,29 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 		},
 		IncludeAvailableForInstall: true,
 	}
+	expectedInstallers := map[string]*fleet.SoftwarePackageOrApp{
+		installer1.Filename: {
+			Name:        installer1.Filename,
+			Version:     installer1.Version,
+			SelfService: ptr.Bool(false),
+		},
+	}
+
+	checkSoftware := func(swList []*fleet.HostSoftwareWithInstaller, excludeNames ...string) {
+		for _, got := range swList {
+			want, ok := expectedInstallers[got.SoftwarePackage.Name]
+			if slices.Contains(excludeNames, got.SoftwarePackage.Name) {
+				require.False(t, ok)
+				continue
+			}
+			require.True(t, ok)
+			require.Equal(t, want, got.SoftwarePackage)
+		}
+	}
+
 	software, _, err := ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	require.Len(t, software, 1)
-	require.Equal(t, "file1", software[0].SoftwarePackage.Name)
+	checkSoftware(software)
 
 	// installer1 should be in scope since it has no labels
 	scoped, err := ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
@@ -5337,8 +5357,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	require.Len(t, software, 1)
-	require.Equal(t, "file1", software[0].SoftwarePackage.Name)
+	checkSoftware(software)
 
 	// Now installer1 is in scope again: label is "include any"
 	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
@@ -5346,7 +5365,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.True(t, scoped)
 
 	// Add an installer. No label yet.
-	installerID2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installer2 := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
@@ -5361,13 +5380,20 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 		BundleIdentifier:  "bi2",
 		Platform:          "darwin",
 		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
-	})
+	}
+	installerID2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, installer2)
 	require.NoError(t, err)
+
+	expectedInstallers[installer2.Filename] = &fleet.SoftwarePackageOrApp{
+		Name:        installer2.Filename,
+		Version:     installer2.Version,
+		SelfService: ptr.Bool(false),
+	}
 
 	// There's 2 installers now: installerID1 and installerID2 (because it has no labels associated)
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	require.Len(t, software, 2)
+	checkSoftware(software)
 
 	// Add "exclude any" labels to installer2
 	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2" + t.Name()})
@@ -5392,10 +5418,10 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
-	// List should be back to 1
+	// List should be back to just installer1
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	require.Len(t, software, 1)
+	checkSoftware(software, installer2.Filename)
 
 	// installer1 is still in scope
 	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
@@ -5408,7 +5434,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.False(t, scoped)
 
 	// Add an installer. No label yet.
-	installerID3, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installer3 := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
@@ -5423,10 +5449,17 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 		BundleIdentifier:  "bi3",
 		Platform:          "darwin",
 		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
-	})
+	}
+	installerID3, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, installer3)
 	require.NoError(t, err)
 
 	time.Sleep(time.Second)
+	expectedInstallers[installer3.Filename] = &fleet.SoftwarePackageOrApp{
+		Name:        installer3.Filename,
+		Version:     installer3.Version,
+		SelfService: ptr.Bool(false),
+	}
+
 	// Add a new label and apply it to the installer. There are no hosts with this label.
 	label4, err := ds.NewLabel(ctx, &fleet.Label{Name: "label4" + t.Name()})
 	require.NoError(t, err)
@@ -5462,7 +5495,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	// now has 2 software (installer1 and 3)
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	require.Len(t, software, 2)
+	checkSoftware(software, installer2.Filename)
 
 	// installer1 is still in scope
 	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
@@ -5484,7 +5517,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	// We should have [installerID1]
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	require.Len(t, software, 1)
+	checkSoftware(software, installer2.Filename, installer3.Filename)
 
 	// installer1 is still in scope
 	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)

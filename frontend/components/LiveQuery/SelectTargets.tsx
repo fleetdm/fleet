@@ -386,7 +386,7 @@ const SelectTargets = ({
 
     const { targets_count: total, targets_online: online } = counts;
     const onlinePercentage = () => {
-      if (total === 0) {
+      if (total === 0 || online === 0) {
         return 0;
       }
       // If at least 1 host is online, displays <1% instead of 0%

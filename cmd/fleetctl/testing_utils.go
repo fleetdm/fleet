@@ -152,6 +152,9 @@ func runServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.ApplyYaraRulesFunc = func(context.Context, []fleet.YaraRule) error {
 		return nil
 	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
 
 	var cachedDS fleet.Datastore
 	if len(opts) > 0 && opts[0].NoCacheDatastore {

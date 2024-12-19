@@ -313,6 +313,14 @@ module.exports.routes = {
     action: 'view-app-details',// Meta title and description set in view action
   },
 
+  'GET /meetups': {
+    action: 'view-meetups',
+    locals: {
+      pageTitleForMeta: 'Meetups',
+      pageDescriptionForMeta: 'See upcoming meetup locations.',
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝

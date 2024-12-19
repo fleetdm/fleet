@@ -68,3 +68,83 @@ func (ds *Datastore) GetSecretVariables(ctx context.Context, names []string) ([]
 
 	return secretVariables, nil
 }
+
+func (ds *Datastore) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
+	embeddedSecrets := fleet.ContainsPrefixVars(document, fleet.ServerSecretPrefix)
+	if len(embeddedSecrets) == 0 {
+		return document, nil
+	}
+
+	secrets, err := ds.GetSecretVariables(ctx, embeddedSecrets)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "expanding embedded secrets")
+	}
+
+	secretMap := make(map[string]string, len(secrets))
+
+	for _, secret := range secrets {
+		secretMap[secret.Name] = secret.Value
+	}
+
+	var missingSecrets []string
+
+	for _, wantSecret := range embeddedSecrets {
+		if _, ok := secretMap[wantSecret]; !ok {
+			missingSecrets = append(missingSecrets, wantSecret)
+		}
+	}
+
+	if len(missingSecrets) > 0 {
+		return "", fleet.MissingSecretsError{MissingSecrets: missingSecrets}
+	}
+
+	expanded := fleet.MaybeExpand(document, func(s string) (string, bool) {
+		if !strings.HasPrefix(s, fleet.ServerSecretPrefix) {
+			return "", false
+		}
+		val, ok := secretMap[strings.TrimPrefix(s, fleet.ServerSecretPrefix)]
+		return val, ok
+	})
+
+	return expanded, nil
+}
+
+func (ds *Datastore) ValidateEmbeddedSecrets(ctx context.Context, documents []string) error {
+	wantSecrets := make(map[string]struct{})
+	haveSecrets := make(map[string]struct{})
+
+	for _, document := range documents {
+		vars := fleet.ContainsPrefixVars(document, fleet.ServerSecretPrefix)
+		for _, v := range vars {
+			wantSecrets[v] = struct{}{}
+		}
+	}
+
+	wantSecretsList := make([]string, 0, len(wantSecrets))
+	for wantSecret := range wantSecrets {
+		wantSecretsList = append(wantSecretsList, wantSecret)
+	}
+
+	dbSecrets, err := ds.GetSecretVariables(ctx, wantSecretsList)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "validating document embedded secrets")
+	}
+
+	for _, dbSecret := range dbSecrets {
+		haveSecrets[dbSecret.Name] = struct{}{}
+	}
+
+	missingSecrets := []string{}
+
+	for wantSecret := range wantSecrets {
+		if _, ok := haveSecrets[wantSecret]; !ok {
+			missingSecrets = append(missingSecrets, wantSecret)
+		}
+	}
+
+	if len(missingSecrets) > 0 {
+		return &fleet.MissingSecretsError{MissingSecrets: missingSecrets}
+	}
+
+	return nil
+}
