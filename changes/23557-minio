@@ -1,0 +1,1 @@
+* fixed issue where minio software was not scanned for vulnerabilities correctly because of unexpected trailing characters in the version string
