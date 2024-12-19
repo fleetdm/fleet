@@ -1,0 +1,1 @@
+* removed duplicate software records from homebrew casks already reported in the osquery `apps` table to address false positive vulnerabilities due to lack of bundle_identifier
