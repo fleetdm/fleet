@@ -79,3 +79,7 @@ org_settings:
 policies:
 queries:
   - path: ./lib/all/queries/collect-fleetd-update-channels.yml
+controls: 
+  windows_enabled_and_configured: true
+  windows_migration:
+    enable: true
