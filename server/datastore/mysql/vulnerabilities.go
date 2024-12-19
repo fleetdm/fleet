@@ -472,54 +472,40 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "initializing vulnerability host counts")
 	}
 
-	start := time.Now()
 	globalHostCounts, err := ds.batchFetchGlobalVulnerabilityCounts(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching global vulnerability host counts")
 	}
-	fmt.Printf("fetching global vulnerability host counts took %f\n", time.Since(start).Seconds())
 
-	start = time.Now()
 	err = ds.batchInsertHostCounts(ctx, globalHostCounts)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting global vulnerability host counts")
 	}
-	fmt.Printf("inserting global vulnerability host counts took %f\n", time.Since(start).Seconds())
 
-	start = time.Now()
 	teamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, "h.team_id", 0)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching team vulnerability host counts")
 	}
-	fmt.Printf("fetching team vulnerability host counts took %f\n", time.Since(start).Seconds())
 
-	start = time.Now()
 	err = ds.batchInsertHostCounts(ctx, teamHostCounts)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
 	}
-	fmt.Printf("inserting team vulnerability host counts took %f\n", time.Since(start).Seconds())
 
-	start = time.Now()
 	noTeamHostCounts, err := ds.batchFetchNoTeamVulnerabilityCounts(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching no team vulnerability host counts")
 	}
-	fmt.Printf("fetching no team vulnerability host counts took %f\n", time.Since(start).Seconds())
 
-	start = time.Now()
 	err = ds.batchInsertHostCounts(ctx, noTeamHostCounts)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
 	}
-	fmt.Printf("inserting no team vulnerability host counts took %f\n", time.Since(start).Seconds())
 
-	start = time.Now()
 	err = ds.cleanupVulnerabilityHostCounts(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up vulnerability host counts")
 	}
-	fmt.Printf("cleaning up vulnerability host counts took %f\n", time.Since(start).Seconds())
 
 	return nil
 }
