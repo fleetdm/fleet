@@ -140,7 +140,11 @@ parasails.registerPage('software', {
         argins.teams = _.uniq(argins.teams);
       }
       await Cloud.uploadSoftware.with(argins);
-      await this._getSoftware();
+      if(!this.cloudError) {
+        this.syncing = false;
+        this.closeModal();
+        await this._getSoftware();
+      }
     },
     handleSubmittingDeleteSoftwareForm: async function() {
       let argins = _.clone(this.formData);
