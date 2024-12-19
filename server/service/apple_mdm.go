@@ -380,14 +380,10 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		})
 	}
 
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(b)}); err != nil {
-		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
-	}
-
-	// Expand secrets in profile for validation
+	// Expand and validate secrets in profile
 	expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(b))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "expanding secrets in profile for parsing")
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
 	cp, err := fleet.NewMDMAppleConfigProfile([]byte(expanded), &teamID)
