@@ -68,6 +68,10 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("install_script", err.Error()))
 	}
 
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.PostInstallScript}); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("post_install_script", err.Error()))
+	}
+
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.UninstallScript}); err != nil {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("uninstall_script", err.Error()))
 	}
