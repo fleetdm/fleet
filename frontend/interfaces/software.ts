@@ -4,7 +4,7 @@ import PropTypes from "prop-types";
 import { IconNames } from "components/icons";
 
 import vulnerabilityInterface from "./vulnerability";
-import { ILabelSummary } from "./label";
+import { ILabelSoftwareTitle } from "./label";
 
 export default PropTypes.shape({
   type: PropTypes.string,
@@ -82,6 +82,8 @@ export interface ISoftwarePackage {
   };
   automatic_install_policies?: ISoftwarePackagePolicy[];
   install_during_setup?: boolean;
+  labels_include_any: ILabelSoftwareTitle[] | null;
+  labels_exclude_any: ILabelSoftwareTitle[] | null;
 }
 
 export const isSoftwarePackage = (
@@ -127,8 +129,6 @@ export interface ISoftwareTitleDetails {
   bundle_identifier?: string;
   browser?: BrowserType;
   versions_count?: number;
-  labels_include_any?: ILabelSummary[];
-  labels_exclude_any?: ILabelSummary[];
 }
 
 export interface ISoftwareVulnerability {

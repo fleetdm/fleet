@@ -1,0 +1,10 @@
+.software-details-modal {
+  &__modal-content {
+    display: flex;
+    gap: $pad-xxlarge;
+  }
+
+  .react-tooltip {
+    min-width: 120px;
+  }
+}
