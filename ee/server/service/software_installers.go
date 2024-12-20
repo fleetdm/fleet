@@ -64,16 +64,8 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	// Update $PACKAGE_ID in uninstall script
 	preProcessUninstallScript(payload)
 
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.InstallScript}); err != nil {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("install_script", err.Error()))
-	}
-
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.PostInstallScript}); err != nil {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("post_install_script", err.Error()))
-	}
-
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.UninstallScript}); err != nil {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("uninstall_script", err.Error()))
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.InstallScript, payload.PostInstallScript, payload.UninstallScript}); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
 	}
 
 	installerID, titleID, err := svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
