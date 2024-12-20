@@ -876,7 +876,7 @@ CREATE TABLE `mdm_apple_declarations` (
   `team_id` int unsigned NOT NULL DEFAULT '0',
   `identifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `raw_json` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `raw_json` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `checksum` binary(16) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `uploaded_at` timestamp NULL DEFAULT NULL,
