@@ -98,7 +98,7 @@ type integrationMDMTestSuite struct {
 	mdmStorage                 *mysql.NanoMDMStorage
 	worker                     *worker.Worker
 	// Flag to skip jobs processing by worker
-	skipWorkerJobs            bool
+	skipWorkerJobs            atomic.Bool
 	mdmCommander              *apple_mdm.MDMAppleCommander
 	logger                    kitlog.Logger
 	scepChallenge             string
@@ -263,12 +263,15 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Minute, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("integrations_worker", func(ctx context.Context) error {
-							if s.skipWorkerJobs {
+							if s.skipWorkerJobs.Load() {
 								return nil
 							}
 							return s.worker.ProcessJobs(ctx)
 						}),
 						schedule.WithJob("dep_cooldowns", func(ctx context.Context) error {
+							if s.skipWorkerJobs.Load() {
+								return nil
+							}
 							if s.onIntegrationsScheduleDone != nil {
 								defer s.onIntegrationsScheduleDone()
 							}
@@ -2761,6 +2764,11 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	ctx := context.Background()
 	t := s.T()
 
+	// Skip worker jobs to avoid running into timing issues with this test.
+	// We can manually run the jobs if needed with s.runWorker().
+	s.skipWorkerJobs.Store(true)
+	t.Cleanup(func() { s.skipWorkerJobs.Store(false) })
+
 	// list commands should return all the commands we sent
 	var listCmdResp0 listMDMAppleCommandsResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commands", nil, http.StatusOK, &listCmdResp0)
@@ -2943,6 +2951,84 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 		RequestType: "ProfileList",
 		Hostname:    "test-host",
 	}, profileListCommands[0])
+}
+
+func (s *integrationMDMTestSuite) TestEnqueueMDMCommandWithSecret() {
+	t := s.T()
+
+	// Skip worker jobs to avoid running into timing issues with this test.
+	// We can manually run the jobs if needed with s.runWorker().
+	s.skipWorkerJobs.Store(true)
+	t.Cleanup(func() { s.skipWorkerJobs.Store(false) })
+
+	_, mdmClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// list commands should return all the commands we sent
+	var listCmdResp listMDMAppleCommandsResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commands", nil, http.StatusOK, &listCmdResp, "host_identifier", mdmClient.UUID)
+	require.Empty(t, listCmdResp.Results)
+
+	base64Cmd := func(rawCmd string) string {
+		return base64.RawStdEncoding.EncodeToString([]byte(rawCmd))
+	}
+
+	newRawCmd := func(cmdUUID string) string {
+		return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>ManagedOnly</key>
+        <false/>
+        <key>RequestType</key>
+        <string>ProfileList</string>
+		<key>SecretValue</key>
+		<string>$FLEET_SECRET_VALUE</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+</dict>
+</plist>`, cmdUUID)
+	}
+
+	// Load secret(s)
+	secretValue := "*abc123*"
+	req := secretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{
+				Name:  "FLEET_SECRET_VALUE",
+				Value: secretValue,
+			},
+		},
+	}
+	secretResp := secretVariablesResponse{}
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
+
+	// call with enrolled host UUID
+	uuid2 := uuid.New().String()
+	rawCmd := newRawCmd(uuid2)
+	var resp enqueueMDMAppleCommandResponse
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enqueue",
+		enqueueMDMAppleCommandRequest{
+			Command:   base64Cmd(rawCmd),
+			DeviceIDs: []string{mdmClient.UUID},
+		}, http.StatusOK, &resp)
+	require.NotEmpty(t, resp.CommandUUID)
+	require.Contains(t, rawCmd, resp.CommandUUID)
+	require.Equal(t, resp.Platform, "darwin")
+	require.Empty(t, resp.FailedUUIDs)
+	require.Equal(t, "ProfileList", resp.RequestType)
+
+	// 1 command queued up
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commands", nil, http.StatusOK, &listCmdResp, "host_identifier", mdmClient.UUID)
+	require.Len(t, listCmdResp.Results, 1)
+
+	cmd, err := mdmClient.Idle()
+	require.NoError(t, err)
+	assert.Contains(t, string(cmd.Raw), secretValue)
+	assert.NotContains(t, string(cmd.Raw), "FLEET_SECRET_VALUE")
+
 }
 
 func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {
@@ -7031,6 +7117,82 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
 		Payload:     commandFour.RawCommand,
 	}, getMDMCmdResp.Results[0])
+}
+
+func (s *integrationMDMTestSuite) TestWindowsMDMCommandWithSecret() {
+	t := s.T()
+	orbitHost, d := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	secretValue := "abcd1234"
+	req := secretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{
+				Name:  "FLEET_SECRET_DATA",
+				Value: secretValue,
+			},
+		},
+	}
+	secretResp := secretVariablesResponse{}
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
+
+	cmdOneUUID := uuid.New().String()
+	commandOne := &fleet.MDMWindowsCommand{
+		CommandUUID: cmdOneUUID,
+		RawCommand: []byte(fmt.Sprintf(`
+                     <Exec>
+                       <CmdID>%s</CmdID>
+                       <Item>
+                         <Target>
+                           <LocURI>./Device/Vendor/MSFT/Reboot/RebootNow</LocURI>
+                         </Target>
+                         <Meta>
+                           <Format xmlns="syncml:metinf">null</Format>
+                           <Type>text/plain</Type>
+                         </Meta>
+                         <Data>$FLEET_SECRET_DATA</Data>
+                       </Item>
+                     </Exec>
+		`, cmdOneUUID)),
+		TargetLocURI: "./Device/Vendor/MSFT/Reboot/RebootNow",
+	}
+	err := s.ds.MDMWindowsInsertCommandForHosts(context.Background(), []string{orbitHost.UUID}, commandOne)
+	require.NoError(t, err)
+
+	cmds, err := d.StartManagementSession()
+	require.NoError(t, err)
+	// 2 Status + 1 Exec
+	require.Len(t, cmds, 3)
+	receivedCmd := cmds[cmdOneUUID]
+	require.NotNil(t, receivedCmd)
+	require.Equal(t, receivedCmd.Verb, fleet.CmdExec)
+	require.Len(t, receivedCmd.Cmd.Items, 1)
+	require.EqualValues(t, "./Device/Vendor/MSFT/Reboot/RebootNow", *receivedCmd.Cmd.Items[0].Target)
+	assert.EqualValues(t, secretValue, receivedCmd.Cmd.Items[0].Data.Content)
+
+	msgID, err := d.GetCurrentMsgID()
+	require.NoError(t, err)
+
+	d.AppendResponse(fleet.SyncMLCmd{
+		XMLName: xml.Name{Local: fleet.CmdStatus},
+		MsgRef:  &msgID,
+		CmdRef:  &cmdOneUUID,
+		Cmd:     ptr.String("Exec"),
+		Data:    ptr.String("200"),
+		Items:   nil,
+		CmdID:   fleet.CmdID{Value: uuid.NewString()},
+	})
+	cmds, err = d.SendResponse()
+	require.NoError(t, err)
+	// the ack of the message should be the only returned command
+	require.Len(t, cmds, 1)
+
+	var getMDMCmdResp getMDMCommandResultsResponse
+	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", cmdOneUUID)
+	require.Len(t, getMDMCmdResp.Results, 1)
+	// The secret value should not be exposed via the regular API.
+	assert.NotContains(t, string(getMDMCmdResp.Results[0].Payload), secretValue)
+	assert.Contains(t, string(getMDMCmdResp.Results[0].Payload), "$FLEET_SECRET_DATA")
+
 }
 
 func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {

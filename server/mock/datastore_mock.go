@@ -581,7 +581,7 @@ type GetLatestCronStatsFunc func(ctx context.Context, name string) ([]fleet.Cron
 
 type InsertCronStatsFunc func(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error)
 
-type UpdateCronStatsFunc func(ctx context.Context, id int, status fleet.CronStatsStatus) error
+type UpdateCronStatsFunc func(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error
 
 type UpdateAllCronStatsForInstanceFunc func(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error
 
@@ -1176,6 +1176,10 @@ type CleanUpMDMManagedCertificatesFunc func(ctx context.Context) error
 type UpsertSecretVariablesFunc func(ctx context.Context, secretVariables []fleet.SecretVariable) error
 
 type GetSecretVariablesFunc func(ctx context.Context, names []string) ([]fleet.SecretVariable, error)
+
+type ValidateEmbeddedSecretsFunc func(ctx context.Context, documents []string) error
+
+type ExpandEmbeddedSecretsFunc func(ctx context.Context, document string) (string, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -2911,6 +2915,12 @@ type DataStore struct {
 
 	GetSecretVariablesFunc        GetSecretVariablesFunc
 	GetSecretVariablesFuncInvoked bool
+
+	ValidateEmbeddedSecretsFunc        ValidateEmbeddedSecretsFunc
+	ValidateEmbeddedSecretsFuncInvoked bool
+
+	ExpandEmbeddedSecretsFunc        ExpandEmbeddedSecretsFunc
+	ExpandEmbeddedSecretsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4875,11 +4885,11 @@ func (s *DataStore) InsertCronStats(ctx context.Context, statsType fleet.CronSta
 	return s.InsertCronStatsFunc(ctx, statsType, name, instance, status)
 }
 
-func (s *DataStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
+func (s *DataStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error {
 	s.mu.Lock()
 	s.UpdateCronStatsFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateCronStatsFunc(ctx, id, status)
+	return s.UpdateCronStatsFunc(ctx, id, status, &fleet.CronScheduleErrors{})
 }
 
 func (s *DataStore) UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error {
@@ -6959,4 +6969,18 @@ func (s *DataStore) GetSecretVariables(ctx context.Context, names []string) ([]f
 	s.GetSecretVariablesFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSecretVariablesFunc(ctx, names)
+}
+
+func (s *DataStore) ValidateEmbeddedSecrets(ctx context.Context, documents []string) error {
+	s.mu.Lock()
+	s.ValidateEmbeddedSecretsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ValidateEmbeddedSecretsFunc(ctx, documents)
+}
+
+func (s *DataStore) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
+	s.mu.Lock()
+	s.ExpandEmbeddedSecretsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ExpandEmbeddedSecretsFunc(ctx, document)
 }

@@ -10,7 +10,6 @@ import {
   generateCSVFilename,
   generateCSVQueryResults,
 } from "utilities/generate_csv";
-import { getTableColumnsFromSql } from "utilities/helpers";
 import { SUPPORT_LINK } from "utilities/constants";
 import { ICampaign, ICampaignError } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
@@ -96,11 +95,8 @@ const QueryResults = ({
 
   useEffect(() => {
     if (queryResults && queryResults.length > 0) {
-      const tableColumns = getTableColumnsFromSql(lastEditedQueryBody);
-
       const newResultsColumnConfigs = generateColumnConfigsFromRows(
-        queryResults,
-        tableColumns
+        queryResults
       );
       // Update tableHeaders if new headers are found
       if (newResultsColumnConfigs !== resultsColumnConfigs) {

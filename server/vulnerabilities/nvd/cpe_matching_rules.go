@@ -249,6 +249,8 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				return cpeMeta.TargetSW != "windows"
 			},
 		},
+		// CVE-2024-10004 only targets iOS, and we don't yet support iOS vuln scanning (and can't tell iOS/Mac CPEs apart yet)
+		CPEMatchingRule{CVEs: map[string]struct{}{"CVE-2024-10004": {}}, IgnoreAll: true},
 	}
 
 	for i, rule := range rules {

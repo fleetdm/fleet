@@ -37,11 +37,16 @@ type BootstrapTokenStore interface {
 	RetrieveBootstrapToken(r *mdm.Request, msg *mdm.GetBootstrapToken) (*mdm.BootstrapToken, error)
 }
 
+type SecretStore interface {
+	ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error)
+}
+
 // ServiceStore stores & retrieves both command and check-in data.
 type ServiceStore interface {
 	CheckinStore
 	CommandAndReportResultsStore
 	BootstrapTokenStore
+	SecretStore
 }
 
 // PushStore retrieves APNs push-related data.

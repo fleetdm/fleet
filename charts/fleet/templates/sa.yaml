@@ -1,8 +1,11 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-{{- if or .Values.serviceAccountAnnotations .Values.gke.workloadIdentityEmail }}
   annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-delete-policy": before-hook-creation
+    "helm.sh/hook-weight": "-1"
+  {{- if or .Values.serviceAccountAnnotations .Values.gke.workloadIdentityEmail }}
   {{- with .Values.serviceAccountAnnotations}}
   {{ toYaml . | trim | indent 2}}
   {{- end }}

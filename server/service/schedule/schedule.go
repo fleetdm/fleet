@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -47,7 +48,8 @@ type Schedule struct {
 
 	altLockName string
 
-	jobs []Job
+	jobs   []Job
+	errors fleet.CronScheduleErrors
 
 	statsStore CronStatsStore
 
@@ -80,7 +82,7 @@ type CronStatsStore interface {
 	// InsertCronStats inserts cron stats for the named cron schedule
 	InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error)
 	// UpdateCronStats updates the status of the identified cron stats record
-	UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error
+	UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error
 }
 
 // Option allows configuring a Schedule.
@@ -178,6 +180,7 @@ func New(
 		sch.logger = log.NewNopLogger()
 	}
 	sch.logger = log.With(sch.logger, "instanceID", instanceID)
+	sch.errors = make(fleet.CronScheduleErrors)
 	return sch
 }
 
@@ -461,6 +464,7 @@ func (s *Schedule) runAllJobs() {
 	for _, job := range s.jobs {
 		level.Debug(s.logger).Log("msg", "starting", "jobID", job.ID)
 		if err := runJob(s.ctx, job.Fn); err != nil {
+			s.errors[job.ID] = err
 			level.Error(s.logger).Log("err", "running job", "details", err, "jobID", job.ID)
 			ctxerr.Handle(s.ctx, err)
 		}
@@ -472,7 +476,7 @@ func runJob(ctx context.Context, fn JobFn) (err error) {
 	defer func() {
 		if os.Getenv("TEST_CRON_NO_RECOVER") != "1" { // for detecting panics in tests
 			if r := recover(); r != nil {
-				err = fmt.Errorf("%v", r)
+				err = fmt.Errorf("%v\n%s", r, string(debug.Stack()))
 			}
 		}
 	}()
@@ -617,7 +621,7 @@ func (s *Schedule) insertStats(statsType fleet.CronStatsType, status fleet.CronS
 }
 
 func (s *Schedule) updateStats(id int, status fleet.CronStatsStatus) error {
-	return s.statsStore.UpdateCronStats(s.ctx, id, status)
+	return s.statsStore.UpdateCronStats(s.ctx, id, status, &s.errors)
 }
 
 func (s *Schedule) getLockName() string {
