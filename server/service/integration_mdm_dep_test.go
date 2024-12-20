@@ -1960,9 +1960,37 @@ func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileS
 		TeamID:        &tm.ID,
 	}
 	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
-	titleID := getSoftwareTitleID(t, s.ds, payloadDummy.Title, "apps")
+	titleID1 := getSoftwareTitleID(t, s.ds, payloadDummy.Title, "apps")
+
+	// Create a label and assign it to the host
+	var labelResp createLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+		Name:  t.Name(),
+		Query: "select 1",
+	}}, http.StatusOK, &labelResp)
+	require.NotZero(t, labelResp.Label.ID)
+	lbl1 := labelResp.Label
+
+	labelResp = createLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+		Name:  t.Name() + "2",
+		Query: "select 2",
+	}}, http.StatusOK, &labelResp)
+	require.NotZero(t, labelResp.Label.ID)
+	lbl2 := labelResp.Label
+
+	payloadDummy = &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "install",
+		Filename:         "dummy_installer_2.pkg",
+		Title:            "pkg",
+		TeamID:           &tm.ID,
+		LabelsExcludeAny: []string{lbl1.Name},
+	}
+	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
+
+	titleID2 := getSoftwareTitleID(t, s.ds, payloadDummy.Title, "pkg_packages")
 	var swInstallResp putSetupExperienceSoftwareResponse
-	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: tm.ID, TitleIDs: []uint{titleID}}, http.StatusOK, &swInstallResp)
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: tm.ID, TitleIDs: []uint{titleID1, titleID2}}, http.StatusOK, &swInstallResp)
 
 	// add a script to execute
 	body, headers := generateNewScriptMultipartRequest(t,
@@ -2023,6 +2051,9 @@ func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileS
 	require.Equal(t, listHostsRes.Hosts[0].HardwareSerial, teamDevice.SerialNumber)
 	enrolledHost := listHostsRes.Hosts[0].Host
 	enrolledHost.TeamID = &tm.ID
+
+	err = s.ds.RecordLabelQueryExecutions(ctx, enrolledHost, map[uint]*bool{lbl1.ID: ptr.Bool(true), lbl2.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
 
 	// transfer it to the team
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
@@ -2136,6 +2167,12 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	}
 	require.ElementsMatch(t, []string{"N1", "Fleetd configuration", "Fleet root certificate authority (CA)"}, profNames)
 	require.ElementsMatch(t, []fleet.MDMDeliveryStatus{fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerifying}, profStatuses)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "setup_experience_status_results")
+		mysql.DumpTable(t, q, "software_installers")
+		return nil
+	})
 
 	// the software and script are still pending
 	require.NotNil(t, statusResp.Results.Script)

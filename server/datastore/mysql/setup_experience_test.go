@@ -131,30 +131,37 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	h2 := newTestHostWithPlatform(t, ds, "456", "darwin", &team2.ID)
 	h3 := newTestHostWithPlatform(t, ds, "789", "darwin", &team3.ID)
 
-	hostTeam1 := h1.UUID
-	hostTeam2 := h2.UUID
-	hostTeam3 := h3.UUID
+	hostTeam1UUID := h1.UUID
+	hostTeam2UUID := h2.UUID
+	hostTeam3UUID := h3.UUID
 
-	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, hostTeam1, team1.ID)
+	lbl1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
+	require.NoError(t, err)
+	err = ds.AddLabelsToHost(ctx, h1.ID, []uint{lbl1.ID})
+	require.NoError(t, err)
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID1, fleet.LabelIdentsWithScope{LabelScope: fleet.LabelScopeExcludeAny, ByName: map[string]fleet.LabelIdent{lbl1.Name: {LabelName: lbl1.Name, LabelID: lbl1.ID}}})
+	require.NoError(t, err)
+
+	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, hostTeam1UUID, team1.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
-	awaitingConfig, err := ds.GetHostAwaitingConfiguration(ctx, hostTeam1)
+	awaitingConfig, err := ds.GetHostAwaitingConfiguration(ctx, hostTeam1UUID)
 	require.NoError(t, err)
 	require.True(t, awaitingConfig)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam2, team2.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam2UUID, team2.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
-	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam2)
+	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam2UUID)
 	require.NoError(t, err)
 	require.True(t, awaitingConfig)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam3, team3.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam3UUID, team3.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
 	// Nothing is configured for setup experience in team 3, so we do not set
 	// host_mdm_apple_awaiting_configuration.
-	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam3)
+	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam3UUID)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 	require.False(t, awaitingConfig)
@@ -165,64 +172,53 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		return sqlx.SelectContext(ctx, q, &seRows, "SELECT host_uuid, name, status, software_installer_id, setup_experience_script_id, vpp_app_team_id FROM setup_experience_status_results")
 	})
 
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		DumpTable(t, q, "software_installer_labels")
-		return nil
-	})
+	// there's only 5 rows, because installer1 is not in scope
+	require.Len(t, seRows, 5)
+
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID1, fleet.LabelIdentsWithScope{LabelScope: fleet.LabelScopeIncludeAny, ByName: map[string]fleet.LabelIdent{lbl1.Name: {LabelName: lbl1.Name, LabelID: lbl1.ID}}})
+	require.NoError(t, err)
+
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam1UUID, team1.ID)
+	require.NoError(t, err)
+	require.True(t, anythingEnqueued)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		var x struct {
-			CIL uint `db:"count_installer_labels"`
-			CHL uint `db:"count_host_labels"`
-		}
-		stmt := `		SELECT 0 AS count_installer_labels, 0 AS count_host_labels
-		WHERE NOT EXISTS (
-			SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = ?
-		)
-`
-		if err := sqlx.GetContext(ctx, q, &x, stmt, installerID2); err != nil {
-			return err
-		}
-
-		t.Logf("x: %v\n", x)
-		return nil
+		return sqlx.SelectContext(ctx, q, &seRows, "SELECT host_uuid, name, status, software_installer_id, setup_experience_script_id, vpp_app_team_id FROM setup_experience_status_results")
 	})
-
-	require.Len(t, seRows, 6)
 
 	for _, tc := range []setupExperienceInsertTestRows{
 		{
-			HostUUID:            hostTeam1,
+			HostUUID:            hostTeam1UUID,
 			Name:                "Software1",
 			Status:              "pending",
 			SoftwareInstallerID: nullableUint(installerID1),
 		},
 		{
-			HostUUID:            hostTeam2,
+			HostUUID:            hostTeam2UUID,
 			Name:                "Software2",
 			Status:              "pending",
 			SoftwareInstallerID: nullableUint(installerID2),
 		},
 		{
-			HostUUID:     hostTeam1,
+			HostUUID:     hostTeam1UUID,
 			Name:         app1.Name,
 			Status:       "pending",
 			VPPAppTeamID: nullableUint(1),
 		},
 		{
-			HostUUID:     hostTeam2,
+			HostUUID:     hostTeam2UUID,
 			Name:         app2.Name,
 			Status:       "pending",
 			VPPAppTeamID: nullableUint(2),
 		},
 		{
-			HostUUID: hostTeam1,
+			HostUUID: hostTeam1UUID,
 			Name:     "script1",
 			Status:   "pending",
 			ScriptID: nullableUint(script1.ID),
 		},
 		{
-			HostUUID: hostTeam2,
+			HostUUID: hostTeam2UUID,
 			Name:     "script2",
 			Status:   "pending",
 			ScriptID: nullableUint(script2.ID),
@@ -242,7 +238,7 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 
 	require.Condition(t, func() (success bool) {
 		for _, row := range seRows {
-			if row.HostUUID == hostTeam3 {
+			if row.HostUUID == hostTeam3UUID {
 				return false
 			}
 		}
@@ -257,16 +253,16 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, team2.ID, []uint{})
 	require.NoError(t, err)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam1, team1.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam1UUID, team1.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 
 	// team2 now has nothing enqueued
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam2, team2.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam2UUID, team2.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
 
-	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam3, team3.ID)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, hostTeam3UUID, team3.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
 
@@ -278,19 +274,19 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 
 	for _, tc := range []setupExperienceInsertTestRows{
 		{
-			HostUUID:            hostTeam1,
+			HostUUID:            hostTeam1UUID,
 			Name:                "Software1",
 			Status:              "pending",
 			SoftwareInstallerID: nullableUint(installerID1),
 		},
 		{
-			HostUUID:     hostTeam1,
+			HostUUID:     hostTeam1UUID,
 			Name:         app1.Name,
 			Status:       "pending",
 			VPPAppTeamID: nullableUint(1),
 		},
 		{
-			HostUUID: hostTeam1,
+			HostUUID: hostTeam1UUID,
 			Name:     "script1",
 			Status:   "pending",
 			ScriptID: nullableUint(script1.ID),
@@ -309,9 +305,9 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	}
 
 	for _, row := range seRows {
-		if row.HostUUID == hostTeam3 || row.HostUUID == hostTeam2 {
+		if row.HostUUID == hostTeam3UUID || row.HostUUID == hostTeam2UUID {
 			team := 2
-			if row.HostUUID == hostTeam3 {
+			if row.HostUUID == hostTeam3UUID {
 				team = 3
 			}
 			t.Errorf("team %d shouldn't have any any entries", team)
