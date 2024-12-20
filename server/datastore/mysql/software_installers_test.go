@@ -54,10 +54,18 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
+	err := ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{
+		{
+			Name:  "RUBBER",
+			Value: "DUCKY",
+		},
+	})
+	require.NoError(t, err)
+
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
 	installerID1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript:     "hello",
+		InstallScript:     "hello $FLEET_SECRET_RUBBER",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
 		UninstallScript:   "goodbye",
@@ -151,7 +159,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 
 	require.Equal(t, host1.ID, exec1.HostID)
 	require.Equal(t, hostInstall1, exec1.ExecutionID)
-	require.Equal(t, "hello", exec1.InstallScript)
+	require.Equal(t, "hello DUCKY", exec1.InstallScript)
 	require.Equal(t, "world", exec1.PostInstallScript)
 	require.Equal(t, installerID1, exec1.InstallerID)
 	require.Equal(t, "SELECT 1", exec1.PreInstallCondition)
