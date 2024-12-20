@@ -598,15 +598,19 @@ WHERE name = ?`
 		return decl
 	}
 	nameToIdentifier := make(map[string]string, 3)
+	nameToUUID := make(map[string]string, 3)
 	decl := getDeclaration(t, "N0")
 	nameToIdentifier["N0"] = decl.Identifier
+	nameToUUID["N0"] = decl.DeclarationUUID
 	decl = getDeclaration(t, "N1")
 	assert.NotContains(t, string(decl.RawJSON), myBash)
 	assert.Contains(t, string(decl.RawJSON), "$"+fleet.ServerSecretPrefix+"BASH")
 	nameToIdentifier["N1"] = decl.Identifier
+	nameToUUID["N1"] = decl.DeclarationUUID
 	decl = getDeclaration(t, "N2")
 	assert.Equal(t, string(decl.RawJSON), "${"+fleet.ServerSecretPrefix+"PROFILE}")
 	nameToIdentifier["N2"] = decl.Identifier
+	nameToUUID["N2"] = decl.DeclarationUUID
 
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
@@ -641,6 +645,13 @@ WHERE name = ?`
 	require.NoError(t, err)
 	require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
 	assert.EqualValues(t, `{"DataAssetReference":"com.fleet.asset.bash","ServiceType":"com.apple.bash2"}`, gotParsed.Payload)
+
+	// Delete the profiles
+	s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+nameToUUID["N0"], nil, http.StatusOK)
+	s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+nameToUUID["N1"], nil, http.StatusOK)
+	s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+nameToUUID["N2"], nil, http.StatusOK)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	require.Empty(t, resp.Profiles)
 }
 
 func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
