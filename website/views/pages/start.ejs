@@ -1,6 +1,6 @@
 <div id="start" v-cloak>
   <div class="d-flex container d-flex flex-row" purpose="page-container">
-    <div purpose="form-container">
+    <div :purpose="[[currentStep !== 'is-it-any-good' ? 'form-container' : 'form-with-video-container']]">
       <%//  ┌─┐┌┬┐┌─┐┬─┐┌┬┐
         //  └─┐ │ ├─┤├┬┘ │
         //  └─┘ ┴ ┴ ┴┴└─ ┴ %>
@@ -439,13 +439,14 @@
             <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 50%"></div></div>
             <img purpose="success-icon" alt="🚀" src="/images/icon-form-success-16x16@2x.png">
           </div>
-          <h2>Is it any good?</h2>
-          <div purpose="start-cards">
-            <a purpose="card" class="w-100" href="https://youtu.be/QpdRADHWP_o?feature=shared&t=1333" target="_blank">
+          <h2>Fleet in 15 minutes</h2>
+          <div purpose="embedded-video">
+            <iframe src="https://www.youtube.com/embed/QpdRADHWP_o?rel=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+<!--             <a purpose="card" class="w-100" href="https://youtu.be/QpdRADHWP_o?feature=shared&t=1333" target="_blank">
               <img alt="Watch a demo" src="/images/play-button-64x64@2x.png">
               <h2>Watch a demo</h2>
               <p>See what Fleet can do</p>
-            </a>
+            </a> -->
           </div>
           <p>Got questions? <a purpose="contact-link" href="/contact">Ask us anything</a>.</p>
 
@@ -760,7 +761,7 @@
         </ajax-form>
       </div>
     </div>
-    <div purpose="form-image" :class="currentStep === 'start' ? 'stage-one' : ['thanks-for-checking-out-fleet'].includes(currentStep) ? 'cloud-city' : ['2 - Aware'].includes(psychologicalStage) ? 'stage-two' : ['3 - Intrigued'].includes(psychologicalStage) ? 'stage-three' : ['4 - Has use case'].includes(psychologicalStage) ? 'stage-four' : ['5 - Personally confident'].includes(psychologicalStage) ? 'stage-five' : ['6 - Has team buy-in'].includes(psychologicalStage) ? 'stage-six' : 'd-none w-0'">
+    <div purpose="form-image" :class="currentStep === 'is-it-any-good' ? 'd-none w-0' : currentStep === 'start' ? 'stage-one' : ['thanks-for-checking-out-fleet'].includes(currentStep) ? 'cloud-city' : ['2 - Aware'].includes(psychologicalStage) ? 'stage-two' : ['3 - Intrigued'].includes(psychologicalStage) ? 'stage-three' : ['4 - Has use case'].includes(psychologicalStage) ? 'stage-four' : ['5 - Personally confident'].includes(psychologicalStage) ? 'stage-five' : ['6 - Has team buy-in'].includes(psychologicalStage) ? 'stage-six' : 'd-none w-0'">
     </div>
   </div>
 </div>
