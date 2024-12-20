@@ -512,8 +512,8 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 		decls = append(decls, newDeclBytes(i))
 	}
 	// Use secrets
-	secretBash := "com.apple.bash1"
-	decls[1] = []byte(strings.ReplaceAll(string(decls[1]), secretBash, "$"+fleet.ServerSecretPrefix+"BASH"))
+	myBash := "com.apple.bash1"
+	decls[1] = []byte(strings.ReplaceAll(string(decls[1]), myBash, "$"+fleet.ServerSecretPrefix+"BASH"))
 	secretProfile := decls[2]
 	decls[2] = []byte("${" + fleet.ServerSecretPrefix + "PROFILE}")
 	declsByChecksum := map[string]fleet.MDMAppleDeclaration{
@@ -545,7 +545,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_BASH",
-				Value: secretBash,
+				Value: myBash,
 			},
 			{
 				Name:  "FLEET_SECRET_PROFILE",
@@ -601,7 +601,7 @@ WHERE name = ?`
 	decl := getDeclaration(t, "N0")
 	nameToIdentifier["N0"] = decl.Identifier
 	decl = getDeclaration(t, "N1")
-	assert.NotContains(t, string(decl.RawJSON), secretBash)
+	assert.NotContains(t, string(decl.RawJSON), myBash)
 	assert.Contains(t, string(decl.RawJSON), "$"+fleet.ServerSecretPrefix+"BASH")
 	nameToIdentifier["N1"] = decl.Identifier
 	decl = getDeclaration(t, "N2")
