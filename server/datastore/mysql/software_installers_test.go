@@ -59,6 +59,14 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 			Name:  "RUBBER",
 			Value: "DUCKY",
 		},
+		{
+			Name:  "BIG",
+			Value: "BIRD",
+		},
+		{
+			Name:  "COOKIE",
+			Value: "MONSTER",
+		},
 	})
 	require.NoError(t, err)
 
@@ -67,8 +75,8 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	installerID1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello $FLEET_SECRET_RUBBER",
 		PreInstallQuery:   "SELECT 1",
-		PostInstallScript: "world",
-		UninstallScript:   "goodbye",
+		PostInstallScript: "world $FLEET_SECRET_BIG",
+		UninstallScript:   "goodbye $FLEET_SECRET_COOKIE",
 		InstallerFile:     tfr1,
 		StorageID:         "storage1",
 		Filename:          "file1",
@@ -160,11 +168,11 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	require.Equal(t, host1.ID, exec1.HostID)
 	require.Equal(t, hostInstall1, exec1.ExecutionID)
 	require.Equal(t, "hello DUCKY", exec1.InstallScript)
-	require.Equal(t, "world", exec1.PostInstallScript)
+	require.Equal(t, "world BIRD", exec1.PostInstallScript)
 	require.Equal(t, installerID1, exec1.InstallerID)
 	require.Equal(t, "SELECT 1", exec1.PreInstallCondition)
 	require.False(t, exec1.SelfService)
-	assert.Equal(t, "goodbye", exec1.UninstallScript)
+	assert.Equal(t, "goodbye MONSTER", exec1.UninstallScript)
 
 	hostInstall6, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID3, true, nil)
 	require.NoError(t, err)
