@@ -5,6 +5,7 @@ team_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
   secrets:
+    - secret: $DOGFOOD_PERSONALLY_OWNED_IPHONES_ENROLL_SECRET
   integrations:
     google_calendar:
       enable_calendar_events: false
