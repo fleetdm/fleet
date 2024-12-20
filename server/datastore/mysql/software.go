@@ -2296,6 +2296,8 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			host_vpp_software_installs hvsi ON vat.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id AND hvsi.removed = 0
 		LEFT OUTER JOIN
 			nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
+		LEFT OUTER JOIN
+			host_script_results hsr ON hsr.host_id = :host_id AND hsr.execution_id = hsi.last_uninstall_execution_id
 		WHERE
 			-- use the latest VPP install attempt only
 			( hvsi.id IS NULL OR hvsi.id = (
@@ -2309,6 +2311,67 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			-- on host (via installer or VPP app). If only available for install is
 			-- requested, then the software installed on host clause is empty.
 			( %s hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
+			AND 
+		    -- label membership check
+			(
+			 	-- do the label membership check only for software installers
+				CASE WHEN (si.ID IS NOT NULL AND hsi.last_uninstalled_at IS NOT NULL AND hsr.exit_code = 0) THEN
+				(
+					EXISTS (
+
+					SELECT 1 FROM (
+
+						-- no labels
+						SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
+						WHERE NOT EXISTS (
+							SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id
+						)
+
+						UNION
+
+						-- include any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							0 as count_host_updated_after_labels
+						FROM
+							software_installer_labels sil
+							LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+							AND lm.host_id = :host_id
+						WHERE
+							sil.software_installer_id = si.id
+							AND sil.exclude = 0
+						HAVING
+							count_installer_labels > 0 AND count_host_labels > 0
+
+						UNION
+
+						-- exclude any, ignore software that depends on labels created 
+						-- _after_ the label_updated_at timestamp of the host (because 
+						-- we don't have results for that label yet, the host may or may 
+						-- not be a member).
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							SUM(CASE WHEN lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
+						FROM
+							software_installer_labels sil
+							LEFT OUTER JOIN labels lbl
+								ON lbl.id = sil.label_id
+							LEFT OUTER JOIN label_membership lm 
+								ON lm.label_id = sil.label_id AND lm.host_id = :host_id
+						WHERE
+							sil.software_installer_id = si.id
+							AND sil.exclude = 1
+						HAVING
+							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+						) t
+					)
+				)
+				-- it's some other type of software that has been checked above
+				ELSE true END
+			)
+
 			%s
 `, status, softwareIsInstalledOnHostClause, onlySelfServiceClause)
 
@@ -2474,12 +2537,12 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
 		"global_or_team_id":         globalOrTeamID,
 		"is_mdm_enrolled":           opts.IsMDMEnrolled,
+		"host_label_updated_at":     host.LabelUpdatedAt,
 	}
 
 	stmt := stmtInstalled
 	if opts.OnlyAvailableForInstall || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
 		namedArgs["vpp_apps_platforms"] = fleet.VPPAppsPlatforms
-		namedArgs["host_label_updated_at"] = host.LabelUpdatedAt
 		if fleet.IsLinux(host.Platform) {
 			namedArgs["host_compatible_platforms"] = fleet.HostLinuxOSs
 		} else {

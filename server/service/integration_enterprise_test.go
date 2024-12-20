@@ -16179,3 +16179,116 @@ func (s *integrationEnterpriseTestSuite) TestDeleteLabels() {
 	// delete the unused label2
 	s.DoJSON("DELETE", "/api/v1/fleet/labels/id/"+fmt.Sprint(lbl2), nil, http.StatusOK, &delLabelResp)
 }
+
+func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() {
+	ctx := context.Background()
+	t := s.T()
+
+	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
+
+	// Create software installers and corresponding host install requests.
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "install script",
+		PreInstallQuery:   "pre install query",
+		PostInstallScript: "post install script",
+		Filename:          "ruby.deb",
+		Title:             "ruby",
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "deb_packages")
+
+	latestInstallUUID := func() string {
+		var id string
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, `SELECT execution_id FROM host_software_installs ORDER BY id DESC LIMIT 1`)
+		})
+		return id
+	}
+
+	// create install request for the software and record a successful result
+	resp := installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusAccepted, &resp)
+	installUUID := latestInstallUUID()
+
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"pre_install_condition_output": "",
+			"install_script_exit_code": 0,
+			"install_script_output": "success"
+		}`, *host.OrbitNodeKey, installUUID)),
+		http.StatusNoContent)
+
+	// Software is now installed on the host. We should see it in the host software list
+	getHostSw := getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	require.Len(t, getHostSw.Software, 1)
+	require.Equal(t, getHostSw.Software[0].Name, "ruby")
+
+	// De-scope the software by adding an exclude any label that the host has.
+	// TODO(JVE): remove/update this once the API is in place
+	updateInstallerLabel := func(siID, labelID uint, exclude bool) {
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(
+				ctx,
+				`INSERT INTO software_installer_labels (software_installer_id, label_id, exclude) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE exclude = VALUES(exclude)`,
+				siID, labelID, exclude,
+			)
+			return err
+		})
+	}
+
+	var installerID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID, "SELECT id FROM software_installers WHERE title_id = ?", titleID)
+	})
+	require.NotEmpty(t, installerID)
+
+	// create some labels and assign them to the host
+	var labelResp createLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+		Name:  "label1",
+		Hosts: []string{host.Hostname},
+	}}, http.StatusOK, &labelResp)
+	require.NotZero(t, labelResp.Label.ID)
+	lbl1 := labelResp.Label
+
+	s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+		Name:  "label2",
+		Query: "SELECT 1",
+	}}, http.StatusOK, &labelResp)
+	require.NotZero(t, labelResp.Label.ID)
+	lbl2 := labelResp.Label
+	err := s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lbl2.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+
+	updateInstallerLabel(installerID, lbl1.ID, true)
+	updateInstallerLabel(installerID, lbl2.ID, true)
+
+	// We should still see the software at this point, because we haven't uninstalled it yet
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	require.Len(t, getHostSw.Software, 1)
+
+	// uninstall the software
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", host.ID, titleID), nil, http.StatusAccepted, &resp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	require.Len(t, getHostSw.Software, 1)
+	assert.NotNil(t, getHostSw.Software[0].SoftwarePackage.LastInstall)
+	assert.Equal(t, fleet.SoftwareUninstallPending, *getHostSw.Software[0].Status)
+	require.NotNil(t, getHostSw.Software[0].SoftwarePackage.LastUninstall)
+	uninstallExecutionID := getHostSw.Software[0].SoftwarePackage.LastUninstall.ExecutionID
+
+	// Host sends failed uninstall result
+	var orbitPostScriptResp orbitPostScriptResultResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "uninstall"}`, *host.OrbitNodeKey,
+			uninstallExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
+
+	// Now that the software is uninstalled, we should no longer see it in the host software list,
+	// because it is de-scoped via labels.
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	require.Empty(t, getHostSw.Software)
+}
