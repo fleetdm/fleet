@@ -1716,7 +1716,12 @@ func TestValidateProfiles(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateProfiles(tt.profiles)
+			// Convert slice to a map
+			profiles := make(map[int]fleet.MDMProfileBatchPayload, len(tt.profiles))
+			for i, profile := range tt.profiles {
+				profiles[i] = profile
+			}
+			err := validateProfiles(profiles)
 			if tt.wantErr {
 				require.Error(t, err)
 				if tt.errMsg != "" {

@@ -2020,11 +2020,6 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		profs = append(profs, mdmProf)
 	}
 
-	profStrings := make([]string, 0, len(profs))
-	for _, prof := range profs {
-		profStrings = append(profStrings, string(prof.Mobileconfig))
-	}
-
 	if !skipBulkPending {
 		// check for duplicates with existing profiles, skipBulkPending signals that the caller
 		// is responsible for ensuring that the profiles names are unique (e.g., MDMAppleMatchPreassignment)
