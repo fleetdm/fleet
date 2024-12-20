@@ -6790,7 +6790,7 @@ _Available in Fleet Premium_
 - [Add policy](#add-policy)
 - [Remove policies](#remove-policies)
 - [Edit policy](#edit-policy)
-- [Run automation for all failing hosts of a policy](#run-automation-for-all-failing-hosts-of-a-policy)
+- [Reset automations for all hosts failing policies](#reset-automations-for-all-hosts-failing-policies)
 
 Policies are yes or no questions you can ask about your hosts.
 
@@ -7084,9 +7084,9 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 }
 ```
 
-### Run automation for all failing hosts of a policy
+### Reset automations for all hosts failing policies
 
-Triggers [automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations) for *all* hosts failing the specified policies, regardless of whether the policies were previously failing on those hosts.
+Resets [automation](https://fleetdm.com/docs/using-fleet/automations#policy-automations) status for *all* hosts failing the specified policies. On the next automation run, any failing host will be considered newly failing.
 
 `POST /api/v1/fleet/automations/reset`
 

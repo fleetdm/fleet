@@ -583,7 +583,7 @@ type GetLatestCronStatsFunc func(ctx context.Context, name string) ([]fleet.Cron
 
 type InsertCronStatsFunc func(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error)
 
-type UpdateCronStatsFunc func(ctx context.Context, id int, status fleet.CronStatsStatus) error
+type UpdateCronStatsFunc func(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error
 
 type UpdateAllCronStatsForInstanceFunc func(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error
 
@@ -4897,11 +4897,11 @@ func (s *DataStore) InsertCronStats(ctx context.Context, statsType fleet.CronSta
 	return s.InsertCronStatsFunc(ctx, statsType, name, instance, status)
 }
 
-func (s *DataStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
+func (s *DataStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error {
 	s.mu.Lock()
 	s.UpdateCronStatsFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateCronStatsFunc(ctx, id, status)
+	return s.UpdateCronStatsFunc(ctx, id, status, &fleet.CronScheduleErrors{})
 }
 
 func (s *DataStore) UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error {

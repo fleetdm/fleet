@@ -393,6 +393,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 					ds:     ds,
 					logger: logger,
 				},
+				commander,
 			)
 			require.NoError(t, err)
 		}

@@ -197,18 +197,60 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary) // empty because host was transferred
 	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)  // host now verifying team profiles
 
+	// Use secret variables in a profile
+	secretIdentifier := "secret-identifier-1"
+	secretType := "secret.type.1"
+	secretName := "secretName"
+	secretProfile := string(mobileconfigForTest("NS1", "IS1"))
+	req := secretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{
+				Name:  "FLEET_SECRET_IDENTIFIER",
+				Value: secretIdentifier,
+			},
+			{
+				Name:  "FLEET_SECRET_TYPE",
+				Value: secretType,
+			},
+			{
+				Name:  "FLEET_SECRET_NAME",
+				Value: secretName,
+			},
+			{
+				Name:  "FLEET_SECRET_PROFILE",
+				Value: secretProfile,
+			},
+		},
+	}
+	secretResp := secretVariablesResponse{}
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
+
 	// set new team profiles (delete + addition)
 	teamProfiles = [][]byte{
 		mobileconfigForTest("N4", "I4"),
-		mobileconfigForTest("N5", "I5"),
+		mobileconfigForTestWithContent("N5", "I5", "$FLEET_SECRET_IDENTIFIER", "${FLEET_SECRET_TYPE}",
+			"$FLEET_SECRET_NAME"),
+		// The whole profile is one big secret.
+		[]byte("$FLEET_SECRET_PROFILE"),
 	}
-	wantTeamProfiles = teamProfiles
+	// We deep copy one of the team profiles because we will modify the slice in place, and we want to keep the originals for later.
+	wantTeamProfiles = [][]byte{
+		teamProfiles[0],
+		make([]byte, len(teamProfiles[1])),
+		{},
+	}
+	copy(wantTeamProfiles[1], teamProfiles[1])
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent,
 		"team_id", fmt.Sprint(tm.ID))
 
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
 	installs, removes = checkNextPayloads(t, mdmDevice, false)
+	// Manually replace the expected secret variables in the profile
+	wantTeamProfiles[1] = []byte(strings.ReplaceAll(string(wantTeamProfiles[1]), "$FLEET_SECRET_IDENTIFIER", secretIdentifier))
+	wantTeamProfiles[1] = []byte(strings.ReplaceAll(string(wantTeamProfiles[1]), "${FLEET_SECRET_TYPE}", secretType))
+	wantTeamProfiles[1] = []byte(strings.ReplaceAll(string(wantTeamProfiles[1]), "$FLEET_SECRET_NAME", secretName))
+	wantTeamProfiles[2] = []byte(secretProfile)
 	// verify that we should install the team profiles
 	s.signedProfilesMatch(wantTeamProfiles, installs)
 	// verify that we should delete the old team profiles
@@ -222,6 +264,36 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	installs, removes = checkNextPayloads(t, mdmDevice, false)
 	require.Empty(t, installs)
 	require.Empty(t, removes)
+
+	// Clear the profiles using the new (non-deprecated) endpoint.
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil}, http.StatusNoContent, "team_id",
+		fmt.Sprint(tm.ID), "dry_run", "true")
+	s.assertConfigProfilesByIdentifier(&tm.ID, "IS1", true)
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil}, http.StatusNoContent, "team_id",
+		fmt.Sprint(tm.ID), "dry_run", "false")
+	s.assertConfigProfilesByIdentifier(&tm.ID, "IS1", false)
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes = checkNextPayloads(t, mdmDevice, false)
+	require.Empty(t, installs)
+	assert.Len(t, removes, 3)
+
+	// And reapply the same profiles using the new (non-deprecated) endpoint.
+	batchRequest := batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N4", Contents: teamProfiles[0]},
+		{Name: "N5", Contents: teamProfiles[1]},
+		{Name: "NS1", Contents: teamProfiles[2]},
+	}}
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID), "dry_run", "true")
+	s.assertConfigProfilesByIdentifier(&tm.ID, "I4", false)
+	s.assertConfigProfilesByIdentifier(&tm.ID, "I5", false)
+	s.assertConfigProfilesByIdentifier(&tm.ID, "IS1", false)
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	s.assertConfigProfilesByIdentifier(&tm.ID, "IS1", true)
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes = checkNextPayloads(t, mdmDevice, false)
+	assert.Empty(t, removes)
+	// verify that we should install the team profiles
+	s.signedProfilesMatch(wantTeamProfiles, installs)
 
 	var hostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), getHostRequest{}, http.StatusOK, &hostResp)

@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20241210094935, Down_20241210094935)
+	MigrationClient.AddMigration(Up_20241220114904, Down_20241220114904)
 }
 
-func Up_20241210094935(tx *sql.Tx) error {
+func Up_20241220114904(tx *sql.Tx) error {
 	createVppAppStmt := `
 CREATE TABLE IF NOT EXISTS vpp_app_team_labels (
 	id                   INT(10) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -74,6 +74,6 @@ CREATE TABLE IF NOT EXISTS software_installer_labels (
 	return nil
 }
 
-func Down_20241210094935(tx *sql.Tx) error {
+func Down_20241220114904(tx *sql.Tx) error {
 	return nil
 }

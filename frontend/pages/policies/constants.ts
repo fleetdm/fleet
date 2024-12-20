@@ -396,7 +396,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
   {
     key: 31,
     query:
-      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINESoftwarePoliciesMicrosoftWindowsFirewallDomainProfileEnableFirewall' AND CAST(data as integer) = 1;",
+      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\DomainProfile\\EnableFirewall' AND CAST(data as integer) = 1;",
     name: "Windows Firewall, domain profile enabled (Windows)",
     description:
       "If the Windows Firewall is not enabled for the domain profile, the workstation may be more vulnerable to unauthorized network access and potential security breaches.",
@@ -408,7 +408,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
   {
     key: 32,
     query:
-      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINESoftwarePoliciesMicrosoftWindowsFirewallPrivateProfileEnableFirewall' AND CAST(data as integer) = 1;",
+      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\StandardProfile\\EnableFirewall' AND CAST(data as integer) = 1;",
     name: "Windows Firewall, private profile enabled (Windows)",
     description:
       "If the Windows Firewall is not enabled for the private profile, the workstation may be more susceptible to unauthorized access and potential security breaches, particularly when connected to private networks.",
@@ -420,7 +420,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
   {
     key: 33,
     query:
-      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINESoftwarePoliciesMicrosoftWindowsFirewallPublicProfileEnableFirewall' AND CAST(data as integer) = 1;",
+      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\PublicProfile\\EnableFirewall' AND CAST(data as integer) = 1;",
     name: "Windows Firewall, public profile enabled (Windows)",
     description:
       "If the Windows Firewall is not enabled for the public profile, the workstation may be more vulnerable to unauthorized access and potential security threats, especially when connected to public networks.",
@@ -454,7 +454,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
   {
     key: 36,
     query:
-      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINESOFTWAREPoliciesMicrosoftWindows NTDNSClientEnableMulticast' AND CAST(data as integer) = 0;",
+      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\Windows NT\\DNSClient\\EnableMulticast' AND CAST(data as integer) = 0;",
     name: "LLMNR disabled (Windows)",
     description:
       "If the workstation does not have LLMNR disabled, it could be vulnerable to DNS spoofing attacks, potentially leading to unauthorized access or data interception.",
@@ -466,7 +466,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
   {
     key: 37,
     query:
-      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINESoftwarePoliciesMicrosoftWindowsWindowsUpdateAUNoAutoUpdate' AND CAST(data as integer) = 0;",
+      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\Windows\\Windows\\Update\\AU\\NoAutoUpdate' AND CAST(data as integer) = 0;",
     name: "Automatic updates enabled (Windows)",
     description:
       "Enabling automatic updates ensures the computer downloads and installs security and other important updates automatically.",

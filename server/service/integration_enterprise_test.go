@@ -8924,6 +8924,31 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	}
 	s.uploadSoftwareInstaller(t, payloadRubyTm1, http.StatusOK, "")
 
+	payloadEmacsMissingSecret := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "install $FLEET_SECRET_INVALID",
+		Filename:          "emacs.deb",
+		PostInstallScript: "d",
+		SelfService:       true,
+	}
+	s.uploadSoftwareInstaller(t, payloadEmacsMissingSecret, http.StatusUnprocessableEntity, "$FLEET_SECRET_INVALID")
+
+	payloadEmacsMissingPostSecret := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "install",
+		Filename:          "emacs.deb",
+		PostInstallScript: "d $FLEET_SECRET_INVALID",
+		SelfService:       true,
+	}
+	s.uploadSoftwareInstaller(t, payloadEmacsMissingPostSecret, http.StatusUnprocessableEntity, "$FLEET_SECRET_INVALID")
+
+	payloadEmacsMissingUnSecret := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "install",
+		Filename:          "emacs.deb",
+		PostInstallScript: "d",
+		UninstallScript:   "delet $FLEET_SECRET_INVALID",
+		SelfService:       true,
+	}
+	s.uploadSoftwareInstaller(t, payloadEmacsMissingUnSecret, http.StatusUnprocessableEntity, "$FLEET_SECRET_INVALID")
+
 	payloadEmacs := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
 		Filename:      "emacs.deb",
@@ -11411,7 +11436,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 
 	// software with a too big URL
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
-		{URL: "https://ftp.mozilla.org/" + strings.Repeat("a", 233)},
+		{URL: "https://ftp.mozilla.org/" + strings.Repeat("a", 4000-23)},
 	}
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", tm.Name)
 
@@ -11454,6 +11479,28 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Equal(t, rubyURL, packages[0].URL)
 	require.NotNil(t, packages[0].TeamID)
 	require.Equal(t, tm.ID, *packages[0].TeamID)
+
+	softwareToInstallBadSecret := []*fleet.SoftwareInstallerPayload{
+		{
+			URL:           rubyURL,
+			InstallScript: "echo $FLEET_SECRET_INVALID",
+		},
+	}
+	resp := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusUnprocessableEntity, "team_name", tm.Name)
+	errMsg := extractServerErrorText(resp.Body)
+	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID")
+
+	softwareToInstallBadSecret[0].InstallScript = ""
+	softwareToInstallBadSecret[0].PostInstallScript = "echo $FLEET_SECRET_ALSO_INVALID"
+	resp = s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusUnprocessableEntity, "team_name", tm.Name)
+	errMsg = extractServerErrorText(resp.Body)
+	require.Contains(t, errMsg, "$FLEET_SECRET_ALSO_INVALID")
+
+	softwareToInstallBadSecret[0].PostInstallScript = ""
+	softwareToInstallBadSecret[0].UninstallScript = "echo $FLEET_SECRET_THIRD_INVALID"
+	resp = s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusUnprocessableEntity, "team_name", tm.Name)
+	errMsg = extractServerErrorText(resp.Body)
+	require.Contains(t, errMsg, "$FLEET_SECRET_THIRD_INVALID")
 
 	// TODO(roberto): test with a variety of response codes
 
@@ -15827,6 +15874,22 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	getMAResp.FleetMaintainedApp.InstallScript = ""
 	getMAResp.FleetMaintainedApp.UninstallScript = ""
 	require.Equal(t, actualApp, *getMAResp.FleetMaintainedApp)
+
+	// Try adding ingested app with invalid secret
+	reqInvalidSecret := &addFleetMaintainedAppRequest{
+		AppID:             1,
+		TeamID:            &team.ID,
+		SelfService:       true,
+		PreInstallQuery:   "SELECT 1",
+		InstallScript:     "echo foo $FLEET_SECRET_INVALID1",
+		PostInstallScript: "echo done $FLEET_SECRET_INVALID2",
+		UninstallScript:   "echo $FLEET_SECRET_INVALID3",
+	}
+	respBadSecret := s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", reqInvalidSecret, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(respBadSecret.Body)
+	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID1")
+	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID2")
+	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID3")
 
 	// Add an ingested app to the team
 	var addMAResp addFleetMaintainedAppResponse

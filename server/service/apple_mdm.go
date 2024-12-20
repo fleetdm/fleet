@@ -380,14 +380,10 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		})
 	}
 
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(b)}); err != nil {
-		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
-	}
-
-	// Expand secrets in profile for validation
+	// Expand and validate secrets in profile
 	expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(b))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "expanding secrets in profile for parsing")
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
 	cp, err := fleet.NewMDMAppleConfigProfile([]byte(expanded), &teamID)
@@ -1998,13 +1994,14 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
 				"invalid mobileconfig profile")
 		}
-		// Store original unexpanded profile
-		mdmProf.Mobileconfig = prof
 
 		if err := mdmProf.ValidateUserProvided(); err != nil {
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()))
 		}
+
+		// Store original unexpanded profile
+		mdmProf.Mobileconfig = prof
 
 		if byName[mdmProf.Name] {
 			return ctxerr.Wrap(ctx,
@@ -2021,15 +2018,6 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		byIdent[mdmProf.Identifier] = true
 
 		profs = append(profs, mdmProf)
-	}
-
-	profStrings := make([]string, 0, len(profs))
-	for _, prof := range profs {
-		profStrings = append(profStrings, string(prof.Mobileconfig))
-	}
-
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, profStrings); err != nil {
-		return fleet.NewInvalidArgumentError("profiles", err.Error())
 	}
 
 	if !skipBulkPending {
@@ -3527,8 +3515,14 @@ func ReconcileAppleProfiles(
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
 
-	// Insert variables into profile contents
+	// Insert variables into profile contents of install targets. Variables may be host-specific.
 	err = preprocessProfileContents(ctx, appConfig, ds, installTargets, profileContents, hostProfilesToInstallMap)
+	if err != nil {
+		return err
+	}
+
+	// Find the profiles containing secret variables.
+	profilesWithSecrets, err := findProfilesWithSecrets(logger, installTargets, profileContents)
 	if err != nil {
 		return err
 	}
@@ -3548,7 +3542,11 @@ func ReconcileAppleProfiles(
 		var err error
 		switch op {
 		case fleet.MDMOperationTypeInstall:
-			err = commander.InstallProfile(ctx, target.hostUUIDs, profileContents[profUUID], target.cmdUUID)
+			if _, ok := profilesWithSecrets[profUUID]; ok {
+				err = commander.EnqueueCommandInstallProfileWithSecrets(ctx, target.hostUUIDs, profileContents[profUUID], target.cmdUUID)
+			} else {
+				err = commander.InstallProfile(ctx, target.hostUUIDs, profileContents[profUUID], target.cmdUUID)
+			}
 		case fleet.MDMOperationTypeRemove:
 			err = commander.RemoveProfile(ctx, target.hostUUIDs, target.profIdent, target.cmdUUID)
 		}
@@ -3610,6 +3608,27 @@ func ReconcileAppleProfiles(
 	}
 
 	return nil
+}
+
+func findProfilesWithSecrets(
+	logger kitlog.Logger,
+	installTargets map[string]*cmdTarget,
+	profileContents map[string]mobileconfig.Mobileconfig,
+) (map[string]struct{}, error) {
+	profilesWithSecrets := make(map[string]struct{})
+	for profUUID := range installTargets {
+		p, ok := profileContents[profUUID]
+		if !ok { // Should never happen
+			level.Error(logger).Log("msg", "profile content not found in ReconcileAppleProfiles", "profile_uuid", profUUID)
+			continue
+		}
+		profileStr := string(p)
+		vars := fleet.ContainsPrefixVars(profileStr, fleet.ServerSecretPrefix)
+		if len(vars) > 0 {
+			profilesWithSecrets[profUUID] = struct{}{}
+		}
+	}
+	return profilesWithSecrets, nil
 }
 
 func preprocessProfileContents(
@@ -4250,8 +4269,13 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 		return nil, ctxerr.Wrap(ctx, err, "getting declaration response")
 	}
 
+	expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(d.RawJSON))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expanding embedded secrets for identifier:%s hostUUID:%s", parts[2], hostUUID))
+	}
+
 	var tempd map[string]any
-	if err := json.Unmarshal(d.RawJSON, &tempd); err != nil {
+	if err := json.Unmarshal([]byte(expanded), &tempd); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling stored declaration")
 	}
 	tempd["ServerToken"] = d.Checksum

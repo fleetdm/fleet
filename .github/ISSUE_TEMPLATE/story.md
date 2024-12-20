@@ -41,8 +41,8 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 ### Product
 - [ ] UI changes: TODO <!-- Insert the link to the relevant Figma cover page. Put "No changes" if there are no changes to the user interface. -->
 - [ ] CLI (fleetctl) usage changes: TODO <!-- Insert the link to the relevant Figma cover page. Put "No changes" if there are no changes to the CLI. -->
-- [ ] YAML changes: TODO <!-- Specify changes in the YAML files doc page as a PR to the reference docs release branch. Put "No changes" if there are no changes necessary. -->
-- [ ] REST API changes: TODO <!-- Specify changes in the the REST API doc page as a PR to reference docs release branch. Put "No changes" if there are no changes necessary. Move this item to the engineering list below if engineering will design the API changes. -->
+- [ ] YAML changes: TODO <!-- Specify changes in the YAML files doc page as a PR to the reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. -->
+- [ ] REST API changes: TODO <!-- Specify changes in the the REST API doc page as a PR to reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. Move this item to the engineering list below if engineering will design the API changes. -->
 - [ ] Fleet's agent (fleetd) changes: TODO <!-- Specify changes to fleetd. If the change requires a new Fleet (server) version, consider specifying to only enable this change in new Fleet versions. Put "No changes" if there are no changes necessary. -->
 - [ ] Activity changes: TODO <!-- Specify changes to the Audit log page in the contributor docs. Put "No changes" if there are no changes necessary. -->
 - [ ] Permissions changes: TODO <!-- Specify changes in the Manage access doc page as a PR to the reference docs release branch. If doc changes aren't necessary, explicitly mention no changes to the doc page. Put "No changes" if there are no permissions changes. -->

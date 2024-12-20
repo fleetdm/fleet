@@ -564,7 +564,7 @@ type SoftwareInstallerTokenMetadata struct {
 	TeamID  uint `json:"team_id"`
 }
 
-const SoftwareInstallerURLMaxLength = 255
+const SoftwareInstallerURLMaxLength = 4000
 
 // TempFileReader is an io.Reader with all extra io interfaces supported by a
 // file on disk reader (e.g. io.ReaderAt, io.Seeker, etc.). When created with

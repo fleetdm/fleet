@@ -1689,7 +1689,12 @@ var (
 				return s.Name == "minio" && strings.Contains(s.Version, "RELEASE.")
 			},
 			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
+				// trim the "RELEASE." prefix from the version
 				s.Version = strings.TrimPrefix(s.Version, "RELEASE.")
+				// trim any unexpected trailing characters
+				if idx := strings.Index(s.Version, "_"); idx != -1 {
+					s.Version = s.Version[:idx]
+				}
 			},
 		},
 		{

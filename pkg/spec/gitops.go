@@ -853,12 +853,30 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		} else {
 			softwarePackageSpec = resolveSoftwarePackagePaths(baseDir, item.SoftwarePackageSpec)
 		}
+		if softwarePackageSpec.InstallScript.Path != "" {
+			if err := gatherFileSecrets(result, softwarePackageSpec.InstallScript.Path); err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
+		}
+		if softwarePackageSpec.PostInstallScript.Path != "" {
+			if err := gatherFileSecrets(result, softwarePackageSpec.PostInstallScript.Path); err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
+		}
+		if softwarePackageSpec.UninstallScript.Path != "" {
+			if err := gatherFileSecrets(result, softwarePackageSpec.UninstallScript.Path); err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
+		}
 		if softwarePackageSpec.URL == "" {
 			multiError = multierror.Append(multiError, errors.New("software URL is required"))
 			continue
 		}
 		if len(softwarePackageSpec.URL) > fleet.SoftwareInstallerURLMaxLength {
-			multiError = multierror.Append(multiError, fmt.Errorf("software URL %q is too long, must be less than 256 characters", softwarePackageSpec.URL))
+			multiError = multierror.Append(multiError, fmt.Errorf("software URL %q is too long, must be %d characters or less", softwarePackageSpec.URL, fleet.SoftwareInstallerURLMaxLength))
 			continue
 		}
 		if len(softwarePackageSpec.LabelsExcludeAny) > 0 && len(softwarePackageSpec.LabelsIncludeAny) > 0 {
@@ -869,6 +887,20 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	}
 
 	return multiError
+}
+
+func gatherFileSecrets(result *GitOps, filePath string) error {
+	fileBytes, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read file %s: %w", filePath, err)
+	}
+
+	err = LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
+	if err != nil {
+		return fmt.Errorf("failed to lookup environment secrets for %s: %w", filePath, err)
+	}
+
+	return nil
 }
 
 func resolveSoftwarePackagePaths(baseDir string, softwareSpec fleet.SoftwarePackageSpec) fleet.SoftwarePackageSpec {
