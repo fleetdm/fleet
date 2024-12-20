@@ -1185,6 +1185,23 @@ func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID s
 		return nil, err
 	}
 
+	expandedInstallScript, err := svc.ds.ExpandEmbeddedSecrets(ctx, details.InstallScript)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "expanding secrets in install script")
+	}
+	expandedPostInstallScript, err := svc.ds.ExpandEmbeddedSecrets(ctx, details.PostInstallScript)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "expanding secrets in post-install script")
+	}
+	expandedUninstallScript, err := svc.ds.ExpandEmbeddedSecrets(ctx, details.UninstallScript)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "expanding secrets in uninstall script")
+	}
+
+	details.InstallScript = expandedInstallScript
+	details.PostInstallScript = expandedPostInstallScript
+	details.UninstallScript = expandedUninstallScript
+
 	// ensure it cannot get access to a different host's installers
 	if details.HostID != host.ID {
 		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "no installer found for this host")
