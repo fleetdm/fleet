@@ -4,10 +4,10 @@ team_settings:
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
+  secrets:
   integrations:
     google_calendar:
       enable_calendar_events: false
-secrets:
 agent_options:
 controls:
   ios_updates:
