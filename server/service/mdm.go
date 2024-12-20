@@ -1599,6 +1599,26 @@ func (svc *Service) BatchSetMDMProfiles(
 		appCfg.MDM.WindowsEnabledAndConfigured = *assumeEnabled
 	}
 
+	// Process labels first, since we do not need to expand secrets in the profiles for this validation.
+	labels := []string{}
+	for i := range profiles {
+		// from this point on (after this condition), only LabelsIncludeAll, LabelsIncludeAny or
+		// LabelsExcludeAny need to be checked.
+		if len(profiles[i].Labels) > 0 {
+			// must update the struct in the slice directly, because we don't have a
+			// pointer to it (it is a slice of structs, not of pointer to structs)
+			profiles[i].LabelsIncludeAll = profiles[i].Labels
+			profiles[i].Labels = nil
+		}
+		labels = append(labels, profiles[i].LabelsIncludeAll...)
+		labels = append(labels, profiles[i].LabelsIncludeAny...)
+		labels = append(labels, profiles[i].LabelsExcludeAny...)
+	}
+	labelMap, err := svc.batchValidateProfileLabels(ctx, labels)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "validating labels")
+	}
+
 	// We will not validate the profiles containing secret variables during dry run.
 	// This is because the secret variables may not be available (or correct) in the gitops dry run.
 	if dryRun {
@@ -1628,25 +1648,6 @@ func (svc *Service) BatchSetMDMProfiles(
 
 	if err := validateProfiles(profilesWithSecrets); err != nil {
 		return ctxerr.Wrap(ctx, err, "validating profiles")
-	}
-
-	labels := []string{}
-	for i := range profiles {
-		// from this point on (after this condition), only LabelsIncludeAll, LabelsIncludeAny or
-		// LabelsExcludeAny need to be checked.
-		if len(profiles[i].Labels) > 0 {
-			// must update the struct in the slice directly, because we don't have a
-			// pointer to it (it is a slice of structs, not of pointer to structs)
-			profiles[i].LabelsIncludeAll = profiles[i].Labels
-			profiles[i].Labels = nil
-		}
-		labels = append(labels, profiles[i].LabelsIncludeAll...)
-		labels = append(labels, profiles[i].LabelsIncludeAny...)
-		labels = append(labels, profiles[i].LabelsExcludeAny...)
-	}
-	labelMap, err := svc.batchValidateProfileLabels(ctx, labels)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "validating labels")
 	}
 
 	appleProfiles, appleDecls, err := getAppleProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap)
