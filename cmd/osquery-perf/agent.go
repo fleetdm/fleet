@@ -2418,27 +2418,17 @@ func (a *agent) submitLogs(results []resultLog) error {
 		return fmt.Errorf("/version check failed: %w", err)
 	}
 
-	var resultLogs []json.RawMessage
-	for _, result := range results {
-		resultLogs = append(resultLogs, result.emit())
+	var resultLogs []byte
+	for i, result := range results {
+		if i > 0 {
+			resultLogs = append(resultLogs, ',')
+		}
+		resultLogs = append(resultLogs, result.emit()...)
 	}
 
-	body := struct {
-		NodeKey string            `json:"node_key"`
-		LogType string            `json:"log_type"`
-		Data    []json.RawMessage `json:"data"`
-	}{
-		NodeKey: a.nodeKey,
-		LogType: "result",
-		Data:    resultLogs,
-	}
+	body := []byte(`{"node_key": "` + a.nodeKey + `", "log_type": "result", "data": [` + string(resultLogs) + `]}`)
 
-	bodyBytes, err := json.Marshal(body)
-	if err != nil {
-		return fmt.Errorf("marshalling osquery logs: %w", err)
-	}
-
-	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/log", bytes.NewReader(bodyBytes))
+	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/log", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
