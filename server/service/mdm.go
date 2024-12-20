@@ -1776,23 +1776,6 @@ func validateFleetVariables(ctx context.Context, appleProfiles map[int]*fleet.MD
 	return nil
 }
 
-func (svc *Service) validateFleetSecrets(ctx context.Context, appleProfiles []*fleet.MDMAppleConfigProfile, windowsProfiles []*fleet.MDMWindowsConfigProfile, appleDecls []*fleet.MDMAppleDeclaration) error {
-	allProfiles := make([]string, 0, len(appleProfiles)+len(appleDecls)+len(windowsProfiles))
-	for _, p := range appleProfiles {
-		allProfiles = append(allProfiles, string(p.Mobileconfig))
-	}
-	for _, p := range appleDecls {
-		allProfiles = append(allProfiles, string(p.RawJSON))
-	}
-	for _, p := range windowsProfiles {
-		allProfiles = append(allProfiles, string(p.SyncML))
-	}
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, allProfiles); err != nil {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profiles", err.Error()))
-	}
-	return nil
-}
-
 func (svc *Service) validateCrossPlatformProfileNames(ctx context.Context, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
 	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration) error {
 	// map all profile names to check for duplicates, regardless of platform; key is name, value is one of
