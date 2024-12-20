@@ -17,6 +17,8 @@ controls:
   macos_settings:
     custom_settings:
       - path: ../lib/ipados/declaration-profiles/software-update-settings.json
+      - path: ../lib/ipados/declaration-profiles/passcode-settings.json
+      - path: ../lib/ipados/configuration-profiles/lock-screen-message.mobileconfig
   scripts:
 policies:
 queries:
