@@ -18,8 +18,6 @@ func Up_20241219180042(tx *sql.Tx) error {
 		return fmt.Errorf("failed to lengthen url in software_installers: %w", err)
 	}
 	return nil
-
-	return nil
 }
 
 func Down_20241219180042(tx *sql.Tx) error {
