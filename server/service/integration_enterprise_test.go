@@ -11237,7 +11237,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 
 	// software with a too big URL
 	softwareToInstall = []fleet.SoftwareInstallerPayload{
-		{URL: "https://ftp.mozilla.org/" + strings.Repeat("a", 233)},
+		{URL: "https://ftp.mozilla.org/" + strings.Repeat("a", 4000-23)},
 	}
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", tm.Name)
 

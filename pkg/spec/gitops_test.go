@@ -909,7 +909,7 @@ policies:
 	assert.ErrorContains(t, err, "empty package_path")
 
 	// Software has a URL that's too big
-	tooBigURL := fmt.Sprintf("https://ftp.mozilla.org/%s", strings.Repeat("a", 232))
+	tooBigURL := fmt.Sprintf("https://ftp.mozilla.org/%s", strings.Repeat("a", 4000-23))
 	config = getTeamConfig([]string{"software"})
 	config += fmt.Sprintf(`
 software:
@@ -922,7 +922,7 @@ software:
 	}
 	path, basePath := createTempFile(t, "", config)
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(t, err, fmt.Sprintf("software URL \"%s\" is too long, must be less than 256 characters", tooBigURL))
+	assert.ErrorContains(t, err, fmt.Sprintf("software URL \"%s\" is too long, must be 4000 characters or less", tooBigURL))
 
 	// Policy references a software installer not present in the team.
 	config = getTeamConfig([]string{"policies"})

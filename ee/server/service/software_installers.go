@@ -1154,7 +1154,7 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		if len(payload.URL) > fleet.SoftwareInstallerURLMaxLength {
 			return "", fleet.NewInvalidArgumentError(
 				"software.url",
-				"software URL is too long, must be less than 256 characters",
+				fmt.Sprintf("software URL is too long, must be %d characters or less", fleet.SoftwareInstallerURLMaxLength),
 			)
 		}
 		if _, err := url.ParseRequestURI(payload.URL); err != nil {
