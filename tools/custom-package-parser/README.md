@@ -1,14 +1,10 @@
 # Custom packages tests
 
-## Maintained apps list
+## Results
 
-notion
-postman
-slack
-teamviewer
-visual-studio-code
-whatsapp
-zoom-for-it-admins
+TODO NUMBERS!
+
+The results have been calculated using many of the apps in the current list of FMA macOS apps.
 
 ## 1Password
 
@@ -356,10 +352,174 @@ TODO(lucas): When time allows.
 ## Notion
 
 ### pkg
+
+N/A
+
 ### msi
+
+N/A
+
 ### exe
+
+✅ https://desktop-release.notion-static.com/Notion%20Setup%204.2.0.exe
+- Name: 'Notion 4.2.0' (matches osquery's `programs.name`)
+- Package IDs: 'Notion'
+
 ### deb
+
+TODO(lucas): When time allows.
+
 ### rpm
+
+TODO(lucas): When time allows.
+
+## Postman
+
+### pkg
+
+N/A (they have a zip:app)
+
+### msi
+
+N/A
+
+### exe
+
+✅ https://dl.pstmn.io/download/latest/win64
+- Name: 'Postman' (matches osquery's `programs.name`)
+- Package IDs: 'Postman'
+
+### deb
+
+N/A (installer is just a tar.gz)
+
+### rpm
+
+N/A (installer is just a tar.gz)
+
+## Slack
+
+### pkg
+
+✅ https://downloads.slack-edge.com/desktop-releases/mac/x64/4.41.105/Slack-4.41.105-macOS.pkg
+- Name: 'Slack.app'
+- Bundle Identifier: 'com.tinyspeck.slackmacgap'
+- Package IDs: 'com.tinyspeck.slackmacgap'
+
+### msi
+
+✅ https://downloads.slack-edge.com/desktop-releases/windows/x64/4.41.105/slack-standalone-4.41.105.0.msi
+- Name: 'Slack (Machine - MSI)' (matches osquery's `programs.name`)
+- Package IDs: '{D1458C20-B783-4E0C-B9D9-FAC9F56F94DB}'
+
+### exe
+
+❌ https://downloads.slack-edge.com/desktop-releases/windows/x64/4.41.105/SlackSetup.exe
+- Name: 'Slack Desktop' (doesn't match osquery's `programs.name`, `Slack`)
+- Package IDs: 'Slack Desktop'
+
+### deb
+
+TODO(lucas): When time allows.
+
+### rpm
+
+TODO(lucas): When time allows.
+
+## Team Viewer
+
+### pkg
+
+N/A (needs an admin license)
+
+### msi
+
+N/A (needs an admin license)
+
+### exe
+
+N/A (their exes are executables, not installers)
+
+### deb
+
+TODO(lucas): When time allows.
+
+### rpm
+
+TODO(lucas): When time allows.
+
+## Visual Studio Code
+
+### pkg
+
+
+
+### msi
+
+N/A
+
+### exe
+
+❌ https://vscode.download.prss.microsoft.com/dbazure/download/stable/fabdb6a30b49f79a7aba0f2ad9df9b399473380f/VSCodeSetup-x64-1.96.2.exe
+- Name: 'Visual Studio Code' (doesn't match osquery's `programs.name`, `Microsoft Visual Studio Code`)
+- Package IDs: 'Visual Studio Code'
+
+### deb
+
+TODO(lucas): When time allows.
+
+### rpm
+
+TODO(lucas): When time allows.
+
+## WhatsApp
+
+### pkg
+
+N/A (they have a zip:app)
+
+### msi
+
+N/A (from app store)
+
+### exe
+
+N/A (from app store)
+
+### deb
+
+N/A
+
+### rpm
+
+N/A
+
+## Zoom for IT admins
+
+### pkg
+
+✅ https://cdn.zoom.us/prod/6.3.0.44805/ZoomInstallerIT.pkg
+- Name: 'zoom.us.app' (matches osquery's `apps.name`)
+- Bundle Identifier: 'us.zoom.xos'
+- Package IDs: 'us.zoom.pkg.videomeeting'
+
+### msi
+
+✅ https://cdn.zoom.us/prod/6.3.0.52884/x64/ZoomInstallerFull.msi
+- Name: 'Zoom Workplace (64-bit)' (matches osquery's `programs.name`)
+- Package IDs: '{9BF959AB-C61A-460F-BA37-7D3DABB1388B}'
+
+### exe
+
+TODO(lucas): When time allows.
+
+### deb
+
+TODO(lucas): When time allows.
+
+### rpm
+
+TODO(lucas): When time allows.
 
 ## Tailscale
 
@@ -368,4 +528,3 @@ TODO(lucas): When time allows.
 ✅ https://dl.tailscale.com/stable/tailscale-setup-1.72.0.exe
 - Name: 'Tailscale' (matches osquery's `programs.name`).
 - Package IDs: 'Tailscale'
-
