@@ -15155,7 +15155,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host,
 		map[uint]*bool{
-			policy1.ID: ptr.Bool(false),
+			policy2.ID: ptr.Bool(false),
 		},
 	), http.StatusOK, &distributedResp)
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -15167,7 +15167,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.Equal(t, uint(1), policy2.FailingHostCount)
 
 	// We have an installation attempt for vim, because it's in scope
-	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, rubyDebTitleID)
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, vimTitleID)
 	require.NoError(t, err)
 	require.NotNil(t, host1LastInstall)
 }
