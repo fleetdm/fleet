@@ -44,6 +44,28 @@
     padding-top: 32px;
     margin-right: 20px;
   }
+  [purpose='form-with-video-container'] {
+    width: 100%;
+    max-width: 1200px;
+    padding-left: 64px;
+    padding-right: 64px;
+    padding-top: 32px;
+  }
+  [purpose='embedded-video'] {
+    position: relative;
+    margin-bottom: 40px;
+    width: 100%;
+    padding-bottom: 56%;
+    iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      border-radius: 12px;
+    }
+  }
   [purpose='form-tip'] {
     margin-top: 32px;
     padding: 16px;
@@ -321,11 +343,16 @@
       padding-top: 60px;
       padding-left: 40px;
       padding-right: 40px;
-      max-width: 600px;
+      // max-width: 600px;
+    }
+    [purpose='form-with-video-container'] {
+      padding: 0;
+      margin-left: auto;
+      margin-right: auto;
+
     }
     [purpose='form-container'] {
       padding: 0;
-      // min-width: unset;
       max-width: 504px;
       margin-left: auto;
       margin-right: auto;
@@ -341,7 +368,7 @@
       padding-left: 24px;
       padding-right: 24px;
     }
-    [purpose='form-container'] {
+    [purpose='form-container'], [purpose='form-with-video-container'] {
       min-width: unset;
       width: 100%;
     }
@@ -360,7 +387,7 @@
       margin-right: unset;
       margin-bottom: 20px;
     }
-    [purpose='form-container'] {
+    [purpose='form-container'], [purpose='form-with-video-container'] {
       width: 100%;
       margin-left: 0;
       margin-right: 0;
