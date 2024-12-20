@@ -156,6 +156,22 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		teamName = &t.Name
 	}
 
+	var scripts []string
+
+	if payload.InstallScript != nil {
+		scripts = append(scripts, *payload.InstallScript)
+	}
+	if payload.PostInstallScript != nil {
+		scripts = append(scripts, *payload.PostInstallScript)
+	}
+	if payload.UninstallScript != nil {
+		scripts = append(scripts, *payload.UninstallScript)
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, scripts); err != nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+	}
+
 	// get software by ID, fail if it does not exist or does not have an existing installer
 	software, err := svc.ds.SoftwareTitleByID(ctx, payload.TitleID, payload.TeamID, fleet.TeamFilter{
 		User:            vc.User,
