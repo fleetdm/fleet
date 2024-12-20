@@ -1161,7 +1161,7 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		return "", ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
-	allScripts := []string{}
+	var allScripts []string
 
 	// Verify payloads first, to prevent starting the download+upload process if the data is invalid.
 	for _, payload := range payloads {
