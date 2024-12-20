@@ -15458,6 +15458,22 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	getMAResp.FleetMaintainedApp.UninstallScript = ""
 	require.Equal(t, actualApp, *getMAResp.FleetMaintainedApp)
 
+	// Try adding ingested app with invalid secret
+	reqInvalidSecret := &addFleetMaintainedAppRequest{
+		AppID:             1,
+		TeamID:            &team.ID,
+		SelfService:       true,
+		PreInstallQuery:   "SELECT 1",
+		InstallScript:     "echo foo $FLEET_SECRET_INVALID",
+		PostInstallScript: "echo done $FLEET_SECRET_INVALID2",
+		UninstallScript:   "echo $FLEET_SECRET_INVALID3",
+	}
+	respBadSecret := s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", reqInvalidSecret, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(respBadSecret.Body)
+	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID")
+	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID2")
+	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID3")
+
 	// Add an ingested app to the team
 	var addMAResp addFleetMaintainedAppResponse
 	req := &addFleetMaintainedAppRequest{
