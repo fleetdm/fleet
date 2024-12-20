@@ -773,7 +773,9 @@ None.
 
 Returns all information about the Fleet's configuration.
 
-> NOTE: The `agent_options`, `sso_settings` and `smtp_settings` fields are only returned to Global Admin users.
+The `agent_options`, `sso_settings` and `smtp_settings` fields are only returned to Global Admin users.
+
+`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, and `scripts` only include the configuration profiles and scripts applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles or scripts added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles) or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) endpoints instead.
 
 `GET /api/v1/fleet/config`
 
@@ -10487,6 +10489,8 @@ _Available in Fleet Premium_
 _Available in Fleet Premium_
 
 `GET /api/v1/fleet/teams/:id`
+
+`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, and `scripts` only include the configuration profiles and scripts applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles or scripts added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles) or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) endpoints instead.
 
 #### Parameters
 
