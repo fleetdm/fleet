@@ -604,3 +604,71 @@ func (ts *withServer) uploadSoftwareInstaller(
 		require.Contains(t, errMsg, expectedError)
 	}
 }
+
+func (ts *withServer) updateSoftwareInstaller(
+	t *testing.T,
+	payload *fleet.UpdateSoftwareInstallerPayload,
+	expectedStatus int,
+	expectedError string,
+) {
+	t.Helper()
+
+	tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
+	require.NoError(t, err)
+	defer tfr.Close()
+
+	payload.InstallerFile = tfr
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+
+	// add the software field
+	fw, err := w.CreateFormFile("software", payload.Filename)
+	require.NoError(t, err)
+	n, err := io.Copy(fw, payload.InstallerFile)
+	require.NoError(t, err)
+	require.NotZero(t, n)
+
+	// add the team_id field
+	var tmID uint
+	if payload.TeamID != nil {
+		tmID = *payload.TeamID
+	}
+	require.NoError(t, w.WriteField("team_id", fmt.Sprintf("%d", tmID)))
+	// add the remaining fields
+	if payload.InstallScript != nil {
+		require.NoError(t, w.WriteField("install_script", *payload.InstallScript))
+	}
+	if payload.PreInstallQuery != nil {
+		require.NoError(t, w.WriteField("pre_install_query", *payload.PreInstallQuery))
+	}
+	if payload.PostInstallScript != nil {
+		require.NoError(t, w.WriteField("post_install_script", *payload.PostInstallScript))
+	}
+	if payload.UninstallScript != nil {
+		require.NoError(t, w.WriteField("uninstall_script", *payload.UninstallScript))
+	}
+	if payload.SelfService != nil {
+		if *payload.SelfService {
+			require.NoError(t, w.WriteField("self_service", "true"))
+		} else {
+			require.NoError(t, w.WriteField("self_service", "false"))
+		}
+	}
+
+	w.Close()
+
+	headers := map[string]string{
+		"Content-Type":  w.FormDataContentType(),
+		"Accept":        "application/json",
+		"Authorization": fmt.Sprintf("Bearer %s", ts.token),
+	}
+
+	r := ts.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", payload.TitleID), b.Bytes(), expectedStatus, headers)
+	defer r.Body.Close()
+
+	if expectedError != "" {
+		errMsg := extractServerErrorText(r.Body)
+		require.Contains(t, errMsg, expectedError)
+	}
+}

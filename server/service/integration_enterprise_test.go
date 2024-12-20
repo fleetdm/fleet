@@ -10657,6 +10657,19 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		// upload again fails
 		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already exists")
 
+		// update should succeed
+		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+			SelfService:       ptr.Bool(true),
+			InstallScript:     ptr.String("some install script"),
+			PreInstallQuery:   ptr.String("some pre install query"),
+			PostInstallScript: ptr.String("some post install script"),
+			Filename:          "ruby.deb",
+			TitleID:           titleID,
+			TeamID:            nil,
+		}, http.StatusOK, "")
+		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": 0, "self_service": true, "software_title_id": %d}`, titleID)
+		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
+
 		// orbit-downloading fails with invalid orbit node key
 		s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
 			InstallerID:  123,

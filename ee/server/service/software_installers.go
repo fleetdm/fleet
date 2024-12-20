@@ -173,16 +173,18 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	payload.InstallerID = existingInstaller.InstallerID
 	dirty := make(map[string]bool)
 
-	if payload.SelfService != nil && *payload.SelfService != existingInstaller.SelfService {
-		dirty["SelfService"] = true
-	}
-
 	activity := fleet.ActivityTypeEditedSoftware{
 		SoftwareTitle:   existingInstaller.SoftwareTitle,
 		TeamName:        teamName,
 		TeamID:          payload.TeamID,
 		SelfService:     existingInstaller.SelfService,
 		SoftwarePackage: &existingInstaller.Name,
+		SoftwareTitleID: payload.TitleID,
+	}
+
+	if payload.SelfService != nil && *payload.SelfService != existingInstaller.SelfService {
+		dirty["SelfService"] = true
+		activity.SelfService = *payload.SelfService
 	}
 
 	var payloadForNewInstallerFile *fleet.UploadSoftwareInstallerPayload
