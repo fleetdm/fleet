@@ -7,6 +7,7 @@ team_settings:
   integrations:
     google_calendar:
       enable_calendar_events: false
+secrets:
 agent_options:
 controls:
   ios_updates:
