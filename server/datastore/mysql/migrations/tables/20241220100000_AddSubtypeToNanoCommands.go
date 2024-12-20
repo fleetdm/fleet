@@ -8,10 +8,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20241219104318, Down_20241219104318)
+	MigrationClient.AddMigration(Up_20241220100000, Down_20241220100000)
 }
 
-func Up_20241219104318(tx *sql.Tx) error {
+func Up_20241220100000(tx *sql.Tx) error {
 	if !columnExists(tx, "nano_commands", "subtype") {
 		_, err := tx.Exec(fmt.Sprintf(`	
 ALTER TABLE nano_commands
@@ -34,6 +34,6 @@ ADD COLUMN subtype enum('%s','%s') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode
 	return nil
 }
 
-func Down_20241219104318(_ *sql.Tx) error {
+func Down_20241220100000(_ *sql.Tx) error {
 	return nil
 }
