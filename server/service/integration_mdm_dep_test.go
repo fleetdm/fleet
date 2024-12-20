@@ -1962,7 +1962,7 @@ func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileS
 	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
 	titleID1 := getSoftwareTitleID(t, s.ds, payloadDummy.Title, "apps")
 
-	// Create a label and assign it to the host
+	// Create a couple of labels and assign them to the host
 	var labelResp createLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
 		Name:  t.Name(),
@@ -1979,12 +1979,13 @@ func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileS
 	require.NotZero(t, labelResp.Label.ID)
 	lbl2 := labelResp.Label
 
+	// Upload another installer with exclude any lbl1
 	payloadDummy = &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:    "install",
 		Filename:         "dummy_installer_2.pkg",
 		Title:            "pkg",
 		TeamID:           &tm.ID,
-		LabelsExcludeAny: []string{lbl1.Name},
+		LabelsExcludeAny: []string{lbl1.Name, lbl2.Name},
 	}
 	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
 
@@ -2052,6 +2053,8 @@ func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileS
 	enrolledHost := listHostsRes.Hosts[0].Host
 	enrolledHost.TeamID = &tm.ID
 
+	// Add the host to lbl1 and lbl2. This means that we should not see dummy_installer_2 in the
+	// list of setup experience software for this host.
 	err = s.ds.RecordLabelQueryExecutions(ctx, enrolledHost, map[uint]*bool{lbl1.ID: ptr.Bool(true), lbl2.ID: ptr.Bool(true)}, time.Now(), false)
 	require.NoError(t, err)
 
