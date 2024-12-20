@@ -15073,6 +15073,12 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	rubyDebTitleID := resp.SoftwareTitles[0].ID
 
+	var rubyDetail getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyDebTitleID), nil, http.StatusOK, &rubyDetail)
+	require.NotNil(t, rubyDetail.SoftwareTitle)
+	require.NotNil(t, rubyDetail.SoftwareTitle.SoftwarePackage)
+	rubyInstallerID := rubyDetail.SoftwareTitle.SoftwarePackage.InstallerID
+
 	policy1, err := s.ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
 		Name:     "policy1",
 		Query:    "SELECT 1;",
@@ -15087,7 +15093,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		},
 	}, http.StatusOK, &mtplr)
 
-	host1LastInstall, err := s.ds.GetHostLastInstallData(ctx, host.ID, rubyDebTitleID)
+	host1LastInstall, err := s.ds.GetHostLastInstallData(ctx, host.ID, rubyInstallerID)
 	require.NoError(t, err)
 	require.Nil(t, host1LastInstall)
 
@@ -15108,7 +15114,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.Equal(t, uint(0), policy1.FailingHostCount)
 
 	// No installation attempt, because we skipped due to label scoping
-	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, rubyDebTitleID)
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, rubyInstallerID)
 	require.NoError(t, err)
 	require.Nil(t, host1LastInstall)
 
@@ -15133,6 +15139,12 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	vimTitleID := resp.SoftwareTitles[0].ID
 
+	var vimDetail getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", vimTitleID), nil, http.StatusOK, &vimDetail)
+	require.NotNil(t, vimDetail.SoftwareTitle)
+	require.NotNil(t, vimDetail.SoftwareTitle.SoftwarePackage)
+	vimInstallerID := vimDetail.SoftwareTitle.SoftwarePackage.InstallerID
+
 	policy2, err := s.ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
 		Name:     "policy2",
 		Query:    "SELECT 2;",
@@ -15147,7 +15159,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		},
 	}, http.StatusOK, &mtplr)
 
-	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, vimTitleID)
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, vimInstallerID)
 	require.NoError(t, err)
 	require.Nil(t, host1LastInstall)
 
@@ -15167,7 +15179,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.Equal(t, uint(1), policy2.FailingHostCount)
 
 	// We have an installation attempt for vim, because it's in scope
-	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, vimTitleID)
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, vimInstallerID)
 	require.NoError(t, err)
 	require.NotNil(t, host1LastInstall)
 }
