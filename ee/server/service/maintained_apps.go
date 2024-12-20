@@ -36,6 +36,10 @@ func (svc *Service) AddFleetMaintainedApp(
 		return 0, fleet.ErrNoContext
 	}
 
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{installScript, postInstallScript, uninstallScript}); err != nil {
+		return 0, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+	}
+
 	app, err := svc.ds.GetMaintainedAppByID(ctx, appID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "getting maintained app by id")

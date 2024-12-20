@@ -64,6 +64,10 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	// Update $PACKAGE_ID in uninstall script
 	preProcessUninstallScript(payload)
 
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.InstallScript, payload.PostInstallScript, payload.UninstallScript}); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+	}
+
 	installerID, titleID, err := svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "matching or creating software installer")
@@ -142,6 +146,22 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			return nil, err
 		}
 		teamName = &t.Name
+	}
+
+	var scripts []string
+
+	if payload.InstallScript != nil {
+		scripts = append(scripts, *payload.InstallScript)
+	}
+	if payload.PostInstallScript != nil {
+		scripts = append(scripts, *payload.PostInstallScript)
+	}
+	if payload.UninstallScript != nil {
+		scripts = append(scripts, *payload.UninstallScript)
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, scripts); err != nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
 	}
 
 	// get software by ID, fail if it does not exist or does not have an existing installer
@@ -1149,6 +1169,8 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		return "", ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
+	var allScripts []string
+
 	// Verify payloads first, to prevent starting the download+upload process if the data is invalid.
 	for _, payload := range payloads {
 		if len(payload.URL) > fleet.SoftwareInstallerURLMaxLength {
@@ -1163,6 +1185,11 @@ func (svc *Service) BatchSetSoftwareInstallers(
 				fmt.Sprintf("Couldn't edit software. URL (%q) is invalid", payload.URL),
 			)
 		}
+		allScripts = append(allScripts, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript)
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, allScripts); err != nil {
+		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
 	}
 
 	// keyExpireTime is the current maximum time supported for retrieving
