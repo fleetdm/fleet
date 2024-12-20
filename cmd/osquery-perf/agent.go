@@ -2427,7 +2427,6 @@ func (a *agent) submitLogs(results []resultLog) error {
 	}
 
 	body := []byte(`{"node_key": "` + a.nodeKey + `", "log_type": "result", "data": [` + string(resultLogs) + `]}`)
-
 	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/log", bytes.NewReader(body))
 	if err != nil {
 		return err
