@@ -5,6 +5,7 @@ import classnames from "classnames";
 import Icon from "components/Icon/Icon";
 import FleetIcon from "components/icons/FleetIcon";
 import TooltipWrapper from "components/TooltipWrapper";
+import Button from "components/buttons/Button";
 import InputField from "../InputField";
 
 const baseClass = "input-icon-field";
@@ -20,6 +21,7 @@ class InputFieldWithIcon extends InputField {
     name: PropTypes.string,
     onChange: PropTypes.func,
     onClick: PropTypes.func,
+    clearButton: PropTypes.func,
     placeholder: PropTypes.string,
     tabIndex: PropTypes.number,
     type: PropTypes.string,
@@ -86,6 +88,8 @@ class InputFieldWithIcon extends InputField {
       inputOptions,
       ignore1Password,
       onClick,
+      onChange,
+      clearButton,
     } = this.props;
     const { onInputChange, renderHelpText } = this;
 
@@ -111,6 +115,10 @@ class InputFieldWithIcon extends InputField {
       { [`${baseClass}__icon--active`]: value }
     );
 
+    const handleClear = () => {
+      onChange("");
+    };
+
     return (
       <div className={wrapperClasses}>
         {this.props.label && this.renderHeading()}
@@ -134,6 +142,15 @@ class InputFieldWithIcon extends InputField {
           />
           {iconSvg && <Icon name={iconSvg} className={iconClasses} />}
           {iconName && <FleetIcon name={iconName} className={iconClasses} />}
+          {clearButton && !!value && (
+            <Button
+              onClick={() => handleClear()}
+              variant="icon"
+              className={`${baseClass}__clear-button`}
+            >
+              <Icon name="close-filled" color="core-fleet-black" />
+            </Button>
+          )}
         </div>
         {renderHelpText()}
       </div>

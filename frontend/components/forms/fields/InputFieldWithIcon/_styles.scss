@@ -150,4 +150,15 @@
   input[type="search"]::-webkit-search-results-decoration {
     display: none;
   }
+
+  &__clear-button {
+    position: absolute;
+    right: 12px;
+    top: 0;
+    height: 40px;
+    width: 16px;
+    flex-wrap: wrap;
+    align-content: center;
+    z-index: 1;
+  }
 }
