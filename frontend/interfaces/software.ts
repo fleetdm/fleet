@@ -70,6 +70,7 @@ export interface ISoftwarePackage {
   install_script: string;
   pre_install_query?: string;
   post_install_script?: string;
+  automatic_install?: boolean; // POST only
   self_service: boolean;
   icon_url: string | null;
   status: {
