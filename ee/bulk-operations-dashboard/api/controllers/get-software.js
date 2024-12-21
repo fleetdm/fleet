@@ -61,7 +61,12 @@ module.exports = {
       let softwareWithSoftwarePackages = _.filter(softwareForThisTeam, (software)=>{
         return !_.isEmpty(software.software_package);
       });
-      for(let softwareWithInstaller of softwareWithSoftwarePackages) {
+
+      let softwarePackagesWithNoDownloadUrl = _.filter(softwareWithSoftwarePackages, (software)=>{
+        let softwarePackage = software.software_package;
+        return softwarePackage.package_url !== undefined;
+      });
+      for(let softwareWithInstaller of softwarePackagesWithNoDownloadUrl) {
         let softwareWithInstallerResponse = await sails.helpers.http.get.with({
           url: `/api/latest/fleet/software/titles/${softwareWithInstaller.id}?team_id=${teamApid}&available_for_install=true`,
           baseUrl: sails.config.custom.fleetBaseUrl,
