@@ -1699,6 +1699,7 @@ type ActivityTypeEditedSoftware struct {
 	TeamName        *string `json:"team_name"`
 	TeamID          *uint   `json:"team_id"`
 	SelfService     bool    `json:"self_service"`
+	SoftwareTitleID uint    `json:"software_title_id"`
 }
 
 func (a ActivityTypeEditedSoftware) ActivityName() string {
@@ -1711,12 +1712,14 @@ func (a ActivityTypeEditedSoftware) Documentation() (string, string, string) {
 - "software_package": Filename of the installer as of this update (including if unchanged).
 - "team_name": Name of the team on which this software was updated.` + " `null` " + `if it was updated on no team.
 - "team_id": The ID of the team on which this software was updated.` + " `null` " + `if it was updated on no team.
-- "self_service": Whether the software is available for installation by the end user.`, `{
+- "self_service": Whether the software is available for installation by the end user.
+- "software_title_id": ID of the added software title.`, `{
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
   "team_id": 123,
-  "self_service": true
+  "self_service": true,
+  "software_title_id": 2234
 }`
 }
 
