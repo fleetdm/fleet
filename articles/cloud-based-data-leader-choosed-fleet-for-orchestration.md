@@ -1,4 +1,4 @@
-Cloud-based data leader chooses Fleet for telemetry
+Cloud-based data leader chooses Fleet for orchestration
 
 <div purpose="attribution-quote">
 
@@ -25,12 +25,12 @@ Enhanced compliance management with automated checks on security configurations.
 Greater operational agility, empowering teams to run live queries for near real-time data access.
 </div>
 
-By switching to Fleet, it transformed its device management strategy, improving performance, reducing costs, and enabling cross-functional collaboration.
+By switching to Fleet, it transformed its device management strategy, improving performance, reducing costs, and enabling cross-platform orchestration.
 
 
 ## Their Story
 
- This cloud-based data company automatically manages all parts of the data storage process, including organization, structure, metadata, file size, compression, and statistics. It sought a modern solution to manage tens of thousands of devices by providing thorough endpoint telemetry, faster incident response, threat-hunting capabilities, enhanced [software patching](https://fleetdm.com/software-management) workflows, and easy data sharing across internal teams.
+This cloud-based data company automatically manages all parts of the data storage process, including organization, structure, metadata, file size, compression, and statistics. It sought a modern solution to manage tens of thousands of devices by providing thorough endpoint telemetry, faster incident response, threat-hunting capabilities, enhanced [software patching](https://fleetdm.com/software-management) workflows, and easy data sharing across internal teams.
 
 With Fleet, they achieved this with:
 
@@ -71,6 +71,6 @@ The cloud data platform's adoption of Fleet Device Management exemplifies how mo
 <meta name="authorGitHubUsername" value="Drew-P-drawers">
 <meta name="authorFullName" value="Andrew Baker">
 <meta name="publishedOn" value="2024-12-20">
-<meta name="articleTitle" value="Cloud-based data leader chooses Fleet for telemetry">
-<meta name="description" value="Cloud-based data leader chooses Fleet for telemetry">
+<meta name="articleTitle" value="Cloud-based data leader chooses Fleet for orchestration">
+<meta name="description" value="Cloud-based data leader chooses Fleet for orchestration">
 <meta name="showOnTestimonialsPageWithEmoji" value="🚪">
