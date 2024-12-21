@@ -68,4 +68,5 @@ module.exports.routes = {
   'POST /api/v1/software/edit-software':                 { action: 'software/edit-software' },
   'POST /api/v1/software/upload-software':               { action: 'software/upload-software' },
   'GET /api/v1/get-labels':                              { action: 'get-labels' },
+  'GET  /entrance/signup-sso-user-or-redirect':    { action: 'entrance/signup-sso-user-or-redirect' },
 };

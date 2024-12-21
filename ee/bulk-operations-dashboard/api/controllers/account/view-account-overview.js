@@ -21,6 +21,7 @@ module.exports = {
     // If billing features are enabled, include our configured Stripe.js
     // public key in the view locals.  Otherwise, leave it as undefined.
     return {
+      replaceBuiltInAuthWithEntra: (sails.config.custom.entraClientSecret !== undefined),
       stripePublishableKey: sails.config.custom.enableBillingFeatures? sails.config.custom.stripePublishableKey : undefined,
     };
 
