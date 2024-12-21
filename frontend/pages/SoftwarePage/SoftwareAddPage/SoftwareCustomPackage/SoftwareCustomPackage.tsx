@@ -1,23 +1,31 @@
 import React, { useContext, useEffect } from "react";
 import { InjectedRouter } from "react-router";
+import { useQuery } from "react-query";
 import { isAxiosError } from "axios";
 
 import PATHS from "router/paths";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 import { getFileDetails, IFileDetails } from "utilities/file/fileUtils";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 import softwareAPI, {
   MAX_FILE_SIZE_BYTES,
   MAX_FILE_SIZE_MB,
 } from "services/entities/software";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import { getErrorReason } from "interfaces/errors";
+import { ILabelSummary } from "interfaces/label";
 
 import CustomLink from "components/CustomLink";
 import FileProgressModal from "components/FileProgressModal";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 
 import PackageForm from "pages/SoftwarePage/components/PackageForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
@@ -44,6 +52,19 @@ const SoftwareCustomPackage = ({
   const [uploadProgress, setUploadProgress] = React.useState(0);
   const [uploadDetails, setUploadDetails] = React.useState<IFileDetails | null>(
     null
+  );
+
+  const {
+    data: labels,
+    isLoading: isLoadingLabels,
+    isError: isErrorLabels,
+  } = useQuery<ILabelSummary[], Error>(
+    ["custom_labels"],
+    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isPremiumTier,
+    }
   );
 
   useEffect(() => {
@@ -159,29 +180,42 @@ const SoftwareCustomPackage = ({
     setUploadDetails(null);
   };
 
+  const renderContent = () => {
+    if (isLoadingLabels) {
+      return <Spinner />;
+    }
+
+    if (isErrorLabels) {
+      return <DataError className={`${baseClass}__data-error`} />;
+    }
+
+    return (
+      <>
+        <PackageForm
+          labels={labels || []}
+          showSchemaButton={!isSidePanelOpen}
+          onClickShowSchema={() => setSidePanelOpen(true)}
+          className={`${baseClass}__package-form`}
+          onCancel={onCancel}
+          onSubmit={onSubmit}
+        />
+        {uploadDetails && (
+          <FileProgressModal
+            fileDetails={uploadDetails}
+            fileProgress={uploadProgress}
+          />
+        )}
+      </>
+    );
+  };
+
   if (!isPremiumTier) {
     return (
       <PremiumFeatureMessage className={`${baseClass}__premium-message`} />
     );
   }
 
-  return (
-    <div className={baseClass}>
-      <PackageForm
-        showSchemaButton={!isSidePanelOpen}
-        onClickShowSchema={() => setSidePanelOpen(true)}
-        className={`${baseClass}__package-form`}
-        onCancel={onCancel}
-        onSubmit={onSubmit}
-      />
-      {uploadDetails && (
-        <FileProgressModal
-          fileDetails={uploadDetails}
-          fileProgress={uploadProgress}
-        />
-      )}
-    </div>
-  );
+  return <div className={baseClass}>{renderContent()}</div>;
 };
 
 export default SoftwareCustomPackage;

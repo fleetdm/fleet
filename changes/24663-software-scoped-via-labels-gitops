@@ -1,0 +1,1 @@
+* Added `fleetctl gitops` support to scope software installers by labels, with the `labels_include_any` or `labels_exclude_any` conditions.

@@ -214,6 +214,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 		UserID:           user.ID,
 		Platform:         string(fleet.MacOSPlatform),
 		BundleIdentifier: "irrelevant_1",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -233,6 +234,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 		UserID:           user.ID,
 		Platform:         string(fleet.MacOSPlatform),
 		BundleIdentifier: "fleet.maintained1",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -252,6 +254,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 		UserID:           user.ID,
 		Platform:         string(fleet.IOSPlatform),
 		BundleIdentifier: "fleet.maintained1",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 

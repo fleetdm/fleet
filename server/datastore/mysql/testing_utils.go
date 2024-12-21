@@ -67,6 +67,14 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 	tc := config.TestConfig()
 	tc.Osquery.MinSoftwareLastOpenedAtDiff = defaultMinLastOpenedAtDiff
 
+	// TODO: for some reason we never log datastore messages when running integration tests, why?
+	//
+	// Changes below assume that we want to follows the same pattern as the rest of the codebase.
+	dslogger := log.NewLogfmtLogger(os.Stdout)
+	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
+		dslogger = log.NewNopLogger()
+	}
+
 	// set SQL mode to ANSI, as it's a special mode equivalent to:
 	// REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, and
 	// ONLY_FULL_GROUP_BY
@@ -76,7 +84,7 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 	// standard SQL.
 	//
 	// https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_ansi
-	ds, err := New(cfg, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1), replicaOpt, SQLMode("ANSI"), WithFleetConfig(&tc))
+	ds, err := New(cfg, clock.NewMockClock(), Logger(dslogger), LimitAttempts(1), replicaOpt, SQLMode("ANSI"), WithFleetConfig(&tc))
 	require.Nil(t, err)
 
 	if opts.DummyReplica {

@@ -35,7 +35,7 @@ export const PlatformSelector = ({
 
   return (
     <div className={`${parentClass}__${baseClass} ${baseClass} form-field`}>
-      <span className={labelClasses}>Checks on:</span>
+      <span className={labelClasses}>Targets:</span>
       <span className={`${baseClass}__checkboxes`}>
         <Checkbox
           value={checkDarwin}
@@ -71,7 +71,8 @@ export const PlatformSelector = ({
         </Checkbox>
       </span>
       <div className="form-field__help-text">
-        Your policy will only be checked on the selected platform(s).
+        To apply the profile to new hosts, you&apos;ll have to delete it and
+        upload a new profile.
       </div>
     </div>
   );

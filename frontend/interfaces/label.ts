@@ -24,6 +24,11 @@ export interface ILabelSummary {
   label_type: LabelType;
 }
 
+export interface ILabelSoftwareTitle {
+  id: number;
+  name: string;
+}
+
 export interface ILabel extends ILabelSummary {
   created_at: string;
   updated_at: string;

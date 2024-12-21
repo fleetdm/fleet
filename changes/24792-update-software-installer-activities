@@ -1,0 +1,1 @@
+* Added the `labels_include_any` and `labels_exclude_any` fields to the software installer activities.

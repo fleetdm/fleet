@@ -24,7 +24,14 @@ const DeleteLabelModal = ({
       className={baseClass}
     >
       <>
-        <p>Are you sure you wish to delete this label?</p>
+        <p>
+          If a configuration profile uses this label as a custom target, the
+          profile will break: it won&apos;t be applied to new hosts.
+        </p>
+        <p>
+          To apply the profile to new hosts, you&apos;ll have to delete it and
+          upload a new profile.
+        </p>
         <div className="modal-cta-wrap">
           <Button
             onClick={onSubmit}

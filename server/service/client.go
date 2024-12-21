@@ -1007,6 +1007,8 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			PostInstallScript:  string(pc),
 			UninstallScript:    string(us),
 			InstallDuringSetup: installDuringSetup,
+			LabelsIncludeAny:   si.LabelsIncludeAny,
+			LabelsExcludeAny:   si.LabelsExcludeAny,
 		}
 	}
 

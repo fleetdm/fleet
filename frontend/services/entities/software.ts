@@ -10,6 +10,7 @@ import {
   ISoftwareTitleDetails,
   IFleetMaintainedApp,
   IFleetMaintainedAppDetails,
+  ISoftwarePackage,
 } from "interfaces/software";
 import {
   buildQueryStringFromParams,
@@ -17,6 +18,8 @@ import {
 } from "utilities/url";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
 import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
+import { listNamesFromSelectedLabels } from "components/TargetLabelSelector/TargetLabelSelector";
+import { join } from "path";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -138,6 +141,8 @@ interface IAddFleetMaintainedAppPostBody {
   post_install_script?: string;
   uninstall_script?: string;
   self_service?: boolean;
+  labels_include_any?: string[];
+  labels_exclude_any?: string[];
 }
 
 const ORDER_KEY = "name";
@@ -276,6 +281,19 @@ export default {
       formData.append("post_install_script", data.postInstallScript);
     teamId && formData.append("team_id", teamId.toString());
 
+    if (data.targetType === "Custom") {
+      const selectedLabels = listNamesFromSelectedLabels(data.labelTargets);
+      let labelKey = "";
+      if (data.customTarget === "labelsIncludeAny") {
+        labelKey = "labels_include_any";
+      } else {
+        labelKey = "labels_exclude_any";
+      }
+      selectedLabels?.forEach((label) => {
+        formData.append(labelKey, label);
+      });
+    }
+
     return sendRequestWithProgress({
       method: "POST",
       path: SOFTWARE_PACKAGE_ADD,
@@ -289,6 +307,7 @@ export default {
 
   editSoftwarePackage: ({
     data,
+    orignalPackage,
     softwareId,
     teamId,
     timeout,
@@ -296,6 +315,7 @@ export default {
     signal,
   }: {
     data: IPackageFormData;
+    orignalPackage: ISoftwarePackage;
     softwareId: number;
     teamId: number;
     timeout?: number;
@@ -312,6 +332,29 @@ export default {
     formData.append("pre_install_query", data.preInstallQuery || "");
     formData.append("post_install_script", data.postInstallScript || "");
     formData.append("uninstall_script", data.uninstallScript || "");
+
+    // clear out labels if targetType is "All hosts"
+    if (data.targetType === "All hosts") {
+      if (orignalPackage.labels_include_any) {
+        formData.append("labels_include_any", "");
+      } else {
+        formData.append("labels_exclude_any", "");
+      }
+    }
+
+    // add custom labels if targetType is "Custom"
+    if (data.targetType === "Custom") {
+      const selectedLabels = listNamesFromSelectedLabels(data.labelTargets);
+      let labelKey = "";
+      if (data.customTarget === "labelsIncludeAny") {
+        labelKey = "labels_include_any";
+      } else {
+        labelKey = "labels_exclude_any";
+      }
+      selectedLabels?.forEach((label) => {
+        formData.append(labelKey, label);
+      });
+    }
 
     return sendRequestWithProgress({
       method: "PATCH",
@@ -379,6 +422,15 @@ export default {
       uninstall_script: formData.uninstallScript,
       self_service: formData.selfService,
     };
+
+    if (formData.targetType === "Custom") {
+      const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
+      if (formData.customTarget === "labelsIncludeAny") {
+        body.labels_include_any = selectedLabels;
+      } else {
+        body.labels_exclude_any = selectedLabels;
+      }
+    }
 
     return sendRequest("POST", SOFTWARE_FLEET_MAINTAINED_APPS, body);
   },

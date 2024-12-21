@@ -3,6 +3,10 @@
     margin-top: $pad-xxxlarge;
   }
 
+  &__data-error {
+    margin-top: $pad-xxxlarge;
+  }
+
   // formatting the form buttons to be on the left. Tshis is done here because
   // this form can be used in other places where the buttons should be on
   // the right.

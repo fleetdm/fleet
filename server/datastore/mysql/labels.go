@@ -252,6 +252,9 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string) error {
 
 		_, err = tx.ExecContext(ctx, `DELETE FROM labels WHERE id = ?`, labelID)
 		if err != nil {
+			if isMySQLForeignKey(err) {
+				return ctxerr.Wrap(ctx, foreignKey("labels", name), "delete label")
+			}
 			return ctxerr.Wrapf(ctx, err, "delete label")
 		}
 

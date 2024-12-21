@@ -1,0 +1,57 @@
+.target-label-selector {
+  font-size: $x-small;
+
+  &__custom-label-chooser {
+    margin-top: $pad-medium;
+  }
+
+  &__description {
+    margin: $pad-medium 0;
+  }
+
+  &__no-labels {
+    display: flex;
+    height: 187px;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-small;
+    justify-content: center;
+
+    span {
+      color: $ui-fleet-black-75;
+    }
+  }
+
+  &__checkboxes {
+    display: flex;
+    max-height: 187px;
+    flex-direction: column;
+    border-radius: $border-radius;
+    border: 1px solid $ui-fleet-black-10;
+    overflow-y: auto;
+
+    .loading-spinner {
+      margin: 69.5px auto;
+    }
+  }
+
+  &__label {
+    width: 100%;
+    padding: $pad-small $pad-medium;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+
+    &:not(:last-child) {
+      border-bottom: 1px solid $ui-fleet-black-10;
+    }
+
+    .form-field--checkbox {
+      width: auto;
+    }
+  }
+
+  &__label-name {
+    padding-left: $pad-large;
+  }
+}

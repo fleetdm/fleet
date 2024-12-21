@@ -99,7 +99,7 @@ import {
   MANAGE_HOSTS_PAGE_FILTER_KEYS,
   MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS,
 } from "./HostsPageConfig";
-import { isAcceptableStatus } from "./helpers";
+import { getDeleteLabelErrorMessages, isAcceptableStatus } from "./helpers";
 
 import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
 import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
@@ -1061,13 +1061,7 @@ const ManageHostsPage = ({
       );
       renderFlash("success", "Successfully deleted label.");
     } catch (error) {
-      console.error(error);
-      renderFlash(
-        "error",
-        getErrorReason(error).includes("built-in")
-          ? "Built-in labels can’t be modified or deleted."
-          : "Could not delete label. Please try again."
-      );
+      renderFlash("error", getDeleteLabelErrorMessages(error));
     } finally {
       setIsUpdatingLabel(false);
     }

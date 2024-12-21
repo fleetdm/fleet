@@ -1,3 +1,4 @@
+import { ILabelSoftwareTitle } from "./label";
 import { Platform } from "./platform";
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
@@ -184,4 +185,7 @@ export interface IActivityDetails {
   app_store_id?: number;
   location?: string; // name of location associated with VPP token
   webhook_url?: string;
+  software_title_id?: number;
+  labels_include_any?: ILabelSoftwareTitle[];
+  labels_exclude_any?: ILabelSoftwareTitle[];
 }
