@@ -6,10 +6,19 @@ export FLEET_ROOT_PASSPHRASE=p4ssphr4s3
 export FLEET_TARGETS_PASSPHRASE=p4ssphr4s3
 export FLEET_SNAPSHOT_PASSPHRASE=p4ssphr4s3
 export FLEET_TIMESTAMP_PASSPHRASE=p4ssphr4s3
-export TUF_PATH=test_tuf
 export NUDGE=1
 
-if ( [ -n "$GENERATE_PKG" ] || [ -n "$GENERATE_DEB" ] || [ -n "$GENERATE_RPM" ] || [ -n "$GENERATE_MSI" ] ) && [ -z "$ENROLL_SECRET" ]; then
+if [ -z "$TUF_PATH" ]; then
+  TUF_PATH=test_tuf
+fi
+export TUF_PATH
+
+if [ -z "$TUF_PORT" ]; then
+  TUF_PORT=8081
+fi
+export TUF_PORT
+
+if { [ -n "$GENERATE_PKG" ] || [ -n "$GENERATE_DEB" ] || [ -n "$GENERATE_RPM" ] || [ -n "$GENERATE_MSI" ] ; } && [ -z "$ENROLL_SECRET" ]; then
   echo "Error: To generate packages you must set ENROLL_SECRET variable."
   exit 1
 fi
@@ -30,7 +39,8 @@ fi
 make fleetctl
 ./tools/tuf/test/create_repository.sh
 
-export ROOT_KEYS=$(./build/fleetctl updates roots --path $TUF_PATH)
+ROOT_KEYS=$(./build/fleetctl updates roots --path "$TUF_PATH")
+export ROOT_KEYS
 
 echo "#########"
 echo "To generate packages set the following options in 'fleetctl package':"

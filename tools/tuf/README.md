@@ -69,18 +69,16 @@ AWS_PROFILE=tuf aws sso login
 > You can skip this step if you already have authorized keys to sign and publish updates.
 
 To release updates to our TUF repository you need the `root` role (ask in Slack who has such `root` role) to sign your signing keys.
-First, run the following script
-```sh
-AWS_PROFILE=tuf \
-ACTION=generate-signing-keys \
-TUF_DIRECTORY=/Users/foobar/tuf3.fleetctl.com \
-TARGETS_PASSPHRASE_1PASSWORD_PATH="Private/TUF TARGETS/password" \
-SNAPSHOT_PASSPHRASE_1PASSWORD_PATH="Private/TUF SNAPSHOT/password" \
-TIMESTAMP_PASSPHRASE_1PASSWORD_PATH="Private/TUF TIMESTAMP/password" \
-./tools/tuf/releaser.sh
-```
 
-The human with the `root` role will run the following commands to sign the provided `staged/root.json`:
+1. First, run the following script
+```sh
+tuf gen-key targets && echo
+tuf gen-key snapshot && echo
+tuf gen-key timestamp && echo
+```
+2. Store the '$TUF_DIRECTORY/keys' folder (that contains the encrypted keys) on a USB flash drive that you will ONLY use for releasing fleetd updates.
+3. Share '$TUF_DIRECTORY/staged/root.json' with Fleet member with the 'root' role, who will sign with its root key and push it to the remote repository.
+4. The human with the `root` role will run the following commands to sign the provided `staged/root.json`:
 ```sh
 tuf sign
 tuf snapshot

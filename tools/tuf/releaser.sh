@@ -277,41 +277,6 @@ prompt () {
     done
 }
 
-setup_to_become_publisher () {
-    echo "Running setup to become publisher..."
-
-    REPOSITORY_DIRECTORY=$TUF_DIRECTORY/repository
-    STAGED_DIRECTORY=$TUF_DIRECTORY/staged
-    KEYS_DIRECTORY=$TUF_DIRECTORY/keys
-    mkdir -p "$REPOSITORY_DIRECTORY"
-    mkdir -p "$STAGED_DIRECTORY"
-    mkdir -p "$KEYS_DIRECTORY"
-    if ! aws sts get-caller-identity &> /dev/null; then
-        aws sso login
-        prompt "AWS SSO login was successful."
-    fi
-    # These need to be exported for use by `tuf` commands.
-    FLEET_TARGETS_PASSPHRASE=$(op read "op://$TARGETS_PASSPHRASE_1PASSWORD_PATH")
-    export TUF_TARGETS_PASSPHRASE=$FLEET_TARGETS_PASSPHRASE
-    FLEET_SNAPSHOT_PASSPHRASE=$(op read "op://$SNAPSHOT_PASSPHRASE_1PASSWORD_PATH")
-    export TUF_SNAPSHOT_PASSPHRASE=$FLEET_SNAPSHOT_PASSPHRASE
-    FLEET_TIMESTAMP_PASSPHRASE=$(op read "op://$TIMESTAMP_PASSPHRASE_1PASSWORD_PATH")
-    export TUF_TIMESTAMP_PASSPHRASE=$FLEET_TIMESTAMP_PASSPHRASE
-}
-
-if [[ $ACTION == "generate-signing-keys" ]]; then
-    setup_to_become_publisher
-    pull_from_remote
-    cd "$TUF_DIRECTORY"
-    tuf gen-key targets && echo
-    tuf gen-key snapshot && echo
-    tuf gen-key timestamp && echo
-    echo "Keys have been generated, now do the following actions:"
-    echo "- Share '$TUF_DIRECTORY/staged/root.json' with Fleet member with the 'root' role, who will sign with its root key and push it to the remote repository."
-    echo "- Store the '$TUF_DIRECTORY/keys' folder (that contains the encrypted keys) on a USB flash drive that you will ONLY use for releasing fleetd updates."
-    exit 0
-fi
-
 print_reminder () {
     if [[ $ACTION == "release-to-edge" ]]; then
         if [[ $COMPONENT == "fleetd" ]]; then
@@ -333,8 +298,15 @@ print_reminder () {
     fi
 }
 
+fleetctl_version_check () {
+    which fleetctl
+    fleetctl --version
+    prompt "Make sure the fleetctl executable and version are correct."
+}
+
 trap clean_up EXIT
 print_reminder
+fleetctl_version_check
 setup
 
 pull_from_remote
