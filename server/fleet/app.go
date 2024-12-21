@@ -39,17 +39,24 @@ const (
 )
 
 type SSOProviderSettings struct {
+	// The non-embedded fields of `SSOSettings`, since now `omitempty`ed, won't
+	// show up for any viewer when they are unset. Since this struct is embedded there, these fields are returned at the same nesting
+	// level, and so should also be `omitempty`ed for consistency.
+
+	// Since this struct is also embedded in `MDMEndUserAuthentication` which is embedded in `MDM`,
+	// this omits these fields from that object as well.
+
 	// EntityID is a uri that identifies this service provider
-	EntityID string `json:"entity_id"`
+	EntityID string `json:"entity_id,omitempty"`
 	// IssuerURI is the uri that identifies the identity provider
-	IssuerURI string `json:"issuer_uri"`
+	IssuerURI string `json:"issuer_uri,omitempty"`
 	// Metadata contains IDP metadata XML
-	Metadata string `json:"metadata"`
+	Metadata string `json:"metadata,omitempty"`
 	// MetadataURL is a URL provided by the IDP which can be used to download
 	// metadata
-	MetadataURL string `json:"metadata_url"`
+	MetadataURL string `json:"metadata_url,omitempty"`
 	// IDPName is a human friendly name for the IDP
-	IDPName string `json:"idp_name"`
+	IDPName string `json:"idp_name,omitempty"`
 }
 
 func (s SSOProviderSettings) IsEmpty() bool {
@@ -58,23 +65,27 @@ func (s SSOProviderSettings) IsEmpty() bool {
 
 // SSOSettings wire format for SSO settings
 type SSOSettings struct {
-	SSOProviderSettings
+	// `json:",omitempty"`ing all but `enable_sso` allows surfacing only that field for team-level
+	// admins
+
+	// pointer to be able to omit
+	*SSOProviderSettings `json:",omitempty"`
 
 	// IDPImageURL is a link to a logo or other image that is used for UX
-	IDPImageURL string `json:"idp_image_url"`
+	IDPImageURL string `json:"idp_image_url,omitempty"`
 	// EnableSSO flag to determine whether or not to enable SSO
 	EnableSSO bool `json:"enable_sso"`
 	// EnableSSOIdPLogin flag to determine whether or not to allow IdP-initiated
 	// login.
-	EnableSSOIdPLogin bool `json:"enable_sso_idp_login"`
+	EnableSSOIdPLogin bool `json:"enable_sso_idp_login,omitempty"`
 	// EnableJITProvisioning allows user accounts to be created the first time
 	// users try to log in
-	EnableJITProvisioning bool `json:"enable_jit_provisioning"`
+	EnableJITProvisioning bool `json:"enable_jit_provisioning,omitempty"`
 	// EnableJITRoleSync is deprecated.
 	//
 	// EnableJITRoleSync sets whether the roles of existing accounts will be updated
 	// every time SSO users log in (does not have effect if EnableJITProvisioning is false).
-	EnableJITRoleSync bool `json:"enable_jit_role_sync"`
+	EnableJITRoleSync bool `json:"enable_jit_role_sync,omitempty"`
 }
 
 // SMTPSettings is part of the AppConfig which defines the wire representation
@@ -88,29 +99,29 @@ type SMTPSettings struct {
 	SMTPConfigured bool `json:"configured"`
 	// SMTPSenderAddress is the email address that will appear in emails sent
 	// from Fleet
-	SMTPSenderAddress string `json:"sender_address"`
+	SMTPSenderAddress string `json:"sender_address,omitempty"`
 	// SMTPServer is the host name of the SMTP server Fleet will use to send mail
-	SMTPServer string `json:"server"`
+	SMTPServer string `json:"server,omitempty"`
 	// SMTPPort port SMTP server will use
-	SMTPPort uint `json:"port"`
+	SMTPPort uint `json:"port,omitempty"`
 	// SMTPAuthenticationType type of authentication for SMTP
-	SMTPAuthenticationType string `json:"authentication_type"`
+	SMTPAuthenticationType string `json:"authentication_type,omitempty"`
 	// SMTPUserName must be provided if SMTPAuthenticationType is UserNamePassword
-	SMTPUserName string `json:"user_name"`
+	SMTPUserName string `json:"user_name,omitempty"`
 	// SMTPPassword must be provided if SMTPAuthenticationType is UserNamePassword
-	SMTPPassword string `json:"password"`
+	SMTPPassword string `json:"password,omitempty"`
 	// SMTPEnableSSLTLS whether to use SSL/TLS for SMTP
-	SMTPEnableTLS bool `json:"enable_ssl_tls"`
+	SMTPEnableTLS bool `json:"enable_ssl_tls,omitempty"`
 	// SMTPAuthenticationMethod authentication method smtp server will use
-	SMTPAuthenticationMethod string `json:"authentication_method"`
+	SMTPAuthenticationMethod string `json:"authentication_method,omitempty"`
 
 	// SMTPDomain optional domain for SMTP
-	SMTPDomain string `json:"domain"`
+	SMTPDomain string `json:"domain,omitempty"`
 	// SMTPVerifySSLCerts defaults to true but can be turned off if self signed
 	// SSL certs are used by the SMTP server
-	SMTPVerifySSLCerts bool `json:"verify_ssl_certs"`
+	SMTPVerifySSLCerts bool `json:"verify_ssl_certs,omitempty"`
 	// SMTPEnableStartTLS detects of TLS is enabled on mail server and starts to use it (default true)
-	SMTPEnableStartTLS bool `json:"enable_start_tls"`
+	SMTPEnableStartTLS bool `json:"enable_start_tls,omitempty"`
 }
 
 // VulnerabilitySettings is part of the AppConfig which defines how fleet will behave
@@ -189,11 +200,13 @@ type MDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
-	MacOSSettings           MacOSSettings            `json:"macos_settings"`
-	MacOSSetup              MacOSSetup               `json:"macos_setup"`
-	MacOSMigration          MacOSMigration           `json:"macos_migration"`
-	WindowsMigrationEnabled bool                     `json:"windows_migration_enabled"`
-	EndUserAuthentication   MDMEndUserAuthentication `json:"end_user_authentication"`
+	MacOSSettings           MacOSSettings  `json:"macos_settings"`
+	MacOSSetup              MacOSSetup     `json:"macos_setup"`
+	MacOSMigration          MacOSMigration `json:"macos_migration"`
+	WindowsMigrationEnabled bool           `json:"windows_migration_enabled"`
+	// all subfields of `MDMEndUserAuthentication` (which just embedds `SSOProviderSettings`) are
+	// `omitempty`ed, so `omitempty`ing it as well for consistency
+	EndUserAuthentication *MDMEndUserAuthentication `json:"end_user_authentication,omitempty"`
 
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
