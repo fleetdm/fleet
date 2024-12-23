@@ -59,47 +59,6 @@ LDFLAGS_VERSION = "\
 
 all: build
 
-define HELP_TEXT
-
-  Makefile commands
-
-	make deps         - Install dependent programs and libraries
-	make generate     - Generate and bundle required all code
-	make generate-go  - Generate and bundle required go code
-	make generate-js  - Generate and bundle required js code
-	make generate-dev - Generate and bundle required code in a watch loop
-
-	make migration - create a database migration file (supply name=TheNameOfYourMigration)
-
-	make generate-doc     - Generate updated API documentation for activities, osquery flags
-	make dump-test-schema - update schema.sql from current migrations
-	make generate-mock    - update mock data store
-
-	make clean        - Clean all build artifacts
-	make clean-assets - Clean assets only
-
-	make build        - Build the code
-	make package 	  - Build rpm and deb packages for linux
-
-	make run-go-tests   - Run Go tests in specific packages
-	make debug-go-tests - Debug Go tests in specific packages (with Delve)
-	make test-js        - Run the JavaScript tests
-
-	make lint         - Run all linters
-	make lint-go      - Run the Go linters
-	make lint-js      - Run the JavaScript linters
-	make lint-scss    - Run the SCSS linters
-	make lint-ts      - Run the TypeScript linters
-
-	For use in CI:
-
-	make test         - Run the full test suite (lint, Go and Javascript)
-	make test-go      - Run the Go tests (all packages and tests)
-
-endef
-
-help:
-	$(info $(HELP_TEXT))
 
 .prefix:
 	mkdir -p build/linux
@@ -115,7 +74,25 @@ help:
 .pre-fleetctl:
 	$(eval APP_NAME = fleetctl)
 
-build: fleet fleetctl
+BINS_TO_BUILD = fleet fleetctl
+ifdef FLEET
+	BINS_TO_BUILD = fleet
+else ifdef FLEETCTL
+	BINS_TO_BUILD = fleetctl
+endif
+.help-short--build:
+	@echo "Build binaries"
+.help-long--build:
+	@echo "  Builds the specified binaries (defaults to building fleet and fleetctl)"
+.help-options--build:
+	@echo "FLEET"
+	@echo "Build the fleet binary only"
+	@echo "FLEETCTL"
+	@echo "Build the fleetctl binary only"
+	@echo "GO_BUILD_RACE_ENABLED_VAR"
+	@echo "Turn on data race detection when building"
+
+build: $(BINS_TO_BUILD)
 
 fdm:
 	go build -o build/fdm ./tools/fdm
@@ -135,14 +112,22 @@ fleetctl: .prefix .pre-build .pre-fleetctl
 fleetctl-dev: GO_BUILD_RACE_ENABLED_VAR=true
 fleetctl-dev: fleetctl
 
+.help-short--lint-js:
+	@echo "Run the JavaScript linters"
 lint-js:
 	yarn lint
 
+.help-short--lint-go:
+	@echo "Run the Go linters"
 lint-go:
 	golangci-lint run --exclude-dirs ./node_modules --timeout 15m
 
+.help-short--lint:
+	@echo "Run all linters"
 lint: lint-go lint-js
 
+.help-short--dump-test-schema:
+	@echo "Update schema.sql from current migrations"
 dump-test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
@@ -180,34 +165,50 @@ else
 		dlv test ${dlv_test_pkg_to_test} --api-version=2 --listen=127.0.0.1:61179 ${DEBUG_TEST_EXTRA_FLAGS} -- -test.v -test.run=${TESTS_TO_RUN} ${GO_TEST_EXTRA_FLAGS} 
 endif
 
+.help-short--run-go-tests:
+	@echo "Run Go tests in specific packages"
 # Command to run specific tests in development.  Can run all tests for one or more packages, or specific tests within packages.
 run-go-tests:
 	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .run-go-tests GO_TEST_MAKE_FLAGS="-v"
 
+.help-short--debug-go-tests:
+	@echo "Debug Go tests in specific packages (with Delve)"
 debug-go-tests:
 	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests 
 
 # Command used in CI to run all tests.
+.help-short--test-go:
+	@echo "Run the Go tests (all packages and tests -- used in CI)"
 test-go: dump-test-schema generate-mock 
 	make .run-go-tests PKG_TO_TEST="./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/..."
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...
 
+.help-short--test-js:
+	@echo "Run the JavaScript tests"
 test-js:
 	yarn test
 
+.help-short--test:
+	@echo "Run the full test suite (lint, Go and Javascript -- used in CI)"
 test: lint test-go test-js
 
+.help-short--generate:
+	@echo "Generate and bundle required all code"
 generate: clean-assets generate-js generate-go
 
 generate-ci:
 	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=development yarn run webpack
 	make generate-go
 
+.help-short--generate-js:
+	@echo "Generate and bundle required js code"
 generate-js: clean-assets .prefix
 	NODE_ENV=production yarn run webpack --progress
 
+.help-short--generate-go:
+	@echo "Generate and bundle required go code"
 generate-go: .prefix
 	go run github.com/kevinburke/go-bindata/go-bindata -pkg=bindata -tags full \
 		-o=server/bindata/generated.go \
@@ -216,6 +217,8 @@ generate-go: .prefix
 # we first generate the webpack bundle so that bindata knows to atch the
 # output bundle file. then, generate debug bindata source file. finally, we
 # run webpack in watch mode to continuously re-generate the bundle
+.help-short--generate-dev:
+	@echo "Generate and bundle required code in a watch loop"
 generate-dev: .prefix
 	NODE_ENV=development yarn run webpack --progress
 	go run github.com/kevinburke/go-bindata/go-bindata -debug -pkg=bindata -tags full \
@@ -223,13 +226,19 @@ generate-dev: .prefix
 		frontend/templates/ assets/... server/mail/templates
 	NODE_ENV=development yarn run webpack --progress --watch
 
+.help-short--generate-mock:
+	@echo "Update mock data store"
 generate-mock: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult github.com/fleetdm/fleet/v4/server/service/mock
 
+.help-short--generate-doc:
+	@echo "Generate updated API documentation for activities, osquery flags"
 generate-doc: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/fleet
 	go generate github.com/fleetdm/fleet/v4/server/service/osquery_utils
 
+.help-short--deps:
+	@echo "Install dependent programs and libraries"
 deps: deps-js deps-go
 
 deps-js:
@@ -248,14 +257,20 @@ check-go-cloner:
 update-go-cloner:
 	go run ./tools/cloner-check/main.go --update
 
+.help-short--migration:
+	@echo "Create a database migration file (supply name=TheNameOfYourMigration)"
 migration:
 	go run ./server/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)
 	gofmt -w server/datastore/mysql/migrations/tables/*_$(name)*.go
 
+.help-short--clean:
+	@echo "Clean all build artifacts"
 clean: clean-assets
 	rm -rf build vendor
 	rm -f assets/bundle.js
 
+.help-short--clean-assets:
+	@echo "Clean assets only"
 clean-assets:
 	git clean -fx assets
 
@@ -586,22 +601,41 @@ db-replica-reset: fleet
 db-replica-run: fleet
 	FLEET_MYSQL_ADDRESS=127.0.0.1:3308 FLEET_MYSQL_READ_REPLICA_ADDRESS=127.0.0.1:3309 FLEET_MYSQL_READ_REPLICA_USERNAME=fleet FLEET_MYSQL_READ_REPLICA_DATABASE=fleet FLEET_MYSQL_READ_REPLICA_PASSWORD=insecure ./build/fleet serve --dev --dev_license
 
-.help-short--do-help:
-	@echo do something
 
-.help-short--do-help2:
-	@echo do another thing
+.help-short--foo:
+	@echo Do some stuff
 
-.help-short--some-very-long-command-name:
-	@echo here's some help
+.help-long--foo:
+	@echo "  Here is some stuff about the command Here is some stuff about the command Here is some stuff about the command Here is some stuff about the command Here is some stuff about the command Here is some stuff about the command Here is some stuff about the command Here is some stuff about the command "
 
-
-do-help:
-	@echo Available Commands:
-	@targets=$$(awk '/^[^#[:space:]].*:/ {print $$1}' Makefile | grep '^\.help-short--' | sed 's/:$$//'); \
-	if [ -n "$$targets" ]; then \
-		output=$$(make --no-print-directory $$targets 2>/dev/null); \
-		paste <(echo "$$targets" | sed 's/^\.help-short--/make /') <(echo "-- $$output") | column -t -s $$'\t'; \
+HELP_CMD_PREFIX ?= make
+help:
+	@if [ -n "$(SPECIFIC_CMD)" ]; then \
+		short_target=".help-short--$(SPECIFIC_CMD)"; \
+		long_target=".help-long--$(SPECIFIC_CMD)"; \
+		options_target=".help-options--$(SPECIFIC_CMD)"; \
+		if make --no-print-directory $$short_target >/dev/null 2>&1; then \
+			echo "NAME:"; \
+			short_desc=$$(make $$short_target); \
+			echo "  ${SPECIFIC_CMD} - $$short_desc"; \
+			if make --no-print-directory $$long_target >/dev/null 2>&1; then \
+				echo; \
+				echo "DESCRIPTION:"; \
+				make $$long_target | fmt -w 80; \
+			fi; \
+			if make --no-print-directory $$options_target >/dev/null 2>&1; then \
+				echo; \
+				echo "OPTIONS:"; \
+				paste -s -d '\t\n' <(make $$options_target) | column -t -s $$'\t'; \
+			fi; \
+		fi; \
 	else \
-		echo "No help targets found."; \
+		targets=$$(awk '/^[^#[:space:]].*:/ {print $$1}' Makefile | grep '^\.help-short--' | sed 's/:$$//' | sort); \
+		if [ -n "$$targets" ]; then \
+			output=$$(make --no-print-directory $$targets 2>/dev/null); \
+			paste <(echo "$$targets" | sed 's/^\.help-short--/  ${HELP_CMD_PREFIX} /') <(echo "$$output") | column -t -s $$'\t'; echo; \
+		else \
+			echo "No help targets found."; \
+		fi \
 	fi
+

@@ -11,7 +11,7 @@ import (
 func main() {
 	// Ensure there's a make target specified
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: fdm <make-target> [--option=value ...] -- [make-options]")
+		fmt.Println("Usage: fdm <command> [--option=value ...] -- [make-options]")
 		os.Exit(1)
 	}
 
@@ -33,6 +33,21 @@ func main() {
 
 	// Split arguments into options and make arguments
 	options, makeArgs := splitArgs(os.Args[2:])
+
+	// Special logic for the help command
+	if makeTarget == "help" {
+		if len(os.Args) > 2 && !strings.HasPrefix(os.Args[2], "--") {
+			options["SPECIFIC_CMD"] = os.Args[2]
+		} else {
+			fmt.Println("fdm - developer tools for fleet device management")
+			fmt.Println()
+			fmt.Println("USAGE:")
+			fmt.Println("  fdm <command> [--option=value ...] -- [make-options]")
+			fmt.Println()
+			fmt.Println("COMMANDS:")
+			options["HELP_CMD_PREFIX"] = "fdm"
+		}
+	}
 
 	// Transform options into Makefile-compatible environment variables
 	envVars := transformToMakeVars(options)
@@ -78,6 +93,7 @@ func splitArgs(args []string) (map[string]string, []string) {
 			}
 		}
 	}
+
 	return options, makeArgs
 }
 
