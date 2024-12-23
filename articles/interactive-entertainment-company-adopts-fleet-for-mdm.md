@@ -19,7 +19,7 @@ Fleet’s open-source platform enables a declarative approach alongside robust A
 
 <div purpose="checklist">
 
-Visibility into every endpoint dynamic host segmentation
+Visibility into every endpoint and dynamic host segmentation.
 
 Introduced new infrastructure as code workflows.
 
@@ -63,7 +63,7 @@ Fleet provides timely issue resolutions, guidance, and ensures a smooth transiti
 
 ## Conclusion
 
-By switching to Fleet, it solved their critical challenges in device management, including integration with existing tools, cross-platform compatibility, and scalability. Fleet's Infrastructure-as-Code workflows, real-time querying, and automation eliminated manual inefficiencies and consolidated tools. With Fleet, the company improved visibility, enforced security policies, and managed thousands of devices with minimal performance impacts. The smooth migration process and dedicated support made Fleet a practical, long-term solution for their complex, enterprise-level needs.
+By switching to Fleet, it solved their critical challenges in device management, including integration with existing tools, cross-platform compatibility, and scalability. Fleet's Infrastructure-as-Code workflows, real-time querying, and automation eliminated manual inefficiencies and consolidated tools. With Fleet, the company improved visibility, enforced security policies, and managed thousands of devices without performance impacts. The smooth migration process and dedicated support made Fleet a practical, long-term solution for their complex, enterprise-level needs.
 
 <call-to-action></call-to-action>
 
