@@ -20,8 +20,11 @@ They transitioned to Fleet for centralized, high-frequency data collection witho
 <div purpose="checklist">
 
 A 96% reduction in telemetry collection latency, from 24 hours to every 15 minutes.
+
 Cost savings through better device refresh planning, supported by historical data insights.
+
 Enhanced compliance management with automated checks on security configurations.
+
 Greater operational agility, empowering teams to run live queries for near real-time data access.
 </div>
 
