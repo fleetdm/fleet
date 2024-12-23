@@ -11,13 +11,28 @@ import TooltipWrapper from "components/TooltipWrapper";
 const baseClass = "software-details-modal";
 
 interface ITargetValueProps {
-  labels: ILabelSoftwareTitle[];
+  labelIncludeAny?: ILabelSoftwareTitle[];
+  labelExcludeAny?: ILabelSoftwareTitle[];
 }
 
-const TargetValue = ({ labels }: ITargetValueProps) => {
-  if (labels.length === 1) {
-    return <>labels[0].name</>;
+const TargetValue = ({
+  labelIncludeAny,
+  labelExcludeAny,
+}: ITargetValueProps) => {
+  if (!labelIncludeAny && !labelExcludeAny) {
+    return <>All hosts</>;
   }
+
+  let valueText = "";
+  let labels: ILabelSoftwareTitle[] = [];
+  if (labelIncludeAny) {
+    valueText = "Custom - include any label";
+    labels = labelIncludeAny;
+  } else if (labelExcludeAny) {
+    valueText = "Custom - exclude any label";
+    labels = labelExcludeAny;
+  }
+
   return (
     <TooltipWrapper
       tipContent={labels.map((label) => (
@@ -27,34 +42,9 @@ const TargetValue = ({ labels }: ITargetValueProps) => {
         </>
       ))}
     >
-      {labels.length} labels
+      {valueText}
     </TooltipWrapper>
   );
-};
-
-const generateTargetTitle = (
-  labelIncludeAny?: ILabelSoftwareTitle[],
-  labelExcludeAny?: ILabelSoftwareTitle[]
-) => {
-  if (labelIncludeAny && labelIncludeAny.length > 0) {
-    return "Targets (include any)";
-  } else if (labelExcludeAny && labelExcludeAny.length > 0) {
-    return "Targets (exclude any)";
-  }
-  return "Targets";
-};
-
-const generateTargetValue = (
-  labelIncludeAny?: ILabelSoftwareTitle[],
-  labelExcludeAny?: ILabelSoftwareTitle[]
-) => {
-  // handle single label case
-  if (labelIncludeAny) {
-    return <TargetValue labels={labelIncludeAny} />;
-  } else if (labelExcludeAny) {
-    return <TargetValue labels={labelExcludeAny} />;
-  }
-  return "None";
 };
 
 interface ISoftwareDetailsModalProps {
@@ -67,7 +57,6 @@ const SoftwareDetailsModal = ({
   onCancel,
 }: ISoftwareDetailsModalProps) => {
   const { labels_include_any, labels_exclude_any } = details;
-  const hasTargets = labels_include_any || labels_exclude_any;
 
   return (
     <Modal
@@ -85,18 +74,15 @@ const SoftwareDetailsModal = ({
             title="Self-Service"
             value={details.self_service ? "Yes" : "No"}
           />
-          {hasTargets && (
-            <DataSet
-              title={generateTargetTitle(
-                labels_include_any,
-                labels_exclude_any
-              )}
-              value={generateTargetValue(
-                labels_include_any,
-                labels_exclude_any
-              )}
-            />
-          )}
+          <DataSet
+            title="Target"
+            value={
+              <TargetValue
+                labelIncludeAny={labels_include_any}
+                labelExcludeAny={labels_exclude_any}
+              />
+            }
+          />
         </div>
         <div className="modal-cta-wrap">
           <Button onClick={onCancel} variant="brand">
