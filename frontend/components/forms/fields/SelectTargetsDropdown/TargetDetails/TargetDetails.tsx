@@ -119,7 +119,6 @@ const TargetDetails = ({
       count,
       description,
       display_text: displayText,
-      label_type: labelType,
       query,
     } = labelTarget;
 

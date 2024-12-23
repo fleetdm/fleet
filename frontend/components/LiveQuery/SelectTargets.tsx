@@ -175,12 +175,8 @@ const SelectTargets = ({
 
   const [labels, setLabels] = useState<ILabelsByType | null>(null);
   const [searchTextHosts, setSearchTextHosts] = useState("");
-  const [searchTextTeams, setSearchTextTeams] = useState<string | undefined>(
-    ""
-  );
-  const [searchTextLabels, setSearchTextLabels] = useState<string | undefined>(
-    ""
-  );
+  const [searchTextTeams, setSearchTextTeams] = useState("");
+  const [searchTextLabels, setSearchTextLabels] = useState("");
   const [isTeamListExpanded, setIsTeamListExpanded] = useState(false);
   const [isLabelsListExpanded, setIsLabelsListExpanded] = useState(false);
   const [debouncedSearchText, setDebouncedSearchText] = useState("");
