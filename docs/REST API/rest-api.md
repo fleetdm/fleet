@@ -738,7 +738,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 - [Modify team enroll secrets](#modify-team-enroll-secrets)
 - [Version](#version)
 
-The Fleet server exposes API endpoints that handle the configuration of Fleet as well as endpoints that manage enroll secret operations. These endpoints require prior authentication; you must log in before calling any of the endpoints documented below.
+The Fleet server exposes API endpoints that handle the configuration of Fleet as well as endpoints that manage enroll secret operations. These endpoints require prior authentication, you so you'll need to log in before calling any of the endpoints documented below.
 
 ### Get certificate
 
