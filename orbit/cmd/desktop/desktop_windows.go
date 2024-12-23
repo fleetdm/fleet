@@ -7,7 +7,9 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"syscall"
 	"time"
+	"unsafe"
 
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sys/windows"
@@ -16,15 +18,33 @@ import (
 // For Windows we must use ico format for the icon,
 // see https://github.com/getlantern/systray/blob/6065fda28be8c8d91aeb5e20de25e1600b8664a3/systray_windows.go#L850-L856.
 
-// In the past we implemented some logic to detect the Windows theme but it was buggy,
-// so as a temporary fix we are using the same colored icon for both themes.
-// Such theme detection logic was removed in this PR: https://github.com/fleetdm/fleet/pull/16402.
-
 //go:embed windows_app.ico
 var iconLight []byte
 
 //go:embed windows_app.ico
 var iconDark []byte
+
+// MessageBox displays a Windows message box with the specified title and text.
+func MessageBox(title, text string) {
+	// Load user32.dll
+	user32 := syscall.MustLoadDLL("user32.dll")
+	defer user32.Release()
+
+	// Load MessageBoxW function
+	messageBox := user32.MustFindProc("MessageBoxW")
+
+	// Convert strings to UTF16
+	textUTF16, _ := syscall.UTF16PtrFromString(text)
+	titleUTF16, _ := syscall.UTF16PtrFromString(title)
+
+	// Call MessageBoxW
+	messageBox.Call(
+		0,                                   // Handle to owner window (0 for no owner)
+		uintptr(unsafe.Pointer(textUTF16)),  // Text message
+		uintptr(unsafe.Pointer(titleUTF16)), // Title
+		0,                                   // Style (0 for OK button)
+	)
+}
 
 // blockWaitForStopEvent waits for the named event kernel object to be signalled
 func blockWaitForStopEvent(channelId string) error {
@@ -72,6 +92,9 @@ func blockWaitForStopEvent(channelId string) error {
 	if s != windows.WAIT_OBJECT_0 {
 		return fmt.Errorf("event wait was interrupted for unknown reasons: %d", s)
 	}
+
+	// Display a confirmation message after successful installation
+	MessageBox("Installation Successful", "The Fleet agent has been installed and enrolled successfully!")
 
 	return nil
 }
