@@ -24,8 +24,8 @@ jobs:
         # confirm:
         uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
         # confirm:
-        with:
-          payload-file-path: ./payload.json
+        # with:
+        #   payload-file-path: ./payload.json
         env:
           # confirm:
           JOB_STATUS: ${{ job.status }}
