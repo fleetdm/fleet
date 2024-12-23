@@ -2,8 +2,11 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -15,24 +18,69 @@ func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables 
 		return nil
 	}
 
-	values := strings.TrimSuffix(strings.Repeat("(?,?),", len(secretVariables)), ",")
+	// The secret variables should rarely change, so we do not use a transaction here.
+	// When we encrypt a secret variable, it is salted, so the encrypted data is different each time.
+	// In order to keep the updated_at timestamp correct, we need to compare the encrypted value
+	// with the existing value in the database. If the values are the same, we do not update the row.
 
-	stmt := fmt.Sprintf(`
-		INSERT INTO secret_variables (name, value)
-		VALUES %s
-		ON DUPLICATE KEY UPDATE value = VALUES(value)`, values)
-
-	args := make([]interface{}, 0, len(secretVariables)*2)
+	var names []string
 	for _, secretVariable := range secretVariables {
-		valueEncrypted, err := encrypt([]byte(secretVariable.Value), ds.serverPrivateKey)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "encrypt secret value with server private key")
+		names = append(names, secretVariable.Name)
+	}
+	existingVariables, err := ds.GetSecretVariables(ctx, names)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get existing secret variables")
+	}
+	existingVariableMap := make(map[string]string, len(existingVariables))
+	for _, existingVariable := range existingVariables {
+		existingVariableMap[existingVariable.Name] = existingVariable.Value
+	}
+	var variablesToInsert []fleet.SecretVariable
+	var variablesToUpdate []fleet.SecretVariable
+	for _, secretVariable := range secretVariables {
+		existingValue, ok := existingVariableMap[secretVariable.Name]
+		switch {
+		case !ok:
+			variablesToInsert = append(variablesToInsert, secretVariable)
+		case existingValue != secretVariable.Value:
+			variablesToUpdate = append(variablesToUpdate, secretVariable)
+		default:
+			// No change -- the variable value is the same
 		}
-		args = append(args, secretVariable.Name, valueEncrypted)
 	}
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "upsert secret variables")
+	if len(variablesToInsert) > 0 {
+		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(variablesToInsert)), ",")
+		stmt := fmt.Sprintf(`
+		INSERT INTO secret_variables (name, value)
+		VALUES %s`, values)
+		args := make([]interface{}, 0, len(variablesToInsert)*2)
+		for _, secretVariable := range variablesToInsert {
+			valueEncrypted, err := encrypt([]byte(secretVariable.Value), ds.serverPrivateKey)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "encrypt secret value for insert with server private key")
+			}
+			args = append(args, secretVariable.Name, valueEncrypted)
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert secret variables")
+		}
+	}
+
+	if len(variablesToUpdate) > 0 {
+		stmt := `
+		UPDATE secret_variables
+		SET value = ?
+		WHERE name = ?`
+		for _, secretVariable := range variablesToUpdate {
+			valueEncrypted, err := encrypt([]byte(secretVariable.Value), ds.serverPrivateKey)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "encrypt secret value for update with server private key")
+			}
+			if _, err := ds.writer(ctx).ExecContext(ctx, stmt, valueEncrypted, secretVariable.Name); err != nil {
+				return ctxerr.Wrap(ctx, err, "update secret variables")
+			}
+		}
 	}
 
 	return nil
@@ -67,6 +115,31 @@ func (ds *Datastore) GetSecretVariables(ctx context.Context, names []string) ([]
 	}
 
 	return secretVariables, nil
+}
+
+func (ds *Datastore) secretVariablesUpdated(ctx context.Context, q sqlx.QueryerContext, names []string, timestamp time.Time) (bool, error) {
+	if len(names) == 0 {
+		return false, nil
+	}
+
+	stmt, args, err := sqlx.In(`
+		SELECT 1
+		FROM secret_variables
+		WHERE name IN (?) AND updated_at > ?`, names, timestamp)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "build secret variables query")
+	}
+
+	var updated bool
+	err = sqlx.GetContext(ctx, q, &updated, stmt, args...)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return false, nil
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "get secret variables")
+	default:
+		return updated, nil
+	}
 }
 
 func (ds *Datastore) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
