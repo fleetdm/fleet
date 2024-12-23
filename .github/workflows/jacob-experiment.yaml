@@ -1,0 +1,37 @@
+name: Jacob's actions experiments
+
+on:
+  push:
+    branches:
+      - jacobs-actions-experiments
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  test-job-always-fails:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Always fail
+        run: exit 1
+      - name: Slack notification
+        if: failure()
+        # confirm:
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        # confirm:
+        with:
+          payload-file-path: ./payload.json
+        env:
+          # confirm:
+          JOB_STATUS: ${{ job.status }}
+          # confirm:
+          EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          # confirm:
+          RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
