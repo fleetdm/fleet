@@ -145,7 +145,7 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 ## Automatic Windows MDM Migration
 
-Fleet can automatically migrate your Windows hosts from a 3rd party MDM solution to Fleet. Once configured, the migration happens quickly and doesn't require any end user interaction.
+Fleet can automatically migrate your Windows hosts from another MDM solution to Fleet without end user interaction.
 
 ### Step 1: set up Windows MDM in Fleet
 
