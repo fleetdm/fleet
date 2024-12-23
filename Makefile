@@ -83,7 +83,7 @@ endif
 .help-short--build:
 	@echo "Build binaries"
 .help-long--build:
-	@echo "  Builds the specified binaries (defaults to building fleet and fleetctl)"
+	@echo "Builds the specified binaries (defaults to building fleet and fleetctl)"
 .help-options--build:
 	@echo "FLEET"
 	@echo "Build the fleet binary only"
@@ -615,21 +615,29 @@ help:
 		long_target=".help-long--$(SPECIFIC_CMD)"; \
 		options_target=".help-options--$(SPECIFIC_CMD)"; \
 		if make --no-print-directory $$short_target >/dev/null 2>&1; then \
-			echo "NAME:"; \
+			echo -n "Gathering help..."; \
 			short_desc=$$(make $$short_target); \
-			echo "  ${SPECIFIC_CMD} - $$short_desc"; \
 			if make --no-print-directory $$long_target >/dev/null 2>&1; then \
-				echo; \
-				echo "DESCRIPTION:"; \
-				make $$long_target | fmt -w 80; \
+				long_desc=$$(make $$long_target); \
 			fi; \
 			if make --no-print-directory $$options_target >/dev/null 2>&1; then \
+				options_text=$$(make $$options_target); \
+			fi; \
+			echo -ne "\r\033[K"; \
+			echo "NAME:"; \
+			echo "  ${SPECIFIC_CMD} - $$short_desc"; \
+			if [ -n "$$long_desc" ]; then \
+				echo; \
+				echo "DESCRIPTION:"; \
+				echo "  $$long_desc" | fmt -w 80; \
+			fi; \
+			if [ -n "$$options_text" ]; then \
 				echo; \
 				echo "OPTIONS:"; \
 				if [ -n "$(REFORMAT_OPTIONS)" ]; then \
-					paste -s -d '\t\n' <(make $$options_target | awk 'NR % 2 == 1 { option = $$0; gsub("_", "-", option); printf "  --%s\n", tolower(option); next } { print $$0 }') | column -t -s $$'\t'; \
+					paste -s -d '\t\n' <(echo "$$options_text" | awk 'NR % 2 == 1 { option = $$0; gsub("_", "-", option); printf "  --%s\n", tolower(option); next } { print $$0 }') | column -t -s $$'\t'; \
 				else \
-					paste -s -d '\t\n' <(make $$options_target) | column -t -s $$'\t'; \
+					paste -s -d '\t\n' <(echo "$$options_text") | column -t -s $$'\t'; \
 				fi; \
 			fi; \
 		fi; \
