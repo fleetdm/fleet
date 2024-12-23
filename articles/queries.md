@@ -90,7 +90,7 @@ How to configure query automations in bulk:
 
 3. Check the box next to the queries you want to send data to your log destination, and select **Save**. (The frequency that queries run at is set when a query is created.)
 
-> Note: When viewing a specific [team](https://fleetdm.com/docs/using-fleet/segment-hosts) in Fleet Premium, only queries that belong to the selected team will be listed. When configuring query automations for all hosts, only global queries will be listed.∂
+> Note: When viewing a specific [team](https://fleetdm.com/docs/using-fleet/segment-hosts) in Fleet Premium, only queries that belong to the selected team will be listed. When configuring query automations for all hosts, only global queries will be listed.
 
 ### Further reading
 
