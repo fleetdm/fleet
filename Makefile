@@ -83,7 +83,7 @@ endif
 .help-short--build:
 	@echo "Build binaries"
 .help-long--build:
-	@echo "Builds the specified binaries (defaults to building fleet and fleetctl)"
+	@echo "  Builds the specified binaries (defaults to building fleet and fleetctl)"
 .help-options--build:
 	@echo "FLEET"
 	@echo "Build the fleet binary only"
@@ -601,27 +601,22 @@ db-replica-reset: fleet
 db-replica-run: fleet
 	FLEET_MYSQL_ADDRESS=127.0.0.1:3308 FLEET_MYSQL_READ_REPLICA_ADDRESS=127.0.0.1:3309 FLEET_MYSQL_READ_REPLICA_USERNAME=fleet FLEET_MYSQL_READ_REPLICA_DATABASE=fleet FLEET_MYSQL_READ_REPLICA_PASSWORD=insecure ./build/fleet serve --dev --dev_license
 
-
-.help-short--foo:
-	@echo Do some stuff
-
-.help-long--foo:
-	@echo "  Here is some stuff about the command Here is some stuff about the command Here is some stuff about the command Here is some stuff about the command Here is some stuff about the command Here is some stuff about the command Here is some stuff about the command Here is some stuff about the command "
-
 HELP_CMD_PREFIX ?= make
 help:
 	@if [ -n "$(SPECIFIC_CMD)" ]; then \
 		short_target=".help-short--$(SPECIFIC_CMD)"; \
 		long_target=".help-long--$(SPECIFIC_CMD)"; \
 		options_target=".help-options--$(SPECIFIC_CMD)"; \
-		if make --no-print-directory $$short_target >/dev/null 2>&1; then \
-			echo -n "Gathering help..."; \
+		if make --no-print-directory $$long_target >/dev/null 2>&1; then \
+			echo -n "Gathering help for $$SPECIFIC_CMD command..."; \
 			short_desc=$$(make $$short_target); \
-			if make --no-print-directory $$long_target >/dev/null 2>&1; then \
-				long_desc=$$(make $$long_target); \
-			fi; \
+			long_desc=$$(make $$long_target); \
 			if make --no-print-directory $$options_target >/dev/null 2>&1; then \
-				options_text=$$(make $$options_target); \
+				if [ -n "$(REFORMAT_OPTIONS)" ]; then \
+					options_text=$$(paste -s -d '\t\n' <(make $$options_target | awk 'NR % 2 == 1 { option = $$0; gsub("_", "-", option); printf "  --%s\n", tolower(option); next } { print $$0 }') | column -t -s $$'\t'); \
+				else \
+					options_text=$$(paste -s -d '\t\n' <(make $$options_target) | column -t -s $$'\t'); \
+				fi; \
 			fi; \
 			echo -ne "\r\033[K"; \
 			echo "NAME:"; \
@@ -629,17 +624,15 @@ help:
 			if [ -n "$$long_desc" ]; then \
 				echo; \
 				echo "DESCRIPTION:"; \
-				echo "  $$long_desc" | fmt -w 80; \
+				echo "$$long_desc" | fmt -w 80; \
 			fi; \
 			if [ -n "$$options_text" ]; then \
 				echo; \
 				echo "OPTIONS:"; \
-				if [ -n "$(REFORMAT_OPTIONS)" ]; then \
-					paste -s -d '\t\n' <(echo "$$options_text" | awk 'NR % 2 == 1 { option = $$0; gsub("_", "-", option); printf "  --%s\n", tolower(option); next } { print $$0 }') | column -t -s $$'\t'; \
-				else \
-					paste -s -d '\t\n' <(echo "$$options_text") | column -t -s $$'\t'; \
-				fi; \
+				echo "$$options_text"; \
 			fi; \
+		else \
+			echo "No help found for $$SPECIFIC_CMD command."; \
 		fi; \
 	else \
 		targets=$$(awk '/^[^#[:space:]].*:/ {print $$1}' Makefile | grep '^\.help-short--' | sed 's/:$$//' | sort); \

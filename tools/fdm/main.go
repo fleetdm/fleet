@@ -38,6 +38,7 @@ func main() {
 	if makeTarget == "help" {
 		if len(os.Args) > 2 && !strings.HasPrefix(os.Args[2], "--") {
 			options["SPECIFIC_CMD"] = os.Args[2]
+			options["REFORMAT_OPTIONS"] = "true"
 		} else {
 			fmt.Println("fdm - developer tools for fleet device management")
 			fmt.Println()
