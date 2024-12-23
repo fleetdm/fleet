@@ -6,7 +6,7 @@ To control OS settings, updates, and more on Windows hosts follow the manual enr
 
 To use automatic enrollment (aka zero-touch) features on Windows, follow instructions to connect Fleet to Microsoft Entra ID. You can further customize zero-touch with Windows Autopilot.
 
-To bring Windows hosts over from a 3rd party MDM solution to Fleet, follow the automatic migration instructions.
+To migrate Windows hosts from your current MDM solution to Fleet, follow the instructions [here](#automatic-windows-mdm-migration). 
 
 ## Manual enrollment
 
