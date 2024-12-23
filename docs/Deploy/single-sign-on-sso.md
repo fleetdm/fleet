@@ -91,7 +91,7 @@ If you're configuring end user authentication head to **Settings > Integrations 
   issue authorization requests to the IdP.
 
 - **Metadata** - If the IdP does not provide a metadata URL, the metadata must
-  be obtained from the IdP and entered. Coming soon to end user authentication.
+  be obtained from the IdP and entered.
 
 ![Example SSO Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/sso-setup.png)
 
