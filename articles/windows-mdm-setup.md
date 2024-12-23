@@ -145,7 +145,7 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 ## Automatic Windows MDM Migration
 
-Fleet can automatically migrate your Windows hosts from a 3rd party MDM solution to Fleet MDM. Once configured, the migration happens quickly and doesn't require any end user interaction.
+Fleet can automatically migrate your Windows hosts from a 3rd party MDM solution to Fleet. Once configured, the migration happens quickly and doesn't require any end user interaction.
 
 ### Step 1: set up Windows MDM in Fleet
 
@@ -153,7 +153,7 @@ Follow the [steps above](#manual-enrollment) to turn on Windows MDM in Fleet.
 
 ### Step 2: install Fleet's agent on the hosts
 
-1. Make sure to install [Fleet's agent (fleetd)](https://fleetdm.com/docs/using-fleet/enroll-hosts) on the Windows hosts you want to migrate from the 3rd party MDM solution.
+1. [Enroll](https://fleetdm.com/docs/using-fleet/enroll-hosts) the Windows hosts you want to migrate to Fleet.
 
 2. Navigate to the **Hosts** tab in the main navigation bar and wait until your hosts are visible in the hosts list.
 
@@ -167,12 +167,9 @@ Follow the [steps above](#manual-enrollment) to turn on Windows MDM in Fleet.
 
 ### Step 4: monitor your hosts as they migrate to Fleet MDM
 
-Once the automatic migration is enabled, Fleet will send a notification to the agent on each host to tell it to migrate from the 3rd party MDM solution to Fleet MDM. This process usually takes a few minutes at most.
+Once the automatic migration is enabled, Fleet sends a notification to each host to tell it to migrate. This process usually takes a few minutes at most.
 
-You can track the migration's progress by navigating to the **Hosts** tab in the main navigation bar, and checking the "MDM status" column. If you can't see that column, click **Edit columns**, then select "MDM status". You should see the status go to "Off" as the hosts unenroll from the 3rd party and then back to "On (manual)" as they enroll to Fleet MDM.
-
-You can also navigate to the "Dashboard" page and scroll to the "Mobile Device Management (MDM)" card. This will show you the names of the solutions used by your hosts as well as a count of how many hosts are in each solution. You can click **Fleet**, which will bring up a modal showing the server URL and the host count for that server. Hover over the server URL, then click **View all hosts**. This will show you a list of hosts enrolled in Fleet MDM. As the hosts migrate, you should see them appear here.
-
+You can track migration progress in Fleet. Learn how [here](https://fleetdm.com/guides/mdm-migration#check-migration-progress).
 
 <meta name="articleTitle" value="Windows MDM setup">
 <meta name="authorFullName" value="Noah Talerman">
