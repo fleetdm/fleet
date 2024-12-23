@@ -117,6 +117,9 @@ help:
 
 build: fleet fleetctl
 
+fdm:
+	go build -o build/fdm ./tools/fdm
+
 fleet: .prefix .pre-build .pre-fleet
 	CGO_ENABLED=1 go build -race=${GO_BUILD_RACE_ENABLED_VAR} -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${LDFLAGS_VERSION} ./cmd/fleet
 
@@ -582,3 +585,23 @@ db-replica-reset: fleet
 # db-replica-run runs fleet serve with one main and one read MySQL instance.
 db-replica-run: fleet
 	FLEET_MYSQL_ADDRESS=127.0.0.1:3308 FLEET_MYSQL_READ_REPLICA_ADDRESS=127.0.0.1:3309 FLEET_MYSQL_READ_REPLICA_USERNAME=fleet FLEET_MYSQL_READ_REPLICA_DATABASE=fleet FLEET_MYSQL_READ_REPLICA_PASSWORD=insecure ./build/fleet serve --dev --dev_license
+
+.help-short--do-help:
+	@echo do something
+
+.help-short--do-help2:
+	@echo do another thing
+
+.help-short--some-very-long-command-name:
+	@echo here's some help
+
+
+do-help:
+	@echo Available Commands:
+	@targets=$$(awk '/^[^#[:space:]].*:/ {print $$1}' Makefile | grep '^\.help-short--' | sed 's/:$$//'); \
+	if [ -n "$$targets" ]; then \
+		output=$$(make --no-print-directory $$targets 2>/dev/null); \
+		paste <(echo "$$targets" | sed 's/^\.help-short--/make /') <(echo "-- $$output") | column -t -s $$'\t'; \
+	else \
+		echo "No help targets found."; \
+	fi
