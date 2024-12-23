@@ -23,6 +23,7 @@ import targetsAPI, {
 } from "services/entities/targets";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { formatSelectedTargetsForApi } from "utilities/helpers";
+import { capitalize } from "lodash";
 import permissions from "utilities/permissions";
 import {
   LABEL_DISPLAY_MAP,
@@ -111,7 +112,7 @@ const parseLabels = (list?: ILabelSummary[]) => {
 };
 
 /** Returns the index at which the sum of the names in the list exceed the maximum character length */
-const getTruncatedLength = (
+const getTruncatedEntityCount = (
   list: ISelectLabel[] | ISelectTeam[],
   maxLength: number
 ): number => {
@@ -175,10 +176,10 @@ const SelectTargets = ({
   const [labels, setLabels] = useState<ILabelsByType | null>(null);
   const [searchTextHosts, setSearchTextHosts] = useState("");
   const [searchTextTeams, setSearchTextTeams] = useState<string | undefined>(
-    undefined
+    ""
   );
   const [searchTextLabels, setSearchTextLabels] = useState<string | undefined>(
-    undefined
+    ""
   );
   const [isTeamListExpanded, setIsTeamListExpanded] = useState(false);
   const [isLabelsListExpanded, setIsLabelsListExpanded] = useState(false);
@@ -281,15 +282,14 @@ const SelectTargets = ({
 
   // Ensure that the team or label list is expanded on the first load only if a hidden entity is already selected
   const shouldExpandList = (
-    list: ISelectLabel[] | ISelectTeam[],
+    targetedList: ISelectLabel[] | ISelectTeam[],
     truncatedList: ISelectLabel[] | ISelectTeam[]
   ) => {
-    return list.some(
-      (entity) =>
-        !truncatedList.some(
-          (truncatedEntity) => truncatedEntity.id === entity.id
-        )
-    );
+    // Set used to improve lookup time
+    const truncatedIds = new Set(truncatedList.map((entity) => entity.id));
+
+    // Check if any entity targeted is not in truncated list shown
+    return targetedList.some((entity) => !truncatedIds.has(entity.id));
   };
 
   const expandListsOnInitialLoad = () => {
@@ -297,11 +297,13 @@ const SelectTargets = ({
       const truncatedLabels =
         labels?.other?.slice(
           0,
-          getTruncatedLength(labels?.other, SECTION_CHARACTER_LIMIT)
+          getTruncatedEntityCount(labels?.other, SECTION_CHARACTER_LIMIT)
         ) || [];
       const truncatedTeams =
-        teams?.slice(0, getTruncatedLength(teams, SECTION_CHARACTER_LIMIT)) ||
-        [];
+        teams?.slice(
+          0,
+          getTruncatedEntityCount(teams, SECTION_CHARACTER_LIMIT)
+        ) || [];
 
       if (shouldExpandList(targetedLabels, truncatedLabels)) {
         setIsLabelsListExpanded(true);
@@ -404,35 +406,36 @@ const SelectTargets = ({
   };
 
   const renderTargetEntitySection = (
-    header: string,
+    entityType: string,
     entityList: ISelectLabel[] | ISelectTeam[]
   ): JSX.Element => {
-    const isSearchEnabled = header === "Teams" || header === "Labels";
-    const searchTerm: string =
-      (header === "Teams" ? searchTextTeams : searchTextLabels) || "";
+    const isSearchEnabled = entityType === "teams" || entityType === "labels";
+    const searchTerm = (
+      (entityType === "teams" ? searchTextTeams : searchTextLabels) || ""
+    ).toLowerCase();
     const arrFixed = entityList as Array<typeof entityList[number]>;
-    const filteredEntities = arrFixed.filter(
-      (entity: ISelectLabel | ISelectTeam) => {
-        if (isSearchEnabled) {
-          return searchTerm
-            ? entity.name.toLowerCase().includes(searchTerm.toLowerCase())
-            : true;
-        }
-        return true;
-      }
-    );
+    const filteredEntities = isSearchEnabled
+      ? arrFixed.filter((entity: ISelectLabel | ISelectTeam) => {
+          if (isSearchEnabled) {
+            return searchTerm
+              ? entity.name.toLowerCase().includes(searchTerm)
+              : true;
+          }
+          return true;
+        })
+      : arrFixed;
 
     const isListExpanded =
-      header === "Teams" ? isTeamListExpanded : isLabelsListExpanded;
+      entityType === "teams" ? isTeamListExpanded : isLabelsListExpanded;
     const truncatedEntities = filteredEntities.slice(
       0,
-      getTruncatedLength(filteredEntities, SECTION_CHARACTER_LIMIT)
+      getTruncatedEntityCount(filteredEntities, SECTION_CHARACTER_LIMIT)
     );
     const hiddenEntityCount =
       filteredEntities.length - truncatedEntities.length;
 
     const toggleExpansion = () => {
-      header === "Teams"
+      entityType === "teams"
         ? setIsTeamListExpanded(!isTeamListExpanded)
         : setIsLabelsListExpanded(!isLabelsListExpanded);
     };
@@ -441,9 +444,7 @@ const SelectTargets = ({
       ? filteredEntities
       : truncatedEntities;
 
-    const emptySearchString = `No matching ${
-      header === "Teams" ? "teams" : "labels"
-    }.`;
+    const emptySearchString = `No matching ${entityType}.`;
 
     const renderEmptySearchString = () => {
       if (entitiesToDisplay.length === 0 && searchTerm !== "") {
@@ -458,17 +459,15 @@ const SelectTargets = ({
 
     return (
       <>
-        {header && <h3>{header}</h3>}
+        {entityType && <h3>{capitalize(entityType)}</h3>}
         {isSearchEnabled && (
           <>
             <SearchField
-              placeholder={
-                header === "Teams" ? "Search teams" : "Search labels"
-              }
+              placeholder={`Search ${entityType}`}
               onChange={(searchString) => {
-                header === "Teams"
-                  ? setSearchTextTeams(searchString || undefined)
-                  : setSearchTextLabels(searchString || undefined);
+                entityType === "teams"
+                  ? setSearchTextTeams(searchString)
+                  : setSearchTextLabels(searchString);
               }}
               clearButton
             />
@@ -616,13 +615,13 @@ const SelectTargets = ({
           renderTargetEntitySection("Platforms", labels.platforms)}
         {!!teams?.length &&
           (isOnGlobalTeam
-            ? renderTargetEntitySection("Teams", [
+            ? renderTargetEntitySection("teams", [
                 { id: 0, name: "No team" },
                 ...teams,
               ])
-            : renderTargetEntitySection("Teams", filterTeamObserverTeams()))}
+            : renderTargetEntitySection("teams", filterTeamObserverTeams()))}
         {!!labels?.other?.length &&
-          renderTargetEntitySection("Labels", labels.other)}
+          renderTargetEntitySection("labels", labels.other)}
       </div>
       <TargetsInput
         autofocus
