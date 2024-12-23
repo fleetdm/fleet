@@ -72,6 +72,7 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		UserID:            user1.ID,
 		TeamID:            &team1.ID,
 		Platform:          string(fleet.MacOSPlatform),
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -91,6 +92,7 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		UserID:            user1.ID,
 		TeamID:            &team2.ID,
 		Platform:          string(fleet.MacOSPlatform),
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -330,6 +332,7 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 		UserID:            user1.ID,
 		TeamID:            &team1.ID,
 		Platform:          string(fleet.MacOSPlatform),
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -349,6 +352,7 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 		UserID:            user1.ID,
 		TeamID:            &team2.ID,
 		Platform:          string(fleet.MacOSPlatform),
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -368,6 +372,7 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 		UserID:            user1.ID,
 		TeamID:            &team2.ID,
 		Platform:          string(fleet.IOSPlatform),
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -464,6 +469,7 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 		UserID:            user1.ID,
 		TeamID:            &team1.ID,
 		Platform:          string(fleet.MacOSPlatform),
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	_ = installerID1
 	require.NoError(t, err)
@@ -483,6 +489,7 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 		UserID:            user1.ID,
 		TeamID:            &team1.ID,
 		Platform:          string(fleet.MacOSPlatform),
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	_ = installerID2
 	require.NoError(t, err)
@@ -503,6 +510,7 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 		UserID:            user1.ID,
 		TeamID:            &team2.ID,
 		Platform:          string(fleet.MacOSPlatform),
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	_ = installerID3
 	require.NoError(t, err)
@@ -523,6 +531,7 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 		UserID:            user1.ID,
 		TeamID:            &team2.ID,
 		Platform:          string(fleet.IOSPlatform),
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
 	_ = installerID4
 	require.NoError(t, err)
@@ -678,7 +687,7 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 	// We need a new user first
 	user, err := ds.NewUser(ctx, &fleet.User{Name: "Foo", Email: "foo@example.com", GlobalRole: ptr.String("admin"), Password: []byte("12characterslong!")})
 	require.NoError(t, err)
-	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{Filename: "test.app", Version: "1.0.0", UserID: user.ID})
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{Filename: "test.app", Version: "1.0.0", UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}})
 	require.NoError(t, err)
 	installer, err := ds.GetSoftwareInstallerMetadataByID(ctx, installerID)
 	require.NoError(t, err)
