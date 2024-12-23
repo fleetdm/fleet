@@ -67,12 +67,12 @@ If no opportunities meet these criteria, the meeting is used to discuss the olde
 
 In order to be transparent, Fleet sends order forms within 30 days of opportunity creation in most cases. All quotes and purchase orders must be approved by the CRO and 🌐 [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) before being sent to the prospect or customer. Often, the CRO will request legal review of any unique terms required. To prepare and send a subscription order form the Fleet owner of the opportunity (usually AE or CSM) will: 
 
-1. Navigate to the ["Template gallery"](https://docs.google.com/document/u/0/?tgif=d&ftv=1) in Google Docs and create a copy of the "TEMPLATE - Order form".
-2. Add/remove table rows as needed for multi-year deals.
-3. Where possible, include a graphic of the customer's logo. Use good judgment and omit if a high-quality graphic is unavailable. If in doubt, ask Digital Experience for help.
+1. Navigate to the Salesforce opportunity and click the "Create a subscription order form" link (top-right corner of the op page) to copy the "[TEMPLATE - Order form](https://docs.google.com/document/u/0/?tgif=d&ftv=1). 
+2. Move the order for to the "[Contract drafts](https://drive.google.com/drive/u/0/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c)" folder in Google Drive.
+3. Edit the order form to be specific to the customer (e.g. add/remove table rows as needed for multi-year deals).
+  - Where possible, include a graphic of the customer's logo. Use good judgment and omit if a high-quality graphic is unavailable. If in doubt, ask Digital Experience for help.
 
-> **Important**
-> - > Every week, any proposal not sent within 30 days of its creation in Salesforce should be reviewed and closed lost. The review of these opportunities and exceptions for them of one (1) week or less are the responsibility of the sales manager.  For exceptions of more than one week, escalate to the CEO.
+> - Every week, any proposal not sent within 30 days of its creation in Salesforce should be reviewed and closed lost. The review of these opportunities and exceptions for them of one (1) week or less are the responsibility of the sales manager.  For exceptions of more than one week, escalate to the CEO.
 > - All non-standard (from another party) subscription agreements, NDAs, and similar contracts require legal review from Digital Experience before being signed. [Create an issue to request legal review](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/contract-review.md).
 
 4. In the internal Slack channel for the deal, at-mention the CRO and the Head of Digital Experience with a link to the docx version of the order and ask them to approve the order form.

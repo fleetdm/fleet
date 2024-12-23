@@ -186,10 +186,10 @@ func expandEnv(s string, failOnSecret bool) (string, error) {
 		case strings.HasPrefix(env, fleet.ServerVarPrefix):
 			// Don't expand fleet vars -- they will be expanded on the server
 			return "", false
-		case strings.HasPrefix(env, fleet.FLEET_SECRET_PREFIX):
+		case strings.HasPrefix(env, fleet.ServerSecretPrefix):
 			if failOnSecret {
 				err = multierror.Append(err, fmt.Errorf("environment variables with %q prefix are only allowed in profiles and scripts: %q",
-					fleet.FLEET_SECRET_PREFIX, env))
+					fleet.ServerSecretPrefix, env))
 			}
 			return "", false
 		}
@@ -231,7 +231,7 @@ func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 	}
 	var err *multierror.Error
 	_ = fleet.MaybeExpand(s, func(env string) (string, bool) {
-		if strings.HasPrefix(env, fleet.FLEET_SECRET_PREFIX) {
+		if strings.HasPrefix(env, fleet.ServerSecretPrefix) {
 			// lookup the secret and save it, but don't replace
 			v, ok := os.LookupEnv(env)
 			if !ok {

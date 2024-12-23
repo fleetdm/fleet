@@ -660,6 +660,10 @@ func TestGitOpsFullGlobal(t *testing.T) {
 		return []*fleet.ABMToken{}, nil
 	}
 
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return document, nil
+	}
+
 	const (
 		fleetServerURL = "https://fleet.example.com"
 		orgName        = "GitOps Test"
@@ -859,6 +863,10 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 		appliedPolicySpecs = specs
 		return nil
+	}
+
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return document, nil
 	}
 
 	// Queries
@@ -2550,6 +2558,9 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error {
 		return nil
+	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return document, nil
 	}
 
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)

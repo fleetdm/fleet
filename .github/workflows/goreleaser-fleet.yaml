@@ -24,6 +24,9 @@ jobs:
     environment: Docker Hub
     permissions:
       contents: write
+      id-token: write
+      attestations: write
+      packages: write
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
@@ -90,7 +93,7 @@ jobs:
       - name: Attest binaries and archives
         uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
         with:
-          subject-path: "dist/fleet*"
+          subject-path: "dist/**"
 
       # Get the commit hash so we can get image digests
       - name: Get the short commit hash
@@ -103,15 +106,15 @@ jobs:
         continue-on-error: true
         id: image_digests
         run: |
-          echo "digest_fleet=$(echo ${{ steps.goreleaser.outputs.artifacts }} | jq -r '.[]|select(.type == "Published Docker Image" and (.name | contains("fleetdm/fleet:${{ steps.commit.outputs.short_commit }}"))) | select(. != null)|.extra.Digest')" >> "$GITHUB_OUTPUT"
-          echo "digest_fleetctl=$(echo ${{ steps.goreleaser.outputs.artifacts }} | jq -r '.[]|select(.type == "Published Docker Image" and (.name | contains("fleetdm/fleetctl:${{ steps.commit.outputs.short_commit }}"))) | select(. != null)|.extra.Digest')" >> "$GITHUB_OUTPUT"
+          echo "digest_fleet=$(cat ./dist/artifact.json | jq -r '.[]|select(.type == "Published Docker Image" and (.name | contains("fleetdm/fleet:${{ steps.commit.outputs.short_commit }}"))) | select(. != null)|.extra.Digest')" >> "$GITHUB_OUTPUT"
+          echo "digest_fleetctl=$(cat ./dist/artifact.json | jq -r '.[]|select(.type == "Published Docker Image" and (.name | contains("fleetdm/fleetctl:${{ steps.commit.outputs.short_commit }}"))) | select(. != null)|.extra.Digest')" >> "$GITHUB_OUTPUT"
 
       - name: Attest Fleet image
         uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
         continue-on-error: true
         with:
           subject-digest: ${{steps.image_digests.outputs.digest_fleet}}
-          subject-name: "fleetdm/fleet:${{ steps.commit.outputs.short_commit }}"
+          subject-name: "fleetdm/fleet"
           push-to-registry: true
 
       - name: Attest FleetCtl image
@@ -119,7 +122,7 @@ jobs:
         continue-on-error: true
         with:
           subject-digest: ${{steps.image_digests.outputs.digest_fleetctl}}
-          subject-name: "fleetdm/fleetctl:${{ steps.commit.outputs.short_commit }}"
+          subject-name: "fleetdm/fleetctl"
           push-to-registry: true
 
       - name: Get tag

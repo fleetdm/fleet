@@ -773,6 +773,14 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 	if script.HostID != host.ID {
 		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "no script found for this host")
 	}
+
+	// We expose secret variables in the script content to the host. The exposed secrets are only intended to go to the device and not accessible via the UI/API.
+	script.ScriptContents, err = svc.ds.ExpandEmbeddedSecrets(ctx, script.ScriptContents)
+	if err != nil {
+		// This error should never occur because we validate secret variables on script upload.
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand embedded secrets for host %d and script %s", host.ID, execID))
+	}
+
 	return script, nil
 }
 

@@ -97,3 +97,10 @@ func (ms *MultiAllStorage) Disable(r *mdm.Request) error {
 	})
 	return err
 }
+
+func (ms *MultiAllStorage) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
+	doc, err := ms.execStores(ctx, func(s storage.AllStorage) (interface{}, error) {
+		return s.ExpandEmbeddedSecrets(ctx, document)
+	})
+	return doc.(string), err
+}

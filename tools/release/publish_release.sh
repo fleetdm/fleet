@@ -337,7 +337,7 @@ general_announce_info() {
         fi
 
         # TODO Publish Linkedin post about release article here and save url
-        linkedin_post_url=""
+        linkedin_post_url="https://www.linkedin.com/feed/update/urn:li:activity:7274913563989721088"
     fi
     echo "========================================================================="
     echo "Update osquery Slack Fleet channel topic to say the correct version $next_ver"

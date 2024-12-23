@@ -380,12 +380,20 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		})
 	}
 
-	cp, err := fleet.NewMDMAppleConfigProfile(b, &teamID)
+	// Expand and validate secrets in profile
+	expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(b))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
+	}
+
+	cp, err := fleet.NewMDMAppleConfigProfile([]byte(expanded), &teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("failed to parse config profile: %s", err.Error()),
 		})
 	}
+	// Save the original unexpanded profile
+	cp.Mobileconfig = b
 
 	if err := cp.ValidateUserProvided(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
@@ -405,6 +413,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	default:
 		// TODO what happens if mode is not set?s
 	}
+
 	err = validateConfigProfileFleetVariables(string(cp.Mobileconfig))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
@@ -501,6 +510,10 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 	validatedLabels, err := svc.validateDeclarationLabels(ctx, labels)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(data)}); err != nil {
+		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
 	}
 
 	if err := validateDeclarationFleetVariables(string(data)); err != nil {
@@ -890,22 +903,27 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	if _, ok := mdm_types.FleetReservedProfileNames()[decl.Name]; ok {
-		return &fleet.BadRequestError{
-			Message:     "profiles managed by Fleet can't be deleted using this endpoint.",
-			InternalErr: fmt.Errorf("deleting profile %s is not allowed because it's managed by Fleet", decl.Name),
+	// Check if the declaration contains a secret variable. If it does, this means that the declaration
+	// has been provided by the user and can be deleted. We don't need to validate that it is a Fleet declaration.
+	hasSecretVariable := len(fleet.ContainsPrefixVars(string(decl.RawJSON), fleet.ServerSecretPrefix)) > 0
+	if !hasSecretVariable {
+		if _, ok := mdm_types.FleetReservedProfileNames()[decl.Name]; ok {
+			return &fleet.BadRequestError{
+				Message:     "profiles managed by Fleet can't be deleted using this endpoint.",
+				InternalErr: fmt.Errorf("deleting profile %s is not allowed because it's managed by Fleet", decl.Name),
+			}
 		}
-	}
 
-	// TODO: refine our approach to deleting restricted/forbidden types of declarations so that we
-	// can check that Fleet-managed aren't being deleted; this can be addressed once we add support
-	// for more types of declarations
-	var d fleet.MDMAppleRawDeclaration
-	if err := json.Unmarshal(decl.RawJSON, &d); err != nil {
-		return ctxerr.Wrap(ctx, err, "unmarshalling declaration")
-	}
-	if err := d.ValidateUserProvided(); err != nil {
-		return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+		// TODO: refine our approach to deleting restricted/forbidden types of declarations so that we
+		// can check that Fleet-managed aren't being deleted; this can be addressed once we add support
+		// for more types of declarations
+		var d fleet.MDMAppleRawDeclaration
+		if err := json.Unmarshal(decl.RawJSON, &d); err != nil {
+			return ctxerr.Wrap(ctx, err, "unmarshalling declaration")
+		}
+		if err := d.ValidateUserProvided(); err != nil {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+		}
 	}
 
 	var teamName string
@@ -1968,7 +1986,14 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), "maximum configuration profile file size is 1 MB"),
 			)
 		}
-		mdmProf, err := fleet.NewMDMAppleConfigProfile(prof, tmID)
+		// Expand profile for validation
+		expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(prof))
+		if err != nil {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
+				"missing fleet secrets")
+		}
+		mdmProf, err := fleet.NewMDMAppleConfigProfile([]byte(expanded), tmID)
 		if err != nil {
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
@@ -1979,6 +2004,9 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()))
 		}
+
+		// Store original unexpanded profile
+		mdmProf.Mobileconfig = prof
 
 		if byName[mdmProf.Name] {
 			return ctxerr.Wrap(ctx,
@@ -3492,8 +3520,14 @@ func ReconcileAppleProfiles(
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
 
-	// Insert variables into profile contents
+	// Insert variables into profile contents of install targets. Variables may be host-specific.
 	err = preprocessProfileContents(ctx, appConfig, ds, installTargets, profileContents, hostProfilesToInstallMap)
+	if err != nil {
+		return err
+	}
+
+	// Find the profiles containing secret variables.
+	profilesWithSecrets, err := findProfilesWithSecrets(logger, installTargets, profileContents)
 	if err != nil {
 		return err
 	}
@@ -3513,7 +3547,11 @@ func ReconcileAppleProfiles(
 		var err error
 		switch op {
 		case fleet.MDMOperationTypeInstall:
-			err = commander.InstallProfile(ctx, target.hostUUIDs, profileContents[profUUID], target.cmdUUID)
+			if _, ok := profilesWithSecrets[profUUID]; ok {
+				err = commander.EnqueueCommandInstallProfileWithSecrets(ctx, target.hostUUIDs, profileContents[profUUID], target.cmdUUID)
+			} else {
+				err = commander.InstallProfile(ctx, target.hostUUIDs, profileContents[profUUID], target.cmdUUID)
+			}
 		case fleet.MDMOperationTypeRemove:
 			err = commander.RemoveProfile(ctx, target.hostUUIDs, target.profIdent, target.cmdUUID)
 		}
@@ -3575,6 +3613,27 @@ func ReconcileAppleProfiles(
 	}
 
 	return nil
+}
+
+func findProfilesWithSecrets(
+	logger kitlog.Logger,
+	installTargets map[string]*cmdTarget,
+	profileContents map[string]mobileconfig.Mobileconfig,
+) (map[string]struct{}, error) {
+	profilesWithSecrets := make(map[string]struct{})
+	for profUUID := range installTargets {
+		p, ok := profileContents[profUUID]
+		if !ok { // Should never happen
+			level.Error(logger).Log("msg", "profile content not found in ReconcileAppleProfiles", "profile_uuid", profUUID)
+			continue
+		}
+		profileStr := string(p)
+		vars := fleet.ContainsPrefixVars(profileStr, fleet.ServerSecretPrefix)
+		if len(vars) > 0 {
+			profilesWithSecrets[profUUID] = struct{}{}
+		}
+	}
+	return profilesWithSecrets, nil
 }
 
 func preprocessProfileContents(
@@ -4215,8 +4274,13 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 		return nil, ctxerr.Wrap(ctx, err, "getting declaration response")
 	}
 
+	expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(d.RawJSON))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expanding embedded secrets for identifier:%s hostUUID:%s", parts[2], hostUUID))
+	}
+
 	var tempd map[string]any
-	if err := json.Unmarshal(d.RawJSON, &tempd); err != nil {
+	if err := json.Unmarshal([]byte(expanded), &tempd); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling stored declaration")
 	}
 	tempd["ServerToken"] = d.Checksum

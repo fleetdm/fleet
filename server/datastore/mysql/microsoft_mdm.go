@@ -320,7 +320,18 @@ ON DUPLICATE KEY UPDATE
 			if status, ok := uuidsToStatus[cmd.CommandUUID]; ok && status.Data != nil {
 				statusCode = *status.Data
 				if status.Cmd != nil && *status.Cmd == fleet.CmdAtomic {
-					pp, err := fleet.BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, uuidsToStatus, enrollment.HostUUID)
+					// The raw MDM command may contain a $FLEET_SECRET_XXX, which should never be exposed or stored unencrypted.
+					// Note: As of 2024/12/17, on <Add>, <Replace>, and <Exec> commands are exposed to Windows MDM users, so we should not see any secrets in <Atomic> commands. This code is here for future-proofing.
+					rawCommandStr := string(cmd.RawCommand)
+					rawCommandWithSecret, err := ds.ExpandEmbeddedSecrets(ctx, rawCommandStr)
+					if err != nil {
+						// This error should never happen since we validate the presence of needed secrets on profile upload.
+						return ctxerr.Wrap(ctx, err, "expanding embedded secrets")
+					}
+					// Secret may be found in the command, so we make a new struct with the expanded secret.
+					cmdWithSecret := cmd
+					cmdWithSecret.RawCommand = []byte(rawCommandWithSecret)
+					pp, err := fleet.BuildMDMWindowsProfilePayloadFromMDMResponse(cmdWithSecret, uuidsToStatus, enrollment.HostUUID)
 					if err != nil {
 						return err
 					}

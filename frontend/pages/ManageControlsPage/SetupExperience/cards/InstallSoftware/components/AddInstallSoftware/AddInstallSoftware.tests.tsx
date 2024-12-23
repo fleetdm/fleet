@@ -60,7 +60,10 @@ describe("AddInstallSoftware", () => {
     );
 
     expect(
-      screen.getByText(/2 software will be installed during setup/)
+      screen.getByText(
+        (_, element) =>
+          element?.textContent === "2 software will be installed during setup."
+      )
     ).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Show selected software" })

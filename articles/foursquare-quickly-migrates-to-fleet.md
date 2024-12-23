@@ -87,3 +87,4 @@ Foursquare’s migration to Fleet for device management highlights its commitmen
 <meta name="publishedOn" value="2024-12-13">
 <meta name="articleTitle" value="Foursquare quickly migrates to Fleet for Device Management">
 <meta name="description" value="Foursquare quickly migrates to Fleet for Device Management">
+<meta name="showOnTestimonialsPageWithEmoji" value="🚪">

@@ -70,6 +70,24 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get software install details")
 	}
+
+	expandedInstallScript, err := ds.ExpandEmbeddedSecrets(ctx, result.InstallScript)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "expanding secrets in install script")
+	}
+	expandedPostInstallScript, err := ds.ExpandEmbeddedSecrets(ctx, result.PostInstallScript)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "expanding secrets in post-install script")
+	}
+	expandedUninstallScript, err := ds.ExpandEmbeddedSecrets(ctx, result.UninstallScript)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "expanding secrets in uninstall script")
+	}
+
+	result.InstallScript = expandedInstallScript
+	result.PostInstallScript = expandedPostInstallScript
+	result.UninstallScript = expandedUninstallScript
+
 	return result, nil
 }
 
