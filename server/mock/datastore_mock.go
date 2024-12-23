@@ -733,7 +733,7 @@ type VulnerabilityFunc func(ctx context.Context, cve string, teamID *uint, inclu
 
 type CountVulnerabilitiesFunc func(ctx context.Context, opt fleet.VulnListOptions) (uint, error)
 
-type UpdateVulnerabilityHostCountsFunc func(ctx context.Context) error
+type UpdateVulnerabilityHostCountsFunc func(ctx context.Context, maxRoutines int) error
 
 type IsCVEKnownToFleetFunc func(ctx context.Context, cve string) (bool, error)
 
@@ -5452,11 +5452,11 @@ func (s *DataStore) CountVulnerabilities(ctx context.Context, opt fleet.VulnList
 	return s.CountVulnerabilitiesFunc(ctx, opt)
 }
 
-func (s *DataStore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
+func (s *DataStore) UpdateVulnerabilityHostCounts(ctx context.Context, maxRoutines int) error {
 	s.mu.Lock()
 	s.UpdateVulnerabilityHostCountsFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateVulnerabilityHostCountsFunc(ctx)
+	return s.UpdateVulnerabilityHostCountsFunc(ctx, maxRoutines)
 }
 
 func (s *DataStore) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error) {

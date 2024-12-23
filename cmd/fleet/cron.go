@@ -104,7 +104,7 @@ func cronVulnerabilities(
 
 		start := time.Now()
 		level.Info(logger).Log("msg", "updating vulnerability host counts")
-		if err := ds.UpdateVulnerabilityHostCounts(ctx); err != nil {
+		if err := ds.UpdateVulnerabilityHostCounts(ctx, config.MaxRoutines); err != nil {
 			return fmt.Errorf("updating vulnerability host counts: %w", err)
 		}
 		level.Info(logger).Log("msg", "vulnerability host counts updated", "took", time.Since(start).Seconds())

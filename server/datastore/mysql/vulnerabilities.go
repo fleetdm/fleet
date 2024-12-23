@@ -371,10 +371,10 @@ const (
 func (ds *Datastore) batchFetchVulnerabilityCounts(
 	ctx context.Context,
 	scope CountScope,
+	maxRoutines int,
 ) ([]hostCount, error) {
 	const (
-		batchSize            = 20
-		maxConcurrentBatches = 5
+		batchSize = 20
 	)
 
 	// Fetch distinct CVEs
@@ -392,7 +392,7 @@ func (ds *Datastore) batchFetchVulnerabilityCounts(
 		hostCounts []hostCount
 		mu         sync.Mutex
 		wg         sync.WaitGroup
-		sem        = make(chan struct{}, maxConcurrentBatches)
+		sem        = make(chan struct{}, maxRoutines)
 		errChan    = make(chan error, len(allCVEs)/batchSize+1)
 	)
 
@@ -522,14 +522,14 @@ func getVulnHostCountQuery(scope CountScope) string {
 	}
 }
 
-func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
+func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context, maxRoutines int) error {
 	// set all counts to 0 to later identify rows to delete
 	_, err := ds.writer(ctx).ExecContext(ctx, "UPDATE vulnerability_host_counts SET host_count = 0")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "initializing vulnerability host counts")
 	}
 
-	globalHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, GlobalCount)
+	globalHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, GlobalCount, maxRoutines)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching global vulnerability host counts")
 	}
@@ -539,7 +539,7 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "inserting global vulnerability host counts")
 	}
 
-	teamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, TeamCount)
+	teamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, TeamCount, maxRoutines)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching team vulnerability host counts")
 	}
@@ -549,7 +549,7 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
 	}
 
-	noTeamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, NoTeamCount)
+	noTeamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, NoTeamCount, maxRoutines)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching no team vulnerability host counts")
 	}
