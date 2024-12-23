@@ -13,15 +13,29 @@
 Live queries enable administrators to ask near real-time questions of all online devices, such as checking the encryption status of SSH keys across endpoints, or obtaining the uptime of each server within their purview. This enables them to promptly identify and address any issues, thereby reducing downtime and maintaining operational efficiency. These tasks, which would be time-consuming and complex if done manually, are streamlined through live queries, offering real-time insights into the status and posture of the entire fleet of devices helping IT and security.
 
 
+## How to run a live query
+
+Live queries can be run from the web UI, the REST API, or the command-line interface called `fleetctl`.
+
+For detailed instructions on creating and running queries in the web UI, refer to this [guide](https://fleetdm.com/guides/queries).
+
+Using the REST API, users can run a live query [using a saved query's id](https://fleetdm.com/docs/rest-api/rest-api#run-live-query) or with [custom SQL on a specific host](https://fleetdm.com/docs/rest-api/rest-api#live-query-one-host-ad-hoc).
+
+> Note: Users with the observer role do not have permission to run live queries.
+
+## Running a live query using fleetctl
+
+Here is an example using [fleetctl](https://fleetdm.com/guides/fleetctl) to obtain the operating system name and version for all devices:
+
+
+```
+fleetctl query --query "select name, version from os_version;" --labels "All Hosts" > results.json
+```
+
+The `--query` option specifies the Osquery query you want to run. The --labels "All Hosts" option ensures the query is executed on all hosts connected to your Fleet instance. The `--labels` option targets devices with the specified labels. If multiple labels are provided, the query runs on devices that match any of them. For example, `--labels "production,dev"` runs the query on devices labeled as either `production` or `dev`. As the query runs, the results will be displayed in real-time. `> results.json` option redirects the output to a JSON file.
+
+
 ## Live queries under the hood
-
-Live queries can be run from the web UI, the command-line interface called `fleetctl`, or the REST API. The user creates a query and selects which devices will run that query. Here is an example using `fleetctl` to obtain the operating system name and version for all devices:
-
-
-```
-fleetctl query --query "select name, version from os_version;" --labels "All Hosts"
-```
-
 
 When a client initiates a live query, the server first creates a **Query Campaign** record in the MySQL database. A Fleet deployment consists of several servers behind a load balancer, so storing the record in the DB makes all servers aware of the new query campaign.
 
@@ -49,6 +63,8 @@ Then, the osquery agents run the actual query on their host, and write the resul
 
 Only the one server communicating with the client subscribes to the results. It processes the data from the cache, keeps track of how many hosts reported back, and communicates results back to the client. The web UI and `fleetctl` interfaces use a [WebSockets API](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API), and results are reported as they come in. The REST API, on the other hand, only sends a response after all online hosts have reported their query results.
 
+The query response time can vary due to osquery's heartbeat response time. This is because devices check in with the servers periodically, and the query is executed during these check-ins.
+
 
 ## Discover more
 
@@ -60,8 +76,9 @@ As you reflect on the capabilities of live queries with Fleet, consider your net
 
 We encourage you to explore the possibilities and share your thoughts or questions. Perhaps you’re facing a specific query challenge or an innovative use case you’ve discovered. Whatever it may be, the world of live queries is vast and ripe for exploration. Join us in [Fleet’s Slack forums](https://fleetdm.com/support) to engage with a community of like-minded professionals and deepen your understanding of what live queries can achieve in your environment.
 
-API Documentation: 
+Documentation: 
 
+* [Run live query with the UI](https://fleetdm.com/guides/queries)
 * [Run live query with REST API](https://fleetdm.com/docs/rest-api/rest-api#run-live-query)
 * [Run live query with WebSockets](https://github.com/fleetdm/fleet/blob/6fd06d648601edd89c01e25426e2e35ff2a8a37b/docs/Contributing/API-for-contributors.md#run-live-query)
 
