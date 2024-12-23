@@ -7616,7 +7616,7 @@ Returns a list of global queries or team queries.
 | team_id         | integer | query | _Available in Fleet Premium_. The ID of the parent team for the queries to be listed. When omitted, returns global queries.                  |
 | query           | string  | query | Search query keywords. Searchable fields include `name`.                                                                      |
 | merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global queries in addition to team queries when filtering by `team_id`. (If no `team_id` is provided, this parameter is ignored.) |
-| compatible_platform | string | query | Return queries that only reference tables compatible with this platform (not a strict compatibility check). One of: `"macos"`, `"windows"`, `"linux"`, `"chrome"` (case-insensitive). |
+| platform        | string  | query | Return queries that are scheduled to run on this platform. One of: `"macos"`, `"windows"`, `"linux"` (case-insensitive). (Since queries cannot be scheduled to run on `"chrome"` hosts, it's not a valid value here) |
 | page                    | integer | query | Page number of the results to fetch. |
 | per_page                | integer | query | Results per page. |
 
