@@ -11431,6 +11431,7 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 | email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                             |
 | name        | string  | body | **Required.** The name of the invited user.                                                                                                           |
 | sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                                |
+| mfa_enabled | boolean | body | _Available in Fleet Premium._ Whether or not the invited user must click a magic link emailed to them to log in, after they successfully enter their username and password. Users can have SSO or MFA enabled, but not both. |
 | teams       | array   | body | _Available in Fleet Premium_. A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
 
 #### Example
@@ -11442,6 +11443,7 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
   "email": "john_appleseed@example.com",
   "name": "John",
   "sso_enabled": false,
+  "mfa_enabled": false,
   "global_role": null,
   "teams": [
     {
@@ -11472,6 +11474,7 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
     "email": "john_appleseed@example.com",
     "name": "John",
     "sso_enabled": false,
+    "mfa_enabled": false,
     "teams": [
       {
         "id": 10,
@@ -11530,6 +11533,7 @@ Returns a list of the active invitations in Fleet.
       "email": "john_appleseed@example.com",
       "name": "John",
       "sso_enabled": false,
+      "mfa_enabled": false,
       "global_role": "admin",
       "teams": []
     },
@@ -11540,6 +11544,7 @@ Returns a list of the active invitations in Fleet.
       "email": "bob_marks@example.com",
       "name": "Bob",
       "sso_enabled": false,
+      "mfa_enabled": false,
       "global_role": "admin",
       "teams": []
     }
@@ -11597,6 +11602,7 @@ Verify the specified invite.
     "email": "steve@example.com",
     "name": "Steve",
     "sso_enabled": false,
+    "mfa_enabled": false,
     "global_role": "admin",
     "teams": []
   }
@@ -11631,6 +11637,7 @@ Verify the specified invite.
 | email       | string  | body | The email of the invited user. Updates on the email won't resend the invitation.                                                             |
 | name        | string  | body | The name of the invited user.                                                                                                           |
 | sso_enabled | boolean | body | Whether or not SSO will be enabled for the invited user.                                                                                |
+| mfa_enabled | boolean | body | _Available in Fleet Premium._ Whether or not the invited user must click a magic link emailed to them to log in, after they successfully enter their username and password. Users can have SSO or MFA enabled, but not both. |
 | teams       | array   | body | _Available in Fleet Premium_. A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
 
 #### Example
@@ -11644,6 +11651,7 @@ Verify the specified invite.
   "email": "john_appleseed@example.com",
   "name": "John",
   "sso_enabled": false,
+  "mfa_enabled": false,
   "global_role": null,
   "teams": [
     {
@@ -11672,6 +11680,7 @@ Verify the specified invite.
     "email": "john_appleseed@example.com",
     "name": "John",
     "sso_enabled": false,
+    "mfa_enabled": false,
     "teams": [
       {
         "id": 10,
