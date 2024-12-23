@@ -903,22 +903,27 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	if _, ok := mdm_types.FleetReservedProfileNames()[decl.Name]; ok {
-		return &fleet.BadRequestError{
-			Message:     "profiles managed by Fleet can't be deleted using this endpoint.",
-			InternalErr: fmt.Errorf("deleting profile %s is not allowed because it's managed by Fleet", decl.Name),
+	// Check if the declaration contains a secret variable. If it does, this means that the declaration
+	// has been provided by the user and can be deleted. We don't need to validate that it is a Fleet declaration.
+	hasSecretVariable := len(fleet.ContainsPrefixVars(string(decl.RawJSON), fleet.ServerSecretPrefix)) > 0
+	if !hasSecretVariable {
+		if _, ok := mdm_types.FleetReservedProfileNames()[decl.Name]; ok {
+			return &fleet.BadRequestError{
+				Message:     "profiles managed by Fleet can't be deleted using this endpoint.",
+				InternalErr: fmt.Errorf("deleting profile %s is not allowed because it's managed by Fleet", decl.Name),
+			}
 		}
-	}
 
-	// TODO: refine our approach to deleting restricted/forbidden types of declarations so that we
-	// can check that Fleet-managed aren't being deleted; this can be addressed once we add support
-	// for more types of declarations
-	var d fleet.MDMAppleRawDeclaration
-	if err := json.Unmarshal(decl.RawJSON, &d); err != nil {
-		return ctxerr.Wrap(ctx, err, "unmarshalling declaration")
-	}
-	if err := d.ValidateUserProvided(); err != nil {
-		return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+		// TODO: refine our approach to deleting restricted/forbidden types of declarations so that we
+		// can check that Fleet-managed aren't being deleted; this can be addressed once we add support
+		// for more types of declarations
+		var d fleet.MDMAppleRawDeclaration
+		if err := json.Unmarshal(decl.RawJSON, &d); err != nil {
+			return ctxerr.Wrap(ctx, err, "unmarshalling declaration")
+		}
+		if err := d.ValidateUserProvided(); err != nil {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+		}
 	}
 
 	var teamName string
@@ -4269,8 +4274,13 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 		return nil, ctxerr.Wrap(ctx, err, "getting declaration response")
 	}
 
+	expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(d.RawJSON))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expanding embedded secrets for identifier:%s hostUUID:%s", parts[2], hostUUID))
+	}
+
 	var tempd map[string]any
-	if err := json.Unmarshal(d.RawJSON, &tempd); err != nil {
+	if err := json.Unmarshal([]byte(expanded), &tempd); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling stored declaration")
 	}
 	tempd["ServerToken"] = d.Checksum

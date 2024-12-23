@@ -1,14 +1,21 @@
 import React, { useState } from "react";
 
+import { ILabelSummary } from "interfaces/label";
+
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import RevealButton from "components/buttons/RevealButton";
 import Button from "components/buttons/Button";
 import Radio from "components/forms/fields/Radio";
+import TargetLabelSelector from "components/TargetLabelSelector";
 
 import AdvancedOptionsFields from "pages/SoftwarePage/components/AdvancedOptionsFields";
 
-import { generateFormValidation } from "./helpers";
+import {
+  CUSTOM_TARGET_OPTIONS,
+  generateFormValidation,
+  generateHelpText,
+} from "./helpers";
 
 const baseClass = "fleet-app-details-form";
 
@@ -19,14 +26,19 @@ export interface IFleetMaintainedAppFormData {
   postInstallScript?: string;
   uninstallScript?: string;
   installType: string;
+  targetType: string;
+  customTarget: string;
+  labelTargets: Record<string, boolean>;
 }
 
 export interface IFormValidation {
   isValid: boolean;
   preInstallQuery?: { isValid: boolean; message?: string };
+  customTarget?: { isValid: boolean };
 }
 
 interface IFleetAppDetailsFormProps {
+  labels: ILabelSummary[] | null;
   defaultInstallScript: string;
   defaultPostInstallScript: string;
   defaultUninstallScript: string;
@@ -37,6 +49,7 @@ interface IFleetAppDetailsFormProps {
 }
 
 const FleetAppDetailsForm = ({
+  labels,
   defaultInstallScript,
   defaultPostInstallScript,
   defaultUninstallScript,
@@ -54,6 +67,9 @@ const FleetAppDetailsForm = ({
     postInstallScript: defaultPostInstallScript,
     uninstallScript: defaultUninstallScript,
     installType: "manual",
+    targetType: "All hosts",
+    customTarget: "labelsIncludeAny",
+    labelTargets: {},
   });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: true,
@@ -93,6 +109,26 @@ const FleetAppDetailsForm = ({
   const onChangeInstallType = (value: string) => {
     const newData = { ...formData, installType: value };
     setFormData(newData);
+  };
+
+  const onSelectTargetType = (value: string) => {
+    const newData = { ...formData, targetType: value };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
+  const onSelectCustomTargetOption = (value: string) => {
+    const newData = { ...formData, customTarget: value };
+    setFormData(newData);
+  };
+
+  const onSelectLabel = ({ name, value }: { name: string; value: boolean }) => {
+    const newData = {
+      ...formData,
+      labelTargets: { ...formData.labelTargets, [name]: value },
+    };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
   };
 
   const onSubmitForm = (evt: React.FormEvent<HTMLFormElement>) => {
@@ -136,6 +172,21 @@ const FleetAppDetailsForm = ({
           />
         </div>
       </fieldset>
+      <TargetLabelSelector
+        selectedTargetType={formData.targetType}
+        selectedCustomTarget={formData.customTarget}
+        selectedLabels={formData.labelTargets}
+        customTargetOptions={CUSTOM_TARGET_OPTIONS}
+        className={`${baseClass}__target`}
+        dropdownHelpText={
+          formData.targetType === "Custom" &&
+          generateHelpText(formData.installType, formData.customTarget)
+        }
+        onSelectTargetType={onSelectTargetType}
+        onSelectCustomTarget={onSelectCustomTargetOption}
+        onSelectLabel={onSelectLabel}
+        labels={labels || []}
+      />
       <Checkbox
         value={formData.selfService}
         onChange={onToggleSelfServiceCheckbox}

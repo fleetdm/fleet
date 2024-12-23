@@ -283,7 +283,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 		{Name: "N5", Contents: teamProfiles[1]},
 		{Name: "NS1", Contents: teamProfiles[2]},
 	}}
-	t.Logf("VICTOR: %s", string(teamProfiles[2]))
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID), "dry_run", "true")
 	s.assertConfigProfilesByIdentifier(&tm.ID, "I4", false)
 	s.assertConfigProfilesByIdentifier(&tm.ID, "I5", false)
