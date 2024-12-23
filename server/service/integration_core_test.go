@@ -9028,7 +9028,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	})
 	require.NoError(t, err)
 
-	err = s.ds.UpdateVulnerabilityHostCounts(context.Background())
+	err = s.ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
 	require.NoError(t, err)
 
 	// test list
@@ -9135,7 +9135,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
 	require.NoError(t, err)
 
-	err = s.ds.UpdateVulnerabilityHostCounts(context.Background())
+	err = s.ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
 	require.NoError(t, err)
 
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", fmt.Sprintf("%d", team.ID))
