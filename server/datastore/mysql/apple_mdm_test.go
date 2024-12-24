@@ -1056,6 +1056,7 @@ func expectAppleProfiles(
 		gotp.ProfileUUID = ""
 
 		gotp.CreatedAt = time.Time{}
+		gotp.SecretsUpdatedAt = time.Time{}
 
 		// if an expected uploaded_at timestamp is provided for this profile, keep
 		// its value, otherwise clear it as we don't care about asserting its

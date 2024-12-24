@@ -686,7 +686,21 @@ type MDMAppleHostDeclaration struct {
 	Checksum string `db:"checksum" json:"-"`
 
 	// SecretsUpdatedAt is the timestamp when the secrets were last updated or when this declaration was uploaded.
-	SecretsUpdatedAt time.Time `db:"secrets_updated_at" json:"-"`
+	SecretsUpdatedAt *time.Time `db:"secrets_updated_at" json:"-"`
+}
+
+func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
+	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
+	secretsEqual := p.SecretsUpdatedAt == nil && other.SecretsUpdatedAt == nil || p.SecretsUpdatedAt != nil && other.SecretsUpdatedAt != nil && p.SecretsUpdatedAt.Equal(*other.SecretsUpdatedAt)
+	return statusEqual &&
+		p.HostUUID == other.HostUUID &&
+		p.DeclarationUUID == other.DeclarationUUID &&
+		p.Name == other.Name &&
+		p.Identifier == other.Identifier &&
+		p.OperationType == other.OperationType &&
+		p.Detail == other.Detail &&
+		p.Checksum == other.Checksum &&
+		secretsEqual
 }
 
 func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {

@@ -1734,6 +1734,7 @@ ON DUPLICATE KEY UPDATE
   mobileconfig = VALUES(mobileconfig)
 `
 
+	// nolint:gosec // ignore G101: Potential hardcoded credentials
 	const secretsUpdatedInProfile = `
 UPDATE mdm_apple_configuration_profiles
 SET secrets_updated_at = CURRENT_TIMESTAMP(6)
@@ -2019,7 +2020,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		ds.profile_identifier as profile_identifier,
 		ds.profile_name as profile_name,
 		ds.checksum as checksum,
-		ds.secrets_updated_at as secrets_updated_at,
+		ds.secrets_updated_at as secrets_updated_at
 	FROM ( %s ) as ds
 		LEFT JOIN host_mdm_apple_profiles hmap
 			ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.host_uuid
@@ -2748,7 +2749,6 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               operation_type = VALUES(operation_type),
               detail = VALUES(detail),
               checksum = VALUES(checksum),
-			  secrets_updated_at = VALUES(secrets_updated_at),
               profile_identifier = VALUES(profile_identifier),
               profile_name = VALUES(profile_name),
               command_uuid = VALUES(command_uuid)`,
@@ -2768,7 +2768,7 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	}
 
 	generateValueArgs := func(p *fleet.MDMAppleBulkUpsertHostProfilePayload) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?),"
 		args := []any{p.ProfileUUID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID, p.Checksum}
 		return valuePart, args
 	}
@@ -4812,7 +4812,47 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 	profilesToInsert := make(map[string]*fleet.MDMAppleHostDeclaration)
 
 	executeUpsertBatch := func(valuePart string, args []any) error {
-		// If we're here, we must have a batch of declarations to insert/update.
+		// Check if the update needs to be done at all.
+		selectStmt := fmt.Sprintf(`
+			SELECT
+				host_uuid,
+				declaration_uuid,
+				status,
+				COALESCE(operation_type, '') AS operation_type,
+				COALESCE(detail, '') AS detail,
+				checksum,
+				secrets_updated_at,
+				declaration_uuid,
+				declaration_identifier,
+				declaration_name
+			FROM host_mdm_apple_declarations WHERE (host_uuid, declaration_uuid) IN (%s)`,
+			strings.TrimSuffix(strings.Repeat("(?,?),", len(profilesToInsert)), ","))
+		var selectArgs []any
+		for _, p := range profilesToInsert {
+			selectArgs = append(selectArgs, p.HostUUID, p.DeclarationUUID)
+		}
+		var existingProfiles []fleet.MDMAppleHostDeclaration
+		if err := sqlx.SelectContext(ctx, tx, &existingProfiles, selectStmt, selectArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending declarations select existing")
+		}
+		var updateNeeded bool
+		if len(existingProfiles) == len(profilesToInsert) {
+			for _, exist := range existingProfiles {
+				insert, ok := profilesToInsert[fmt.Sprintf("%s\n%s", exist.HostUUID, exist.DeclarationUUID)]
+				if !ok || !exist.Equal(*insert) {
+					updateNeeded = true
+					break
+				}
+			}
+		} else {
+			updateNeeded = true
+		}
+		clear(profilesToInsert)
+		if !updateNeeded {
+			// All profiles are already in the database, no need to update.
+			return nil
+		}
+
 		updatedDB = true
 		_, err := tx.ExecContext(
 			ctx,
@@ -4845,9 +4885,14 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 
 // mdmAppleGetHostsWithChangedDeclarationsDB returns a
 // MDMAppleHostDeclaration item for each (host x declaration) pair that
-// needs an status change, this includes declarations to install and
+// needs a status change, this includes declarations to install and
 // declarations to be removed. Those can be differentiated by the
 // OperationType field on each struct.
+//
+// Note (2024/12/24): This method returns some rows that DO NOT NEED TO BE UPDATED.
+// We should optimize this method to only return the rows that need to be updated.
+// Then we can eliminate the subsequent check for updates in the caller.
+// The check for updates is needed to log the correct activity item -- whether declarations were updated or not.
 func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtContext) ([]*fleet.MDMAppleHostDeclaration, error) {
 	stmt := fmt.Sprintf(`
         (
@@ -4868,7 +4913,7 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
                 hmae.host_uuid,
                 'remove' as operation_type,
                 hmae.checksum,
-				COALESCE(hmae.secrets_updated_at, NOW(6)) as secrets_updated_at,
+				hmae.secrets_updated_at,
                 hmae.declaration_uuid,
                 hmae.declaration_identifier,
                 hmae.declaration_name
