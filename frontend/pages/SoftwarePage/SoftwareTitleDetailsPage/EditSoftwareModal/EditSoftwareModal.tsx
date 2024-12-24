@@ -1,9 +1,7 @@
 import React, { useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import classnames from "classnames";
-import { isAxiosError } from "axios";
 
-import { getErrorReason } from "interfaces/errors";
 import { ILabelSummary } from "interfaces/label";
 import { ISoftwarePackage } from "interfaces/software";
 
@@ -14,14 +12,10 @@ import softwareAPI, {
 } from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
-import {
-  DEFAULT_USE_QUERY_OPTIONS,
-  LEARN_MORE_ABOUT_BASE_LINK,
-} from "utilities/constants";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import deepDifference from "utilities/deep_difference";
 import { getFileDetails } from "utilities/file/fileUtils";
 
-import CustomLink from "components/CustomLink";
 import FileProgressModal from "components/FileProgressModal";
 import Modal from "components/Modal";
 
@@ -167,37 +161,7 @@ const EditSoftwareModal = ({
       onExit();
       refetchSoftwareTitle();
     } catch (e) {
-      const isTimeout =
-        isAxiosError(e) &&
-        (e.response?.status === 504 || e.response?.status === 408);
-      const reason = getErrorReason(e);
-      if (isTimeout) {
-        renderFlash(
-          "error",
-          `Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough.`
-        );
-      } else if (reason.includes("Fleet couldn't read the version from")) {
-        renderFlash(
-          "error",
-          <>
-            Couldn&apos;t edit <b>{software.name}</b>. {reason}.
-            <CustomLink
-              newTab
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
-              text="Learn more"
-            />
-          </>
-        );
-      } else if (reason.includes("selected package is")) {
-        renderFlash(
-          "error",
-          <>
-            Couldn&apos;t edit <b>{software.name}</b>. {reason}
-          </>
-        );
-      } else {
-        renderFlash("error", getErrorMessage(e));
-      }
+      renderFlash("error", getErrorMessage(e, software));
     }
     setIsUpdatingSoftware(false);
   };

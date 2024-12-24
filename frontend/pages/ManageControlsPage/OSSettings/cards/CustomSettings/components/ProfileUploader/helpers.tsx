@@ -37,7 +37,7 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
 
   if (
     apiReason.includes(
-      "The configuration profile can’t include BitLocker settings."
+      "The configuration profile can't include BitLocker settings."
     )
   ) {
     return (
@@ -49,7 +49,7 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
 
   if (
     apiReason.includes(
-      "The configuration profile can’t include Windows update settings."
+      "The configuration profile can't include Windows update settings."
     )
   ) {
     return (
@@ -58,5 +58,10 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
       </span>
     );
   }
+
+  if (apiReason.includes("Secret variable")) {
+    return apiReason.replace("missing from database", "doesn't exist");
+  }
+
   return apiReason || DEFAULT_ERROR_MESSAGE;
 };

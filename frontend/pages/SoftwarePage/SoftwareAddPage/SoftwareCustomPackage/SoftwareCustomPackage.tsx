@@ -97,7 +97,6 @@ const SoftwareCustomPackage = ({
   };
 
   const onSubmit = async (formData: IPackageFormData) => {
-    console.log("submit", formData);
     if (!formData.software) {
       renderFlash(
         "error",
@@ -150,32 +149,7 @@ const SoftwareCustomPackage = ({
         </>
       );
     } catch (e) {
-      const isTimeout =
-        isAxiosError(e) &&
-        (e.response?.status === 504 || e.response?.status === 408);
-      const reason = getErrorReason(e);
-
-      if (isTimeout) {
-        renderFlash(
-          "error",
-          `Couldn’t upload. Request timeout. Please make sure your server and load balancer timeout is long enough.`
-        );
-      } else if (reason.includes("Fleet couldn't read the version from")) {
-        renderFlash(
-          "error",
-          <>
-            {reason}{" "}
-            <CustomLink
-              newTab
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
-              text="Learn more"
-              iconColor="core-fleet-white"
-            />
-          </>
-        );
-      } else {
-        renderFlash("error", getErrorMessage(e));
-      }
+      renderFlash("error", getErrorMessage(e));
     }
     setUploadDetails(null);
   };
