@@ -264,6 +264,12 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		TeamID:          actTeamID,
 		SelfService:     existingInstaller.SelfService,
 		SoftwarePackage: &existingInstaller.Name,
+		SoftwareTitleID: payload.TitleID,
+	}
+
+	if payload.SelfService != nil && *payload.SelfService != existingInstaller.SelfService {
+		dirty["SelfService"] = true
+		activity.SelfService = *payload.SelfService
 	}
 
 	var payloadForNewInstallerFile *fleet.UploadSoftwareInstallerPayload

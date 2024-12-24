@@ -1720,6 +1720,7 @@ type ActivityTypeEditedSoftware struct {
 	SelfService      bool                    `json:"self_service"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	SoftwareTitleID  uint                    `json:"software_title_id"`
 }
 
 func (a ActivityTypeEditedSoftware) ActivityName() string {
@@ -1733,6 +1734,7 @@ func (a ActivityTypeEditedSoftware) Documentation() (string, string, string) {
 - "team_name": Name of the team on which this software was updated.` + " `null` " + `if it was updated on no team.
 - "team_id": The ID of the team on which this software was updated.` + " `null` " + `if it was updated on no team.
 - "self_service": Whether the software is available for installation by the end user.
+- "software_title_id": ID of the added software title.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.`, `{
   "software_title": "Falcon.app",
@@ -1740,6 +1742,7 @@ func (a ActivityTypeEditedSoftware) Documentation() (string, string, string) {
   "team_name": "Workstations",
   "team_id": 123,
   "self_service": true,
+  "software_title_id": 2234,
   "labels_include_any": [
     {
       "name": "Engineering",
