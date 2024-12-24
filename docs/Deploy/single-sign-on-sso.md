@@ -193,7 +193,7 @@ Each IdP will have its own way of setting these SAML custom attributes, here are
 
 ## Email two-factor authentication (2FA)
 
-If you have a "break glass" Fleet user account that's used to login to Fleet when your Identify Provider (IdP) goes down, you can enable email 2FA, also known as multi-factor authentication (MFA), for this user. For all other users, the best practice is to enable single-sign on (SSO). Then, you can enforce any 2FA method supported by your IdP (i.e. authenticator app, security key, etc.).
+If you have a "break glass" Fleet user account that's used to login to Fleet when your identify provider (IdP) goes down, you can enable email 2FA, also known as multi-factor authentication (MFA), for this user. For all other users, the best practice is to enable single-sign on (SSO). Then, you can enforce any 2FA method supported by your IdP (i.e. authenticator app, security key, etc.).
 
 Users with email 2FA enabled will get the this email when they login to Fleet:
 
