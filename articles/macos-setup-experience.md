@@ -28,7 +28,7 @@ Using Fleet, you can require end users to authenticate with your identity provid
 
 To require end user authentication, first configure your IdP by heading to
 **Settings > Integrations > Mobile device management (MDM) > End user authentication**. Then, enable end user
-authentication by heading to to **Controls > Setup experience > End user authentication**.
+authentication by heading to **Controls > Setup experience > End user authentication**.
 Alternatively, you can use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops) to configure your IdP integration and enable end user authentication.
 
 In your IdP, make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate and lock the macOS local account **Full Name** with any of these.
