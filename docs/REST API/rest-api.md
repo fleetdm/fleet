@@ -11625,7 +11625,7 @@ Verify the specified invite.
 }
 ```
 
-### Update invite
+### Modify invite
 
 `PATCH /api/v1/fleet/invites/:id`
 
