@@ -59,6 +59,7 @@ jobs:
               ]
             }
         env:
+          JOB_NAME: ${{ job.name }}
           JOB_STATUS: ${{ job.status }}
           EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
           RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
