@@ -191,6 +191,12 @@ Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in tea
 
 Each IdP will have its own way of setting these SAML custom attributes, here are instructions for how to set it for Okta: https://support.okta.com/help/s/article/How-to-define-and-configure-a-custom-SAML-attribute-statement?language=en_US.
 
+## Two-factor authentication (2FA)
+
+If you have a "break glass" Fleet user account that's used to login to Fleet when your Identify Provider (IdP) goes down, you can enable 2FA, also known as multi-factor authentication (MFA), for this user. For all other users, the best practice is to enable single-sign on (SSO). Then, you can enforce any 2FA method supported by your IdP (i.e. authenticator app, security key, etc.).
+
+You can't edit the authentication method for your currently logged-in user. To enable email 2FA for a user, login with a different user who has the admin role and head to **Settings > Users**.
+
 <meta name="title" value="Single sign-on (SSO)">
 <meta name="pageOrderInSection" value="200">
 <meta name="description" value="Learn how to configure single sign-on (SSO)">
