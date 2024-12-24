@@ -36,11 +36,9 @@ jobs:
       #     RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
       #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
       #     SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
-      - name: Slack notification
+      - name: Slack Notification
         if: failure()
-        # confirm:
         uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
-        # confirm:
         with:
           payload: |
             {
@@ -50,8 +48,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "<Jacobs GH action testing - disregard this notification> ${{ job.name
-                    }} - result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{
+                    "text": "<Jacob GH aciton testing - disregard this notification > ${{ github.action }} > ${{ github.job}} result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{
                     github.run_id }}\n${{ github.event.pull_request.html_url ||
                     github.event.head.html_url }}"
                   }
@@ -59,7 +56,6 @@ jobs:
               ]
             }
         env:
-          JOB_NAME: ${{ job.name }}
           JOB_STATUS: ${{ job.status }}
           EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
           RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
