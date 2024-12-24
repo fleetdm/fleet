@@ -17,50 +17,50 @@ jobs:
   test-job-always-fails:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code needed for composite action
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-        with:
-          sparse-checkout: |
-            .github/actions/slack-error-notification/action.yml
-          # sparse-checkout-cone-mode: false
+      # - name: Checkout code needed for composite action
+      #   uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      #   with:
+      #     sparse-checkout: |
+      #       .github/actions/slack-error-notification/action.yml
+      #     # sparse-checkout-cone-mode: false
       - name: Always fail
         run: |
           pwd
           exit 1
-      - name: Notify errors in slack
+      # - name: Notify errors in slack - composite
+      #   if: failure()
+      #   uses: ./.github/actions/slack-error-notification
+      #   env:
+      #     JOB_STATUS: ${{ job.status }}
+      #     EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
+      #     RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
+      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+      #     SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+      - name: Slack notification
         if: failure()
-        uses: ./.github/actions/slack-error-notification
+        # confirm:
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        # confirm:
+        with:
+          payload: |
+            {
+              "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "<Jacobs GH action testing - disregard this notification> ${{ job.name
+                    }} - result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{
+                    github.run_id }}\n${{ github.event.pull_request.html_url ||
+                    github.event.head.html_url }}"
+                  }
+                }
+              ]
+            }
         env:
           JOB_STATUS: ${{ job.status }}
           EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
           RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
-      # - name: Slack notification
-      #   if: failure()
-      #   # confirm:
-      #   uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
-      #   # confirm:
-      #   with:
-      #     payload: |
-      #       {
-      #         "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
-      #         "blocks": [
-      #           {
-      #             "type": "section",
-      #             "text": {
-      #               "type": "mrkdwn",
-      #               "text": "Happy Holidays! Jacob's always fails test result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}"
-      #             }
-      #           }
-      #         ]
-      #       }
-      #   env:
-      #     # confirm:
-      #     JOB_STATUS: ${{ job.status }}
-      #     # confirm:
-      #     EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
-      #     # confirm:
-      #     RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
-      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
-      #     SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
