@@ -41,6 +41,7 @@ jobs:
 
       - name: Verify checksums
         run: |
+          exit 1
           curl -O ${{ env.BASE_URL }}/stable/meta.json
           curl -O ${{ env.BASE_URL }}/stable/fleetd-base.msi
           fleetd_base_msi_sha256=$(shasum -a 256 fleetd-base.msi | cut -d ' ' -f 1)
@@ -75,7 +76,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Verify fleetd-base files > ${{ github.job}} result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{
+                    "text": "<test - ignore me> Verify fleetd-base files > ${{ github.job}} result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{
                     github.run_id }}\n${{ github.event.pull_request.html_url ||
                     github.event.head.html_url }}"
                   }
