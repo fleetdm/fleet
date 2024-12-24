@@ -39,7 +39,7 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 ## Changes
 
 ### Product
-- [ ] UI changes: TODO <!-- Insert the link to the relevant Figma cover page. Make sure  wireframes show the UI down to 320px (mobile screen) width. Put "No changes" if there are no changes to the user interface. -->
+- [ ] UI changes: TODO <!-- Insert the link to the relevant Figma cover page. Make sure  wireframes show the UI down to 320px (min screen width). Put "No changes" if there are no changes to the user interface. -->
 - [ ] CLI (fleetctl) usage changes: TODO <!-- Insert the link to the relevant Figma cover page. Put "No changes" if there are no changes to the CLI. -->
 - [ ] YAML changes: TODO <!-- Specify changes in the YAML files doc page as a PR to the reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. -->
 - [ ] REST API changes: TODO <!-- Specify changes in the the REST API doc page as a PR to reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. Move this item to the engineering list below if engineering will design the API changes. -->
