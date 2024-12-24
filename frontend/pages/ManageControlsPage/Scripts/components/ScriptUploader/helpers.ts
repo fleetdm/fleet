@@ -14,9 +14,7 @@ export const getErrorMessage = (err: unknown) => {
     return "Couldn't upload. The file should be .sh or .ps1 file.";
   } else if (apiErrMessage.includes("Secret variable")) {
     return apiErrMessage.replace("missing from database", "doesn't exist");
-  } else if (apiErrMessage) {
-    return apiErrMessage;
   }
 
-  return DEFAULT_ERROR_MESSAGE;
+  return apiErrMessage || DEFAULT_ERROR_MESSAGE;
 };
