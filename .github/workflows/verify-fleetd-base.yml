@@ -1,6 +1,9 @@
 name: Verify fleetd-base files at https://download.fleetdm.com
 
 on:
+  push:
+    branches:
+      - 24531-verify-fleetd-failure-slack-notifier
   workflow_dispatch: # Manual
     inputs:
       base-url:
