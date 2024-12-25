@@ -526,8 +526,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 	if err != nil {
 		return nil, err
 	}
-	// After validation, we should no longer need to keep the secrets, so we explicitly clear the variable holding them
-	dataWithSecrets = ""
+	// After validation, we should no longer need to keep the expanded secrets.
 
 	if err := rawDecl.ValidateUserProvided(); err != nil {
 		return nil, err
