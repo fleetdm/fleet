@@ -1383,6 +1383,8 @@ This activity contains the following fields:
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team to which this App Store app was added, or `null` if it was added to no team.
 - "team_id": ID of the team to which this App Store app was added, or `null`if it was added to no team.
+- "software_title_id": ID of the edited software title.
+
 
 #### Example
 
@@ -1392,6 +1394,7 @@ This activity contains the following fields:
   "app_store_id": "1234567",
   "platform": "darwin",
   "self_service": false,
+  "software_title_id": 3537,
   "team_name": "Workstations",
   "team_id": 1
 }
