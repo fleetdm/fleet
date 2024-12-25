@@ -321,7 +321,7 @@ type MDMAppleProfilePayload struct {
 	HostUUID          string             `db:"host_uuid"`
 	HostPlatform      string             `db:"host_platform"`
 	Checksum          []byte             `db:"checksum"`
-	SecretsUpdatedAt  time.Time          `db:"secrets_updated_at"`
+	SecretsUpdatedAt  *time.Time         `db:"secrets_updated_at"`
 	Status            *MDMDeliveryStatus `db:"status" json:"status"`
 	OperationType     MDMOperationType   `db:"operation_type"`
 	Detail            string             `db:"detail"`
@@ -587,8 +587,13 @@ type MDMAppleDeclaration struct {
 	// RawJSON is the raw JSON content of the declaration
 	RawJSON json.RawMessage `db:"raw_json" json:"-"`
 
+	// Token is used to identify if declaration needs to be re-applied.
+	// It contains the checksum of the JSON contents and seconds-microseconds of secrets updated timestamp (if secret variables are present).
+	Token string `db:"token" json:"-"`
+
 	// Checksum is a checksum of the JSON contents
-	Checksum string `db:"checksum" json:"-"`
+	// BOZO: Needed?
+	// Checksum string `db:"checksum" json:"-"`
 
 	// labels associated with this Declaration
 	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
@@ -762,7 +767,7 @@ type MDMAppleDDMManifest struct {
 // https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse
 type MDMAppleDDMDeclarationItem struct {
 	Identifier  string `db:"identifier"`
-	ServerToken string `db:"checksum"`
+	ServerToken string `db:"token"`
 }
 
 // MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM

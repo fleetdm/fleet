@@ -419,6 +419,70 @@ func TestMDMProfileIsWithinGracePeriod(t *testing.T) {
 	}
 }
 
+func TestMDMAppleHostDeclarationEqual(t *testing.T) {
+	t.Parallel()
+
+	// This test is intended to ensure that the Equal method on MDMAppleHostDeclaration is updated when new fields are added.
+	// The Equal method is used to identify whether database update is needed.
+
+	items := [...]MDMAppleHostDeclaration{{}, {}}
+
+	numberOfFields := 0
+	for i := 0; i < len(items); i++ {
+		rValue := reflect.ValueOf(&items[i]).Elem()
+		numberOfFields = rValue.NumField()
+		for j := 0; j < numberOfFields; j++ {
+			field := rValue.Field(j)
+			switch field.Kind() {
+			case reflect.String:
+				valueToSet := fmt.Sprintf("test %d", i)
+				field.SetString(valueToSet)
+			case reflect.Int:
+				field.SetInt(int64(i))
+			case reflect.Bool:
+				field.SetBool(i%2 == 0)
+			case reflect.Pointer:
+				field.Set(reflect.New(field.Type().Elem()))
+			default:
+				t.Fatalf("unhandled field type %s", field.Kind())
+			}
+		}
+	}
+
+	status0 := MDMDeliveryStatus("status")
+	status1 := MDMDeliveryStatus("status")
+	items[0].Status = &status0
+	assert.False(t, items[0].Equal(items[1]))
+
+	// Set known fields to be equal
+	fieldsInEqualMethod := 0
+	items[1].HostUUID = items[0].HostUUID
+	fieldsInEqualMethod++
+	items[1].DeclarationUUID = items[0].DeclarationUUID
+	fieldsInEqualMethod++
+	items[1].Name = items[0].Name
+	fieldsInEqualMethod++
+	items[1].Identifier = items[0].Identifier
+	fieldsInEqualMethod++
+	items[1].OperationType = items[0].OperationType
+	fieldsInEqualMethod++
+	items[1].Detail = items[0].Detail
+	fieldsInEqualMethod++
+	items[1].Checksum = items[0].Checksum
+	fieldsInEqualMethod++
+	items[1].Status = &status1
+	fieldsInEqualMethod++
+	items[1].SecretsUpdatedAt = items[0].SecretsUpdatedAt
+	fieldsInEqualMethod++
+	assert.Equal(t, fieldsInEqualMethod, numberOfFields, "MDMAppleHostDeclaration.Equal needs to be updated for new/updated field(s)")
+	assert.True(t, items[0].Equal(items[1]))
+
+	// Set pointers to nil
+	items[0].Status = nil
+	items[1].Status = nil
+	assert.True(t, items[0].Equal(items[1]))
+}
+
 func TestConfigurationProfileLabelEqual(t *testing.T) {
 	t.Parallel()
 

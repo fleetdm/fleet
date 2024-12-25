@@ -484,10 +484,6 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 			require.Equal(t, d.Identifier, m.Identifier)
 		}
 	}
-	calcChecksum := func(source []byte) string {
-		csum := fmt.Sprintf("%x", md5.Sum(source)) //nolint:gosec
-		return strings.ToUpper(csum)
-	}
 
 	tmpl := `
 {
@@ -516,17 +512,6 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 	decls[1] = []byte(strings.ReplaceAll(string(decls[1]), myBash, "$"+fleet.ServerSecretPrefix+"BASH"))
 	secretProfile := decls[2]
 	decls[2] = []byte("${" + fleet.ServerSecretPrefix + "PROFILE}")
-	declsByChecksum := map[string]fleet.MDMAppleDeclaration{
-		calcChecksum(decls[0]): {
-			Identifier: "com.fleet.config0",
-		},
-		calcChecksum(decls[1]): {
-			Identifier: "com.fleet.config1",
-		},
-		calcChecksum(decls[2]): {
-			Identifier: "com.fleet.config2",
-		},
-	}
 
 	// Create declarations
 	// First dry run
@@ -585,7 +570,7 @@ SELECT
 	identifier,
 	name,
 	raw_json,
-	checksum,
+	token,
 	created_at,
 	uploaded_at
 FROM mdm_apple_declarations
@@ -599,19 +584,28 @@ WHERE name = ?`
 	}
 	nameToIdentifier := make(map[string]string, 3)
 	nameToUUID := make(map[string]string, 3)
+	declsByChecksum := map[string]fleet.MDMAppleDeclaration{}
 	decl := getDeclaration(t, "N0")
 	nameToIdentifier["N0"] = decl.Identifier
 	nameToUUID["N0"] = decl.DeclarationUUID
+	declsByChecksum[decl.Token] = fleet.MDMAppleDeclaration{
+		Identifier: "com.fleet.config0",
+	}
 	decl = getDeclaration(t, "N1")
 	assert.NotContains(t, string(decl.RawJSON), myBash)
 	assert.Contains(t, string(decl.RawJSON), "$"+fleet.ServerSecretPrefix+"BASH")
 	nameToIdentifier["N1"] = decl.Identifier
 	nameToUUID["N1"] = decl.DeclarationUUID
+	declsByChecksum[decl.Token] = fleet.MDMAppleDeclaration{
+		Identifier: "com.fleet.config1",
+	}
 	decl = getDeclaration(t, "N2")
 	assert.Equal(t, string(decl.RawJSON), "${"+fleet.ServerSecretPrefix+"PROFILE}")
 	nameToIdentifier["N2"] = decl.Identifier
 	nameToUUID["N2"] = decl.DeclarationUUID
-
+	declsByChecksum[decl.Token] = fleet.MDMAppleDeclaration{
+		Identifier: "com.fleet.config2",
+	}
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
 

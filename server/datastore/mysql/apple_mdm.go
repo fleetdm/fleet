@@ -1737,7 +1737,7 @@ ON DUPLICATE KEY UPDATE
 	// nolint:gosec // ignore G101: Potential hardcoded credentials
 	const secretsUpdatedInProfile = `
 UPDATE mdm_apple_configuration_profiles
-SET secrets_updated_at = CURRENT_TIMESTAMP(6)
+SET secrets_updated_at = NOW(6)
 WHERE team_id = ? AND identifier = ?`
 
 	// use a profile team id of 0 if no-team
@@ -4659,7 +4659,7 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 func (ds *Datastore) MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*fleet.MDMAppleDDMDeclarationsToken, error) {
 	const stmt = `
 SELECT
-	COALESCE(MD5((count(0) + GROUP_CONCAT(CONCAT(HEX(mad.checksum), COALESCE(hmad.secrets_updated_at, ''))
+	COALESCE(MD5((count(0) + GROUP_CONCAT(hmad.token
 		ORDER BY
 			mad.uploaded_at DESC separator ''))), '') AS checksum,
 	COALESCE(MAX(mad.created_at), NOW()) AS latest_created_timestamp
@@ -4688,7 +4688,7 @@ WHERE
 func (ds *Datastore) MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]fleet.MDMAppleDDMDeclarationItem, error) {
 	const stmt = `
 SELECT
-	CONCAT(HEX(mad.checksum), COALESCE(hmad.secrets_updated_at, '')) as checksum,
+	token,
 	mad.identifier
 FROM
 	host_mdm_apple_declarations hmad
@@ -4711,7 +4711,7 @@ func (ds *Datastore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identi
 	// declarations are removed, but the join would provide an extra layer of safety.
 	const stmt = `
 SELECT
-	mad.raw_json, CONCAT(HEX(mad.checksum), COALESCE(hmad.secrets_updated_at, '')) as checksum
+	mad.raw_json, token
 FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
