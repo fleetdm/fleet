@@ -122,7 +122,7 @@ const TargetsInput = ({
               disablePagination
               disableMultiRowSelect
               onClickRow={handleRowSelect}
-              keyboardSelectableRow
+              keyboardSelectableRows
             />
           </div>
         )}

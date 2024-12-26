@@ -18,7 +18,6 @@ import { dateAgo } from "utilities/date_format";
 
 import { AppInstallDetails } from "components/ActivityDetails/InstallDetails/AppInstallDetails";
 import { SoftwareInstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 const baseClass = "software-details-modal";
 
@@ -68,11 +67,11 @@ const SoftwareDetailsInfo = ({
         <div className={`${baseClass}__row`}>
           <DataSet
             className={`${baseClass}__file-path-data-set`}
-            title="File path"
+            title={`File path${installed_paths.length > 1 ? "s" : ""}`}
             value={
               <div className={`${baseClass}__file-path-values`}>
                 {installed_paths.map((path) => (
-                  <TooltipTruncatedText value={path} />
+                  <span>{path}</span>
                 ))}
               </div>
             }
