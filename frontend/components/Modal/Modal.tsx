@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useLayoutEffect } from "react";
 import classnames from "classnames";
 import Button from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
@@ -52,11 +52,45 @@ const Modal = ({
   className,
 }: IModalProps): JSX.Element => {
   const contentRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<HTMLElement | null>(null);
+  const isClosingRef = useRef(false);
+
+  // This returns focus to the previous active element before opening the modal
+  useLayoutEffect(() => {
+    previousActiveElement.current = document.activeElement as HTMLElement;
+  }, []);
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      if (
+        !isClosingRef.current &&
+        !document.body.contains(contentRef.current)
+      ) {
+        isClosingRef.current = true;
+        if (previousActiveElement.current) {
+          previousActiveElement.current.focus();
+        }
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      if (previousActiveElement.current) {
+        previousActiveElement.current.focus();
+      }
+    };
+  }, []);
 
   /** Allows keyboard accessibility to modals -- Because of loading,
-   * we cannot have a global fix to access focusable elements within
-   * children, but we can access the close button within Modal.tsx */
+   * we cannot have a global fix to access focusable elements *within*
+   * children, but we can access the close button on the Modal */
   useEffect(() => {
+    previousActiveElement.current = document.activeElement as HTMLElement;
+
+    // This just grabs the x button, left it robust incase we use it to grab
+    // a different focusable element in the future
     if (contentRef.current) {
       const focusableElements = contentRef.current.querySelectorAll(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -66,7 +100,13 @@ const Modal = ({
         (focusableElements[0] as HTMLElement).focus();
       }
     }
-  }, [isHidden]);
+
+    return () => {
+      if (previousActiveElement.current) {
+        previousActiveElement.current.focus();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {
