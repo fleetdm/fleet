@@ -258,7 +258,7 @@ const HostSoftwareTable = ({
         isAllPagesSelected={false}
         searchable={showFilterHeaders}
         manualSortBy
-        keyboardSelectableRow
+        keyboardSelectableRows
         // my device page row clickability
         disableMultiRowSelect={isMyDevicePage}
         onClickRow={isMyDevicePage ? onClickMyDeviceRow : undefined}
