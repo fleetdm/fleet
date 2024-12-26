@@ -15,6 +15,7 @@ import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCe
 import VersionCell from "pages/SoftwarePage/components/VersionCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/SoftwareTitlesTableConfig";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -90,13 +91,14 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
       // but we don't use it.
       accessor: "id",
       disableSortBy: true,
-      Cell: (cellProps) => {
-        return (
-          <span className="link">
-            <span className="link-text">Show details</span>
-          </span>
-        );
-      },
+      Cell: () => (
+        <ViewAllHostsLink
+          rowHover
+          noLink
+          excludeChevron
+          customText="Show details"
+        />
+      ),
     },
   ];
 

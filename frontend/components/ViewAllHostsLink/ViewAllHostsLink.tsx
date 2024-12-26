@@ -13,6 +13,7 @@ interface IHostLinkProps {
   platformLabelId?: number;
   /** Shows right chevron without text */
   condensed?: boolean;
+  excludeChevron?: boolean;
   responsive?: boolean;
   customText?: string;
   /** Table links shows on row hover only */
@@ -28,6 +29,7 @@ const ViewAllHostsLink = ({
   className,
   platformLabelId,
   condensed = false,
+  excludeChevron = false,
   responsive = false,
   customText,
   rowHover = false,
@@ -58,11 +60,13 @@ const ViewAllHostsLink = ({
           {customText ?? "View all hosts"}
         </span>
       )}
-      <Icon
-        name="chevron-right"
-        className={`${baseClass}__icon`}
-        color="core-fleet-blue"
-      />
+      {!excludeChevron && (
+        <Icon
+          name="chevron-right"
+          className={`${baseClass}__icon`}
+          color="core-fleet-blue"
+        />
+      )}
     </Link>
   );
 };
