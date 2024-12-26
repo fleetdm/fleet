@@ -1966,6 +1966,7 @@ Software won't be installed on Linux hosts with RPM-based distributions because 
 	require.Equal(t, "[Install software] OtherFoobar (pkg) 1", team1Policies[2].Name)
 
 	team3, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 3"})
+	require.NoError(t, err)
 
 	_, err = ds.NewTeamPolicy(ctx, team3.ID, &user1.ID, fleet.PolicyPayload{
 		Name:  "[Install software] Something2 (msi)",
