@@ -34,6 +34,10 @@ type User struct {
 	Teams []UserTeam `json:"teams"`
 }
 
+type UserUISettings struct {
+	HiddenHostsTableColumns []string `json:"hidden_hosts_table_columns"`
+}
+
 // IsGlobalObserver returns true if user is either a Global Observer or a Global Observer+
 func (u *User) IsGlobalObserver() bool {
 	if u.GlobalRole == nil {
