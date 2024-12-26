@@ -299,9 +299,15 @@ Retrieves the user data for the authenticated user.
 
 `GET /api/v1/**fleet**/me`
 
+#### Parameters
+
+| Name                | Type    | In    | Description                                     |
+|:------------------- |:------- |:----- |:------------------------------------------------|
+| include_ui_settings | boolean | query | Include the user's ui settings (default: false) |
+
 #### Example
 
-`GET /api/v1/fleet/me`
+`GET /api/v1/fleet/me?include_ui_settings=true`
 
 ##### Default response
 
@@ -328,7 +334,25 @@ Retrieves the user data for the authenticated user.
       "name": "Workstations",
       "description": "Employee workstations"
     }
-  ]
+  ],
+  "ui_settings": {
+    "hidden_hosts_table_columns": [
+      "hostname",
+      "computer_name",
+      "device_mapping",
+      "primary_mac",
+      "public_ip",
+      "cpu_type",
+      "mdm.server_url",
+      "mdm.enrollment_status",
+      "memory",
+      "uptime",
+      "uuid",
+      "seen_time",
+      "hardware_model",
+      "hardware_serial",
+    ]
+  }
 }
 ```
 
