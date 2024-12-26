@@ -1896,7 +1896,7 @@ func testMatchOrCreateSoftwareInstallerWithAutomaticPolicies(t *testing.T, ds *D
 	SELECT 1 FROM deb_packages WHERE name = 'Barfoo'
 );`, team2Policies[0].Query)
 	require.Equal(t, `Policy triggers automatic install of Barfoo on each host that's missing this software.
-Software won't be installed on Linux hosts with Debian-based distributions because this policy's query is written to always pass on these hosts.`, team2Policies[0].Description)
+Software won't be installed on Linux hosts with RPM-based distributions because this policy's query is written to always pass on these hosts.`, team2Policies[0].Description)
 	require.Equal(t, "linux", team2Policies[0].Platform)
 	require.NotNil(t, team2Policies[0].SoftwareInstallerID)
 	require.Equal(t, installerID3, *team2Policies[0].SoftwareInstallerID)
@@ -1930,7 +1930,7 @@ Software won't be installed on Linux hosts with Debian-based distributions becau
 	SELECT 1 FROM rpm_packages WHERE name = 'Barzoo'
 );`, team2Policies[1].Query)
 	require.Equal(t, `Policy triggers automatic install of Barzoo on each host that's missing this software.
-Software won't be installed on Linux hosts with RPM-based distributions because this policy's query is written to always pass on these hosts.`, team2Policies[1].Description)
+Software won't be installed on Linux hosts with Debian-based distributions because this policy's query is written to always pass on these hosts.`, team2Policies[1].Description)
 	require.Equal(t, "linux", team2Policies[1].Platform)
 	require.NotNil(t, team2Policies[0].SoftwareInstallerID)
 	require.Equal(t, installerID4, *team2Policies[1].SoftwareInstallerID)
@@ -1985,7 +1985,7 @@ Software won't be installed on Linux hosts with RPM-based distributions because 
 	})
 	require.NoError(t, err)
 
-	// Test pkg and policy with name already exists.
+	// Test msi and policy with name already exists.
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallerFile:    tfr1,
 		Extension:        "msi",

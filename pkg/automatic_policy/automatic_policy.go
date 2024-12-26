@@ -38,7 +38,7 @@ var (
 	// ErrMissingProductCode is returned if the software extension is "msi" and a product code was not extracted from the installer.
 	ErrMissingProductCode = errors.New("missing product code")
 	// ErrMissingTitle is returned if a title was not extracted from the installer.
-	ErrMissingTitle = errors.New("missing product code")
+	ErrMissingTitle = errors.New("missing title")
 )
 
 // Generate generates the "trigger policy" from the metadata of a software package.
@@ -58,9 +58,9 @@ func Generate(metadata InstallerMetadata) (*PolicyData, error) {
 
 	description := fmt.Sprintf("Policy triggers automatic install of %s on each host that's missing this software.", metadata.Title)
 	if metadata.Extension == "deb" || metadata.Extension == "rpm" {
-		basedPrefix := "Debian"
+		basedPrefix := "RPM"
 		if metadata.Extension == "rpm" {
-			basedPrefix = "RPM"
+			basedPrefix = "Debian"
 		}
 		description += fmt.Sprintf(
 			"\nSoftware won't be installed on Linux hosts with %s-based distributions because this policy's query is written to always pass on these hosts.",

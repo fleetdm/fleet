@@ -81,7 +81,7 @@ func TestGenerate(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "[Install software] Zoobar (deb)", policyData.Name)
 	require.Equal(t, `Policy triggers automatic install of Zoobar on each host that's missing this software.
-Software won't be installed on Linux hosts with Debian-based distributions because this policy's query is written to always pass on these hosts.`, policyData.Description)
+Software won't be installed on Linux hosts with RPM-based distributions because this policy's query is written to always pass on these hosts.`, policyData.Description)
 	require.Equal(t, "linux", policyData.Platform)
 	require.Equal(t, `SELECT 1 WHERE EXISTS (
 	SELECT 1 FROM os_version WHERE platform = 'rhel'
@@ -98,7 +98,7 @@ Software won't be installed on Linux hosts with Debian-based distributions becau
 	require.NoError(t, err)
 	require.Equal(t, "[Install software] Barzoo (rpm)", policyData.Name)
 	require.Equal(t, `Policy triggers automatic install of Barzoo on each host that's missing this software.
-Software won't be installed on Linux hosts with RPM-based distributions because this policy's query is written to always pass on these hosts.`, policyData.Description)
+Software won't be installed on Linux hosts with Debian-based distributions because this policy's query is written to always pass on these hosts.`, policyData.Description)
 	require.Equal(t, "linux", policyData.Platform)
 	require.Equal(t, `SELECT 1 WHERE EXISTS (
 	SELECT 1 FROM os_version WHERE platform != 'rhel'
