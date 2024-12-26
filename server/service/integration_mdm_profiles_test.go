@@ -5342,7 +5342,9 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 	var listResp listMDMConfigProfilesResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &listResp)
 	require.Len(t, listResp.Profiles, 2)
+	profileUUIDs := make([]string, 0, 2)
 	for _, p := range listResp.Profiles {
+		profileUUIDs = append(profileUUIDs, p.ProfileUUID)
 		switch p.Name {
 		case "secret-config0":
 			assert.Equal(t, platform, p.Platform)
@@ -5352,6 +5354,13 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 			t.Errorf("unexpected profile %s", p.Name)
 		}
 	}
+	require.Len(t, profileUUIDs, 2)
+
+	s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+profileUUIDs[0], nil, http.StatusOK)
+	s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+profileUUIDs[1], nil, http.StatusOK)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &listResp)
+	require.Empty(t, listResp.Profiles)
+
 }
 
 // TestAppleConfigSecretVariablesUpload tests uploading Apple config profiles with secrets via the /configuration_profiles endpoint
