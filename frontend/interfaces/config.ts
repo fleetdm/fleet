@@ -222,3 +222,9 @@ export type IAutomationsConfig = Pick<
 >;
 
 export const CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS = 30;
+
+export interface IUserUISettings {
+  // backend will be typed as string, so this matches that
+  // UI checks these values further down
+  hosts_table_columns: string[];
+}
