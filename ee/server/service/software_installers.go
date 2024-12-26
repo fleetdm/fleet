@@ -38,6 +38,8 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	if payload.AutomaticInstall {
+		// Currently, same write permissions are applied on software and policies,
+		// but leaving this here in case it changes in the future.
 		if err := svc.authz.Authorize(ctx, &fleet.Policy{PolicyData: fleet.PolicyData{TeamID: payload.TeamID}}, fleet.ActionWrite); err != nil {
 			return err
 		}
@@ -69,17 +71,19 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	if payload.AutomaticInstall {
 		switch {
+		//
+		// For "msi", addMetadataToSoftwarePayload fails before this point if product code cannot be extracted.
+		//
 		case payload.Extension == "exe":
 			return &fleet.BadRequestError{
 				Message: "Couldn't add. Fleet can't create a policy to detect existing installations for .exe packages. Please add the software, add a custom policy, and enable the install software policy automation.",
 			}
 		case payload.Extension == "pkg" && payload.BundleIdentifier == "":
+			// For pkgs without bundle identifier the request usually fails before reaching this point,
+			// but addMetadataToSoftwarePayload may not fail if the package has "package IDs" but not a "bundle identifier",
+			// in which case we want to fail here because we cannot generate a policy without a bundle identifier.
 			return &fleet.BadRequestError{
-				Message: "Couldn't add. Policy that triggers automatic install can't be created because bundle identifier can't be extracted.",
-			}
-		case payload.Extension == "msi" && (len(payload.PackageIDs[0]) == 0 || payload.PackageIDs[0] == ""):
-			return &fleet.BadRequestError{
-				Message: "Couldn't add. Policy that triggers automatic install can't be created because product GUID can't be extracted.",
+				Message: "Couldn't add. Policy couldn't be created because bundle identifier can't be extracted.",
 			}
 		}
 	}

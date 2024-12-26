@@ -35,21 +35,22 @@ var (
 	ErrExtensionNotSupported = errors.New("extension not supported")
 	// ErrMissingBundleIdentifier is returned if the software extension is "pkg" and a bundle identifier was not extracted from the installer.
 	ErrMissingBundleIdentifier = errors.New("missing bundle identifier")
-	// ErrMissingProductCode is returned if the software extension is "msi" and a product code was not extracted from the installer
+	// ErrMissingProductCode is returned if the software extension is "msi" and a product code was not extracted from the installer.
 	ErrMissingProductCode = errors.New("missing product code")
+	// ErrMissingTitle is returned if a title was not extracted from the installer.
+	ErrMissingTitle = errors.New("missing product code")
 )
 
 // Generate generates the "trigger policy" from the metadata of a software package.
 func Generate(metadata InstallerMetadata) (*PolicyData, error) {
-	if metadata.Extension != "pkg" && metadata.Extension != "msi" && metadata.Extension != "deb" && metadata.Extension != "rpm" {
+	switch {
+	case metadata.Title == "":
+		return nil, ErrMissingTitle
+	case metadata.Extension != "pkg" && metadata.Extension != "msi" && metadata.Extension != "deb" && metadata.Extension != "rpm":
 		return nil, ErrExtensionNotSupported
-	}
-
-	if metadata.Extension == "pkg" && metadata.BundleIdentifier == "" {
+	case metadata.Extension == "pkg" && metadata.BundleIdentifier == "":
 		return nil, ErrMissingBundleIdentifier
-	}
-
-	if metadata.Extension == "msi" && (len(metadata.PackageIDs) == 0 || metadata.PackageIDs[0] == "") {
+	case metadata.Extension == "msi" && (len(metadata.PackageIDs) == 0 || metadata.PackageIDs[0] == ""):
 		return nil, ErrMissingProductCode
 	}
 

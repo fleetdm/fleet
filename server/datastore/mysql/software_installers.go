@@ -222,13 +222,13 @@ func (ds *Datastore) createAutomaticPolicy(ctx context.Context, tx sqlx.ExtConte
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "generate automatic policy query data")
 	}
-	availablePolicyName, err := getAvailablePolicyName(ctx, tx, payload.TeamID, generatedPolicyData.Name)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get available policy name")
-	}
 	teamID := fleet.PolicyNoTeamID
 	if payload.TeamID != nil {
 		teamID = *payload.TeamID
+	}
+	availablePolicyName, err := getAvailablePolicyName(ctx, tx, teamID, generatedPolicyData.Name)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get available policy name")
 	}
 	var userID *uint
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
@@ -246,11 +246,11 @@ func (ds *Datastore) createAutomaticPolicy(ctx context.Context, tx sqlx.ExtConte
 	return nil
 }
 
-func getAvailablePolicyName(ctx context.Context, db sqlx.QueryerContext, teamID *uint, tentativePolicyName string) (string, error) {
+func getAvailablePolicyName(ctx context.Context, db sqlx.QueryerContext, teamID uint, tentativePolicyName string) (string, error) {
 	availableName := tentativePolicyName
 	for i := 1; ; i++ {
 		var count int
-		if err := sqlx.GetContext(ctx, db, &count, `SELECT COUNT(*) FROM policies WHERE team_id = ? AND name = ?`, teamID, tentativePolicyName); err != nil {
+		if err := sqlx.GetContext(ctx, db, &count, `SELECT COUNT(*) FROM policies WHERE team_id = ? AND name = ?`, teamID, availableName); err != nil {
 			return "", ctxerr.Wrapf(ctx, err, "get policy by team and name")
 		}
 		if count == 0 {
