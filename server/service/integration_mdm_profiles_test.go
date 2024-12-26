@@ -5288,13 +5288,21 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariablesUpload() {
 		return []byte(fmt.Sprintf(tmpl, i, i, i))
 	}
 
-	s.testSecretVariablesUpload(newProfileBytes, "json", "darwin")
+	getProfileContents := func(profileUUID string) string {
+		profile, err := s.ds.GetMDMAppleDeclaration(context.Background(), profileUUID)
+		require.NoError(s.T(), err)
+		return string(profile.RawJSON)
+	}
+
+	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "json", "darwin")
 }
 
-func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func(i int) []byte, fileExtension string, platform string) {
+func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func(i int) []byte,
+	getProfileContents func(profileUUID string) string, fileExtension string, platform string) {
 	t := s.T()
+	const numProfiles = 2
 	var profiles [][]byte
-	for i := 0; i < 2; i++ {
+	for i := 0; i < numProfiles; i++ {
 		profiles = append(profiles, newProfileBytes(i))
 	}
 	// Use secrets
@@ -5341,23 +5349,30 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 
 	var listResp listMDMConfigProfilesResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &listResp)
-	require.Len(t, listResp.Profiles, 2)
-	profileUUIDs := make([]string, 0, 2)
+	require.Len(t, listResp.Profiles, numProfiles)
+	profileUUIDs := make([]string, numProfiles)
 	for _, p := range listResp.Profiles {
-		profileUUIDs = append(profileUUIDs, p.ProfileUUID)
 		switch p.Name {
 		case "secret-config0":
 			assert.Equal(t, platform, p.Platform)
+			profileUUIDs[0] = p.ProfileUUID
 		case "secret-config1":
 			assert.Equal(t, platform, p.Platform)
+			profileUUIDs[1] = p.ProfileUUID
 		default:
 			t.Errorf("unexpected profile %s", p.Name)
 		}
 	}
-	require.Len(t, profileUUIDs, 2)
 
-	s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+profileUUIDs[0], nil, http.StatusOK)
-	s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+profileUUIDs[1], nil, http.StatusOK)
+	// Check that contents are masking secret values
+	for i := 0; i < numProfiles; i++ {
+		assert.Equal(t, string(profiles[i]), getProfileContents(profileUUIDs[i]))
+	}
+
+	// Delete profiles -- make sure there is no issue deleting profiles with secrets
+	for i := 0; i < numProfiles; i++ {
+		s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+profileUUIDs[i], nil, http.StatusOK)
+	}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &listResp)
 	require.Empty(t, listResp.Profiles)
 
@@ -5406,7 +5421,13 @@ func (s *integrationMDMTestSuite) TestAppleConfigSecretVariablesUpload() {
 		return []byte(fmt.Sprintf(tmpl, i, i, i))
 	}
 
-	s.testSecretVariablesUpload(newProfileBytes, "mobileconfig", "darwin")
+	getProfileContents := func(profileUUID string) string {
+		profile, err := s.ds.GetMDMAppleConfigProfile(context.Background(), profileUUID)
+		require.NoError(s.T(), err)
+		return string(profile.Mobileconfig)
+	}
+
+	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "mobileconfig", "darwin")
 
 }
 
@@ -5430,6 +5451,12 @@ func (s *integrationMDMTestSuite) TestWindowsConfigSecretVariablesUpload() {
 		return []byte(fmt.Sprintf(tmpl, i, i, i))
 	}
 
-	s.testSecretVariablesUpload(newProfileBytes, "xml", "windows")
+	getProfileContents := func(profileUUID string) string {
+		profile, err := s.ds.GetMDMWindowsConfigProfile(context.Background(), profileUUID)
+		require.NoError(s.T(), err)
+		return string(profile.SyncML)
+	}
+
+	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "xml", "windows")
 
 }
