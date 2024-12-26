@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import classnames from "classnames";
 import Button from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
@@ -51,6 +51,23 @@ const Modal = ({
   disableClosingModal = false,
   className,
 }: IModalProps): JSX.Element => {
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  /** Allows keyboard accessibility to modals -- Because of loading,
+   * we cannot have a global fix to access focusable elements within
+   * children, but we can access the close button within Modal.tsx */
+  useEffect(() => {
+    if (contentRef.current) {
+      const focusableElements = contentRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+
+      if (focusableElements.length > 0) {
+        (focusableElements[0] as HTMLElement).focus();
+      }
+    }
+  }, [isHidden]);
+
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -107,7 +124,7 @@ const Modal = ({
   });
 
   return (
-    <div className={backgroundClasses}>
+    <div ref={contentRef} className={backgroundClasses}>
       <div className={modalContainerClasses}>
         <div className={`${baseClass}__header`}>
           <span>{title}</span>
