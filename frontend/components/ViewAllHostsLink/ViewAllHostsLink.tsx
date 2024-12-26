@@ -16,7 +16,7 @@ interface IHostLinkProps {
   excludeChevron?: boolean;
   responsive?: boolean;
   customText?: string;
-  /** Table links shows on row hover only */
+  /** Table links shows on row hover and tab focus only */
   rowHover?: boolean;
   // don't actually create a link, useful when click is handled by an ancestor
   noLink?: boolean;
