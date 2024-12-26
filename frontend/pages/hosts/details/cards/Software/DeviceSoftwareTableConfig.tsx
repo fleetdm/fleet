@@ -38,9 +38,7 @@ export const generateSoftwareTableData = (
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-export const generateSoftwareTableHeaders = (
-  onShowSoftwareDetails: (software: IHostSoftware) => void
-): ISoftwareTableConfig[] => {
+export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
       Header: (cellProps: ITableHeaderProps) => (
@@ -97,13 +95,6 @@ export const generateSoftwareTableHeaders = (
           <span className="link">
             <span className="link-text">Show details</span>
           </span>
-          // <Button
-          //   onClick={() => {
-          //     onShowSoftwareDetails(cellProps.row.original);
-          //   }}
-          // >
-          //   Show details
-          // </Button>
         );
       },
     },

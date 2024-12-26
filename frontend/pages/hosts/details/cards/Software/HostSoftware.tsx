@@ -248,7 +248,7 @@ const HostSoftware = ({
 
   const tableConfig = useMemo(() => {
     return isMyDevicePage
-      ? generateDeviceSoftwareTableConfig(onShowSoftwareDetails)
+      ? generateDeviceSoftwareTableConfig()
       : generateHostSoftwareTableConfig({
           userHasSWWritePermission,
           hostScriptsEnabled,

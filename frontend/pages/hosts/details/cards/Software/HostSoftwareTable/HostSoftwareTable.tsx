@@ -53,10 +53,11 @@ export const DROPDOWN_OPTIONS = [
 ] as const;
 
 interface IHostSoftwareRowProps extends Row {
-  original: {
-    id?: number;
-    hostSoftware: IHostSoftware;
-  };
+  // original: {
+  //   id?: number;
+  //   hostSoftware: IHostSoftware;
+  // };
+  original: IHostSoftware;
 }
 interface IHostSoftwareTableProps {
   tableConfig: any; // TODO: type
@@ -234,9 +235,9 @@ const HostSoftwareTable = ({
   const showFilterHeaders = hasData || hasQuery || hasSoftwareFilter;
 
   // my device page row clickability
-  const onSelectSingleRow = useCallback(
+  const onClickMyDeviceRow = useCallback(
     (row: IHostSoftwareRowProps) => {
-      onShowSoftwareDetails(row.original.hostSoftware);
+      onShowSoftwareDetails(row.original);
     },
     [onShowSoftwareDetails]
   );
@@ -264,8 +265,7 @@ const HostSoftwareTable = ({
         manualSortBy
         // my device page row clickability
         disableMultiRowSelect={isMyDevicePage}
-        // @ts-ignore
-        onSelectSingleRow={onSelectSingleRow}
+        onClickRow={isMyDevicePage ? onClickMyDeviceRow : undefined}
       />
     </div>
   );
