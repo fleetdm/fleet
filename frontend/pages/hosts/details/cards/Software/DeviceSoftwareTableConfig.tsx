@@ -87,8 +87,8 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
     },
     {
       Header: "",
-      // the accessor here is insignificant, we just need it as its required
-      // but we don't use it.
+      // accessor ends up defining the classname for this column (`id__header` in this case), but is
+      // type restricted, so using "id" here, which is unsued by another column
       accessor: "id",
       disableSortBy: true,
       Cell: () => (

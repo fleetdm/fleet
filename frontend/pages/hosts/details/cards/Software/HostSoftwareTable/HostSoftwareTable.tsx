@@ -53,10 +53,6 @@ export const DROPDOWN_OPTIONS = [
 ] as const;
 
 interface IHostSoftwareRowProps extends Row {
-  // original: {
-  //   id?: number;
-  //   hostSoftware: IHostSoftware;
-  // };
   original: IHostSoftware;
 }
 interface IHostSoftwareTableProps {
@@ -234,7 +230,6 @@ const HostSoftwareTable = ({
 
   const showFilterHeaders = hasData || hasQuery || hasSoftwareFilter;
 
-  // my device page row clickability
   const onClickMyDeviceRow = useCallback(
     (row: IHostSoftwareRowProps) => {
       onShowSoftwareDetails(row.original);
