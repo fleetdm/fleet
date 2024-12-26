@@ -30,9 +30,12 @@ interface IRegistrationPageProps {
 const baseClass = "registration-page";
 
 const RegistrationPage = ({ router }: IRegistrationPageProps) => {
-  const { currentUser, setCurrentUser, setAvailableTeams } = useContext(
-    AppContext
-  );
+  const {
+    currentUser,
+    setCurrentUser,
+    setAvailableTeams,
+    setUISettings,
+  } = useContext(AppContext);
   const [page, setPage] = useState(1);
   const [pageProgress, setPageProgress] = useState(1);
   const [showSetupError, setShowSetupError] = useState(false);
@@ -58,9 +61,10 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
       const { token } = await usersAPI.setup(formData);
       local.setItem("auth_token", token);
 
-      const { user, available_teams } = await usersAPI.me();
+      const { user, available_teams, ui_settings } = await usersAPI.me();
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);
+      setUISettings(ui_settings);
       router.push(DASHBOARD);
       window.location.reload();
     } catch (error) {
