@@ -12,13 +12,13 @@
   .linkToFilteredHosts__header {
     width: auto;
     max-width: 120px;
-    padding-left: 0 !important;
+    padding-left: 0 !important; // Removes 24px of unnecessary table scroll
   }
 
   .linkToFilteredHosts__cell {
     width: auto;
     max-width: 120px;
-    padding-left: 0 !important;
+    padding-left: 0 !important; // Removes 24px of unnecessary table scroll
   }
 }
 
