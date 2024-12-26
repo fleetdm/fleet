@@ -297,7 +297,7 @@ Resets a user's password. Which user is determined by the password reset token u
 
 Retrieves the user data for the authenticated user.
 
-`GET /api/v1/fleet/me`
+`GET /api/v1/**fleet**/me`
 
 #### Example
 
@@ -321,7 +321,14 @@ Retrieves the user data for the authenticated user.
     "gravatar_url": "",
     "sso_enabled": false,
     "teams": []
-  }
+  },
+  "available_teams" : [
+    {
+      "id": 1,
+      "name": "Workstations",
+      "description": "Employee workstations"
+    }
+  ]
 }
 ```
 
