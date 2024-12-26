@@ -1891,7 +1891,7 @@ func testMatchOrCreateSoftwareInstallerWithAutomaticPolicies(t *testing.T, ds *D
 	require.Len(t, team2Policies, 1)
 	require.Equal(t, "[Install software] Barfoo (deb)", team2Policies[0].Name)
 	require.Equal(t, `SELECT 1 WHERE EXISTS (
-	SELECT 1 FROM os_version WHERE platform = 'rhel'
+	SELECT 1 WHERE (SELECT COUNT(*) FROM deb_packages) = 0
 ) OR EXISTS (
 	SELECT 1 FROM deb_packages WHERE name = 'Barfoo'
 );`, team2Policies[0].Query)
@@ -1925,7 +1925,7 @@ Software won't be installed on Linux hosts with RPM-based distributions because 
 	require.Len(t, team2Policies, 2)
 	require.Equal(t, "[Install software] Barzoo (rpm)", team2Policies[1].Name)
 	require.Equal(t, `SELECT 1 WHERE EXISTS (
-	SELECT 1 FROM os_version WHERE platform != 'rhel'
+	SELECT 1 WHERE (SELECT COUNT(*) FROM rpm_packages) = 0
 ) OR EXISTS (
 	SELECT 1 FROM rpm_packages WHERE name = 'Barzoo'
 );`, team2Policies[1].Query)

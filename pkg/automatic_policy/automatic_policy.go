@@ -87,9 +87,9 @@ func Generate(metadata InstallerMetadata) (*PolicyData, error) {
 		return &PolicyData{
 			Name: name,
 			Query: fmt.Sprintf(
-				// First inner SELECT will mark the policies as successful on RHEL hosts.
+				// First inner SELECT will mark the policies as successful on non-DEB-based hosts.
 				`SELECT 1 WHERE EXISTS (
-	SELECT 1 FROM os_version WHERE platform = 'rhel'
+	SELECT 1 WHERE (SELECT COUNT(*) FROM deb_packages) = 0
 ) OR EXISTS (
 	SELECT 1 FROM deb_packages WHERE name = '%s'
 );`, metadata.Title,
@@ -101,9 +101,9 @@ func Generate(metadata InstallerMetadata) (*PolicyData, error) {
 		return &PolicyData{
 			Name: name,
 			Query: fmt.Sprintf(
-				// First inner SELECT will mark the policies as successful on non-RHEL-based hosts.
+				// First inner SELECT will mark the policies as successful on non-RPM-based hosts.
 				`SELECT 1 WHERE EXISTS (
-	SELECT 1 FROM os_version WHERE platform != 'rhel'
+	SELECT 1 WHERE (SELECT COUNT(*) FROM rpm_packages) = 0
 ) OR EXISTS (
 	SELECT 1 FROM rpm_packages WHERE name = '%s'
 );`, metadata.Title),

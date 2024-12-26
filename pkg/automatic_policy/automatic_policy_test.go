@@ -84,7 +84,7 @@ func TestGenerate(t *testing.T) {
 Software won't be installed on Linux hosts with RPM-based distributions because this policy's query is written to always pass on these hosts.`, policyData.Description)
 	require.Equal(t, "linux", policyData.Platform)
 	require.Equal(t, `SELECT 1 WHERE EXISTS (
-	SELECT 1 FROM os_version WHERE platform = 'rhel'
+	SELECT 1 WHERE (SELECT COUNT(*) FROM deb_packages) = 0
 ) OR EXISTS (
 	SELECT 1 FROM deb_packages WHERE name = 'Zoobar'
 );`, policyData.Query)
@@ -101,7 +101,7 @@ Software won't be installed on Linux hosts with RPM-based distributions because 
 Software won't be installed on Linux hosts with Debian-based distributions because this policy's query is written to always pass on these hosts.`, policyData.Description)
 	require.Equal(t, "linux", policyData.Platform)
 	require.Equal(t, `SELECT 1 WHERE EXISTS (
-	SELECT 1 FROM os_version WHERE platform != 'rhel'
+	SELECT 1 WHERE (SELECT COUNT(*) FROM rpm_packages) = 0
 ) OR EXISTS (
 	SELECT 1 FROM rpm_packages WHERE name = 'Barzoo'
 );`, policyData.Query)
