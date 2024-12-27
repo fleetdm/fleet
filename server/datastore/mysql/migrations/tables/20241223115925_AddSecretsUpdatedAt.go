@@ -41,7 +41,6 @@ func Up_20241223115925(tx *sql.Tx) error {
 	}
 
 	_, err = tx.Exec(`ALTER TABLE host_mdm_apple_declarations
-		-- defaulting to NULL for backward compatibility with existing declarations
     	ADD COLUMN secrets_updated_at DATETIME(6) NULL`)
 	if err != nil {
 		return fmt.Errorf("failed to alter host_mdm_apple_declarations table: %w", err)
