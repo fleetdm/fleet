@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner help .help-short--build .help-long--build .help-options--build
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner help .help-sep-1 .help-sep-2 .help-sep-3
 
 export GO111MODULE=on
 
@@ -84,7 +84,7 @@ endif
 .help-short--build:
 	@echo "Build binaries"
 .help-long--build:
-	@echo "  Builds the specified binaries (defaults to building fleet and fleetctl)"
+	@echo "Builds the specified binaries (defaults to building fleet and fleetctl)"
 .help-options--build:
 	@echo "FLEET"
 	@echo "Build the fleet binary only"
@@ -618,3 +618,9 @@ db-replica-run: fleet
 HELP_CMD_PREFIX ?= make
 help:
 	@SPECIFIC_CMD=$(SPECIFIC_CMD) REFORMAT_OPTIONS=$(REFORMAT_OPTIONS) HELP_CMD_PREFIX=$(HELP_CMD_PREFIX) ./tools/makehelp.sh
+.help-sep-1:
+	@echo -n "######"
+.help-sep-2:
+	@echo -n "######"
+.help-sep-3:
+	@echo -n "######"

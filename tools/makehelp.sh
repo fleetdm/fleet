@@ -8,19 +8,33 @@ if [ -n "$SPECIFIC_CMD" ]; then
   long_target=".help-long--$SPECIFIC_CMD";
   options_target=".help-options--$SPECIFIC_CMD";
   # Try and get the additional "long" help for the command.
-  if make --no-print-directory $long_target >/dev/null 2>&1; then
+  output=$(make $short_target .help-sep-1 $long_target .help-sep-2 $options_target .help-sep-3 2>/dev/null)
+
+  # Replace the multi-character delimiter (#####) with a single character (e.g., ASCII 30, the "record separator")
+  delim=$'\036'  # ASCII 30
+  cleaned_output=$(echo "$output" | sed "s/######/$delim/g" | tr '\n' '\037' )
+
+  # Read the cleaned output into variables
+  # IFS="$delim" read -r short_desc long_desc options_text <<<"$cleaned_output"
+  sections=()
+  IFS="$delim" read -r -a sections <<<"$cleaned_output"
+  
+  short_desc="${sections[0]}"
+  long_desc=$(echo "${sections[1]}" | tr '\037' '\n')
+  options_text=$(echo "${sections[2]}" | tr '\037' '\n')
+  
+
+  if [ -n "$long_desc" ]; then
     # Print a loading message since make takes a second to run.
     echo -n "Gathering help for $SPECIFIC_CMD command...";
-    short_desc=$(make $short_target);
-    long_desc=$(make $long_target);
     # If this command has options, output them as well.
-    if make --no-print-directory $options_target >/dev/null 2>&1; then
+    if [ -n "$options_text" ]; then
       # The REFORMAT_OPTIONS flag turns makefile options like DO_THE_THING into 
       # CLI options like --do-the-thing.
       if [ -n "$REFORMAT_OPTIONS" ]; then
-        options_text=$(paste -s -d '\t\n' <(make $options_target | awk 'NR % 2 == 1 { option = $0; gsub("_", "-", option); printf "  --%s\n", tolower(option); next } { print $0 }') | column -t -s $'\t');
+        options_text=$(paste -s -d '\t\n' <(echo "$options_text" | awk 'NR % 2 == 1 { option = $0; gsub("_", "-", option); printf "  --%s\n", tolower(option); next } { print $0 }') | column -t -s $'\t');
       else
-        options_text=$(paste -s -d '\t\n' <(make $options_target) | column -t -s $'\t');
+        options_text=$(paste -s -d '\t\n' <(echo "$options_text") | column -t -s $'\t');
       fi;
     fi;
     # We're done loading, so erase the loading message.
