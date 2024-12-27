@@ -1,5 +1,5 @@
 // Used in AddPackageModal.tsx and EditSoftwareModal.tsx
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import classnames from "classnames";
 
 import { NotificationContext } from "context/notification";
@@ -7,11 +7,16 @@ import { getFileDetails } from "utilities/file/fileUtils";
 import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 import { ILabelSummary } from "interfaces/label";
+import { PackageType } from "interfaces/package_type";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import FileUploader from "components/FileUploader";
 import TooltipWrapper from "components/TooltipWrapper";
+import {
+  InstallType,
+  InstallTypeSection,
+} from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
 import TargetLabelSelector from "components/TargetLabelSelector";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
@@ -36,9 +41,10 @@ export interface IPackageFormData {
   targetType: string;
   customTarget: string;
   labelTargets: Record<string, boolean>;
+  installType: InstallType; // Used on add but not edit
 }
 
-export interface IFormValidation {
+export interface IPackageFormValidation {
   isValid: boolean;
   software: { isValid: boolean };
   preInstallQuery?: { isValid: boolean; message?: string };
@@ -80,7 +86,7 @@ const PackageForm = ({
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const [formData, setFormData] = useState<IPackageFormData>({
+  const initialFormData: IPackageFormData = {
     software: defaultSoftware || null,
     installScript: defaultInstallScript || "",
     preInstallQuery: defaultPreInstallQuery || "",
@@ -90,8 +96,11 @@ const PackageForm = ({
     targetType: getTargetType(defaultSoftware),
     customTarget: getCustomTarget(defaultSoftware),
     labelTargets: generateSelectedLabels(defaultSoftware),
-  });
-  const [formValidation, setFormValidation] = useState<IFormValidation>({
+    installType: "manual",
+  };
+
+  const [formData, setFormData] = useState<IPackageFormData>(initialFormData);
+  const [formValidation, setFormValidation] = useState<IPackageFormValidation>({
     isValid: false,
     software: { isValid: false },
   });
@@ -163,6 +172,12 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
+  const onChangeInstallType = (value: string) => {
+    const installType = value as InstallType;
+    const newData = { ...formData, installType };
+    setFormData(newData);
+  };
+
   const onToggleSelfServiceCheckbox = (value: boolean) => {
     const newData = { ...formData, selfService: value };
     setFormData(newData);
@@ -194,6 +209,18 @@ const PackageForm = ({
 
   const classNames = classnames(baseClass, className);
 
+  const ext = formData?.software?.name.split(".").pop() as PackageType;
+  const isExePackage = ext === "exe";
+
+  // If a user preselects automatic install and then uploads a .exe
+  // which automatic install is not supported, the form will default
+  // back to manual install
+  useEffect(() => {
+    if (isExePackage && formData.installType === "automatic") {
+      onChangeInstallType("manual");
+    }
+  }, [isExePackage]);
+
   return (
     <div className={classNames}>
       <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
@@ -209,6 +236,12 @@ const PackageForm = ({
           fileDetails={
             formData.software ? getFileDetails(formData.software) : undefined
           }
+        />
+        <InstallTypeSection
+          isCustomPackage
+          isExeCustomPackage={isExePackage}
+          installType={formData.installType}
+          onChangeInstallType={onChangeInstallType}
         />
         <TargetLabelSelector
           selectedTargetType={formData.targetType}

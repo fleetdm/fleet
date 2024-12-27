@@ -4,11 +4,11 @@ import { ISoftwarePackage } from "interfaces/software";
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 
-import { IPackageFormData, IFormValidation } from "./PackageForm";
+import { IPackageFormData, IPackageFormValidation } from "./PackageForm";
 
 type IMessageFunc = (formData: IPackageFormData) => string;
 type IValidationMessage = string | IMessageFunc;
-type IFormValidationKey = keyof Omit<IFormValidation, "isValid">;
+type IFormValidationKey = keyof Omit<IPackageFormValidation, "isValid">;
 
 interface IValidation {
   name: string;
@@ -74,7 +74,7 @@ const getErrorMessage = (
 };
 
 export const generateFormValidation = (formData: IPackageFormData) => {
-  const formValidation: IFormValidation = {
+  const formValidation: IPackageFormValidation = {
     isValid: true,
     software: {
       isValid: false,

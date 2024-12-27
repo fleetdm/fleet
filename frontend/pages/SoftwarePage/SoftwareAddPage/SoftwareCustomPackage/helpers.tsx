@@ -31,6 +31,29 @@ export const getErrorMessage = (err: unknown) => {
     );
   } else if (reason.includes("Secret variable")) {
     return reason.replace("missing from database", "doesn't exist");
+  } else if (reason.includes("Unable to extract necessary metadata")) {
+    return (
+      <>
+        Couldn&apos;t add. Unable to extract necessary metadata.{" "}
+        <CustomLink
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/package-metadata-extraction`}
+          text="Learn more"
+          newTab
+        />
+      </>
+    );
+  } else if (reason.includes("Fleet couldn't read the version from")) {
+    return (
+      <>
+        {reason}{" "}
+        <CustomLink
+          newTab
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
+          text="Learn more"
+          iconColor="core-fleet-white"
+        />
+      </>
+    );
   }
 
   return reason || DEFAULT_ERROR_MESSAGE;

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 
 import { ILabelSummary } from "interfaces/label";
+import { PackageType } from "interfaces/package_type";
 
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -8,6 +9,9 @@ import RevealButton from "components/buttons/RevealButton";
 import Button from "components/buttons/Button";
 import Radio from "components/forms/fields/Radio";
 import TargetLabelSelector from "components/TargetLabelSelector";
+import InfoBanner from "components/InfoBanner";
+import CustomLink from "components/CustomLink";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import AdvancedOptionsFields from "pages/SoftwarePage/components/AdvancedOptionsFields";
 
@@ -19,13 +23,14 @@ import {
 
 const baseClass = "fleet-app-details-form";
 
+export type InstallType = "manual" | "automatic";
 export interface IFleetMaintainedAppFormData {
   selfService: boolean;
   installScript: string;
   preInstallQuery?: string;
   postInstallScript?: string;
   uninstallScript?: string;
-  installType: string;
+  installType: InstallType;
   targetType: string;
   customTarget: string;
   labelTargets: Record<string, boolean>;
@@ -39,6 +44,7 @@ export interface IFormValidation {
 
 interface IFleetAppDetailsFormProps {
   labels: ILabelSummary[] | null;
+  name: string;
   defaultInstallScript: string;
   defaultPostInstallScript: string;
   defaultUninstallScript: string;
@@ -48,8 +54,94 @@ interface IFleetAppDetailsFormProps {
   onSubmit: (formData: IFleetMaintainedAppFormData) => void;
 }
 
+interface IInstallTypeSection {
+  installType: InstallType;
+  onChangeInstallType: (value: string) => void;
+  isCustomPackage?: boolean;
+  isExeCustomPackage?: boolean;
+}
+
+// Also used in custom package form (PackageForm.tsx)
+export const InstallTypeSection = ({
+  installType,
+  onChangeInstallType,
+  isCustomPackage = false,
+  isExeCustomPackage = false,
+}: IInstallTypeSection) => {
+  const isAutomaticDisabled = isExeCustomPackage;
+  const AUTOMATIC_DISABLED_TOOLTIP = (
+    <>
+      Fleet can&apos;t create a policy to detect existing installations for
+      <br /> .exe packages. To automatically install an .exe, add a custom
+      <br /> policy and enable the install software automation on the
+      <br /> <b>Policies</b> page.
+    </>
+  );
+
+  return (
+    <fieldset>
+      <legend>Install</legend>
+      <div className={`${baseClass}__radio-input`}>
+        <Radio
+          checked={installType === "manual"}
+          id="manual-radio-btn"
+          value="manual"
+          name="install-type"
+          label="Manual"
+          onChange={onChangeInstallType}
+          helpText="Manually install on Host details page for each host."
+        />
+        <Radio
+          checked={installType === "automatic"}
+          id="automatic-radio-btn"
+          value="automatic"
+          name="install-type"
+          label="Automatic"
+          disabled={isAutomaticDisabled}
+          tooltip={isAutomaticDisabled && AUTOMATIC_DISABLED_TOOLTIP}
+          onChange={onChangeInstallType}
+          helpText={
+            <>
+              Automatically install on each host that&apos;s{" "}
+              <TooltipWrapper
+                tipContent={
+                  <>
+                    If the host already has any version of this
+                    <br /> software, it won&apos;t be installed.
+                  </>
+                }
+              >
+                missing this software
+              </TooltipWrapper>
+              . Policy that triggers install can be customized after software is
+              added.
+            </>
+          }
+        />
+      </div>
+      {installType === "automatic" && isCustomPackage && (
+        <InfoBanner
+          color="yellow"
+          cta={
+            <CustomLink
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/automatic-software-install-policies`}
+              text="Learn more"
+              newTab
+            />
+          }
+        >
+          Installing software over existing installations might cause issues.
+          Fleet&apos;s policy may not detect these existing installations.
+          Please create a test team in Fleet to verify a smooth installation.
+        </InfoBanner>
+      )}
+    </fieldset>
+  );
+};
+
 const FleetAppDetailsForm = ({
   labels,
+  name: appName,
   defaultInstallScript,
   defaultPostInstallScript,
   defaultUninstallScript,
@@ -107,7 +199,8 @@ const FleetAppDetailsForm = ({
   };
 
   const onChangeInstallType = (value: string) => {
-    const newData = { ...formData, installType: value };
+    const installType = value as InstallType;
+    const newData = { ...formData, installType };
     setFormData(newData);
   };
 
@@ -140,38 +233,10 @@ const FleetAppDetailsForm = ({
 
   return (
     <form className={baseClass} onSubmit={onSubmitForm}>
-      <fieldset>
-        <legend>Install</legend>
-        <div className={`${baseClass}__radio-inputs`}>
-          <Radio
-            checked={formData.installType === "manual"}
-            id="manual"
-            value="manual"
-            name="install-type"
-            label="Manual"
-            onChange={onChangeInstallType}
-            helpText="Manually install on Host details page for each host."
-          />
-          <Radio
-            checked={formData.installType === "automatic"}
-            id="automatic"
-            value="automatic"
-            name="install-type"
-            label="Automatic"
-            onChange={onChangeInstallType}
-            helpText={
-              <>
-                Automatically install on each host that&apos;s{" "}
-                <TooltipWrapper tipContent="If the host already has any version of this software, it won't be installed.">
-                  missing this software.
-                </TooltipWrapper>{" "}
-                Policy that triggers install can be customized after software is
-                added.
-              </>
-            }
-          />
-        </div>
-      </fieldset>
+      <InstallTypeSection
+        installType={formData.installType}
+        onChangeInstallType={onChangeInstallType}
+      />
       <TargetLabelSelector
         selectedTargetType={formData.targetType}
         selectedCustomTarget={formData.customTarget}
