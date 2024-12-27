@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner help .help-sep-1 .help-sep-2 .help-sep-3
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner help
 
 export GO111MODULE=on
 
@@ -615,12 +615,4 @@ db-replica-reset: fleet
 db-replica-run: fleet
 	FLEET_MYSQL_ADDRESS=127.0.0.1:3308 FLEET_MYSQL_READ_REPLICA_ADDRESS=127.0.0.1:3309 FLEET_MYSQL_READ_REPLICA_USERNAME=fleet FLEET_MYSQL_READ_REPLICA_DATABASE=fleet FLEET_MYSQL_READ_REPLICA_PASSWORD=insecure ./build/fleet serve --dev --dev_license
 
-HELP_CMD_PREFIX ?= make
-help:
-	@SPECIFIC_CMD=$(SPECIFIC_CMD) REFORMAT_OPTIONS=$(REFORMAT_OPTIONS) HELP_CMD_PREFIX=$(HELP_CMD_PREFIX) ./tools/makehelp.sh
-.help-sep-1:
-	@printf "\036"
-.help-sep-2:
-	@printf "\036"
-.help-sep-3:
-	@printf "\036"
+include ./tools/makefile-support/helpsystem-targets
