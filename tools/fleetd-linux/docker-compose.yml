@@ -11,6 +11,12 @@ x-default-settings:
     - "host.docker.internal:host-gateway"
   platform: &default-platform linux/x86_64
 
+#
+# We are running the containers with `privileged: true` to fix osquery errors like
+# `[... processes.cpp:510] Cannot read /proc/50/io (is osquery running as root?)`
+# (it is running as `root` but seems it's missing some privileges in the container).
+#
+
 services:
   ubuntu24.04-fleetd:
     image: "fleetd-ubuntu-24.04"

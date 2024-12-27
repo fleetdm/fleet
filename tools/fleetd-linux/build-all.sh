@@ -9,6 +9,7 @@ fleetctl package --type=deb \
 	--fleet-url=https://host.docker.internal:8080 \
 	--enroll-secret=placeholder \
 	--fleet-certificate=../osquery/fleet.crt \
+    --disable-open-folder \
     --debug
 mv fleet-osquery_1*_amd64.deb fleet-osquery_amd64.deb
 
@@ -18,6 +19,7 @@ fleetctl package --type=rpm \
 	--fleet-url=https://host.docker.internal:8080 \
 	--enroll-secret=placeholder \
 	--fleet-certificate=../osquery/fleet.crt \
+    --disable-open-folder \
     --debug
 mv fleet-osquery-1*.x86_64.rpm fleet-osquery_amd64.rpm
 
