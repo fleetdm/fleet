@@ -4411,7 +4411,7 @@ INSERT INTO mdm_apple_declarations (
 	checksum,
 	secrets_updated_at,
 	uploaded_at)
-(SELECT ?,?,?,?,?,UNHEX(MD5(raw_json)),?,CURRENT_TIMESTAMP() FROM DUAL WHERE
+(SELECT ?,?,?,?,?,UNHEX(MD5(?)),?,CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
@@ -4433,7 +4433,7 @@ INSERT INTO mdm_apple_declarations (
 	checksum,
 	secrets_updated_at,
 	uploaded_at)
-(SELECT ?,?,?,?,?,UNHEX(MD5(raw_json)),?,CURRENT_TIMESTAMP() FROM DUAL WHERE
+(SELECT ?,?,?,?,?,UNHEX(MD5(?)),?,CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
@@ -4461,7 +4461,8 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insOrUpsertStmt,
-			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.RawJSON, declaration.SecretsUpdatedAt,
+			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.RawJSON, declaration.RawJSON,
+			declaration.SecretsUpdatedAt,
 			declaration.Name, tmID, declaration.Name, tmID)
 		if err != nil {
 			switch {
