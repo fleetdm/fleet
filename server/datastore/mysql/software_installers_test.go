@@ -1963,7 +1963,7 @@ Software won't be installed on Linux hosts with Debian-based distributions becau
 	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, team1Policies, 3)
-	require.Equal(t, "[Install software] OtherFoobar (pkg) 1", team1Policies[2].Name)
+	require.Equal(t, "[Install software] OtherFoobar (pkg) 2", team1Policies[2].Name)
 
 	team3, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 3"})
 	require.NoError(t, err)
@@ -1974,13 +1974,13 @@ Software won't be installed on Linux hosts with Debian-based distributions becau
 	})
 	require.NoError(t, err)
 	_, err = ds.NewTeamPolicy(ctx, team3.ID, &user1.ID, fleet.PolicyPayload{
-		Name:  "[Install software] Something2 (msi) 1",
+		Name:  "[Install software] Something2 (msi) 2",
 		Query: "SELECT 1;",
 	})
 	require.NoError(t, err)
 	// This name is on another team, so it shouldn't count.
 	_, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
-		Name:  "[Install software] Something2 (msi) 1",
+		Name:  "[Install software] Something2 (msi) 3",
 		Query: "SELECT 1;",
 	})
 	require.NoError(t, err)
@@ -2005,5 +2005,5 @@ Software won't be installed on Linux hosts with Debian-based distributions becau
 	team3Policies, _, err := ds.ListTeamPolicies(ctx, team3.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, team3Policies, 3)
-	require.Equal(t, "[Install software] Something2 (msi) 2", team3Policies[2].Name)
+	require.Equal(t, "[Install software] Something2 (msi) 3", team3Policies[2].Name)
 }

@@ -248,7 +248,7 @@ func (ds *Datastore) createAutomaticPolicy(ctx context.Context, tx sqlx.ExtConte
 
 func getAvailablePolicyName(ctx context.Context, db sqlx.QueryerContext, teamID uint, tentativePolicyName string) (string, error) {
 	availableName := tentativePolicyName
-	for i := 1; ; i++ {
+	for i := 2; ; i++ {
 		var count int
 		if err := sqlx.GetContext(ctx, db, &count, `SELECT COUNT(*) FROM policies WHERE team_id = ? AND name = ?`, teamID, availableName); err != nil {
 			return "", ctxerr.Wrapf(ctx, err, "get policy by team and name")
