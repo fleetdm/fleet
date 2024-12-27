@@ -1,5 +1,5 @@
 // Used in AddPackageModal.tsx and EditSoftwareModal.tsx
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import classnames from "classnames";
 
 import { NotificationContext } from "context/notification";
@@ -7,6 +7,7 @@ import { getFileDetails } from "utilities/file/fileUtils";
 import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 import { ILabelSummary } from "interfaces/label";
+import { PackageType } from "interfaces/package_type";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -48,10 +49,6 @@ export interface IPackageFormValidation {
   software: { isValid: boolean };
   preInstallQuery?: { isValid: boolean; message?: string };
   customTarget?: { isValid: boolean };
-  postInstallScript?: { isValid: boolean; message?: string };
-  uninstallScript?: { isValid: boolean; message?: string };
-  selfService?: { isValid: boolean };
-  installType?: { isValid: boolean };
 }
 
 interface IPackageFormProps {
@@ -212,6 +209,18 @@ const PackageForm = ({
 
   const classNames = classnames(baseClass, className);
 
+  const ext = formData?.software?.name.split(".").pop() as PackageType;
+  const isExePackage = ext === "exe";
+
+  // If a user preselects automatic install and then uploads a .exe
+  // which automatic install is not supported, the form will default
+  // back to manual install
+  useEffect(() => {
+    if (isExePackage && formData.installType === "automatic") {
+      onChangeInstallType("manual");
+    }
+  }, [isExePackage]);
+
   return (
     <div className={classNames}>
       <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
@@ -229,6 +238,7 @@ const PackageForm = ({
           }
         />
         <InstallTypeSection
+          isExeFleetApp={isExePackage}
           installType={formData.installType}
           onChangeInstallType={onChangeInstallType}
         />

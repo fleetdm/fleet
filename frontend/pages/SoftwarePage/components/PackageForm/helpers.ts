@@ -8,7 +8,7 @@ import { IPackageFormData, IPackageFormValidation } from "./PackageForm";
 
 type IMessageFunc = (formData: IPackageFormData) => string;
 type IValidationMessage = string | IMessageFunc;
-type IFormValidationKey = keyof Omit<IFormValidation, "isValid">;
+type IFormValidationKey = keyof Omit<IPackageFormValidation, "isValid">;
 
 interface IValidation {
   name: string;
@@ -30,10 +30,6 @@ const FORM_VALIDATION_CONFIG: Record<
         isValid: (formData) => formData.software !== null,
       },
     ],
-  },
-  installType: {
-    // no validations related to self service
-    validations: [],
   },
   preInstallQuery: {
     validations: [

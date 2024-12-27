@@ -227,47 +227,11 @@ const FleetAppDetailsForm = ({
     onSubmit(formData);
   };
 
-  const ext = appName.split(".").pop() as PackageType;
-  const isExePackage = ext === "exe";
-
   const isSubmitDisabled = !formValidation.isValid;
 
   return (
     <form className={baseClass} onSubmit={onSubmitForm}>
-      <fieldset>
-        <legend>Install</legend>
-        <div className={`${baseClass}__radio-inputs`}>
-          <Radio
-            checked={formData.installType === "manual"}
-            id="manual"
-            value="manual"
-            name="install-type"
-            label="Manual"
-            onChange={onChangeInstallType}
-            helpText="Manually install on Host details page for each host."
-          />
-          <Radio
-            checked={formData.installType === "automatic"}
-            id="automatic"
-            value="automatic"
-            name="install-type"
-            label="Automatic"
-            onChange={onChangeInstallType}
-            helpText={
-              <>
-                Automatically install on each host that&apos;s{" "}
-                <TooltipWrapper tipContent="If the host already has any version of this software, it won't be installed.">
-                  missing this software.
-                </TooltipWrapper>{" "}
-                Policy that triggers install can be customized after software is
-                added.
-              </>
-            }
-          />
-        </div>
-      </fieldset>
       <InstallTypeSection
-        isExeFleetApp={isExePackage}
         installType={formData.installType}
         onChangeInstallType={onChangeInstallType}
       />
