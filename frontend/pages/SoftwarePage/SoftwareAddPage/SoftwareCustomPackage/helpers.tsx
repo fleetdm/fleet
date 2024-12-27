@@ -13,8 +13,6 @@ export const getErrorMessage = (err: unknown) => {
   const isTimeout =
     isAxiosError(err) &&
     (err.response?.status === 504 || err.response?.status === 408);
-  const isMetadataExtractionFailure =
-    isAxiosError(err) && err.response?.status === 424;
   const reason = getErrorReason(err);
 
   if (isTimeout) {
@@ -33,7 +31,7 @@ export const getErrorMessage = (err: unknown) => {
     );
   } else if (reason.includes("Secret variable")) {
     return reason.replace("missing from database", "doesn't exist");
-  } else if (isMetadataExtractionFailure) {
+  } else if (reason.includes("Unable to extract necessary metadata")) {
     return (
       <>
         Couldn&apos;t add. Unable to extract necessary metadata.{" "}
