@@ -691,6 +691,11 @@ WHERE name = ?`
 	}
 	s.awaitTriggerProfileSchedule(t)
 
+	// Get tokens again
+	r, err = mdmDevice.DeclarativeManagement("tokens")
+	require.NoError(t, err)
+	tokens = parseTokensResp(t, r)
+	currDeclToken = tokens.SyncTokens.DeclarationsToken
 	// Only N1 should have changed
 	r, err = mdmDevice.DeclarativeManagement("declaration-items")
 	require.NoError(t, err)
