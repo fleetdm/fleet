@@ -303,8 +303,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     }
   }, [currentTeamId, router]);
 
-  // NOTE: used to reset page number to 0 when modifying filters
-  // NOTE: Solution reused from ManageHostPage.tsx
+  // Used to reset page number to 0 when modifying filters
+  // Solution reused from ManageHostPage.tsx
   useEffect(() => {
     setResetPageIndex(false);
   }, [queryParams, page]);
@@ -312,7 +312,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const onTeamChange = useCallback(
     (teamId: number) => {
       handleTeamChange(teamId);
-      // NOTE: used to reset page number to 0 when modifying filters
+      // Used to reset page number to 0 when modifying filters
       setResetPageIndex(true);
     },
     [handleTeamChange]
