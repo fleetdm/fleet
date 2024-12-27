@@ -13318,6 +13318,37 @@ func (s *integrationEnterpriseTestSuite) TestPKGNoVersion() {
 	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Fleet couldn't read the version from no_version.pkg.")
 }
 
+func (s *integrationEnterpriseTestSuite) TestPKGNoBundleIdentifier() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
+	require.NoError(t, err)
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "some installer script",
+		Filename:      "no_bundle_identifier.pkg",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Unable to extract necessary metadata.")
+}
+
+func (s *integrationEnterpriseTestSuite) TestAutomaticPoliciesWithExeFails() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
+	require.NoError(t, err)
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "some installer script",
+		Filename:         "hello-world-installer.exe",
+		TeamID:           &team.ID,
+		AutomaticInstall: true,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Fleet can't create a policy to detect existing installations for .exe packages. Please add the software, add a custom policy, and enable the install software policy automation.")
+}
+
 // 1. host reports software
 // 2. reconciler runs, creates title
 // 3. installer is uploaded, matches existing software title
@@ -16368,4 +16399,105 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Empty(t, getHostSw.Software)
+}
+
+func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
+	t := s.T()
+	ctx := context.Background()
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team2"})
+	require.NoError(t, err)
+
+	// Upload dummy_installer.pkg to team1 without automatic policy.
+	pkgPayload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "some pkg install script",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team1.ID,
+	}
+	s.uploadSoftwareInstaller(t, pkgPayload, http.StatusOK, "")
+
+	// Check no policies were created.
+	ts := listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
+	require.Len(t, ts.Policies, 0)
+	require.Len(t, ts.InheritedPolicies, 0)
+
+	// Delete and try again with automatic policy turned on.
+	pkgTitleID := getSoftwareTitleID(t, s.ds, "DummyApp.app", "apps")
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", pkgTitleID), nil, http.StatusNoContent,
+		"team_id", fmt.Sprintf("%d", team1.ID))
+
+	// Upload dummy_installer.pkg to team1 with automatic policy.
+	pkgPayload = &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "some pkg install script 2",
+		Filename:         "dummy_installer.pkg",
+		TeamID:           &team1.ID,
+		AutomaticInstall: true,
+	}
+	s.uploadSoftwareInstaller(t, pkgPayload, http.StatusOK, "")
+
+	pkgTitleID = getSoftwareTitleID(t, s.ds, "DummyApp.app", "apps")
+	respTitle := getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d?team_id=%d", pkgTitleID, team1.ID), listSoftwareTitlesRequest{}, http.StatusOK, &respTitle)
+	require.NotNil(t, respTitle.SoftwareTitle)
+	require.NotNil(t, respTitle.SoftwareTitle.SoftwarePackage)
+	require.Len(t, respTitle.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies, 1)
+	require.Equal(t, "[Install software] DummyApp.app (pkg)", respTitle.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].Name)
+
+	// Check a policy was created on team1.
+	ts = listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
+	require.Len(t, ts.Policies, 1)
+	require.Len(t, ts.InheritedPolicies, 0)
+	require.Equal(t, "[Install software] DummyApp.app (pkg)", ts.Policies[0].Name)
+
+	// Upload dummy_installer.pkg to team2 with automatic policy.
+	pkgPayload = &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "some pkg install script 3",
+		Filename:         "dummy_installer.pkg",
+		TeamID:           &team2.ID,
+		AutomaticInstall: true,
+	}
+	s.uploadSoftwareInstaller(t, pkgPayload, http.StatusOK, "")
+
+	// Check a policy was created on team2.
+	ts = listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team2.ID), nil, http.StatusOK, &ts)
+	require.Len(t, ts.Policies, 1)
+	require.Len(t, ts.InheritedPolicies, 0)
+	require.Equal(t, "[Install software] DummyApp.app (pkg)", ts.Policies[0].Name)
+
+	// Upload ruby.deb to team1 with automatic policy.
+	payloadRubyDEB := &fleet.UploadSoftwareInstallerPayload{
+		Filename:         "ruby.deb",
+		TeamID:           &team1.ID,
+		AutomaticInstall: true,
+	}
+	s.uploadSoftwareInstaller(t, payloadRubyDEB, http.StatusOK, "")
+
+	payloadRubyRPM := &fleet.UploadSoftwareInstallerPayload{
+		Filename:         "ruby.rpm",
+		TeamID:           &team1.ID,
+		AutomaticInstall: true,
+	}
+	s.uploadSoftwareInstaller(t, payloadRubyRPM, http.StatusOK, "")
+
+	// Upload fleet-osquery.msi to team1 with automatic policy.
+	fleetOsqueryPayload := &fleet.UploadSoftwareInstallerPayload{
+		Filename:         "fleet-osquery.msi",
+		TeamID:           &team1.ID,
+		AutomaticInstall: true,
+	}
+	s.uploadSoftwareInstaller(t, fleetOsqueryPayload, http.StatusOK, "")
+
+	// Check policies were created on team1.
+	ts = listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
+	require.Len(t, ts.Policies, 4)
+	require.Len(t, ts.InheritedPolicies, 0)
+	require.Equal(t, "[Install software] ruby (deb)", ts.Policies[1].Name)
+	require.Equal(t, "[Install software] ruby (rpm)", ts.Policies[2].Name)
+	require.Equal(t, "[Install software] Fleet osquery (msi)", ts.Policies[3].Name)
 }

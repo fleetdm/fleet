@@ -340,7 +340,8 @@ type UploadSoftwareInstallerPayload struct {
 	LabelsExcludeAny   []string // names of "exclude any" labels
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
 	// is nil if the labels have not been validated.
-	ValidatedLabels *LabelIdentsWithScope
+	ValidatedLabels  *LabelIdentsWithScope
+	AutomaticInstall bool
 }
 
 type UpdateSoftwareInstallerPayload struct {
@@ -444,7 +445,7 @@ type SoftwarePackageOrApp struct {
 	AppStoreID string `json:"app_store_id,omitempty"`
 	// Name is only present for software installer packages.
 	Name string `json:"name,omitempty"`
-	// AutomaticInstallPolicies is only present for Fleet maintained apps
+	// AutomaticInstallPolicies is present for Fleet maintained apps and custom packages
 	// installed automatically with a policy.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies"`
 

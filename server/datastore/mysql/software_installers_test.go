@@ -39,6 +39,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"GetHostLastInstallData", testGetHostLastInstallData},
 		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
 		{"BatchSetSoftwareInstallersScopedViaLabels", testBatchSetSoftwareInstallersScopedViaLabels},
+		{"MatchOrCreateSoftwareInstallerWithAutomaticPolicies", testMatchOrCreateSoftwareInstallerWithAutomaticPolicies},
 	}
 
 	for _, c := range cases {
@@ -1775,4 +1776,234 @@ func testBatchSetSoftwareInstallersScopedViaLabels(t *testing.T, ds *Datastore) 
 			}
 		}
 	}
+}
+
+func testMatchOrCreateSoftwareInstallerWithAutomaticPolicies(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+
+	// Test pkg without automatic install doesn't create policy.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "com.manual.foobar",
+		Extension:        "pkg",
+		StorageID:        "storage0",
+		Filename:         "foobar0",
+		Title:            "Manual foobar",
+		Version:          "1.0",
+		Source:           "apps",
+		UserID:           user1.ID,
+		TeamID:           &team1.ID,
+		AutomaticInstall: false,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	team1Policies, _, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Empty(t, team1Policies)
+
+	// Test pkg.
+	installerID1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "com.foo.bar",
+		Extension:        "pkg",
+		StorageID:        "storage1",
+		Filename:         "foobar1",
+		Title:            "Foobar",
+		Version:          "1.0",
+		Source:           "apps",
+		UserID:           user1.ID,
+		TeamID:           &team1.ID,
+		AutomaticInstall: true,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, team1Policies, 1)
+	require.Equal(t, "[Install software] Foobar (pkg)", team1Policies[0].Name)
+	require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.foo.bar';", team1Policies[0].Query)
+	require.Equal(t, "Policy triggers automatic install of Foobar on each host that's missing this software.", team1Policies[0].Description)
+	require.Equal(t, "darwin", team1Policies[0].Platform)
+	require.NotNil(t, team1Policies[0].SoftwareInstallerID)
+	require.Equal(t, installerID1, *team1Policies[0].SoftwareInstallerID)
+	require.NotNil(t, team1Policies[0].TeamID)
+	require.Equal(t, team1.ID, *team1Policies[0].TeamID)
+
+	// Test msi.
+	installerID2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		Extension:        "msi",
+		StorageID:        "storage2",
+		Filename:         "zoobar1",
+		Title:            "Zoobar",
+		Version:          "1.0",
+		Source:           "programs",
+		UserID:           user1.ID,
+		TeamID:           nil,
+		AutomaticInstall: true,
+		PackageIDs:       []string{"id1"},
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	noTeamPolicies, _, err := ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, noTeamPolicies, 1)
+	require.Equal(t, "[Install software] Zoobar (msi)", noTeamPolicies[0].Name)
+	require.Equal(t, "SELECT 1 FROM programs WHERE identifying_number = 'id1';", noTeamPolicies[0].Query)
+	require.Equal(t, "Policy triggers automatic install of Zoobar on each host that's missing this software.", noTeamPolicies[0].Description)
+	require.Equal(t, "windows", noTeamPolicies[0].Platform)
+	require.NotNil(t, noTeamPolicies[0].SoftwareInstallerID)
+	require.Equal(t, installerID2, *noTeamPolicies[0].SoftwareInstallerID)
+	require.NotNil(t, noTeamPolicies[0].TeamID)
+	require.Equal(t, fleet.PolicyNoTeamID, *noTeamPolicies[0].TeamID)
+
+	// Test deb.
+	installerID3, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		Extension:        "deb",
+		StorageID:        "storage3",
+		Filename:         "barfoo1",
+		Title:            "Barfoo",
+		Version:          "1.0",
+		Source:           "deb_packages",
+		UserID:           user1.ID,
+		TeamID:           &team2.ID,
+		AutomaticInstall: true,
+		PackageIDs:       []string{"id1"},
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	team2Policies, _, err := ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, team2Policies, 1)
+	require.Equal(t, "[Install software] Barfoo (deb)", team2Policies[0].Name)
+	require.Equal(t, `SELECT 1 WHERE EXISTS (
+	SELECT 1 WHERE (SELECT COUNT(*) FROM deb_packages) = 0
+) OR EXISTS (
+	SELECT 1 FROM deb_packages WHERE name = 'Barfoo'
+);`, team2Policies[0].Query)
+	require.Equal(t, `Policy triggers automatic install of Barfoo on each host that's missing this software.
+Software won't be installed on Linux hosts with RPM-based distributions because this policy's query is written to always pass on these hosts.`, team2Policies[0].Description)
+	require.Equal(t, "linux", team2Policies[0].Platform)
+	require.NotNil(t, team2Policies[0].SoftwareInstallerID)
+	require.Equal(t, installerID3, *team2Policies[0].SoftwareInstallerID)
+	require.NotNil(t, team2Policies[0].TeamID)
+	require.Equal(t, team2.ID, *team2Policies[0].TeamID)
+
+	// Test rpm.
+	installerID4, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		Extension:        "rpm",
+		StorageID:        "storage4",
+		Filename:         "barzoo1",
+		Title:            "Barzoo",
+		Version:          "1.0",
+		Source:           "rpm_packages",
+		UserID:           user1.ID,
+		TeamID:           &team2.ID,
+		AutomaticInstall: true,
+		PackageIDs:       []string{"id1"},
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	team2Policies, _, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, team2Policies, 2)
+	require.Equal(t, "[Install software] Barzoo (rpm)", team2Policies[1].Name)
+	require.Equal(t, `SELECT 1 WHERE EXISTS (
+	SELECT 1 WHERE (SELECT COUNT(*) FROM rpm_packages) = 0
+) OR EXISTS (
+	SELECT 1 FROM rpm_packages WHERE name = 'Barzoo'
+);`, team2Policies[1].Query)
+	require.Equal(t, `Policy triggers automatic install of Barzoo on each host that's missing this software.
+Software won't be installed on Linux hosts with Debian-based distributions because this policy's query is written to always pass on these hosts.`, team2Policies[1].Description)
+	require.Equal(t, "linux", team2Policies[1].Platform)
+	require.NotNil(t, team2Policies[0].SoftwareInstallerID)
+	require.Equal(t, installerID4, *team2Policies[1].SoftwareInstallerID)
+	require.NotNil(t, team2Policies[1].TeamID)
+	require.Equal(t, team2.ID, *team2Policies[1].TeamID)
+
+	_, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:  "[Install software] OtherFoobar (pkg)",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	// Test pkg and policy with name already exists.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "com.foo2.bar2",
+		Extension:        "pkg",
+		StorageID:        "storage5",
+		Filename:         "foobar5",
+		Title:            "OtherFoobar",
+		Version:          "2.0",
+		Source:           "apps",
+		UserID:           user1.ID,
+		TeamID:           &team1.ID,
+		AutomaticInstall: true,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, team1Policies, 3)
+	require.Equal(t, "[Install software] OtherFoobar (pkg) 2", team1Policies[2].Name)
+
+	team3, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 3"})
+	require.NoError(t, err)
+
+	_, err = ds.NewTeamPolicy(ctx, team3.ID, &user1.ID, fleet.PolicyPayload{
+		Name:  "[Install software] Something2 (msi)",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	_, err = ds.NewTeamPolicy(ctx, team3.ID, &user1.ID, fleet.PolicyPayload{
+		Name:  "[Install software] Something2 (msi) 2",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	// This name is on another team, so it shouldn't count.
+	_, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:  "[Install software] Something2 (msi) 3",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	// Test msi and policy with name already exists.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		Extension:        "msi",
+		StorageID:        "storage6",
+		Filename:         "foobar6",
+		Title:            "Something2",
+		PackageIDs:       []string{"id2"},
+		Version:          "2.0",
+		Source:           "programs",
+		UserID:           user1.ID,
+		TeamID:           &team3.ID,
+		AutomaticInstall: true,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	team3Policies, _, err := ds.ListTeamPolicies(ctx, team3.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, team3Policies, 3)
+	require.Equal(t, "[Install software] Something2 (msi) 3", team3Policies[2].Name)
 }

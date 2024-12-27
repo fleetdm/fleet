@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -560,6 +561,14 @@ func (ts *withServer) uploadSoftwareInstaller(
 	t.Helper()
 
 	tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
+	// Try the test installers in the pkg/file testdata (to reduce clutter/copies).
+	if errors.Is(err, os.ErrNotExist) {
+		var err2 error
+		tfr, err2 = fleet.NewKeepFileReader(filepath.Join("..", "..", "pkg", "file", "testdata", "software-installers", payload.Filename))
+		if err2 == nil {
+			err = nil
+		}
+	}
 	require.NoError(t, err)
 	defer tfr.Close()
 
@@ -596,6 +605,9 @@ func (ts *withServer) uploadSoftwareInstaller(
 		for _, l := range payload.LabelsExcludeAny {
 			require.NoError(t, w.WriteField("labels_exclude_any", l))
 		}
+	}
+	if payload.AutomaticInstall {
+		require.NoError(t, w.WriteField("automatic_install", "true"))
 	}
 
 	w.Close()

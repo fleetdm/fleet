@@ -37,6 +37,14 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return err
 	}
 
+	if payload.AutomaticInstall {
+		// Currently, same write permissions are applied on software and policies,
+		// but leaving this here in case it changes in the future.
+		if err := svc.authz.Authorize(ctx, &fleet.Policy{PolicyData: fleet.PolicyData{TeamID: payload.TeamID}}, fleet.ActionWrite); err != nil {
+			return err
+		}
+	}
+
 	// validate labels before we do anything else
 	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
 	if err != nil {
@@ -61,12 +69,28 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return ctxerr.Wrap(ctx, err, "adding metadata to payload")
 	}
 
+	if payload.AutomaticInstall {
+		switch {
+		//
+		// For "msi", addMetadataToSoftwarePayload fails before this point if product code cannot be extracted.
+		//
+		case payload.Extension == "exe":
+			return &fleet.BadRequestError{
+				Message: "Couldn't add. Fleet can't create a policy to detect existing installations for .exe packages. Please add the software, add a custom policy, and enable the install software policy automation.",
+			}
+		case payload.Extension == "pkg" && payload.BundleIdentifier == "":
+			// For pkgs without bundle identifier the request usually fails before reaching this point,
+			// but addMetadataToSoftwarePayload may not fail if the package has "package IDs" but not a "bundle identifier",
+			// in which case we want to fail here because we cannot generate a policy without a bundle identifier.
+			return &fleet.BadRequestError{
+				Message: "Couldn't add. Policy couldn't be created because bundle identifier can't be extracted.",
+			}
+		}
+	}
+
 	if err := svc.storeSoftware(ctx, payload); err != nil {
 		return ctxerr.Wrap(ctx, err, "storing software installer")
 	}
-
-	// TODO: basic validation of install and post-install script (e.g., supported interpreters)?
-	// TODO: any validation of pre-install query?
 
 	// Update $PACKAGE_ID in uninstall script
 	preProcessUninstallScript(payload)
@@ -81,8 +105,6 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 	level.Debug(svc.logger).Log("msg", "software installer uploaded", "installer_id", installerID)
 
-	// TODO: QA what breaks when you have a software title with no versions?
-
 	var teamName *string
 	if payload.TeamID != nil && *payload.TeamID != 0 {
 		t, err := svc.ds.Team(ctx, *payload.TeamID)
@@ -92,7 +114,6 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		teamName = &t.Name
 	}
 
-	// Create activity
 	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
 		SoftwareTitle:    payload.Title,
@@ -1241,7 +1262,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 
 	if len(meta.PackageIDs) == 0 {
 		return "", &fleet.BadRequestError{
-			Message:     fmt.Sprintf("Couldn't add. Fleet couldn't read the package IDs, product code, or name from %s.", payload.Filename),
+			Message:     "Couldn't add. Unable to extract necessary metadata.",
 			InternalErr: ctxerr.New(ctx, "extracting package IDs from installer metadata"),
 		}
 	}
