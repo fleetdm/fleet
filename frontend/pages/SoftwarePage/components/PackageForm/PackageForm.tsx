@@ -238,7 +238,8 @@ const PackageForm = ({
           }
         />
         <InstallTypeSection
-          isExeFleetApp={isExePackage}
+          isCustomPackage
+          isExeCustomPackage={isExePackage}
           installType={formData.installType}
           onChangeInstallType={onChangeInstallType}
         />

@@ -57,16 +57,18 @@ interface IFleetAppDetailsFormProps {
 interface IInstallTypeSection {
   installType: InstallType;
   onChangeInstallType: (value: string) => void;
-  isExeFleetApp?: boolean;
+  isCustomPackage?: boolean;
+  isExeCustomPackage?: boolean;
 }
 
 // Also used in custom package form (PackageForm.tsx)
 export const InstallTypeSection = ({
   installType,
   onChangeInstallType,
-  isExeFleetApp = false,
+  isCustomPackage = false,
+  isExeCustomPackage = false,
 }: IInstallTypeSection) => {
-  const isAutomaticDisabled = isExeFleetApp;
+  const isAutomaticDisabled = isExeCustomPackage;
   const AUTOMATIC_DISABLED_TOOLTIP = (
     <>
       Fleet can&apos;t create a policy to detect existing installations for
@@ -117,7 +119,7 @@ export const InstallTypeSection = ({
           }
         />
       </div>
-      {installType === "automatic" && (
+      {installType === "automatic" && isCustomPackage && (
         <InfoBanner
           color="yellow"
           cta={
