@@ -477,7 +477,7 @@ type MDMHostData struct {
 }
 
 type HostMDMOSSettings struct {
-	DiskEncryption HostMDMDiskEncryption `json:"disk_encryption" db:"-" csv:"-"`
+	DiskEncryption HostMDMDiskEncryption `json:"disk_encryption,omitempty" db:"-" csv:"-"`
 }
 
 type HostMDMDiskEncryption struct {
