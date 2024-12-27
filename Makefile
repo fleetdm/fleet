@@ -90,7 +90,7 @@ endif
 	@echo "Build the fleet binary only"
 	@echo "FLEETCTL"
 	@echo "Build the fleetctl binary only"
-	@echo "GO_BUILD_RACE_ENABLED_VAR"
+	@echo "GO_BUILD_RACE_ENABLED"
 	@echo "Turn on data race detection when building"
 	@echo "EXTRA_FLEETCTL_LDFLAGS=\"--flag1 --flag2...\""
 	@echo "Flags to provide to the Go linker when building fleetctl"
@@ -99,7 +99,7 @@ build: $(BINS_TO_BUILD)
 
 fdm:
 	go build -o build/fdm ./tools/fdm
-	ln -s "$$(pwd)/build/fdm" /usr/local/bin/fdm	
+	ln -sf "$$(pwd)/build/fdm" /usr/local/bin/fdm	
 
 fleet: .prefix .pre-build .pre-fleet
 	CGO_ENABLED=1 go build -race=${GO_BUILD_RACE_ENABLED_VAR} -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${LDFLAGS_VERSION} ./cmd/fleet

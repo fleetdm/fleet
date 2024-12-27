@@ -138,7 +138,12 @@ func getRepoRoot() (string, error) {
 	}
 
 	// Get the directory of the binary
-	execDir := filepath.Dir(executable)
+	execDir, err := filepath.EvalSymlinks(executable)
+	if err != nil {
+		return "", err
+	}
+	execDir = filepath.Dir(execDir)
+	fmt.Println(execDir)
 
 	// Compute the repo root relative to the binary's location
 	repoRoot := filepath.Join(execDir, "../") // Adjust based on your repo structure
