@@ -619,8 +619,8 @@ HELP_CMD_PREFIX ?= make
 help:
 	@SPECIFIC_CMD=$(SPECIFIC_CMD) REFORMAT_OPTIONS=$(REFORMAT_OPTIONS) HELP_CMD_PREFIX=$(HELP_CMD_PREFIX) ./tools/makehelp.sh
 .help-sep-1:
-	@echo -n "######"
+	@printf "\036"
 .help-sep-2:
-	@echo -n "######"
+	@printf "\036"
 .help-sep-3:
-	@echo -n "######"
+	@printf "\036"

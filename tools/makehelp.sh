@@ -7,23 +7,22 @@ if [ -n "$SPECIFIC_CMD" ]; then
   short_target=".help-short--$SPECIFIC_CMD";
   long_target=".help-long--$SPECIFIC_CMD";
   options_target=".help-options--$SPECIFIC_CMD";
-  # Try and get the additional "long" help for the command.
-  output=$(make $short_target .help-sep-1 $long_target .help-sep-2 $options_target .help-sep-3 2>/dev/null)
-
-  # Replace the multi-character delimiter (#####) with a single character (e.g., ASCII 30, the "record separator")
+  
   delim=$'\036'  # ASCII 30
-  cleaned_output=$(echo "$output" | sed "s/######/$delim/g" | tr '\n' '\037' )
+  nl=$'\037'
 
-  # Read the cleaned output into variables
-  # IFS="$delim" read -r short_desc long_desc options_text <<<"$cleaned_output"
-  sections=()
+  # Try and get the help for the command.  Sections of the output will be delimited bv ASCII 30 (arbirary non-printing char)
+  output=$(make $short_target .help-sep-1 $long_target .help-sep-2 $options_target .help-sep-3 2>/dev/null)
+  # Clean the output for "read" by replacing newlines with ASCII 31 (also arbitrary)
+  cleaned_output=$(echo "$output" | tr '\n' $nl )
+  # Read the output into an array
   IFS="$delim" read -r -a sections <<<"$cleaned_output"
-  
+  # Get the newlines back
   short_desc="${sections[0]}"
-  long_desc=$(echo "${sections[1]}" | tr '\037' '\n')
-  options_text=$(echo "${sections[2]}" | tr '\037' '\n')
+  long_desc=$(echo "${sections[1]}" | tr $nl '\n')
+  options_text=$(echo "${sections[2]}" | tr $nl '\n')
   
-
+  # If we found a long help description, then continue printing help.
   if [ -n "$long_desc" ]; then
     # Print a loading message since make takes a second to run.
     echo -n "Gathering help for $SPECIFIC_CMD command...";
@@ -52,10 +51,11 @@ if [ -n "$SPECIFIC_CMD" ]; then
       echo "OPTIONS:";
       echo "$options_text";
     fi;
-  # If there's no long help target, there's no additional help for the command.
+  # If there's no long help description, there's no additional help for the command.
   else
     echo "No help found for $SPECIFIC_CMD command.";
   fi;
+  
 # If no specific help was requested, output all the available commands.
 else
   targets=$(awk '/^[^#[:space:]].*:/ {print $1}' Makefile | grep '^\.help-short--' | sed 's/:$//' | sort);
