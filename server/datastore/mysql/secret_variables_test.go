@@ -3,10 +3,8 @@ package mysql
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -77,19 +75,17 @@ func testUpsertSecretVariables(t *testing.T, ds *Datastore) {
 	}
 
 	// Make sure updated_at timestamp does not change when we update a secret with the same value
-	var myTime time.Time
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &myTime, "SELECT updated_at FROM secret_variables WHERE name = ?", "test1")
-	})
+	original, err := ds.GetSecretVariables(ctx, []string{"test1"})
+	require.NoError(t, err)
+	require.Len(t, original, 1)
 	err = ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{
 		{Name: "test1", Value: secretMap["test1"]},
 	})
-	assert.NoError(t, err)
-	var newTime time.Time
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &newTime, "SELECT updated_at FROM secret_variables WHERE name = ?", "test1")
-	})
-	assert.Equal(t, myTime, newTime)
+	require.NoError(t, err)
+	updated, err := ds.GetSecretVariables(ctx, []string{"test1"})
+	require.NoError(t, err)
+	require.Len(t, original, 1)
+	assert.Equal(t, original[0], updated[0])
 }
 
 func testValidateEmbeddedSecrets(t *testing.T, ds *Datastore) {

@@ -1056,7 +1056,7 @@ func expectAppleProfiles(
 		gotp.ProfileUUID = ""
 
 		gotp.CreatedAt = time.Time{}
-		gotp.SecretsUpdatedAt = time.Time{}
+		gotp.SecretsUpdatedAt = nil
 
 		// if an expected uploaded_at timestamp is provided for this profile, keep
 		// its value, otherwise clear it as we don't care about asserting its
@@ -7340,7 +7340,6 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 		for _, p := range got {
 			assert.NotEmpty(t, p.Checksum)
 			p.Checksum = nil
-			assert.NotZero(t, p.SecretsUpdatedAt)
 			p.SecretsUpdatedAt = nil
 		}
 		require.ElementsMatch(t, want, got)

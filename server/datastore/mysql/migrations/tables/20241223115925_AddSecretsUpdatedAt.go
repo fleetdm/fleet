@@ -22,7 +22,6 @@ func Up_20241223115925(tx *sql.Tx) error {
 		return fmt.Errorf("failed to alter mdm_apple_configuration_profiles table: %w", err)
 	}
 
-	// Add secrets_updated_at column to host_mdm_apple_profiles
 	_, err = tx.Exec(`ALTER TABLE host_mdm_apple_profiles
     	ADD COLUMN secrets_updated_at DATETIME(6) NULL`)
 	if err != nil {
@@ -35,24 +34,19 @@ func Up_20241223115925(tx *sql.Tx) error {
 		MODIFY COLUMN created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 		MODIFY COLUMN uploaded_at TIMESTAMP(6) NULL DEFAULT NULL,
     	-- token is used to identify if declaration needs to be re-applied
-        -- using HEX for consistency and slight compression
-    	-- mdm_apple_declarations.token formula must match host_mdm_apple_declarations.token formula
-    	ADD COLUMN token VARCHAR(63) COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS
-    		(CONCAT(HEX(checksum), COALESCE(CONCAT('-', HEX(TO_SECONDS(secrets_updated_at)), '-', HEX(MICROSECOND(secrets_updated_at)))), '')) VIRTUAL NULL`)
+    	ADD COLUMN token BINARY(16) GENERATED ALWAYS AS
+    		(MD5(CONCAT(raw_json, IFNULL(secrets_updated_at, '')))) STORED NULL`)
 	if err != nil {
 		return fmt.Errorf("failed to alter mdm_apple_declarations table: %w", err)
 	}
 
-	// Add secrets_updated_at column to host_mdm_apple_declarations
 	_, err = tx.Exec(`ALTER TABLE host_mdm_apple_declarations
 		-- defaulting to NULL for backward compatibility with existing declarations
     	ADD COLUMN secrets_updated_at DATETIME(6) NULL,
     	-- token is used to identify if declaration needs to be re-applied
-        -- using HEX for consistency and slight compression
-    	ADD COLUMN token VARCHAR(63) COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS
-    		(CONCAT(HEX(checksum), COALESCE(CONCAT('-', HEX(TO_SECONDS(secrets_updated_at)), '-', HEX(MICROSECOND(secrets_updated_at)))), '')) VIRTUAL NULL`)
+    	ADD COLUMN token BINARY(16) NOT NULL`)
 	if err != nil {
-		return fmt.Errorf("failed to add secrets_updated_at to host_mdm_apple_declarations table: %w", err)
+		return fmt.Errorf("failed to alter host_mdm_apple_declarations table: %w", err)
 	}
 
 	return nil

@@ -1185,6 +1185,8 @@ type ValidateEmbeddedSecretsFunc func(ctx context.Context, documents []string) e
 
 type ExpandEmbeddedSecretsFunc func(ctx context.Context, document string) (string, error)
 
+type ExpandEmbeddedSecretsAndUpdatedAtFunc func(ctx context.Context, document string) (string, *time.Time, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -2931,6 +2933,9 @@ type DataStore struct {
 
 	ExpandEmbeddedSecretsFunc        ExpandEmbeddedSecretsFunc
 	ExpandEmbeddedSecretsFuncInvoked bool
+
+	ExpandEmbeddedSecretsAndUpdatedAtFunc        ExpandEmbeddedSecretsAndUpdatedAtFunc
+	ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4906,7 +4911,7 @@ func (s *DataStore) UpdateCronStats(ctx context.Context, id int, status fleet.Cr
 	s.mu.Lock()
 	s.UpdateCronStatsFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateCronStatsFunc(ctx, id, status, &fleet.CronScheduleErrors{})
+	return s.UpdateCronStatsFunc(ctx, id, status, cronErrors)
 }
 
 func (s *DataStore) UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error {
@@ -7007,4 +7012,11 @@ func (s *DataStore) ExpandEmbeddedSecrets(ctx context.Context, document string) 
 	s.ExpandEmbeddedSecretsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ExpandEmbeddedSecretsFunc(ctx, document)
+}
+
+func (s *DataStore) ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, document string) (string, *time.Time, error) {
+	s.mu.Lock()
+	s.ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked = true
+	s.mu.Unlock()
+	return s.ExpandEmbeddedSecretsAndUpdatedAtFunc(ctx, document)
 }

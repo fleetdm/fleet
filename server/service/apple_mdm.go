@@ -381,7 +381,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	}
 
 	// Expand and validate secrets in profile
-	expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(b))
+	expanded, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(b))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
@@ -403,6 +403,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 
 	// Save the original unexpanded profile
 	cp.Mobileconfig = b
+	cp.SecretsUpdatedAt = secretsUpdatedAt
 
 	labelMap, err := svc.validateProfileLabels(ctx, labels)
 	if err != nil {
@@ -1989,7 +1990,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 			)
 		}
 		// Expand profile for validation
-		expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(prof))
+		expanded, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(prof))
 		if err != nil {
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
@@ -2009,6 +2010,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 
 		// Store original unexpanded profile
 		mdmProf.Mobileconfig = prof
+		mdmProf.SecretsUpdatedAt = secretsUpdatedAt
 
 		if byName[mdmProf.Name] {
 			return ctxerr.Wrap(ctx,
@@ -3422,6 +3424,7 @@ func ReconcileAppleProfiles(
 					ProfileIdentifier: p.ProfileIdentifier,
 					ProfileName:       p.ProfileName,
 					Checksum:          p.Checksum,
+					SecretsUpdatedAt:  p.SecretsUpdatedAt,
 					OperationType:     pp.OperationType,
 					Status:            pp.Status,
 					CommandUUID:       pp.CommandUUID,
@@ -3453,6 +3456,7 @@ func ReconcileAppleProfiles(
 			ProfileIdentifier: p.ProfileIdentifier,
 			ProfileName:       p.ProfileName,
 			Checksum:          p.Checksum,
+			SecretsUpdatedAt:  p.SecretsUpdatedAt,
 		}
 		hostProfiles = append(hostProfiles, hostProfile)
 		hostProfilesToInstallMap[hostProfileUUID{HostUUID: p.HostUUID, ProfileUUID: p.ProfileUUID}] = hostProfile
@@ -3490,6 +3494,7 @@ func ReconcileAppleProfiles(
 			ProfileIdentifier: p.ProfileIdentifier,
 			ProfileName:       p.ProfileName,
 			Checksum:          p.Checksum,
+			SecretsUpdatedAt:  p.SecretsUpdatedAt,
 		})
 	}
 

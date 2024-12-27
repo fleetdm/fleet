@@ -204,7 +204,7 @@ type MDMAppleConfigProfile struct {
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
 	CreatedAt        time.Time                   `db:"created_at" json:"created_at"`
 	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
-	SecretsUpdatedAt time.Time                   `db:"secrets_updated_at" json:"-"`
+	SecretsUpdatedAt *time.Time                  `db:"secrets_updated_at" json:"-"`
 }
 
 // MDMProfilesUpdates flags updates that were done during batch processing of profiles.
@@ -344,6 +344,7 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	Status            *MDMDeliveryStatus
 	Detail            string
 	Checksum          []byte
+	SecretsUpdatedAt  *time.Time
 }
 
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
@@ -587,13 +588,12 @@ type MDMAppleDeclaration struct {
 	// RawJSON is the raw JSON content of the declaration
 	RawJSON json.RawMessage `db:"raw_json" json:"-"`
 
-	// Token is used to identify if declaration needs to be re-applied.
-	// It contains the checksum of the JSON contents and seconds-microseconds of secrets updated timestamp (if secret variables are present).
-	Token string `db:"token" json:"-"`
-
 	// Checksum is a checksum of the JSON contents
-	// BOZO: Needed?
-	// Checksum string `db:"checksum" json:"-"`
+	Checksum string `db:"checksum" json:"-"`
+
+	// Token is used to identify if declaration needs to be re-applied.
+	// It contains the checksum of the JSON contents and secrets updated timestamp (if secret variables are present).
+	Token string `db:"token" json:"-"`
 
 	// labels associated with this Declaration
 	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
@@ -690,6 +690,10 @@ type MDMAppleHostDeclaration struct {
 	// by the IT admin. Fleet uses this value as the ServerToken.
 	Checksum string `db:"checksum" json:"-"`
 
+	// Token is used to identify if declaration needs to be re-applied.
+	// It contains the checksum of the JSON contents and secrets updated timestamp (if secret variables are present).
+	Token string `db:"token" json:"-"`
+
 	// SecretsUpdatedAt is the timestamp when the secrets were last updated or when this declaration was uploaded.
 	SecretsUpdatedAt *time.Time `db:"secrets_updated_at" json:"-"`
 }
@@ -705,6 +709,7 @@ func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 		p.OperationType == other.OperationType &&
 		p.Detail == other.Detail &&
 		p.Checksum == other.Checksum &&
+		p.Token == other.Token &&
 		secretsEqual
 }
 
@@ -730,7 +735,7 @@ type MDMAppleDDMTokensResponse struct {
 //
 // https://developer.apple.com/documentation/devicemanagement/synchronizationtokens
 type MDMAppleDDMDeclarationsToken struct {
-	DeclarationsToken string    `db:"checksum"`
+	DeclarationsToken string    `db:"token"`
 	Timestamp         time.Time `db:"latest_created_timestamp"`
 }
 

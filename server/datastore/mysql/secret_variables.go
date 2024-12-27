@@ -2,8 +2,6 @@ package mysql
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -92,7 +90,7 @@ func (ds *Datastore) GetSecretVariables(ctx context.Context, names []string) ([]
 	}
 
 	stmt, args, err := sqlx.In(`
-		SELECT name, value
+		SELECT name, value, updated_at
 		FROM secret_variables
 		WHERE name IN (?)`, names)
 	if err != nil {
@@ -117,40 +115,20 @@ func (ds *Datastore) GetSecretVariables(ctx context.Context, names []string) ([]
 	return secretVariables, nil
 }
 
-func (ds *Datastore) secretVariablesUpdated(ctx context.Context, q sqlx.QueryerContext, names []string, timestamp time.Time) (bool, error) {
-	if len(names) == 0 {
-		return false, nil
-	}
-
-	stmt, args, err := sqlx.In(`
-		SELECT 1
-		FROM secret_variables
-		WHERE name IN (?) AND updated_at > ?`, names, timestamp)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "build secret variables query")
-	}
-
-	var updated bool
-	err = sqlx.GetContext(ctx, q, &updated, stmt, args...)
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		return false, nil
-	case err != nil:
-		return false, ctxerr.Wrap(ctx, err, "get secret variables")
-	default:
-		return updated, nil
-	}
+func (ds *Datastore) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
+	expanded, _, err := ds.expandEmbeddedSecrets(ctx, document)
+	return expanded, err
 }
 
-func (ds *Datastore) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
+func (ds *Datastore) expandEmbeddedSecrets(ctx context.Context, document string) (string, []fleet.SecretVariable, error) {
 	embeddedSecrets := fleet.ContainsPrefixVars(document, fleet.ServerSecretPrefix)
 	if len(embeddedSecrets) == 0 {
-		return document, nil
+		return document, nil, nil
 	}
 
 	secrets, err := ds.GetSecretVariables(ctx, embeddedSecrets)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "expanding embedded secrets")
+		return "", nil, ctxerr.Wrap(ctx, err, "expanding embedded secrets")
 	}
 
 	secretMap := make(map[string]string, len(secrets))
@@ -168,7 +146,7 @@ func (ds *Datastore) ExpandEmbeddedSecrets(ctx context.Context, document string)
 	}
 
 	if len(missingSecrets) > 0 {
-		return "", fleet.MissingSecretsError{MissingSecrets: missingSecrets}
+		return "", nil, fleet.MissingSecretsError{MissingSecrets: missingSecrets}
 	}
 
 	expanded := fleet.MaybeExpand(document, func(s string) (string, bool) {
@@ -179,7 +157,25 @@ func (ds *Datastore) ExpandEmbeddedSecrets(ctx context.Context, document string)
 		return val, ok
 	})
 
-	return expanded, nil
+	return expanded, nil, nil
+}
+
+func (ds *Datastore) ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, document string) (string, *time.Time, error) {
+	expanded, secrets, err := ds.expandEmbeddedSecrets(ctx, document)
+	if err != nil {
+		return "", nil, ctxerr.Wrap(ctx, err, "expanding embedded secrets and updated at")
+	}
+	if len(secrets) == 0 {
+		return expanded, nil, nil
+	}
+	// Find the most recent updated_at timestamp
+	var updatedAt time.Time
+	for _, secret := range secrets {
+		if secret.UpdatedAt.After(updatedAt) {
+			updatedAt = secret.UpdatedAt
+		}
+	}
+	return expanded, &updatedAt, err
 }
 
 func (ds *Datastore) ValidateEmbeddedSecrets(ctx context.Context, documents []string) error {

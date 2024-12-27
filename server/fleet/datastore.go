@@ -1899,6 +1899,10 @@ type Datastore interface {
 	// ExpandEmbeddedSecrets expands the fleet secrets in a
 	// document using the secrets stored in the datastore.
 	ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error)
+
+	// ExpandEmbeddedSecretsAndUpdatedAt is like ExpandEmbeddedSecrets but also
+	// returns the latest updated_at time of the secrets used in the expansion.
+	ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, document string) (string, *time.Time, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

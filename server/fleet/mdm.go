@@ -492,7 +492,7 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 		Name:             decl.Name,
 		Identifier:       decl.Identifier,
 		Platform:         "darwin",
-		Checksum:         []byte(decl.Token),
+		Checksum:         []byte(decl.Checksum),
 		CreatedAt:        decl.CreatedAt,
 		UploadedAt:       decl.UploadedAt,
 		LabelsIncludeAll: decl.LabelsIncludeAll,
