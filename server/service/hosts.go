@@ -540,6 +540,7 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 	}
 
 	host, err := svc.ds.Host(ctx, id)
+	fmt.Printf("\n\nhost directly from DB: %v\n\n", host)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host")
 	}
@@ -558,6 +559,7 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("\n\nhost details: %v\n\n", host)
 
 	return hostDetails, nil
 }
@@ -1245,6 +1247,8 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	if host.IsLUKSSupported() {
 		// since Linux hosts don't require MDM to be enabled & configured, explicitly check that disk encryption is
 		// enabled for the host's team
+		fmt.Printf("\n\n PRE-DE check HOST MDM: %v\n\n", host.MDM)
+		fmt.Printf("\n\n PRE-DE check HOST MDM.OSettings: %v\n\n", host.MDM.OSSettings)
 		eDE, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
 		fmt.Printf("\n\n DISK ENCRYPTION ENABLED FOR HOST'S TEAM: %v\n\n", eDE)
 		if err != nil {
