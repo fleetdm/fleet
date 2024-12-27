@@ -513,7 +513,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 		return nil, err
 	}
 
-	dataWithSecrets, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(data))
+	dataWithSecrets, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(data))
 	if err != nil {
 		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
 	}
@@ -534,6 +534,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 	}
 
 	d := fleet.NewMDMAppleDeclaration(data, tmID, name, rawDecl.Type, rawDecl.Identifier)
+	d.SecretsUpdatedAt = secretsUpdatedAt
 
 	switch labelsMembershipMode {
 	case fleet.LabelsIncludeAny:

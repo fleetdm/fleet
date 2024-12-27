@@ -437,10 +437,11 @@ type MDMProfileBatchPayload struct {
 
 	// Deprecated: Labels is the backwards-compatible way of specifying
 	// LabelsIncludeAll.
-	Labels           []string `json:"labels,omitempty"`
-	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
-	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
-	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
+	Labels           []string   `json:"labels,omitempty"`
+	LabelsIncludeAll []string   `json:"labels_include_all,omitempty"`
+	LabelsIncludeAny []string   `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []string   `json:"labels_exclude_any,omitempty"`
+	SecretsUpdatedAt *time.Time `json:"-"`
 }
 
 func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConfigProfilePayload {

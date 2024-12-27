@@ -157,7 +157,7 @@ func (ds *Datastore) expandEmbeddedSecrets(ctx context.Context, document string)
 		return val, ok
 	})
 
-	return expanded, nil, nil
+	return expanded, secrets, nil
 }
 
 func (ds *Datastore) ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, document string) (string, *time.Time, error) {

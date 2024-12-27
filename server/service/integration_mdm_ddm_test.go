@@ -472,15 +472,20 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 	_, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 	checkDeclarationItemsResp := func(t *testing.T, r fleet.MDMAppleDDMDeclarationItemsResponse, expectedDeclTok string,
-		expectedDeclsByChecksum map[string]fleet.MDMAppleDeclaration) {
+		expectedDeclsByToken map[string]fleet.MDMAppleDeclaration) {
 		require.Equal(t, expectedDeclTok, r.DeclarationsToken)
 		require.NotEmpty(t, r.Declarations.Activations)
 		require.Empty(t, r.Declarations.Assets)
 		require.Empty(t, r.Declarations.Management)
-		require.Len(t, r.Declarations.Configurations, len(expectedDeclsByChecksum))
+		require.Len(t, r.Declarations.Configurations, len(expectedDeclsByToken))
 		for _, m := range r.Declarations.Configurations {
-			d, ok := expectedDeclsByChecksum[m.ServerToken]
-			require.True(t, ok)
+			d, ok := expectedDeclsByToken[m.ServerToken]
+			if !ok {
+				for k := range expectedDeclsByToken {
+					t.Logf("expected token: %x", k)
+				}
+			}
+			require.True(t, ok, "server token %x not found for %s", m.ServerToken, m.Identifier)
 			require.Equal(t, d.Identifier, m.Identifier)
 		}
 	}
@@ -570,9 +575,11 @@ SELECT
 	identifier,
 	name,
 	raw_json,
-	token,
+	HEX(checksum) as checksum,
+	HEX(token) as token,
 	created_at,
-	uploaded_at
+	uploaded_at,
+	secrets_updated_at
 FROM mdm_apple_declarations
 WHERE name = ?`
 
@@ -584,11 +591,11 @@ WHERE name = ?`
 	}
 	nameToIdentifier := make(map[string]string, 3)
 	nameToUUID := make(map[string]string, 3)
-	declsByChecksum := map[string]fleet.MDMAppleDeclaration{}
+	declsByToken := map[string]fleet.MDMAppleDeclaration{}
 	decl := getDeclaration(t, "N0")
 	nameToIdentifier["N0"] = decl.Identifier
 	nameToUUID["N0"] = decl.DeclarationUUID
-	declsByChecksum[decl.Token] = fleet.MDMAppleDeclaration{
+	declsByToken[decl.Token] = fleet.MDMAppleDeclaration{
 		Identifier: "com.fleet.config0",
 	}
 	decl = getDeclaration(t, "N1")
@@ -596,14 +603,14 @@ WHERE name = ?`
 	assert.Contains(t, string(decl.RawJSON), "$"+fleet.ServerSecretPrefix+"BASH")
 	nameToIdentifier["N1"] = decl.Identifier
 	nameToUUID["N1"] = decl.DeclarationUUID
-	declsByChecksum[decl.Token] = fleet.MDMAppleDeclaration{
+	declsByToken[decl.Token] = fleet.MDMAppleDeclaration{
 		Identifier: "com.fleet.config1",
 	}
 	decl = getDeclaration(t, "N2")
 	assert.Equal(t, string(decl.RawJSON), "${"+fleet.ServerSecretPrefix+"PROFILE}")
 	nameToIdentifier["N2"] = decl.Identifier
 	nameToUUID["N2"] = decl.DeclarationUUID
-	declsByChecksum[decl.Token] = fleet.MDMAppleDeclaration{
+	declsByToken[decl.Token] = fleet.MDMAppleDeclaration{
 		Identifier: "com.fleet.config2",
 	}
 	// trigger a profile sync
@@ -618,7 +625,7 @@ WHERE name = ?`
 	r, err = mdmDevice.DeclarativeManagement("declaration-items")
 	require.NoError(t, err)
 	itemsResp := parseDeclarationItemsResp(t, r)
-	checkDeclarationItemsResp(t, itemsResp, currDeclToken, declsByChecksum)
+	checkDeclarationItemsResp(t, itemsResp, currDeclToken, declsByToken)
 
 	// Now, retrieve the declaration configuration profiles
 	declarationPath := fmt.Sprintf("declaration/configuration/%s", nameToIdentifier["N0"])

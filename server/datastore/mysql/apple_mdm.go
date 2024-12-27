@@ -214,7 +214,8 @@ SELECT
 	mobileconfig,
 	checksum,
 	created_at,
-	uploaded_at
+	uploaded_at,
+	secrets_updated_at
 FROM
 	mdm_apple_configuration_profiles
 WHERE
@@ -280,7 +281,8 @@ SELECT
 	checksum,
 	token,
 	created_at,
-	uploaded_at
+	uploaded_at,
+	secrets_updated_at
 FROM
 	mdm_apple_declarations
 WHERE
@@ -4221,15 +4223,17 @@ INSERT INTO mdm_apple_declarations (
 	name,
 	raw_json,
 	checksum,
+	secrets_updated_at,
 	uploaded_at,
 	team_id
 )
 VALUES (
-	?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP(),?
+	?,?,?,?,UNHEX(?),?,CURRENT_TIMESTAMP(),?
 )
 ON DUPLICATE KEY UPDATE
   uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
   checksum = VALUES(checksum),
+  secrets_updated_at = VALUES(secrets_updated_at),
   name = VALUES(name),
   identifier = VALUES(identifier),
   raw_json = VALUES(raw_json)
@@ -4337,6 +4341,7 @@ WHERE
 			d.Name,
 			d.RawJSON,
 			checksum,
+			d.SecretsUpdatedAt,
 			declTeamID); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
@@ -4412,8 +4417,9 @@ INSERT INTO mdm_apple_declarations (
 	name,
 	raw_json,
 	checksum,
+	secrets_updated_at,
 	uploaded_at)
-(SELECT ?,?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP() FROM DUAL WHERE
+(SELECT ?,?,?,?,?,UNHEX(?),?,CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
@@ -4433,8 +4439,9 @@ INSERT INTO mdm_apple_declarations (
 	name,
 	raw_json,
 	checksum,
+	secrets_updated_at,
 	uploaded_at)
-(SELECT ?,?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP() FROM DUAL WHERE
+(SELECT ?,?,?,?,?,UNHEX(?),?,CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
@@ -4463,7 +4470,8 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insOrUpsertStmt,
-			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.RawJSON, checksum, declaration.Name, tmID, declaration.Name, tmID)
+			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.RawJSON, checksum, declaration.SecretsUpdatedAt,
+			declaration.Name, tmID, declaration.Name, tmID)
 		if err != nil {
 			switch {
 			case IsDuplicate(err):
@@ -4643,7 +4651,7 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 func (ds *Datastore) MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*fleet.MDMAppleDDMDeclarationsToken, error) {
 	const stmt = `
 SELECT
-	COALESCE(MD5((count(0) + GROUP_CONCAT(HEX(hmad.token)
+	COALESCE(MD5((count(0) + GROUP_CONCAT(HEX(mad.token)
 		ORDER BY
 			mad.uploaded_at DESC separator ''))), '') AS token,
 	COALESCE(MAX(mad.created_at), NOW()) AS latest_created_timestamp
@@ -4672,7 +4680,7 @@ WHERE
 func (ds *Datastore) MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]fleet.MDMAppleDDMDeclarationItem, error) {
 	const stmt = `
 SELECT
-	HEX(token) as token,
+	HEX(mad.token) as token,
 	mad.identifier
 FROM
 	host_mdm_apple_declarations hmad

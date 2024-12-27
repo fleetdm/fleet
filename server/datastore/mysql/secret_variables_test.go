@@ -137,7 +137,7 @@ Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 
 func testExpandEmbeddedSecrets(t *testing.T, ds *Datastore) {
 	noSecrets := `
-This document contains to fleet secrets.
+This document contains no fleet secrets.
 $FLEET_VAR_XX $HOSTNAME ${SOMETHING_ELSE}
 `
 
@@ -172,10 +172,18 @@ Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 	expanded, err := ds.ExpandEmbeddedSecrets(ctx, noSecrets)
 	require.NoError(t, err)
 	require.Equal(t, noSecrets, expanded)
+	expanded, secretsUpdatedAt, err := ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, noSecrets)
+	require.NoError(t, err)
+	require.Equal(t, noSecrets, expanded)
+	assert.Nil(t, secretsUpdatedAt)
 
 	expanded, err = ds.ExpandEmbeddedSecrets(ctx, validSecret)
 	require.NoError(t, err)
 	require.Equal(t, validSecretExpanded, expanded)
+	expanded, secretsUpdatedAt, err = ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, validSecret)
+	require.NoError(t, err)
+	require.Equal(t, validSecretExpanded, expanded)
+	assert.NotNil(t, secretsUpdatedAt)
 
 	_, err = ds.ExpandEmbeddedSecrets(ctx, invalidSecret)
 	require.ErrorContains(t, err, "$FLEET_SECRET_INVALID")
