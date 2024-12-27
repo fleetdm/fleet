@@ -17,6 +17,7 @@ import {
   convertParamsToSnakeCase,
 } from "utilities/url";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
+import { IEditPackageFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/EditSoftwareModal";
 import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
 import { listNamesFromSelectedLabels } from "components/TargetLabelSelector/TargetLabelSelector";
 import { join } from "path";
@@ -279,6 +280,11 @@ export default {
       formData.append("pre_install_query", data.preInstallQuery);
     data.postInstallScript &&
       formData.append("post_install_script", data.postInstallScript);
+    data.installType &&
+      formData.append(
+        "automatic_install",
+        (data.installType === "automatic").toString()
+      );
     teamId && formData.append("team_id", teamId.toString());
 
     if (data.targetType === "Custom") {
@@ -314,7 +320,7 @@ export default {
     onUploadProgress,
     signal,
   }: {
-    data: IPackageFormData;
+    data: IEditPackageFormData;
     orignalPackage: ISoftwarePackage;
     softwareId: number;
     teamId: number;

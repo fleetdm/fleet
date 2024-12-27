@@ -267,6 +267,7 @@ const FleetMaintainedAppDetailsPage = ({
             />
             <FleetAppDetailsForm
               labels={labels || []}
+              name={fleetApp.name}
               showSchemaButton={!isSidePanelOpen}
               defaultInstallScript={fleetApp.install_script}
               defaultPostInstallScript={fleetApp.post_install_script}
