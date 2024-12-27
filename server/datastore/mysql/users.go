@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -309,4 +310,25 @@ func amountActiveUsersSinceDB(ctx context.Context, db sqlx.QueryerContext, since
 		return 0, err
 	}
 	return amount, nil
+}
+
+func (ds *Datastore) UserUISettings(ctx context.Context, userID uint) (*fleet.UserUISettings, error) {
+	settings := &fleet.UserUISettings{}
+	var bytes []byte
+	stmt := `
+		SELECT json_value FROM user_ui_settings WHERE id = ?
+	`
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &bytes, stmt, userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return settings, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "selecting app config")
+	}
+
+	err = json.Unmarshal(bytes, settings)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling user ui settings")
+	}
+	return settings, nil
 }
