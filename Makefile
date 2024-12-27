@@ -99,6 +99,7 @@ build: $(BINS_TO_BUILD)
 
 fdm:
 	go build -o build/fdm ./tools/fdm
+	ln -s "$$(pwd)/build/fdm" /usr/local/bin/fdm	
 
 fleet: .prefix .pre-build .pre-fleet
 	CGO_ENABLED=1 go build -race=${GO_BUILD_RACE_ENABLED_VAR} -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${LDFLAGS_VERSION} ./cmd/fleet
