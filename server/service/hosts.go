@@ -1264,6 +1264,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				host.MDM.EncryptionKeyAvailable = true
 			}
 		}
+		fmt.Printf("\n\n HOST MDM OS SETTINGS: %v\n\n", host.MDM.OSSettings)
 	}
 
 	var macOSSetup *fleet.HostMDMMacOSSetup
