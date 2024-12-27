@@ -9,6 +9,7 @@ REVISION = $(shell git rev-parse HEAD)
 REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)
 DOCKER_IMAGE_NAME = fleetdm/fleet
+TOOL_CMD = "make"
 
 ifdef GO_BUILD_RACE_ENABLED
 GO_BUILD_RACE_ENABLED_VAR := true
@@ -91,6 +92,8 @@ endif
 	@echo "Build the fleetctl binary only"
 	@echo "GO_BUILD_RACE_ENABLED_VAR"
 	@echo "Turn on data race detection when building"
+	@echo "EXTRA_FLEETCTL_LDFLAGS=\"--flag1 --flag2...\""
+	@echo "Flags to provide to the Go linker when building fleetctl"
 
 build: $(BINS_TO_BUILD)
 
@@ -134,9 +137,6 @@ dump-test-schema:
 
 # This is the base command to run Go tests.
 # Wrap this to run tests with presets (see `run-go-tests` and `test-go` targets).
-# PKG_TO_TEST: Go packages to test, e.g. "server/datastore/mysql".  Separate multiple packages with spaces.
-# TESTS_TO_RUN: Name specific tests to run in the specified packages.  Leave blank to run all tests in the specified packages.
-# GO_TEST_EXTRA_FLAGS: Used to specify other arguments to `go test`.
 # GO_TEST_MAKE_FLAGS: Internal var used by other targets to add arguments to `go test`.
 #						 
 PKG_TO_TEST := ""
@@ -145,7 +145,7 @@ dlv_test_pkg_to_test := $(addprefix github.com/fleetdm/fleet/v4/,$(PKG_TO_TEST))
 
 .run-go-tests:
 ifeq ($(PKG_TO_TEST), "")
-		@echo "Please specify one or more packages to test with argument PKG_TO_TEST=\"/path/to/pkg/1 /path/to/pkg/2\"..."; 
+		@echo "Please specify one or more packages to test. See '$(TOOL_CMD) help run-go-tests' for more info."; 
 else
 		@echo Running Go tests with command:
 		go test -tags full,fts5,netgo -run=${TESTS_TO_RUN} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... $(go_test_pkg_to_test)
@@ -153,13 +153,10 @@ endif
 
 # This is the base command to debug Go tests.
 # Wrap this to run tests with presets (see `debug-go-tests`)
-# PKG_TO_TEST: Go packages to test, e.g. "server/datastore/mysql".  Separate multiple packages with spaces.
-# TESTS_TO_RUN: Name specific tests to debug in the specified packages.  Leave blank to debug all tests in the specified packages.
 # DEBUG_TEST_EXTRA_FLAGS: Internal var used by other targets to add arguments to `dlv test`.
-# GO_TEST_EXTRA_FLAGS: Used to specify other arguments to `go test`.
 .debug-go-tests:
 ifeq ($(PKG_TO_TEST), "")
-		@echo "Please specify one or more packages to debug with argument PKG_TO_TEST=\"/path/to/pkg/1 /path/to/pkg/2\"..."; 
+		@echo "Please specify one or more packages to debug. See '$(TOOL_CMD) help run-go-tests' for more info."; 
 else
 		@echo Debugging tests with command:
 		dlv test ${dlv_test_pkg_to_test} --api-version=2 --listen=127.0.0.1:61179 ${DEBUG_TEST_EXTRA_FLAGS} -- -test.v -test.run=${TESTS_TO_RUN} ${GO_TEST_EXTRA_FLAGS} 
@@ -167,12 +164,29 @@ endif
 
 .help-short--run-go-tests:
 	@echo "Run Go tests in specific packages"
-# Command to run specific tests in development.  Can run all tests for one or more packages, or specific tests within packages.
+.help-long--run-go-tests:
+	@echo Command to run specific tests in development. Can run all tests for one or more packages, or specific tests within packages.
+.help-options--run-go-tests:
+	@echo "PKG_TO_TEST=\"pkg1 pkg2...\""
+	@echo "Go packages to test, e.g. \"server/datastore/mysql\". Separate multiple packages with spaces."
+	@echo "TESTS_TO_RUN=\"test\""
+	@echo Name specific tests to debug in the specified packages. Leave blank to debug all tests in the specified packages.
+	@echo "GO_TEST_EXTRA_FLAGS=\"--flag1 --flag2...\""
+	@echo "Arguments to send to \"go test\"."
 run-go-tests:
 	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .run-go-tests GO_TEST_MAKE_FLAGS="-v"
 
 .help-short--debug-go-tests:
 	@echo "Debug Go tests in specific packages (with Delve)"
+.help-long--debug-go-tests:
+	@echo Command to run specific tests in the Go debugger. Can run all tests for one or more packages, or specific tests within packages.
+.help-options--debug-go-tests:
+	@echo "PKG_TO_TEST=\"pkg1 pkg2...\""
+	@echo "Go packages to test, e.g. \"server/datastore/mysql\". Separate multiple packages with spaces."
+	@echo "TESTS_TO_RUN=\"test\""
+	@echo Name specific tests to debug in the specified packages. Leave blank to debug all tests in the specified packages.
+	@echo "GO_TEST_EXTRA_FLAGS=\"--flag1 --flag2...\""
+	@echo "Arguments to send to \"go test\"."
 debug-go-tests:
 	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests 
 
@@ -603,44 +617,4 @@ db-replica-run: fleet
 
 HELP_CMD_PREFIX ?= make
 help:
-	@if [ -n "$(SPECIFIC_CMD)" ]; then \
-		short_target=".help-short--$(SPECIFIC_CMD)"; \
-		long_target=".help-long--$(SPECIFIC_CMD)"; \
-		options_target=".help-options--$(SPECIFIC_CMD)"; \
-		if make --no-print-directory $$long_target >/dev/null 2>&1; then \
-			echo -n "Gathering help for $$SPECIFIC_CMD command..."; \
-			short_desc=$$(make $$short_target); \
-			long_desc=$$(make $$long_target); \
-			if make --no-print-directory $$options_target >/dev/null 2>&1; then \
-				if [ -n "$(REFORMAT_OPTIONS)" ]; then \
-					options_text=$$(paste -s -d '\t\n' <(make $$options_target | awk 'NR % 2 == 1 { option = $$0; gsub("_", "-", option); printf "  --%s\n", tolower(option); next } { print $$0 }') | column -t -s $$'\t'); \
-				else \
-					options_text=$$(paste -s -d '\t\n' <(make $$options_target) | column -t -s $$'\t'); \
-				fi; \
-			fi; \
-			echo -ne "\r\033[K"; \
-			echo "NAME:"; \
-			echo "  ${SPECIFIC_CMD} - $$short_desc"; \
-			if [ -n "$$long_desc" ]; then \
-				echo; \
-				echo "DESCRIPTION:"; \
-				echo "$$long_desc" | fmt -w 80; \
-			fi; \
-			if [ -n "$$options_text" ]; then \
-				echo; \
-				echo "OPTIONS:"; \
-				echo "$$options_text"; \
-			fi; \
-		else \
-			echo "No help found for $$SPECIFIC_CMD command."; \
-		fi; \
-	else \
-		targets=$$(awk '/^[^#[:space:]].*:/ {print $$1}' Makefile | grep '^\.help-short--' | sed 's/:$$//' | sort); \
-		if [ -n "$$targets" ]; then \
-			output=$$(make --no-print-directory $$targets 2>/dev/null); \
-			paste <(echo "$$targets" | sed 's/^\.help-short--/  ${HELP_CMD_PREFIX} /') <(echo "$$output") | column -t -s $$'\t'; echo; \
-		else \
-			echo "No help targets found."; \
-		fi \
-	fi
-
+	@SPECIFIC_CMD=$(SPECIFIC_CMD) REFORMAT_OPTIONS=$(REFORMAT_OPTIONS) HELP_CMD_PREFIX=$(HELP_CMD_PREFIX) ./tools/makehelp.sh
