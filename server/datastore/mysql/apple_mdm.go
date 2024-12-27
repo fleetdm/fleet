@@ -2348,7 +2348,6 @@ var mdmEntityTypeToDynamicNames = map[string]map[string]string{
 		"mdmEntityLabelsTable":    "mdm_declaration_labels",
 		"appleEntityUUIDColumn":   "apple_declaration_uuid",
 		"hostMDMAppleEntityTable": "host_mdm_apple_declarations",
-		"tokenColumn":             "token",
 	},
 	"profile": {
 		"entityUUIDColumn":        "profile_uuid",
@@ -2359,7 +2358,6 @@ var mdmEntityTypeToDynamicNames = map[string]map[string]string{
 		"mdmEntityLabelsTable":    "mdm_configuration_profile_labels",
 		"appleEntityUUIDColumn":   "apple_profile_uuid",
 		"hostMDMAppleEntityTable": "host_mdm_apple_profiles",
-		"tokenColumn":             "checksum", // token is only used for declarations
 	},
 }
 
@@ -2380,7 +2378,6 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.identifier as ${entityIdentifierColumn},
 		mae.name as ${entityNameColumn},
 		mae.checksum as checksum,
-		mae.${tokenColumn} as token,
 		mae.secrets_updated_at as secrets_updated_at,
 		0 as ${countEntityLabelsColumn},
 		0 as count_non_broken_labels,
@@ -2415,7 +2412,6 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.identifier as ${entityIdentifierColumn},
 		mae.name as ${entityNameColumn},
 		mae.checksum as checksum,
-		mae.${tokenColumn} as token,
 		mae.secrets_updated_at as secrets_updated_at,
 		COUNT(*) as ${countEntityLabelsColumn},
 		COUNT(mel.label_id) as count_non_broken_labels,
@@ -2455,7 +2451,6 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.identifier as ${entityIdentifierColumn},
 		mae.name as ${entityNameColumn},
 		mae.checksum as checksum,
-		mae.${tokenColumn} as token,
 		mae.secrets_updated_at as secrets_updated_at,
 		COUNT(*) as ${countEntityLabelsColumn},
 		COUNT(mel.label_id) as count_non_broken_labels,
@@ -2498,7 +2493,6 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.identifier as ${entityIdentifierColumn},
 		mae.name as ${entityNameColumn},
 		mae.checksum as checksum,
-		mae.${tokenColumn} as token,
 		mae.secrets_updated_at as secrets_updated_at,
 		COUNT(*) as ${countEntityLabelsColumn},
 		COUNT(mel.label_id) as count_non_broken_labels,
@@ -4228,7 +4222,7 @@ INSERT INTO mdm_apple_declarations (
 	team_id
 )
 VALUES (
-	?,?,?,?,UNHEX(?),?,CURRENT_TIMESTAMP(),?
+	?,?,?,?,UNHEX(MD5(raw_json)),?,CURRENT_TIMESTAMP(),?
 )
 ON DUPLICATE KEY UPDATE
   uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
@@ -4333,14 +4327,12 @@ WHERE
 	}
 
 	for _, d := range incomingDeclarations {
-		checksum := md5ChecksumScriptContent(string(d.RawJSON))
 		declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
 		if result, err = tx.ExecContext(ctx, insertStmt,
 			declUUID,
 			d.Identifier,
 			d.Name,
 			d.RawJSON,
-			checksum,
 			d.SecretsUpdatedAt,
 			declTeamID); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
 			if err == nil {
@@ -4419,7 +4411,7 @@ INSERT INTO mdm_apple_declarations (
 	checksum,
 	secrets_updated_at,
 	uploaded_at)
-(SELECT ?,?,?,?,?,UNHEX(?),?,CURRENT_TIMESTAMP() FROM DUAL WHERE
+(SELECT ?,?,?,?,?,UNHEX(MD5(raw_json)),?,CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
@@ -4441,7 +4433,7 @@ INSERT INTO mdm_apple_declarations (
 	checksum,
 	secrets_updated_at,
 	uploaded_at)
-(SELECT ?,?,?,?,?,UNHEX(?),?,CURRENT_TIMESTAMP() FROM DUAL WHERE
+(SELECT ?,?,?,?,?,UNHEX(MD5(raw_json)),?,CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
@@ -4459,7 +4451,6 @@ ON DUPLICATE KEY UPDATE
 
 func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insOrUpsertStmt string, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 	declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
-	checksum := md5ChecksumScriptContent(string(declaration.RawJSON))
 
 	var tmID uint
 	if declaration.TeamID != nil {
@@ -4470,7 +4461,7 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insOrUpsertStmt,
-			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.RawJSON, checksum, declaration.SecretsUpdatedAt,
+			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.RawJSON, declaration.SecretsUpdatedAt,
 			declaration.Name, tmID, declaration.Name, tmID)
 		if err != nil {
 			switch {
@@ -4791,14 +4782,13 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 ) (updatedDB bool, err error) {
 	baseStmt := `
 	  INSERT INTO host_mdm_apple_declarations
-	    (host_uuid, status, operation_type, checksum, token, secrets_updated_at, declaration_uuid, declaration_identifier, declaration_name)
+	    (host_uuid, status, operation_type, checksum, secrets_updated_at, declaration_uuid, declaration_identifier, declaration_name)
 	  VALUES
 	    %s
 	  ON DUPLICATE KEY UPDATE
 	    status = VALUES(status),
 	    operation_type = VALUES(operation_type),
 	    checksum = VALUES(checksum),
-	    token = VALUES(token),
 	    secrets_updated_at = VALUES(secrets_updated_at)
 	  `
 
@@ -4814,7 +4804,6 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 				COALESCE(operation_type, '') AS operation_type,
 				COALESCE(detail, '') AS detail,
 				checksum,
-				token,
 				secrets_updated_at,
 				declaration_uuid,
 				declaration_identifier,
@@ -4866,11 +4855,10 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 			OperationType:    d.OperationType,
 			Detail:           d.Detail,
 			Checksum:         d.Checksum,
-			Token:            d.Token,
 			SecretsUpdatedAt: d.SecretsUpdatedAt,
 		}
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?),"
-		args := []any{d.HostUUID, status, d.OperationType, d.Checksum, d.Token, d.SecretsUpdatedAt, d.DeclarationUUID, d.Identifier, d.Name}
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?),"
+		args := []any{d.HostUUID, status, d.OperationType, d.Checksum, d.SecretsUpdatedAt, d.DeclarationUUID, d.Identifier, d.Name}
 		return valuePart, args
 	}
 
@@ -4895,7 +4883,6 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
                 ds.host_uuid,
                 'install' as operation_type,
                 ds.checksum,
-				ds.token,
 				ds.secrets_updated_at,
                 ds.declaration_uuid,
                 ds.declaration_identifier,
@@ -4909,7 +4896,6 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
                 hmae.host_uuid,
                 'remove' as operation_type,
                 hmae.checksum,
-				hmae.token,
 				hmae.secrets_updated_at,
                 hmae.declaration_uuid,
                 hmae.declaration_identifier,
@@ -4932,14 +4918,14 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
 // MDMAppleStoreDDMStatusReport updates the status of the host's declarations.
 func (ds *Datastore) MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error {
 	getHostDeclarationsStmt := `
-    SELECT host_uuid, status, operation_type, HEX(checksum) as checksum, HEX(token) as token, secrets_updated_at, declaration_uuid, declaration_identifier, declaration_name
+    SELECT host_uuid, status, operation_type, HEX(checksum) as checksum, secrets_updated_at, declaration_uuid, declaration_identifier, declaration_name
     FROM host_mdm_apple_declarations
     WHERE host_uuid = ?
   `
 
 	updateHostDeclarationsStmt := `
 INSERT INTO host_mdm_apple_declarations
-    (host_uuid, declaration_uuid, status, operation_type, detail, declaration_name, declaration_identifier, checksum, token, secrets_updated_at)
+    (host_uuid, declaration_uuid, status, operation_type, detail, declaration_name, declaration_identifier, checksum, secrets_updated_at)
 VALUES
   %s
 ON DUPLICATE KEY UPDATE

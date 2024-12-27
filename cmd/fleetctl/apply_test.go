@@ -208,8 +208,8 @@ func TestApplyTeamSpecs(t *testing.T) {
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
-	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
-		return document, nil
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
 	}
 
 	filename := writeTmpYml(t, `
@@ -1362,8 +1362,8 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return []*fleet.VPPTokenDB{}, nil
 	}
-	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
-		return document, nil
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
 	}
 
 	// Apply global config.

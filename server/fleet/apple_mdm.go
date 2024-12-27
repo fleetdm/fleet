@@ -691,10 +691,6 @@ type MDMAppleHostDeclaration struct {
 	// by the IT admin. Fleet uses this value as the ServerToken.
 	Checksum string `db:"checksum" json:"-"`
 
-	// Token is used to identify if declaration needs to be re-applied.
-	// It contains the checksum of the JSON contents and secrets updated timestamp (if secret variables are present).
-	Token string `db:"token" json:"-"`
-
 	// SecretsUpdatedAt is the timestamp when the secrets were last updated or when this declaration was uploaded.
 	SecretsUpdatedAt *time.Time `db:"secrets_updated_at" json:"-"`
 }
@@ -710,7 +706,6 @@ func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 		p.OperationType == other.OperationType &&
 		p.Detail == other.Detail &&
 		p.Checksum == other.Checksum &&
-		p.Token == other.Token &&
 		secretsEqual
 }
 
