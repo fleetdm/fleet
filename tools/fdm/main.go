@@ -52,7 +52,7 @@ func main() {
 
 	// Transform options into Makefile-compatible environment variables
 	makeVars := transformToMakeVars(options)
-	makeArgs = append(makeVars, "TOOL_CMD=fdm")
+	makeVars = append(makeVars, "TOOL_CMD=fdm")
 
 	// Call the Makefile with the specified target, environment variables, and additional arguments
 	err = callMake(makeTarget, makeVars, makeArgs)
