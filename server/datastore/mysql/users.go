@@ -177,6 +177,10 @@ func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error
 		global_role = ?
       WHERE id = ?
       `
+	settingsBytes, err := json.Marshal(user.Settings)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshaling user settings")
+	}
 	result, err := tx.ExecContext(ctx, sqlStatement,
 		user.Password,
 		user.Salt,
@@ -188,7 +192,7 @@ func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error
 		user.SSOEnabled,
 		user.MFAEnabled,
 		user.APIOnly,
-		user.Settings,
+		settingsBytes,
 		user.GlobalRole,
 		user.ID)
 	if err != nil {
@@ -335,7 +339,7 @@ func (ds *Datastore) UserSettings(ctx context.Context, userID uint) (*fleet.User
 
 	err = json.Unmarshal(bytes, settings)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshaling user ui settings")
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling user settings")
 	}
 	return settings, nil
 }
