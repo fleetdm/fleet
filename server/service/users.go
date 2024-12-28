@@ -476,6 +476,10 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		user.SSOEnabled = *p.SSOEnabled
 	}
 
+	if p.Settings != nil {
+		user.Settings = p.Settings
+	}
+
 	currentUser := authz.UserFromContext(ctx)
 
 	if p.GlobalRole != nil && *p.GlobalRole != "" {

@@ -173,6 +173,7 @@ func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error
         sso_enabled = ?,
         mfa_enabled = ?,
         api_only = ?,
+				settings = ?,
 		global_role = ?
       WHERE id = ?
       `
@@ -187,6 +188,7 @@ func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error
 		user.SSOEnabled,
 		user.MFAEnabled,
 		user.APIOnly,
+		user.Settings,
 		user.GlobalRole,
 		user.ID)
 	if err != nil {
