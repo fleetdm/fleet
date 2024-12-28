@@ -97,7 +97,7 @@ const TeamDetailsWrapper = ({
     isGlobalAdmin,
     isPremiumTier,
     setAvailableTeams,
-    setUISettings,
+    setUserSettings,
     setCurrentUser,
   } = useContext(AppContext);
 
@@ -141,10 +141,10 @@ const TeamDetailsWrapper = ({
 
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     enabled: false,
-    onSuccess: ({ user, available_teams, ui_settings }: IGetMeResponse) => {
+    onSuccess: ({ user, available_teams, user_settings }: IGetMeResponse) => {
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);
-      setUISettings(ui_settings);
+      setUserSettings(user_settings);
     },
   });
 

@@ -34,7 +34,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
     currentUser,
     setCurrentUser,
     setAvailableTeams,
-    setUISettings,
+    setUserSettings,
   } = useContext(AppContext);
   const [page, setPage] = useState(1);
   const [pageProgress, setPageProgress] = useState(1);
@@ -61,10 +61,10 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
       const { token } = await usersAPI.setup(formData);
       local.setItem("auth_token", token);
 
-      const { user, available_teams, ui_settings } = await usersAPI.me();
+      const { user, available_teams, user_settings } = await usersAPI.me();
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);
-      setUISettings(ui_settings);
+      setUserSettings(user_settings);
       router.push(DASHBOARD);
       window.location.reload();
     } catch (error) {

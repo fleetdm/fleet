@@ -1,6 +1,6 @@
 import React, { createContext, useReducer, useMemo, ReactNode } from "react";
 
-import { IConfig, IUserUISettings } from "interfaces/config";
+import { IConfig, IUserSettings } from "interfaces/config";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 import {
   APP_CONTEXT_ALL_TEAMS_SUMMARY,
@@ -15,7 +15,7 @@ import { hasLicenseExpired, willExpireWithinXDays } from "utilities/helpers";
 
 enum ACTIONS {
   SET_AVAILABLE_TEAMS = "SET_AVAILABLE_TEAMS",
-  SET_UI_SETTINGS = "SET_UI_SETTINGS",
+  SET_USER_SETTINGS = "SET_USER_SETTINGS",
   SET_CURRENT_USER = "SET_CURRENT_USER",
   SET_CURRENT_TEAM = "SET_CURRENT_TEAM",
   SET_CONFIG = "SET_CONFIG",
@@ -37,9 +37,9 @@ interface ISetAvailableTeamsAction {
   availableTeams: ITeamSummary[];
 }
 
-interface ISetUISettingsAction {
-  type: ACTIONS.SET_UI_SETTINGS;
-  uiSettings: IUserUISettings;
+interface ISetUserSettingsAction {
+  type: ACTIONS.SET_USER_SETTINGS;
+  userSettings: IUserSettings;
 }
 
 interface ISetConfigAction {
@@ -111,7 +111,7 @@ interface ISetFilteredPoliciesPathAction {
 }
 type IAction =
   | ISetAvailableTeamsAction
-  | ISetUISettingsAction
+  | ISetUserSettingsAction
   | ISetConfigAction
   | ISetCurrentTeamAction
   | ISetCurrentUserAction
@@ -132,7 +132,7 @@ type Props = {
 
 type InitialStateType = {
   availableTeams?: ITeamSummary[];
-  uiSettings?: IUserUISettings;
+  userSettings?: IUserSettings;
   config: IConfig | null;
   currentUser: IUser | null;
   currentTeam?: ITeamSummary;
@@ -179,7 +179,7 @@ type InitialStateType = {
     user: IUser | null,
     availableTeams: ITeamSummary[]
   ) => void;
-  setUISettings: (uiSettings: IUserUISettings) => void;
+  setUserSettings: (userSettings: IUserSettings) => void;
   setCurrentUser: (user: IUser) => void;
   setCurrentTeam: (team?: ITeamSummary) => void;
   setConfig: (config: IConfig) => void;
@@ -199,7 +199,7 @@ export type IAppContext = InitialStateType;
 
 export const initialState = {
   availableTeams: undefined,
-  uiSettings: undefined,
+  userSettings: undefined,
   config: null,
   currentUser: null,
   currentTeam: undefined,
@@ -237,7 +237,7 @@ export const initialState = {
   willApplePnsExpire: false,
   willVppExpire: false,
   setAvailableTeams: () => null,
-  setUISettings: () => null,
+  setUserSettings: () => null,
   setCurrentUser: () => null,
   setCurrentTeam: () => null,
   setConfig: () => null,
@@ -307,11 +307,11 @@ const setPermissions = (
 
 const reducer = (state: InitialStateType, action: IAction) => {
   switch (action.type) {
-    case ACTIONS.SET_UI_SETTINGS: {
-      const { uiSettings } = action;
+    case ACTIONS.SET_USER_SETTINGS: {
+      const { userSettings } = action;
       return {
         ...state,
-        uiSettings,
+        userSettings,
       };
     }
     case ACTIONS.SET_AVAILABLE_TEAMS: {
@@ -454,7 +454,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
   const value = useMemo(
     () => ({
       availableTeams: state.availableTeams,
-      uiSettings: state.uiSettings,
+      userSettings: state.userSettings,
       config: state.config,
       currentUser: state.currentUser,
       currentTeam: state.currentTeam,
@@ -506,8 +506,8 @@ const AppProvider = ({ children }: Props): JSX.Element => {
           availableTeams,
         });
       },
-      setUISettings: (uiSettings: IUserUISettings) => {
-        dispatch({ type: ACTIONS.SET_UI_SETTINGS, uiSettings });
+      setUserSettings: (userSettings: IUserSettings) => {
+        dispatch({ type: ACTIONS.SET_USER_SETTINGS, userSettings });
       },
       setCurrentUser: (currentUser: IUser) => {
         dispatch({ type: ACTIONS.SET_CURRENT_USER, currentUser });
@@ -568,7 +568,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       state.abmExpiry,
       state.apnsExpiry,
       state.availableTeams,
-      state.uiSettings,
+      state.userSettings,
       state.config,
       state.currentTeam,
       state.currentUser,

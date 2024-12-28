@@ -11,7 +11,7 @@ import {
   ICreateUserWithInvitationFormData,
 } from "interfaces/user";
 import { ITeamSummary } from "interfaces/team";
-import { IUserUISettings } from "interfaces/config";
+import { IUserSettings } from "interfaces/config";
 
 export interface ISortOption {
   id: number;
@@ -42,7 +42,7 @@ interface IRequirePasswordReset {
 export interface IGetMeResponse {
   user: IUser;
   available_teams: ITeamSummary[];
-  ui_settings: IUserUISettings;
+  user_settings: IUserSettings;
 }
 
 export default {
@@ -113,14 +113,14 @@ export default {
     });
   },
   me: (): Promise<IGetMeResponse> => {
-    // include the user's UI settings when calling from the UI
-    const path = `${endpoints.ME}?include_ui_settings=true`;
+    // include the user's settings when calling from the UI
+    const path = `${endpoints.ME}?include_settings=true`;
     return sendRequest("GET", path).then(
-      ({ user, available_teams, ui_settings }) => {
+      ({ user, available_teams, user_settings }) => {
         return {
           user: helpers.addGravatarUrlToResource(user),
           available_teams,
-          ui_settings,
+          user_settings,
         };
       }
     );
