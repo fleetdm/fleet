@@ -10,7 +10,7 @@ func init() {
 }
 
 func Up_20241227185218(tx *sql.Tx) error {
-	_, err := tx.Exec(`ALTER TABLE users ADD COLUMN settings json`)
+	_, err := tx.Exec(`ALTER TABLE users ADD COLUMN settings json not null default '{}'`)
 	if err != nil {
 		return fmt.Errorf("failed to add settings to users: %w", err)
 	}
