@@ -227,7 +227,7 @@ func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 // Me (get own current user)
 // //////////////////////////////////////////////////////////////////////////////
 type getMeRequest struct {
-	includeUISettings bool `url:"include_ui_settings"`
+	includeSettings bool `url:"include_settings"`
 }
 
 func meEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -243,11 +243,11 @@ func meEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (er
 			return getUserResponse{Err: err}, nil
 		}
 	}
-	uiSettings, err := svc.GetUserUISettings(ctx, user.ID)
+	userSettings, err := svc.GetUserSettings(ctx, user.ID)
 	if err != nil {
 		return getUserResponse{Err: err}, nil
 	}
-	return getUserResponse{User: user, AvailableTeams: availableTeams, UISettings: uiSettings}, nil
+	return getUserResponse{User: user, AvailableTeams: availableTeams, Settings: userSettings}, nil
 }
 
 func (svc *Service) AuthenticatedUser(ctx context.Context) (*fleet.User, error) {
@@ -266,26 +266,20 @@ func (svc *Service) AuthenticatedUser(ctx context.Context) (*fleet.User, error) 
 	return vc.User, nil
 }
 
-func (svc *Service) GetUserUISettings(ctx context.Context, userID uint) (*fleet.UserUISettings, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.User{ID: userID}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-	return svc.ds.UserUISettings(ctx, userID)
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Get User
 ////////////////////////////////////////////////////////////////////////////////
 
 type getUserRequest struct {
-	ID uint `url:"id"`
+	ID              uint `url:"id"`
+	IncludeSettings bool `url"include_settings"`
 }
 
 type getUserResponse struct {
-	User           *fleet.User           `json:"user,omitempty"`
-	AvailableTeams []*fleet.TeamSummary  `json:"available_teams"`
-	UISettings     *fleet.UserUISettings `json:"ui_settings,omitempty"`
-	Err            error                 `json:"error,omitempty"`
+	User           *fleet.User          `json:"user,omitempty"`
+	AvailableTeams []*fleet.TeamSummary `json:"available_teams"`
+	Settings       *fleet.UserSettings  `json:"settings,omitempty"`
+	Err            error                `json:"error,omitempty"`
 }
 
 func (r getUserResponse) error() error { return r.Err }
@@ -304,8 +298,19 @@ func getUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 			return getUserResponse{Err: err}, nil
 		}
 	}
-	// TODO - include UI settings in this endpoint?
-	return getUserResponse{User: user, AvailableTeams: availableTeams}, nil
+
+	userSettings, err := svc.GetUserSettings(ctx, user.ID)
+	if err != nil {
+		return getUserResponse{Err: err}, nil
+	}
+	return getUserResponse{User: user, AvailableTeams: availableTeams, Settings: userSettings}, nil
+}
+
+func (svc *Service) GetUserSettings(ctx context.Context, userID uint) (*fleet.UserSettings, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.User{ID: userID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	return svc.ds.UserSettings(ctx, userID)
 }
 
 // setAuthCheckedOnPreAuthErr can be used to set the authentication as checked

@@ -68,7 +68,7 @@ type Datastore interface {
 	// written to user record. userID is the ID of the user whose e-mail is being changed.
 	ConfirmPendingEmailChange(ctx context.Context, userID uint, token string) (string, error)
 
-	UserUISettings(ctx context.Context, userID uint) (*UserUISettings, error)
+	UserSettings(ctx context.Context, userID uint) (*UserSettings, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// QueryStore
