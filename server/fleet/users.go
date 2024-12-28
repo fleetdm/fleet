@@ -37,7 +37,7 @@ type User struct {
 }
 
 type UserSettings struct {
-	HiddenHostsTableColumns []string `json:"hidden_hosts_table_columns"`
+	HiddenHostsTableColumns *[]string `json:"hidden_hosts_table_columns,omitempty"`
 }
 
 // IsGlobalObserver returns true if user is either a Global Observer or a Global Observer+
