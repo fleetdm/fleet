@@ -227,7 +227,7 @@ func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 // Me (get own current user)
 // //////////////////////////////////////////////////////////////////////////////
 type getMeRequest struct {
-	includeSettings bool `url:"include_settings"`
+	includeSettings bool `query:"include_settings,optional"`
 }
 
 func meEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -272,7 +272,7 @@ func (svc *Service) AuthenticatedUser(ctx context.Context) (*fleet.User, error) 
 
 type getUserRequest struct {
 	ID              uint `url:"id"`
-	IncludeSettings bool `url"include_settings"`
+	IncludeSettings bool `query:"include_settings,optional"`
 }
 
 type getUserResponse struct {
