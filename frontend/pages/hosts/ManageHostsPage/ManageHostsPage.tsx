@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import FileSaver from "file-saver";
 
 import enrollSecretsAPI from "services/entities/enroll_secret";
+import usersAPI from "services/entities/users";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
@@ -141,6 +142,7 @@ const ManageHostsPage = ({
     isPremiumTier,
     isFreeTier,
     isSandboxMode,
+    userSettings,
     setFilteredHostsPath,
     setFilteredPoliciesPath,
     setFilteredQueriesPath,
@@ -204,12 +206,9 @@ const ManageHostsPage = ({
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
-
-  const { userSettings } = useContext(AppContext);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     userSettings?.hidden_hosts_table_columns || defaultHiddenColumns
   );
-
   const [selectedHostIds, setSelectedHostIds] = useState<number[]>([]);
   const [isAllMatchingHostsSelected, setIsAllMatchingHostsSelected] = useState(
     false
@@ -762,8 +761,18 @@ const ManageHostsPage = ({
     router.push(`${PATHS.EDIT_LABEL(parseInt(labelID, 10))}`);
   };
 
-  const onSaveColumns = (newHiddenColumns: string[]) => {
-    localStorage.setItem("hostHiddenColumns", JSON.stringify(newHiddenColumns));
+  const onSaveColumns = async (newHiddenColumns: string[]) => {
+    // localStorage.setItem("hostHiddenColumns", JSON.stringify(newHiddenColumns));
+    try {
+      await usersAPI.update(currentUser!.id, {
+        settings: { hidden_hosts_table_columns: newHiddenColumns },
+      });
+      // No renderFlash, to make column setting more seamless
+      return true;
+    } catch (response) {
+      renderFlash("error", "Couldn't save column settings. Please try again.");
+    }
+
     setHiddenColumns(newHiddenColumns);
     setShowEditColumnsModal(false);
   };
