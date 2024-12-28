@@ -329,6 +329,10 @@ func (ds *Datastore) UserSettings(ctx context.Context, userID uint) (*fleet.User
 		return nil, ctxerr.Wrap(ctx, err, "selecting app config")
 	}
 
+	if len(bytes) == 0 {
+		return settings, nil
+	}
+
 	err = json.Unmarshal(bytes, settings)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling user ui settings")
