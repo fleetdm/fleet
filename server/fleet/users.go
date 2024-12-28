@@ -34,7 +34,7 @@ type User struct {
 	Teams []UserTeam `json:"teams"`
 }
 
-type UserUISettings struct {
+type UserSettings struct {
 	HiddenHostsTableColumns []string `json:"hidden_hosts_table_columns"`
 }
 

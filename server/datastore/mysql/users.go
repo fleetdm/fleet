@@ -312,14 +312,15 @@ func amountActiveUsersSinceDB(ctx context.Context, db sqlx.QueryerContext, since
 	return amount, nil
 }
 
-func (ds *Datastore) UserUISettings(ctx context.Context, userID uint) (*fleet.UserUISettings, error) {
-	settings := &fleet.UserUISettings{}
+func (ds *Datastore) UserSettings(ctx context.Context, userID uint) (*fleet.UserSettings, error) {
+	settings := &fleet.UserSettings{}
 	var bytes []byte
 	stmt := `
-		SELECT json_value FROM user_ui_settings WHERE id = ?
+		SELECT settings FROM users WHERE id = ?
 	`
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &bytes, stmt, userID)
 	if err != nil {
+		// okay for a user not to have any settings
 		if err == sql.ErrNoRows {
 			return settings, nil
 		}

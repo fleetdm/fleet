@@ -162,8 +162,7 @@ type Service interface {
 	// write the new email address to user.
 	ChangeUserEmail(ctx context.Context, token string) (string, error)
 
-	// GetUserUISettings returns the user's UI settings.
-	GetUserUISettings(ctx context.Context, id uint) (settings *UserUISettings, err error)
+	GetUserSettings(ctx context.Context, id uint) (settings *UserSettings, err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Session
