@@ -1981,7 +1981,7 @@ Name of the S3 bucket for storing software and bootstrap package.
 - Config file format:
   ```yaml
   s3:
-    software_intallers_bucket: some-bucket
+    software_installers_bucket: some-bucket
   ```
 
 ### s3_software_installers_prefix
@@ -1993,7 +1993,7 @@ Prefix to prepend to software.
 - Config file format:
   ```yaml
   s3:
-    software_intallers_prefix: prefix-here/
+    software_installers_prefix: prefix-here/
   ```
 
 ### s3_software_installers_access_key_id
@@ -2010,7 +2010,7 @@ The IAM identity used in this context must be allowed to perform the following a
 - Config file format:
   ```yaml
   s3:
-    software_intallers_access_key_id: AKIAIOSFODNN7EXAMPLE
+    software_installers_access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
 ### s3_software_installers_secret_access_key
@@ -2022,7 +2022,7 @@ AWS secret access key to use for S3 authentication.
 - Config file format:
   ```yaml
   s3:
-    software_intallers_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    software_installers_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
 ### s3_software_installers_sts_assume_role_arn
@@ -2034,7 +2034,7 @@ AWS STS role ARN to use for S3 authentication.
 - Config file format:
   ```yaml
   s3:
-    software_intallers_sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+    software_installers_sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
   ```
 
 ### s3_software_installers_sts_external_id
@@ -2047,7 +2047,7 @@ conjunction with an STS role ARN to ensure that only the intended AWS account ca
 - Config file format:
   ```yaml
   s3:
-   software_intallers_sts_external_id: your_unique_id
+   software_installers_sts_external_id: your_unique_id
   ```
 
 ### s3_software_installers_endpoint_url
@@ -2060,7 +2060,7 @@ or running S3 locally with localstack. Leave this blank to use the default S3 se
 - Config file format:
   ```yaml
   s3:
-    software_intallers_endpoint_url: http://localhost:9000
+    software_installers_endpoint_url: http://localhost:9000
   ```
 
 ### s3_software_installers_force_s3_path_style
@@ -2077,7 +2077,7 @@ See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) f
 - Config file format:
   ```yaml
   s3:
-    software_intallers_force_s3_path_style: false
+    software_installers_force_s3_path_style: false
   ```
 
 ### s3_software_installers_region
@@ -2091,7 +2091,7 @@ Minio users must set this to any nonempty value (eg. `minio`), as Minio does not
 - Config file format:
   ```yaml
   s3:
-    software_intallers_region: us-east-1
+    software_installers_region: us-east-1
   ```
 
 ### s3_carves_bucket
