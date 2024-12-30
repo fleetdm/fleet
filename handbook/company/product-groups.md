@@ -848,7 +848,7 @@ Thus, to ensure consistency, completeness, and secure development practices, no 
 The following stubs are included only to make links backward compatible
 
 ##### Endpoint ops group
-Please see [handbook/company/product-groups/endpoint-ops-group](https://fleetdm.com/handbook/company/product-groups#endpoint-ops-group)
+Please see [handbook/company/product-groups/orchestration](https://fleetdm.com/handbook/company/product-groups#orchestration)
 
 ##### Air guitar
 Please see [handbook/company/initiate-an-air-guitar-session](https://fleetdm.com/handbook/company/product-groups#initiate-an-air-guitar-session)
