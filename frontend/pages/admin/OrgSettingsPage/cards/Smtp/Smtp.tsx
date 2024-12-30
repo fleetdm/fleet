@@ -82,7 +82,12 @@ const validateFormData = (newData: ISmtpConfigFormData) => {
         errors.password = "SMTP password must be present";
       }
     }
+  } else if (smtpSenderAddress && !validEmail(smtpSenderAddress)) {
+    // validations for valid submissions even when smtp not enabled, i.e., updating what will be
+    // used once it IS enabled
+    errors.sender_address = `${smtpSenderAddress} is not a valid email`;
   }
+
   return errors;
 };
 
