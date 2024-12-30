@@ -82,7 +82,9 @@ func TestInstallUninstallAuth(t *testing.T) {
 	svc := newTestService(t, ds)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}, // global scripts being disabled shouldn't impact (un)installs
+		}, nil
 	}
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return &fleet.Host{
@@ -111,9 +113,8 @@ func TestInstallUninstallAuth(t *testing.T) {
 	ds.GetAnyScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
 		return []byte("script"), nil
 	}
-	ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult,
-		error,
-	) {
+	ds.NewInternalScriptExecutionRequestFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult,
+		error) {
 		return &fleet.HostScriptResult{
 			ExecutionID: "execution_id",
 		}, nil
@@ -187,17 +188,13 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 		return host, nil
 	}
 
-	// Scripts disabled
+	// Global scripts disabled (doesn't matter)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			ServerSettings: fleet.ServerSettings{
 				ScriptsDisabled: true,
 			},
 		}, nil
-	}
-	require.ErrorContains(t, svc.UninstallSoftwareTitle(context.Background(), 1, 10), fleet.RunScriptScriptsDisabledGloballyErrMsg)
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
 	}
 
 	// Host scripts disabled

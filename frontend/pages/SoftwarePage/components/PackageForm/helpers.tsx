@@ -1,3 +1,5 @@
+import React from "react";
+
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { ISoftwarePackage } from "interfaces/software";
 
@@ -155,5 +157,34 @@ export const generateSelectedLabels = (softwarePackage: ISoftwarePackage) => {
       },
       {}
     ) ?? {}
+  );
+};
+
+export const generateHelpText = (installType: string, customTarget: string) => {
+  if (customTarget === "labelsIncludeAny") {
+    return installType === "manual" ? (
+      <>
+        Software will only be available for install on hosts that{" "}
+        <b>have any</b> of these labels:
+      </>
+    ) : (
+      <>
+        Software will only be installed on hosts that <b>have any</b> of these
+        labels:
+      </>
+    );
+  }
+
+  // this is the case for labelsExcludeAny
+  return installType === "manual" ? (
+    <>
+      Software will only be available for install on hosts that{" "}
+      <b>don&apos;t have any</b> of these labels:
+    </>
+  ) : (
+    <>
+      Software will only be installed on hosts that <b>don&apos;t have any</b>{" "}
+      of these labels:{" "}
+    </>
   );
 };

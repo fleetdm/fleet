@@ -1026,18 +1026,6 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 }
 
 func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
-	// First check if scripts are disabled globally. If so, no need for further processing.
-	cfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		svc.authz.SkipAuthorization(ctx)
-		return err
-	}
-
-	if cfg.ServerSettings.ScriptsDisabled {
-		svc.authz.SkipAuthorization(ctx)
-		return fleet.NewUserMessageError(errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg), http.StatusForbidden)
-	}
-
 	// we need to use ds.Host because ds.HostLite doesn't return the orbit node key
 	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
@@ -1138,7 +1126,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	if host.TeamID != nil {
 		teamID = *host.TeamID
 	}
-	// create the script execution request, the host will be notified of the
+	// create the script execution request; the host will be notified of the
 	// script execution request via the orbit config's Notifications mechanism.
 	request := fleet.HostScriptRequestPayload{
 		HostID:          host.ID,
@@ -1149,7 +1137,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
 		request.UserID = &ctxUser.ID
 	}
-	scriptResult, err := svc.ds.NewHostScriptExecutionRequest(ctx, &request)
+	scriptResult, err := svc.ds.NewInternalScriptExecutionRequest(ctx, &request)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "create script execution request")
 	}

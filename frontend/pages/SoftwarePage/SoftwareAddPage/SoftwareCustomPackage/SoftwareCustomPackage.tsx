@@ -1,13 +1,9 @@
 import React, { useContext, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
-import { isAxiosError } from "axios";
 
 import PATHS from "router/paths";
-import {
-  DEFAULT_USE_QUERY_OPTIONS,
-  LEARN_MORE_ABOUT_BASE_LINK,
-} from "utilities/constants";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getFileDetails, IFileDetails } from "utilities/file/fileUtils";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 import softwareAPI, {
@@ -18,10 +14,8 @@ import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
-import { getErrorReason } from "interfaces/errors";
 import { ILabelSummary } from "interfaces/label";
 
-import CustomLink from "components/CustomLink";
 import FileProgressModal from "components/FileProgressModal";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
