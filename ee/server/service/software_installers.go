@@ -98,14 +98,12 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.InstallScript, payload.PostInstallScript, payload.UninstallScript}); err != nil {
 		// We redo the validation on each script to find out which script has the missing secret.
 		// This is done to provide a more informative error message to the UI user.
-		if errInstallScript := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.InstallScript}); errInstallScript != nil {
-			return fleet.NewInvalidArgumentError("install script", errInstallScript.Error())
-		}
-		if errPostInstallScript := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.PostInstallScript}); errPostInstallScript != nil {
-			return fleet.NewInvalidArgumentError("post-install script", errPostInstallScript.Error())
-		}
-		if errUninstallScript := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.UninstallScript}); errUninstallScript != nil {
-			return fleet.NewInvalidArgumentError("uninstall script", errUninstallScript.Error())
+		var argErr *fleet.InvalidArgumentError
+		argErr = svc.validateEmbeddedSecretsOnScript(ctx, "install script", &payload.InstallScript, argErr)
+		argErr = svc.validateEmbeddedSecretsOnScript(ctx, "post-install script", &payload.PostInstallScript, argErr)
+		argErr = svc.validateEmbeddedSecretsOnScript(ctx, "uninstall script", &payload.UninstallScript, argErr)
+		if argErr != nil {
+			return argErr
 		}
 		// We should not get to this point. If we did, it means we have another issue, such as large read replica latency.
 		return ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
@@ -242,21 +240,12 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, scripts); err != nil {
 		// We redo the validation on each script to find out which script has the missing secret.
 		// This is done to provide a more informative error message to the UI user.
-		if payload.InstallScript != nil {
-			if errInstallScript := svc.ds.ValidateEmbeddedSecrets(ctx, []string{*payload.InstallScript}); errInstallScript != nil {
-				return nil, fleet.NewInvalidArgumentError("install script", errInstallScript.Error())
-			}
-		}
-		if payload.PostInstallScript != nil {
-			if errPostInstallScript := svc.ds.ValidateEmbeddedSecrets(ctx,
-				[]string{*payload.PostInstallScript}); errPostInstallScript != nil {
-				return nil, fleet.NewInvalidArgumentError("post-install script", errPostInstallScript.Error())
-			}
-		}
-		if payload.UninstallScript != nil {
-			if errUninstallScript := svc.ds.ValidateEmbeddedSecrets(ctx, []string{*payload.UninstallScript}); errUninstallScript != nil {
-				return nil, fleet.NewInvalidArgumentError("uninstall script", errUninstallScript.Error())
-			}
+		var argErr *fleet.InvalidArgumentError
+		argErr = svc.validateEmbeddedSecretsOnScript(ctx, "install script", payload.InstallScript, argErr)
+		argErr = svc.validateEmbeddedSecretsOnScript(ctx, "post-install script", payload.PostInstallScript, argErr)
+		argErr = svc.validateEmbeddedSecretsOnScript(ctx, "uninstall script", payload.UninstallScript, argErr)
+		if argErr != nil {
+			return nil, argErr
 		}
 		// We should not get to this point. If we did, it means we have another issue, such as large read replica latency.
 		return nil, ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
@@ -492,6 +481,20 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	updatedInstaller.Status = statuses
 
 	return updatedInstaller, nil
+}
+
+func (svc *Service) validateEmbeddedSecretsOnScript(ctx context.Context, scriptName string, script *string,
+	argErr *fleet.InvalidArgumentError) *fleet.InvalidArgumentError {
+	if script != nil {
+		if errScript := svc.ds.ValidateEmbeddedSecrets(ctx, []string{*script}); errScript != nil {
+			if argErr != nil {
+				argErr.Append(scriptName, errScript.Error())
+			} else {
+				argErr = fleet.NewInvalidArgumentError(scriptName, errScript.Error())
+			}
+		}
+	}
+	return argErr
 }
 
 func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, existingInstaller *fleet.SoftwareInstaller, includeAny, excludeAny []string) (shouldUpdate bool, validatedLabels *fleet.LabelIdentsWithScope, err error) {

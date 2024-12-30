@@ -124,6 +124,22 @@ func extractServerErrorNameReason(body io.Reader) (string, string) {
 	return errName, errReason
 }
 
+func extractServerErrorNameReasons(body io.Reader) ([]string, []string) {
+	var serverErr serverError
+	if err := json.NewDecoder(body).Decode(&serverErr); err != nil {
+		return []string{""}, []string{"unknown"}
+	}
+
+	var errName []string
+	var errReason []string
+	for _, err := range serverErr.Errors {
+		errName = append(errName, err.Name)
+		errReason = append(errReason, err.Reason)
+	}
+
+	return errName, errReason
+}
+
 type statusCodeErr struct {
 	code int
 	body string

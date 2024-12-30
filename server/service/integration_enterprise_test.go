@@ -15946,9 +15946,12 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		UninstallScript:   "echo $FLEET_SECRET_INVALID3",
 	}
 	respBadSecret := s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", reqInvalidSecret, http.StatusUnprocessableEntity)
-	errName, errMsg := extractServerErrorNameReason(respBadSecret.Body)
-	assert.Equal(t, "install script", errName)
-	assert.Contains(t, errMsg, "$FLEET_SECRET_INVALID1")
+	errNames, errReasons := extractServerErrorNameReasons(respBadSecret.Body)
+	assert.ElementsMatch(t, []string{"install script", "post-install script", "uninstall script"}, errNames)
+	assert.Len(t, errReasons, 3)
+	for _, reason := range errReasons {
+		assert.Contains(t, reason, "$FLEET_SECRET_INVALID")
+	}
 
 	reqInvalidSecret = &addFleetMaintainedAppRequest{
 		AppID:             1,
@@ -15957,12 +15960,13 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		PreInstallQuery:   "SELECT 1",
 		InstallScript:     "echo foo",
 		PostInstallScript: "echo done $FLEET_SECRET_INVALID2",
-		UninstallScript:   "echo $FLEET_SECRET_INVALID3",
+		UninstallScript:   "echo",
 	}
 	respBadSecret = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", reqInvalidSecret, http.StatusUnprocessableEntity)
-	errName, errMsg = extractServerErrorNameReason(respBadSecret.Body)
-	assert.Equal(t, "post-install script", errName)
-	assert.Contains(t, errMsg, "$FLEET_SECRET_INVALID2")
+	errNames, errReasons = extractServerErrorNameReasons(respBadSecret.Body)
+	assert.ElementsMatch(t, []string{"post-install script"}, errNames)
+	require.Len(t, errReasons, 1)
+	assert.Contains(t, errReasons[0], "$FLEET_SECRET_INVALID2")
 
 	reqInvalidSecret = &addFleetMaintainedAppRequest{
 		AppID:             1,
@@ -15974,9 +15978,10 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		UninstallScript:   "echo $FLEET_SECRET_INVALID3",
 	}
 	respBadSecret = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", reqInvalidSecret, http.StatusUnprocessableEntity)
-	errName, errMsg = extractServerErrorNameReason(respBadSecret.Body)
-	assert.Equal(t, "uninstall script", errName)
-	assert.Contains(t, errMsg, "$FLEET_SECRET_INVALID3")
+	errNames, errReasons = extractServerErrorNameReasons(respBadSecret.Body)
+	assert.ElementsMatch(t, []string{"uninstall script"}, errNames)
+	require.Len(t, errReasons, 1)
+	assert.Contains(t, errReasons[0], "$FLEET_SECRET_INVALID3")
 
 	// Add an ingested app to the team
 	var addMAResp addFleetMaintainedAppResponse
