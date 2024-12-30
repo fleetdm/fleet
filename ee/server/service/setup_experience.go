@@ -76,6 +76,10 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 		ScriptContents: string(b),
 	}
 
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{script.ScriptContents}); err != nil {
+		return fleet.NewInvalidArgumentError("script", err.Error())
+	}
+
 	// setup experience is only supported for macOS currently so we need to override the file
 	// extension check in the general script validation
 	if filepath.Ext(script.Name) != ".sh" {
@@ -220,9 +224,10 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 				return false, ctxerr.Errorf(ctx, "setup experience script missing content id: %d", *script.SetupExperienceScriptID)
 			}
 			req := &fleet.HostScriptRequestPayload{
-				HostID:          host.ID,
-				ScriptName:      script.Name,
-				ScriptContentID: *script.ScriptContentID,
+				HostID:                  host.ID,
+				ScriptName:              script.Name,
+				ScriptContentID:         *script.ScriptContentID,
+				SetupExperienceScriptID: script.SetupExperienceScriptID,
 			}
 			res, err := svc.ds.NewHostScriptExecutionRequest(ctx, req)
 			if err != nil {

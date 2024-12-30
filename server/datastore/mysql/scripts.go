@@ -18,6 +18,15 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const whereFilterPendingScript = `
+	exit_code IS NULL
+    -- async requests + sync requests created within the given interval
+    AND (
+      sync_request = 0
+      OR created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
+    )
+`
+
 func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 	var res *fleet.HostScriptResult
 	return res, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -39,8 +48,8 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 
 func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 	const (
-		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, script_id, policy_id, user_id, sync_request) VALUES (?, ?, ?, '', ?, ?, ?, ?)`
-		getStmt = `SELECT hsr.id, hsr.host_id, hsr.execution_id, hsr.created_at, hsr.script_id, hsr.policy_id, hsr.user_id, hsr.sync_request, sc.contents as script_contents FROM host_script_results hsr JOIN script_contents sc WHERE sc.id = hsr.script_content_id AND hsr.id = ?`
+		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, script_id, policy_id, user_id, sync_request, setup_experience_script_id) VALUES (?, ?, ?, '', ?, ?, ?, ?, ?)`
+		getStmt = `SELECT hsr.id, hsr.host_id, hsr.execution_id, hsr.created_at, hsr.script_id, hsr.policy_id, hsr.user_id, hsr.sync_request, sc.contents as script_contents, hsr.setup_experience_script_id FROM host_script_results hsr JOIN script_contents sc WHERE sc.id = hsr.script_content_id AND hsr.id = ?`
 	)
 
 	execID := uuid.New().String()
@@ -52,6 +61,7 @@ func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, requ
 		request.PolicyID,
 		request.UserID,
 		request.SyncRequest,
+		request.SetupExperienceScriptID,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "new host script execution request")
@@ -203,24 +213,20 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 }
 
 func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
-	const listStmt = `
-  SELECT
-    id,
-    host_id,
-    execution_id,
-    script_id
-  FROM
-    host_script_results
-  WHERE
-    host_id = ? AND
-    exit_code IS NULL
-    -- async requests + sync requests created within the given interval
-    AND (
-      sync_request = 0
-      OR created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
-    )
-  ORDER BY
-    created_at ASC`
+	listStmt := fmt.Sprintf(`
+		SELECT
+			id,
+			host_id,
+			execution_id,
+			script_id
+		FROM
+			host_script_results
+		WHERE
+			host_id = ? AND
+			%s
+		ORDER BY
+			created_at ASC
+	`, whereFilterPendingScript)
 
 	var results []*fleet.HostScriptResult
 	seconds := int(constants.MaxServerWaitTime.Seconds())
@@ -269,7 +275,8 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
     hsr.created_at,
     hsr.user_id,
     hsr.sync_request,
-    hsr.host_deleted_at
+    hsr.host_deleted_at,
+	hsr.setup_experience_script_id
   FROM
     host_script_results hsr
   JOIN
@@ -467,6 +474,33 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 
 		return nil
 	})
+}
+
+// deletePendingHostScriptExecutionsForPolicy should be called when a policy is deleted to remove any pending script executions
+func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Context, teamID *uint, policyID uint) error {
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	deleteStmt := fmt.Sprintf(`
+		DELETE FROM
+			host_script_results
+		WHERE 
+			policy_id = ? AND
+			script_id IN (
+				SELECT id FROM scripts WHERE scripts.global_or_team_id = ?
+			) AND
+			%s
+	`, whereFilterPendingScript)
+
+	seconds := int(constants.MaxServerWaitTime.Seconds())
+	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, policyID, globalOrTeamID, seconds)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete pending host script executions for policy")
+	}
+
+	return nil
 }
 
 func (ds *Datastore) ListScripts(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {

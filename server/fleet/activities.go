@@ -50,6 +50,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeChangedUserTeamRole{},
 	ActivityTypeDeletedUserTeamRole{},
 
+	ActivityTypeFleetEnrolled{},
 	ActivityTypeMDMEnrolled{},
 	ActivityTypeMDMUnenrolled{},
 
@@ -78,6 +79,8 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeEnabledWindowsMDM{},
 	ActivityTypeDisabledWindowsMDM{},
+	ActivityTypeEnabledWindowsMDMMigration{},
+	ActivityTypeDisabledWindowsMDMMigration{},
 
 	ActivityTypeRanScript{},
 	ActivityTypeAddedScript{},
@@ -795,6 +798,25 @@ func (a ActivityTypeDeletedUserTeamRole) Documentation() (activity string, detai
 }`
 }
 
+type ActivityTypeFleetEnrolled struct {
+	HostSerial      string `json:"host_serial"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeFleetEnrolled) ActivityName() string {
+	return "fleet_enrolled"
+}
+
+func (a ActivityTypeFleetEnrolled) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a host is enrolled to Fleet (Fleet's agent fleetd is installed).`,
+		`This activity contains the following fields:
+- "host_serial": Serial number of the host.
+- "host_display_name": Display name of the host.`, `{
+  "host_serial": "B04FL3ALPT21",
+  "host_display_name": "WIN-DESKTOP-JGS78KJ7C"
+}`
+}
+
 type ActivityTypeMDMEnrolled struct {
 	HostSerial       string `json:"host_serial"`
 	HostDisplayName  string `json:"host_display_name"`
@@ -1216,6 +1238,28 @@ func (a ActivityTypeDisabledWindowsMDM) Documentation() (activity, details, deta
 		`This activity does not contain any detail fields.`, ``
 }
 
+type ActivityTypeEnabledWindowsMDMMigration struct{}
+
+func (a ActivityTypeEnabledWindowsMDMMigration) ActivityName() string {
+	return "enabled_windows_mdm_migration"
+}
+
+func (a ActivityTypeEnabledWindowsMDMMigration) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user enables automatic MDM migration for Windows hosts, if Windows MDM is turned on.`,
+		`This activity does not contain any detail fields.`, ``
+}
+
+type ActivityTypeDisabledWindowsMDMMigration struct{}
+
+func (a ActivityTypeDisabledWindowsMDMMigration) ActivityName() string {
+	return "disabled_windows_mdm_migration"
+}
+
+func (a ActivityTypeDisabledWindowsMDMMigration) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user disables automatic MDM migration for Windows hosts, if Windows MDM is turned on.`,
+		`This activity does not contain any detail fields.`, ``
+}
+
 type ActivityTypeRanScript struct {
 	HostID            uint    `json:"host_id"`
 	HostDisplayName   string  `json:"host_display_name"`
@@ -1619,12 +1663,20 @@ func (a ActivityTypeUninstalledSoftware) Documentation() (activity, details, det
 }`
 }
 
+type ActivitySoftwareLabel struct {
+	Name string `json:"name"`
+	ID   uint   `json:"id"`
+}
+
 type ActivityTypeAddedSoftware struct {
-	SoftwareTitle   string  `json:"software_title"`
-	SoftwarePackage string  `json:"software_package"`
-	TeamName        *string `json:"team_name"`
-	TeamID          *uint   `json:"team_id"`
-	SelfService     bool    `json:"self_service"`
+	SoftwareTitle    string                  `json:"software_title"`
+	SoftwarePackage  string                  `json:"software_package"`
+	TeamName         *string                 `json:"team_name"`
+	TeamID           *uint                   `json:"team_id"`
+	SelfService      bool                    `json:"self_service"`
+	SoftwareTitleID  uint                    `json:"software_title_id"`
+	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
 
 func (a ActivityTypeAddedSoftware) ActivityName() string {
@@ -1637,21 +1689,38 @@ func (a ActivityTypeAddedSoftware) Documentation() (string, string, string) {
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added.` + " `null` " + `if it was added to no team." +
 - "team_id": The ID of the team to which this software was added.` + " `null` " + `if it was added to no team.
-- "self_service": Whether the software is available for installation by the end user.`, `{
+- "self_service": Whether the software is available for installation by the end user.
+- "software_title_id": ID of the added software title.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.`, `{
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
   "team_id": 123,
-  "self_service": true
+  "self_service": true,
+  "software_title_id": 2234,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }`
 }
 
 type ActivityTypeEditedSoftware struct {
-	SoftwareTitle   string  `json:"software_title"`
-	SoftwarePackage *string `json:"software_package"`
-	TeamName        *string `json:"team_name"`
-	TeamID          *uint   `json:"team_id"`
-	SelfService     bool    `json:"self_service"`
+	SoftwareTitle    string                  `json:"software_title"`
+	SoftwarePackage  *string                 `json:"software_package"`
+	TeamName         *string                 `json:"team_name"`
+	TeamID           *uint                   `json:"team_id"`
+	SelfService      bool                    `json:"self_service"`
+	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	SoftwareTitleID  uint                    `json:"software_title_id"`
 }
 
 func (a ActivityTypeEditedSoftware) ActivityName() string {
@@ -1664,21 +1733,37 @@ func (a ActivityTypeEditedSoftware) Documentation() (string, string, string) {
 - "software_package": Filename of the installer as of this update (including if unchanged).
 - "team_name": Name of the team on which this software was updated.` + " `null` " + `if it was updated on no team.
 - "team_id": The ID of the team on which this software was updated.` + " `null` " + `if it was updated on no team.
-- "self_service": Whether the software is available for installation by the end user.`, `{
+- "self_service": Whether the software is available for installation by the end user.
+- "software_title_id": ID of the added software title.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.`, `{
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
   "team_id": 123,
-  "self_service": true
+  "self_service": true,
+  "software_title_id": 2234,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }`
 }
 
 type ActivityTypeDeletedSoftware struct {
-	SoftwareTitle   string  `json:"software_title"`
-	SoftwarePackage string  `json:"software_package"`
-	TeamName        *string `json:"team_name"`
-	TeamID          *uint   `json:"team_id"`
-	SelfService     bool    `json:"self_service"`
+	SoftwareTitle    string                  `json:"software_title"`
+	SoftwarePackage  string                  `json:"software_package"`
+	TeamName         *string                 `json:"team_name"`
+	TeamID           *uint                   `json:"team_id"`
+	SelfService      bool                    `json:"self_service"`
+	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
 
 func (a ActivityTypeDeletedSoftware) ActivityName() string {
@@ -1691,12 +1776,24 @@ func (a ActivityTypeDeletedSoftware) Documentation() (string, string, string) {
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added.` + " `null` " + `if it was added to no team.
 - "team_id": The ID of the team to which this software was added.` + " `null` " + `if it was added to no team.
-- "self_service": Whether the software was available for installation by the end user.`, `{
+- "self_service": Whether the software was available for installation by the end user.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.`, `{
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
   "team_id": 123,
-  "self_service": true
+  "self_service": true,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }`
 }
 

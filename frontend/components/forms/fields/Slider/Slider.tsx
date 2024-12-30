@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import classnames from "classnames";
 import { pick } from "lodash";
 
@@ -8,15 +8,25 @@ import { IFormFieldProps } from "components/forms/FormField/FormField";
 interface ISliderProps {
   onChange: () => void;
   value: boolean;
-  inactiveText: string;
-  activeText: string;
+  inactiveText: JSX.Element | string;
+  activeText: JSX.Element | string;
   className?: string;
+  helpText?: JSX.Element | string;
+  autoFocus?: boolean;
 }
 
 const baseClass = "fleet-slider";
 
 const Slider = (props: ISliderProps): JSX.Element => {
-  const { onChange, value, inactiveText, activeText } = props;
+  const { onChange, value, inactiveText, activeText, autoFocus } = props;
+
+  const sliderRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (autoFocus && sliderRef.current) {
+      sliderRef.current.focus();
+    }
+  }, [autoFocus]);
 
   const sliderBtnClass = classnames(baseClass, {
     [`${baseClass}--active`]: value,
@@ -46,6 +56,7 @@ const Slider = (props: ISliderProps): JSX.Element => {
         <button
           className={`button button--unstyled ${sliderBtnClass}`}
           onClick={handleClick}
+          ref={sliderRef}
         >
           <div className={sliderDotClass} />
         </button>

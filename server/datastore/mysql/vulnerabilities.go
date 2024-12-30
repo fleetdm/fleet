@@ -118,7 +118,9 @@ func (ds *Datastore) OSVersionsByCVE(ctx context.Context, cve string, teamID *ui
 		return nil, updatedAt, ctxerr.Wrap(ctx, err, "fetching team OS versions")
 	}
 
-	updatedAt = osvs.CountsUpdatedAt
+	if osvs == nil {
+		return nil, updatedAt, nil
+	}
 
 	type osVersionWithResolvedType struct {
 		OSVersionID     uint    `db:"os_version_id"`

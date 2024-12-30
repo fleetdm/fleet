@@ -28,6 +28,10 @@ const (
 	SoftwareReleaseMaxLength = 64
 	SoftwareVendorMaxLength  = 114
 	SoftwareArchMaxLength    = 16
+
+	// SoftwareTeamIdentifierMaxLength is the max length for Apple's Team ID,
+	// see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id
+	SoftwareTeamIdentifierMaxLength = 10
 )
 
 type Vulnerabilities []CVE
@@ -271,7 +275,13 @@ type HostSoftwareEntry struct {
 	Software
 	// Where this software was installed on the host, value is derived from the
 	// host_software_installed_paths table.
-	InstalledPaths []string `json:"installed_paths"`
+	InstalledPaths           []string                   `json:"installed_paths"`
+	PathSignatureInformation []PathSignatureInformation `json:"signature_information"`
+}
+
+type PathSignatureInformation struct {
+	InstalledPath  string `json:"installed_path"`
+	TeamIdentifier string `json:"team_identifier"`
 }
 
 // HostSoftware is the set of software installed on a specific host
@@ -295,13 +305,14 @@ type SoftwareListOptions struct {
 	ListOptions ListOptions `url:"list_options"`
 
 	// HostID filters software to the specified host if not nil.
-	HostID           *uint
-	TeamID           *uint `query:"team_id,optional"`
-	VulnerableOnly   bool  `query:"vulnerable,optional"`
-	IncludeCVEScores bool
-	KnownExploit     bool    `query:"exploit,optional"`
-	MinimumCVSS      float64 `query:"min_cvss_score,optional"`
-	MaximumCVSS      float64 `query:"max_cvss_score,optional"`
+	HostID                      *uint
+	TeamID                      *uint `query:"team_id,optional"`
+	VulnerableOnly              bool  `query:"vulnerable,optional"`
+	WithoutVulnerabilityDetails bool  `query:"without_vulnerability_details,optional"`
+	IncludeCVEScores            bool
+	KnownExploit                bool    `query:"exploit,optional"`
+	MinimumCVSS                 float64 `query:"min_cvss_score,optional"`
+	MaximumCVSS                 float64 `query:"max_cvss_score,optional"`
 
 	// WithHostCounts indicates that the list of software should include the
 	// counts of hosts per software, and include only those software that have
@@ -383,9 +394,10 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 //
 // All fields are trimmed to fit on Fleet's database.
 // The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
-func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, release, arch, bundleIdentifier, extensionId, browser, lastOpenedAt string) (
-	*Software, error,
-) {
+func SoftwareFromOsqueryRow(
+	name, version, source, vendor, installedPath, release, arch,
+	bundleIdentifier, extensionId, browser, lastOpenedAt string,
+) (*Software, error) {
 	if name == "" {
 		return nil, errors.New("host reported software with empty name")
 	}

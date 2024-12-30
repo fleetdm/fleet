@@ -8,6 +8,7 @@ import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
 
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { IAppConfigFormProps, IFormField } from "../constants";
 
 const baseClass = "app-config-form";
@@ -181,19 +182,23 @@ const Sso = ({
             parseTarget
             onBlur={validateForm}
             error={formErrors.metadata}
-            tooltip={`Metadata provided by the identity provider. Either
-            metadata or a metadata url must be provided.`}
+            tooltip="Metadata XML provided by the identity provider."
           />
           <InputField
             label="Metadata URL"
-            helpText="If available from the identity provider, this is the preferred means of providing metadata."
+            helpText={
+              <>
+                If both <b>Metadata URL</b> and <b>Metadata</b> are specified,{" "}
+                <b>Metadata URL</b> will be used.
+              </>
+            }
             onChange={onInputChange}
             name="metadataUrl"
             value={metadataUrl}
             parseTarget
             onBlur={validateForm}
             error={formErrors.metadata_url}
-            tooltip="A URL that references the identity provider metadata."
+            tooltip="Metadata URL provided by the identity provider."
           />
           <Checkbox
             onChange={onInputChange}
@@ -209,15 +214,18 @@ const Sso = ({
               name="enableJitProvisioning"
               value={enableJitProvisioning}
               parseTarget
+              helpText={
+                <>
+                  <CustomLink
+                    url={`${LEARN_MORE_ABOUT_BASE_LINK}/just-in-time-provisioning`}
+                    text="Learn more"
+                    newTab
+                  />{" "}
+                  about just-in-time (JIT) user provisioning.
+                </>
+              }
             >
-              <>
-                Create user and sync permissions on login{" "}
-                <CustomLink
-                  url="https://fleetdm.com/learn-more-about/just-in-time-provisioning"
-                  text="Learn more"
-                  newTab
-                />
-              </>
+              Create user and sync permissions on login
             </Checkbox>
           )}
           <Button

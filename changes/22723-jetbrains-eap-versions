@@ -1,0 +1,1 @@
+* Aliased EAP versions of JetBrains IDEs to "last release version plus all fixes" (e.g. 2024.3 EAP -> 2024.2.99) to avoid vulnerability false positives

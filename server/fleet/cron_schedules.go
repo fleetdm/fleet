@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
@@ -21,6 +22,7 @@ const (
 	CronWorkerIntegrations          CronScheduleName = "integrations"
 	CronActivitiesStreaming         CronScheduleName = "activities_streaming"
 	CronMDMAppleProfileManager      CronScheduleName = "mdm_apple_profile_manager"
+	CronMDMWindowsProfileManager    CronScheduleName = "mdm_windows_profile_manager"
 	CronAppleMDMIPhoneIPadRefetcher CronScheduleName = "apple_mdm_iphone_ipad_refetcher"
 	CronAppleMDMAPNsPusher          CronScheduleName = "apple_mdm_apns_pusher"
 	CronCalendar                    CronScheduleName = "calendar"
@@ -146,6 +148,22 @@ func (e triggerNotFoundError) StatusCode() int {
 	return http.StatusNotFound
 }
 
+type CronScheduleErrors map[string]error
+
+func (cse CronScheduleErrors) MarshalJSON() ([]byte, error) {
+	// Create a temporary map for JSON serialization
+	stringMap := make(map[string]string)
+	for key, err := range cse {
+		if err != nil {
+			stringMap[key] = err.Error()
+		} else {
+			stringMap[key] = ""
+		}
+	}
+	// Serialize the temporary map to JSON
+	return json.Marshal(stringMap)
+}
+
 // CronStats represents statistics recorded in connection with a named set of jobs (sometimes
 // referred to as a "cron" or "schedule"). Each record represents a separate "run" of the named job set.
 type CronStats struct {
@@ -166,6 +184,8 @@ type CronStats struct {
 	// Status is the current status of the run. Recognized statuses are "pending", "completed", and
 	// "expired".
 	Status CronStatsStatus `db:"status"`
+	// Errors is a JSON string containing any errors encountered during the run.
+	Errors string `db:"errors"`
 }
 
 // CronStatsType is one of two recognized types of cron stats (i.e. "scheduled" or "triggered")

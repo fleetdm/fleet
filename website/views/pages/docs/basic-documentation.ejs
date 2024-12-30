@@ -110,11 +110,13 @@
                 </li>
               </ul>
               <ul class="px-0 mb-0 pt-3" purpose="mobile-docs-nav-other-links">
-                <li class="px-0 mb-3"><a href="/guides">Guides</a></li>
-                <li class="px-0 mb-3"><a href="/tables">Data tables</a></li>
-                <li class="px-0 mb-3"><a href="/queries"><%= ['eo-it', 'mdm'].includes(primaryBuyingSituation) ? 'Device health checks' : 'Built-in queries' %></a></li>
-                <li class="px-0 mb-3"><a href="https://github.com/fleetdm/fleet/releases" target="_blank">Releases</a></li>
+                <li class="px-0 mb-3"><a href="/queries">Built-in checks</a></li>
+                <li class="px-0 mb-3"><a href="/tables">Raw data</a></li>
+                <li class="px-0 mb-3"><a href="/app-library">App library</a></li>
+                <li class="px-0 mb-3"><a href="/releases">Release notes</a></li>
+                <li class="px-0 mb-3"><a href="/docs/contributing" target="_blank">Contributing</a></li>
                 <li class="px-0 mb-3"><a href="/support">Support</a></li>
+                <li class="px-0 mb-3"><a href="/contact">Take a tour</a></li>
               </ul>
             </div>
           </div>
@@ -147,11 +149,13 @@
               </div>
             </li>
           </ul>
-          <a class="pt-4 pb-3" href="/guides">Guides</a>
-          <a class="pb-3" href="/tables">Data tables</a>
-          <a class="pb-3" href="/queries"><%= ['eo-it', 'mdm'].includes(primaryBuyingSituation) ? 'Device health checks' : 'Built-in queries' %></a>
-          <a class="pb-3" target="_blank" href="https://github.com/fleetdm/fleet/releases">Releases</a>
+          <a class="pt-4 pb-3" href="/queries">Built-in checks</a>
+          <a class="pb-3" href="/tables">Raw data</a>
+          <a class="pb-3" href="/app-library">App library</a>
+          <a class="pb-3" target="_blank" href="/releases">Release notes</a>
+          <a class="pb-3" href="/docs/contributing" target="_blank">Contributing</a>
           <a class="pb-3" target="_blank" href="/support">Support</a>
+          <a class="pb-3" href="/contact">Take a tour</a>
           <div class="d-none d-lg-block" purpose="swag-cta" v-if="showSwagForm">
             <a class="d-flex align-items-center justify-content-center" @click="clickSwagRequestCTA()">
               <div class="d-flex flex-column align-items-center">

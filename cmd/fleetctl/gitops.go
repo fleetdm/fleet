@@ -121,6 +121,8 @@ func gitopsCommand() *cli.Command {
 
 			// We keep track of the secrets to check if duplicates exist during dry run
 			secrets := make(map[string]struct{})
+			// We keep track of the environment FLEET_SECRET_* variables
+			allFleetSecrets := make(map[string]string)
 			for _, flFilename := range flFilenames.Value() {
 				baseDir := filepath.Dir(flFilename)
 				config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, logf)
@@ -162,6 +164,7 @@ func gitopsCommand() *cli.Command {
 				// name.) Because teams can be created/deleted during the same gitops run, we
 				// grab some information to help us determine allowed/restricted actions and
 				// when to perform the associations.
+
 				if isGlobalConfig && totalFilenames > 1 && !(totalFilenames == 2 && noTeamPresent) && isPremium {
 					abmTeams, hasMissingABMTeam, usesLegacyABMConfig, err = checkABMTeamAssignments(config, fleetClient)
 					if err != nil {
@@ -220,6 +223,10 @@ func gitopsCommand() *cli.Command {
 					}
 				}
 
+				err = fleetClient.SaveEnvSecrets(allFleetSecrets, config.FleetSecrets, flDryRun)
+				if err != nil {
+					return err
+				}
 				assumptions, err := fleetClient.DoGitOps(c.Context, config, flFilename, logf, flDryRun, teamDryRunAssumptions, appConfig, teamsSoftwareInstallers, teamsScripts)
 				if err != nil {
 					return err
@@ -295,6 +302,15 @@ func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 			appleBM, hasNewConfig := mdmMap["apple_business_manager"]
 
 			if hasLegacyConfig && hasNewConfig {
+				return nil, false, false, errors.New(fleet.AppleABMDefaultTeamDeprecatedMessage)
+			}
+
+			abmToks, err := fleetClient.CountABMTokens()
+			if err != nil {
+				return nil, false, false, err
+			}
+
+			if hasLegacyConfig && abmToks > 1 {
 				return nil, false, false, errors.New(fleet.AppleABMDefaultTeamDeprecatedMessage)
 			}
 

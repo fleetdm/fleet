@@ -1,0 +1,31 @@
+- name: Windows - Enable screen saver after 20 minutes
+  query: SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/DeviceLock/MaxInactivityTimeDeviceLock</LocURI></Target></Item></Get></SyncBody>" and CAST(mdm_command_output AS INT) <= 20;
+  critical: false
+  description: This policy checks if maximum amount of time (in minutes) the device is allowed to sit idle before the screen is locked. End users can select any value less than the specified maximum.
+  resolution: "As an IT admin, to deploy a Windows profile with the MaxInactivityTimeDeviceLock option documented here: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-devicelock#maxinactivitytimedevicelock"
+  platform: windows
+- name: Windows - Enable BitLocker
+  query: SELECT * FROM bitlocker_info WHERE drive_letter='C:' AND protection_status = 1;
+  critical: false
+  description: As an IT admin, turn on disk encryption in Fleet.
+  resolution: Ask your system administrator to turn on disk encryption in Fleet
+  platform: windows
+- name: Windows - Disable guest account
+  query: SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_EnableGuestAccountStatus</LocURI></Target></Item></Get></SyncBody>" and CAST(mdm_command_output AS INT) = 0;
+  critical: false
+  description: This policy checks if the guest account is disabled. The Guest account allows unauthenticated network users to gain access to the system.
+  resolution: "As an IT admin, deploy a Windows profile with the Accounts_EnableGuestAccountStatus option documented here: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-localpoliciessecurityoptions#accounts_enableguestaccountstatus"
+  platform: windows
+- name: Windows - Require 10 character password
+  query: SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/DeviceLock/DevicePasswordEnabled</LocURI></Target></Item></Get></SyncBody>" and CAST(mdm_command_output AS INT) = 0;
+  critical: false
+  description: This policy checks if the end user is required to enter a password, with at least 10 characters, to unlock the host.
+  resolution: "As an IT admin, deploy a Windows profile with the DevicePasswordEnabled and MinDevicePasswordLength option documented here: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-devicelock"
+  platform: windows
+- name: Windows - Antivirus healthy
+  query: SELECT 1 from windows_security_center wsc CROSS JOIN windows_security_products wsp WHERE antivirus = 'Good' AND type = 'Antivirus' AND signatures_up_to_date=1;
+  critical: false
+  description: Checks the status of antivirus and signature updates from the Windows Security Center.
+  resolution: "Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center."
+  platform: windows
+  

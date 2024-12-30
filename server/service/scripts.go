@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -171,6 +172,13 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		if !lic.IsPremium() {
 			svc.authz.SkipAuthorization(ctx)
 			return nil, fleet.ErrMissingLicense
+		}
+	}
+
+	if request.ScriptContents != "" {
+		if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{request.ScriptContents}); err != nil {
+			svc.authz.SkipAuthorization(ctx)
+			return nil, fleet.NewInvalidArgumentError("script", err.Error())
 		}
 	}
 
@@ -507,8 +515,13 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 	script := &fleet.Script{
 		TeamID:         teamID,
 		Name:           name,
-		ScriptContents: string(b),
+		ScriptContents: file.Dos2UnixNewlines(string(b)),
 	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{script.ScriptContents}); err != nil {
+		return nil, fleet.NewInvalidArgumentError("script", err.Error())
+	}
+
 	if err := script.ValidateNewScript(); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
@@ -848,6 +861,7 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 	// any duplicate name in the provided set results in an error
 	scripts := make([]*fleet.Script, 0, len(payloads))
 	byName := make(map[string]bool, len(payloads))
+	scriptContents := []string{}
 	for i, p := range payloads {
 		script := &fleet.Script{
 			ScriptContents: string(p.ScriptContents),
@@ -866,11 +880,16 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 				"duplicate script by name")
 		}
 		byName[script.Name] = true
+		scriptContents = append(scriptContents, script.ScriptContents)
 		scripts = append(scripts, script)
 	}
 
 	if dryRun {
 		return nil, nil
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, scriptContents); err != nil {
+		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
 	scriptResponses, err := svc.ds.BatchSetScripts(ctx, teamID, scripts)

@@ -1,22 +1,14 @@
 /* eslint-disable react/prop-types */
-import React, {
-  useContext,
-  useCallback,
-  useMemo,
-  useState,
-  useEffect,
-} from "react";
+import React, { useContext, useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 import { IEmptyTableProps } from "interfaces/empty_table";
-import { SelectedPlatform } from "interfaces/platform";
+import { isQueryablePlatform, SelectedPlatform } from "interfaces/platform";
 import { IEnhancedQuery } from "interfaces/schedulable_query";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import PATHS from "router/paths";
 import { getNextLocationPath } from "utilities/helpers";
-import { checkPlatformCompatibility } from "utilities/sql_tools";
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
@@ -24,11 +16,14 @@ import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+
 import generateColumnConfigs from "./QueriesTableConfig";
 
 const baseClass = "queries-table";
 export interface IQueriesTableProps {
-  queriesList: IEnhancedQuery[] | null;
+  queries: IEnhancedQuery[] | null;
+  totalQueriesCount: number | undefined;
+  hasNextResults: boolean;
   onlyInheritedQueries: boolean;
   isLoading: boolean;
   onDeleteQueryClick: (selectedTableQueryIds: number[]) => void;
@@ -38,7 +33,7 @@ export interface IQueriesTableProps {
   isAnyTeamObserverPlus: boolean;
   router?: InjectedRouter;
   queryParams?: {
-    platform?: SelectedPlatform;
+    platform?: string; // which targeted platform to filter queries by
     page?: string;
     query?: string;
     order_key?: string;
@@ -50,44 +45,36 @@ export interface IQueriesTableProps {
 
 const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_SORT_HEADER = "name";
-const DEFAULT_PAGE_SIZE = 20;
-const DEFAULT_PLATFORM = "all";
+// all platforms
+const DEFAULT_PLATFORM: SelectedPlatform = "all";
 
 const PLATFORM_FILTER_OPTIONS = [
   {
     disabled: false,
     label: "All platforms",
     value: "all",
-    helpText: "All queries.",
   },
   {
     disabled: false,
     label: "macOS",
     value: "darwin",
-    helpText: "Queries that are compatible with macOS operating systems.",
   },
   {
     disabled: false,
     label: "Windows",
     value: "windows",
-    helpText: "Queries that are compatible with Windows operating systems.",
   },
   {
     disabled: false,
     label: "Linux",
     value: "linux",
-    helpText: "Queries that are compatible with Linux operating systems.",
-  },
-  {
-    disabled: false,
-    label: "ChromeOS",
-    value: "chrome",
-    helpText: "Queries that are compatible with Chromebooks.",
   },
 ];
 
 const QueriesTable = ({
-  queriesList,
+  queries,
+  totalQueriesCount,
+  hasNextResults,
   onlyInheritedQueries,
   isLoading,
   onDeleteQueryClick,
@@ -101,38 +88,6 @@ const QueriesTable = ({
 }: IQueriesTableProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
 
-  // Client side filtering bugs fixed with bypassing TableContainer filters
-  // queriesState tracks search filter and compatible platform filter
-  // to correctly show filtered queries and filtered count
-  // isQueryStateLoading prevents flashing of unfiltered count during clientside filtering
-  const [queriesState, setQueriesState] = useState<IEnhancedQuery[]>([]);
-  const [isQueriesStateLoading, setIsQueriesStateLoading] = useState(true);
-
-  useEffect(() => {
-    setIsQueriesStateLoading(true);
-    if (queriesList) {
-      setQueriesState(
-        queriesList.filter((query) => {
-          const filterSearchQuery = queryParams?.query
-            ? query.name
-                .toLowerCase()
-                .includes(queryParams?.query.toLowerCase())
-            : true;
-          const compatiblePlatforms =
-            checkPlatformCompatibility(query.query).platforms || [];
-
-          const filterCompatiblePlatform =
-            queryParams?.platform && queryParams?.platform !== "all"
-              ? compatiblePlatforms.includes(queryParams?.platform)
-              : true;
-
-          return filterSearchQuery && filterCompatiblePlatform;
-        }) || []
-      );
-    }
-    setIsQueriesStateLoading(false);
-  }, [queriesList, queryParams]);
-
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams?.query ?? "")();
   const initialSortHeader = (() =>
@@ -141,23 +96,27 @@ const QueriesTable = ({
   const initialSortDirection = (() =>
     (queryParams?.order_direction as "asc" | "desc") ??
     DEFAULT_SORT_DIRECTION)();
-  const initialPlatform = (() =>
-    (queryParams?.platform as "all" | "windows" | "linux" | "darwin") ??
-    DEFAULT_PLATFORM)();
   const initialPage = (() =>
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
 
   // Source of truth is state held within TableContainer. That state is initialized using URL
   // params, then subsequent updates to that state are pushed to the URL.
+  // TODO - remove extraneous defintions around these values
   const searchQuery = initialSearchQuery;
-  const platform = initialPlatform;
   const page = initialPage;
   const sortDirection = initialSortDirection;
   const sortHeader = initialSortHeader;
 
+  const targetedPlatformParam = queryParams?.platform;
+  const curTargetedPlatformFilter: SelectedPlatform = isQueryablePlatform(
+    targetedPlatformParam
+  )
+    ? targetedPlatformParam
+    : DEFAULT_PLATFORM;
+
   // TODO: Look into useDebounceCallback with dependencies
   const onQueryChange = useCallback(
-    async (newTableQuery: ITableQueryData) => {
+    (newTableQuery: ITableQueryData) => {
       const {
         pageIndex: newPageIndex,
         searchQuery: newSearchQuery,
@@ -165,13 +124,13 @@ const QueriesTable = ({
         sortHeader: newSortHeader,
       } = newTableQuery;
 
-      // Rebuild queryParams to dispatch new browser location to react-router
-      const newQueryParams: { [key: string]: string | number | undefined } = {};
-
-      // Updates URL params
+      const newQueryParams: Record<string, string | number | undefined> = {};
       newQueryParams.order_key = newSortHeader;
       newQueryParams.order_direction = newSortDirection;
-      newQueryParams.platform = platform; // must set from URL
+      newQueryParams.platform =
+        curTargetedPlatformFilter === "all"
+          ? undefined
+          : curTargetedPlatformFilter;
       newQueryParams.page = newPageIndex;
       newQueryParams.query = newSearchQuery;
       // Reset page number to 0 for new filters
@@ -182,46 +141,36 @@ const QueriesTable = ({
       ) {
         newQueryParams.page = "0";
       }
-
       newQueryParams.team_id = queryParams?.team_id;
+
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_QUERIES,
         queryParams: { ...queryParams, ...newQueryParams },
       });
 
-      router?.replace(locationPath);
+      router?.push(locationPath);
     },
-    [sortHeader, sortDirection, searchQuery, platform, router, page]
-  );
-
-  const onClientSidePaginationChange = useCallback(
-    (pageIndex: number) => {
-      const newQueryParams = {
-        ...queryParams,
-        page: pageIndex, // update main table index
-        query: searchQuery,
-      };
-
-      const locationPath = getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_QUERIES,
-        queryParams: newQueryParams,
-      });
-      router?.replace(locationPath);
-    },
-    [platform, searchQuery, sortDirection, sortHeader] // Dependencies required for correct variable state
+    [
+      sortHeader,
+      sortDirection,
+      searchQuery,
+      curTargetedPlatformFilter,
+      router,
+      page,
+    ]
   );
 
   const getEmptyStateParams = useCallback(() => {
-    const emptyQueries: IEmptyTableProps = {
+    const emptyParams: IEmptyTableProps = {
       graphicName: "empty-queries",
       header: "You don't have any queries",
     };
-    if (searchQuery) {
-      delete emptyQueries.graphicName;
-      emptyQueries.header = "No matching queries";
-      emptyQueries.info = "No queries match the current filters.";
+    if (searchQuery || curTargetedPlatformFilter !== "all") {
+      delete emptyParams.graphicName;
+      emptyParams.header = "No matching queries";
+      emptyParams.info = "No queries match the current filters.";
     } else if (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) {
-      emptyQueries.additionalInfo = (
+      emptyParams.additionalInfo = (
         <>
           Create a new query, or{" "}
           <CustomLink
@@ -231,7 +180,7 @@ const QueriesTable = ({
           />
         </>
       );
-      emptyQueries.primaryButton = (
+      emptyParams.primaryButton = (
         <Button
           variant="brand"
           className={`${baseClass}__create-button`}
@@ -242,7 +191,7 @@ const QueriesTable = ({
       );
     }
 
-    return emptyQueries;
+    return emptyParams;
   }, [
     isAnyTeamObserverPlus,
     isObserverPlus,
@@ -251,23 +200,31 @@ const QueriesTable = ({
     searchQuery,
   ]);
 
-  const renderPlatformDropdown = useCallback(() => {
-    const handlePlatformFilterDropdownChange = (platformSelected: string) => {
-      router?.replace(
+  const handlePlatformFilterDropdownChange = useCallback(
+    (selectedTargetedPlatform: string) => {
+      router?.push(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_QUERIES,
           queryParams: {
             ...queryParams,
             page: 0,
-            platform: platformSelected,
+            platform:
+              // separate URL & API 0-values of `platform` (undefined) from dropdown
+              // 0-value of "all"
+              selectedTargetedPlatform === "all"
+                ? undefined
+                : selectedTargetedPlatform,
           },
         })
       );
-    };
+    },
+    [queryParams, router]
+  );
 
+  const renderPlatformDropdown = useCallback(() => {
     return (
       <Dropdown
-        value={platform}
+        value={curTargetedPlatformFilter}
         className={`${baseClass}__platform-dropdown`}
         options={PLATFORM_FILTER_OPTIONS}
         searchable={false}
@@ -275,16 +232,7 @@ const QueriesTable = ({
         iconName="filter"
       />
     );
-  }, [platform, queryParams, router]);
-
-  const renderQueriesCount = useCallback(() => {
-    // Fixes flashing incorrect count before clientside filtering
-    if (isQueriesStateLoading) {
-      return null;
-    }
-
-    return <TableCount name="queries" count={queriesState?.length} />;
-  }, [queriesState, isQueriesStateLoading]);
+  }, [curTargetedPlatformFilter, queryParams, router]);
 
   const columnConfigs = useMemo(
     () =>
@@ -297,7 +245,10 @@ const QueriesTable = ({
     [currentUser, currentTeamId, onlyInheritedQueries]
   );
 
-  const searchable = !(queriesList?.length === 0 && searchQuery === "");
+  const searchable =
+    (totalQueriesCount ?? 0) > 0 ||
+    !!curTargetedPlatformFilter ||
+    !!searchQuery;
 
   const emptyComponent = useCallback(() => {
     const {
@@ -318,52 +269,41 @@ const QueriesTable = ({
 
   const trimmedSearchQuery = searchQuery.trim();
 
-  const deleteQueryTableActionButtonProps = useMemo(
-    () =>
-      ({
-        name: "delete query",
-        buttonText: "Delete",
-        iconSvg: "trash",
-        variant: "text-icon",
-        onActionButtonClick: onDeleteQueryClick,
-        // this maintains the existing typing, which is not actually correct
-        // TODO - update this object to actually implement IActionButtonProps
-      } as IActionButtonProps),
-    [onDeleteQueryClick]
-  );
-
-  return columnConfigs && !isLoading ? (
-    <div className={`${baseClass}`}>
-      <TableContainer
-        resultsTitle="queries"
-        columnConfigs={columnConfigs}
-        data={queriesState}
-        filters={{ name: trimmedSearchQuery }}
-        isLoading={isLoading || isQueriesStateLoading}
-        defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
-        defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
-        defaultSearchQuery={trimmedSearchQuery}
-        defaultPageIndex={page}
-        pageSize={DEFAULT_PAGE_SIZE}
-        inputPlaceHolder="Search by name"
-        onQueryChange={onQueryChange}
-        emptyComponent={emptyComponent}
-        showMarkAllPages={false}
-        isAllPagesSelected={false}
-        searchable={searchable}
-        searchQueryColumn="name"
-        customControl={searchable ? renderPlatformDropdown : undefined}
-        isClientSidePagination
-        onClientSidePaginationChange={onClientSidePaginationChange}
-        isClientSideFilter
-        primarySelectAction={deleteQueryTableActionButtonProps}
-        // TODO - consolidate this functionality within `filters`
-        selectedDropdownFilter={platform}
-        renderCount={renderQueriesCount}
-      />
-    </div>
-  ) : (
-    <></>
+  return (
+    columnConfigs && (
+      <div className={`${baseClass}`}>
+        <TableContainer
+          resultsTitle="queries"
+          columnConfigs={columnConfigs}
+          data={queries}
+          // won't ever actually be loading, see render condition above
+          isLoading={isLoading}
+          defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
+          defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
+          defaultSearchQuery={trimmedSearchQuery}
+          defaultPageIndex={page}
+          disableNextPage={!hasNextResults}
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          primarySelectAction={{
+            name: "delete query",
+            buttonText: "Delete",
+            iconSvg: "trash",
+            variant: "text-icon",
+            onActionButtonClick: onDeleteQueryClick,
+          }}
+          emptyComponent={emptyComponent}
+          renderCount={() => (
+            <TableCount name="queries" count={totalQueriesCount} />
+          )}
+          inputPlaceHolder="Search by name"
+          onQueryChange={onQueryChange}
+          searchable={searchable}
+          customControl={searchable ? renderPlatformDropdown : undefined}
+          selectedDropdownFilter={curTargetedPlatformFilter}
+        />
+      </div>
+    )
   );
 };
 

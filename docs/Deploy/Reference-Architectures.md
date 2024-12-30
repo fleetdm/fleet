@@ -14,6 +14,13 @@ The `fleetctl` binary is the CLI interface which allows management of your deplo
 
 Both binaries are available for download from our [repo](https://github.com/fleetdm/fleet/releases).
 
+Once you've downloaded the binaries, extract the files to your desired location:
+
+```
+tar -xf fleet_v*_linux.tar.gz # Extract the Fleet binary
+sudo cp fleet_v*_linux/fleet /usr/bin/ # Copy the the Fleet binary to /usr/bin
+fleet version # Sanity check to make sure it runs as expected
+```
 
 ## Infrastructure dependencies
 
@@ -29,6 +36,8 @@ For more information on how to configure the `fleet` binary to use the correct M
 Fleet requires at least MySQL version 8.0.36, and is tested using the InnoDB storage engine [with versions 8.0.36 and 8.4.2](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L47).
 
 There are many "drop-in replacements" for MySQL available. If you'd like to experiment with some bleeding-edge technology and use Fleet with one of these alternative database servers, we think that's awesome! Please be aware they are not officially supported and that it is very important to set up a dev environment to thoroughly test new releases. 
+
+> If you use multiple databases per database server for multiple Fleet instances, you'll need to provision more resources for your database server to ensure performance. You can experiment with finding the right resourcing for your needs.
 
 ### Redis
 

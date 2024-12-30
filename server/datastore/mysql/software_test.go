@@ -58,10 +58,10 @@ func TestSoftware(t *testing.T) {
 		{"DeleteSoftwareCPEs", testDeleteSoftwareCPEs},
 		{"SoftwareByIDNoDuplicatedVulns", testSoftwareByIDNoDuplicatedVulns},
 		{"SoftwareByIDIncludesCVEPublishedDate", testSoftwareByIDIncludesCVEPublishedDate},
-		{"getHostSoftwareInstalledPaths", testGetHostSoftwareInstalledPaths},
-		{"hostSoftwareInstalledPathsDelta", testHostSoftwareInstalledPathsDelta},
-		{"deleteHostSoftwareInstalledPaths", testDeleteHostSoftwareInstalledPaths},
-		{"insertHostSoftwareInstalledPaths", testInsertHostSoftwareInstalledPaths},
+		{"GetHostSoftwareInstalledPaths", testGetHostSoftwareInstalledPaths},
+		{"HostSoftwareInstalledPathsDelta", testHostSoftwareInstalledPathsDelta},
+		{"DeleteHostSoftwareInstalledPaths", testDeleteHostSoftwareInstalledPaths},
+		{"InsertHostSoftwareInstalledPaths", testInsertHostSoftwareInstalledPaths},
 		{"VerifySoftwareChecksum", testVerifySoftwareChecksum},
 		{"ListHostSoftware", testListHostSoftware},
 		{"ListIOSHostSoftware", testListIOSHostSoftware},
@@ -69,6 +69,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareInstallThenTransferTeam", testListHostSoftwareInstallThenTransferTeam},
 		{"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
 		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
+		{"TestListHostSoftwareWithLabelScoping", testListHostSoftwareWithLabelScoping},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1342,7 +1343,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	// Insert paths for software1
 	s1Paths := map[string]struct{}{}
 	for _, s := range software1 {
-		key := fmt.Sprintf("%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		s1Paths[key] = struct{}{}
 	}
 	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host1.ID, s1Paths, mutationResults))
@@ -1353,7 +1354,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	// Insert paths for software2
 	s2Paths := map[string]struct{}{}
 	for _, s := range software2 {
-		key := fmt.Sprintf("%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		s2Paths[key] = struct{}{}
 	}
 	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host2.ID, s2Paths, mutationResults))
@@ -2733,9 +2734,9 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 
 	t.Run("host has no software but some paths were reported", func(t *testing.T) {
 		reported := make(map[string]struct{})
-		reported[fmt.Sprintf("/some/path/%d%s%s", software[0].ID, fleet.SoftwareFieldSeparator, software[0].ToUniqueStr())] = struct{}{}
-		reported[fmt.Sprintf("/some/path/%d%s%s", software[1].ID+1, fleet.SoftwareFieldSeparator, software[1].ToUniqueStr())] = struct{}{}
-		reported[fmt.Sprintf("/some/path/%d%s%s", software[2].ID, fleet.SoftwareFieldSeparator, software[2].ToUniqueStr())] = struct{}{}
+		reported[fmt.Sprintf("/some/path/%d%s%s%s%s", software[0].ID, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, software[0].ToUniqueStr())] = struct{}{}
+		reported[fmt.Sprintf("/some/path/%d%s%s%s%s", software[1].ID+1, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, software[1].ToUniqueStr())] = struct{}{}
+		reported[fmt.Sprintf("/some/path/%d%s%s%s%s", software[2].ID, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, software[2].ToUniqueStr())] = struct{}{}
 
 		var stored []fleet.HostSoftwareInstalledPath
 		_, _, err := hostSoftwareInstalledPathsDelta(host.ID, reported, stored, nil)
@@ -2744,7 +2745,7 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 
 	t.Run("we have some deltas", func(t *testing.T) {
 		getKey := func(s fleet.Software, change uint) string {
-			return fmt.Sprintf("/some/path/%d%s%s", s.ID+change, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+			return fmt.Sprintf("/some/path/%d%s%s%s%s", s.ID+change, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		}
 		reported := make(map[string]struct{})
 		reported[getKey(software[0], 0)] = struct{}{}
@@ -3079,6 +3080,19 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	expectedTitlesByNSB[gotTitles[4].Name+gotTitles[4].Source+gotTitles[4].Browser] = gotTitles[4]
 	assertTitles(t, gotTitles, nil)
 	assertSoftware(t, expectedSoftware)
+
+	// Test duplicate key handling in `ReconcileSoftwareTitles`.
+	// Since the existing software_titles and software entries have different `source` values,
+	// the code will attempt to insert into `software_titles`, but the bundle_identifier + additional_identifier
+	// key (com.example.app1-0) will conflict.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err = q.ExecContext(ctx, `INSERT INTO software_titles (id, name, source, browser, bundle_identifier) VALUES (7, 'App1', 'some_source', 'Chrome', 'com.example.app1')`)
+		require.NoError(t, err)
+		_, err = q.ExecContext(ctx, `INSERT INTO software (name, source, browser, bundle_identifier) VALUES ('App1', 'some_other_source', 'Chrome', 'com.example.app1')`)
+		require.NoError(t, err)
+		require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+		return nil
+	})
 }
 
 func testUpdateHostSoftwareDeadlock(t *testing.T, ds *Datastore) {
@@ -3308,7 +3322,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	installPaths := make([]string, 0, len(software))
 	for _, s := range software {
 		path := fmt.Sprintf("/some/path/%s", s.Name)
-		key := fmt.Sprintf("%s%s%s", path, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s", path, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		swPaths[key] = struct{}{}
 		installPaths = append(installPaths, path)
 	}
@@ -4601,16 +4615,17 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 	// create a software installer for team 1
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
-	installerTm1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "hello",
-		InstallerFile: tfr1,
-		StorageID:     "storage1",
-		Filename:      "file1",
-		Title:         "file1",
-		Version:       "1.0",
-		Source:        "apps",
-		TeamID:        &team1.ID,
-		UserID:        user.ID,
+	installerTm1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "hello",
+		InstallerFile:   tfr1,
+		StorageID:       "storage1",
+		Filename:        "file1",
+		Title:           "file1",
+		Version:         "1.0",
+		Source:          "apps",
+		TeamID:          &team1.ID,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -4713,16 +4728,17 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 	// create a software installer for team 1
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
-	installerTm1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "hello",
-		InstallerFile: tfr1,
-		StorageID:     "storage1",
-		Filename:      "file1",
-		Title:         "file1",
-		Version:       "1.0",
-		Source:        "apps",
-		TeamID:        &team1.ID,
-		UserID:        user.ID,
+	installerTm1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "hello",
+		InstallerFile:   tfr1,
+		StorageID:       "storage1",
+		Filename:        "file1",
+		Title:           "file1",
+		Version:         "1.0",
+		Source:          "apps",
+		TeamID:          &team1.ID,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -5232,4 +5248,284 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 			require.Equal(t, len(tt.expected), count)
 		})
 	}
+}
+
+func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create a host
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	time.Sleep(time.Second) // ensure the labels_updated_at timestamp is before labels creation
+
+	// create a software installer
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	installer1 := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		UninstallScript:   "goodbye",
+		InstallerFile:     tfr1,
+		StorageID:         "storage1",
+		Filename:          "file1",
+		Title:             "file1",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		BundleIdentifier:  "bi1",
+		Platform:          "darwin",
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	}
+	installerID1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, installer1)
+	require.NoError(t, err)
+
+	// we should see installer1, since it has no label associated yet
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{
+			PerPage:               11,
+			IncludeMetadata:       true,
+			OrderKey:              "name",
+			TestSecondaryOrderKey: "source",
+		},
+		IncludeAvailableForInstall: true,
+	}
+	expectedInstallers := map[string]*fleet.SoftwarePackageOrApp{
+		installer1.Filename: {
+			Name:        installer1.Filename,
+			Version:     installer1.Version,
+			SelfService: ptr.Bool(false),
+		},
+	}
+
+	checkSoftware := func(swList []*fleet.HostSoftwareWithInstaller, excludeNames ...string) {
+		for _, got := range swList {
+			want, ok := expectedInstallers[got.SoftwarePackage.Name]
+			if slices.Contains(excludeNames, got.SoftwarePackage.Name) {
+				require.False(t, ok)
+				continue
+			}
+			require.True(t, ok)
+			require.Equal(t, want, got.SoftwarePackage)
+		}
+	}
+
+	software, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	checkSoftware(software)
+
+	// installer1 should be in scope since it has no labels
+	scoped, err := ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1" + t.Name()})
+	require.NoError(t, err)
+
+	// assign the label to the host
+	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{label1.ID}))
+	host.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
+	// assign the label to the software installer
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID1, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeExcludeAny,
+		ByName:     map[string]fleet.LabelIdent{label1.Name: {LabelName: label1.Name, LabelID: label1.ID}},
+	})
+	require.NoError(t, err)
+
+	// should be empty as the installer label is "exclude any"
+	software, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Empty(t, software)
+
+	// installer1 should be out of scope since the label is "exclude any"
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
+
+	// Update the label to be "include any"
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID1, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAny,
+		ByName:     map[string]fleet.LabelIdent{label1.Name: {LabelName: label1.Name, LabelID: label1.ID}},
+	})
+	require.NoError(t, err)
+
+	software, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	checkSoftware(software)
+
+	// Now installer1 is in scope again: label is "include any"
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+
+	// Add an installer. No label yet.
+	installer2 := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		UninstallScript:   "goodbye",
+		InstallerFile:     tfr1,
+		StorageID:         "storage2",
+		Filename:          "file2",
+		Title:             "file2",
+		Version:           "2.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		BundleIdentifier:  "bi2",
+		Platform:          "darwin",
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	}
+	installerID2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, installer2)
+	require.NoError(t, err)
+
+	expectedInstallers[installer2.Filename] = &fleet.SoftwarePackageOrApp{
+		Name:        installer2.Filename,
+		Version:     installer2.Version,
+		SelfService: ptr.Bool(false),
+	}
+
+	// There's 2 installers now: installerID1 and installerID2 (because it has no labels associated)
+	software, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	checkSoftware(software)
+
+	// Add "exclude any" labels to installer2
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2" + t.Name()})
+	require.NoError(t, err)
+
+	label3, err := ds.NewLabel(ctx, &fleet.Label{Name: "label3" + t.Name()})
+	require.NoError(t, err)
+
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID2, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeExcludeAny,
+		ByName: map[string]fleet.LabelIdent{
+			label2.Name: {LabelName: label2.Name, LabelID: label2.ID},
+			label3.Name: {LabelName: label3.Name, LabelID: label3.ID},
+		},
+	})
+	require.NoError(t, err)
+
+	// Now host has label1, label2
+	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{label2.ID}))
+	host.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
+	// List should be back to just installer1
+	software, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	checkSoftware(software, installer2.Filename)
+
+	// installer1 is still in scope
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+
+	// installer2 is out of scope, because host has label2
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID2, host.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
+
+	// Add an installer. No label yet.
+	installer3 := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		UninstallScript:   "goodbye",
+		InstallerFile:     tfr1,
+		StorageID:         "storage3",
+		Filename:          "file3",
+		Title:             "file3",
+		Version:           "3.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		BundleIdentifier:  "bi3",
+		Platform:          "darwin",
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	}
+	installerID3, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, installer3)
+	require.NoError(t, err)
+
+	time.Sleep(time.Second)
+	expectedInstallers[installer3.Filename] = &fleet.SoftwarePackageOrApp{
+		Name:        installer3.Filename,
+		Version:     installer3.Version,
+		SelfService: ptr.Bool(false),
+	}
+
+	// Add a new label and apply it to the installer. There are no hosts with this label.
+	label4, err := ds.NewLabel(ctx, &fleet.Label{Name: "label4" + t.Name()})
+	require.NoError(t, err)
+
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID3, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeExcludeAny,
+		ByName:     map[string]fleet.LabelIdent{label4.Name: {LabelName: label4.Name, LabelID: label4.ID}},
+	})
+	require.NoError(t, err)
+
+	// We should have [installerID1, installerID3], but the exclude any label has
+	// no results for this host yet, so it's just installerID1 for now.
+	software, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	// installer1 is still in scope
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+
+	// installer3 is not in scope yet, because label is "exclude any" and host doesn't have results
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID3, host.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
+
+	// mark as if label had been reported (but host is still not a member)
+	host.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
+	// now has 2 software (installer1 and 3)
+	software, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	checkSoftware(software, installer2.Filename)
+
+	// installer1 is still in scope
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+
+	// installer3 is in scope, because label is "exclude any" and host doesn't have the label
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID3, host.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+
+	// Now include hosts with label4. No host has this label, so we shouldn't see installerID3 anymore.
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID3, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAny,
+		ByName:     map[string]fleet.LabelIdent{label4.Name: {LabelName: label4.Name, LabelID: label4.ID}},
+	})
+	require.NoError(t, err)
+
+	// We should have [installerID1]
+	software, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	checkSoftware(software, installer2.Filename, installer3.Filename)
+
+	// installer1 is still in scope
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+
+	// installer3 is not in scope
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID3, host.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
 }

@@ -189,10 +189,11 @@ type MDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
-	MacOSSettings         MacOSSettings            `json:"macos_settings"`
-	MacOSSetup            MacOSSetup               `json:"macos_setup"`
-	MacOSMigration        MacOSMigration           `json:"macos_migration"`
-	EndUserAuthentication MDMEndUserAuthentication `json:"end_user_authentication"`
+	MacOSSettings           MacOSSettings            `json:"macos_settings"`
+	MacOSSetup              MacOSSetup               `json:"macos_setup"`
+	MacOSMigration          MacOSMigration           `json:"macos_migration"`
+	WindowsMigrationEnabled bool                     `json:"windows_migration_enabled"`
+	EndUserAuthentication   MDMEndUserAuthentication `json:"end_user_authentication"`
 
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
@@ -385,6 +386,7 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 					spec.Labels = extractLabelField(m, "labels")
 					spec.LabelsIncludeAll = extractLabelField(m, "labels_include_all")
 					spec.LabelsExcludeAny = extractLabelField(m, "labels_exclude_any")
+					spec.LabelsIncludeAny = extractLabelField(m, "labels_include_any")
 
 					csSpecs = append(csSpecs, spec)
 				} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
@@ -517,6 +519,8 @@ type AppConfig struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for scripts is in MySQL.)
 	Scripts optjson.Slice[string] `json:"scripts"`
+
+	YaraRules []YaraRule `json:"yara_rules,omitempty"`
 
 	// when true, strictDecoding causes the UnmarshalJSON method to return an
 	// error if there are unknown fields in the raw JSON.
@@ -681,6 +685,12 @@ func (c *AppConfig) Copy() *AppConfig {
 			sw[i] = &s
 		}
 		clone.MDM.MacOSSetup.Software = optjson.SetSlice(sw)
+	}
+
+	if c.YaraRules != nil {
+		rules := make([]YaraRule, len(c.YaraRules))
+		copy(rules, c.YaraRules)
+		clone.YaraRules = rules
 	}
 
 	return &clone
@@ -1115,6 +1125,9 @@ type ListQueryOptions struct {
 	// MergeInherited merges inherited global queries into the team list.  Is only valid when TeamID
 	// is set.
 	MergeInherited bool
+	// Return queries that are scheduled to run on this platform. One of "macos",
+	// "windows", or "linux"
+	Platform *string
 }
 
 type ListActivitiesOptions struct {
@@ -1376,4 +1389,13 @@ type WindowsSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
 	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings"`
+}
+
+type YaraRuleSpec struct {
+	Path string `json:"path"`
+}
+
+type YaraRule struct {
+	Name     string `json:"name"`
+	Contents string `json:"contents"`
 }

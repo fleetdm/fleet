@@ -3,10 +3,11 @@ package allmulti
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/ctxlog"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
+
+	"github.com/micromdm/nanolib/log"
+	"github.com/micromdm/nanolib/log/ctxlog"
 )
 
 // MultiAllStorage dispatches to multiple AllStorage instances.
@@ -95,4 +96,11 @@ func (ms *MultiAllStorage) Disable(r *mdm.Request) error {
 		return nil, s.Disable(r)
 	})
 	return err
+}
+
+func (ms *MultiAllStorage) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
+	doc, err := ms.execStores(ctx, func(s storage.AllStorage) (interface{}, error) {
+		return s.ExpandEmbeddedSecrets(ctx, document)
+	})
+	return doc.(string), err
 }

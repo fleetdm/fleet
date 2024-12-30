@@ -19,22 +19,21 @@ defaults:
     shell: bash
 
 env:
-  FLEET_DESKTOP_VERSION: 1.35.0
+  FLEET_DESKTOP_VERSION: 1.37.0
 
 permissions:
-  contents: read
+  contents: write
+  id-token: write
+  attestations: write
+  packages: write
 
 jobs:
   desktop-macos:
-    # Set macOS version to '12' (current equivalent to macos-latest) for
+    # Set macOS version to '13' (previously was macos-12, and it was deprecated) for
     # building the binary. This ensures compatibility with macOS version 13 and
     # later, avoiding runtime errors on systems using macOS 13 or newer.
-    #
-    # Note: Update this version to '13' once GitHub marks macOS 13 as stable
-    # or if we revise our minimum supported macOS version.
-    runs-on: macos-12
+    runs-on: macos-13
     steps:
-
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
         with:
@@ -78,6 +77,12 @@ jobs:
           FLEET_DESKTOP_VERSION=$FLEET_DESKTOP_VERSION \
           make desktop-app-tar-gz
 
+      - name: Attest binary
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: "desktop.app.tar.gz"
+
       - name: Upload desktop.app.tar.gz
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
@@ -87,7 +92,6 @@ jobs:
   desktop-windows:
     runs-on: ubuntu-latest
     steps:
-
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
         with:
@@ -105,6 +109,12 @@ jobs:
         run: |
           FLEET_DESKTOP_VERSION=$FLEET_DESKTOP_VERSION \
           make desktop-windows
+
+      - name: Attest binary
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: "fleet-desktop.exe"
 
       - name: Upload fleet-desktop.exe
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
@@ -128,7 +138,6 @@ jobs:
   desktop-linux:
     runs-on: ubuntu-latest
     steps:
-
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
         with:
@@ -147,6 +156,12 @@ jobs:
           FLEET_DESKTOP_VERSION=$FLEET_DESKTOP_VERSION \
           make desktop-linux
 
+      - name: Attest binary
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: "desktop.tar.gz"
+
       - name: Upload desktop.tar.gz
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
@@ -156,7 +171,6 @@ jobs:
   desktop-linux-arm64:
     runs-on: ubuntu-latest
     steps:
-
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
         with:
@@ -174,6 +188,12 @@ jobs:
         run: |
           FLEET_DESKTOP_VERSION=$FLEET_DESKTOP_VERSION \
           make desktop-linux-arm64
+
+      - name: Attest binary
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: 'desktop.tar.gz'
 
       - name: Upload desktop.tar.gz
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3

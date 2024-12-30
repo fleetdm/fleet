@@ -52,7 +52,7 @@ Upon failure of the selected policy, the selected software installation will be 
 
 * After configuring Fleet to auto-install a specific software the rest will be done automatically.
 * The policy check mechanism runs on a typical 1 hour cadence on all online hosts. 
-* Fleet will send install requests to the hosts on the first policy failure (first "No" result for the host) or if a policy goes from "Yes" to "No". On this iteration it will not send a install request if a policy is already failing and continues to fail ("No" -> "No"). See the following flowchart for details.
+* Fleet will send install requests to the hosts on the first policy failure (first "No" result for the host) or if a policy goes from "Yes" to "No". On this iteration it will not send an install request if a policy is already failing and continues to fail ("No" -> "No"). See the following flowchart for details.
 
 ![Flowchart](../website/assets/images/articles/automatic-software-install-workflow.png)
 *Detailed flowchart*

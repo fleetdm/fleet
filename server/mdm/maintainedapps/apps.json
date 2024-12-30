@@ -2,12 +2,14 @@
 	{
 		"identifier": "1password",
 		"bundle_identifier": "com.1password.1password",
-		"installer_format": "zip:app"
+		"installer_format": "zip:app",
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.1password.1password';"
 	},
 	{
 		"identifier": "adobe-acrobat-reader",
 		"bundle_identifier": "com.adobe.Reader",
-		"installer_format": "dmg:pkg"
+		"installer_format": "dmg:pkg",
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader';"
 	},
 	{
 		"identifier": "box-drive",
@@ -20,91 +22,110 @@
 			"(cd /Users/$LOGGED_IN_USER; defaults delete com.box.desktop)",
 			"echo \"${LOGGED_IN_USER} ALL = (root) NOPASSWD: /Library/Application\\ Support/Box/uninstall_box_drive_r\" >> /etc/sudoers.d/box_uninstall"
 		],
-		"post_uninstall_scripts": ["rm /etc/sudoers.d/box_uninstall"]
+		"post_uninstall_scripts": ["rm /etc/sudoers.d/box_uninstall"],
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.box.desktop';"
 	},
 	{
 		"identifier": "brave-browser",
 		"bundle_identifier": "com.brave.Browser",
-		"installer_format": "dmg:app"
+		"installer_format": "dmg:app",
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.brave.Browser';"
 	},
 	{
 		"identifier": "cloudflare-warp",
 		"bundle_identifier": "com.cloudflare.1dot1dot1dot1.macos",
-		"installer_format": "pkg"
+		"installer_format": "pkg",
+		"post_uninstall_scripts": ["/Applications/Cloudflare\\ WARP.app/Contents/Resources/uninstall.sh"],
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.cloudflare.1dot1dot1dot1.macos';"
 	},
 	{
 		"identifier": "docker",
 		"bundle_identifier": "com.docker.docker",
-		"installer_format": "dmg:app"
+		"installer_format": "dmg:app",
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker';"
 	},
 	{
 		"identifier": "figma",
 		"bundle_identifier": "com.figma.Desktop",
-		"installer_format": "zip:app"
+		"installer_format": "zip:app",
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.figma.Desktop';"
 	},
 	{
 		"identifier": "firefox",
 		"bundle_identifier": "org.mozilla.firefox",
-		"installer_format": "dmg:app"
+		"installer_format": "dmg:app",
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox';"
 	},
 	{
 		"identifier": "google-chrome",
 		"bundle_identifier": "com.google.Chrome",
-		"installer_format": "dmg:app"
+		"installer_format": "dmg:app",
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.Chrome';"
 	},
 	{
 		"identifier": "microsoft-edge",
 		"bundle_identifier": "com.microsoft.edgemac",
-		"installer_format": "pkg"
+		"installer_format": "pkg",
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.edgemac';"
 	},
 	{
 		"identifier": "microsoft-excel",
 		"bundle_identifier": "com.microsoft.Excel",
-		"installer_format": "pkg"
+		"installer_format": "pkg",
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.Excel';"
 	},
 	{
 		"identifier": "microsoft-teams",
 		"bundle_identifier": "com.microsoft.teams2",
-		"installer_format": "pkg"
+		"installer_format": "pkg",
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.teams2';"
 	},
 	{
 		"identifier": "microsoft-word",
 		"bundle_identifier": "com.microsoft.Word",
-		"installer_format": "pkg"
+		"installer_format": "pkg",
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.Word';"
 	},
 	{
 		"identifier": "notion",
 		"bundle_identifier": "notion.id",
-		"installer_format": "dmg:app"
+		"installer_format": "dmg:app",
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'notion.id';"
 	},
 	{
 		"identifier": "postman",
 		"bundle_identifier": "com.postmanlabs.mac",
-		"installer_format": "zip:app"
+		"installer_format": "zip:app",
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.postmanlabs.mac';"
 	},
 	{
 		"identifier": "slack",
 		"bundle_identifier": "com.tinyspeck.slackmacgap",
-		"installer_format": "dmg:app"
+		"installer_format": "dmg:app",
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinyspeck.slackmacgap';"
 	},
 	{
 		"identifier": "teamviewer",
 		"bundle_identifier": "com.teamviewer.TeamViewer",
-		"installer_format": "pkg"
+		"installer_format": "pkg",
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.teamviewer.TeamViewer';"
 	},
 	{
 		"identifier": "visual-studio-code",
 		"bundle_identifier": "com.microsoft.VSCode",
-		"installer_format": "zip:app"
+		"installer_format": "zip:app",
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.VSCode';"
 	},
 	{
 		"identifier": "whatsapp",
 		"bundle_identifier": "net.whatsapp.WhatsApp",
-		"installer_format": "zip:app"
+		"installer_format": "zip:app",
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.whatsapp.WhatsApp';"
 	},
 	{
-		"identifier": "zoom",
+		"identifier": "zoom-for-it-admins",
 		"bundle_identifier": "us.zoom.xos",
-		"installer_format": "pkg"
+		"installer_format": "pkg",
+		"automatic_policy_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos';"
 	}
 ]

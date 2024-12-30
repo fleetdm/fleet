@@ -28,6 +28,7 @@ import (
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 
@@ -615,12 +616,20 @@ func NewCertStoreProvisioningData(enrollmentType string, identityFingerprint str
 	return certStore
 }
 
-// IsEligibleForWindowsMDMEnrollment returns true if the host can be enrolled
+// isEligibleForWindowsMDMEnrollment returns true if the host can be enrolled
 // in Fleet's Windows MDM (if it was enabled).
-func IsEligibleForWindowsMDMEnrollment(host *fleet.Host, mdmInfo *fleet.HostMDM) bool {
+func isEligibleForWindowsMDMEnrollment(host *fleet.Host, mdmInfo *fleet.HostMDM) bool {
 	return host.FleetPlatform() == "windows" &&
 		host.IsOsqueryEnrolled() &&
 		(mdmInfo == nil || (!mdmInfo.IsServer && !mdmInfo.Enrolled))
+}
+
+// isEligibleForWindowsMDMMigration returns true if the host can be migrated to
+// Fleet's Windows MDM (if it was enabled).
+func isEligibleForWindowsMDMMigration(host *fleet.Host, mdmInfo *fleet.HostMDM) bool {
+	return host.FleetPlatform() == "windows" &&
+		host.IsOsqueryEnrolled() &&
+		(mdmInfo != nil && !mdmInfo.IsServer && mdmInfo.Enrolled && mdmInfo.Name != fleet.WellKnownMDMFleet)
 }
 
 // NewApplicationProvisioningData returns a new ApplicationProvisioningData Characteristic
@@ -976,7 +985,7 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 			}
 
 			// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
-			if !IsEligibleForWindowsMDMEnrollment(host, mdmInfo) {
+			if !isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
 				return "", "", errors.New("host is not elegible for Windows MDM enrollment")
 			}
 
@@ -1534,8 +1543,14 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, deviceID string) ([]*
 	// Converting the pending commands to its target SyncML types
 	var cmds []*mdm_types.SyncMLCmd
 	for _, pendingCmd := range pendingCmds {
+		// The raw MDM command may contain a $FLEET_SECRET_XXX, the value of which should never be exposed or stored unencrypted.
+		rawCommandWithSecret, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(pendingCmd.RawCommand))
+		if err != nil {
+			// This error should never happen since we validate the presence of needed secrets on profile upload.
+			return nil, ctxerr.Wrap(ctx, err, "expanding embedded secrets for Windows pending commands")
+		}
 		cmd := new(mdm_types.SyncMLCmd)
-		if err := xml.Unmarshal(pendingCmd.RawCommand, cmd); err != nil {
+		if err := xml.Unmarshal([]byte(rawCommandWithSecret), cmd); err != nil {
 			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "getPendingMDMCmds syncML cmd creation"))
 			continue
 		}
@@ -1790,6 +1805,8 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 
 	// TODO: azure enrollments come with an empty uuid, I haven't figured
 	// out a good way to identify the device.
+	displayName := reqDeviceName
+	var serial string
 	if hostUUID != "" {
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
@@ -1800,12 +1817,34 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		if err != nil {
 			return err
 		}
+
+		// Get the host in order to get the correct display name and serial number for the activity
+		adminTeamFilter := fleet.TeamFilter{
+			User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+		}
+
+		hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, adminTeamFilter, []string{hostUUID})
+		if err != nil {
+			// Do not abort; this call was only made to get better data for the activity, so shouldn't
+			// fail the request. We fall back to `reqDeviceName` for the display name in this case.
+			logging.WithExtras(logging.WithNoUser(ctx),
+				"msg", "failed to get host data for windows MDM enrollment activity",
+			)
+		}
+
+		if len(hosts) == 1 {
+			// then we found the host, so use the data from there for the activity
+			displayName = hosts[0].DisplayName()
+			serial = hosts[0].HardwareSerial
+		}
+
 	}
 
 	err = svc.NewActivity(
 		ctx, nil, &fleet.ActivityTypeMDMEnrolled{
-			HostDisplayName: reqDeviceName,
+			HostDisplayName: displayName,
 			MDMPlatform:     fleet.MDMPlatformMicrosoft,
+			HostSerial:      serial,
 		})
 	if err != nil {
 		// only logging, the device is enrolled at this point, and we

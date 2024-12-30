@@ -1,2 +1,0 @@
-- fix issue when trying to download the manual enrollment profile when device token is expired. We
-  now show an error for this case.

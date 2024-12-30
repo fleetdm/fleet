@@ -19,9 +19,9 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 | I want to _________________________________________
 | so that I can _________________________________________.
 
-## Objective
+## Key result
 
-<!-- What quarterly objective does this story contribute to, if any? If it doesn't contribute to an objective, explain why it's being prioritized. -->
+<!-- What quarterly key result (KR) does this story contribute to, if any? If it doesn't contribute to a KR, explain why it's being prioritized. -->
 
 ## Original requests
 
@@ -39,16 +39,18 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 ## Changes
 
 ### Product
-- [ ] UI changes: TODO <!-- Insert the link to the relevant Figma cover page. Put "No changes" if there are no changes to the user interface. -->
+- [ ] UI changes: TODO <!-- Insert the link to the relevant Figma cover page. Make sure  wireframes show the UI down to 320px (min screen width). Put "No changes" if there are no changes to the user interface. -->
 - [ ] CLI (fleetctl) usage changes: TODO <!-- Insert the link to the relevant Figma cover page. Put "No changes" if there are no changes to the CLI. -->
-- [ ] YAML changes: TODO <!-- Specify changes in the YAML files doc page as a PR to the reference docs release branch. Put "No changes" if there are no changes necessary. -->
-- [ ] REST API changes: TODO <!-- Specify changes in the the REST API doc page as a PR to reference docs release branch. Put "No changes" if there are no changes necessary. Move this item to the engineering list below if engineering will design the API changes. -->
+- [ ] YAML changes: TODO <!-- Specify changes in the YAML files doc page as a PR to the reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. -->
+- [ ] REST API changes: TODO <!-- Specify changes in the the REST API doc page as a PR to reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. Move this item to the engineering list below if engineering will design the API changes. -->
 - [ ] Fleet's agent (fleetd) changes: TODO <!-- Specify changes to fleetd. If the change requires a new Fleet (server) version, consider specifying to only enable this change in new Fleet versions. Put "No changes" if there are no changes necessary. -->
-- [ ] Activity changes: TODO <!-- Specify changes to Fleet's activity feed as a draft PR to the Audit log page in the contributor docs: https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Audit-logs.md This PR will be closed before release because the Audit log page is automatically generated: https://fleetdm.com/handbook/company/communications#audit-logs Put "No changes" if there are no changes necessary. -->
+- [ ] Activity changes: TODO <!-- Specify changes to the Audit log page in the contributor docs. Put "No changes" if there are no changes necessary. -->
 - [ ] Permissions changes: TODO <!-- Specify changes in the Manage access doc page as a PR to the reference docs release branch. If doc changes aren't necessary, explicitly mention no changes to the doc page. Put "No changes" if there are no permissions changes. -->
-- [ ] Changes to paid features or tiers: TODO  <!-- Specify changes in pricing-features-table.yml as a PR to reference docs release branch. Remove this checkbox and specify "Fleet Free" or "Fleet Premium" if there are no changes to the pricing page necessary. -->
+- [ ] Changes to paid features or tiers: TODO  <!-- Specify changes in pricing-features-table.yml as a PR to reference docs release branch. Specify "Fleet Free" and/or "Fleet Premium" if there are no changes to the pricing page necessary. -->
+- [ ] Transparency changes: TODO <!-- If there are changes to the personal information Fleet can see on end user workstations, make sure wireframes include changes to the My device page. Also, specify changes as a PR to the fleetdm.com/better (aka Transparency page). Put "No changes" if there are no changes necessary. -->
 - [ ] Other reference documentation changes: TODO <!-- Any other reference doc changes? Specify changes as a PR to reference docs release branch. Put "No changes" if there are no changes necessary. -->
 - [ ] Once shipped, requester has been notified
+- [ ] Once shipped, dogfooding issue has been filed
 
 ### Engineering
 - [ ] Feature guide changes: TODO <!-- Specify if a new feature guide is required at fleetdm.com/guides, or if a previous guide should be updated to reflect feature changes. -->

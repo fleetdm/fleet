@@ -135,3 +135,27 @@ export const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDispla
     tooltip: null,
   },
 };
+
+type LinuxDiskEncryptionDisplayConfig = Omit<
+  OperationTypeOption,
+  "success" | "pending" | "acknowledged" | "verifying"
+>;
+
+export const LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG: LinuxDiskEncryptionDisplayConfig = {
+  verified: {
+    statusText: "Verified",
+    iconName: "success",
+    tooltip: () =>
+      "The host turned disk encryption on and sent the key to Fleet. Fleet verified.",
+  },
+  failed: {
+    statusText: "Failed",
+    iconName: "error",
+    tooltip: null,
+  },
+  action_required: {
+    statusText: "Action required (pending)",
+    iconName: "pending-outline",
+    tooltip: TooltipInnerContentActionRequired as TooltipInnerContentFunc,
+  },
+};

@@ -30,6 +30,9 @@ type uploadSoftwareInstallerRequest struct {
 	PostInstallScript string
 	SelfService       bool
 	UninstallScript   string
+	LabelsIncludeAny  []string
+	LabelsExcludeAny  []string
+	AutomaticInstall  bool
 }
 
 type updateSoftwareInstallerRequest struct {
@@ -41,6 +44,8 @@ type updateSoftwareInstallerRequest struct {
 	PostInstallScript *string
 	UninstallScript   *string
 	SelfService       *bool
+	LabelsIncludeAny  []string
+	LabelsExcludeAny  []string
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -131,6 +136,30 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.SelfService = &parsed
 	}
 
+	// decode labels
+	var inclAny, exclAny []string
+	var existsInclAny, existsExclAny bool
+
+	inclAny, existsInclAny = r.MultipartForm.Value[string(fleet.LabelsIncludeAny)]
+	switch {
+	case !existsInclAny:
+		decoded.LabelsIncludeAny = nil
+	case len(inclAny) == 1 && inclAny[0] == "":
+		decoded.LabelsIncludeAny = []string{}
+	default:
+		decoded.LabelsIncludeAny = inclAny
+	}
+
+	exclAny, existsExclAny = r.MultipartForm.Value[string(fleet.LabelsExcludeAny)]
+	switch {
+	case !existsExclAny:
+		decoded.LabelsExcludeAny = nil
+	case len(exclAny) == 1 && exclAny[0] == "":
+		decoded.LabelsExcludeAny = []string{}
+	default:
+		decoded.LabelsExcludeAny = exclAny
+	}
+
 	return &decoded, nil
 }
 
@@ -145,6 +174,8 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		PostInstallScript: req.PostInstallScript,
 		UninstallScript:   req.UninstallScript,
 		SelfService:       req.SelfService,
+		LabelsIncludeAny:  req.LabelsIncludeAny,
+		LabelsExcludeAny:  req.LabelsExcludeAny,
 	}
 	if req.File != nil {
 		ff, err := req.File.Open()
@@ -261,6 +292,39 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.SelfService = parsed
 	}
 
+	// decode labels
+	var inclAny, exclAny []string
+	var existsInclAny, existsExclAny bool
+
+	inclAny, existsInclAny = r.MultipartForm.Value[string(fleet.LabelsIncludeAny)]
+	switch {
+	case !existsInclAny:
+		decoded.LabelsIncludeAny = nil
+	case len(inclAny) == 1 && inclAny[0] == "":
+		decoded.LabelsIncludeAny = []string{}
+	default:
+		decoded.LabelsIncludeAny = inclAny
+	}
+
+	exclAny, existsExclAny = r.MultipartForm.Value[string(fleet.LabelsExcludeAny)]
+	switch {
+	case !existsExclAny:
+		decoded.LabelsExcludeAny = nil
+	case len(exclAny) == 1 && exclAny[0] == "":
+		decoded.LabelsExcludeAny = []string{}
+	default:
+		decoded.LabelsExcludeAny = exclAny
+	}
+
+	val, ok = r.MultipartForm.Value["automatic_install"]
+	if ok && len(val) > 0 && val[0] != "" {
+		parsed, err := strconv.ParseBool(val[0])
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode automatic_install bool in multipart form: %s", err.Error())}
+		}
+		decoded.AutomaticInstall = parsed
+	}
+
 	return &decoded, nil
 }
 
@@ -289,6 +353,9 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		Filename:          req.File.Filename,
 		SelfService:       req.SelfService,
 		UninstallScript:   req.UninstallScript,
+		LabelsIncludeAny:  req.LabelsIncludeAny,
+		LabelsExcludeAny:  req.LabelsExcludeAny,
+		AutomaticInstall:  req.AutomaticInstall,
 	}
 
 	if err := svc.UploadSoftwareInstaller(ctx, payload); err != nil {
@@ -549,9 +616,9 @@ func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID st
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetSoftwareInstallersRequest struct {
-	TeamName string                           `json:"-" query:"team_name,optional"`
-	DryRun   bool                             `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
-	Software []fleet.SoftwareInstallerPayload `json:"software"`
+	TeamName string                            `json:"-" query:"team_name,optional"`
+	DryRun   bool                              `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
+	Software []*fleet.SoftwareInstallerPayload `json:"software"`
 }
 
 type batchSetSoftwareInstallersResponse struct {
@@ -560,6 +627,7 @@ type batchSetSoftwareInstallersResponse struct {
 }
 
 func (r batchSetSoftwareInstallersResponse) error() error { return r.Err }
+func (r batchSetSoftwareInstallersResponse) Status() int  { return http.StatusAccepted }
 
 func batchSetSoftwareInstallersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*batchSetSoftwareInstallersRequest)
@@ -570,7 +638,7 @@ func batchSetSoftwareInstallersEndpoint(ctx context.Context, request interface{}
 	return batchSetSoftwareInstallersResponse{RequestUUID: requestUUID}, nil
 }
 
-func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool) (string, error) {
+func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []*fleet.SoftwareInstallerPayload, dryRun bool) (string, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

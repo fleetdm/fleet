@@ -67,6 +67,14 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 	tc := config.TestConfig()
 	tc.Osquery.MinSoftwareLastOpenedAtDiff = defaultMinLastOpenedAtDiff
 
+	// TODO: for some reason we never log datastore messages when running integration tests, why?
+	//
+	// Changes below assume that we want to follows the same pattern as the rest of the codebase.
+	dslogger := log.NewLogfmtLogger(os.Stdout)
+	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
+		dslogger = log.NewNopLogger()
+	}
+
 	// set SQL mode to ANSI, as it's a special mode equivalent to:
 	// REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, and
 	// ONLY_FULL_GROUP_BY
@@ -76,7 +84,7 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 	// standard SQL.
 	//
 	// https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_ansi
-	ds, err := New(cfg, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1), replicaOpt, SQLMode("ANSI"), WithFleetConfig(&tc))
+	ds, err := New(cfg, clock.NewMockClock(), Logger(dslogger), LimitAttempts(1), replicaOpt, SQLMode("ANSI"), WithFleetConfig(&tc))
 	require.Nil(t, err)
 
 	if opts.DummyReplica {
@@ -110,12 +118,17 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *Datas
 	}
 	t.Cleanup(cancel)
 
+	type replicationRun struct {
+		forceTables     []string
+		replicationDone chan struct{}
+	}
+
 	// start the replication goroutine that runs when signalled through a
 	// channel, the replication runs in lock-step - the test is in control of
 	// when the replication happens, by calling opts.RunReplication(), and when
 	// that call returns, the replication is guaranteed to be done. This supports
 	// simulating all kinds of replica lag.
-	ch := make(chan chan struct{})
+	ch := make(chan replicationRun)
 	go func() {
 		// if it exits because of a panic/failed replication, cancel the context
 		// immediately so that RunReplication is unblocked too.
@@ -168,6 +181,20 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *Datas
             update_time >= ?`, testName, last)
 				require.NoError(t, err)
 
+				// dedupe and add forced tables
+				tableSet := make(map[string]bool, len(tables)+len(out.forceTables))
+				for _, tbl := range tables {
+					tableSet[tbl] = true
+				}
+				for _, tbl := range out.forceTables {
+					tableSet[tbl] = true
+				}
+				tables = tables[:0]
+				for tbl := range tableSet {
+					tables = append(tables, tbl)
+				}
+				t.Logf("changed tables since %v: %v", last, tables)
+
 				err = primary.GetContext(ctx, &last, `
           SELECT
             MAX(update_time)
@@ -177,6 +204,7 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *Datas
             table_schema = ? AND
             table_type = 'BASE TABLE'`, testName)
 				require.NoError(t, err)
+				t.Logf("last update time of primary is now %v", last)
 
 				// replicate by dropping the existing table and re-creating it from
 				// the primary.
@@ -195,7 +223,7 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *Datas
 					require.NoError(t, err)
 				}
 
-				out <- struct{}{}
+				out.replicationDone <- struct{}{}
 				t.Logf("replication step executed, next will consider updates since %s", last)
 
 			case <-ctx.Done():
@@ -206,9 +234,9 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *Datas
 
 	// set RunReplication to a function that triggers the replication and waits
 	// for it to complete.
-	opts.RunReplication = func() {
+	opts.RunReplication = func(forceTables ...string) {
 		done := make(chan struct{})
-		ch <- done
+		ch <- replicationRun{forceTables, done}
 		select {
 		case <-done:
 		case <-ctx.Done():
@@ -405,7 +433,10 @@ type DatastoreTestOptions struct {
 	// missing changes from the primary to the replica. The function is created
 	// and set automatically by CreateMySQLDSWithOptions. The test is in full
 	// control of when the replication is executed. Only applies to DummyReplica.
-	RunReplication func()
+	// Note that not all changes to data show up in the information_schema
+	// update_time timestamp, so to work around that limitation, explicit table
+	// names can be provided to force their replication.
+	RunReplication func(forceTables ...string)
 
 	// RealReplica indicates that the replica should be a real DB replica, with a dedicated connection.
 	RealReplica bool

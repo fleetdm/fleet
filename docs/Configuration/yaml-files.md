@@ -4,7 +4,6 @@ Use Fleet's best practice GitOps workflow to manage your computers as code.
 
 To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
 
-
 The following are the required keys in the `default.yml` and any `teams/team-name.yml` files:
 
 ```yaml
@@ -16,6 +15,8 @@ controls: # Can be defined in teams/no-team.yml too.
 org_settings: # Only default.yml
 team_settings: # Only teams/team-name.yml
 ```
+
+Currently, managing labels and users is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
 ## policies
 
@@ -202,7 +203,8 @@ The `controls` section allows you to configure scripts and device management (MD
 
 - `scripts` is a list of paths to macOS, Windows, or Linux scripts.
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for all teams (`default.yml`).
-- `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS and Windows hosts (default: `false`).
+- `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution (default: `false`). Can only be configured for all teams (`default.yml`).
+- `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
 
 #### Example
 
@@ -213,6 +215,7 @@ controls:
     - path: ../lib/windows-script.ps1
     - path: ../lib/linux-script.sh
   windows_enabled_and_configured: true
+  windows_migration_enabled: true # Available in Fleet Premium
   enable_disk_encryption: true # Available in Fleet Premium
   macos_updates: # Available in Fleet Premium
     deadline: "2024-12-31"
@@ -234,6 +237,10 @@ controls:
       - path: ../lib/macos-profile2.json
         labels_include_all:
           - Macs on Sonoma
+      - path: ../lib/macos-profile3.mobileconfig
+        labels_include_any:
+          - Engineering
+          - Product
   windows_settings:
     custom_settings:
       - path: ../lib/windows-profile.xml
@@ -279,7 +286,7 @@ controls:
 
 Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format. Variables beginning with `$FLEET_VAR_` are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. See supported variables in the guide [here](https://fleetdm.com/guides/ndes-scep-proxy).
 
-Use `labels_include_all` to only apply (scope) profiles to hosts that have all those labels or `labels_exclude_any` to apply profiles to hosts that don't have any of those labels.
+Use `labels_include_all` to only apply (scope) profiles to hosts that have all those labels, `labels_include_any` to apply profiles to hosts that have any of those labels, or `labels_exclude_any` to apply profiles to hosts that don't have any of those labels.
 
 ### macos_setup
 
@@ -307,8 +314,12 @@ Can only be configured for all teams (`default.yml`).
 
 The `software` section allows you to configure packages and Apple App Store apps that you want to install on your hosts.
 
+Currently, managing [Fleet-maintained apps](https://fleetdm.com/guides/install-fleet-maintained-apps-on-macos-hosts) is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
+
 - `packages` is a list of paths to custom packages (.pkg, .msi, .exe, .rpm, or .deb).
 - `app_store_apps` is a list of Apple App Store apps.
+
+Currently, one app for each of an App Store app's supported platforms are added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet. Specifying specific platforms is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
 #### Example
 
@@ -326,9 +337,9 @@ software:
 ### packages
 
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3 (default: `""`).
-- `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables) (default: `""`).
-- `post_install_script.path` is the script Fleet will run on hosts after installing software (default: `""`).
+- `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
+- `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
 
 #### Example
@@ -339,6 +350,8 @@ software:
 url: https://dl.tailscale.com/stable/tailscale-setup-1.72.0.exe
 install_script:
   path: ../lib/software/tailscale-install-script.ps1
+uninstall_script:
+  path: ../lib/software/tailscale-uninstall-script.ps1
 self_service: true
 ```
 
@@ -373,7 +386,7 @@ org_settings:
 
 ### fleet_desktop
 
-Direct end users to a custom URL when they select **Transparency** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
+Direct end users to a custom URL when they select **About Fleet** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
 
 Can only be configured for all teams (`org_settings`).
 
@@ -429,7 +442,7 @@ The `secrets` section defines the valid secrets that hosts can use to enroll to 
 ```yaml
 org_settings:
   secrets: 
-  - $ENROLL_SECRET
+  - secret: $ENROLL_SECRET
 ```
 
 ### server_settings
@@ -486,8 +499,9 @@ org_settings:
 
 ### integrations
 
-The `integrations` section lets you define calendar events and ticket settings for failing policy and vulnerability automations. Learn more about automations in Fleet [here](https://fleetdm.com/docs/using-fleet/automations).
-In addition, you can define the SCEP proxy settings for Network Device Enrollment Service (NDES). Learn more about SCEP and NDES in Fleet [here](https://fleetdm.com/guides/ndes-scep-proxy).
+The `integrations` section lets you configure your Google Calendar, Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
+
+In addition, you can configure your the SCEP server to help your end users connect to Wi-Fi. Learn more about SCEP and NDES in Fleet [here](https://fleetdm.com/guides/ndes-scep-proxy).
 
 #### Example
 
@@ -610,6 +624,10 @@ Can only be configured for all teams (`org_settings`).
 
 #### apple_business_manager
 
+After you've uploaded an Apple Business Manager (ABM) token, the `apple_business_manager` section lets you configure the teams in Fleet new hosts in ABM are automatically added to. Currently, adding an ABM token is only available using Fleet's UI. Learn more [here](https://fleetdm.com/guides/macos-mdm-setup#automatic-enrollment).
+
+Currently, managing labels and users, ticket destinations (Jira and Zendesk), Apple Business Manager (ABM) are only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
+
 - `organization_name` is the organization name associated with the Apple Business Manager account.
 - `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager.
 - `ios_team` is the the team where iOS hosts are automatically added when they appear in Apple Business Manager.
@@ -630,6 +648,8 @@ org_settings:
 > Apple Business Manager settings can only be configured for all teams (`org_settings`).
 
 #### volume_purchasing_program
+
+After you've uploaded a Volume Purchasing Program (VPP) token, the  `volume_purchasing_program` section lets you configure the teams in Fleet that have access to that VPP token's App Store apps. Currently, adding a VPP token is only available using Fleet's UI. Learn more [here](https://fleetdm.com/guides/macos-mdm-setup#volume-purchasing-program-vpp).
 
 - `location` is the name of the location in the Apple Business Manager account.
 - `teams` is a list of team names. If you choose specific teams, App Store apps in this VPP account will only be available to install on hosts in these teams. If not specified, App Store apps are available to install on hosts in all teams.
@@ -691,6 +711,26 @@ org_settings:
 ```
 
 Can only be configured for all teams (`org_settings`).
+
+#### yara_rules
+
+The `yara_rules` section lets you define [YARA rules](https://virustotal.github.io/yara/) that will be served by Fleet's authenticated
+YARA rule functionality. Learn more about authenticated YARA rules in Fleet
+[here](https://fleetdm.com/guides/remote-yara-rules).
+
+Each entry should be the relative path to a valid YARA rule file.
+
+##### Example
+
+```yaml
+org_settings:
+  yara_rules:
+    - path: ./lib/rule1.yar
+    - path: ./lib/rule2.yar
+```
+
+Can only be configured for all teams (`org_settings`). To target rules to specific teams, target the
+queries referencing the rules to the desired teams.
 
 <meta name="title" value="YAML files">
 <meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">

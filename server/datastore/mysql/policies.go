@@ -13,6 +13,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
@@ -148,7 +149,7 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	}
 
 	if p.TeamID != nil {
-		if err := ds.assertTeamMatches(ctx, *p.TeamID, p.SoftwareInstallerID, p.ScriptID); err != nil {
+		if err := assertTeamMatches(ctx, ds.writer(ctx), *p.TeamID, p.SoftwareInstallerID, p.ScriptID); err != nil {
 			return ctxerr.Wrap(ctx, err, "save policy")
 		}
 	}
@@ -184,10 +185,10 @@ var (
 	errMismatchedScriptTeam    = &fleet.BadRequestError{Message: "script is associated with a different team"}
 )
 
-func (ds *Datastore) assertTeamMatches(ctx context.Context, teamID uint, softwareInstallerID *uint, scriptID *uint) error {
+func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, softwareInstallerID *uint, scriptID *uint) error {
 	if softwareInstallerID != nil {
 		var softwareInstallerTeamID uint
-		err := sqlx.GetContext(ctx, ds.reader(ctx), &softwareInstallerTeamID, "SELECT global_or_team_id FROM software_installers WHERE id = ?", softwareInstallerID)
+		err := sqlx.GetContext(ctx, db, &softwareInstallerTeamID, "SELECT global_or_team_id FROM software_installers WHERE id = ?", softwareInstallerID)
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -201,7 +202,7 @@ func (ds *Datastore) assertTeamMatches(ctx context.Context, teamID uint, softwar
 
 	if scriptID != nil {
 		var scriptTeamID uint
-		err := sqlx.GetContext(ctx, ds.reader(ctx), &scriptTeamID, "SELECT global_or_team_id FROM scripts WHERE id = ?", scriptID)
+		err := sqlx.GetContext(ctx, db, &scriptTeamID, "SELECT global_or_team_id FROM scripts WHERE id = ?", scriptID)
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -238,7 +239,7 @@ func cleanupPolicy(
 		}
 		if _, isDB := extContext.(*sqlx.DB); isDB {
 			// wrapping in a retry to avoid deadlocks with the cleanups_then_aggregation cron job
-			err = withRetryTxx(ctx, extContext.(*sqlx.DB), fn, logger)
+			err = common_mysql.WithRetryTxx(ctx, extContext.(*sqlx.DB), fn, logger)
 		} else {
 			err = fn(extContext)
 		}
@@ -465,7 +466,7 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, tea
 	var args []interface{}
 
 	query := `
-        SELECT 
+        SELECT
             ` + policyCols + `,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
@@ -583,6 +584,15 @@ func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fl
 }
 
 func (ds *Datastore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
+	for _, id := range ids {
+		if err := ds.deletePendingSoftwareInstallsForPolicy(ctx, nil, id); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete pending software installs for policy")
+		}
+		if err := ds.deletePendingHostScriptExecutionsForPolicy(ctx, nil, id); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete pending host script executions for policy")
+		}
+	}
+
 	return deletePolicyDB(ctx, ds.writer(ctx), ids, nil)
 }
 
@@ -637,8 +647,12 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 }
 
 func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
+	return newTeamPolicy(ctx, ds.writer(ctx), teamID, authorID, args)
+}
+
+func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 	if args.QueryID != nil {
-		q, err := ds.Query(ctx, *args.QueryID)
+		q, err := query(ctx, db, *args.QueryID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "fetching query from id")
 		}
@@ -649,7 +663,7 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	// Check team exists.
 	if teamID > 0 {
 		var ok bool
-		err := ds.writer(ctx).GetContext(ctx, &ok, `SELECT COUNT(*) = 1 FROM teams WHERE id = ?`, teamID)
+		err := sqlx.GetContext(ctx, db, &ok, `SELECT COUNT(*) = 1 FROM teams WHERE id = ?`, teamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get team id")
 		}
@@ -661,11 +675,11 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	nameUnicode := norm.NFC.String(args.Name)
 
-	if err := ds.assertTeamMatches(ctx, teamID, args.SoftwareInstallerID, args.ScriptID); err != nil {
+	if err := assertTeamMatches(ctx, db, teamID, args.SoftwareInstallerID, args.ScriptID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create team policy")
 	}
 
-	res, err := ds.writer(ctx).ExecContext(ctx,
+	res, err := db.ExecContext(ctx,
 		fmt.Sprintf(
 			`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical, calendar_events_enabled, software_installer_id, script_id, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
 			policiesChecksumComputedColumn(),
@@ -685,7 +699,7 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting last id after inserting policy")
 	}
-	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), &teamID) //nolint:gosec // dismiss G115
+	return policyDB(ctx, db, uint(lastIdInt64), &teamID) //nolint:gosec // dismiss G115
 }
 
 func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
@@ -705,7 +719,7 @@ func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, op
 	var args []interface{}
 
 	query := `
-		SELECT 
+		SELECT
 			` + policyCols + `,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
@@ -736,6 +750,15 @@ func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, op
 }
 
 func (ds *Datastore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
+	for _, id := range ids {
+		if err := ds.deletePendingSoftwareInstallsForPolicy(ctx, &teamID, id); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete pending software installs for policy")
+		}
+		if err := ds.deletePendingHostScriptExecutionsForPolicy(ctx, &teamID, id); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete pending host script executions for policy")
+		}
+	}
+
 	return deletePolicyDB(ctx, ds.writer(ctx), ids, &teamID)
 }
 
@@ -1473,15 +1496,15 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 				p.id as policy_id,
 				t.id AS inherited_team_id,
 				(
-					SELECT COUNT(*) 
-					FROM policy_membership pm 
-					INNER JOIN hosts h ON pm.host_id = h.id 
+					SELECT COUNT(*)
+					FROM policy_membership pm
+					INNER JOIN hosts h ON pm.host_id = h.id
 					WHERE pm.policy_id = p.id AND pm.passes = true AND h.team_id = t.id
 				) AS passing_host_count,
 				(
-					SELECT COUNT(*) 
-					FROM policy_membership pm 
-					INNER JOIN hosts h ON pm.host_id = h.id 
+					SELECT COUNT(*)
+					FROM policy_membership pm
+					INNER JOIN hosts h ON pm.host_id = h.id
 					WHERE pm.policy_id = p.id AND pm.passes = false AND h.team_id = t.id
 				) AS failing_host_count
 			FROM policies p
@@ -1555,12 +1578,12 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 		SELECT
 			p.id,
 			NULL AS inherited_team_id, -- using NULL to represent global scope
-			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 1)), 0), 
+			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 1)), 0),
 			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 0)), 0)
 		FROM policies p
 		LEFT JOIN policy_membership pm ON p.id = pm.policy_id
 		GROUP BY p.id
-		ON DUPLICATE KEY UPDATE 
+		ON DUPLICATE KEY UPDATE
 			updated_at = NOW(),
 			passing_host_count = VALUES(passing_host_count),
 			failing_host_count = VALUES(failing_host_count);
@@ -1622,7 +1645,7 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 	hostID *uint,
 ) ([]fleet.HostPolicyMembershipData, error) {
 	query := `
-	SELECT 
+	SELECT
 		COALESCE(sh.email, '') AS email,
 		COALESCE(pm.passing, 1) AS passing,
 		COALESCE(pm.failing_policy_ids, '') AS failing_policy_ids,
@@ -1640,7 +1663,7 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 		SELECT host_id, MIN(email) AS email
 		FROM host_emails
 		JOIN hosts ON host_emails.host_id=hosts.id
-		WHERE email LIKE CONCAT('%@', ?) AND team_id = ? 
+		WHERE email LIKE CONCAT('%@', ?) AND team_id = ?
 		GROUP BY host_id
 	) sh ON h.id = sh.host_id
 	LEFT JOIN host_display_names hdn ON h.id = hdn.host_id
@@ -1662,4 +1685,42 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 	}
 
 	return hosts, nil
+}
+
+// GetPoliciesBySoftwareTitleID returns the policies that are associated with a set of software titles.
+func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
+	ctx context.Context,
+	softwareTitleIDs []uint,
+	teamID *uint,
+) ([]fleet.AutomaticInstallPolicy, error) {
+	if len(softwareTitleIDs) == 0 {
+		return nil, nil
+	}
+
+	query := `
+	SELECT
+		p.id AS id,
+		p.name AS name,
+		st.id AS software_title_id
+	FROM policies p
+	JOIN software_installers si ON p.software_installer_id = si.id
+	JOIN software_titles st ON si.title_id = st.id
+	WHERE st.id IN (?) AND p.team_id = ?
+`
+
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	query, args, err := sqlx.In(query, softwareTitleIDs, tmID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build select get policies by software id query")
+	}
+
+	var policies []fleet.AutomaticInstallPolicy
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get policies by software installer id")
+	}
+	return policies, nil
 }

@@ -7,6 +7,7 @@ The backend software patterns that we follow in Fleet.
 
 Table of Contents
 - [API Inputs](#api-inputs)
+- [Go](#go)
 - [MySQL](#mysql)
 
 ## API Inputs
@@ -21,7 +22,20 @@ Inputs corresponding to sortable or indexed DB fields should be preprocessed (tr
 
 `PATCH` API calls often need to distinguish between a field being set to `null` and a field not being present in the JSON. Use the structs from `optjson` package to handle this. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=4055688254267958899). [JSON unmarshaling article and example](https://victoronsoftware.com/posts/go-json-unmarshal/).
 
+## Go
+
+### Integer number types
+
+Use `int` number type for general integer numbers. See [Why does len() returned a signed value?](https://stackoverflow.com/questions/39088945/why-does-len-returned-a-signed-value) for some context.
+
+Exceptions:
+- Database IDs
+- Extra range of unsigned needed for a specific use case
+- Specific performance/memory requirements
+
 ## MySQL
+
+### Timestamps
 
 Use high precision for all time fields. Precise timestamps make sure that we can accurately track when records were created and updated,
 keep records in order with a reliable sort, and speed up testing by not having to wait for the time to
@@ -36,6 +50,16 @@ CREATE TABLE `sample` (
   PRIMARY KEY (`id`)
 );
 ```
+
+### UUIDs
+
+Use `binary` (or `varbinary`) data type for UUIDs. [MySQL 8 has good support for UUIDs](https://dev.mysql.com/blog-archive/mysql-8-0-uuid-support/) with `UUID_TO_BIN` and `BIN_TO_UUID` functions. If needed, add a virtual table to display UUID as string. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=5477893933055484926&highlights=%5B%7B%22type%22%3A%22SHARE%22%2C%22from%22%3A440%2C%22to%22%3A612%7D%5D).
+
+Benefits of binary UUIDs include:
+- Smaller storage size
+- Faster indexing/lookup
+
+### Say no to `goqu`
 
 Do not use [goqu](https://github.com/doug-martin/goqu); use MySQL queries directly. Searching for, understanding, and debugging direct MySQL
 queries is easier. If needing to modify an existing `goqu` query, try to rewrite it in

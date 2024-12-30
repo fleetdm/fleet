@@ -17,12 +17,12 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -36,6 +36,21 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: payload.TeamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
+
+	if payload.AutomaticInstall {
+		// Currently, same write permissions are applied on software and policies,
+		// but leaving this here in case it changes in the future.
+		if err := svc.authz.Authorize(ctx, &fleet.Policy{PolicyData: fleet.PolicyData{TeamID: payload.TeamID}}, fleet.ActionWrite); err != nil {
+			return err
+		}
+	}
+
+	// validate labels before we do anything else
+	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "validating software labels")
+	}
+	payload.ValidatedLabels = validatedLabels
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
@@ -54,23 +69,41 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return ctxerr.Wrap(ctx, err, "adding metadata to payload")
 	}
 
+	if payload.AutomaticInstall {
+		switch {
+		//
+		// For "msi", addMetadataToSoftwarePayload fails before this point if product code cannot be extracted.
+		//
+		case payload.Extension == "exe":
+			return &fleet.BadRequestError{
+				Message: "Couldn't add. Fleet can't create a policy to detect existing installations for .exe packages. Please add the software, add a custom policy, and enable the install software policy automation.",
+			}
+		case payload.Extension == "pkg" && payload.BundleIdentifier == "":
+			// For pkgs without bundle identifier the request usually fails before reaching this point,
+			// but addMetadataToSoftwarePayload may not fail if the package has "package IDs" but not a "bundle identifier",
+			// in which case we want to fail here because we cannot generate a policy without a bundle identifier.
+			return &fleet.BadRequestError{
+				Message: "Couldn't add. Policy couldn't be created because bundle identifier can't be extracted.",
+			}
+		}
+	}
+
 	if err := svc.storeSoftware(ctx, payload); err != nil {
 		return ctxerr.Wrap(ctx, err, "storing software installer")
 	}
 
-	// TODO: basic validation of install and post-install script (e.g., supported interpreters)?
-	// TODO: any validation of pre-install query?
-
 	// Update $PACKAGE_ID in uninstall script
 	preProcessUninstallScript(payload)
 
-	installerID, err := svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.InstallScript, payload.PostInstallScript, payload.UninstallScript}); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+	}
+
+	installerID, titleID, err := svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "matching or creating software installer")
 	}
 	level.Debug(svc.logger).Log("msg", "software installer uploaded", "installer_id", installerID)
-
-	// TODO: QA what breaks when you have a software title with no versions?
 
 	var teamName *string
 	if payload.TeamID != nil && *payload.TeamID != 0 {
@@ -81,18 +114,57 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		teamName = &t.Name
 	}
 
-	// Create activity
+	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
-		SoftwareTitle:   payload.Title,
-		SoftwarePackage: payload.Filename,
-		TeamName:        teamName,
-		TeamID:          payload.TeamID,
-		SelfService:     payload.SelfService,
+		SoftwareTitle:    payload.Title,
+		SoftwarePackage:  payload.Filename,
+		TeamName:         teamName,
+		TeamID:           payload.TeamID,
+		SelfService:      payload.SelfService,
+		SoftwareTitleID:  titleID,
+		LabelsIncludeAny: actLabelsIncl,
+		LabelsExcludeAny: actLabelsExcl,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for added software")
 	}
 
 	return nil
+}
+
+func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, labelsIncludeAny, labelsExcludeAny []string) (*fleet.LabelIdentsWithScope, error) {
+	if authctx, ok := authz_ctx.FromContext(ctx); !ok {
+		return nil, fleet.NewAuthRequiredError("validate software labels: missing authorization context")
+	} else if !authctx.Checked() {
+		return nil, fleet.NewAuthRequiredError("validate software labels: method requires previous authorization")
+	}
+
+	var names []string
+	var scope fleet.LabelScope
+	switch {
+	case len(labelsIncludeAny) > 0 && len(labelsExcludeAny) > 0:
+		return nil, &fleet.BadRequestError{Message: `Only one of "labels_include_any" or "labels_exclude_any" can be included.`}
+	case len(labelsIncludeAny) > 0:
+		names = labelsIncludeAny
+		scope = fleet.LabelScopeIncludeAny
+	case len(labelsExcludeAny) > 0:
+		names = labelsExcludeAny
+		scope = fleet.LabelScopeExcludeAny
+	}
+
+	if len(names) == 0 {
+		// nothing to validate, return empty result
+		return &fleet.LabelIdentsWithScope{}, nil
+	}
+
+	byName, err := svc.BatchValidateLabels(ctx, names)
+	if err != nil {
+		return nil, err
+	}
+
+	return &fleet.LabelIdentsWithScope{
+		LabelScope: scope,
+		ByName:     byName,
+	}, nil
 }
 
 var packageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<suffix>\W|$))|(("\${PACKAGE_ID}")|(\${PACKAGE_ID}))`)
@@ -136,11 +208,27 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	var teamName *string
 	if *payload.TeamID != 0 {
-		t, err := svc.ds.Team(ctx, *payload.TeamID)
+		t, err := svc.ds.TeamWithoutExtras(ctx, *payload.TeamID)
 		if err != nil {
 			return nil, err
 		}
 		teamName = &t.Name
+	}
+
+	var scripts []string
+
+	if payload.InstallScript != nil {
+		scripts = append(scripts, *payload.InstallScript)
+	}
+	if payload.PostInstallScript != nil {
+		scripts = append(scripts, *payload.PostInstallScript)
+	}
+	if payload.UninstallScript != nil {
+		scripts = append(scripts, *payload.UninstallScript)
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, scripts); err != nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
 	}
 
 	// get software by ID, fail if it does not exist or does not have an existing installer
@@ -165,7 +253,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	if payload.SelfService == nil && payload.InstallerFile == nil && payload.PreInstallQuery == nil &&
-		payload.InstallScript == nil && payload.PostInstallScript == nil && payload.UninstallScript == nil {
+		payload.InstallScript == nil && payload.PostInstallScript == nil && payload.UninstallScript == nil &&
+		payload.LabelsIncludeAny == nil && payload.LabelsExcludeAny == nil {
 		return existingInstaller, nil // no payload, noop
 	}
 
@@ -176,12 +265,32 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		dirty["SelfService"] = true
 	}
 
+	shouldUpdateLabels, validatedLabels, err := ValidateSoftwareLabelsForUpdate(ctx, svc, existingInstaller, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating software labels for update")
+	}
+	if shouldUpdateLabels {
+		dirty["Labels"] = true
+	}
+	payload.ValidatedLabels = validatedLabels
+
+	// activity team ID must be null if no team, not zero
+	var actTeamID *uint
+	if payload.TeamID != nil && *payload.TeamID != 0 {
+		actTeamID = payload.TeamID
+	}
 	activity := fleet.ActivityTypeEditedSoftware{
 		SoftwareTitle:   existingInstaller.SoftwareTitle,
 		TeamName:        teamName,
-		TeamID:          payload.TeamID,
+		TeamID:          actTeamID,
 		SelfService:     existingInstaller.SelfService,
 		SoftwarePackage: &existingInstaller.Name,
+		SoftwareTitleID: payload.TitleID,
+	}
+
+	if payload.SelfService != nil && *payload.SelfService != existingInstaller.SelfService {
+		dirty["SelfService"] = true
+		activity.SelfService = *payload.SelfService
 	}
 
 	var payloadForNewInstallerFile *fleet.UploadSoftwareInstallerPayload
@@ -322,6 +431,18 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			}
 		}
 
+		// now that the payload has been updated with any patches, we can set the
+		// final fields of the activity
+		actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(
+			existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny)
+		if payload.ValidatedLabels != nil {
+			actLabelsIncl, actLabelsExcl = activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
+		}
+		activity.LabelsIncludeAny = actLabelsIncl
+		activity.LabelsExcludeAny = actLabelsExcl
+		if payload.SelfService != nil {
+			activity.SelfService = *payload.SelfService
+		}
 		if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "creating activity for edited software")
 		}
@@ -340,6 +461,69 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	updatedInstaller.Status = statuses
 
 	return updatedInstaller, nil
+}
+
+func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, existingInstaller *fleet.SoftwareInstaller, includeAny, excludeAny []string) (shouldUpdate bool, validatedLabels *fleet.LabelIdentsWithScope, err error) {
+	if authctx, ok := authz_ctx.FromContext(ctx); !ok {
+		return false, nil, fleet.NewAuthRequiredError("batch validate labels: missing authorization context")
+	} else if !authctx.Checked() {
+		return false, nil, fleet.NewAuthRequiredError("batch validate labels: method requires previous authorization")
+	}
+
+	if existingInstaller == nil {
+		return false, nil, errors.New("existing installer must be provided")
+	}
+
+	if len(existingInstaller.LabelsIncludeAny) > 0 && len(existingInstaller.LabelsExcludeAny) > 0 {
+		return false, nil, errors.New("existing installer must have only one label scope")
+	}
+
+	if includeAny == nil && excludeAny == nil {
+		// nothing to do
+		return false, nil, nil
+	}
+
+	incoming, err := ValidateSoftwareLabels(ctx, svc, includeAny, excludeAny)
+	if err != nil {
+		return false, nil, err
+	}
+
+	var prevScope fleet.LabelScope
+	var prevLabels []fleet.SoftwareScopeLabel
+	switch {
+	case len(existingInstaller.LabelsIncludeAny) > 0:
+		prevScope = fleet.LabelScopeIncludeAny
+		prevLabels = existingInstaller.LabelsIncludeAny
+	case len(existingInstaller.LabelsExcludeAny) > 0:
+		prevScope = fleet.LabelScopeExcludeAny
+		prevLabels = existingInstaller.LabelsExcludeAny
+	}
+
+	prevByName := make(map[string]fleet.LabelIdent, len(prevLabels))
+	for _, pl := range prevLabels {
+		prevByName[pl.LabelName] = fleet.LabelIdent{
+			LabelID:   pl.LabelID,
+			LabelName: pl.LabelName,
+		}
+	}
+
+	if prevScope != incoming.LabelScope {
+		return true, incoming, nil
+	}
+
+	if len(prevByName) != len(incoming.ByName) {
+		return true, incoming, nil
+	}
+
+	// compare labels by name
+	for n, il := range incoming.ByName {
+		pl, ok := prevByName[n]
+		if !ok || pl != il {
+			return true, incoming, nil
+		}
+	}
+
+	return false, nil, nil
 }
 
 func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {
@@ -420,20 +604,15 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		teamName = &t.Name
 	}
 
-	var teamID *uint
-	switch {
-	case meta.TeamID == nil:
-		teamID = ptr.Uint(0)
-	case meta.TeamID != nil:
-		teamID = meta.TeamID
-	}
-
+	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny)
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedSoftware{
-		SoftwareTitle:   meta.SoftwareTitle,
-		SoftwarePackage: meta.Name,
-		TeamName:        teamName,
-		TeamID:          teamID,
-		SelfService:     meta.SelfService,
+		SoftwareTitle:    meta.SoftwareTitle,
+		SoftwarePackage:  meta.Name,
+		TeamName:         teamName,
+		TeamID:           meta.TeamID,
+		SelfService:      meta.SelfService,
+		LabelsIncludeAny: actLabelsIncl,
+		LabelsExcludeAny: actLabelsExcl,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted software")
 	}
@@ -649,6 +828,18 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 
 		// if we found an installer, use that
 		if installer != nil {
+			// check the label scoping for this installer and host
+			scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, installer.InstallerID, hostID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "checking label scoping during software install attempt")
+			}
+
+			if !scoped {
+				return &fleet.BadRequestError{
+					Message: "Couldn't install. Host isn't member of the labels defined for this software title.",
+				}
+			}
+
 			lastInstallRequest, err := svc.ds.GetHostLastInstallData(ctx, host.ID, installer.InstallerID)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "getting last install data for host %d and installer %d", host.ID, installer.InstallerID)
@@ -1071,7 +1262,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 
 	if len(meta.PackageIDs) == 0 {
 		return "", &fleet.BadRequestError{
-			Message:     fmt.Sprintf("Couldn't add. Fleet couldn't read the package IDs, product code, or name from %s.", payload.Filename),
+			Message:     "Couldn't add. Unable to extract necessary metadata.",
 			InternalErr: ctxerr.New(ctx, "extracting package IDs from installer metadata"),
 		}
 	}
@@ -1120,7 +1311,7 @@ const (
 )
 
 func (svc *Service) BatchSetSoftwareInstallers(
-	ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool,
+	ctx context.Context, tmName string, payloads []*fleet.SoftwareInstallerPayload, dryRun bool,
 ) (string, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return "", err
@@ -1148,12 +1339,14 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		return "", ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
+	var allScripts []string
+
 	// Verify payloads first, to prevent starting the download+upload process if the data is invalid.
 	for _, payload := range payloads {
 		if len(payload.URL) > fleet.SoftwareInstallerURLMaxLength {
 			return "", fleet.NewInvalidArgumentError(
 				"software.url",
-				"software URL is too long, must be less than 256 characters",
+				fmt.Sprintf("software URL is too long, must be %d characters or less", fleet.SoftwareInstallerURLMaxLength),
 			)
 		}
 		if _, err := url.ParseRequestURI(payload.URL); err != nil {
@@ -1162,6 +1355,17 @@ func (svc *Service) BatchSetSoftwareInstallers(
 				fmt.Sprintf("Couldn't edit software. URL (%q) is invalid", payload.URL),
 			)
 		}
+		validatedLabels, err := ValidateSoftwareLabels(ctx, svc, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+		if err != nil {
+			return "", err
+		}
+		payload.ValidatedLabels = validatedLabels
+
+		allScripts = append(allScripts, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript)
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, allScripts); err != nil {
+		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
 	}
 
 	// keyExpireTime is the current maximum time supported for retrieving
@@ -1201,7 +1405,7 @@ func (svc *Service) softwareBatchUpload(
 	requestUUID string,
 	teamID *uint,
 	userID uint,
-	payloads []fleet.SoftwareInstallerPayload,
+	payloads []*fleet.SoftwareInstallerPayload,
 	dryRun bool,
 ) {
 	var batchErr error
@@ -1313,6 +1517,9 @@ func (svc *Service) softwareBatchUpload(
 				UserID:             userID,
 				URL:                p.URL,
 				InstallDuringSetup: p.InstallDuringSetup,
+				LabelsIncludeAny:   p.LabelsIncludeAny,
+				LabelsExcludeAny:   p.LabelsExcludeAny,
+				ValidatedLabels:    p.ValidatedLabels,
 			}
 
 			// set the filename before adding metadata, as it is used as fallback
@@ -1469,6 +1676,17 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 			}
 		}
 
+		scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, installer.InstallerID, host.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking label scoping during software install attempt")
+		}
+
+		if !scoped {
+			return &fleet.BadRequestError{
+				Message: "Couldn't install. Host isn't member of the labels defined for this software title.",
+			}
+		}
+
 		ext := filepath.Ext(installer.Name)
 		requiredPlatform := packageExtensionToPlatform(ext)
 		if requiredPlatform == "" {
@@ -1613,4 +1831,41 @@ func UninstallSoftwareMigration(
 	}
 
 	return nil
+}
+
+func activitySoftwareLabelsFromValidatedLabels(validatedLabels *fleet.LabelIdentsWithScope) (include, exclude []fleet.ActivitySoftwareLabel) {
+	if validatedLabels == nil || len(validatedLabels.ByName) == 0 {
+		return nil, nil
+	}
+
+	excludeAny := validatedLabels.LabelScope == fleet.LabelScopeExcludeAny
+	labels := make([]fleet.ActivitySoftwareLabel, 0, len(validatedLabels.ByName))
+	for _, lbl := range validatedLabels.ByName {
+		labels = append(labels, fleet.ActivitySoftwareLabel{
+			ID:   lbl.LabelID,
+			Name: lbl.LabelName,
+		})
+	}
+	if excludeAny {
+		exclude = labels
+	} else {
+		include = labels
+	}
+	return include, exclude
+}
+
+func activitySoftwareLabelsFromSoftwareScopeLabels(includeScopeLabels, excludeScopeLabels []fleet.SoftwareScopeLabel) (include, exclude []fleet.ActivitySoftwareLabel) {
+	for _, label := range includeScopeLabels {
+		include = append(include, fleet.ActivitySoftwareLabel{
+			ID:   label.LabelID,
+			Name: label.LabelName,
+		})
+	}
+	for _, label := range excludeScopeLabels {
+		exclude = append(exclude, fleet.ActivitySoftwareLabel{
+			ID:   label.LabelID,
+			Name: label.LabelName,
+		})
+	}
+	return include, exclude
 }

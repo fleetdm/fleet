@@ -1,1 +1,0 @@
-- fixed issue where the vulnerabilities cron failed to complete due to a large temporary table creation when calculating host issue counts

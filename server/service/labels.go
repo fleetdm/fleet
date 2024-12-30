@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/fleetdm/fleet/v4/server"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -109,6 +112,7 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		}
 
 		// must reload it to get the host IDs, refresh its count
+		ctx = ctxdb.RequirePrimary(ctx, true)
 		label, hostIDs, err = svc.ds.Label(ctx, label.ID, filter)
 		if err != nil {
 			return nil, nil, err
@@ -211,6 +215,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 			return svc.ds.SaveLabel(ctx, label, filter)
 		}
 		// Otherwise, simply reload label to get the host counts information
+		ctx = ctxdb.RequirePrimary(ctx, true)
 		return svc.ds.Label(ctx, id, filter)
 	}
 	return svc.ds.SaveLabel(ctx, label, filter)
@@ -645,4 +650,39 @@ func (svc *Service) GetLabelSpec(ctx context.Context, name string) (*fleet.Label
 	}
 
 	return svc.ds.GetLabelSpec(ctx, name)
+}
+
+func (svc *Service) BatchValidateLabels(ctx context.Context, labelNames []string) (map[string]fleet.LabelIdent, error) {
+	if authctx, ok := authz_ctx.FromContext(ctx); !ok {
+		return nil, fleet.NewAuthRequiredError("batch validate labels: missing authorization context")
+	} else if !authctx.Checked() {
+		return nil, fleet.NewAuthRequiredError("batch validate labels: method requires previous authorization")
+	}
+
+	if len(labelNames) == 0 {
+		return nil, nil
+	}
+
+	uniqueNames := server.RemoveDuplicatesFromSlice(labelNames)
+
+	labels, err := svc.ds.LabelIDsByName(ctx, uniqueNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
+	}
+
+	if len(labels) != len(uniqueNames) {
+		return nil, &fleet.BadRequestError{
+			Message:     "some or all the labels provided don't exist",
+			InternalErr: fmt.Errorf("names provided: %v", labelNames),
+		}
+	}
+
+	byName := make(map[string]fleet.LabelIdent, len(labels))
+	for labelName, labelID := range labels {
+		byName[labelName] = fleet.LabelIdent{
+			LabelName: labelName,
+			LabelID:   labelID,
+		}
+	}
+	return byName, nil
 }

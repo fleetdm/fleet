@@ -2,7 +2,7 @@ FROM rust:latest@sha256:56418f03475cf7b107f87d7fabe99ce9a4a9f9904daafa99be7c50d9
 
 ARG transporter_url=https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa/ra/resources/download/public/Transporter__Linux/bin
 
-RUN cargo install --version 0.28.0 apple-codesign \
+RUN cargo install --locked --version 0.28.0 apple-codesign \
   && curl -sSf $transporter_url -o transporter_install.sh \
   && sh transporter_install.sh --target transporter --accept --noexec
 

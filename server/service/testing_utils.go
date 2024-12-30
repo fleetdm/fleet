@@ -308,6 +308,10 @@ func (svc *mockMailService) SendEmail(e fleet.Email) error {
 	return svc.SendEmailFn(e)
 }
 
+func (svc *mockMailService) CanSendEmail(smtpSettings fleet.SMTPSettings) bool {
+	return smtpSettings.SMTPConfigured
+}
+
 type TestNewScheduleFunc func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc
 
 type TestServerOpts struct {
@@ -338,6 +342,7 @@ type TestServerOpts struct {
 	BootstrapPackageStore fleet.MDMBootstrapPackageStore
 	KeyValueStore         fleet.KeyValueStore
 	EnableSCEPProxy       bool
+	WithDEPWebview        bool
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -388,6 +393,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 					ds:     ds,
 					logger: logger,
 				},
+				commander,
 			)
 			require.NoError(t, err)
 		}
@@ -411,6 +417,14 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 				return nil
 			}
 		}
+	}
+
+	if len(opts) > 0 && opts[0].WithDEPWebview {
+		frontendHandler := WithMDMEnrollmentMiddleware(svc, logger, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// do nothing and return 200
+			w.WriteHeader(http.StatusOK)
+		}))
+		rootMux.Handle("/", frontendHandler)
 	}
 
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(1000)))
@@ -653,7 +667,7 @@ func newMockAPNSPushProviderFactory() (*mock.APNSPushProviderFactory, *mock.APNS
 	return factory, provider
 }
 
-func mockSuccessfulPush(pushes []*mdm.Push) (map[string]*push.Response, error) {
+func mockSuccessfulPush(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
 	res := make(map[string]*push.Response, len(pushes))
 	for _, p := range pushes {
 		res[p.Token.String()] = &push.Response{
@@ -684,18 +698,13 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"GET", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/profiles/summary", false, false},
-		{"GET", "/api/latest/fleet/mdm/profiles/summary", false, false},
-		{"GET", "/api/latest/fleet/configuration_profiles/summary", false, false},
 		{"PATCH", "/api/latest/fleet/mdm/hosts/1/unenroll", false, false},
 		{"DELETE", "/api/latest/fleet/hosts/1/mdm", false, false},
-		{"GET", "/api/latest/fleet/mdm/hosts/1/encryption_key", false, false},
-		{"GET", "/api/latest/fleet/hosts/1/encryption_key", false, false},
 		{"GET", "/api/latest/fleet/mdm/hosts/1/profiles", false, true},
 		{"GET", "/api/latest/fleet/hosts/1/configuration_profiles", false, true},
 		{"POST", "/api/latest/fleet/mdm/hosts/1/lock", false, false},
 		{"POST", "/api/latest/fleet/mdm/hosts/1/wipe", false, false},
 		{"PATCH", "/api/latest/fleet/mdm/apple/settings", false, false},
-		{"POST", "/api/latest/fleet/disk_encryption", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple", false, false},
 		{"GET", "/api/latest/fleet/apns", false, false},
 		{"GET", apple_mdm.EnrollPath + "?token=test", false, false},
@@ -725,8 +734,6 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"GET", "/api/latest/fleet/mdm/commands", false, false},
 		{"GET", "/api/latest/fleet/commands", false, false},
 		{"POST", "/api/fleet/orbit/disk_encryption_key", false, false},
-		{"GET", "/api/latest/fleet/mdm/disk_encryption/summary", false, true},
-		{"GET", "/api/latest/fleet/disk_encryption", false, true},
 		{"GET", "/api/latest/fleet/mdm/profiles/1", false, false},
 		{"GET", "/api/latest/fleet/configuration_profiles/1", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/profiles/1", false, false},
