@@ -1,11 +1,9 @@
 import React from "react";
-import ReactTooltip from "react-tooltip";
-import { uniqueId } from "lodash";
 import classnames from "classnames";
 
 import { IconNames } from "components/icons";
 import Icon from "components/Icon";
-import { COLORS } from "styles/var/colors";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "status-indicator-with-icon";
 
@@ -46,7 +44,6 @@ const StatusIndicatorWithIcon = ({
   valueClassName,
 }: IStatusIndicatorWithIconProps) => {
   const classNames = classnames(baseClass, className);
-  const id = `status-${uniqueId()}`;
 
   const valueClasses = classnames(`${baseClass}__value`, valueClassName, {
     [`${baseClass}__value-vertical`]: layout === "vertical",
@@ -59,21 +56,30 @@ const StatusIndicatorWithIcon = ({
   );
 
   const indicatorContent = tooltip ? (
-    <>
-      <span data-tip data-for={id}>
-        {valueContent}
-      </span>
-      <ReactTooltip
-        className={`${baseClass}__tooltip`}
-        place={tooltip?.position ? tooltip.position : "top"}
-        type="dark"
-        effect="solid"
-        id={id}
-        backgroundColor={COLORS["tooltip-bg"]}
-      >
-        {tooltip.tooltipText}
-      </ReactTooltip>
-    </>
+    // <>
+    /* <div data-tooltip-id={id}>{valueContent}</div> */
+    // {/* <ReactTooltip
+    // className={`${baseClass}__tooltip`}
+    //   place={tooltip?.position ? tooltip.position : "top"}
+    //   type="dark"
+    //   effect="solid"
+    //   id={id}
+    //   backgroundColor={COLORS["tooltip-bg"]}
+    // > */
+    // {tooltip.tooltipText}
+    // </>
+    <TooltipWrapper
+      className={`${baseClass}__tooltip`}
+      tooltipClass="indicator-tip-text"
+      position="top"
+      tipContent={tooltip.tooltipText}
+      tipOffset={10}
+      showArrow
+      underline={false}
+      fixedPositionStrategy
+    >
+      {valueContent}
+    </TooltipWrapper>
   ) : (
     <span>{valueContent}</span>
   );
