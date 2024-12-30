@@ -189,6 +189,10 @@ const generateTableHeaders = ({
       disableSortBy: true,
       accessor: "platform",
       Cell: (cellProps: IPlatformCellProps): JSX.Element => {
+        if (!cellProps.row.original.interval) {
+          // if the query isn't scheduled to run, return default empty call
+          return <TextCell />;
+        }
         const platforms = cellProps.cell.value
           .split(",")
           .map((s) => s.trim())
@@ -197,12 +201,7 @@ const generateTableHeaders = ({
           .filter((s) =>
             isScheduledQueryablePlatform(s)
           ) as ScheduledQueryablePlatform[];
-        return (
-          <PlatformCell
-            platforms={platforms}
-            queryIsScheduled={!!cellProps.row.original.interval}
-          />
-        );
+        return <PlatformCell platforms={platforms} />;
       },
     },
     {

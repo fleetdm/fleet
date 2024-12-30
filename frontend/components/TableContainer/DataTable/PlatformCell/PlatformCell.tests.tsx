@@ -14,12 +14,7 @@ const SCHEDULED_QUERYABLE_PLATFORMS: ScheduledQueryablePlatform[] = [
 
 describe("Platform cell", () => {
   it("renders platform icons in correct order", () => {
-    render(
-      <PlatformCell
-        platforms={SCHEDULED_QUERYABLE_PLATFORMS}
-        queryIsScheduled
-      />
-    );
+    render(<PlatformCell platforms={SCHEDULED_QUERYABLE_PLATFORMS} />);
 
     const icons = screen.queryByTestId("icons");
     const appleIcon = screen.queryByTestId("darwin-icon");
@@ -31,7 +26,7 @@ describe("Platform cell", () => {
     expect(icons?.firstChild?.nextSibling?.nextSibling).toBe(linuxIcon);
   });
   it("renders all platforms targeted when no platforms passed in and scheduled", () => {
-    render(<PlatformCell platforms={[]} queryIsScheduled />);
+    render(<PlatformCell platforms={[]} />);
 
     const icons = screen.queryByTestId("icons");
     const appleIcon = screen.queryByTestId("darwin-icon");
@@ -41,16 +36,5 @@ describe("Platform cell", () => {
     expect(icons?.firstChild).toBe(appleIcon);
     expect(icons?.firstChild?.nextSibling).toBe(windowsIcon);
     expect(icons?.firstChild?.nextSibling?.nextSibling).toBe(linuxIcon);
-  });
-  it("renders empty cell when not scheduled", () => {
-    render(<PlatformCell platforms={[]} />);
-
-    const emptyText = screen.queryByText(DEFAULT_EMPTY_CELL_VALUE);
-
-    expect(emptyText).toBeInTheDocument();
-
-    render(<PlatformCell platforms={["darwin"]} />);
-
-    expect(emptyText).toBeInTheDocument();
   });
 });
