@@ -756,7 +756,7 @@ This setting works in combination with the `--host_identifier` flag in osquery. 
 
 Users that have duplicate UUIDs in their environment can benefit from setting this flag to `instance`.
 
-> If you are enrolling your hosts using Fleet generated packages, it is reccommended to use `uuid` as your indentifier. This prevents potential issues with duplicate host enrollments.
+> If you are enrolling your hosts using Fleet generated packages, it is recommended to use `uuid` as your identifier. This prevents potential issues with duplicate host enrollments.
 
 - Default value: `provided`
 - Environment variable: `FLEET_OSQUERY_HOST_IDENTIFIER`
