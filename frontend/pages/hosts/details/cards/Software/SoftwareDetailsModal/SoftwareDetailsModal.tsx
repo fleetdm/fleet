@@ -94,6 +94,8 @@ interface ISoftwareDetailsModalProps {
   hostDisplayName: string;
   software: IHostSoftware;
   onExit: () => void;
+  // install details will not be shown if Fleet doesn't have them, regardless of this setting
+  hideInstallDetails?: boolean;
 }
 
 const SoftwareDetailsContent = ({
@@ -190,6 +192,7 @@ const TabsContent = ({
 const SoftwareDetailsModal = ({
   hostDisplayName,
   software,
+  hideInstallDetails = false,
   onExit,
 }: ISoftwareDetailsModalProps) => {
   const hasLastInstall =
@@ -198,10 +201,10 @@ const SoftwareDetailsModal = ({
   return (
     <Modal title={software.name} className={baseClass} onExit={onExit}>
       <>
-        {!hasLastInstall ? (
-          <SoftwareDetailsContent software={software} />
-        ) : (
+        {hasLastInstall && !hideInstallDetails ? (
           <TabsContent hostDisplayName={hostDisplayName} software={software} />
+        ) : (
+          <SoftwareDetailsContent software={software} />
         )}
         <div className="modal-cta-wrap">
           <Button type="submit" variant="brand" onClick={onExit}>
