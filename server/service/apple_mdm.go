@@ -513,8 +513,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 		return nil, err
 	}
 
-	dataWithSecrets, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(data))
-	if err != nil {
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(data)}); err != nil {
 		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
 	}
 

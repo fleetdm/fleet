@@ -273,9 +273,6 @@ const ManageQueriesPage = ({
   };
 
   const renderQueriesTable = () => {
-    if (isLoadingQueries) {
-      return <Spinner />;
-    }
     if (queriesError) {
       return <TableDataError />;
     }
@@ -285,7 +282,7 @@ const ManageQueriesPage = ({
         totalQueriesCount={queriesResponse?.count}
         hasNextResults={!!queriesResponse?.meta.has_next_results}
         onlyInheritedQueries={onlyInheritedQueries}
-        isLoading={isFetchingQueries}
+        isLoading={isLoadingQueries || isFetchingQueries}
         onCreateQueryClick={onCreateQueryClick}
         onDeleteQueryClick={onDeleteQueryClick}
         isOnlyObserver={isOnlyObserver}
