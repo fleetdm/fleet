@@ -106,3 +106,4 @@ For more tips and detailed guides, don’t forget to check out the Fleet
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2024-12-29">
 <meta name="description" value="Streamline Biometric Security with bioutil and Fleet">
+<meta name="articleImageUrl" value="../website/assets/images/articles/bioutil@2x.png">
