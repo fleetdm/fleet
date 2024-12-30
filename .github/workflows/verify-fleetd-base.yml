@@ -4,19 +4,19 @@ on:
   workflow_dispatch: # Manual
     inputs:
       base-url:
-        description: 'The base URL to download the files from'
+        description: "The base URL to download the files from"
         required: false
-        default: 'https://download.fleetdm.com'
+        default: "https://download.fleetdm.com"
         type: string
   workflow_call:
     inputs:
       base-url:
-        description: 'The base URL to download the files from'
+        description: "The base URL to download the files from"
         required: false
-        default: 'https://download.fleetdm.com'
+        default: "https://download.fleetdm.com"
         type: string
   schedule:
-    - cron: '0 5 * * *' # Nightly 5AM UTC, not at the same time as release-fleetd-base workflow
+    - cron: "0 5 * * *" # Nightly 5AM UTC, not at the same time as release-fleetd-base workflow
 
 # This workflow is called by release-fleetd-base workflow, so it does not have its own concurrency group.
 
@@ -63,6 +63,31 @@ jobs:
           diff fleetd-base.msi fleetd-base-permalink.msi
           curl -o fleetd-base-permalink.pkg "$(jq --raw-output '.fleetd_base_pkg_url' meta.json)"
           diff fleetd-base.pkg fleetd-base-permalink.pkg
+      - name: Slack Notification
+        if: failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Verify fleetd-base files > ${{ github.job}} result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{
+                    github.run_id }}\n${{ github.event.pull_request.html_url ||
+                    github.event.head.html_url }}"
+                  }
+                }
+              ]
+            }
+        env:
+          JOB_STATUS: ${{ job.status }}
+          EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
   verify-fleetd-base-msi:
     runs-on: windows-latest
@@ -89,7 +114,34 @@ jobs:
           Start-Sleep -Seconds 5
           cd "C:\Windows\System32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs"
           Get-ChildItem
-          if (!(Test-Path "C:\Windows\System32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" -PathType Leaf)) { exit 1 }
+          if (!(Test-Path
+          "C:\Windows\System32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log"
+          -PathType Leaf)) { exit 1 }
+      - name: Slack Notification
+        if: failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Verify fleetd-base files > ${{ github.job}} result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{
+                    github.run_id }}\n${{ github.event.pull_request.html_url ||
+                    github.event.head.html_url }}"
+                  }
+                }
+              ]
+            }
+        env:
+          JOB_STATUS: ${{ job.status }}
+          EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
   verify-fleetd-base-pkg:
     runs-on: macos-latest
@@ -108,3 +160,29 @@ jobs:
       - name: Install fleetd-base.pkg
         run: |
           sudo installer -pkg fleetd-base.pkg -target /
+
+      - name: Slack Notification
+        if: failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Verify fleetd-base files > ${{ github.job}} result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{
+                    github.run_id }}\n${{ github.event.pull_request.html_url ||
+                    github.event.head.html_url }}"
+                  }
+                }
+              ]
+            }
+        env:
+          JOB_STATUS: ${{ job.status }}
+          EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
