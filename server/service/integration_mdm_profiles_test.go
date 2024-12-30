@@ -259,11 +259,46 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary) // empty because host was transferred
 	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)  // host still verifying team profiles
 
-	// with no changes
+	// Upload the same profiles again. No changes expected.
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent,
+		"team_id", fmt.Sprint(tm.ID))
 	s.awaitTriggerProfileSchedule(t)
 	installs, removes = checkNextPayloads(t, mdmDevice, false)
 	require.Empty(t, installs)
 	require.Empty(t, removes)
+
+	// Change the secret variable and upload the profiles again. We should see the profile with updated secret installed.
+	secretName = "newSecretName"
+	req = secretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{
+				Name:  "FLEET_SECRET_NAME",
+				Value: secretName, // changed
+			},
+			{
+				Name:  "FLEET_SECRET_PROFILE",
+				Value: secretProfile, // did not change
+			},
+		},
+	}
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent,
+		"team_id", fmt.Sprint(tm.ID))
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes = checkNextPayloads(t, mdmDevice, false)
+	// Manually replace the expected secret variables in the profile
+	wantTeamProfilesChanged := [][]byte{
+		teamProfiles[1],
+	}
+	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_IDENTIFIER",
+		secretIdentifier))
+	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "${FLEET_SECRET_TYPE}", secretType))
+	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_NAME", secretName))
+	// verify that we should install the team profiles
+	s.signedProfilesMatch(wantTeamProfilesChanged, installs)
+	wantTeamProfiles[1] = wantTeamProfilesChanged[0]
+	// No profiles should be deleted
+	assert.Empty(t, removes)
 
 	// Clear the profiles using the new (non-deprecated) endpoint.
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil}, http.StatusNoContent, "team_id",
@@ -294,6 +329,47 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	assert.Empty(t, removes)
 	// verify that we should install the team profiles
 	s.signedProfilesMatch(wantTeamProfiles, installs)
+
+	// Upload the same profiles again. No changes expected.
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID), "dry_run", "true")
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes = checkNextPayloads(t, mdmDevice, false)
+	require.Empty(t, installs)
+	require.Empty(t, removes)
+
+	// Change the secret variable and upload the profiles again. We should see the profile with updated secret installed.
+	secretName = "new2SecretName"
+	req = secretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{
+				Name:  "FLEET_SECRET_NAME",
+				Value: secretName, // changed
+			},
+			{
+				Name:  "FLEET_SECRET_PROFILE",
+				Value: secretProfile, // did not change
+			},
+		},
+	}
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID), "dry_run", "true")
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes = checkNextPayloads(t, mdmDevice, false)
+	// Manually replace the expected secret variables in the profile
+	wantTeamProfilesChanged = [][]byte{
+		teamProfiles[1],
+	}
+	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_IDENTIFIER",
+		secretIdentifier))
+	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "${FLEET_SECRET_TYPE}", secretType))
+	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_NAME", secretName))
+	// verify that we should install the team profiles
+	s.signedProfilesMatch(wantTeamProfilesChanged, installs)
+	wantTeamProfiles[1] = wantTeamProfilesChanged[0]
+	// No profiles should be deleted
+	assert.Empty(t, removes)
 
 	var hostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), getHostRequest{}, http.StatusOK, &hostResp)
@@ -5291,6 +5367,9 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariablesUpload() {
 	getProfileContents := func(profileUUID string) string {
 		profile, err := s.ds.GetMDMAppleDeclaration(context.Background(), profileUUID)
 		require.NoError(s.T(), err)
+		// Since our DDM profiles contain secrets, the checksum and token should be different
+		assert.NotNil(s.T(), profile.SecretsUpdatedAt)
+		assert.NotEqual(s.T(), profile.Checksum, profile.Token)
 		return string(profile.RawJSON)
 	}
 
@@ -5424,6 +5503,7 @@ func (s *integrationMDMTestSuite) TestAppleConfigSecretVariablesUpload() {
 	getProfileContents := func(profileUUID string) string {
 		profile, err := s.ds.GetMDMAppleConfigProfile(context.Background(), profileUUID)
 		require.NoError(s.T(), err)
+		assert.NotNil(s.T(), profile.SecretsUpdatedAt)
 		return string(profile.Mobileconfig)
 	}
 

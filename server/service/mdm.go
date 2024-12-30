@@ -1636,10 +1636,11 @@ func (svc *Service) BatchSetMDMProfiles(
 	// In order to map the expanded profiles back to the original profiles, we will use the index.
 	profilesWithSecrets := make(map[int]fleet.MDMProfileBatchPayload, len(profiles))
 	for i, p := range profiles {
-		expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(p.Contents))
+		expanded, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(p.Contents))
 		if err != nil {
 			return err
 		}
+		p.SecretsUpdatedAt = secretsUpdatedAt
 		pCopy := p
 		// If the profile does not contain secrets, then expanded and original content point to the same slice/memory location.
 		pCopy.Contents = []byte(expanded)
@@ -1912,6 +1913,7 @@ func getAppleProfiles(
 			}
 
 			mdmDecl := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, rawDecl.Type, rawDecl.Identifier)
+			mdmDecl.SecretsUpdatedAt = prof.SecretsUpdatedAt
 			for _, labelName := range prof.LabelsIncludeAll {
 				if lbl, ok := labelMap[labelName]; ok {
 					declLabel := fleet.ConfigurationProfileLabel{
@@ -1967,6 +1969,7 @@ func getAppleProfiles(
 		}
 
 		mdmProf, err := fleet.NewMDMAppleConfigProfile(prof.Contents, tmID)
+		mdmProf.SecretsUpdatedAt = prof.SecretsUpdatedAt
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(prof.Name, err.Error()),

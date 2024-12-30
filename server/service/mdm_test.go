@@ -1294,8 +1294,8 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
 		return nil
 	}
-	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
-		return document, nil
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
 	}
 
 	testCases := []struct {
@@ -2113,8 +2113,8 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
 		return nil
 	}
-	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
-		return document, nil
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
 	}
 
 	profiles := []fleet.MDMProfileBatchPayload{

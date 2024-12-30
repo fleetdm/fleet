@@ -1,7 +1,6 @@
 package fleet
 
 import (
-	"bytes"
 	"context"
 	"crypto/md5" // nolint: gosec
 	"encoding/hex"
@@ -205,6 +204,7 @@ type MDMAppleConfigProfile struct {
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
 	CreatedAt        time.Time                   `db:"created_at" json:"created_at"`
 	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
+	SecretsUpdatedAt *time.Time                  `db:"secrets_updated_at" json:"-"`
 }
 
 // MDMProfilesUpdates flags updates that were done during batch processing of profiles.
@@ -321,6 +321,7 @@ type MDMAppleProfilePayload struct {
 	HostUUID          string             `db:"host_uuid"`
 	HostPlatform      string             `db:"host_platform"`
 	Checksum          []byte             `db:"checksum"`
+	SecretsUpdatedAt  *time.Time         `db:"secrets_updated_at"`
 	Status            *MDMDeliveryStatus `db:"status" json:"status"`
 	OperationType     MDMOperationType   `db:"operation_type"`
 	Detail            string             `db:"detail"`
@@ -333,20 +334,6 @@ func (p *MDMAppleProfilePayload) DidNotInstallOnHost() bool {
 	return p.Status != nil && (*p.Status == MDMDeliveryFailed || *p.Status == MDMDeliveryPending) && p.OperationType == MDMOperationTypeInstall
 }
 
-func (p MDMAppleProfilePayload) Equal(other MDMAppleProfilePayload) bool {
-	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
-	return p.ProfileUUID == other.ProfileUUID &&
-		p.ProfileIdentifier == other.ProfileIdentifier &&
-		p.ProfileName == other.ProfileName &&
-		p.HostUUID == other.HostUUID &&
-		p.HostPlatform == other.HostPlatform &&
-		bytes.Equal(p.Checksum, other.Checksum) &&
-		statusEqual &&
-		p.OperationType == other.OperationType &&
-		p.Detail == other.Detail &&
-		p.CommandUUID == other.CommandUUID
-}
-
 type MDMAppleBulkUpsertHostProfilePayload struct {
 	ProfileUUID       string
 	ProfileIdentifier string
@@ -357,6 +344,7 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	Status            *MDMDeliveryStatus
 	Detail            string
 	Checksum          []byte
+	SecretsUpdatedAt  *time.Time
 }
 
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
@@ -603,13 +591,18 @@ type MDMAppleDeclaration struct {
 	// Checksum is a checksum of the JSON contents
 	Checksum string `db:"checksum" json:"-"`
 
+	// Token is used to identify if declaration needs to be re-applied.
+	// It contains the checksum of the JSON contents and secrets updated timestamp (if secret variables are present).
+	Token string `db:"token" json:"-"`
+
 	// labels associated with this Declaration
 	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
 	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
 
-	CreatedAt  time.Time `db:"created_at" json:"created_at"`
-	UploadedAt time.Time `db:"uploaded_at" json:"uploaded_at"`
+	CreatedAt        time.Time  `db:"created_at" json:"created_at"`
+	UploadedAt       time.Time  `db:"uploaded_at" json:"uploaded_at"`
+	SecretsUpdatedAt *time.Time `db:"secrets_updated_at" json:"-"`
 }
 
 type MDMAppleRawDeclaration struct {
@@ -697,10 +690,14 @@ type MDMAppleHostDeclaration struct {
 	// Checksum contains the MD5 checksum of the declaration JSON uploaded
 	// by the IT admin. Fleet uses this value as the ServerToken.
 	Checksum string `db:"checksum" json:"-"`
+
+	// SecretsUpdatedAt is the timestamp when the secrets were last updated or when this declaration was uploaded.
+	SecretsUpdatedAt *time.Time `db:"secrets_updated_at" json:"-"`
 }
 
 func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
+	secretsEqual := p.SecretsUpdatedAt == nil && other.SecretsUpdatedAt == nil || p.SecretsUpdatedAt != nil && other.SecretsUpdatedAt != nil && p.SecretsUpdatedAt.Equal(*other.SecretsUpdatedAt)
 	return statusEqual &&
 		p.HostUUID == other.HostUUID &&
 		p.DeclarationUUID == other.DeclarationUUID &&
@@ -708,7 +705,8 @@ func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 		p.Identifier == other.Identifier &&
 		p.OperationType == other.OperationType &&
 		p.Detail == other.Detail &&
-		p.Checksum == other.Checksum
+		p.Checksum == other.Checksum &&
+		secretsEqual
 }
 
 func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {
@@ -733,8 +731,9 @@ type MDMAppleDDMTokensResponse struct {
 //
 // https://developer.apple.com/documentation/devicemanagement/synchronizationtokens
 type MDMAppleDDMDeclarationsToken struct {
-	DeclarationsToken string    `db:"checksum"`
-	Timestamp         time.Time `db:"latest_created_timestamp"`
+	DeclarationsToken string `db:"token"`
+	// Timestamp must JSON marshal to format YYYY-mm-ddTHH:MM:SSZ
+	Timestamp time.Time `db:"latest_created_timestamp"`
 }
 
 // MDMAppleDDMDeclarationItemsResponse is the response from the DDM declaration items endpoint.
@@ -770,7 +769,7 @@ type MDMAppleDDMManifest struct {
 // https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse
 type MDMAppleDDMDeclarationItem struct {
 	Identifier  string `db:"identifier"`
-	ServerToken string `db:"checksum"`
+	ServerToken string `db:"token"`
 }
 
 // MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM
