@@ -1,5 +1,7 @@
 # Using bioutil to verify Touch ID/biometric utilization
 
+![Apple TouchID](../website/assets/images/articles/bioutil@2x.png)
+
 ## Intro
 
 The `bioutil` command-line utility was introduced in macOS Sierra to manage Touch ID configurations and enrolled fingerprints. This handy tool can provide admins with the flexibility to understand a snapshot of what TouchID configurations exist in their fleet. It is important to note that this command is for verifying Apple services in use and confirming general Touch ID settings. Fingerprint metadata is stored on the secure enclave inside the device and this data is not on Apple servers or iCloud, and is not accessible by Apple or any third parties.
