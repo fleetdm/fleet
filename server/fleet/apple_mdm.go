@@ -731,8 +731,9 @@ type MDMAppleDDMTokensResponse struct {
 //
 // https://developer.apple.com/documentation/devicemanagement/synchronizationtokens
 type MDMAppleDDMDeclarationsToken struct {
-	DeclarationsToken string    `db:"token"`
-	Timestamp         time.Time `db:"latest_created_timestamp"`
+	DeclarationsToken string `db:"token"`
+	// Timestamp must JSON marshal to format YYYY-mm-ddTHH:MM:SSZ
+	Timestamp time.Time `db:"latest_created_timestamp"`
 }
 
 // MDMAppleDDMDeclarationItemsResponse is the response from the DDM declaration items endpoint.

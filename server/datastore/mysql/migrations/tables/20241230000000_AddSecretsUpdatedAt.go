@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20241223115925, Down_20241223115925)
+	MigrationClient.AddMigration(Up_20241230000000, Down_20241230000000)
 }
 
-func Up_20241223115925(tx *sql.Tx) error {
+func Up_20241230000000(tx *sql.Tx) error {
 	// Using DATETIME instead of TIMESTAMP for secrets_updated_at to avoid future Y2K38 issues,
 	// since this date is used to detect if profile needs to be updated.
 
@@ -49,6 +49,6 @@ func Up_20241223115925(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20241223115925(_ *sql.Tx) error {
+func Down_20241230000000(_ *sql.Tx) error {
 	return nil
 }

@@ -4183,6 +4183,9 @@ func (svc *MDMAppleDDMService) handleTokens(ctx context.Context, hostUUID string
 		return nil, ctxerr.Wrap(ctx, err, "getting synchronization tokens")
 	}
 
+	// Important: Timestamp must use format YYYY-mm-ddTHH:MM:SSZ (no milliseconds)
+	// Source: https://developer.apple.com/documentation/devicemanagement/synchronizationtokens?language=objc
+	tok.Timestamp = tok.Timestamp.Truncate(time.Second)
 	b, err := json.Marshal(fleet.MDMAppleDDMTokensResponse{
 		SyncTokens: *tok,
 	})
