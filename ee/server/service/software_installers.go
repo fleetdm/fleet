@@ -96,7 +96,19 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	preProcessUninstallScript(payload)
 
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.InstallScript, payload.PostInstallScript, payload.UninstallScript}); err != nil {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+		// We redo the validation on each script to find out which script has the missing secret.
+		// This is done to provide a more informative error message to the UI user.
+		if errInstallScript := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.InstallScript}); errInstallScript != nil {
+			return fleet.NewInvalidArgumentError("install script", errInstallScript.Error())
+		}
+		if errPostInstallScript := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.PostInstallScript}); errPostInstallScript != nil {
+			return fleet.NewInvalidArgumentError("post-install script", errPostInstallScript.Error())
+		}
+		if errUninstallScript := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.UninstallScript}); errUninstallScript != nil {
+			return fleet.NewInvalidArgumentError("uninstall script", errUninstallScript.Error())
+		}
+		// We should not get to this point. If we did, it means we have another issue, such as large read replica latency.
+		return ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
 	}
 
 	installerID, titleID, err := svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
@@ -228,7 +240,26 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, scripts); err != nil {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+		// We redo the validation on each script to find out which script has the missing secret.
+		// This is done to provide a more informative error message to the UI user.
+		if payload.InstallScript != nil {
+			if errInstallScript := svc.ds.ValidateEmbeddedSecrets(ctx, []string{*payload.InstallScript}); errInstallScript != nil {
+				return nil, fleet.NewInvalidArgumentError("install script", errInstallScript.Error())
+			}
+		}
+		if payload.PostInstallScript != nil {
+			if errPostInstallScript := svc.ds.ValidateEmbeddedSecrets(ctx,
+				[]string{*payload.PostInstallScript}); errPostInstallScript != nil {
+				return nil, fleet.NewInvalidArgumentError("post-install script", errPostInstallScript.Error())
+			}
+		}
+		if payload.UninstallScript != nil {
+			if errUninstallScript := svc.ds.ValidateEmbeddedSecrets(ctx, []string{*payload.UninstallScript}); errUninstallScript != nil {
+				return nil, fleet.NewInvalidArgumentError("uninstall script", errUninstallScript.Error())
+			}
+		}
+		// We should not get to this point. If we did, it means we have another issue, such as large read replica latency.
+		return nil, ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
 	}
 
 	// get software by ID, fail if it does not exist or does not have an existing installer

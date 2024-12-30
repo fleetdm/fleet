@@ -8930,7 +8930,8 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		PostInstallScript: "d",
 		SelfService:       true,
 	}
-	s.uploadSoftwareInstaller(t, payloadEmacsMissingSecret, http.StatusUnprocessableEntity, "$FLEET_SECRET_INVALID")
+	s.uploadSoftwareInstallerWithErrorNameReason(t, payloadEmacsMissingSecret, http.StatusUnprocessableEntity, "$FLEET_SECRET_INVALID",
+		"install script")
 
 	payloadEmacsMissingPostSecret := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "install",
@@ -8938,7 +8939,8 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		PostInstallScript: "d $FLEET_SECRET_INVALID",
 		SelfService:       true,
 	}
-	s.uploadSoftwareInstaller(t, payloadEmacsMissingPostSecret, http.StatusUnprocessableEntity, "$FLEET_SECRET_INVALID")
+	s.uploadSoftwareInstallerWithErrorNameReason(t, payloadEmacsMissingPostSecret, http.StatusUnprocessableEntity, "$FLEET_SECRET_INVALID",
+		"post-install script")
 
 	payloadEmacsMissingUnSecret := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "install",
@@ -8947,7 +8949,8 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		UninstallScript:   "delet $FLEET_SECRET_INVALID",
 		SelfService:       true,
 	}
-	s.uploadSoftwareInstaller(t, payloadEmacsMissingUnSecret, http.StatusUnprocessableEntity, "$FLEET_SECRET_INVALID")
+	s.uploadSoftwareInstallerWithErrorNameReason(t, payloadEmacsMissingUnSecret, http.StatusUnprocessableEntity, "$FLEET_SECRET_INVALID",
+		"uninstall script")
 
 	payloadEmacs := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
@@ -15943,10 +15946,37 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		UninstallScript:   "echo $FLEET_SECRET_INVALID3",
 	}
 	respBadSecret := s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", reqInvalidSecret, http.StatusUnprocessableEntity)
-	errMsg := extractServerErrorText(respBadSecret.Body)
-	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID1")
-	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID2")
-	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID3")
+	errName, errMsg := extractServerErrorNameReason(respBadSecret.Body)
+	assert.Equal(t, "install script", errName)
+	assert.Contains(t, errMsg, "$FLEET_SECRET_INVALID1")
+
+	reqInvalidSecret = &addFleetMaintainedAppRequest{
+		AppID:             1,
+		TeamID:            &team.ID,
+		SelfService:       true,
+		PreInstallQuery:   "SELECT 1",
+		InstallScript:     "echo foo",
+		PostInstallScript: "echo done $FLEET_SECRET_INVALID2",
+		UninstallScript:   "echo $FLEET_SECRET_INVALID3",
+	}
+	respBadSecret = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", reqInvalidSecret, http.StatusUnprocessableEntity)
+	errName, errMsg = extractServerErrorNameReason(respBadSecret.Body)
+	assert.Equal(t, "post-install script", errName)
+	assert.Contains(t, errMsg, "$FLEET_SECRET_INVALID2")
+
+	reqInvalidSecret = &addFleetMaintainedAppRequest{
+		AppID:             1,
+		TeamID:            &team.ID,
+		SelfService:       true,
+		PreInstallQuery:   "SELECT 1",
+		InstallScript:     "echo foo",
+		PostInstallScript: "echo done",
+		UninstallScript:   "echo $FLEET_SECRET_INVALID3",
+	}
+	respBadSecret = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", reqInvalidSecret, http.StatusUnprocessableEntity)
+	errName, errMsg = extractServerErrorNameReason(respBadSecret.Body)
+	assert.Equal(t, "uninstall script", errName)
+	assert.Contains(t, errMsg, "$FLEET_SECRET_INVALID3")
 
 	// Add an ingested app to the team
 	var addMAResp addFleetMaintainedAppResponse
