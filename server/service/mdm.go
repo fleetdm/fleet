@@ -1426,12 +1426,12 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	}
 
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(cp.SyncML)}); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating fleet secrets")
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
 	err = validateWindowsProfileFleetVariables(string(cp.SyncML))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating Windows profile")
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
 	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp)

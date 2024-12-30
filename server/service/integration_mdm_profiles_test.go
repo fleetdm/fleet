@@ -5271,3 +5271,192 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 	require.Contains(t, string(b), fmt.Sprintf("%s/api/v1/fleet/ota_enrollment?enroll_secret=%s", cfg.ServerSettings.ServerURL, escSec))
 	require.Contains(t, string(b), cfg.OrgInfo.OrgName)
 }
+
+// TestAppleDDMSecretVariablesUpload tests uploading DDM profiles with secrets via the /configuration_profiles endpoint
+func (s *integrationMDMTestSuite) TestAppleDDMSecretVariablesUpload() {
+	tmpl := `
+{
+	"Type": "com.apple.configuration.decl%d",
+	"Identifier": "com.fleet.config%d",
+	"Payload": {
+		"ServiceType": "com.apple.bash%d",
+		"DataAssetReference": "com.fleet.asset.bash"
+	}
+}`
+
+	newProfileBytes := func(i int) []byte {
+		return []byte(fmt.Sprintf(tmpl, i, i, i))
+	}
+
+	getProfileContents := func(profileUUID string) string {
+		profile, err := s.ds.GetMDMAppleDeclaration(context.Background(), profileUUID)
+		require.NoError(s.T(), err)
+		return string(profile.RawJSON)
+	}
+
+	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "json", "darwin")
+}
+
+func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func(i int) []byte,
+	getProfileContents func(profileUUID string) string, fileExtension string, platform string) {
+	t := s.T()
+	const numProfiles = 2
+	var profiles [][]byte
+	for i := 0; i < numProfiles; i++ {
+		profiles = append(profiles, newProfileBytes(i))
+	}
+	// Use secrets
+	myBash := "com.apple.bash0"
+	profiles[0] = []byte(strings.ReplaceAll(string(profiles[0]), myBash, "$"+fleet.ServerSecretPrefix+"BASH"))
+	secretProfile := profiles[1]
+	profiles[1] = []byte("${" + fleet.ServerSecretPrefix + "PROFILE}")
+
+	body, headers := generateNewProfileMultipartRequest(
+		t, "secret-config0."+fileExtension, profiles[0], s.token, nil,
+	)
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusUnprocessableEntity, headers)
+	assertBodyContains(t, res, `Secret variable \"$FLEET_SECRET_BASH\" missing`)
+
+	// Add secret(s) to server
+	req := secretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{
+				Name:  "FLEET_SECRET_BASH",
+				Value: myBash,
+			},
+			{
+				Name:  "FLEET_SECRET_PROFILE",
+				Value: string(secretProfile),
+			},
+		},
+	}
+	secretResp := secretVariablesResponse{}
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+	var resp newMDMConfigProfileResponse
+	err := json.NewDecoder(res.Body).Decode(&resp)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp.ProfileUUID)
+
+	body, headers = generateNewProfileMultipartRequest(
+		t, "secret-config1."+fileExtension, profiles[1], s.token, nil,
+	)
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(res.Body).Decode(&resp)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp.ProfileUUID)
+
+	var listResp listMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &listResp)
+	require.Len(t, listResp.Profiles, numProfiles)
+	profileUUIDs := make([]string, numProfiles)
+	for _, p := range listResp.Profiles {
+		switch p.Name {
+		case "secret-config0":
+			assert.Equal(t, platform, p.Platform)
+			profileUUIDs[0] = p.ProfileUUID
+		case "secret-config1":
+			assert.Equal(t, platform, p.Platform)
+			profileUUIDs[1] = p.ProfileUUID
+		default:
+			t.Errorf("unexpected profile %s", p.Name)
+		}
+	}
+
+	// Check that contents are masking secret values
+	for i := 0; i < numProfiles; i++ {
+		assert.Equal(t, string(profiles[i]), getProfileContents(profileUUIDs[i]))
+	}
+
+	// Delete profiles -- make sure there is no issue deleting profiles with secrets
+	for i := 0; i < numProfiles; i++ {
+		s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+profileUUIDs[i], nil, http.StatusOK)
+	}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &listResp)
+	require.Empty(t, listResp.Profiles)
+
+}
+
+// TestAppleConfigSecretVariablesUpload tests uploading Apple config profiles with secrets via the /configuration_profiles endpoint
+func (s *integrationMDMTestSuite) TestAppleConfigSecretVariablesUpload() {
+	tmpl := `
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadDescription</key>
+  <string>For secret variables</string>
+  <key>PayloadDisplayName</key>
+  <string>secret-config%d</string>
+  <key>PayloadIdentifier</key>
+  <string>PI%d</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>%d</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>Bash</key>
+      <string>$FLEET_SECRET_BASH</string>
+      <key>PayloadDisplayName</key>
+      <string>secret payload</string>
+      <key>PayloadIdentifier</key>
+      <string>com.test.secret</string>
+      <key>PayloadType</key>
+      <string>com.test.secretd</string>
+      <key>PayloadUUID</key>
+      <string>476F5334-D501-4768-9A31-1A18A4E1E808</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+  </array>
+</dict>
+</plist>`
+
+	newProfileBytes := func(i int) []byte {
+		return []byte(fmt.Sprintf(tmpl, i, i, i))
+	}
+
+	getProfileContents := func(profileUUID string) string {
+		profile, err := s.ds.GetMDMAppleConfigProfile(context.Background(), profileUUID)
+		require.NoError(s.T(), err)
+		return string(profile.Mobileconfig)
+	}
+
+	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "mobileconfig", "darwin")
+
+}
+
+// TestWindowsConfigSecretVariablesUpload tests uploading Windows profiles with secrets via the /configuration_profiles endpoint
+func (s *integrationMDMTestSuite) TestWindowsConfigSecretVariablesUpload() {
+	tmpl := `
+<Replace>
+    <Item>
+        <Meta>
+            <Format xmlns="syncml:metinf">int</Format>
+        </Meta>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/Policy/Config/System/DisableOneDriveFileSync</LocURI>
+        </Target>
+        <Data>$FLEET_SECRET_BASH</Data>
+    </Item>
+</Replace>
+`
+
+	newProfileBytes := func(i int) []byte {
+		return []byte(fmt.Sprintf(tmpl, i, i, i))
+	}
+
+	getProfileContents := func(profileUUID string) string {
+		profile, err := s.ds.GetMDMWindowsConfigProfile(context.Background(), profileUUID)
+		require.NoError(s.T(), err)
+		return string(profile.SyncML)
+	}
+
+	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "xml", "windows")
+
+}

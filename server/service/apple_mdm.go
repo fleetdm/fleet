@@ -392,12 +392,17 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 			Message: fmt.Sprintf("failed to parse config profile: %s", err.Error()),
 		})
 	}
-	// Save the original unexpanded profile
-	cp.Mobileconfig = b
 
 	if err := cp.ValidateUserProvided(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
+	err = validateConfigProfileFleetVariables(string(cp.Mobileconfig))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
+	}
+
+	// Save the original unexpanded profile
+	cp.Mobileconfig = b
 
 	labelMap, err := svc.validateProfileLabels(ctx, labels)
 	if err != nil {
@@ -412,11 +417,6 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		cp.LabelsExcludeAny = labelMap
 	default:
 		// TODO what happens if mode is not set?s
-	}
-
-	err = validateConfigProfileFleetVariables(string(cp.Mobileconfig))
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
 	}
 
 	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
@@ -512,19 +512,21 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 		return nil, err
 	}
 
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(data)}); err != nil {
+	dataWithSecrets, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(data))
+	if err != nil {
 		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
 	}
 
-	if err := validateDeclarationFleetVariables(string(data)); err != nil {
+	if err := validateDeclarationFleetVariables(dataWithSecrets); err != nil {
 		return nil, err
 	}
 
 	// TODO(roberto): Maybe GetRawDeclarationValues belongs inside NewMDMAppleDeclaration? We can refactor this in a follow up.
-	rawDecl, err := fleet.GetRawDeclarationValues(data)
+	rawDecl, err := fleet.GetRawDeclarationValues([]byte(dataWithSecrets))
 	if err != nil {
 		return nil, err
 	}
+	// After validation, we should no longer need to keep the expanded secrets.
 
 	if err := rawDecl.ValidateUserProvided(); err != nil {
 		return nil, err
