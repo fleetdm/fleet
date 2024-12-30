@@ -56,18 +56,6 @@ const StatusIndicatorWithIcon = ({
   );
 
   const indicatorContent = tooltip ? (
-    // <>
-    /* <div data-tooltip-id={id}>{valueContent}</div> */
-    // {/* <ReactTooltip
-    // className={`${baseClass}__tooltip`}
-    //   place={tooltip?.position ? tooltip.position : "top"}
-    //   type="dark"
-    //   effect="solid"
-    //   id={id}
-    //   backgroundColor={COLORS["tooltip-bg"]}
-    // > */
-    // {tooltip.tooltipText}
-    // </>
     <TooltipWrapper
       className={`${baseClass}__tooltip`}
       tooltipClass="indicator-tip-text"
