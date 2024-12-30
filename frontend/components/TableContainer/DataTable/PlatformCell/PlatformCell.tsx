@@ -21,32 +21,24 @@ const DISPLAY_ORDER: QueryablePlatform[] = [
   "windows",
   "linux",
   "chrome",
-  // "None",
-  // "Invalid query",
 ];
 
 const PlatformCell = ({ platforms }: IPlatformCellProps): JSX.Element => {
-  const orderedList = DISPLAY_ORDER.filter((platform) =>
-    platforms.includes(platform)
-  );
+  const orderedList = platforms.length
+    ? DISPLAY_ORDER.filter((platform) => platforms.includes(platform))
+    : DISPLAY_ORDER;
   return (
     <span className={`${baseClass}__wrapper`} data-testid="icons">
-      {orderedList.length ? (
-        orderedList.map((platform) => {
-          return ICONS[platform] ? (
-            <Icon
-              className={`${baseClass}__icon`}
-              name={ICONS[platform]}
-              size="small"
-              key={ICONS[platform]}
-            />
-          ) : null;
-        })
-      ) : (
-        <span className={`${baseClass}__muted`}>
-          {DEFAULT_EMPTY_CELL_VALUE}
-        </span>
-      )}
+      {orderedList.map((platform) => {
+        return ICONS[platform] ? (
+          <Icon
+            className={`${baseClass}__icon`}
+            name={ICONS[platform]}
+            size="small"
+            key={ICONS[platform]}
+          />
+        ) : null;
+      })}
     </span>
   );
 };
