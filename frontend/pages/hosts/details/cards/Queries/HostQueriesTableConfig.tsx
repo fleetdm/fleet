@@ -8,6 +8,8 @@ import PerformanceImpactCell from "components/TableContainer/DataTable/Performan
 import TooltipWrapper from "components/TooltipWrapper";
 import ReportUpdatedCell from "pages/hosts/details/cards/Queries/ReportUpdatedCell";
 import Icon from "components/Icon";
+import { Link } from "react-router";
+import PATHS from "router/paths";
 
 interface IHostQueriesTableData extends Partial<IQueryStats> {
   performance: { indicator: string; id: number };
@@ -90,6 +92,7 @@ const generateColumnConfigs = (
       accessor: "performance",
       Cell: (cellProps: IPerformanceImpactCell) => {
         const baseClass = "performance-cell";
+        const queryId = cellProps.row.original.id;
         return (
           <span className={baseClass}>
             <PerformanceImpactCell
@@ -98,12 +101,21 @@ const generateColumnConfigs = (
               isHostSpecific
             />
             {!queryReportsDisabled &&
-              cellProps.row.original.should_link_to_hqr && (
-                <Icon
-                  name="chevron-right"
-                  className={`${baseClass}__link-icon`}
-                  color="core-fleet-blue"
-                />
+              cellProps.row.original.should_link_to_hqr &&
+              hostId &&
+              queryId && (
+                // parent row has same onClick functionality but link here is required for keyboard accessibility
+                <Link
+                  className={`${baseClass}__link`}
+                  title="link to host query report"
+                  to={PATHS.HOST_QUERY_REPORT(hostId, queryId)}
+                >
+                  <Icon
+                    name="chevron-right"
+                    className={`${baseClass}__link-icon`}
+                    color="core-fleet-blue"
+                  />
+                </Link>
               )}
           </span>
         );
