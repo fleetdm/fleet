@@ -2078,8 +2078,6 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		hmap.host_uuid IN (?) %s AND
 		-- profiles that are in B but not in A
 		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
-		-- except "remove" operations in any state
-		( hmap.operation_type IS NULL OR hmap.operation_type != ? ) AND
 		-- except "would be removed" profiles if they are a broken label-based profile
 		-- (regardless of if it is an include-all or exclude-any label)
 		NOT EXISTS (
@@ -2113,10 +2111,9 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 				onlyProfileUUIDs, batchUUIDs,
 				onlyProfileUUIDs, batchUUIDs,
 				batchUUIDs, onlyProfileUUIDs,
-				fleet.MDMOperationTypeRemove,
 			)
 		} else {
-			stmt, args, err = sqlx.In(toRemoveStmt, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
+			stmt, args, err = sqlx.In(toRemoveStmt, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs)
 		}
 
 		if err != nil {
@@ -2135,19 +2132,6 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		return false, nil
 	}
 
-	// delete all host profiles to start from a clean slate, new entries will be added next
-	// TODO(roberto): is this really necessary? this was pre-existing
-	// behavior but I think it can be refactored. For now leaving it as-is.
-	//
-	// TODO part II(roberto): we found this call to be a major bottleneck during load testing
-	// https://github.com/fleetdm/fleet/issues/21338
-	if len(wantedProfiles) > 0 {
-		if err := ds.bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, wantedProfiles); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "bulk delete all profiles")
-		}
-		updatedDB = true
-	}
-
 	// profileIntersection tracks profilesToAdd ∩ profilesToRemove, this is used to avoid:
 	//
 	// - Sending a RemoveProfile followed by an InstallProfile for a
@@ -2159,11 +2143,16 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	profileIntersection := apple_mdm.NewProfileBimap()
 	profileIntersection.IntersectByIdentifierAndHostUUID(wantedProfiles, currentProfiles)
 
-	// start by deleting any that are already in the desired state
+	// Start by cleaning up profiles that have matching identifiers but different UUIDs (one way this can
+	// happen is a profile is deleted and then same profile is re-uploaded). We need to remove the
+	// old row here because we upsert below based on the UUID so the mis-match would lead to an orphan row
+	// (i.e. it wouldn't trigger the ON DUPLICATE KEY UPDATE).
 	var hostProfilesToClean []*fleet.MDMAppleProfilePayload
-	for _, p := range currentProfiles {
-		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
-			hostProfilesToClean = append(hostProfilesToClean, p)
+	for _, cp := range currentProfiles {
+		if dp, ok := profileIntersection.GetMatchingProfileInDesiredState(cp); ok {
+			if cp.ProfileUUID != dp.ProfileUUID {
+				hostProfilesToClean = append(hostProfilesToClean, cp)
+			}
 		}
 	}
 	if len(hostProfilesToClean) > 0 {
@@ -2173,10 +2162,17 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		updatedDB = true
 	}
 
+	// Define mechanisms for batching our upserts and assemble the payloads for the
+	// profiles we want to insert or update.
 	profilesToInsert := make(map[string]*fleet.MDMAppleProfilePayload)
 
 	executeUpsertBatch := func(valuePart string, args []any) error {
 		// Check if the update needs to be done at all.
+		//
+		// TODO(sarah): What are we gaining from this select step vs. relying on the
+		// profileIntersection to avoid unnecessary updates? I suppose there may be some
+		// cases where intervening changes arrive after we pulled the data for the intersection,
+		// but in that case maybe we are ok with just letting ON DUPLICATE KEY UPDATE handle it.
 		selectStmt := fmt.Sprintf(`
 			SELECT
 				host_uuid,
@@ -2261,9 +2257,16 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		psb.Reset()
 	}
 
+	// Loop through the desired profiles to identify the ones that need to be installed or updated.
 	for _, p := range wantedProfiles {
 		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
-			if pp.Status != &fleet.MDMDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) {
+			// If the profile is already installed or pending install, this upsert preserves the
+			// existing info and ensures that the profile uuid is updated if it has changed.
+			//
+			// TODO(sarah): We could potentially further optimize this to only insert in cases where the
+			// profile uuid has changed. Otherwise we presumably leave the existing row as is and cut
+			// down our number of upserts.
+			if pp.OperationType != fleet.MDMOperationTypeRemove && pp.Status != &fleet.MDMDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) {
 				profilesToInsert[fmt.Sprintf("%s\n%s", p.HostUUID, p.ProfileUUID)] = &fleet.MDMAppleProfilePayload{
 					ProfileUUID:       p.ProfileUUID,
 					ProfileIdentifier: p.ProfileIdentifier,
@@ -2291,6 +2294,8 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 			}
 		}
 
+		// If we don't have a match in current profiles, or if a prior install failed or the profile
+		// changed (i.e. different checksum), we trigger a new command by upserting with operation type install and status nil.
 		profilesToInsert[fmt.Sprintf("%s\n%s", p.HostUUID, p.ProfileUUID)] = &fleet.MDMAppleProfilePayload{
 			ProfileUUID:       p.ProfileUUID,
 			ProfileIdentifier: p.ProfileIdentifier,
@@ -2316,17 +2321,30 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		}
 	}
 
+	// Loop through the current profiles and update the undesired ones that require removal.
 	for _, p := range currentProfiles {
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
+			// We already handled upserting the current profiles in the desired state above.
 			continue
 		}
+
+		if p.OperationType == fleet.MDMOperationTypeRemove {
+			// At this point, we don't need further updates to any other removals that are already in the
+			// database. They should be allowed to run their course.
+			continue
+		}
+
 		// If the profile wasn't installed, then we do not want to change the operation to "Remove".
 		// Doing so will result in Fleet attempting to remove a profile that doesn't exist on the
 		// host (since the installation failed). Skipping it here will lead to it being removed from
 		// the host in Fleet during profile reconciliation, which is what we want.
 		if p.DidNotInstallOnHost() {
+			// TODO: maybe we want to delete the row here instead of waiting for the reconciliation?
 			continue
 		}
+
+		// Now we should be left with only the undesired current profiles that need to be removed.
+		// We trigger a remove command by upserting with operation type remove and status nil.
 		profilesToInsert[fmt.Sprintf("%s\n%s", p.HostUUID, p.ProfileUUID)] = &fleet.MDMAppleProfilePayload{
 			ProfileUUID:       p.ProfileUUID,
 			ProfileIdentifier: p.ProfileIdentifier,
