@@ -1,4 +1,8 @@
 .fleet-maintained-app-details-page {
+  &__data-error {
+    margin-top: $pad-xxlarge;
+  }
+
   &__back-to-add-software {
     margin-bottom: $pad-medium;
   }

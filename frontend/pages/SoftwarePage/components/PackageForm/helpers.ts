@@ -1,15 +1,14 @@
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { ISoftwarePackage } from "interfaces/software";
+
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 
-import { IPackageFormData, IFormValidation } from "./PackageForm";
-
-type IPackageFormValidatorKey = Exclude<
-  keyof IPackageFormData,
-  "installScript" | "uninstallScript"
->;
+import { IPackageFormData, IPackageFormValidation } from "./PackageForm";
 
 type IMessageFunc = (formData: IPackageFormData) => string;
 type IValidationMessage = string | IMessageFunc;
+type IFormValidationKey = keyof Omit<IPackageFormValidation, "isValid">;
 
 interface IValidation {
   name: string;
@@ -17,11 +16,11 @@ interface IValidation {
   message?: IValidationMessage;
 }
 
-/** configuration defines validations for each filed in the form. It defines rules
+/** configuration defines validations for each field in the form. It defines rules
  *  to determine if a field is valid, and rules for generating an error message.
  */
 const FORM_VALIDATION_CONFIG: Record<
-  IPackageFormValidatorKey,
+  IFormValidationKey,
   { validations: IValidation[] }
 > = {
   software: {
@@ -46,13 +45,21 @@ const FORM_VALIDATION_CONFIG: Record<
       },
     ],
   },
-  postInstallScript: {
-    // no validations related to postInstallScript
-    validations: [],
-  },
-  selfService: {
-    // no validations related to self service
-    validations: [],
+  customTarget: {
+    validations: [
+      {
+        name: "requiredLabelTargets",
+        isValid: (formData) => {
+          if (formData.targetType === "All hosts") return true;
+          // there must be at least one label target selected
+          return (
+            Object.keys(formData.labelTargets).find(
+              (key) => formData.labelTargets[key]
+            ) !== undefined
+          );
+        },
+      },
+    ],
   },
 };
 
@@ -67,7 +74,7 @@ const getErrorMessage = (
 };
 
 export const generateFormValidation = (formData: IPackageFormData) => {
-  const formValidation: IFormValidation = {
+  const formValidation: IPackageFormValidation = {
     isValid: true,
     software: {
       isValid: false,
@@ -97,3 +104,56 @@ export const generateFormValidation = (formData: IPackageFormData) => {
 };
 
 export default generateFormValidation;
+
+export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
+  {
+    value: "labelsIncludeAny",
+    label: "Include any",
+    disabled: false,
+  },
+  {
+    value: "labelsExcludeAny",
+    label: "Exclude any",
+    disabled: false,
+  },
+];
+
+export const getTargetType = (softwarePackage: ISoftwarePackage) => {
+  if (!softwarePackage) return "All hosts";
+
+  return !softwarePackage.labels_include_any &&
+    !softwarePackage.labels_exclude_any
+    ? "All hosts"
+    : "Custom";
+};
+
+export const getCustomTarget = (softwarePackage: ISoftwarePackage) => {
+  if (!softwarePackage) return "labelsIncludeAny";
+
+  return softwarePackage.labels_include_any
+    ? "labelsIncludeAny"
+    : "labelsExcludeAny";
+};
+
+export const generateSelectedLabels = (softwarePackage: ISoftwarePackage) => {
+  if (
+    !softwarePackage ||
+    (!softwarePackage.labels_include_any && !softwarePackage.labels_exclude_any)
+  ) {
+    return {};
+  }
+
+  const customTypeKey = softwarePackage.labels_include_any
+    ? "labels_include_any"
+    : "labels_exclude_any";
+
+  return (
+    softwarePackage[customTypeKey]?.reduce<Record<string, boolean>>(
+      (acc, label) => {
+        acc[label.name] = true;
+        return acc;
+      },
+      {}
+    ) ?? {}
+  );
+};

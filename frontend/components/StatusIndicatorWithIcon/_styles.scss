@@ -8,6 +8,10 @@
     .icon {
       margin-right: $pad-xsmall;
     }
+
+    span {
+      white-space: nowrap;
+    }
   }
 
   // overrides for different layout

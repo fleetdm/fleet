@@ -257,7 +257,8 @@
       transition: 250ms;
       text-overflow: none;
     }
-    &:hover {
+    &:hover,
+    &:focus-visible {
       .row-hover-link {
         opacity: 1;
       }

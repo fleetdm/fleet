@@ -16,6 +16,7 @@ import {
 } from "interfaces/host";
 import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
+import { IHostSoftware } from "interfaces/software";
 
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
@@ -52,6 +53,7 @@ import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import SelfService from "../cards/Software/SelfService";
+import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import DeviceUserBanners from "./components/DeviceUserBanners";
 
 const baseClass = "device-user";
@@ -118,6 +120,10 @@ const DeviceUserPage = ({
   const [isTriggeringCreateLinuxKey, setIsTriggeringCreateLinuxKey] = useState(
     false
   );
+  const [
+    selectedSoftwareDetails,
+    setSelectedSoftwareDetails,
+  ] = useState<IHostSoftware | null>(null);
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", deviceAuthToken],
@@ -455,6 +461,7 @@ const DeviceUserPage = ({
                       platform={host.platform}
                       hostTeamId={host.team_id || 0}
                       isSoftwareEnabled={isSoftwareEnabled}
+                      onShowSoftwareDetails={setSelectedSoftwareDetails}
                     />
                   </TabPanel>
                 )}
@@ -506,6 +513,13 @@ const DeviceUserPage = ({
             onExit={() => {
               setShowCreateLinuxKeyModal(false);
             }}
+          />
+        )}
+        {selectedSoftwareDetails && !!host && (
+          <SoftwareDetailsModal
+            hostDisplayName={host.display_name}
+            software={selectedSoftwareDetails}
+            onExit={() => setSelectedSoftwareDetails(null)}
           />
         )}
       </div>

@@ -15,7 +15,7 @@ import (
 
 func TestPreProcessUninstallScript(t *testing.T) {
 	t.Parallel()
-	var input = `
+	input := `
 blah$PACKAGE_IDS
 pkgids=$PACKAGE_ID
 they are $PACKAGE_ID, right $MY_SECRET?
@@ -74,7 +74,6 @@ quotes and braces for (
   "com.bar"
 )`
 	assert.Equal(t, expected, payload.UninstallScript)
-
 }
 
 func TestInstallUninstallAuth(t *testing.T) {
@@ -95,7 +94,8 @@ func TestInstallUninstallAuth(t *testing.T) {
 		}, nil
 	}
 	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint,
-		withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		withScriptContents bool,
+	) (*fleet.SoftwareInstaller, error) {
 		return &fleet.SoftwareInstaller{
 			Name:     "installer.pkg",
 			Platform: "darwin",
@@ -106,7 +106,8 @@ func TestInstallUninstallAuth(t *testing.T) {
 		return nil, nil
 	}
 	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool, policyID *uint) (string,
-		error) {
+		error,
+	) {
 		return "request_id", nil
 	}
 	ds.GetAnyScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
@@ -120,6 +121,10 @@ func TestInstallUninstallAuth(t *testing.T) {
 	}
 	ds.InsertSoftwareUninstallRequestFunc = func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error {
 		return nil
+	}
+
+	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+		return true, nil
 	}
 
 	testCases := []struct {
