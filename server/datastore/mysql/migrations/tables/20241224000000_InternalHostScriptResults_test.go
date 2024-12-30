@@ -63,7 +63,7 @@ func TestUp_20241224000000(t *testing.T) {
 	// Apply current migration.
 	applyNext(t, db)
 
-	// the global host script result should be set as internal
+	// the global host script result should not be set as internal
 	var result scriptResult
 	err = db.QueryRow(loadResultStmt, globalScriptResult.id).Scan(&result.id, &result.hostID, &result.executionID, &result.scriptID, &result.isInternal)
 	require.NoError(t, err)

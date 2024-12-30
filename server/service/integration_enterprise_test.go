@@ -12614,7 +12614,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	assert.Equal(t, "not ok", scriptResultResp.Output)
 	assert.Less(t, beforeUninstall, scriptResultResp.CreatedAt)
 
-	// Enabling software inventory globally, which will be inherited by the team
 	appConf.ServerSettings.ScriptsDisabled = false // set back to normal
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)

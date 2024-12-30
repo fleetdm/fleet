@@ -169,7 +169,7 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 		// is currently locked.
 
 	case "windows", "linux":
-		// on windows and linux, a script is used to lock the host so scripts must
+		// on Windows and Linux, a script is used to unlock the host so scripts must
 		// be enabled on the host
 		if host.FleetPlatform() == "windows" {
 			if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {

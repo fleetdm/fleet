@@ -1,1 +1,1 @@
-* Allowed scripts associated with software uninstalls to run while global scripts are disabled.
+* Allowed software uninstalls and script-based host lock/unlock/wipe to run while global scripts are disabled.
