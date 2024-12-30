@@ -520,7 +520,7 @@ const DeviceUserPage = ({
             hostDisplayName={host.display_name}
             software={selectedSoftwareDetails}
             onExit={() => setSelectedSoftwareDetails(null)}
-            isMyDevicePage
+            hideInstallDetails
           />
         )}
       </div>
