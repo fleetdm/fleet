@@ -113,6 +113,8 @@ EOF
 
 Afterward, you can upload the script/profile with secret variables via the Fleet API or UI.
 
+_Note:_ The checksum of Apple DDM profiles with secret variables now includes the timestamp of the last secrets update.
+
 ## Known limitations and issues
 
 - Windows profiles are currently not re-sent to the device on fleetctl gitops update: [issue #25030](https://github.com/fleetdm/fleet/issues/25030)
