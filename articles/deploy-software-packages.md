@@ -36,7 +36,7 @@ Learn more about automatically installing software in a separate guide [here](ht
 
 ### Package metadata extraction
 
-The following metadata is used in  uninstall scripts and policies that trigger automatic installation to check whether the software is already installed:
+The following metadata is used in uninstall scripts and policies that trigger automatic installation to check whether the software is already installed:
 - bundle identifier (`.pkg`)
 - product code (`.msi`)
 - name (`.exe`, `.deb`, `.rpm`)
