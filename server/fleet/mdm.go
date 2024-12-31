@@ -416,12 +416,16 @@ func (m MDMConfigProfileAuthz) AuthzType() string {
 // MDMConfigProfilePayload is the platform-agnostic struct returned by
 // endpoints that return MDM configuration profiles (get/list profiles).
 type MDMConfigProfilePayload struct {
-	ProfileUUID      string                      `json:"profile_uuid" db:"profile_uuid"`
-	TeamID           *uint                       `json:"team_id" db:"team_id"` // null for no-team
-	Name             string                      `json:"name" db:"name"`
-	Platform         string                      `json:"platform" db:"platform"`               // "windows" or "darwin"
-	Identifier       string                      `json:"identifier,omitempty" db:"identifier"` // only set for macOS
-	Checksum         []byte                      `json:"checksum,omitempty" db:"checksum"`     // only set for macOS
+	ProfileUUID string `json:"profile_uuid" db:"profile_uuid"`
+	TeamID      *uint  `json:"team_id" db:"team_id"` // null for no-team
+	Name        string `json:"name" db:"name"`
+	Platform    string `json:"platform" db:"platform"`               // "windows" or "darwin"
+	Identifier  string `json:"identifier,omitempty" db:"identifier"` // only set for macOS
+	// Checksum is the following
+	// - for Apple configuration profiles: the MD5 checksum of the profile contents
+	// - for Apple device declarations: the MD5 checksum of the profile contents and secrets updated timestamp (if profile contains secret variables)
+	// - for Windows: always empty
+	Checksum         []byte                      `json:"checksum,omitempty" db:"checksum"`
 	CreatedAt        time.Time                   `json:"created_at" db:"created_at"`
 	UploadedAt       time.Time                   `json:"updated_at" db:"uploaded_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 	LabelsIncludeAll []ConfigurationProfileLabel `json:"labels_include_all,omitempty" db:"-"`

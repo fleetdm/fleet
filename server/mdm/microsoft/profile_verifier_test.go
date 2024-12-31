@@ -27,6 +27,9 @@ func TestLoopHostMDMLocURIs(t *testing.T) {
 			"N3": {Name: "N3", RawProfile: syncml.ForTestWithData(map[string]string{"L3": "D3", "L3.1": "D3.1"})},
 		}, nil
 	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return document, nil
+	}
 
 	type wantStruct struct {
 		locURI      string

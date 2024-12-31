@@ -2021,6 +2021,9 @@ func TestDirectIngestWindowsProfiles(t *testing.T) {
 			}
 			return result, nil
 		}
+		ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, secret string) (string, error) {
+			return secret, nil
+		}
 
 		gotQuery := buildConfigProfilesWindowsQuery(ctx, logger, &fleet.Host{}, ds)
 		if tc.want != "" {
