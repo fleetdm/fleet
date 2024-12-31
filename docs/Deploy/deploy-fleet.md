@@ -35,7 +35,7 @@ Render is a cloud hosting service that makes it easy to get up and running fast,
 
 - A Render account with payment information.
 
->The Fleet Render Blueprint will provision a web service, a MySQL database, and a Redis in-memory data store. At current pricing this will total **$62/month**.
+>The Fleet Render Blueprint will provision a web service, a MySQL database, and a Redis in-memory data store. At current pricing this will total **$60/month**.
 
 
 ### Instructions
