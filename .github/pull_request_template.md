@@ -15,7 +15,7 @@ If some of the following don't apply, delete the relevant line.
   - [ ] Confirmed that updating the timestamps is acceptable, and will not cause unwanted side effects.
   - [ ] Ensured the correct collation is explicitly set for character columns (`COLLATE utf8mb4_unicode_ci`).
 - [ ] Added/updated automated tests
-- [ ] A detailed QA plan exists on the associated ticket (if it isn't there, add it)
+- [ ] A detailed QA plan exists on the associated ticket (if it isn't there, work with the product group's QA engineer to add it)
 - [ ] Manual QA for all new/changed functionality
 - For Orbit and Fleet Desktop changes:
    - [ ] Orbit runs on macOS, Linux and Windows. Check if the orbit feature/bugfix should only apply to one platform (`runtime.GOOS`).
