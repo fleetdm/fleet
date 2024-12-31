@@ -202,7 +202,7 @@ FROM (
 		name,
 		'darwin' AS platform,
 		identifier,
-		checksum AS checksum,
+		token AS checksum,
 		created_at,
 		uploaded_at
 	FROM mdm_apple_declarations
