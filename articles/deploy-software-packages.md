@@ -39,7 +39,7 @@ Learn more about automatically installing software in a separate guide [here](ht
 The following metadata is used in uninstall scripts and policies that trigger automatic installation to check whether the software is already installed:
 - bundle identifier (`.pkg`)
 - product code (`.msi`)
-- name (`.exe`, `.deb`, `.rpm`)
+- name (`.deb`, `.rpm`)
 
 Software installer uploads will fail if Fleet can't extract this metadata and version number. For more details check the extractor code for each package type.
 - [.pkg extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/xar.go#:~:text=func%20ExtractXARMetadata)
