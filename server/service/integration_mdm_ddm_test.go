@@ -206,10 +206,9 @@ INSERT INTO mdm_apple_declarations (
 	identifier,
 	name,
 	raw_json,
-	checksum,
 	created_at,
 	uploaded_at
-) VALUES (?,?,?,?,?,UNHEX(?),?,?)`
+) VALUES (?,?,?,?,?,?,?)`
 
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(), stmt,
@@ -218,7 +217,6 @@ INSERT INTO mdm_apple_declarations (
 				decl.Identifier,
 				decl.Name,
 				decl.RawJSON,
-				calcChecksum(decl.RawJSON),
 				decl.CreatedAt,
 				decl.UploadedAt,
 			)
@@ -232,7 +230,7 @@ INSERT INTO host_mdm_apple_declarations (
 	host_uuid,
 	status,
 	operation_type,
-	checksum,
+	token,
 	declaration_uuid
 ) VALUES (?,?,?,UNHEX(?),?)`
 
@@ -572,7 +570,6 @@ SELECT
 	identifier,
 	name,
 	raw_json,
-	HEX(checksum) as checksum,
 	HEX(token) as token,
 	created_at,
 	uploaded_at,

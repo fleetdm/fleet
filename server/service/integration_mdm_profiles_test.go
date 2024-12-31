@@ -5367,9 +5367,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariablesUpload() {
 	getProfileContents := func(profileUUID string) string {
 		profile, err := s.ds.GetMDMAppleDeclaration(context.Background(), profileUUID)
 		require.NoError(s.T(), err)
-		// Since our DDM profiles contain secrets, the checksum and token should be different
 		assert.NotNil(s.T(), profile.SecretsUpdatedAt)
-		assert.NotEqual(s.T(), profile.Token, profile.Token)
 		return string(profile.RawJSON)
 	}
 
