@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/xml"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -160,6 +161,16 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			toRetry:  []string{},
 		},
 		{
+			name: "single profile with secret variables reported and verified",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData(map[string]string{"L1": "$FLEET_SECRET_VALUE"}), 0},
+			},
+			report:   []osqueryReport{{"N1", "200", "L1", "D1"}},
+			toVerify: []string{"N1"},
+			toFail:   []string{},
+			toRetry:  []string{},
+		},
+		{
 			name: "Get succeeds but has missing data",
 			hostProfiles: []hostProfile{
 				{"N1", syncml.ForTestWithData(map[string]string{"L1": "D1"}), 0},
@@ -294,6 +305,10 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 					})
 				}
 				return out, nil
+			}
+
+			ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+				return strings.ReplaceAll(document, "$FLEET_SECRET_VALUE", "D1"), nil
 			}
 
 			out, err := xml.Marshal(msg)
