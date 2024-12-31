@@ -12,6 +12,11 @@
     height: 24px;
   }
 
+  .software-name {
+    @include ellipse-text();
+    max-width: 250px;
+  }
+
   &__install-icon {
     // TODO: we do not want to use !important but have to for now. This is
     // the same issue as the .software-name-cell class display value.

@@ -2,6 +2,7 @@ import classnames from "classnames";
 import TooltipWrapper from "components/TooltipWrapper";
 import React, { ReactNode } from "react";
 import AceEditor from "react-ace";
+import { IAceEditor } from "react-ace/lib/types";
 
 const baseClass = "editor";
 
@@ -66,6 +67,19 @@ const Editor = ({
     [`${baseClass}__error`]: !!error,
   });
 
+  const onLoadHandler = (editor: IAceEditor) => {
+    // Lose focus using the Escape key so you can Tab forward (or Shift+Tab backwards) through app
+    editor.commands.addCommand({
+      name: "escapeToBlur",
+      bindKey: { win: "Esc", mac: "Esc" },
+      exec: (aceEditor) => {
+        aceEditor.blur(); // Lose focus from the editor
+        return true;
+      },
+      readOnly: true,
+    });
+  };
+
   const renderLabel = () => {
     const labelText = error || label;
     const labelClassName = classnames(`${baseClass}__label`, {
@@ -117,6 +131,7 @@ const Editor = ({
         tabSize={2}
         focus={focus}
         onChange={onChange}
+        onLoad={onLoadHandler}
       />
       {renderHelpText()}
     </div>

@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner help
 
 export GO111MODULE=on
 
@@ -9,12 +9,6 @@ REVISION = $(shell git rev-parse HEAD)
 REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)
 DOCKER_IMAGE_NAME = fleetdm/fleet
-
-ifdef GO_TEST_EXTRA_FLAGS
-GO_TEST_EXTRA_FLAGS_VAR := $(GO_TEST_EXTRA_FLAGS)
-else
-GO_TEST_EXTRA_FLAGS_VAR :=
-endif
 
 ifdef GO_BUILD_RACE_ENABLED
 GO_BUILD_RACE_ENABLED_VAR := true
@@ -87,15 +81,20 @@ define HELP_TEXT
 	make build        - Build the code
 	make package 	  - Build rpm and deb packages for linux
 
-	make test         - Run the full test suite
-	make test-go      - Run the Go tests
-	make test-js      - Run the JavaScript tests
+	make run-go-tests   - Run Go tests in specific packages
+	make debug-go-tests - Debug Go tests in specific packages (with Delve)
+	make test-js        - Run the JavaScript tests
 
 	make lint         - Run all linters
 	make lint-go      - Run the Go linters
 	make lint-js      - Run the JavaScript linters
 	make lint-scss    - Run the SCSS linters
 	make lint-ts      - Run the TypeScript linters
+
+	For use in CI:
+
+	make test         - Run the full test suite (lint, Go and Javascript)
+	make test-go      - Run the Go tests (all packages and tests)
 
 endef
 
@@ -127,7 +126,8 @@ fleet-dev: fleet
 fleetctl: .prefix .pre-build .pre-fleetctl
 	# Race requires cgo
 	$(eval CGO_ENABLED := $(shell [[ "${GO_BUILD_RACE_ENABLED_VAR}" = "true" ]] && echo 1 || echo 0))
-	CGO_ENABLED=${CGO_ENABLED} go build -race=${GO_BUILD_RACE_ENABLED_VAR} -o build/fleetctl -ldflags ${LDFLAGS_VERSION} ./cmd/fleetctl
+	$(eval FLEETCTL_LDFLAGS := $(shell echo "${LDFLAGS_VERSION} ${EXTRA_FLEETCTL_LDFLAGS}"))
+	CGO_ENABLED=${CGO_ENABLED} go build -race=${GO_BUILD_RACE_ENABLED_VAR} -o build/fleetctl -ldflags="${FLEETCTL_LDFLAGS}" ./cmd/fleetctl
 
 fleetctl-dev: GO_BUILD_RACE_ENABLED_VAR=true
 fleetctl-dev: fleetctl
@@ -143,8 +143,50 @@ lint: lint-go lint-js
 dump-test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
-test-go: dump-test-schema generate-mock
-	go test -tags full,fts5,netgo ${GO_TEST_EXTRA_FLAGS_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
+
+# This is the base command to run Go tests.
+# Wrap this to run tests with presets (see `run-go-tests` and `test-go` targets).
+# PKG_TO_TEST: Go packages to test, e.g. "server/datastore/mysql".  Separate multiple packages with spaces.
+# TESTS_TO_RUN: Name specific tests to run in the specified packages.  Leave blank to run all tests in the specified packages.
+# GO_TEST_EXTRA_FLAGS: Used to specify other arguments to `go test`.
+# GO_TEST_MAKE_FLAGS: Internal var used by other targets to add arguments to `go test`.
+#						 
+PKG_TO_TEST := "" # default to empty string; can be overridden on command line.
+go_test_pkg_to_test := $(addprefix ./,$(PKG_TO_TEST)) # set paths for packages to test
+dlv_test_pkg_to_test := $(addprefix github.com/fleetdm/fleet/v4/,$(PKG_TO_TEST)) # set URIs for packages to debug
+
+.run-go-tests:
+ifeq ($(PKG_TO_TEST), "")
+		@echo "Please specify one or more packages to test with argument PKG_TO_TEST=\"/path/to/pkg/1 /path/to/pkg/2\"..."; 
+else
+		@echo Running Go tests with command:
+		go test -tags full,fts5,netgo -run=${TESTS_TO_RUN} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... $(go_test_pkg_to_test)
+endif
+
+# This is the base command to debug Go tests.
+# Wrap this to run tests with presets (see `debug-go-tests`)
+# PKG_TO_TEST: Go packages to test, e.g. "server/datastore/mysql".  Separate multiple packages with spaces.
+# TESTS_TO_RUN: Name specific tests to debug in the specified packages.  Leave blank to debug all tests in the specified packages.
+# DEBUG_TEST_EXTRA_FLAGS: Internal var used by other targets to add arguments to `dlv test`.
+# GO_TEST_EXTRA_FLAGS: Used to specify other arguments to `go test`.
+.debug-go-tests:
+ifeq ($(PKG_TO_TEST), "")
+		@echo "Please specify one or more packages to debug with argument PKG_TO_TEST=\"/path/to/pkg/1 /path/to/pkg/2\"..."; 
+else
+		@echo Debugging tests with command:
+		dlv test ${dlv_test_pkg_to_test} --api-version=2 --listen=127.0.0.1:61179 ${DEBUG_TEST_EXTRA_FLAGS} -- -test.v -test.run=${TESTS_TO_RUN} ${GO_TEST_EXTRA_FLAGS} 
+endif
+
+# Command to run specific tests in development.  Can run all tests for one or more packages, or specific tests within packages.
+run-go-tests:
+	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .run-go-tests GO_TEST_MAKE_FLAGS="-v"
+
+debug-go-tests:
+	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests 
+
+# Command used in CI to run all tests.
+test-go: dump-test-schema generate-mock 
+	make .run-go-tests PKG_TO_TEST="./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/..."
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...
@@ -265,13 +307,13 @@ fleetd-tables-linux-arm64:
 	GOOS=linux GOARCH=arm64 go build -o fleetd_tables_linux_arm64.ext ./orbit/cmd/fleetd_tables
 fleetd-tables-darwin:
 	GOOS=darwin GOARCH=amd64 go build -o fleetd_tables_darwin.ext ./orbit/cmd/fleetd_tables
-fleetd-tables-darwin_arm:
-	GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build -o fleetd_tables_darwin_arm.ext ./orbit/cmd/fleetd_tables
-fleetd-tables-darwin-universal: fleetd-tables-darwin fleetd-tables-darwin_arm
-	lipo -create fleetd_tables_darwin.ext fleetd_tables_darwin_arm.ext -output fleetd_tables_darwin_universal.ext
+fleetd-tables-darwin_arm64:
+	GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build -o fleetd_tables_darwin_arm64.ext ./orbit/cmd/fleetd_tables
+fleetd-tables-darwin-universal: fleetd-tables-darwin fleetd-tables-darwin_arm64
+	lipo -create fleetd_tables_darwin.ext fleetd_tables_darwin_arm64.ext -output fleetd_tables_darwin_universal.ext
 fleetd-tables-all: fleetd-tables-windows fleetd-tables-linux fleetd-tables-darwin-universal fleetd-tables-linux-arm64
 fleetd-tables-clean:
-	rm -f fleetd_tables_windows.exe fleetd_tables_linux.ext fleetd_tables_darwin.ext fleetd_tables_darwin_arm.ext fleetd_tables_darwin_universal.ext
+	rm -f fleetd_tables_windows.exe fleetd_tables_linux.ext fleetd_tables_linux_arm64.ext fleetd_tables_darwin.ext fleetd_tables_darwin_arm64.ext fleetd_tables_darwin_universal.ext
 
 .pre-binary-arch:
 ifndef GOOS
@@ -481,7 +523,7 @@ desktop-windows:
 desktop-linux:
 	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
 	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
-		mkdir /output/fleet-desktop && \
+		mkdir -p /output/fleet-desktop && \
 		go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
 		cd /output && \
 		tar czf desktop.tar.gz fleet-desktop && \
@@ -496,7 +538,7 @@ desktop-linux:
 desktop-linux-arm64:
 	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
 	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
-		mkdir /output/fleet-desktop && \
+		mkdir -p /output/fleet-desktop && \
 		GOARCH=arm64 go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
 		cd /output && \
 		tar czf desktop.tar.gz fleet-desktop && \

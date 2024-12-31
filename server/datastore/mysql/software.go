@@ -91,7 +91,7 @@ func (ds *Datastore) getHostSoftwareInstalledPaths(
 	error,
 ) {
 	stmt := `
-		SELECT t.id, t.host_id, t.software_id, t.installed_path
+		SELECT t.id, t.host_id, t.software_id, t.installed_path, t.team_identifier
 		FROM host_software_installed_paths t
 		WHERE t.host_id = ?
 	`
@@ -145,7 +145,10 @@ func hostSoftwareInstalledPathsDelta(
 			continue
 		}
 
-		key := fmt.Sprintf("%s%s%s", r.InstalledPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf(
+			"%s%s%s%s%s",
+			r.InstalledPath, fleet.SoftwareFieldSeparator, r.TeamIdentifier, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+		)
 		iSPathLookup[key] = r
 
 		// Anything stored but not reported should be deleted
@@ -155,8 +158,8 @@ func hostSoftwareInstalledPathsDelta(
 	}
 
 	for key := range reported {
-		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 2)
-		iSPath, unqStr := parts[0], parts[1]
+		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 3)
+		installedPath, teamIdentifier, unqStr := parts[0], parts[1], parts[2]
 
 		// Shouldn't be possible ... everything 'reported' should be in the the software table
 		// because this executes after 'ds.UpdateHostSoftware'
@@ -172,9 +175,10 @@ func hostSoftwareInstalledPathsDelta(
 		}
 
 		toInsert = append(toInsert, fleet.HostSoftwareInstalledPath{
-			HostID:        hostID,
-			SoftwareID:    s.ID,
-			InstalledPath: iSPath,
+			HostID:         hostID,
+			SoftwareID:     s.ID,
+			InstalledPath:  installedPath,
+			TeamIdentifier: teamIdentifier,
 		})
 	}
 
@@ -211,7 +215,7 @@ func insertHostSoftwareInstalledPaths(
 		return nil
 	}
 
-	stmt := "INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES %s"
+	stmt := "INSERT INTO host_software_installed_paths (host_id, software_id, installed_path, team_identifier) VALUES %s"
 	batchSize := 500
 
 	for i := 0; i < len(toInsert); i += batchSize {
@@ -223,10 +227,10 @@ func insertHostSoftwareInstalledPaths(
 
 		var args []interface{}
 		for _, v := range batch {
-			args = append(args, v.HostID, v.SoftwareID, v.InstalledPath)
+			args = append(args, v.HostID, v.SoftwareID, v.InstalledPath, v.TeamIdentifier)
 		}
 
-		placeHolders := strings.TrimSuffix(strings.Repeat("(?, ?, ?), ", len(batch)), ", ")
+		placeHolders := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?), ", len(batch)), ", ")
 		stmt := fmt.Sprintf(stmt, placeHolders)
 
 		_, err := tx.ExecContext(ctx, stmt, args...)
@@ -407,9 +411,7 @@ func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, d
 			// We don't support installing browser plugins as of 2024/08/22
 			if i.Browser == "" {
 				key := UniqueSoftwareTitleStr(i.Name, i.Source, i.BundleIdentifier)
-				if _, ok := deletedTitles[key]; ok {
-					delete(deletedTitles, key)
-				}
+				delete(deletedTitles, key)
 			}
 		}
 	}
@@ -641,7 +643,19 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 			)
 			// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
 			stmt := fmt.Sprintf(
-				"INSERT IGNORE INTO software (name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser, title_id, checksum) VALUES %s",
+				`INSERT IGNORE INTO software (
+					name,
+					version,
+					source,
+					`+"`release`"+`,
+					vendor,
+					arch,
+					bundle_identifier,
+					extension_id,
+					browser,
+					title_id,
+					checksum
+				) VALUES %s`,
 				values,
 			)
 			args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftware)
@@ -903,7 +917,7 @@ func listSoftwareDB(
 				DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
 				CreatedAt:   *result.CreatedAt,
 			}
-			if opts.IncludeCVEScores {
+			if opts.IncludeCVEScores && !opts.WithoutVulnerabilityDetails {
 				cve.CVSSScore = &result.CVSSScore
 				cve.EPSSProbability = &result.EPSSProbability
 				cve.CISAKnownExploit = &result.CISAKnownExploit
@@ -1230,16 +1244,22 @@ func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, inc
 		return err
 	}
 
-	lookup := make(map[uint][]string)
+	installedPathsList := make(map[uint][]string)
+	pathSignatureInformation := make(map[uint][]fleet.PathSignatureInformation)
 	for _, ip := range installedPaths {
-		lookup[ip.SoftwareID] = append(lookup[ip.SoftwareID], ip.InstalledPath)
+		installedPathsList[ip.SoftwareID] = append(installedPathsList[ip.SoftwareID], ip.InstalledPath)
+		pathSignatureInformation[ip.SoftwareID] = append(pathSignatureInformation[ip.SoftwareID], fleet.PathSignatureInformation{
+			InstalledPath:  ip.InstalledPath,
+			TeamIdentifier: ip.TeamIdentifier,
+		})
 	}
 
 	host.Software = make([]fleet.HostSoftwareEntry, 0, len(software))
 	for _, s := range software {
 		host.Software = append(host.Software, fleet.HostSoftwareEntry{
-			Software:       s,
-			InstalledPaths: lookup[s.ID],
+			Software:                 s,
+			InstalledPaths:           installedPathsList[s.ID],
+			PathSignatureInformation: pathSignatureInformation[s.ID],
 		})
 	}
 	return nil
@@ -1285,7 +1305,7 @@ func (ds *Datastore) AllSoftwareIterator(
 	var args []interface{}
 
 	stmt := `SELECT
-		s.id, s.name, s.version, s.source, s.bundle_identifier, s.release, s.arch, s.vendor, s.browser, s.extension_id, s.title_id ,
+		s.id, s.name, s.version, s.source, s.bundle_identifier, s.release, s.arch, s.vendor, s.browser, s.extension_id, s.title_id,
 		COALESCE(sc.cpe, '') AS generated_cpe
 	FROM software s
 	LEFT JOIN software_cpe sc ON (s.id=sc.software_id)`
@@ -1793,7 +1813,10 @@ FROM (
         AND COALESCE(s.bundle_identifier, '') = ''
 ) as combined_results
 ON DUPLICATE KEY UPDATE
-    software_titles.id = software_titles.id
+    software_titles.name = software_titles.name,
+    software_titles.source = software_titles.source,
+    software_titles.browser = software_titles.browser,
+    software_titles.bundle_identifier = software_titles.bundle_identifier
 `
 		res, err := tx.ExecContext(ctx, upsertTitlesStmt)
 		if err != nil {
@@ -2159,7 +2182,12 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
 	var onlySelfServiceClause string
 	if opts.SelfServiceOnly {
-		onlySelfServiceClause = ` AND ( si.self_service = 1 OR vat.self_service = 1 ) `
+		onlySelfServiceClause = ` AND ( si.self_service = 1 OR ( vat.self_service = 1 AND :is_mdm_enrolled ) ) `
+	}
+
+	var excludeVPPAppsClause string
+	if !opts.IsMDMEnrolled {
+		excludeVPPAppsClause = ` AND vat.id IS NULL `
 	}
 
 	var onlyVulnerableJoin string
@@ -2268,6 +2296,8 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			host_vpp_software_installs hvsi ON vat.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id AND hvsi.removed = 0
 		LEFT OUTER JOIN
 			nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
+		LEFT OUTER JOIN
+			host_script_results hsr ON hsr.host_id = :host_id AND hsr.execution_id = hsi.last_uninstall_execution_id
 		WHERE
 			-- use the latest VPP install attempt only
 			( hvsi.id IS NULL OR hvsi.id = (
@@ -2281,12 +2311,74 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			-- on host (via installer or VPP app). If only available for install is
 			-- requested, then the software installed on host clause is empty.
 			( %s hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
+			AND 
+		    -- label membership check
+			(
+			 	-- do the label membership check only for software installers
+				CASE WHEN (si.ID IS NOT NULL AND hsi.last_uninstalled_at IS NOT NULL AND hsr.exit_code = 0) THEN
+				(
+					EXISTS (
+
+					SELECT 1 FROM (
+
+						-- no labels
+						SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
+						WHERE NOT EXISTS (
+							SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id
+						)
+
+						UNION
+
+						-- include any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							0 as count_host_updated_after_labels
+						FROM
+							software_installer_labels sil
+							LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+							AND lm.host_id = :host_id
+						WHERE
+							sil.software_installer_id = si.id
+							AND sil.exclude = 0
+						HAVING
+							count_installer_labels > 0 AND count_host_labels > 0
+
+						UNION
+
+						-- exclude any, ignore software that depends on labels created 
+						-- _after_ the label_updated_at timestamp of the host (because 
+						-- we don't have results for that label yet, the host may or may 
+						-- not be a member).
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							SUM(CASE WHEN lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
+						FROM
+							software_installer_labels sil
+							LEFT OUTER JOIN labels lbl
+								ON lbl.id = sil.label_id
+							LEFT OUTER JOIN label_membership lm 
+								ON lm.label_id = sil.label_id AND lm.host_id = :host_id
+						WHERE
+							sil.software_installer_id = si.id
+							AND sil.exclude = 1
+						HAVING
+							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+						) t
+					)
+				)
+				-- it's some other type of software that has been checked above
+				ELSE true END
+			)
+
 			%s
 `, status, softwareIsInstalledOnHostClause, onlySelfServiceClause)
 
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be
 	// installed on the host's platform.
+
 	stmtAvailable := fmt.Sprintf(`
 		SELECT
 			st.id,
@@ -2346,9 +2438,68 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 					hvsi.removed = 0
 			) AND
 			-- either the software installer or the vpp app exists for the host's team
-			( si.id IS NOT NULL OR vat.platform = :host_platform )
-			%s
-`, onlySelfServiceClause)
+			( si.id IS NOT NULL OR vat.platform = :host_platform ) AND
+			-- label membership check
+			(
+			 	-- do the label membership check only for software installers
+				CASE WHEN si.ID IS NOT NULL THEN
+				(
+					EXISTS (
+
+					SELECT 1 FROM (
+
+						-- no labels
+						SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
+						WHERE NOT EXISTS (
+							SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id
+						)
+
+						UNION
+
+						-- include any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							0 as count_host_updated_after_labels
+						FROM
+							software_installer_labels sil
+							LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+							AND lm.host_id = :host_id
+						WHERE
+							sil.software_installer_id = si.id
+							AND sil.exclude = 0
+						HAVING
+							count_installer_labels > 0 AND count_host_labels > 0
+
+						UNION
+
+						-- exclude any, ignore software that depends on labels created 
+						-- _after_ the label_updated_at timestamp of the host (because 
+						-- we don't have results for that label yet, the host may or may 
+						-- not be a member).
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							SUM(CASE WHEN lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
+						FROM
+							software_installer_labels sil
+							LEFT OUTER JOIN labels lbl
+								ON lbl.id = sil.label_id
+							LEFT OUTER JOIN label_membership lm 
+								ON lm.label_id = sil.label_id AND lm.host_id = :host_id
+						WHERE
+							sil.software_installer_id = si.id
+							AND sil.exclude = 1
+						HAVING
+							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+						) t
+					)
+				)
+				-- it's some other type of software that has been checked above
+				ELSE true END
+			)
+			%s %s
+`, onlySelfServiceClause, excludeVPPAppsClause)
 
 	// this is the top-level SELECT of fields from the UNION of the sub-selects
 	// (stmtAvailable and stmtInstalled).
@@ -2385,6 +2536,8 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
 		"global_or_team_id":         globalOrTeamID,
+		"is_mdm_enrolled":           opts.IsMDMEnrolled,
+		"host_label_updated_at":     host.LabelUpdatedAt,
 	}
 
 	stmt := stmtInstalled
@@ -2519,6 +2672,8 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			st.id as software_title_id,
 			s.id as software_id,
 			s.version,
+			s.bundle_identifier,
+			s.source,
 			hs.last_opened_at
 		FROM
 			software s
@@ -2583,7 +2738,8 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			const pathsStmt = `
 			SELECT
 				hsip.software_id,
-				hsip.installed_path
+				hsip.installed_path,
+				hsip.team_identifier
 			FROM
 				host_software_installed_paths hsip
 			WHERE
@@ -2593,8 +2749,9 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 				software_id, installed_path
 	`
 			type installedPath struct {
-				SoftwareID    uint   `db:"software_id"`
-				InstalledPath string `db:"installed_path"`
+				SoftwareID     uint   `db:"software_id"`
+				InstalledPath  string `db:"installed_path"`
+				TeamIdentifier string `db:"team_identifier"`
 			}
 			var installedPaths []installedPath
 			stmt, args, err = sqlx.In(pathsStmt, host.ID, softwareIDs)
@@ -2609,6 +2766,12 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			for _, path := range installedPaths {
 				ver := bySoftwareID[path.SoftwareID]
 				ver.InstalledPaths = append(ver.InstalledPaths, path.InstalledPath)
+				if ver.Source == "apps" {
+					ver.SignatureInformation = append(ver.SignatureInformation, fleet.PathSignatureInformation{
+						InstalledPath:  path.InstalledPath,
+						TeamIdentifier: path.TeamIdentifier,
+					})
+				}
 			}
 		}
 	}

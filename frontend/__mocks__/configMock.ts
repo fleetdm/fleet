@@ -1,6 +1,7 @@
 import { IConfig, IMdmConfig } from "interfaces/config";
 
 const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
+  apple_server_url: "",
   enable_disk_encryption: false,
   windows_enabled_and_configured: true,
   apple_bm_default_team: "Apples",
@@ -38,6 +39,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
     deadline_days: null,
     grace_period_days: null,
   },
+  windows_migration_enabled: false,
   end_user_authentication: {
     entity_id: "",
     issuer_uri: "",

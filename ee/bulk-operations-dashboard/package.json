@@ -9,6 +9,7 @@
     "@sailshq/lodash": "^3.10.6",
     "@sailshq/socket.io-redis": "^6.1.2",
     "axios": "1.7.7",
+    "form-data": "4.0.1",
     "sails": "^1.5.11",
     "sails-hook-apianalytics": "^2.0.6",
     "sails-hook-organics": "^2.2.2",
@@ -20,7 +21,7 @@
   },
   "devDependencies": {
     "eslint": "5.16.0",
-    "grunt": "1.0.4",
+    "grunt": "1.5.3",
     "htmlhint": "0.11.0",
     "lesshint": "6.3.6",
     "sails-hook-grunt": "^5.0.0"

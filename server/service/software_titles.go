@@ -42,6 +42,13 @@ func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fl
 		if sw.CountsUpdatedAt != nil && !sw.CountsUpdatedAt.IsZero() && sw.CountsUpdatedAt.After(latest) {
 			latest = *sw.CountsUpdatedAt
 		}
+		// we dont want to include the InstallDuringSetup field in the response
+		// for software titles list.
+		if sw.SoftwarePackage != nil {
+			sw.SoftwarePackage.InstallDuringSetup = nil
+		} else if sw.AppStoreApp != nil {
+			sw.AppStoreApp.InstallDuringSetup = nil
+		}
 	}
 	if len(titles) == 0 {
 		titles = []fleet.SoftwareTitleListResult{}
@@ -168,7 +175,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 				return nil, ctxerr.Wrap(ctx, err, "checked using a global admin")
 			}
 
-			return nil, fleet.NewPermissionError("Error: You don’t have permission to view specified software. It is installed on hosts that belong to team you don’t have permissions to view.")
+			return nil, fleet.NewPermissionError("Error: You don't have permission to view specified software. It is installed on hosts that belong to team you don't have permissions to view.")
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
 	}

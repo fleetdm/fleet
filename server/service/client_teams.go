@@ -106,11 +106,23 @@ func (c *Client) ApplyTeamSoftwareInstallers(tmName string, softwareInstallers [
 }
 
 func (c *Client) ApplyTeamAppStoreAppsAssociation(tmName string, vppBatchPayload []fleet.VPPBatchPayload, opts fleet.ApplySpecOptions) error {
-	verb, path := "POST", "/api/latest/fleet/software/app_store_apps/batch"
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
 		return err
 	}
 	query.Add("team_name", tmName)
+	return c.applyAppStoreAppsAssociation(vppBatchPayload, query)
+}
+
+func (c *Client) ApplyNoTeamAppStoreAppsAssociation(vppBatchPayload []fleet.VPPBatchPayload, opts fleet.ApplySpecOptions) error {
+	query, err := url.ParseQuery(opts.RawQuery())
+	if err != nil {
+		return err
+	}
+	return c.applyAppStoreAppsAssociation(vppBatchPayload, query)
+}
+
+func (c *Client) applyAppStoreAppsAssociation(vppBatchPayload []fleet.VPPBatchPayload, query url.Values) error {
+	verb, path := "POST", "/api/latest/fleet/software/app_store_apps/batch"
 	return c.authenticatedRequestWithQuery(map[string]interface{}{"app_store_apps": vppBatchPayload}, verb, path, nil, query.Encode())
 }

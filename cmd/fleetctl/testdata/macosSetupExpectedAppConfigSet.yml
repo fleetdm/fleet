@@ -20,12 +20,14 @@ spec:
     zendesk: null
   mdm:
     apple_business_manager:
+    apple_server_url: ""
     volume_purchasing_program:
     apple_bm_enabled_and_configured: false
     apple_bm_terms_expired: false
     enabled_and_configured: true
     windows_enabled_and_configured: false
     enable_disk_encryption: false
+    windows_migration_enabled: false
     macos_migration:
       enable: false
       mode: ""
@@ -39,6 +41,8 @@ spec:
       enable_end_user_authentication: false
       macos_setup_assistant: %s
       enable_release_device_manually: false
+      script: null
+      software: null
     macos_updates:
       deadline: null
       minimum_version: null

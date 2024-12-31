@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 
 import scriptAPI from "services/entities/scripts";
 import { NotificationContext } from "context/notification";
@@ -16,6 +16,7 @@ interface IDeleteScriptModalProps {
   scriptId: number;
   onCancel: () => void;
   onDone: () => void;
+  isHidden?: boolean;
 }
 
 const DeleteScriptModal = ({
@@ -23,10 +24,13 @@ const DeleteScriptModal = ({
   scriptId,
   onCancel,
   onDone,
+  isHidden = false,
 }: IDeleteScriptModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const onClickDelete = async (id: number) => {
+    setIsDeleting(true);
     try {
       await scriptAPI.deleteScript(id);
       renderFlash("success", "Successfully deleted!");
@@ -40,6 +44,7 @@ const DeleteScriptModal = ({
           : "Couldn’t delete. Please try again."
       );
     }
+    setIsDeleting(false);
     onDone();
   };
 
@@ -49,6 +54,8 @@ const DeleteScriptModal = ({
       title="Delete script"
       onExit={onCancel}
       onEnter={() => onClickDelete(scriptId)}
+      isHidden={isHidden}
+      isContentDisabled={isDeleting}
     >
       <>
         <p>
@@ -63,6 +70,7 @@ const DeleteScriptModal = ({
             onClick={() => onClickDelete(scriptId)}
             variant="alert"
             className="delete-loading"
+            isLoading={isDeleting}
           >
             Delete
           </Button>

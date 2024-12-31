@@ -37,14 +37,14 @@ func triggerCommand() *cli.Command {
 				root := ctxerr.Cause(err)
 				switch root.(type) {
 				case service.NotFoundErr, service.ConflictErr:
-					fmt.Println(fmt.Sprintf("[!] %s", formatTriggerErrMsg(name, root.Error())))
+					fmt.Printf("[!] %s\n", formatTriggerErrMsg(name, root.Error()))
 					return nil
 				default:
 					return err
 				}
 			}
 
-			fmt.Println(fmt.Sprintf("[+] Sent request to trigger %s schedule", name))
+			fmt.Printf("[+] Sent request to trigger %s schedule\n", name)
 			return nil
 		},
 	}

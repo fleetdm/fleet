@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
@@ -74,18 +74,32 @@ export const FileUploader = ({
   fileDetails,
 }: IFileUploaderProps) => {
   const [isFileSelected, setIsFileSelected] = useState(!!fileDetails);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const classes = classnames(baseClass, className, {
     [`${baseClass}__file-preview`]: isFileSelected,
   });
   const buttonVariant = buttonType === "button" ? "brand" : "text-icon";
 
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
   const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     onFileUpload(files);
     setIsFileSelected(true);
 
-    e.target.value = "";
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      triggerFileInput();
+    }
   };
 
   const renderGraphics = () => {
@@ -113,6 +127,8 @@ export const FileUploader = ({
           variant={buttonVariant}
           isLoading={isLoading}
           disabled={disabled}
+          customOnKeyDown={handleKeyDown}
+          tabIndex={0}
         >
           <label htmlFor="upload-file">
             {buttonType === "link" && <Icon name="upload" />}
@@ -120,6 +136,7 @@ export const FileUploader = ({
           </label>
         </Button>
         <input
+          ref={fileInputRef}
           accept={accept}
           id="upload-file"
           type="file"

@@ -1,6 +1,5 @@
 import React, { useContext } from "react";
 import { InjectedRouter } from "react-router";
-import { Params } from "react-router/lib/Router";
 
 import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
 
@@ -24,15 +23,9 @@ interface ICoreLayoutProps {
     hash?: string;
     query: QueryParams;
   };
-  params: Params;
 }
 
-const CoreLayout = ({
-  children,
-  router,
-  location,
-  params: routeParams,
-}: ICoreLayoutProps) => {
+const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
   const { config, currentUser } = useContext(AppContext);
   const { notification, hideFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
@@ -56,30 +49,8 @@ const CoreLayout = ({
     router.push(LOGOUT);
   };
 
-  const onNavItemClick = (path: string) => {
-    return (evt: React.MouseEvent<HTMLButtonElement>) => {
-      evt.preventDefault();
-
-      if (path.indexOf("http") !== -1) {
-        global.window.open(path, "_blank");
-        return false;
-      }
-
-      router.push(path);
-      return false;
-    };
-  };
-
-  const onUndoActionClick = (undoAction?: () => void) => {
-    return (evt: React.MouseEvent<HTMLButtonElement>) => {
-      evt.preventDefault();
-
-      if (undoAction) {
-        undoAction();
-      }
-
-      hideFlash();
-    };
+  const onUserMenuItemClick = (path: string) => {
+    router.push(path);
   };
 
   const fullWidthFlash = !currentUser;
@@ -97,7 +68,7 @@ const CoreLayout = ({
           currentUser={currentUser}
           location={location}
           onLogoutUser={onLogoutUser}
-          onNavItemClick={onNavItemClick}
+          onUserMenuItemClick={onUserMenuItemClick}
         />
       </nav>
       <div className="core-wrapper">
@@ -105,7 +76,7 @@ const CoreLayout = ({
           fullWidth={fullWidthFlash}
           notification={notification}
           onRemoveFlash={hideFlash}
-          onUndoActionClick={onUndoActionClick}
+          pathname={location.pathname}
         />
 
         {children}

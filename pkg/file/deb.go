@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/blakesmith/ar"
+	"github.com/klauspost/compress/zstd"
 	"github.com/xi2/xz"
 )
 
@@ -101,6 +102,13 @@ func parseControl(r io.Reader, ext string) (name, version string, err error) {
 		if err != nil {
 			return "", "", fmt.Errorf("failed to create xz reader: %w", err)
 		}
+	case ".zst":
+		zr, err := zstd.NewReader(r)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to create zstd reader: %w", err)
+		}
+		defer zr.Close()
+		r = zr
 	case "":
 		// uncompressed
 	default:

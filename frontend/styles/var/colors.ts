@@ -3,7 +3,7 @@ export type Colors = keyof typeof COLORS;
 export const COLORS = {
   // core colors
   "core-fleet-black": "#192147",
-  "core-fleet-blue": "#6A67FE",
+  "core-fleet-blue": "#6A67FE", // TODO: Why does this match ui-vibrant-blue and not core-fleet-blue
   "core-fleet-red": "#FF5C83",
   "core-fleet-purple": "#AE6DDF",
   "core-fleet-white": "#FFFFFF",
@@ -26,4 +26,9 @@ export const COLORS = {
   "status-success": "#3DB67B",
   "status-warning": "#F8CD6B",
   "status-error": "#ED6E85",
+
+  "core-vibrant-blue-over": "#5d5ae7",
+  "core-vibrant-blue-down": "#4b4ab4",
+  "ui-vibrant-blue-25": "#d9d9fe",
+  "ui-vibrant-blue-10": "#f1f0ff",
 };

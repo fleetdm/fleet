@@ -85,23 +85,59 @@
         <div class="pointer" @click="closeModal()">&times;</div>
       </div>
       <ajax-form :handle-submitting="handleSubmittingEditProfileForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editProfileFormRules" @submitted="submittedForm()">
-        <div purpose="profile-information" v-if="!formData.newProfile">
-          <div class="d-flex flex-row justify-content-start">
-            <img style="height: 40px; width: 34px;" alt="Configuration profile" src="/images/profile-34x40@2x.png">
-            <div class="d-flex flex-column">
-              <p><strong>{{profileToEdit.name}}</strong></p>
-              <p class="muted">{{platformFriendlyNames[profileToEdit.platform]}}</p>
+        <div v-if="labelsSyncing">
+          <div class="d-flex flex-row align-items-center justify-content-center my-4" >
+            <div v-if="!cloudError">
+              <span style="top: -4px; font-size: 16px; margin: 0 8px 0 0;" class="loading-dot dot1 position-relative"><span class="fa fa-circle"></span></span>
+              <span style="top: -4px; font-size: 16px; margin: 0 8px 0 0;" class="loading-dot dot2 position-relative"><span class="fa fa-circle"></span></span>
+              <span style="top: -4px; font-size: 16px; margin: 0 8px 0 0;" class="loading-dot dot3 position-relative"><span class="fa fa-circle"></span></span>
+              <span style="top: -4px; font-size: 16px; margin: 0 8px 0 0;" class="loading-dot dot4 position-relative"><span class="fa fa-circle"></span></span>
             </div>
+            <cloud-error v-if="cloudError"></cloud-error>
           </div>
         </div>
-        <cloud-error v-if="cloudError === 'payloadIdentifierDoesNotMatch'"></cloud-error>
-        <file-upload id="edit-file-upload" mode="profiles" :disabled="syncing" accept=".xml,.mobileconfig" v-model="formData.newProfile"></file-upload>
-        <div purpose="teams-picker">
-          <p class="mb-2"><strong>Teams</strong></p>
-          <multifield :value="formData.teams" v-model="formData.newTeamIds" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
+        <div v-else>
+          <div purpose="profile-information" v-if="!formData.newProfile">
+            <div class="d-flex flex-row justify-content-start">
+              <img style="height: 40px; width: 34px;" alt="Configuration profile" src="/images/profile-34x40@2x.png">
+              <div class="d-flex flex-column">
+                <p><strong>{{profileToEdit.name}}</strong></p>
+                <p class="muted">{{platformFriendlyNames[profileToEdit.platform]}}</p>
+              </div>
+            </div>
+          </div>
+          <cloud-error v-if="cloudError === 'payloadIdentifierDoesNotMatch'"></cloud-error>
+          <file-upload id="edit-file-upload" mode="profiles" :disabled="syncing" accept=".xml,.mobileconfig" v-model="formData.newProfile"></file-upload>
+          <div purpose="teams-picker">
+            <p class="mb-2"><strong>Teams</strong></p>
+            <multifield :value="formData.teams" v-model="formData.newTeamIds" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
+          </div>
+          <div>
+            <p><strong>Target</strong></p>
+            <div class="form-group">
+            <label purpose="form-option" class="form-control border-0 mb-2 p-0 h-auto"  :class="[formData.profileTarget === 'all' ? 'selected' : '']">
+              <input type="radio" :class="[formErrors.profileTarget ? 'is-invalid' : '']" v-model.trim="formData.profileTarget" value="all">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              All hosts on selected teams
+            </label>
+            <label purpose="form-option" class="form-control border-0 mb-0 p-0"  :class="[formData.profileTarget === 'custom' ? 'selected' : '']">
+              <input type="radio" :class="[formErrors.profileTarget ? 'is-invalid' : '']" v-model.trim="formData.profileTarget" value="custom">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Custom
+            </label>
+            </div>
+          </div>
+          <div v-if="formData.profileTarget === 'custom'">
+            <select class="custom-select form-control mb-4" v-model="formData.labelTargetBehavior">
+              <option value="include" selected>Hosts with all of these labels</option>
+              <option value="exclude">Hosts with none of these labels</option>
+            </select>
+
+            <multifield :value="formData.labels" v-model="formData.labels" input-type="checkboxes" :select-options="labels"></multifield>
+          </div>
+          <cloud-error v-if="cloudError && cloudError !== 'payloadIdentifierDoesNotMatch'"></cloud-error>
         </div>
         <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
-          <cloud-error v-if="cloudError && cloudError !== 'payloadIdentifierDoesNotMatch'"></cloud-error>
           <ajax-button :syncing.sync="syncing" purpose="modal-button" type="submit">Save</ajax-button>
         </div>
       </ajax-form>
@@ -134,15 +170,50 @@
         <div class="pointer" @click="closeModal()">&times;</div>
       </div>
       <ajax-form :handle-submitting="handleSubmittingAddProfileForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="addProfileFormRules" @submitted="submittedForm()">
-        <file-upload id="add-file-upload" mode="profiles" :class="[formErrors.newProfile ? 'is-invalid' : '']"  :disabled="syncing" v-model="formData.newProfile">
-        </file-upload>
-        <div class="invalid-feedback text-center" v-if="formErrors.newProfile">Please upload a new profile.</div>
+        <div v-if="labelsSyncing">
+          <div class="d-flex flex-row align-items-center justify-content-center my-4" >
+            <div v-if="!cloudError">
+              <span style="top: -4px; font-size: 16px; margin: 0 8px 0 0;" class="loading-dot dot1 position-relative"><span class="fa fa-circle"></span></span>
+              <span style="top: -4px; font-size: 16px; margin: 0 8px 0 0;" class="loading-dot dot2 position-relative"><span class="fa fa-circle"></span></span>
+              <span style="top: -4px; font-size: 16px; margin: 0 8px 0 0;" class="loading-dot dot3 position-relative"><span class="fa fa-circle"></span></span>
+              <span style="top: -4px; font-size: 16px; margin: 0 8px 0 0;" class="loading-dot dot4 position-relative"><span class="fa fa-circle"></span></span>
+            </div>
+            <cloud-error v-if="cloudError"></cloud-error>
+          </div>
 
-        <div purpose="teams-picker" class="mt-4">
-          <p class="mb-2"><strong>Teams</strong></p>
-          <multifield :value="formData.teams" v-model="formData.teams" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
         </div>
-        <cloud-error v-if="cloudError"></cloud-error>
+        <div v-else>
+          <file-upload id="add-file-upload" mode="profiles" :class="[formErrors.newProfile ? 'is-invalid' : '']"  :disabled="syncing" v-model="formData.newProfile">
+          </file-upload>
+          <div class="invalid-feedback text-center" v-if="formErrors.newProfile">Please upload a new profile.</div>
+
+          <div purpose="teams-picker" class="mt-4">
+            <p class="mb-2"><strong>Teams</strong></p>
+            <multifield :value="formData.teams" v-model="formData.teams" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
+          </div>
+          <div class="form-group">
+            <p><strong>Target</strong></p>
+            <label purpose="form-option" class="form-control border-0 mb-2 p-0 h-auto">
+              <input type="radio" :class="[formErrors.profileTarget ? 'is-invalid' : '']" v-model.trim="formData.profileTarget" value="all">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              All hosts on selected teams
+            </label>
+            <label purpose="form-option" class="form-control border-0 mb-0 p-0">
+              <input type="radio" :class="[formErrors.profileTarget ? 'is-invalid' : '']" v-model.trim="formData.profileTarget" value="custom">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Custom
+            </label>
+          </div>
+          <div v-if="formData.profileTarget === 'custom'">
+            <select class="custom-select form-control mb-4" v-model="formData.labelTargetBehavior">
+              <option value="include" selected>Hosts with all of these labels</option>
+              <option value="exclude">Hosts with none of these labels</option>
+            </select>
+
+            <multifield :value="formData.labels" v-model="formData.labels" input-type="checkboxes" :select-options="labels"></multifield>
+          </div>
+          <cloud-error v-if="cloudError"></cloud-error>
+        </div>
         <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
           <a purpose="cancel-button" @click="closeModal()">Cancel</a>
           <ajax-button :syncing.sync="syncing" purpose="modal-button" :disabled="!formData.newProfile" type="submit">Add</ajax-button>
@@ -150,5 +221,6 @@
       </ajax-form>
     </div>
   </modal>
+  <ajax-overlay :syncing-message="syncingMessage" :syncing="overlaySyncing"></ajax-overlay>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

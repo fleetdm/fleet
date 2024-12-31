@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -123,6 +124,13 @@ type SoftwareInstaller struct {
 	URL string `json:"url" db:"url"`
 	// FleetLibraryAppID is the related Fleet-maintained app for this installer (if not nil).
 	FleetLibraryAppID *uint `json:"-" db:"fleet_library_app_id"`
+	// AutomaticInstallPolicies is the list of policies that trigger automatic
+	// installation of this software.
+	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
+	// LablesIncludeAny is the list of "include any" labels for this software installer (if not nil).
+	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
+	// LabelsExcludeAny is the list of "exclude any" labels for this software installer (if not nil).
+	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -210,19 +218,16 @@ type HostSoftwareInstallerResult struct {
 	InstallUUID string `json:"install_uuid" db:"execution_id"`
 	// SoftwareTitle is the title of the software.
 	SoftwareTitle string `json:"software_title" db:"software_title"`
-	// SoftwareVersion is the version of the software.
-	SoftwareTitleID uint `json:"software_title_id" db:"software_title_id"`
+	// SoftwareTitleID is the unique numerical ID of the software title assigned by the datastore.
+	SoftwareTitleID *uint `json:"software_title_id" db:"software_title_id"`
 	// SoftwareInstallerID is the unique numerical ID of the software installer assigned by the datastore.
-	SoftwareInstallerID uint `json:"-" db:"software_installer_id"`
+	SoftwareInstallerID *uint `json:"-" db:"software_installer_id"`
 	// SoftwarePackage is the name of the software installer package.
 	SoftwarePackage string `json:"software_package" db:"software_package"`
 	// HostID is the ID of the host.
 	HostID uint `json:"host_id" db:"host_id"`
 	// Status is the status of the software installer package on the host.
 	Status SoftwareInstallerStatus `json:"status" db:"status"`
-	// Detail is the detail of the software installer package on the host. TODO: does this field
-	// have specific values that should be used? If so, how are they calculated?
-	Detail string `json:"detail" db:"detail"`
 	// Output is the output of the software installer package on the host.
 	Output *string `json:"output" db:"install_script_output"`
 	// PreInstallQueryOutput is the output of the pre-install query on the host.
@@ -245,12 +250,6 @@ type HostSoftwareInstallerResult struct {
 	// HostDeletedAt indicates if the data is associated with a
 	// deleted host
 	HostDeletedAt *time.Time `json:"-" db:"host_deleted_at"`
-	// SoftwareInstallerUserID is the ID of the user that uploaded the software installer.
-	SoftwareInstallerUserID *uint `json:"-" db:"software_installer_user_id"`
-	// SoftwareInstallerUserID is the name of the user that uploaded the software installer.
-	SoftwareInstallerUserName string `json:"-" db:"software_installer_user_name"`
-	// SoftwareInstallerUserEmail is the email of the user that uploaded the software installer.
-	SoftwareInstallerUserEmail string `json:"-" db:"software_installer_user_email"`
 	// PolicyID is the id of the policy that triggered the install, or
 	// nil if the install was not triggered by a policy failure
 	PolicyID *uint `json:"policy_id" db:"policy_id"`
@@ -317,25 +316,32 @@ func (s *HostSoftwareInstallerResultAuthz) AuthzType() string {
 }
 
 type UploadSoftwareInstallerPayload struct {
-	TeamID            *uint
-	InstallScript     string
-	PreInstallQuery   string
-	PostInstallScript string
-	InstallerFile     io.ReadSeeker // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
-	StorageID         string
-	Filename          string
-	Title             string
-	Version           string
-	Source            string
-	Platform          string
-	BundleIdentifier  string
-	SelfService       bool
-	UserID            uint
-	URL               string
-	FleetLibraryAppID *uint
-	PackageIDs        []string
-	UninstallScript   string
-	Extension         string
+	TeamID             *uint
+	InstallScript      string
+	PreInstallQuery    string
+	PostInstallScript  string
+	InstallerFile      *TempFileReader // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
+	StorageID          string
+	Filename           string
+	Title              string
+	Version            string
+	Source             string
+	Platform           string
+	BundleIdentifier   string
+	SelfService        bool
+	UserID             uint
+	URL                string
+	FleetLibraryAppID  *uint
+	PackageIDs         []string
+	UninstallScript    string
+	Extension          string
+	InstallDuringSetup *bool    // keep saved value if nil, otherwise set as indicated
+	LabelsIncludeAny   []string // names of "include any" labels
+	LabelsExcludeAny   []string // names of "exclude any" labels
+	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
+	// is nil if the labels have not been validated.
+	ValidatedLabels  *LabelIdentsWithScope
+	AutomaticInstall bool
 }
 
 type UpdateSoftwareInstallerPayload struct {
@@ -346,7 +352,7 @@ type UpdateSoftwareInstallerPayload struct {
 	// used for authorization and persisted as author
 	UserID uint
 	// optional; used for pulling metadata + persisting new installer package to file system
-	InstallerFile io.ReadSeeker
+	InstallerFile *TempFileReader
 	// update the installer with these fields (*not* PATCH semantics at that point; while the
 	// associated endpoint is a PATCH, the entire row will be updated to these values, including
 	// blanks, so make sure they're set from either user input or the existing installer row
@@ -360,6 +366,11 @@ type UpdateSoftwareInstallerPayload struct {
 	Filename          string
 	Version           string
 	PackageIDs        []string
+	LabelsIncludeAny  []string // names of "include any" labels
+	LabelsExcludeAny  []string // names of "exclude any" labels
+	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
+	// can be nil if the labels have not been validated or if the labels are not being updated.
+	ValidatedLabels *LabelIdentsWithScope
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -421,6 +432,12 @@ type HostSoftwareWithInstaller struct {
 	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
 }
 
+type AutomaticInstallPolicy struct {
+	ID      uint   `json:"id" db:"id"`
+	Name    string `json:"name" db:"name"`
+	TitleID uint   `json:"-" db:"software_title_id"`
+}
+
 // SoftwarePackageOrApp provides information about a software installer
 // package or a VPP app.
 type SoftwarePackageOrApp struct {
@@ -428,6 +445,9 @@ type SoftwarePackageOrApp struct {
 	AppStoreID string `json:"app_store_id,omitempty"`
 	// Name is only present for software installer packages.
 	Name string `json:"name,omitempty"`
+	// AutomaticInstallPolicies is present for Fleet maintained apps and custom packages
+	// installed automatically with a policy.
+	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies"`
 
 	Version       string                 `json:"version"`
 	SelfService   *bool                  `json:"self_service,omitempty"`
@@ -435,6 +455,9 @@ type SoftwarePackageOrApp struct {
 	LastInstall   *HostSoftwareInstall   `json:"last_install"`
 	LastUninstall *HostSoftwareUninstall `json:"last_uninstall"`
 	PackageURL    *string                `json:"package_url"`
+	// InstallDuringSetup is a boolean that indicates if the package
+	// will be installed during the macos setup experience.
+	InstallDuringSetup *bool `json:"install_during_setup,omitempty" db:"install_during_setup"`
 }
 
 type SoftwarePackageSpec struct {
@@ -444,6 +467,18 @@ type SoftwarePackageSpec struct {
 	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
 	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
 	UninstallScript   TeamSpecSoftwareAsset `json:"uninstall_script"`
+	LabelsIncludeAny  []string              `json:"labels_include_any"`
+	LabelsExcludeAny  []string              `json:"labels_exclude_any"`
+
+	// ReferencedYamlPath is the resolved path of the file used to fill the
+	// software package. Only present after parsing a GitOps file on the fleetctl
+	// side of processing. This is required to match a macos_setup.software to
+	// its corresponding software package, as we do this matching by yaml path.
+	//
+	// It must be JSON-marshaled because it gets set during gitops file processing,
+	// which is then re-marshaled to JSON from this struct and later re-unmarshaled
+	// during ApplyGroup...
+	ReferencedYamlPath string `json:"referenced_yaml_path"`
 }
 
 type SoftwareSpec struct {
@@ -474,15 +509,18 @@ type HostSoftwareUninstall struct {
 	UninstalledAt time.Time `json:"uninstalled_at"`
 }
 
-// HostSoftwareInstalledVersion represents a version of software installed on a
-// host.
+// HostSoftwareInstalledVersion represents a version of software installed on a host.
 type HostSoftwareInstalledVersion struct {
-	SoftwareID      uint       `json:"-" db:"software_id"`
-	SoftwareTitleID uint       `json:"-" db:"software_title_id"`
-	Version         string     `json:"version" db:"version"`
-	LastOpenedAt    *time.Time `json:"last_opened_at" db:"last_opened_at"`
-	Vulnerabilities []string   `json:"vulnerabilities" db:"vulnerabilities"`
-	InstalledPaths  []string   `json:"installed_paths" db:"installed_paths"`
+	SoftwareID       uint       `json:"-" db:"software_id"`
+	SoftwareTitleID  uint       `json:"-" db:"software_title_id"`
+	Source           string     `json:"-" db:"source"`
+	Version          string     `json:"version" db:"version"`
+	BundleIdentifier string     `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
+	LastOpenedAt     *time.Time `json:"last_opened_at" db:"last_opened_at"`
+
+	Vulnerabilities      []string                   `json:"vulnerabilities" db:"vulnerabilities"`
+	InstalledPaths       []string                   `json:"installed_paths"`
+	SignatureInformation []PathSignatureInformation `json:"signature_information,omitempty"`
 }
 
 // HostSoftwareInstallResultPayload is the payload provided by fleetd to record
@@ -527,4 +565,86 @@ type SoftwareInstallerTokenMetadata struct {
 	TeamID  uint `json:"team_id"`
 }
 
-const SoftwareInstallerURLMaxLength = 255
+const SoftwareInstallerURLMaxLength = 4000
+
+// TempFileReader is an io.Reader with all extra io interfaces supported by a
+// file on disk reader (e.g. io.ReaderAt, io.Seeker, etc.). When created with
+// NewTempFileReader, it is backed by a temporary file on disk, and that file
+// is deleted when Close is called.
+type TempFileReader struct {
+	*os.File
+	keepFile bool
+}
+
+// Rewind seeks to the beginning of the file so the next read will read from
+// the start of the bytes.
+func (r *TempFileReader) Rewind() error {
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Close closes the TempFileReader and deletes the underlying temp file unless
+// it was instructed not to do so at creation time.
+func (r *TempFileReader) Close() error {
+	cerr := r.File.Close()
+	var rerr error
+	if !r.keepFile {
+		rerr = os.Remove(r.File.Name())
+	}
+	if cerr != nil {
+		return cerr
+	}
+	return rerr
+}
+
+// NewKeepFileReader creates a TempFileReader from a file path and keeps the
+// file on Close, instead of deleting it.
+func NewKeepFileReader(filename string) (*TempFileReader, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	return &TempFileReader{File: f, keepFile: true}, nil
+}
+
+// NewTempFileReader creates a temp file to store the data from the provided
+// reader and returns a TempFileReader that reads from that temp file, deleting
+// it on close.
+func NewTempFileReader(from io.Reader, tempDirFn func() string) (*TempFileReader, error) {
+	if tempDirFn == nil {
+		tempDirFn = os.TempDir
+	}
+
+	tempFile, err := os.CreateTemp(tempDirFn(), "fleet-temp-file-*")
+	if err != nil {
+		return nil, err
+	}
+	tfr := &TempFileReader{File: tempFile}
+
+	if _, err := io.Copy(tempFile, from); err != nil {
+		_ = tfr.Close() // best-effort close/delete
+		return nil, err
+	}
+	if err := tfr.Rewind(); err != nil {
+		_ = tfr.Close() // best-effort close/delete
+		return nil, err
+	}
+	return tfr, nil
+}
+
+// SoftwareScopeLabel represents the many-to-many relationship between
+// software titles and labels.
+//
+// NOTE: json representation of the fields is a bit awkward to match the
+// required API response, as this struct is returned within software title details.
+//
+// NOTE: depending on how/where this struct is used, fields MAY BE
+// UNRELIABLE insofar as they represent default, empty values.
+type SoftwareScopeLabel struct {
+	LabelName string `db:"label_name" json:"name"`
+	LabelID   uint   `db:"label_id" json:"id"` // label id in database, which may be the empty value in some cases where id is not known in advance (e.g., if labels are created during gitops processing)
+	Exclude   bool   `db:"exclude" json:"-"`   // not rendered in JSON, used when processing LabelsIncludeAny and LabelsExcludeAny on parent title (may be the empty value in some cases)
+	TitleID   uint   `db:"title_id" json:"-"`  // not rendered in JSON, used to store the associated title ID (may be the empty value in some cases)
+}

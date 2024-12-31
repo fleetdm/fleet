@@ -22,6 +22,7 @@ import (
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
@@ -64,6 +65,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"go.elastic.co/apm/module/apmhttp/v2"
 	_ "go.elastic.co/apm/module/apmsql/v2"
 	_ "go.elastic.co/apm/module/apmsql/v2/mysql"
 	"go.opentelemetry.io/otel"
@@ -189,6 +191,7 @@ the way that the Fleet server works.
 			if config.MysqlReadReplica.Address != "" {
 				opts = append(opts, mysql.Replica(&config.MysqlReadReplica))
 			}
+			// NOTE this will disable OTEL/APM interceptor
 			if dev && os.Getenv("FLEET_DEV_ENABLE_SQL_INTERCEPTOR") != "" {
 				opts = append(opts, mysql.WithInterceptor(&devSQLInterceptor{
 					logger: kitlog.With(logger, "component", "sql-interceptor"),
@@ -312,8 +315,12 @@ the way that the Fleet server works.
 				}
 			}
 
+			// Strip the Redis URI scheme if it's present. Scheme docs are at: https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml
+			// This allows us to use Render's Redis service in render.yaml, including the free tier.
+			// In the future, we could support the full Redis URI if needed (including username, password, database, etc.)
+			redisAddress := strings.TrimPrefix(config.Redis.Address, "redis://")
 			redisPool, err := redis.NewPool(redis.PoolConfig{
-				Server:                    config.Redis.Address,
+				Server:                    redisAddress,
 				Username:                  config.Redis.Username,
 				Password:                  config.Redis.Password,
 				Database:                  config.Redis.Database,
@@ -492,7 +499,11 @@ the way that the Fleet server works.
 
 			var mdmPushService push.Pusher
 			nanoMDMLogger := service.NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
-			pushProviderFactory := buford.NewPushProviderFactory()
+			pushProviderFactory := buford.NewPushProviderFactory(buford.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
+				return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+					Certificates: []tls.Certificate{*cert},
+				})), nil
+			}))
 			if os.Getenv("FLEET_DEV_MDM_APPLE_DISABLE_PUSH") == "1" {
 				mdmPushService = nopPusher{}
 			} else {
@@ -913,7 +924,7 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newMDMProfileManager(
+				return newAppleMDMProfileManagerSchedule(
 					ctx,
 					instanceID,
 					ds,
@@ -922,6 +933,17 @@ the way that the Fleet server works.
 				)
 			}); err != nil {
 				initFatal(err, "failed to register mdm_apple_profile_manager schedule")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newWindowsMDMProfileManagerSchedule(
+					ctx,
+					instanceID,
+					ds,
+					logger,
+				)
+			}); err != nil {
+				initFatal(err, "failed to register mdm_windows_profile_manager schedule")
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
@@ -1023,6 +1045,9 @@ the way that the Fleet server works.
 					"get_frontend",
 					service.ServeFrontend(config.Server.URLPrefix, config.Server.SandboxEnabled, httpLogger),
 				)
+
+				frontendHandler = service.WithMDMEnrollmentMiddleware(svc, httpLogger, frontendHandler)
+
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
 
 				setupRequired, err := svc.SetupRequired(baseCtx)
@@ -1107,6 +1132,7 @@ the way that the Fleet server works.
 					logger,
 					mdmCheckinAndCommandService,
 					ddmService,
+					commander,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}
@@ -1248,7 +1274,11 @@ the way that the Fleet server works.
 
 			// Create the handler based on whether tracing should be there
 			var handler http.Handler
-			handler = launcher.Handler(rootMux)
+			if config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm" {
+				handler = launcher.Handler(apmhttp.Wrap(rootMux))
+			} else {
+				handler = launcher.Handler(rootMux)
+			}
 
 			srv := config.Server.DefaultHTTPServer(ctx, handler)
 			if liveQueryRestPeriod > srv.WriteTimeout {

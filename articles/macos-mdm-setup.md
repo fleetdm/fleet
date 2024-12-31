@@ -6,24 +6,29 @@ To use automatic enrollment (aka zero-touch) features on macOS, iOS, and iPadOS,
 
 To turn on Windows MDM features, head to this [Windows MDM setup article](https://fleetdm.com/guides/windows-mdm-setup).
 
-## Apple Push Notification service (APNs)
+## Turn on Apple MDM
 
 Apple uses APNs to authenticate and manage interactions between Fleet and hosts.
 
-To connect Fleet to APNs or renew APNs, head to the **Settings > Integrations > Mobile device management (MDM)** page.
+To connect Fleet to APNs or renew APNs, head to the **Settings > Integrations > Mobile device management (MDM)** page. 
 
-> Apple requires that APNs certificates are renewed annually. 
+Then click **Turn on** under the Apple (macOS, iOS, iPadOS) MDM section.
+
+> Apple requires that APNs certificates are renewed annually.
+> - The recommended approach is to use a shared admin account to generate the CSR ensuring it can be renewed regardless of individual availability.
 > - If your certificate expires, you will have to turn MDM off and back on for all macOS hosts.
 > - Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all macOS hosts.
 
-## Apple Business Manager (ABM)
+## Automatic enrollment
 
 > Available in Fleet Premium
+
+Add your ABM to automatically enroll newly purchased Apple hosts when they're first unboxed and set up by your end users.
 
 To connect Fleet to ABM, you have to add an ABM token to Fleet. To add an ABM token: 
 
 1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
-2. Under "Automatic enrollment", click "Add ABM", and then click "Add ABM" again on the next page. Follow the instructions in the modal and upload an ABM token to Fleet.
+2. Under "Automatic enrollment", click "Add ABM", and then follow the instructions in the modal to upload an ABM token to Fleet.
 
 When one of your uploaded ABM tokens has expired or is within 30 days of expiring, you will see a warning banner at the top of page reminding you to renew your token.
 
@@ -44,11 +49,12 @@ macOS, iOS, and iPadOS hosts listed in ABM and associated to a Fleet instance wi
 
 Hosts that automatically enroll will be assigned to a default team. You can configure the default team for macOS, iOS, and iPadOS hosts by:
 
-1. Navigating to the **Settings > Integrations > Mobile device management (MDM)** page and clicking "Edit" under "Automatic enrollment".
-2. Click on the "Actions" dropdown for the ABM token you want to update, and then click "Edit teams".
-3. Use the dropdowns in the modal to select the default team for each type of host, and click "Save" to save your selections.
+1. Creating teams, if you have not already, following [this guide](https://fleetdm.com/guides/teams#basic-article). Our [best practice](#best-practice) recommendation is to have a team for each device type.
+2. Navigating to the **Settings > Integrations > Mobile device management (MDM)** page and clicking "Edit" under "Automatic enrollment".
+3. Clicking on the "Actions" dropdown for the ABM token you want to update, and then clicking "Edit teams".
+4. Using the dropdowns in the modal to select the default team for each type of host, and clicking "Save" to save your selections.
 
-If no default team is set for a host platform (macOS, iOS, or iPadOS), then newly enrolled hosts of that platform will be placed in "No team". 
+> If no default team is set for a host platform (macOS, iOS, or iPadOS), then newly enrolled hosts of that platform will be placed in "No team". 
 
 > A host can be transferred to a new (not default) team before it enrolls. In the Fleet UI, you can do this under **Settings** > **Teams**.
 

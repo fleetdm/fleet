@@ -83,7 +83,7 @@ func (ds *Datastore) CreateOrUpdateCalendarEvent(
 				webhook_status = VALUES(webhook_status),
 				calendar_event_id = VALUES(calendar_event_id);
 		`
-		result, err = tx.ExecContext(
+		_, err = tx.ExecContext(
 			ctx,
 			hostCalendarEventsQuery,
 			hostID,

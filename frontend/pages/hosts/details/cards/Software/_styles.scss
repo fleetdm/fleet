@@ -38,6 +38,11 @@
           .Vulnerabilities__header {
             display: table-cell;
           }
+          // this is called `id` only due to typing concerns in the table config – it is for the
+          // "Show details" column
+          .id__header {
+            width: px-to-rem(90);
+          }
           @media (max-width: $break-xl) {
             .source__header {
               display: none;

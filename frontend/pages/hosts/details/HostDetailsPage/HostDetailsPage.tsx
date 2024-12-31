@@ -59,7 +59,7 @@ import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
-import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
+import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 import {
   AppInstallDetailsModal,
   IAppInstallDetails,
@@ -90,9 +90,8 @@ import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
-import RunScriptModal from "./modals/RunScriptModal";
+import ScriptModalGroup from "./modals/ScriptModalGroup";
 import SelectQueryModal from "./modals/SelectQueryModal";
-import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncryptionKeyModal";
 import HostDetailsBanners from "./components/HostDetailsBanners";
 import { IShowActivityDetailsData } from "../cards/Activity/Activity";
 import LockModal from "./modals/LockModal";
@@ -104,6 +103,7 @@ import {
 import WipeModal from "./modals/WipeModal";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "host-details";
 
@@ -163,7 +163,7 @@ const HostDetailsPage = ({
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
-  const [showRunScriptModal, setShowRunScriptModal] = useState(false);
+  const [showScriptModalGroup, setShowScriptModalGroup] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
@@ -174,7 +174,8 @@ const HostDetailsPage = ({
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
-  const [scriptDetailsId, setScriptDetailsId] = useState("");
+  // Used in activities to show run script details modal
+  const [scriptExecutionId, setScriptExecutiontId] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -213,19 +214,24 @@ const HostDetailsPage = ({
   >("past");
   const [activityPage, setActivityPage] = useState(0);
 
+  // Optimization TODO: move this call into the SelectQuery modal, since queries are only used if that modal is opened
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IListQueriesResponse,
     Error,
     ISchedulableQuery[],
     IQueryKeyQueriesLoadAll[]
-  >([{ scope: "queries", teamId: undefined }], () => queryAPI.loadAll(), {
-    enabled: !!hostIdFromURL,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
-    refetchOnWindowFocus: false,
-    retry: false,
-    select: (data: IListQueriesResponse) => data.queries,
-  });
+  >(
+    [{ scope: "queries", teamId: undefined }],
+    ({ queryKey }) => queryAPI.loadAll(queryKey[0]),
+    {
+      enabled: !!hostIdFromURL,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      retry: false,
+      select: (data: IListQueriesResponse) => data.queries,
+    }
+  );
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     "teams",
@@ -546,11 +552,11 @@ const HostDetailsPage = ({
       setIsUpdatingHost(true);
       try {
         await hostAPI.destroy(host);
+        router.push(PATHS.MANAGE_HOSTS);
         renderFlash(
           "success",
           `Host "${host.display_name}" was successfully deleted.`
         );
-        router.push(PATHS.MANAGE_HOSTS);
       } catch (error) {
         console.log(error);
         renderFlash(
@@ -579,8 +585,7 @@ const HostDetailsPage = ({
           }, 1000);
         });
       } catch (error) {
-        console.log(error);
-        renderFlash("error", `Host "${host.display_name}" refetch error`);
+        renderFlash("error", getErrorMessage(error, host.display_name));
         setShowRefetchSpinner(false);
       }
     }
@@ -595,7 +600,7 @@ const HostDetailsPage = ({
     ({ type, details }: IShowActivityDetailsData) => {
       switch (type) {
         case "ran_script":
-          setScriptDetailsId(details?.script_execution_id || "");
+          setScriptExecutiontId(details?.script_execution_id || "");
           break;
         case "installed_software":
           setPackageInstallDetails({
@@ -652,8 +657,8 @@ const HostDetailsPage = ({
     );
   };
 
-  const onCancelScriptDetailsModal = useCallback(() => {
-    setScriptDetailsId("");
+  const onCancelRunScriptDetailsModal = useCallback(() => {
+    setScriptExecutiontId("");
     // refetch activities to make sure they up-to-date with what was displayed in the modal
     refetchPastActivities();
     refetchUpcomingActivities();
@@ -699,8 +704,8 @@ const HostDetailsPage = ({
     []
   );
 
-  const onCloseRunScriptModal = useCallback(() => {
-    setShowRunScriptModal(false);
+  const onCloseScriptModalGroup = useCallback(() => {
+    setShowScriptModalGroup(false);
     refetchPastActivities();
     refetchUpcomingActivities();
   }, [refetchPastActivities, refetchUpcomingActivities]);
@@ -723,7 +728,7 @@ const HostDetailsPage = ({
         setShowDeleteHostModal(true);
         break;
       case "runScript":
-        setShowRunScriptModal(true);
+        setShowScriptModalGroup(true);
         break;
       case "lock":
         setShowLockHostModal(true);
@@ -737,11 +742,6 @@ const HostDetailsPage = ({
       default: // do nothing
     }
   };
-
-  // const hostDeviceStatusUIState = getHostDeviceStatusUIState(
-  //   host.mdm.device_status,
-  //   host.mdm.pending_action
-  // );
 
   const renderActionDropdown = () => {
     if (!host) {
@@ -849,10 +849,13 @@ const HostDetailsPage = ({
     <MainContent className={baseClass}>
       <>
         <HostDetailsBanners
-          hostMdmEnrollmentStatus={host?.mdm.enrollment_status}
+          mdmEnrollmentStatus={host?.mdm.enrollment_status}
           hostPlatform={host?.platform}
-          diskEncryptionStatus={host?.mdm.macos_settings?.disk_encryption}
+          macDiskEncryptionStatus={host?.mdm.macos_settings?.disk_encryption}
           connectedToFleetMdm={host?.mdm.connected_to_fleet}
+          diskEncryptionOSSetting={host?.mdm.os_settings?.disk_encryption}
+          diskIsEncrypted={host?.disk_encryption_enabled}
+          diskEncryptionKeyAvailable={host?.mdm.encryption_key_available}
         />
         <div className={`${baseClass}__header-links`}>
           <BackLink
@@ -866,8 +869,7 @@ const HostDetailsPage = ({
           isPremiumTier={isPremiumTier}
           toggleOSSettingsModal={toggleOSSettingsModal}
           toggleBootstrapPackageModal={toggleBootstrapPackageModal}
-          hostMdmProfiles={host?.mdm.profiles ?? []}
-          isConnectedToFleetMdm={host?.mdm?.connected_to_fleet}
+          hostSettings={host?.mdm.profiles ?? []}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
           renderActionDropdown={renderActionDropdown}
@@ -953,6 +955,7 @@ const HostDetailsPage = ({
                 pathname={location.pathname}
                 onShowSoftwareDetails={setSelectedSoftwareDetails}
                 hostTeamId={host.team_id || 0}
+                hostMDMEnrolled={host.mdm.connected_to_fleet}
               />
               {host?.platform === "darwin" && macadmins?.munki?.version && (
                 <MunkiIssuesCard
@@ -1007,17 +1010,13 @@ const HostDetailsPage = ({
             hostsTeamId={host?.team_id}
           />
         )}
-        {showRunScriptModal &&
-          // force run script modal to unmount when script details modal is shown;
-          // it will be remounted when script details modal is closed
-          !scriptDetailsId && (
-            <RunScriptModal
-              host={host}
-              currentUser={currentUser}
-              setScriptDetailsId={setScriptDetailsId}
-              onClose={onCloseRunScriptModal}
-            />
-          )}
+        {showScriptModalGroup && (
+          <ScriptModalGroup
+            host={host}
+            currentUser={currentUser}
+            onCloseScriptModalGroup={onCloseScriptModalGroup}
+          />
+        )}
         {!!host && showTransferHostModal && (
           <TransferHostModal
             onCancel={() => setShowTransferHostModal(false)}
@@ -1035,7 +1034,7 @@ const HostDetailsPage = ({
         )}
         {showOSSettingsModal && (
           <OSSettingsModal
-            canResendProfiles
+            canResendProfiles={host.platform === "darwin"}
             hostId={host.id}
             platform={host.platform}
             hostMDMData={host.mdm}
@@ -1046,15 +1045,13 @@ const HostDetailsPage = ({
         {showUnenrollMdmModal && !!host && (
           <UnenrollMdmModal hostId={host.id} onClose={toggleUnenrollMdmModal} />
         )}
-        {showDiskEncryptionModal &&
-          host &&
-          isSupportedPlatform(host.platform) && (
-            <DiskEncryptionKeyModal
-              platform={host.platform}
-              hostId={host.id}
-              onCancel={() => setShowDiskEncryptionModal(false)}
-            />
-          )}
+        {showDiskEncryptionModal && host && (
+          <DiskEncryptionKeyModal
+            platform={host.platform}
+            hostId={host.id}
+            onCancel={() => setShowDiskEncryptionModal(false)}
+          />
+        )}
         {showBootstrapPackageModal &&
           bootstrapPackageData.details &&
           bootstrapPackageData.name && (
@@ -1064,10 +1061,10 @@ const HostDetailsPage = ({
               onClose={() => setShowBootstrapPackageModal(false)}
             />
           )}
-        {!!scriptDetailsId && (
-          <ScriptDetailsModal
-            scriptExecutionId={scriptDetailsId}
-            onCancel={onCancelScriptDetailsModal}
+        {scriptExecutionId && (
+          <RunScriptDetailsModal
+            scriptExecutionId={scriptExecutionId}
+            onCancel={onCancelRunScriptDetailsModal}
           />
         )}
         {!!packageInstallDetails && (

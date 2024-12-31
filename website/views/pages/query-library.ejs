@@ -1,168 +1,127 @@
 <div id="query-library" v-cloak>
 
-  <div class="d-flex justify-content-center">
-    <div class="container justify-content-center library">
-      <h2 class="mb-3">
-        <%= ['eo-it', 'mdm'].includes(primaryBuyingSituation) ? 'Device health checks' : 'Built-in queries' %>
-
-      </h2>
-      <p class="pb-3 description">Fleet's standard query library includes a growing collection of useful queries for organizations deploying Fleet and osquery. Want to add your own query? Please contribute <a target="_blank" href="https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml">over on GitHub</a>.</p>
-      <div class="p-0 m-0">
-        <div class="d-md-none">
-          <div class="d-flex">
-            <div class="input-group search-mobile">
-              <div class="input-group-prepend border-right-0">
-                <span class="input-group-text bg-transparent border-right-0 pl-2 pr-1"><img class="search" alt="search"
-                    src="/images/icon-search-16x16@2x.png"></span>
-              </div>
-              <input class="form-control border-left-0 px-0" placeholder="Search queries" aria-label="Search queries"
-                v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
-            </div>
-          </div>
-          <div class="d-flex select-mobile">
-            <div class="select-mobile-border">
-              <select class="select-purpose mobile font-weight-bold" v-model="selectedKind">
-                <option value="all queries" selected>All queries</option>
-                <option value="query">Informational queries</option>
-                <option value="policy">Policies</option>
-              </select>
-            </div>
-          </div>
-          <div class="d-flex select-mobile">
-            <div class="select-mobile-border">
-              <select class="select-purpose mobile font-weight-bold" v-model="selectedPlatform">
-                <option value="all platforms" selected>All platforms</option>
-                <option value="darwin">macOS</option>
-                <option value="windows">Windows</option>
-                <option value="linux">Linux</option>
-                <option value="chrome">ChromeOS</option>
-              </select>
-            </div>
-          </div>
+  <div purpose="page-container">
+    <div purpose="page-content">
+      <div purpose="search-and-headline" class="d-flex flex-md-row flex-column justify-content-between align-items-md-center align-items-start">
+        <div purpose="page-headline" class="d-flex flex-column">
+          <h2>Built-in checks</h2>
+          <p>Fleet's controls and policies library includes a growing collection of policies, OS settings, and scripts for macOS, Windows, and Linux.</p>
+          <p>Contributions welcome <a target="_blank" href="https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml">over on GitHub.</a></p>
         </div>
-
-        <div class="filter-and-search-bar d-none d-md-flex row align-items-center justify-content-between mb-3">
-          <div class="d-flex px-0 align-items-center filters">
-            <div class="d-flex">
-              <div class="dropdown flex-wrap filter purpose">
-                <p class="d-inline-flex mb-0 pr-1">Show</p>
-                <button class="btn btn-secondary btn-sm dropdown-toggle p-0" type="button"
-                  id="dropdownMenuSelectPurpose" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  {{ selectedKind === 'query' ? 'informational' : selectedKind === 'policy' ? 'policies' : 'all queries'}}
-                </button>
-                <div class="dropdown-menu p-2" aria-labelledby="dropdownMenuSelectPurpose">
-                  <button class="dropdown-item" type="button"
-                    @click="clickSelectKind('all queries')">all queries</button>
-                    <button class="dropdown-item" type="button"
-                    @click="clickSelectKind('query')">informational</button>
-                  <button class="dropdown-item" type="button"
-                    @click="clickSelectKind('policy')">policies</button>
-                </div>
+        <div purpose="policy-search" id="docsearch-query" class="d-flex">
+          <div purpose="disabled-search" class="d-flex">
+            <div class="input-group d-flex flex-nowrap">
+              <div class="input-group-prepend">
+                <span class="input-group-text border-0 bg-transparent" >
+                  <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+                </span>
               </div>
-            </div>
-            <div class="d-flex">
-              <div class="dropdown d-flex flex-wrap filter platform">
-                <p class="d-inline-flex flex-wrap px-2 mb-0">compatible with</p>
-                <button class="btn btn-secondary btn-sm dropdown-toggle p-0" type="button"
-                  id="dropdownMenuSelectPlatform" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  {{selectedPlatform === 'windows' ? 'Windows' : selectedPlatform === 'darwin' ? 'macOS' : selectedPlatform === 'linux' ? 'Linux' : selectedPlatform === 'chrome' ? 'ChromeOS' : selectedPlatform}}
-                </button>
-                <div class="dropdown-menu p-2" aria-labelledby="dropdownMenuSelectPlatform">
-                  <button class="dropdown-item" type="button" @click="clickSelectPlatform('all platforms')">all platforms</button>
-                  <button class="dropdown-item" type="button" @click="clickSelectPlatform('darwin')">macOS</button>
-                  <button class="dropdown-item" type="button"
-                    @click="clickSelectPlatform('windows')">Windows</button>
-                  <button class="dropdown-item" type="button" @click="clickSelectPlatform('linux')">Linux</button>
-                  <button class="dropdown-item" type="button" @click="clickSelectPlatform('chrome')">ChromeOS</button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="d-flex px-0">
-            <div class="d-flex justify-content-end">
-              <div class="input-group search">
-                <div class="input-group-prepend border-right-0 search">
-                  <span class="input-group-text bg-transparent border-right-0 pl-2 pr-1"><img class="search"
-                      alt="search" src="/images/icon-search-16x16@2x.png"></span>
-                </div>
-                <input class="form-control border-left-0 px-0" placeholder="Search queries" aria-label="Search queries"
-                  v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
+              <div class="form-control border-0 ">
+              <input class="docsearch-input pr-1"
+                placeholder="Search" aria-label="Search"
+                />
               </div>
             </div>
           </div>
         </div>
       </div>
-      <div class="results">
-        <div purpose="selected-tag" v-if="selectedTag">
-          <p>Showing {{ selectedKind === 'query' ? 'informational queries' : selectedKind === 'policy' ? 'policies' : 'all queries'}} for <span purpose="query-tag" class="d-inline-block" style="cursor: pointer;" @click="clickSelectTag('')">{{selectedTag}}<span style="color: #8b8fa2;" class="fa fa-times-circle pl-2"></span></span></p>
+      <div purpose="platform-filters" class="d-flex flex-row justify-content-center">
+        <div purpose="platform-filter" :class="[selectedPlatform === 'macos' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('macos')">
+          <p class="d-flex align-items-center">
+          <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" class="d-inline">
+          <span class="d-none d-sm-inline">Apple</span>
+          </p>
         </div>
-        <div class="category__informational">
-          <div v-for="query of queriesList">
-            <a class="card results" :href="'/queries/'+query.slug">
-              <div class="card-body">
-                <div class="row justify-content-between align-items-center query-card">
-                  <div class="col-12">
-                    <div class="d-flex flex-row align-items-center flex-wrap">
-                      <h5 class="card-title m-0 mb-1 mr-2">{{query.name}}</h5>
-                      <span purpose="critical-badge" class="mr-2" v-if="query.critical">Critical</span>
-                      <span purpose="requires-mdm-badge" class="mr-2" v-if="query.requiresMdm">Requires MDM</span>
-                      <span class="mr-2 my-sm-0 my-1 text-nowrap d-inline-flex" purpose="query-tag" v-for="tag in query.tags" @click.stop.prevent="clickSelectTag(tag)">{{tag}}</span>
-                    </div>
-                  </div>
-                  <div class="col-sm-9 col-md-9">
-                    <p class="font-italic mb-1 p-0 description">{{query.description}}</p>
-                    <div class="contributors" v-if="query.contributors && query.contributors.length">
-                      <div class="d-flex mb-2 mb-sm-1 align-items-center">
-                        <div v-for="contributor in query.contributors">
-                          <div class="d-flex m-1 avatar-frame" @click.stop="clickAvatar(contributor)">
-                            <img alt="a GitHub user avatar" :alt="contributor" :src="contributor.avatarUrl" />
-                          </div>
-                        </div>
-                        <p class="mb-0 ml-1">contributed by {{getContributorsString(query.contributors)}}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="col-sm-3 col-md-auto align-self-start">
-                    <div class="text-sm-right m-0">
-                      <img class="d-inline-flex mr-1 mr-sm-0 ml-sm-1 ml-md-2 logo"
-                        src="/images/os-macos-dark-24x24@2x.png" alt="macOS"
-                        v-if="query.platform.includes('darwin')" />
-                      <img class="d-inline-flex mr-1 mr-sm-0 ml-sm-1 ml-md-2 logo"
-                        src="/images/os-windows-dark-24x24@2x.png" alt="Windows"
-                        v-if="query.platform.includes('windows')" />
-                      <img class="d-inline-flex mr-1 mr-ms-0 ml-sm-1 ml-md-2 logo"
-                        src="/images/os-linux-dark-24x24@2x.png" alt="Linux"
-                        v-if="query.platform.includes('linux')" />
-                      <img class="d-inline-flex mr-1 mr-ms-0 ml-sm-1 ml-md-2 logo"
-                        src="/images/os-chromeos-dark-24x24@2x.png" alt="Linux"
-                        v-if="query.platform.includes('chrome')" />
-                    </div>
-                  </div>
-                </div>
+        <div purpose="platform-filter" :class="[selectedPlatform === 'linux' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('linux')">
+          <p class="d-flex align-items-center">
+            <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" class="d-inline">
+            <span class="d-none d-sm-inline">Linux</span>
+          </p>
+        </div>
+        <div purpose="platform-filter" :class="[selectedPlatform === 'windows' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('windows')">
+          <p class="d-flex align-items-center">
+            <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" class="d-inline">
+            <span class="d-none d-sm-inline">Windows</span>
+          </p>
+        </div>
+      </div>
+      <div purpose="selected-queries">
+        <div v-if="selectedPlatform === 'macos'">
+          <% // macOS policies (server-side-rendered)
+            for(let policy of macOsPolicies) {
+          %>
+          <div purpose="policy" class="d-flex flex-lg-row flex-column justify-content-between">
+            <div purpose="policy-name-and-description" class="d-flex flex-column">
+              <div class="d-flex flex-column">
+                <p purpose="policy-name"><a href="/queries/<%- policy.slug%>"><%- policy.name %></a></p>
+                <% if(policy.tags.includes('premium')) {%><div purpose="premium-badge">PREMIUM</div><% } %>
+                <% if(policy.requiresMdm) {%><div purpose="requires-mdm-badge">mdm-required</div><% } %>
               </div>
-              <div class="divider"></div>
-
-            </a>
+              <div purpose="policy-description"><p><%- policy.description %></p></div>
+              <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/queries/<%- policy.slug%>">Read more</animated-arrow-button></div>
+            </div>
+            <div class="d-flex flex-column justify-content-center">
+              <div class="d-flex flex-row">
+                <a purpose="policy-link" href="https://github.com/<%- policy.contributors[0].handle %>" class="d-flex align-items-center">
+                  <img alt="Contributor's GitHub profile picture" purpose="contributor-profile-picture" src="https://github.com/<%- policy.contributors[0].handle %>.png?size=200">
+                  <p purpose="contributor-profile-name" class="mb-0"><%= policy.contributors[0].name %></p></a>
+              </div>
+            </div>
           </div>
-          <div purpose="query-list-empty-state" v-if="queriesList.length === 0">
-            <p class="mb-0">There are no results that match your filters. <a target="_blank" href="https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml">Everyone can contribute</a>.</p>
+          <% } %>
+        </div>
+        <div v-else-if="selectedPlatform === 'linux'">
+          <% // Linux policies (server-side-rendered)
+            for(let policy of linuxPolicies) {
+          %>
+          <div purpose="policy" class="d-flex flex-lg-row flex-column justify-content-between">
+            <div purpose="policy-name-and-description" class="d-flex flex-column">
+              <div class="d-flex flex-column">
+                <p purpose="policy-name"><a href="/queries/<%- policy.slug%>"><%- policy.name %></a></p>
+                <% if(policy.tags.includes('premium')) {%><div purpose="premium-badge">PREMIUM</div><% } %>
+                <% if(policy.requiresMdm) {%><div purpose="requires-mdm-badge">mdm-required</div><% } %>
+              </div>
+              <div purpose="policy-description"><p><%- policy.description %></p></div>
+              <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/queries/<%- policy.slug%>">Read more</animated-arrow-button></div>
+            </div>
+            <div class="d-flex flex-column justify-content-center">
+              <div class="d-flex flex-row">
+                <a purpose="policy-link" href="https://github.com/<%- policy.contributors[0].handle %>" class="d-flex align-items-center">
+                  <img alt="Contributor's GitHub profile picture" purpose="contributor-profile-picture" src="https://github.com/<%- policy.contributors[0].handle %>.png?size=200">
+                  <p purpose="contributor-profile-name" class="mb-0"><%= policy.contributors[0].name %></p></a>
+              </div>
+            </div>
           </div>
+          <% } %>
+        </div>
+        <div v-else-if="selectedPlatform === 'windows'">
+          <% // Windows policies (server-side-rendered)
+            for(let policy of windowsPolicies) {
+          %>
+          <div purpose="policy" class="d-flex flex-lg-row flex-column justify-content-between">
+            <div purpose="policy-name-and-description" class="d-flex flex-column">
+              <div class="d-flex flex-column">
+                <p purpose="policy-name"><a href="/queries/<%- policy.slug%>"><%- policy.name %></a></p>
+                <% if(policy.tags.includes('premium')) {%><div purpose="premium-badge">PREMIUM</div><% } %>
+                <% if(policy.requiresMdm) {%><div purpose="requires-mdm-badge">mdm-required</div><% } %>
+              </div>
+              <div purpose="policy-description"><p><%- policy.description %></p></div>
+              <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/queries/<%- policy.slug%>">Read more</animated-arrow-button></div>
+            </div>
+            <div class="d-flex flex-column justify-content-center">
+              <div class="d-flex flex-row">
+                <a purpose="policy-link" href="https://github.com/<%- policy.contributors[0].handle %>" class="d-flex align-items-center">
+                  <img alt="Contributor's GitHub profile picture" purpose="contributor-profile-picture" src="https://github.com/<%- policy.contributors[0].handle %>.png?size=200">
+                  <p purpose="contributor-profile-name" class="mb-0"><%= policy.contributors[0].name %></p></a>
+              </div>
+            </div>
+          </div>
+          <% } %>
         </div>
       </div>
     </div>
   </div>
-  <div class="d-flex justify-content-center p-3">
-    <div class="card call-to-action col-6-grow my-5 library">
-      <div class="card-body px-0">
-        <h3 class="mb-3">Contributors</h3>
-        <p><strong>Want to add your own query?</strong> Please submit a pull request
-          <a target="_blank" href="https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml">
-            over on GitHub
-          </a>.
-        </p>
-      </div>
-    </div>
-  </div>
-
 </div>
+
+
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

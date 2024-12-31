@@ -3,7 +3,11 @@ import PropTypes from "prop-types";
 
 import { IFormField } from "./form_field";
 import { IPack } from "./pack";
-import { SelectedPlatformString, QueryablePlatform } from "./platform";
+import {
+  SelectedPlatformString,
+  QueryablePlatform,
+  SelectedPlatform,
+} from "./platform";
 
 // Query itself
 export interface ISchedulableQuery {
@@ -15,7 +19,7 @@ export interface ISchedulableQuery {
   query: string;
   team_id: number | null;
   interval: number;
-  platform: SelectedPlatformString; // Might more accurately be called `platforms_to_query` – comma-sepparated string of platforms to query, default all platforms if ommitted
+  platform: SelectedPlatformString; // Might more accurately be called `platforms_to_query` or `targeted_platforms` – comma-sepparated string of platforms to query, default all platforms if ommitted
   min_osquery_version: string;
   automations_enabled: boolean;
   logging: QueryLoggingOption;
@@ -32,7 +36,7 @@ export interface ISchedulableQuery {
 
 export interface IEnhancedQuery extends ISchedulableQuery {
   performance: string;
-  platforms: QueryablePlatform[];
+  targetedPlatforms: QueryablePlatform[];
 }
 export interface ISchedulableQueryStats {
   user_time_p50?: number | null;
@@ -67,7 +71,14 @@ export interface IListQueriesResponse {
 
 export interface IQueryKeyQueriesLoadAll {
   scope: "queries";
-  teamId: number | undefined;
+  teamId?: number;
+  page?: number;
+  perPage?: number;
+  query?: string;
+  orderDirection?: "asc" | "desc";
+  orderKey?: string;
+  mergeInherited?: boolean;
+  targetedPlatform?: SelectedPlatform;
 }
 // Create a new query
 /** POST /api/v1/fleet/queries */
@@ -100,6 +111,7 @@ export interface IModifyQueryRequestBody
   frequency?: number;
   platform?: SelectedPlatformString;
   min_osquery_version?: string;
+  automations_enabled?: boolean;
 }
 
 // response is ISchedulableQuery // better way to indicate this?
@@ -131,6 +143,7 @@ export interface IEditQueryFormFields {
   observer_can_run: IFormField<boolean>;
   discard_data: IFormField<boolean>;
   frequency: IFormField<number>;
+  automations_enabled: IFormField<boolean>;
   platforms: IFormField<SelectedPlatformString>;
   min_osquery_version: IFormField<string>;
   logging: IFormField<QueryLoggingOption>;

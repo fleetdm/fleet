@@ -954,61 +954,35 @@ export const internallyTruncateText = (
   </>
 );
 
-export const getUniqueColumnNamesFromRows = <
+/** Generates a mapping of unique column names present in the data to
+ * whether or not each of those columns contains exclusively number values. This allows the calling
+ * config generator to determine both which unique columns are present, and whether to sort each of them as
+ * alphanumeric (number type columns) or case-insensitive (everything else) */
+export const getUniqueColsAreNumTypeFromRows = <
   T extends Record<keyof T, unknown>
 >(
   rows: T[]
-) =>
-  // rows of type {col:val, col:val, ...}[]
-  // cannot type more narrowly due to loose typing of websocket API and use of this function
-  // by QueryResultsTableConfig, where results come from that API
-  // TODO – narrow this entire chain down to the websocket API level
-  Array.from(
-    rows.reduce(
-      (accOuter, row) =>
-        Object.keys(row).reduce((accInner, colNameInRow) => {
-          return accInner.add(colNameInRow as keyof T);
-        }, accOuter),
-      new Set<keyof T>()
-    )
-  );
+) => {
+  const m = new Map<keyof T, boolean>();
+  rows.forEach((row) => {
+    Object.entries(row).forEach(([name, val]) => {
+      const isNum = !isNaN(Number(val));
+      // keyof T will always actually be a string. This generic is helpful for upstream typing,
+      // but we can safely consider them interchangeagle.
+      const castName = name as keyof T;
+      if (!m.has(castName)) {
+        m.set(castName, isNum);
+      } else if (!isNum) {
+        // column name has already been seen and current val isn't a number
+        m.set(castName, false);
+      }
+    });
+  });
+  return m;
+};
 
 // can allow additional dropdown value types in the future
 type DropdownOptionValue = IDropdownOption["value"];
-
-/** Generates the column schema for a sql query */
-export const getTableColumnsFromSql = (
-  sql: string
-): IQueryTableColumn[] | [] => {
-  const tableNames = (sql && checkTable(sql).tables) || [];
-
-  let sqlColumns: IQueryTableColumn[] | [] = [];
-  tableNames.forEach((tableName: string) => {
-    const tableColumns =
-      find(osqueryTables, { name: tableName })?.columns || [];
-    sqlColumns = [...sqlColumns, ...tableColumns];
-  });
-  // TODO: Edge case of tables sharing column names with different typing not considered
-
-  return sqlColumns;
-};
-
-/** Sorts sql results numerical columns correctly while perserving case insensitive sort for text columns */
-export const getSortTypeFromColumnType = (
-  colName: string | number | symbol,
-  tableColumns?: IQueryTableColumn[] | []
-) => {
-  if (typeof colName === "string") {
-    const numberTypes = ["integer", "bigint", "unsigned_bigint", "double"];
-
-    const type = find(tableColumns, { name: colName })?.type;
-
-    if (type && numberTypes.includes(type)) {
-      return "alphanumeric";
-    }
-  }
-  return "caseInsensitive";
-};
 
 export function getCustomDropdownOptions(
   defaultOptions: IDropdownOption[],
@@ -1043,9 +1017,7 @@ export default {
   formatPackTargetsForApi,
   generateRole,
   generateTeam,
-  getUniqueColumnNamesFromRows,
-  getTableColumnsFromSql,
-  getSortTypeFromColumnType,
+  getUniqueColsAreNumTypeFromRows,
   getCustomDropdownOptions,
   greyCell,
   humanHostLastSeen,

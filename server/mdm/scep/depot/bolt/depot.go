@@ -182,7 +182,7 @@ func (db *Depot) HasCN(cn string, allowTime int, cert *x509.Certificate, revokeO
 		curs := tx.Bucket([]byte(certBucket)).Cursor()
 		prefix := []byte(cert.Subject.CommonName)
 		for k, v := curs.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, v = curs.Next() {
-			if bytes.Compare(v, cert.Raw) == 0 {
+			if bytes.Equal(v, cert.Raw) {
 				hasCN = true
 				return nil
 			}

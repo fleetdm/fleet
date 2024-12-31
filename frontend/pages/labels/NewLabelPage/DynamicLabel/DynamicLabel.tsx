@@ -3,7 +3,9 @@ import { RouteComponentProps } from "react-router";
 
 import PATHS from "router/paths";
 import labelsAPI from "services/entities/labels";
+import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+import { buildQueryStringFromParams } from "utilities/url";
 import { IApiError } from "interfaces/errors";
 
 import DynamicLabelForm from "pages/labels/components/DynamicLabelForm";
@@ -26,6 +28,7 @@ const DynamicLabel = ({
   onOpenSidebar,
   onOsqueryTableSelect,
 }: IDynamicLabelProps) => {
+  const { currentTeam } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const onSaveNewLabel = useCallback(
@@ -33,13 +36,20 @@ const DynamicLabel = ({
       labelsAPI
         .create(formData)
         .then((res) => {
-          router.push(PATHS.MANAGE_HOSTS_LABEL(res.label.id));
+          router.push(
+            `${PATHS.MANAGE_HOSTS_LABEL(
+              res.label.id
+            )}?${buildQueryStringFromParams({ team_id: currentTeam?.id })}`
+          );
           renderFlash("success", "Label added successfully.");
         })
         .catch((error: { data: IApiError }) => {
-          if (error.data.errors[0].reason.includes("Duplicate entry")) {
-            renderFlash("error", DUPLICATE_ENTRY_ERROR);
-          } else renderFlash("error", "Couldn't add label. Please try again.");
+          renderFlash(
+            "error",
+            error.data.errors[0].reason.includes("Duplicate entry")
+              ? DUPLICATE_ENTRY_ERROR
+              : "Couldn't add label. Please try again."
+          );
         });
     },
     [renderFlash, router]

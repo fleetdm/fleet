@@ -95,6 +95,7 @@
 		},
 		"mdm": {
 			"apple_bm_terms_expired": false,
+			"apple_server_url": "",
 			"apple_bm_enabled_and_configured": false,
 			"enabled_and_configured": false,
 			"apple_business_manager": null,
@@ -117,6 +118,7 @@
 				"deadline_days": 7,
 				"grace_period_days": 3
 			},
+			"windows_migration_enabled": false,
 			"macos_migration": {
 				"enable": false,
 				"mode": "",
@@ -129,7 +131,9 @@
 				"bootstrap_package": null,
 				"enable_end_user_authentication": false,
 				"macos_setup_assistant": null,
-				"enable_release_device_manually": false
+				"enable_release_device_manually": false,
+				"script": null,
+				"software": null
 			},
 			"windows_settings": {
 				"custom_settings": null

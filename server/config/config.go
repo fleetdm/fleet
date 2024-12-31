@@ -395,11 +395,11 @@ func (s S3Config) CarvesToInternalCfg() S3ConfigInternal {
 		internal.StsExternalID = s.StsExternalID
 	}
 	internal.DisableSSL = s.CarvesDisableSSL
-	if s.CarvesDisableSSL == false {
+	if !s.CarvesDisableSSL {
 		internal.DisableSSL = s.DisableSSL
 	}
 	internal.ForceS3PathStyle = s.CarvesForceS3PathStyle
-	if s.CarvesForceS3PathStyle == false {
+	if !s.CarvesForceS3PathStyle {
 		internal.ForceS3PathStyle = s.ForceS3PathStyle
 	}
 
@@ -1316,19 +1316,6 @@ func (man Manager) addConfigs() {
 		"calendar.periodicity", 0,
 		"How much time to wait between processing calendar integration.",
 	)
-
-	// Hide Microsoft/Windows MDM flags as we don't want it to be discoverable for users for now
-	betaMDMFlags := []string{
-		"mdm.windows_wstep_identity_cert",
-		"mdm.windows_wstep_identity_key",
-		"mdm.windows_wstep_identity_cert_bytes",
-		"mdm.windows_wstep_identity_key_bytes",
-	}
-	for _, mdmFlag := range betaMDMFlags {
-		if flag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(mdmFlag)); flag != nil {
-			flag.Hidden = true
-		}
-	}
 }
 
 func (man Manager) hideConfig(name string) {

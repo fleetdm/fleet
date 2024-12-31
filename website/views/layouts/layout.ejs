@@ -130,7 +130,7 @@
     <!--STYLES END-->
   </head>
   <body>
-    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : '' %>">
+    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : '' %> collapse"  id="navbarToggleExternalContent">
       <%// Page header%>
       <div class="header" purpose="header-container" hide-when-scrolled data-nosnippet>
         <div purpose="header-background">
@@ -146,7 +146,7 @@
                   <img class="align-self-center" alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-blue-16x14@2x.png"/>
                 </a>
               </div>
-              <div purpose="mobile-nav" always-visible-when-shown class="collapse" id="navbarToggleExternalContent">
+              <div purpose="mobile-nav" always-visible-when-shown>
                 <div purpose="mobile-nav-header" class="d-flex justify-content-between align-items-center">
                   <a purpose="mobile-header-logo" href="/">
                     <img purpose="mobile-nav-logo" alt="Fleet logo" src="/images/logo-blue-118x41@2x.png" />
@@ -156,41 +156,41 @@
                   </a>
                 </div>
                 <div purpose="mobile-nav-container" id="mobileDropdowns">
-                  <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Platform</a>
+                  <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Multi platform</a>
                   <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
-                    <a purpose="mobile-dropdown-link" href="/device-management">Device management (MDM)</a>
-                    <a purpose="mobile-dropdown-link" href="/endpoint-ops">Endpoint operations</a>
-                    <a purpose="mobile-dropdown-link" href="/vulnerability-management">Vulnerability management</a>
+                    <a purpose="mobile-dropdown-link" href="/device-management">Device management &nbsp; <small>(+ MDM)</small></a>
+                    <a purpose="mobile-dropdown-link" href="/observability">Orchestration &nbsp; <small>(+ monitoring)</small></a>
+                    <a purpose="mobile-dropdown-link" href="/software-management">Software management &nbsp; <small>(+ CVEs)</small></a>
                     <a purpose="mobile-dropdown-link" href="/integrations">Integrations</a>
                   </div>
                   <hr>
-                  <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed"  data-toggle="collapse" data-target="#mobileNavbarToggleDocumentation" aria-haspopup="true" aria-expanded="false">Documentation</a>
+                  <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed"  data-toggle="collapse" data-target="#mobileNavbarToggleDocumentation" aria-haspopup="true" aria-expanded="false">Docs</a>
                   <div id="mobileNavbarToggleDocumentation" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                    <a purpose="mobile-dropdown-link" href="/docs">Docs</a>
-                    <a purpose="mobile-dropdown-link" href="/docs/rest-api">REST API</a>
-                      <a purpose="mobile-dropdown-link" href="/guides">Guides</a>
-                    <a purpose="mobile-dropdown-link" href="/queries">Built-in queries</a>
-                    <a purpose="mobile-dropdown-link" href="/tables">Data tables</a>
-                    <span>SUPPORT</span>
+                    <a purpose="mobile-dropdown-link" href="/docs">Get started</a>
+                    <a purpose="mobile-dropdown-link" href="/queries">Built-in checks</a>
+                    <a purpose="mobile-dropdown-link" href="/tables">Raw data</a>
+                    <a purpose="mobile-dropdown-link" href="/app-library">App library</a>
+                    <a purpose="mobile-dropdown-link" href="/docs/get-started/tutorials-and-guides">Tutorials &amp; guides</a>
+                    <a purpose="mobile-dropdown-link" href="/docs/rest-api">API</a>
+                    <span class="mt-2 mb-2">SUPPORT</span>
                     <div purpose="indented-mobile-links">
                       <a purpose="mobile-dropdown-link" href="/support">Chat</a>
-                      <a purpose="mobile-dropdown-link" href="/docs/deploy/introduction">Hosting</a>
-                      <a purpose="mobile-dropdown-link" href="/releases">Release notes</a>
-                      <a purpose="mobile-dropdown-link" href="/new-license">Get your license</a>
                       <a purpose="mobile-dropdown-link" href="/contribute">Contribute</a>
+                      <a purpose="mobile-dropdown-link" href="/releases">Release notes</a>
+                      <a purpose="mobile-dropdown-link" href="/better">"Why is Fleet on my computer?"</a>
+                      <a purpose="mobile-dropdown-link" href="/new-license">Get your license</a>
                     </div>
                   </div>
                   <hr>
-                  <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">Community</a>
+                  <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">Stories</a>
                   <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                    <a purpose="mobile-dropdown-link" href="/support">Chat</a>
+                    <a purpose="mobile-dropdown-link" href="/testimonials">What people are saying</a>
                     <a purpose="mobile-dropdown-link" href="/announcements">News</a>
-                    <a purpose="mobile-dropdown-link" href="/podcasts">Podcasts</a>
-                    <a purpose="mobile-dropdown-link" href="/articles">Articles</a>
-                    <a purpose="mobile-dropdown-link" href="/success-stories">Success stories</a>
-                    <span>COMPANY</span>
+                    <a purpose="mobile-dropdown-link" href="/support">Ask around</a>
+                    <span class="mt-2 mb-2">COMPANY</span>
                     <div purpose="indented-mobile-links">
-                      <a purpose="mobile-dropdown-link" href="/handbook">Handbook</a>
+                      <a purpose="mobile-dropdown-link" href="/handbook/company#history">Origins &nbsp; <small>(Fleet &amp; osquery)</small></a>
+                      <a purpose="mobile-dropdown-link" href="/handbook">The handbook</a>
                       <a purpose="mobile-dropdown-link" href="/logos">Logos & artwork</a>
                       <a purpose="mobile-dropdown-link" href="/handbook/company/why-this-way#why-open-source">Why open source?</a>
                     </div>
@@ -210,47 +210,48 @@
                     </div>
                   <%}%>
                   <%if(!hideGetStartedButton){%>
-                  <a purpose="glass-header-btn" style="padding: 4px 16px; line-height: 24px; width: 100px" class="btn btn-sm btn-primary align-items-center d-flex mt-4" href="/register">Start now</a>
+                  <a purpose="glass-header-btn" style="padding: 4px 16px; line-height: 24px; width: 110px" class="btn btn-sm btn-primary align-items-center d-flex mt-4" href="/contact">Take a tour</a>
                   <% }%>
                 </div>
               </div>
               <%/* Desktop Navigation bar */%>
               <div purpose="header-nav" class="d-none d-lg-flex align-items-center justify-content-around">
                 <div purpose="dropdown-button" class="btn-group">
-                  <a purpose="header-nav-btn" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Platform</a>
+                  <a purpose="header-nav-btn" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Multi platform</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
-                    <a class="dropdown-item" href="/device-management">Device management (MDM)</a>
-                    <a class="dropdown-item" href="/endpoint-ops">Endpoint operations</a>
-                    <a class="dropdown-item" href="/vulnerability-management">Vulnerability management</a>
+                    <a class="dropdown-item" href="/device-management">Device management <small>+ MDM</small></a>
+                    <a class="dropdown-item" href="/observability">Orchestration <small>+ monitoring</small></a>
+                    <a class="dropdown-item" href="/software-management">Software management <small>+ CVEs, usage, app library</small></a>
                     <a class="dropdown-item" href="/integrations">Integrations</a>
                   </div>
                 </div>
-                <div purpose="dropdown-button" class="btn-group">
-                  <a purpose="header-nav-btn" button-text="Documentation" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+                <div purpose="dropdown-button" class="btn-group" style="width: 74px;">
+                  <a purpose="header-nav-btn" button-text="Documentation" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Docs</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
-                    <a class="dropdown-item" href="/docs">Docs</a>
-                    <a class="dropdown-item" href="/docs/rest-api">REST API</a>
-                    <a class="dropdown-item" href="/guides">Guides</a>
-                    <a class="dropdown-item" href="/queries"><%= ['eo-it', 'mdm'].includes(primaryBuyingSituation) ? 'Built-in checks' : 'Built-in queries' %></a>
-                    <a class="dropdown-item" href="/tables">Data tables</a>
+                    <a class="dropdown-item" href="/docs">Get started</a>
+                    <a class="dropdown-item" href="/queries">Built-in checks</a><!-- «« FUTURE: consider different menu label such as 'Off the shelf', because i'm just casually a hover menu here and so it's less intentional.  I didn't click "docs" first, like I did on mobile-->
+                    <a class="dropdown-item" href="/tables">Raw data</a>
+                    <a class="dropdown-item" href="/app-library">App library</a>
+                    <a class="dropdown-item" href="/docs/get-started/tutorials-and-guides">Tutorials &amp; guides</a>
+                    <a class="dropdown-item" href="/docs/rest-api">API</a>
                     <span class="muted dropdown-header">SUPPORT</span>
                     <a class="dropdown-item" href="/support">Chat</a>
-                    <a class="dropdown-item" href="/docs/deploy/introduction">Hosting</a>
-                    <a class="dropdown-item" href="/releases">Release notes</a>
-                    <a class="dropdown-item" href="/new-license">Get your license</a>
                     <a class="dropdown-item" href="/contribute">Contribute</a>
+                    <a class="dropdown-item" href="/releases">Release notes</a>
+                    <a class="dropdown-item" href="/better">"Why is Fleet on my computer?"</a>
+                    <a class="dropdown-item" href="/new-license">Get your license</a>
                   </div>
                 </div>
-                <div purpose="dropdown-button" class="btn-group">
-                  <a purpose="header-nav-btn" button-text="Community" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" data-toggle="dropdown">Community</a>
+                <div purpose="dropdown-button" class="btn-group" style="width: 89px;">
+                  <a purpose="header-nav-btn" button-text="Community" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" data-toggle="dropdown">Stories</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
-                    <a class="dropdown-item" href="/support">Chat</a>
+                    <a class="dropdown-item" href="/testimonials">What people are saying</a>
                     <a class="dropdown-item" href="/announcements">News</a>
-                    <a class="dropdown-item" href="/podcasts">Podcasts</a>
-                    <a class="dropdown-item" href="/articles">Articles</a>
-                    <a class="dropdown-item"  href="/success-stories">Success stories</a>
+                    <a class="dropdown-item" href="/support">Ask around</a>
+                    <a class="dropdown-item" href="/contact">Take a tour</a><!-- «« included here in the desktop hover nav because unlike the mobile nav (which has 'Take a tour' as a primary CTA), there is no option to do that on desktop from other pages otherwise -->
                     <span class="muted dropdown-header">COMPANY</span>
-                    <a class="dropdown-item" href="/handbook">Handbook</a>
+                    <a class="dropdown-item" href="/handbook/company#history">Origins &nbsp; <small>(Fleet &amp; osquery)</small></a>
+                    <a class="dropdown-item" href="/handbook">The handbook</a>
                     <a class="dropdown-item" href="/logos">Logos/artwork</a>
                     <a class="dropdown-item" href="/handbook/company/why-this-way#why-open-source">Why open source?</a>
                   </div>
@@ -261,7 +262,7 @@
                   allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
                 </span>
                 <%if(!hideGetStartedButton){%>
-                  <a purpose="glass-header-btn" class="align-items-center d-flex" href="/register">Start now</a>
+                  <a purpose="glass-header-btn" class="align-items-center d-flex" href="/register">Try it yourself</a>
                 <% }%>
                 <% if(_.has(me, 'id')) {%>
                 <a purpose="log-out-button" href="/logout" class="justify-content-end text-decoration-none">Log out</a>
@@ -307,10 +308,10 @@
               </a>
             </div>
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
-              <strong purpose="footer-nav-header">Platform</strong>
+              <strong purpose="footer-nav-header">Multi platform</strong>
               <a href="/device-management">Device management</a>
-              <a href="/endpoint-ops">Endpoint ops</a>
-              <a href="/vulnerability-management">Vulnerability management</a>
+              <a href="/observability">Orchestration</a>
+              <a href="/software-management">Software management</a>
               <a href="/integrations">Integrations</a>
               <a href="/pricing">Pricing</a>
             </div>
@@ -318,14 +319,14 @@
               <strong purpose="footer-nav-header">Documentation</strong>
               <a href="/support">Support</a>
               <a href="/docs">Docs</a>
-              <a href="/docs/rest-api">REST API</a>
-              <a href="/new-license">Get your license</a>
-              <a href="/docs/contributing">Contribute</a>
+              <a href="/docs/rest-api">API</a>
+              <a href="/releases">Release notes</a>
+              <a href="/new-license">Get your license</a><!-- «« FUTURE: Personalize this based on whether logged in -->
             </div>
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
               <strong purpose="footer-nav-header">Company</strong>
               <a href="/handbook/company">About</a>
-              <a href="/articles">Blog</a>
+              <a href="/announcements">News</a>
               <a href="/apply">Jobs</a>
               <a href="/logos">Logos/artwork</a>
               <a href="/handbook/company/why-this-way#why-open-source">Why open source?</a>
@@ -468,6 +469,8 @@
     <script src="/js/pages/admin/email-templates.page.js"></script>
     <script src="/js/pages/admin/generate-license.page.js"></script>
     <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
+    <script src="/js/pages/app-details.page.js"></script>
+    <script src="/js/pages/app-library.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
     <script src="/js/pages/connect-vanta.page.js"></script>
@@ -478,7 +481,6 @@
     <script src="/js/pages/deals.page.js"></script>
     <script src="/js/pages/device-management.page.js"></script>
     <script src="/js/pages/docs/basic-documentation.page.js"></script>
-    <script src="/js/pages/endpoint-ops.page.js"></script>
     <script src="/js/pages/entrance/confirmed-email.page.js"></script>
     <script src="/js/pages/entrance/forgot-password.page.js"></script>
     <script src="/js/pages/entrance/login.page.js"></script>
@@ -491,20 +493,23 @@
     <script src="/js/pages/integrations.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
+    <script src="/js/pages/meetups.page.js"></script>
+    <script src="/js/pages/observability.page.js"></script>
     <script src="/js/pages/osquery-table-details.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
     <script src="/js/pages/query-detail.page.js"></script>
     <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
+    <script src="/js/pages/software-management.page.js"></script>
     <script src="/js/pages/start.page.js"></script>
     <script src="/js/pages/support.page.js"></script>
+    <script src="/js/pages/testimonials.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
     <script src="/js/pages/try-fleet/waitlist.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
-    <script src="/js/pages/vulnerability-management.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.

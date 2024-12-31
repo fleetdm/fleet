@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<pkg-info overwrite-permissions="true" relocatable="false" identifier="com.iriun.pkg.webcam.tmp" postinstall-action="none" version="0" format-version="2" generator-version="InstallCmds-834 (23G93)" auth="root">
+    <payload numberOfFiles="54" installKBytes="20220"/>
+    <bundle path="./Applications/IriunWebcam.app/Contents/Library/SystemExtensions/com.iriun.macwebcam.extension4.systemextension" id="com.iriun.macwebcam.extension4" CFBundleShortVersionString="1.2" CFBundleVersion="3"/>
+    <bundle path="./Applications/IriunWebcam.app/Contents/Library/SystemExtensions/com.iriun.macwebcam.extension.systemextension" id="com.iriun.macwebcam.extension" CFBundleShortVersionString="1.2" CFBundleVersion="3"/>
+    <bundle id="com.iriun.macwebcam" CFBundleShortVersionString="2.8.10" path="./Applications/IriunWebcam.app"/>
+    <bundle path="./Library/Audio/Plug-Ins/HAL/IriunMic.driver" id="com.iriun.mic" CFBundleShortVersionString="1.5" CFBundleVersion="6"/>
+    <bundle-version>
+        <bundle id="com.iriun.macwebcam"/>
+        <bundle id="com.iriun.mic"/>
+    </bundle-version>
+    <upgrade-bundle>
+        <bundle id="com.iriun.macwebcam"/>
+        <bundle id="com.iriun.mic"/>
+    </upgrade-bundle>
+    <update-bundle/>
+    <atomic-update-bundle/>
+    <strict-identifier>
+        <bundle id="com.iriun.macwebcam"/>
+    </strict-identifier>
+    <relocate>
+        <bundle id="com.iriun.macwebcam"/>
+    </relocate>
+    <scripts>
+        <preinstall file="./preinstall"/>
+        <postinstall file="./postinstall"/>
+    </scripts>
+</pkg-info>

@@ -46,6 +46,11 @@ type mdmLifecycleAssertion[T any] func(t *testing.T, host *fleet.Host, device T)
 
 func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 	t := s.T()
+	// Skip worker jobs to avoid running into timing issues with this test.
+	// We can manually run the jobs if needed with s.runWorker().
+	s.skipWorkerJobs.Store(true)
+	t.Cleanup(func() { s.skipWorkerJobs.Store(false) })
+
 	s.setupLifecycleSettings()
 
 	testCases := []struct {
@@ -104,8 +109,8 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 				originalPushMock := s.pushProvider.PushFunc
 				defer func() { s.pushProvider.PushFunc = originalPushMock }()
 
-				s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
-					res, err := mockSuccessfulPush(pushes)
+				s.pushProvider.PushFunc = func(ctx context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+					res, err := mockSuccessfulPush(ctx, pushes)
 					require.NoError(t, err)
 					err = device.Checkout()
 					require.NoError(t, err)
@@ -591,6 +596,12 @@ func (s *integrationMDMTestSuite) setupLifecycleSettings() {
 func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	t := s.T()
 	ctx := context.Background()
+
+	// Skip worker jobs to avoid running into timing issues with this test.
+	// We can manually run the jobs if needed with s.runWorker().
+	s.skipWorkerJobs.Store(true)
+	t.Cleanup(func() { s.skipWorkerJobs.Store(false) })
+
 	// ensure there's a token for automatic enrollments
 	s.enableABM(t.Name())
 	s.runDEPSchedule()

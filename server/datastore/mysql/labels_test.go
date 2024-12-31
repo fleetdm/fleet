@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -918,25 +919,65 @@ func testLabelsRecordNonexistentQueryLabelExecution(t *testing.T, db *Datastore)
 }
 
 func testDeleteLabel(t *testing.T, db *Datastore) {
-	l, err := db.NewLabel(context.Background(), &fleet.Label{
+	ctx := context.Background()
+	l, err := db.NewLabel(ctx, &fleet.Label{
 		Name:  t.Name(),
 		Query: "query1",
 	})
 	require.NoError(t, err)
 
-	p, err := db.NewPack(context.Background(), &fleet.Pack{
+	p, err := db.NewPack(ctx, &fleet.Pack{
 		Name:     t.Name(),
 		LabelIDs: []uint{l.ID},
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, db.DeleteLabel(context.Background(), l.Name))
+	require.NoError(t, db.DeleteLabel(ctx, l.Name))
 
-	newP, err := db.Pack(context.Background(), p.ID)
+	newP, err := db.Pack(ctx, p.ID)
 	require.NoError(t, err)
 	require.Empty(t, newP.Labels)
 
-	require.NoError(t, db.DeletePack(context.Background(), newP.Name))
+	require.NoError(t, db.DeletePack(ctx, newP.Name))
+
+	// delete a non-existing label
+	err = db.DeleteLabel(ctx, "no-such-label")
+	require.Error(t, err)
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+
+	// create a software installer and scope it via a label
+	u := test.NewUser(t, db, "user1", "user1@example.com", false)
+	installer, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
+	require.NoError(t, err)
+	installerID, _, err := db.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install foo",
+		InstallerFile:   installer,
+		StorageID:       uuid.NewString(),
+		Filename:        "foo.pkg",
+		Title:           "foo",
+		Source:          "apps",
+		Version:         "0.0.1",
+		UserID:          u.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	l2, err := db.NewLabel(ctx, &fleet.Label{
+		Name:  t.Name() + "2",
+		Query: "query2",
+	})
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO software_installer_labels (software_installer_id, label_id) VALUES (?, ?)`, installerID, l2.ID)
+		return err
+	})
+
+	// try to delete that label referenced by software installer
+	err = db.DeleteLabel(ctx, l2.Name)
+	require.Error(t, err)
+	require.True(t, fleet.IsForeignKey(err))
 }
 
 func testLabelsSummary(t *testing.T, db *Datastore) {
@@ -1057,7 +1098,7 @@ func testListHostsInLabelIssues(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now(), false))
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(false), p2.ID: ptr.Bool(false)}, time.Now(), false))
-	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 2, 0)
+	checkLabelHostIssues(t, ds, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 2, 0)
 
 	// Add a critical vulnerability
 	// seed software
@@ -1124,26 +1165,26 @@ func testListHostsInLabelIssues(t *testing.T, ds *Datastore) {
 	// Populate critical vulnerabilities, which can be done with premium license.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	assert.NoError(t, ds.UpdateHostIssuesVulnerabilities(ctx))
-	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, hosts[6].ID, fleet.HostListOptions{}, 0, 4)
+	checkLabelHostIssues(t, ds, l1.ID, filter, hosts[6].ID, fleet.HostListOptions{}, 0, 4)
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(false)}, time.Now(), false))
-	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 1, 1)
+	checkLabelHostIssues(t, ds, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 1, 1)
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(true)}, time.Now(), false))
-	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 0, 1)
+	checkLabelHostIssues(t, ds, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 0, 1)
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
-	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h1.ID, fleet.HostListOptions{}, 1, 1)
+	checkLabelHostIssues(t, ds, l1.ID, filter, h1.ID, fleet.HostListOptions{}, 1, 1)
 
-	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h1.ID, fleet.HostListOptions{DisableIssues: true}, 0, 0)
-	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, hosts[6].ID, fleet.HostListOptions{DisableIssues: true}, 0, 0)
+	checkLabelHostIssues(t, ds, l1.ID, filter, h1.ID, fleet.HostListOptions{DisableIssues: true}, 0, 0)
+	checkLabelHostIssues(t, ds, l1.ID, filter, hosts[6].ID, fleet.HostListOptions{DisableIssues: true}, 0, 0)
 }
 
 func checkLabelHostIssues(
-	t *testing.T, ds *Datastore, hosts []*fleet.Host, lid uint, filter fleet.TeamFilter, hid uint, opts fleet.HostListOptions,
+	t *testing.T, ds *Datastore, lid uint, filter fleet.TeamFilter, hid uint, opts fleet.HostListOptions,
 	failingPoliciesExpected uint64, criticalVulnerabilitiesExpected uint64,
 ) {
-	hosts = listHostsInLabelCheckCount(t, ds, filter, lid, opts, 10)
+	hosts := listHostsInLabelCheckCount(t, ds, filter, lid, opts, 10)
 	foundH2 := false
 	var foundHost *fleet.Host
 	for _, host := range hosts {
@@ -1550,7 +1591,8 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 
 	// add two hosts to MDM to enforce disk encryption, fleet doesn't enforce settings on centos so h3 is not included
 	for _, h := range []*fleet.Host{h1, h2} {
-		nanoEnrollAndSetHostMDMData(t, db, h, false)
+		windowsEnroll(t, db, h)
+		require.NoError(t, db.SetOrUpdateMDMData(context.Background(), h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
 	}
 	// add disk encryption key for h1
 	require.NoError(t, db.SetOrUpdateHostDiskEncryptionKey(context.Background(), h1.ID, "test-key", "", ptr.Bool(true)))
@@ -1568,14 +1610,14 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 	hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{}, 3)
 	checkHosts(t, hosts, []uint{h1.ID, h2.ID, h3.ID})
 
-	t.Run("os_settings", func(t *testing.T) {
+	t.Run("os_settings_disk_encryption", func(t *testing.T) {
 		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 1)
 		checkHosts(t, hosts, []uint{h1.ID})
 		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1)
 		checkHosts(t, hosts, []uint{h2.ID})
 	})
 
-	t.Run("os_settings_disk_encryption", func(t *testing.T) {
+	t.Run("os_settings", func(t *testing.T) {
 		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsVerified}, 1)
 		checkHosts(t, hosts, []uint{h1.ID})
 		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsPending}, 1)

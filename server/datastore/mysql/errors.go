@@ -93,7 +93,7 @@ func (e *existsError) WithTeamID(teamID uint) error {
 }
 
 func (e *existsError) Error() string {
-	msg := fmt.Sprintf("%s", e.ResourceType)
+	msg := e.ResourceType
 	if e.Identifier != nil {
 		msg += fmt.Sprintf(" %v", e.Identifier)
 	}

@@ -11,16 +11,13 @@ import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import mdmAPI from "services/entities/mdm";
 
 // @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
 import Card from "components/Card";
-import Checkbox from "components/forms/fields/Checkbox";
 import DataError from "components/DataError";
 import Icon from "components/Icon";
 import Modal from "components/Modal";
-import Radio from "components/forms/fields/Radio";
 import Spinner from "components/Spinner";
-
+import TargetLabelSelector from "components/TargetLabelSelector";
 import ProfileGraphic from "../AddProfileGraphic";
 
 import {
@@ -30,7 +27,6 @@ import {
 } from "../../helpers";
 import {
   CUSTOM_TARGET_OPTIONS,
-  CustomTargetOption,
   generateLabelKey,
   listNamesFromSelectedLabels,
 } from "./helpers";
@@ -90,128 +86,6 @@ const FileDetails = ({ details: { name, platform } }: IFileDetailsProps) => (
   </div>
 );
 
-interface ITargetChooserProps {
-  selectedTarget: string;
-  setSelectedTarget: React.Dispatch<React.SetStateAction<string>>;
-}
-
-const TargetChooser = ({
-  selectedTarget,
-  setSelectedTarget,
-}: ITargetChooserProps) => {
-  return (
-    <div className={`form-field`}>
-      <div className="form-field__label">Target</div>
-      <Radio
-        className={`${baseClass}__radio-input`}
-        label="All hosts"
-        id="all-hosts-target-radio-btn"
-        checked={selectedTarget === "All hosts"}
-        value="All hosts"
-        name="target-type"
-        onChange={setSelectedTarget}
-      />
-      <Radio
-        className={`${baseClass}__radio-input`}
-        label="Custom"
-        id="custom-target-radio-btn"
-        checked={selectedTarget === "Custom"}
-        value="Custom"
-        name="target-type"
-        onChange={setSelectedTarget}
-      />
-    </div>
-  );
-};
-
-interface ILabelChooserProps {
-  isError: boolean;
-  isLoading: boolean;
-  labels: ILabelSummary[];
-  selectedLabels: Record<string, boolean>;
-  customTargetOption: CustomTargetOption;
-  setSelectedLabels: React.Dispatch<
-    React.SetStateAction<Record<string, boolean>>
-  >;
-  onSelectCustomTargetOption: (val: CustomTargetOption) => void;
-}
-
-const LabelChooser = ({
-  isError,
-  isLoading,
-  labels,
-  selectedLabels,
-  customTargetOption,
-  setSelectedLabels,
-  onSelectCustomTargetOption,
-}: ILabelChooserProps) => {
-  const updateSelectedLabels = useCallback(
-    ({ name, value }: { name: string; value: boolean }) => {
-      setSelectedLabels((prevItems) => ({ ...prevItems, [name]: value }));
-    },
-    [setSelectedLabels]
-  );
-
-  const descriptionText =
-    customTargetOption === "labelsIncludeAll" ? (
-      <>
-        Profile will only be applied to hosts that have <b>all</b> these labels:
-      </>
-    ) : (
-      <>
-        Profile will be applied to hosts that don&apos;t have <b>any</b> of
-        these labels:{" "}
-      </>
-    );
-
-  const renderLabels = () => {
-    if (isLoading) {
-      return <Spinner centered={false} />;
-    }
-
-    if (isError) {
-      return <DataError />;
-    }
-
-    if (!labels.length) {
-      return (
-        <div className={`${baseClass}__no-labels`}>
-          <b>No labels exist in Fleet</b>
-          <span>Add labels to target specific hosts.</span>
-        </div>
-      );
-    }
-
-    return labels.map((label) => {
-      return (
-        <div className={`${baseClass}__label`} key={label.name}>
-          <Checkbox
-            className={`${baseClass}__checkbox`}
-            name={label.name}
-            value={!!selectedLabels[label.name]}
-            onChange={updateSelectedLabels}
-            parseTarget
-          />
-          <div className={`${baseClass}__label-name`}>{label.name}</div>
-        </div>
-      );
-    });
-  };
-
-  return (
-    <div className={`${baseClass}__custom-label-chooser`}>
-      <Dropdown
-        value={customTargetOption}
-        options={CUSTOM_TARGET_OPTIONS}
-        searchable={false}
-        onChange={onSelectCustomTargetOption}
-      />
-      <div className={`${baseClass}__description`}>{descriptionText}</div>
-      <div className={`${baseClass}__checkboxes`}>{renderLabels()}</div>
-    </div>
-  );
-};
-
 interface IAddProfileModalProps {
   currentTeamId: number;
   isPremiumTier: boolean;
@@ -232,14 +106,13 @@ const AddProfileModal = ({
     name: string;
     platform: string;
   } | null>(null);
-  const [selectedTarget, setSelectedTarget] = useState("All hosts"); // "All hosts" | "Custom"
+  const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
   const [selectedLabels, setSelectedLabels] = useState<Record<string, boolean>>(
     {}
   );
-  const [
-    customTargetOption,
-    setCustomTargetOption,
-  ] = useState<CustomTargetOption>("labelsIncludeAll");
+  const [selectedCustomTarget, setSelectedCustomTarget] = useState(
+    "labelsIncludeAll"
+  );
 
   const fileRef = useRef<File | null>(null);
 
@@ -251,7 +124,6 @@ const AddProfileModal = ({
   } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
     () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
-
     {
       enabled: isPremiumTier,
       refetchOnWindowFocus: false,
@@ -277,8 +149,8 @@ const AddProfileModal = ({
     setIsLoading(true);
     try {
       const labelKey = generateLabelKey(
-        selectedTarget,
-        customTargetOption,
+        selectedTargetType,
+        selectedCustomTarget,
         selectedLabels
       );
       await mdmAPI.uploadProfile({
@@ -317,8 +189,16 @@ const AddProfileModal = ({
     }
   };
 
-  const onSelectCustomTargetOption = (val: CustomTargetOption) => {
-    setCustomTargetOption(val);
+  const onSelectTargetType = (val: string) => {
+    setSelectedTargetType(val);
+  };
+
+  const onSelectCustomTargetOption = (val: string) => {
+    setSelectedCustomTarget(val);
+  };
+
+  const onSelectLabel = ({ name, value }: { name: string; value: boolean }) => {
+    setSelectedLabels((prevItems) => ({ ...prevItems, [name]: value }));
   };
 
   return (
@@ -336,23 +216,19 @@ const AddProfileModal = ({
               )}
             </Card>
             {isPremiumTier && (
-              <div className={`${baseClass}__target`}>
-                <TargetChooser
-                  selectedTarget={selectedTarget}
-                  setSelectedTarget={setSelectedTarget}
-                />
-                {selectedTarget === "Custom" && (
-                  <LabelChooser
-                    customTargetOption={customTargetOption}
-                    isError={isErrorLabels}
-                    isLoading={isFetchingLabels}
-                    labels={labels || []}
-                    selectedLabels={selectedLabels}
-                    setSelectedLabels={setSelectedLabels}
-                    onSelectCustomTargetOption={onSelectCustomTargetOption}
-                  />
-                )}
-              </div>
+              <TargetLabelSelector
+                selectedTargetType={selectedTargetType}
+                selectedCustomTarget={selectedCustomTarget}
+                selectedLabels={selectedLabels}
+                customTargetOptions={CUSTOM_TARGET_OPTIONS}
+                className={`${baseClass}__target`}
+                onSelectTargetType={onSelectTargetType}
+                onSelectCustomTarget={onSelectCustomTargetOption}
+                onSelectLabel={onSelectLabel}
+                isErrorLabels={isErrorLabels}
+                isLoadingLabels={isFetchingLabels || isLoadingLabels}
+                labels={labels || []}
+              />
             )}
             <div className={`${baseClass}__button-wrap`}>
               <Button
@@ -361,7 +237,7 @@ const AddProfileModal = ({
                 onClick={onFileUpload}
                 isLoading={isLoading}
                 disabled={
-                  (selectedTarget === "Custom" &&
+                  (selectedTargetType === "Custom" &&
                     !listNamesFromSelectedLabels(selectedLabels).length) ||
                   !fileDetails
                 }

@@ -8,9 +8,9 @@
     font-size: $x-large;
   }
 
-  p {
-    font-size: $x-small;
+  &__description {
     margin: 0 0 $pad-large;
+    max-width: 800px;
   }
 
   &__setup-list {
@@ -20,7 +20,7 @@
     gap: $pad-large;
     padding: 0;
     margin: 0;
-    max-width: 660px;
+    max-width: 800px;
     list-style: none;
 
     li {
@@ -51,5 +51,15 @@
     display: flex;
     flex-direction: column;
     gap: $pad-medium;
+  }
+
+  &__cloud-customer-banner {
+    margin-top: $pad-large;
+  }
+
+  &__banner-content {
+    display: flex;
+    align-items: column;
+    gap: $pad-small;
   }
 }

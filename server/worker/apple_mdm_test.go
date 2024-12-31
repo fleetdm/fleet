@@ -141,7 +141,7 @@ func TestAppleMDM(t *testing.T) {
 
 		// create a host and enqueue the job
 		h := createEnrolledHost(t, 1, nil, true)
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "")
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false)
 		require.NoError(t, err)
 
 		// run the worker, should mark the job as done
@@ -171,7 +171,7 @@ func TestAppleMDM(t *testing.T) {
 
 		// create a host and enqueue the job
 		h := createEnrolledHost(t, 1, nil, true)
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMTask("no-such-task"), h.UUID, "darwin", nil, "")
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMTask("no-such-task"), h.UUID, "darwin", nil, "", false)
 		require.NoError(t, err)
 
 		// run the worker, should mark the job as failed
@@ -204,7 +204,7 @@ func TestAppleMDM(t *testing.T) {
 		w.Register(mdmWorker)
 
 		// use "" instead of "darwin" as platform to test a queued job after the upgrade to iOS/iPadOS support.
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "", nil, "")
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "", nil, "", false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -218,11 +218,8 @@ func TestAppleMDM(t *testing.T) {
 		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
 		require.NoError(t, err)
 
-		// the post-DEP release device job is pending
-		require.Len(t, jobs, 1)
-		require.Equal(t, appleMDMJobName, jobs[0].Name)
-		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
-		require.Equal(t, 0, jobs[0].Retries) // hasn't run yet
+		// there is no post-DEP release device job anymore
+		require.Len(t, jobs, 0)
 
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
 	})
@@ -242,7 +239,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "")
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -284,7 +281,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "")
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -298,11 +295,8 @@ func TestAppleMDM(t *testing.T) {
 		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
 		require.NoError(t, err)
 
-		// the post-DEP release device job is pending
-		require.Len(t, jobs, 1)
-		require.Equal(t, appleMDMJobName, jobs[0].Name)
-		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
-		require.Equal(t, 0, jobs[0].Retries) // hasn't run yet
+		// the post-DEP release device job is not queued anymore
+		require.Len(t, jobs, 0)
 
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
 
@@ -336,7 +330,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "")
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -350,11 +344,8 @@ func TestAppleMDM(t *testing.T) {
 		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
 		require.NoError(t, err)
 
-		// the post-DEP release device job is pending
-		require.Len(t, jobs, 1)
-		require.Equal(t, appleMDMJobName, jobs[0].Name)
-		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
-		require.Equal(t, 0, jobs[0].Retries) // hasn't run yet
+		// the post-DEP release device job is not queued anymore
+		require.Len(t, jobs, 0)
 
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
 
@@ -389,7 +380,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "")
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -427,7 +418,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "abcd")
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "abcd", false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -470,7 +461,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, idpAcc.UUID)
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, idpAcc.UUID, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -484,11 +475,8 @@ func TestAppleMDM(t *testing.T) {
 		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
 		require.NoError(t, err)
 
-		// the post-DEP release device job is pending, having failed its first attempt
-		require.Len(t, jobs, 1)
-		require.Equal(t, appleMDMJobName, jobs[0].Name)
-		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
-		require.Equal(t, 0, jobs[0].Retries) // hasn't run yet
+		// the post-DEP release device job is not queued anymore
+		require.Len(t, jobs, 0)
 
 		// confirm that AccountConfiguration command was not enqueued
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
@@ -526,7 +514,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, idpAcc.UUID)
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, idpAcc.UUID, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -540,11 +528,8 @@ func TestAppleMDM(t *testing.T) {
 		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
 		require.NoError(t, err)
 
-		// the post-DEP release device job is pending
-		require.Len(t, jobs, 1)
-		require.Equal(t, appleMDMJobName, jobs[0].Name)
-		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
-		require.Equal(t, 0, jobs[0].Retries) // hasn't run yet
+		// the post-DEP release device job is not queued anymore
+		require.Len(t, jobs, 0)
 
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "AccountConfiguration"}, getEnqueuedCommandTypes(t))
 	})
@@ -563,7 +548,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostManualEnrollmentTask, h.UUID, "darwin", nil, "")
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostManualEnrollmentTask, h.UUID, "darwin", nil, "", false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -578,5 +563,41 @@ func TestAppleMDM(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, jobs)
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
+	})
+
+	t.Run("use worker for automatic release", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		defer mysql.TruncateTables(t, ds)
+
+		h := createEnrolledHost(t, 1, nil, true)
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       nopLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, nopLog)
+		w.Register(mdmWorker)
+
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true)
+		require.NoError(t, err)
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// ensure the job's not_before allows it to be returned if it were to run
+		// again
+		time.Sleep(time.Second)
+
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
+
+		// the release device job got enqueued
+		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().Add(time.Minute)) // release job is always added with a delay
+		require.NoError(t, err)
+		require.Len(t, jobs, 1)
+		require.Equal(t, fleet.JobStateQueued, jobs[0].State)
+		require.Equal(t, appleMDMJobName, jobs[0].Name)
+		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
 	})
 }

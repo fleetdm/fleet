@@ -11,7 +11,7 @@ should be discussed within the team and documented before merged.
 - [Typing](#typing)
 - [Utilities](#utilities)
 - [Components](#components)
-- [Forms] (#forms)
+- [Forms](#forms)
 - [React hooks](#react-hooks)
 - [React Context](#react-context)
 - [Fleet API calls](#fleet-api-calls)
@@ -200,6 +200,7 @@ export default PackComposerPage;
 
 ### Data validation
 
+#### How to validate
 Forms should make use of a pure `validate` function whose input(s) correspond to form data (may include
 new and possibly former form data) and whose output is an object of formFieldName:errorMessage
 key-value pairs (`Record<string,string>`) e.g.
@@ -211,8 +212,57 @@ const validate = (newFormData: IFormData) => {
   return errors;
 }
 ```
-The output of `validate` should be used by the calling `onChange` handler to set a `formErrors`
-state. 
+The output of `validate` should be used by the calling handler to set a `formErrors`
+state.
+
+#### When to validate
+Form fields should *set only new errors* on blur and on save, and *set or remove* errors on change. This provides
+an "optimistic" user experience. The user is only told they have an error once they navigate
+away from a field or hit enter, actions which imply they are finished editing the field, while they are informed they have fixed
+an error as soon as possible, that is, as soon as they make the fixing change. e.g.
+```
+const onInputChange = ({ name, value }: IFormField) => {
+  const newFormData = { ...formData, [name]: value };
+  setFormData(newFormData);
+  const newErrs = validateFormData(newFormData);
+  // only set errors that are updates of existing errors
+  // new errors are only set onBlur
+  const errsToSet: Record<string, string> = {};
+  Object.keys(formErrors).forEach((k) => {
+    if (newErrs[k]) {
+      errsToSet[k] = newErrs[k];
+    }
+  });
+  setFormErrors(errsToSet);
+};
+
+```
+
+,
+
+```
+const onInputBlur = () => {
+  setFormErrors(validateFormData(formData));
+};
+```
+
+, and 
+
+```
+const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
+  evt.preventDefault();
+
+  // return null if there are errors
+  const errs = validateFormData(formData);
+  if (Object.keys(errs).length > 0) {
+    setFormErrors(errs);
+    return;
+  }
+
+  ...
+  // continue with submit logic if no errors
+
+```
 
 ## React hooks
 
@@ -425,3 +475,21 @@ then the [app's context](#react-context) should be used.
 If you are dealing with a page that *updates* any kind of config, you'll want to access that config
 with a fresh API call to be sure you have the updated values. Otherwise, that is, you are dealing
 with a page that is only *reading* config values, get them from context.
+
+### Rendering flash messages
+
+Flash messages by default will be hidden when the user performs any navigation that changes the URL,
+in addition to the timeout set for success messages. The `renderFlash` method from notification
+context accepts an optional third `options` argument which contains an optional
+`persistOnPageChange` boolean field that can be set to `true` to negate this default behavior.
+
+If the `renderFlash` is accompanied by a router push, it's important to push to the router *before*
+calling `renderFlash`. If the push comes after the `renderFlash` call,
+the flash message may register the `push` and immediately hide itself.
+
+```tsx
+// first push
+router.push(newPath);
+// then flash
+renderFlash("error", "Something went wrong");
+```

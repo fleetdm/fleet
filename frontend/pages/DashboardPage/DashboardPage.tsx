@@ -460,7 +460,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     setShowAddHostsModal(!showAddHostsModal);
   };
 
-  // NOTE: this is called once on the initial rendering. The initial render of
+  // This is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
   const onSoftwareQueryChange = async ({
     pageIndex: newPageIndex,
@@ -477,6 +477,13 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       setSoftwareActionUrl(
         index === 1 ? `${SOFTWARE_TITLES}?vulnerable=true` : SOFTWARE_TITLES
       );
+  };
+
+  let refetchActivities = () => {
+    /* noop */
+  };
+  const setRefetchActivities = (refetch: () => void) => {
+    refetchActivities = refetch;
   };
 
   const onSubmitActivityFeedAutomationsModal = useCallback(
@@ -512,6 +519,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       } finally {
         setUpdatingActivityFeedAutomations(false);
         refetchConfig();
+        refetchActivities();
       }
     },
     [
@@ -616,6 +624,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       <ActivityFeed
         setShowActivityFeedTitle={setShowActivityFeedTitle}
         isPremiumTier={isPremiumTier || false}
+        setRefetchActivities={setRefetchActivities}
       />
     ),
   });

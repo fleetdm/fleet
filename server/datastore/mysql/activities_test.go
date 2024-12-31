@@ -394,32 +394,53 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create a couple of software installers
-	installer := strings.NewReader("echo")
-	sw1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install foo",
-		InstallerFile: installer,
-		StorageID:     uuid.NewString(),
-		Filename:      "foo.pkg",
-		Title:         "foo",
-		Source:        "apps",
-		Version:       "0.0.1",
-		UserID:        u.ID,
+	installer1, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
+	require.NoError(t, err)
+	sw1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install foo",
+		InstallerFile:   installer1,
+		StorageID:       uuid.NewString(),
+		Filename:        "foo.pkg",
+		Title:           "foo",
+		Source:          "apps",
+		Version:         "0.0.1",
+		UserID:          u.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
-	sw2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install bar",
-		InstallerFile: installer,
-		StorageID:     uuid.NewString(),
-		Filename:      "bar.pkg",
-		Title:         "bar",
-		Source:        "apps",
-		Version:       "0.0.2",
-		UserID:        u.ID,
+	installer2, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
+	require.NoError(t, err)
+	sw2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install bar",
+		InstallerFile:   installer2,
+		StorageID:       uuid.NewString(),
+		Filename:        "bar.pkg",
+		Title:           "bar",
+		Source:          "apps",
+		Version:         "0.0.2",
+		UserID:          u.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	installer3, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
+	require.NoError(t, err)
+	sw3, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install to delete",
+		InstallerFile:   installer3,
+		StorageID:       uuid.NewString(),
+		Filename:        "todelete.pkg",
+		Title:           "todelete",
+		Source:          "apps",
+		Version:         "0.0.3",
+		UserID:          u.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	sw1Meta, err := ds.GetSoftwareInstallerMetadataByID(ctx, sw1)
 	require.NoError(t, err)
 	sw2Meta, err := ds.GetSoftwareInstallerMetadataByID(ctx, sw2)
+	require.NoError(t, err)
+	sw3Meta, err := ds.GetSoftwareInstallerMetadataByID(ctx, sw3)
 	require.NoError(t, err)
 
 	// insert a VPP app
@@ -523,7 +544,24 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	h2SelfService, err := ds.InsertSoftwareInstallRequest(noUserCtx, h2.ID, sw1Meta.InstallerID, true, nil)
 	require.NoError(t, err)
 
-	// nothing for h3
+	setupExpScript := &fleet.Script{Name: "setup_experience_script", ScriptContents: "setup_experience"}
+	err = ds.SetSetupExperienceScript(ctx, setupExpScript)
+	require.NoError(t, err)
+	ses, err := ds.GetSetupExperienceScript(ctx, h2.TeamID)
+	require.NoError(t, err)
+	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h2.ID, ScriptContents: "setup_experience", SetupExperienceScriptID: &ses.ID})
+	require.NoError(t, err)
+	h2SetupExp := hsr.ExecutionID
+
+	// create pending install and uninstall requests for h3 that will be deleted
+	_, err = ds.InsertSoftwareInstallRequest(ctx, h3.ID, sw3Meta.InstallerID, false, nil)
+	require.NoError(t, err)
+	err = ds.InsertSoftwareUninstallRequest(ctx, "uninstallRun", h3.ID, sw3Meta.InstallerID)
+	require.NoError(t, err)
+
+	// delete installer (should clear pending requests)
+	err = ds.DeleteSoftwareInstaller(ctx, sw3Meta.InstallerID)
+	require.NoError(t, err)
 
 	// force-set the order of the created_at timestamps
 	endTime := SetOrderedCreatedAtTimestamps(t, ds, time.Now(), "host_script_results", "execution_id", h1A, h1B)
@@ -534,7 +572,8 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h2SelfService)
 	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h2Bar)
 	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h2A, h2F)
-	SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_vpp_software_installs", "command_uuid", vppCommand1, vppCommand2)
+	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_vpp_software_installs", "command_uuid", vppCommand1, vppCommand2)
+	SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h2SetupExp)
 
 	execIDsWithUser := map[string]bool{
 		h1A:           true,
@@ -550,11 +589,13 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		h2Bar:         true,
 		vppCommand1:   true,
 		vppCommand2:   false,
+		h2SetupExp:    false,
 	}
 	execIDsScriptName := map[string]string{
-		h1A: scr1.Name,
-		h1B: scr2.Name,
-		h2A: scr1.Name,
+		h1A:        scr1.Name,
+		h1B:        scr2.Name,
+		h2A:        scr1.Name,
+		h2SetupExp: setupExpScript.Name,
 	}
 	execIDsSoftwareTitle := map[string]string{
 		h1Fleet:       "foo",
@@ -615,10 +656,10 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
 		},
 		{
-			opts:      fleet.ListOptions{PerPage: 4},
+			opts:      fleet.ListOptions{PerPage: 5},
 			hostID:    h2.ID,
-			wantExecs: []string{h2SelfService, h2Bar, h2A, vppCommand2},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 4},
+			wantExecs: []string{h2SelfService, h2Bar, h2A, vppCommand2, h2SetupExp},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 5},
 		},
 		{
 			opts:      fleet.ListOptions{},

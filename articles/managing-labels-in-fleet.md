@@ -1,4 +1,4 @@
-# Managing labels in Fleet
+# Labels
 
 ![Managing labels in Fleet](../website/assets/images/articles/managing-labels-in-fleet-1600x900@2x.png)
 

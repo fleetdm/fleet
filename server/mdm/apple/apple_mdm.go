@@ -171,7 +171,7 @@ func (d *DEPService) buildJSONProfile(ctx context.Context, setupAsstJSON json.Ra
 			endUserAuthEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
 		}
 		if endUserAuthEnabled {
-			jsonProf.ConfigurationWebURL = appCfg.ServerSettings.ServerURL + "/mdm/sso"
+			jsonProf.ConfigurationWebURL = appCfg.MDMUrl() + "/mdm/sso"
 		}
 	}
 
@@ -558,10 +558,25 @@ func (d *DEPService) processDeviceResponse(
 		return nil
 	}
 
-	var addedDevices []godep.Device
+	var addedDevicesSlice []godep.Device
+	var addedSerials []string
 	var deletedSerials []string
 	var modifiedSerials []string
+	addedDevices := map[string]godep.Device{}
 	modifiedDevices := map[string]godep.Device{}
+	deletedDevices := map[string]godep.Device{}
+
+	// This service may return the same device more than once. You must resolve duplicates by matching on the device
+	// serial number and the op_type and op_date fields. The record with the latest op_date indicates the last known
+	// state of the device in DEP.
+	// Reference: https://developer.apple.com/documentation/devicemanagement/sync_the_list_of_devices#discussion
+	keepRecent := func(device godep.Device, existing map[string]godep.Device) {
+		existingDevice, ok := existing[device.SerialNumber]
+		if !ok || device.OpDate.After(existingDevice.OpDate) {
+			existing[device.SerialNumber] = device
+		}
+	}
+
 	for _, device := range resp.Devices {
 		level.Debug(d.logger).Log(
 			"msg", "device",
@@ -580,12 +595,11 @@ func (d *DEPService) processDeviceResponse(
 		// Empty op_type come from the first call to FetchDevices without a cursor,
 		// and we do want to assign profiles to them.
 		case "added", "":
-			addedDevices = append(addedDevices, device)
+			keepRecent(device, addedDevices)
 		case "modified":
-			modifiedDevices[device.SerialNumber] = device
-			modifiedSerials = append(modifiedSerials, device.SerialNumber)
+			keepRecent(device, modifiedDevices)
 		case "deleted":
-			deletedSerials = append(deletedSerials, device.SerialNumber)
+			keepRecent(device, deletedDevices)
 		default:
 			level.Warn(d.logger).Log(
 				"msg", "unrecognized op_type",
@@ -593,6 +607,33 @@ func (d *DEPService) processDeviceResponse(
 				"serial_number", device.SerialNumber,
 			)
 		}
+	}
+
+	// Remove added/modified devices if they have been subsequently deleted
+	// Remove deleted devices if they have been subsequently added (or re-added)
+	for _, deletedDevice := range deletedDevices {
+		modifiedDevice, ok := modifiedDevices[deletedDevice.SerialNumber]
+		if ok && deletedDevice.OpDate.After(modifiedDevice.OpDate) {
+			delete(modifiedDevices, deletedDevice.SerialNumber)
+		}
+		addedDevice, ok := addedDevices[deletedDevice.SerialNumber]
+		if ok {
+			if deletedDevice.OpDate.After(addedDevice.OpDate) {
+				delete(addedDevices, deletedDevice.SerialNumber)
+			} else {
+				delete(deletedDevices, deletedDevice.SerialNumber)
+			}
+		}
+	}
+
+	for _, addedDevice := range addedDevices {
+		addedDevicesSlice = append(addedDevicesSlice, addedDevice)
+	}
+	for _, modifiedDevice := range modifiedDevices {
+		modifiedSerials = append(modifiedSerials, modifiedDevice.SerialNumber)
+	}
+	for _, deletedDevice := range deletedDevices {
+		deletedSerials = append(deletedSerials, deletedDevice.SerialNumber)
 	}
 
 	// find out if we already have entries in the `hosts` table with
@@ -611,16 +652,37 @@ func (d *DEPService) processDeviceResponse(
 	// the wrong op_type.
 	for _, d := range modifiedDevices {
 		if _, ok := existingSerials[d.SerialNumber]; !ok {
-			addedDevices = append(addedDevices, d)
+			addedDevicesSlice = append(addedDevicesSlice, d)
 		}
 	}
 
-	err = d.ds.DeleteHostDEPAssignments(ctx, deletedSerials)
+	// Check if added devices belong to another ABM server. If so, we must delete them before adding them.
+	for _, device := range addedDevicesSlice {
+		addedSerials = append(addedSerials, device.SerialNumber)
+	}
+
+	// Check if any of the "added" or "modified" hosts are hosts that we've recently removed from
+	// Fleet in ABM. A host in this state will have a row in `host_dep_assignments` where the
+	// `deleted_at ` col is NOT NULL. Down below we skip assigning the profile to devices that we
+	// think are still enrolled; doing this check here allows us to avoid skipping devices that
+	// _seem_ like they're still enrolled but were actually removed and should get the profile.
+	// See https://github.com/fleetdm/fleet/issues/23200 for more context.
+	existingDeletedSerials, err := d.ds.GetMatchingHostSerialsMarkedDeleted(ctx, addedSerials)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get matching deleted host serials")
+	}
+
+	err = d.ds.DeleteHostDEPAssignmentsFromAnotherABM(ctx, abmTokenID, addedSerials)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting dep assignments from another abm")
+	}
+
+	err = d.ds.DeleteHostDEPAssignments(ctx, abmTokenID, deletedSerials)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting DEP assignments")
 	}
 
-	n, err := d.ds.IngestMDMAppleDevicesFromDEPSync(ctx, addedDevices, abmTokenID, macOSTeam, iosTeam, ipadTeam)
+	n, err := d.ds.IngestMDMAppleDevicesFromDEPSync(ctx, addedDevicesSlice, abmTokenID, macOSTeam, iosTeam, ipadTeam)
 	switch {
 	case err != nil:
 		level.Error(kitlog.With(d.logger)).Log("err", err)
@@ -631,7 +693,8 @@ func (d *DEPService) processDeviceResponse(
 		level.Debug(kitlog.With(d.logger)).Log("msg", "no DEP hosts to add")
 	}
 
-	level.Debug(kitlog.With(d.logger)).Log("msg", "devices to assign DEP profiles", "to_add", len(addedDevices), "to_remove", deletedSerials, "to_modify", modifiedSerials)
+	level.Debug(kitlog.With(d.logger)).Log("msg", "devices to assign DEP profiles", "to_add", len(addedDevicesSlice), "to_remove",
+		strings.Join(deletedSerials, ", "), "to_modify", strings.Join(modifiedSerials, ", "))
 
 	// at this point, the hosts rows are created for the devices, with the
 	// correct team_id, so we know what team-specific profile needs to be applied.
@@ -652,7 +715,7 @@ func (d *DEPService) processDeviceResponse(
 	// each new device should be assigned the DEP profile of the default
 	// ABM team as configured by the IT admin.
 	devicesByTeam := map[*uint][]godep.Device{}
-	for _, newDevice := range addedDevices {
+	for _, newDevice := range addedDevicesSlice {
 		var teamID *uint
 		switch newDevice.DeviceFamily {
 		case "iPhone":
@@ -672,7 +735,9 @@ func (d *DEPService) processDeviceResponse(
 	for _, existingHost := range existingSerials {
 		dd, ok := modifiedDevices[existingHost.HardwareSerial]
 		if !ok {
-			level.Error(kitlog.With(d.logger)).Log("msg", "serial coming from ABM is in the databse, but it's not in the list of modified devices", "serial", existingHost.HardwareSerial)
+			level.Error(kitlog.With(d.logger)).Log("msg",
+				"serial coming from ABM is in the database, but it's not in the list of modified devices", "serial",
+				existingHost.HardwareSerial)
 			continue
 		}
 		existingHosts = append(existingHosts, *existingHost)
@@ -701,7 +766,8 @@ func (d *DEPService) processDeviceResponse(
 	for profUUID, devices := range profileToDevices {
 		var serials []string
 		for _, device := range devices {
-			if device.ProfileUUID == profUUID {
+			_, ok := existingDeletedSerials[device.SerialNumber]
+			if device.ProfileUUID == profUUID && !ok {
 				skippedSerials = append(skippedSerials, device.SerialNumber)
 				continue
 			}
@@ -748,7 +814,7 @@ func (d *DEPService) processDeviceResponse(
 			logs = append(logs, logCountsForResults(apiResp.Devices)...)
 			level.Info(logger).Log(logs...)
 
-			if err := d.ds.UpdateHostDEPAssignProfileResponses(ctx, apiResp); err != nil {
+			if err := d.ds.UpdateHostDEPAssignProfileResponses(ctx, apiResp, abmTokenID); err != nil {
 				return ctxerr.Wrap(ctx, err, "update host dep assign profile responses")
 			}
 		}

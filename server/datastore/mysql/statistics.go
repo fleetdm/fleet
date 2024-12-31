@@ -103,6 +103,10 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "number of hosts with Fleet desktop installed")
 		}
+		numQueries, err := numSavedQueriesDB(ctx, ds.reader(ctx))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "number of saved queries in DB")
+		}
 
 		stats.NumHostsEnrolled = amountEnrolledHosts
 		stats.NumUsers = amountUsers
@@ -152,6 +156,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 			}
 		}
 		stats.NumHostsFleetDesktopEnabled = numHostsFleetDesktopEnabled
+		stats.NumQueries = numQueries
 		return nil
 	}
 

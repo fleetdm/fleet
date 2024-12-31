@@ -84,15 +84,21 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.14.1 +", value: "5.14.1" },
+  { label: "5.13.1 +", value: "5.13.1" },
+  { label: "5.12.2 +", value: "5.12.2" },
+  { label: "5.12.1 +", value: "5.12.1" },
+  { label: "5.11.0 +", value: "5.11.0" },
   { label: "5.10.2 +", value: "5.10.2" },
   { label: "5.9.1 +", value: "5.9.1" },
   { label: "5.8.2 +", value: "5.8.2" },
   { label: "5.8.1 +", value: "5.8.1" },
   { label: "5.7.0 +", value: "5.7.0" },
   { label: "5.6.0 +", value: "5.6.0" },
+  { label: "5.5.1 +", value: "5.5.1" },
   { label: "5.4.0 +", value: "5.4.0" },
   { label: "5.3.0 +", value: "5.3.0" },
-  { label: "5.2.3 +", value: "5.2.4" },
+  { label: "5.2.3 +", value: "5.2.3" },
   { label: "5.2.2 +", value: "5.2.2" },
   { label: "5.2.1 +", value: "5.2.1" },
   { label: "5.2.0 +", value: "5.2.0" },
@@ -334,7 +340,10 @@ export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
     </span>
   ),
   "On (manual)": (
-    <span>MDM was turned on manually. End users can turn MDM off.</span>
+    <span>
+      MDM was turned on manually (macOS), or hosts were automatically migrated
+      with fleetd (Windows). End users can turn MDM off.
+    </span>
   ),
   Off: undefined, // no tooltip specified
   Pending: (
@@ -367,10 +376,10 @@ export const BATTERY_TOOLTIP: Record<string, string | React.ReactNode> = {
   ),
 };
 
-export const DEFAULT_CREATE_USER_ERRORS = {
-  email: "",
-  name: "",
-  password: "",
+export const DEFAULT_USER_FORM_ERRORS = {
+  email: null,
+  name: null,
+  password: null,
   sso_enabled: null,
 };
 

@@ -1,0 +1,11 @@
+- name: Collect Windows Defender
+  automations_enabled: false
+  description: Collects the pid, process name, user, path and command line for Windows Defender installed on hosts.
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  observer_can_run: true
+  platform: "windows"
+  query: SELECT processes.pid, processes.name, users.username, processes.path, processes.cmdline FROM processes LEFT JOIN users ON processes.uid = users.uid WHERE processes.path != '' AND name LIKE 'MpCmdRun.exe';
+  

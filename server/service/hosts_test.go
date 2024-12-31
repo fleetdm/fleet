@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
@@ -399,6 +400,10 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
 
+	ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+		return &fleet.HostDiskEncryptionKey{}, nil
+	}
+
 	type testCase struct {
 		name        string
 		host        *fleet.Host
@@ -408,7 +413,9 @@ func TestHostDetailsOSSettings(t *testing.T) {
 	cases := []testCase{
 		{"windows", &fleet.Host{ID: 42, Platform: "windows"}, fleet.TierPremium, fleet.DiskEncryptionEnforcing},
 		{"darwin", &fleet.Host{ID: 42, Platform: "darwin"}, fleet.TierPremium, ""},
-		{"ubuntu", &fleet.Host{ID: 42, Platform: "ubuntu"}, fleet.TierPremium, ""},
+		// TeamID necessary to check whether disk encryption is enabled for Linux hosts, in lieu of
+		// MDM-related logic which doesn't apply to Linux hosts
+		{"ubuntu", &fleet.Host{ID: 42, Platform: "ubuntu", TeamID: ptr.Uint(1)}, fleet.TierPremium, ""},
 		{"not premium", &fleet.Host{ID: 42, Platform: "windows"}, fleet.TierFree, ""},
 	}
 
@@ -418,6 +425,7 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		ds.GetHostMDMAppleProfilesFuncInvoked = false
 		ds.GetHostMDMWindowsProfilesFuncInvoked = false
 		ds.GetHostMDMFuncInvoked = false
+		ds.GetConfigEnableDiskEncryptionFuncInvoked = false
 
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}, nil
@@ -437,6 +445,10 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 			hmdm := fleet.HostMDM{Enrolled: true, IsServer: false}
 			return &hmdm, nil
+		}
+		ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (bool, error) {
+			// testing API response when not enabled
+			return false, nil
 		}
 	}
 
@@ -470,6 +482,19 @@ func TestHostDetailsOSSettings(t *testing.T) {
 					require.False(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
 					require.Nil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
 				}
+			case "ubuntu":
+				require.False(t, ds.GetHostMDMAppleProfilesFuncInvoked)
+				require.False(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
+				// service should call this function to check whether disk encryption is enabled for a Linux host
+				require.True(t, ds.GetConfigEnableDiskEncryptionFuncInvoked)
+
+				// `hostDetail.MDM.OSSettings` and `hostDetail.MDM.OSSettings.DiskEncryption` will actually not
+				// be `nil` here due to the way those fields are initialized by `svc.ds.Host`, so we can't
+				// expect them to be `nil` in these tests. However, since the relevant struct tags are set to
+				// `omitempty`, the resulting API response WILL omit these fields/subfields when empty,
+				// which is confirmed at the integration layer.
+				require.Nil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
+
 			case "darwin":
 				require.True(t, ds.GetHostMDMAppleProfilesFuncInvoked)
 				require.False(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
@@ -637,6 +662,9 @@ func TestHostAuth(t *testing.T) {
 	ds.ListHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
 		return nil, nil, nil
 	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
 
 	testCases := []struct {
 		name                  string
@@ -800,7 +828,8 @@ func TestListHosts(t *testing.T) {
 		}, nil
 	}
 
-	hosts, err := svc.ListHosts(test.UserContext(ctx, test.UserAdmin), fleet.HostListOptions{})
+	userContext := test.UserContext(ctx, test.UserAdmin)
+	hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{})
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 
@@ -808,6 +837,34 @@ func TestListHosts(t *testing.T) {
 	_, err = svc.ListHosts(ctx, fleet.HostListOptions{})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+
+	var shouldIncludeCVEScores bool
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		require.Equal(t, shouldIncludeCVEScores, includeCVEScores)
+		return nil
+	}
+
+	// free license disallows getting vuln details
+	hosts, err = svc.ListHosts(userContext, fleet.HostListOptions{PopulateSoftware: true, PopulateSoftwareVulnerabilityDetails: true})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.True(t, ds.LoadHostSoftwareFuncInvoked)
+	ds.LoadHostSoftwareFuncInvoked = false
+
+	// you're allowed to skip vuln details on Premium
+	userContext = license.NewContext(userContext, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	hosts, err = svc.ListHosts(userContext, fleet.HostListOptions{PopulateSoftware: true, PopulateSoftwareVulnerabilityDetails: false})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.True(t, ds.LoadHostSoftwareFuncInvoked)
+	ds.LoadHostSoftwareFuncInvoked = false
+
+	// you're allowed to retrieve vuln details on Premium
+	shouldIncludeCVEScores = true
+	hosts, err = svc.ListHosts(userContext, fleet.HostListOptions{PopulateSoftware: true, PopulateSoftwareVulnerabilityDetails: true})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.True(t, ds.LoadHostSoftwareFuncInvoked)
 }
 
 func TestGetHostSummary(t *testing.T) {
@@ -1283,7 +1340,8 @@ func TestHostEncryptionKey(t *testing.T) {
 			}
 
 			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-				_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+				_ sqlx.QueryerContext,
+			) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 					fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
 					fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
@@ -1336,7 +1394,8 @@ func TestHostEncryptionKey(t *testing.T) {
 			return nil, keyErr
 		}
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-			_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			_ sqlx.QueryerContext,
+		) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 				fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
 				fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
@@ -1397,7 +1456,8 @@ func TestHostEncryptionKey(t *testing.T) {
 					return nil
 				}
 				ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-					_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+					_ sqlx.QueryerContext,
+				) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 					return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 						fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
 						fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
@@ -1415,6 +1475,73 @@ func TestHostEncryptionKey(t *testing.T) {
 				}
 			})
 		}
+	})
+
+	t.Run("Linux encryption", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, Platform: "ubuntu"}
+		symmetricKey := "this_is_a_32_byte_symmetric_key!"
+		passphrase := "this_is_a_passphrase"
+		base64EncryptedKey, err := mdm.EncryptAndEncode(passphrase, symmetricKey)
+		require.NoError(t, err)
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return host, nil
+		}
+
+		ds.NewActivityFunc = func(
+			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+		) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { // needed for new activity
+			return &fleet.AppConfig{}, nil
+		}
+
+		// error when no server private key
+		fleetCfg.Server.PrivateKey = ""
+		svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+		key, err := svc.HostEncryptionKey(ctx, 1)
+		require.Error(t, err, "private key is unavailable")
+		require.Nil(t, key)
+
+		// error when key is not set
+		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+			return &fleet.HostDiskEncryptionKey{}, nil
+		}
+		fleetCfg.Server.PrivateKey = symmetricKey
+		svc, ctx = newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+		key, err = svc.HostEncryptionKey(ctx, 1)
+		require.Error(t, err, "host encryption key is not set")
+		require.Nil(t, key)
+
+		// error when key is not set
+		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+			return &fleet.HostDiskEncryptionKey{
+				Base64Encrypted: "thisIsWrong",
+				Decryptable:     ptr.Bool(true),
+			}, nil
+		}
+		svc, ctx = newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+		key, err = svc.HostEncryptionKey(ctx, 1)
+		require.Error(t, err, "decrypt host encryption key")
+		require.Nil(t, key)
+
+		// happy path
+		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+			return &fleet.HostDiskEncryptionKey{
+				Base64Encrypted: base64EncryptedKey,
+				Decryptable:     ptr.Bool(true),
+			}, nil
+		}
+		svc, ctx = newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+		key, err = svc.HostEncryptionKey(ctx, 1)
+		require.NoError(t, err)
+		require.Equal(t, passphrase, key.DecryptedValue)
 	})
 }
 
@@ -1676,7 +1803,10 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-				return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}, nil
+				return &fleet.AppConfig{
+					MDM:            fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true},
+					ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}, // scripts being disabled shouldn't stop lock/unlock/wipe
+				}, nil
 			}
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 

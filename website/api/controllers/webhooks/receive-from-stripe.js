@@ -41,7 +41,7 @@ module.exports = {
 
 
   fn: async function ({id, type, data, webhookSecret}) {
-
+    const stripe = require('stripe')(sails.config.custom.stripeSecret);
     let assert = require('assert');
 
     if(!this.req.get('stripe-signature')) {
@@ -77,6 +77,7 @@ module.exports = {
       'invoice.payment_action_required',// Sent when a user's billing card requires additional verification from stripe.
       'invoice.updated',// Sent before an incomplete invoice is voided. (~24 hours after a payment fails)
       'invoice.voided',// Sent when an incomplete invoice is marked as voided. (~24 hours after a payment fails)
+      'checkout.session.completed'// Sent when a user completes a Stripe Checkout session.
     ];
 
     // If this event is for a subscription that was just created, we won't have a matching Subscription record in the database. This is because we wait until the subscription's invoice is paid to create the record in our database.
@@ -86,15 +87,16 @@ module.exports = {
         throw new Error(`The Stripe subscription events webhook received a event for a subscription with stripeSubscriptionId: ${subscriptionIdToFind}, but no matching record was found in our database.`);
       } else {
         let userReferencedInStripeEvent = await User.findOne({stripeCustomerId: stripeEventData.customer});
-        if(!userReferencedInStripeEvent){
+        if(!userReferencedInStripeEvent) {
           throw new Error(`The receive-from-stripe webhook received an event for an invoice (type: ${type}) for a subscription (stripeSubscriptionId: ${subscriptionIdToFind}) but no matching Subscription or User record (stripeCustomerId: ${stripeEventData.customer}) was found in our databse.`);
-        } else {
-          return;
         }
       }
     }
 
-    let userForThisSubscription = subscriptionForThisEvent.user;
+    let userForThisSubscription = await User.findOne({stripeCustomerId: stripeEventData.customer});
+    if(!userForThisSubscription){
+      throw new Error(`The stripe subscription events webhook received a type ${type} event for a user with stripeCustomerId: ${stripeEventData.customer}, but no matching user was found in the databse. Stripe event ID: ${id}`);
+    }
     //  ┬ ┬┌─┐┌─┐┌─┐┌┬┐┬┌┐┌┌─┐  ┬─┐┌─┐┌┐┌┌─┐┬ ┬┌─┐┬
     //  │ │├─┘│  │ │││││││││ ┬  ├┬┘├┤ │││├┤ │││├─┤│
     //  └─┘┴  └─┘└─┘┴ ┴┴┘└┘└─┘  ┴└─└─┘┘└┘└─┘└┴┘┴ ┴┴─┘
@@ -200,6 +202,66 @@ module.exports = {
         fleetLicenseKey: newLicenseKeyForThisSubscription,
         nextBillingAt: nextBillingAt
       });
+    } else if(type === 'checkout.session.completed' && stripeEventData.payment_status === 'paid') {
+      // For handling successful payments from a Stripe checkout session.
+      // Note: This event is sent the moment the user's payment succeeds.
+      if(subscriptionForThisEvent){// Throw an error if there is an existing subscription with this ID that matches this event in the website's database.
+        throw new Error(`Consistency violation! The stripe webhook received a "${type}" event for a new subscription being created, but a subscription with the stripe ID ${subscriptionForThisEvent.stripeSubscriptionId} already exists.`);
+      }
+      // Retrieve the subscription details from Stripe.
+      let newSubscriptionDetails = await stripe.subscriptions.retrieve(stripeEventData.subscription);
+      // Convert the timestamp of the next time this subscription will be billed into a JS timestamp (Epoch MS)
+      let nextBillingAt = newSubscriptionDetails.current_period_end * 1000;
+      // Get the number of Hosts.
+      let numberOfHosts = newSubscriptionDetails.quantity;
+      // Get the whole dollar price per host.
+      let subscriptionPricePerHost = newSubscriptionDetails.plan.amount / 100;
+      // Determine the annual cost of this user's subscription
+      let subscriptionPrice = subscriptionPricePerHost * numberOfHosts;
+      // Generate a new license key.
+      let newLicenseKey = await sails.helpers.createLicenseKey.with({
+        numberOfHosts,
+        organization: userForThisSubscription.organization ? userForThisSubscription.organization : 'Unknown',
+        expiresAt: nextBillingAt,
+      });
+      // Create the database record for this subscription.
+      await Subscription.create({
+        nextBillingAt,
+        numberOfHosts,
+        subscriptionPrice,
+        stripeSubscriptionId: newSubscriptionDetails.id,
+        fleetLicenseKey: newLicenseKey,
+        user: userForThisSubscription.id,
+      });
+
+      await sails.helpers.sendTemplateEmail.with({
+        to: userForThisSubscription.emailAddress,
+        from: sails.config.custom.fromEmail,
+        fromName: sails.config.custom.fromName,
+        subject: 'Your Fleet Premium order',
+        template: 'email-order-confirmation',
+        templateData: {
+          firstName: userForThisSubscription.firstName ? userForThisSubscription.firstName : '',
+          lastName: userForThisSubscription.lastName ? userForThisSubscription.lastName : '',
+        }
+      });
+
+      let todayOn = new Date();
+      let isoTimestampForDescription = todayOn.toISOString();
+      sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+        emailAddress: userForThisSubscription.emailAddress,
+        firstName: userForThisSubscription.firstName,
+        lastName: userForThisSubscription.lastName,
+        organization: userForThisSubscription.organization,
+        contactSource: 'Website - Sign up',// Note: this is only set on new contacts.
+        description: `Purchased a self-service Fleet Premium license on ${isoTimestampForDescription.split('T')[0]} for ${numberOfHosts} host${numberOfHosts > 1 ? 's' : ''}.`
+      }).exec((err)=>{
+        if(err){
+          sails.log.warn(`Background task failed: When a user (email: ${userForThisSubscription.emailAddress} purchased a self-service Fleet premium subscription, a Contact and Account record could not be created/updated in the CRM.`, err);
+        }
+        return;
+      });
+
     }
     // FUTURE: send emails about failed payments. (type === 'invoice.payment_failed' && stripeEventData.billing_reason === 'subscription_cycle')
 

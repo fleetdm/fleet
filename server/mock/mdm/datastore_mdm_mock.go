@@ -19,13 +19,13 @@ type StoreAuthenticateFunc func(r *mdm.Request, msg *mdm.Authenticate) error
 
 type StoreTokenUpdateFunc func(r *mdm.Request, msg *mdm.TokenUpdate) error
 
-type StoreUserAuthenticateFunc func(r *mdm.Request, msg *mdm.UserAuthenticate) error
-
 type DisableFunc func(r *mdm.Request) error
+
+type StoreUserAuthenticateFunc func(r *mdm.Request, msg *mdm.UserAuthenticate) error
 
 type StoreCommandReportFunc func(r *mdm.Request, report *mdm.CommandResults) error
 
-type RetrieveNextCommandFunc func(r *mdm.Request, skipNotNow bool) (*mdm.Command, error)
+type RetrieveNextCommandFunc func(r *mdm.Request, skipNotNow bool) (*mdm.CommandWithSubtype, error)
 
 type ClearQueueFunc func(r *mdm.Request) error
 
@@ -33,7 +33,9 @@ type StoreBootstrapTokenFunc func(r *mdm.Request, msg *mdm.SetBootstrapToken) er
 
 type RetrieveBootstrapTokenFunc func(r *mdm.Request, msg *mdm.GetBootstrapToken) (*mdm.BootstrapToken, error)
 
-type RetrievePushInfoFunc func(p0 context.Context, p1 []string) (map[string]*mdm.Push, error)
+type ExpandEmbeddedSecretsFunc func(ctx context.Context, document string) (string, error)
+
+type RetrievePushInfoFunc func(ctx context.Context, ids []string) (map[string]*mdm.Push, error)
 
 type IsPushCertStaleFunc func(ctx context.Context, topic string, staleToken string) (bool, error)
 
@@ -41,7 +43,7 @@ type RetrievePushCertFunc func(ctx context.Context, topic string) (cert *tls.Cer
 
 type StorePushCertFunc func(ctx context.Context, pemCert []byte, pemKey []byte) error
 
-type EnqueueCommandFunc func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error)
+type EnqueueCommandFunc func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error)
 
 type HasCertHashFunc func(r *mdm.Request, hash string) (bool, error)
 
@@ -50,6 +52,8 @@ type EnrollmentHasCertHashFunc func(r *mdm.Request, hash string) (bool, error)
 type IsCertHashAssociatedFunc func(r *mdm.Request, hash string) (bool, error)
 
 type AssociateCertHashFunc func(r *mdm.Request, hash string, certNotValidAfter time.Time) error
+
+type EnrollmentFromHashFunc func(ctx context.Context, hash string) (string, error)
 
 type RetrieveMigrationCheckinsFunc func(p0 context.Context, p1 chan<- interface{}) error
 
@@ -70,11 +74,11 @@ type MDMAppleStore struct {
 	StoreTokenUpdateFunc        StoreTokenUpdateFunc
 	StoreTokenUpdateFuncInvoked bool
 
-	StoreUserAuthenticateFunc        StoreUserAuthenticateFunc
-	StoreUserAuthenticateFuncInvoked bool
-
 	DisableFunc        DisableFunc
 	DisableFuncInvoked bool
+
+	StoreUserAuthenticateFunc        StoreUserAuthenticateFunc
+	StoreUserAuthenticateFuncInvoked bool
 
 	StoreCommandReportFunc        StoreCommandReportFunc
 	StoreCommandReportFuncInvoked bool
@@ -90,6 +94,9 @@ type MDMAppleStore struct {
 
 	RetrieveBootstrapTokenFunc        RetrieveBootstrapTokenFunc
 	RetrieveBootstrapTokenFuncInvoked bool
+
+	ExpandEmbeddedSecretsFunc        ExpandEmbeddedSecretsFunc
+	ExpandEmbeddedSecretsFuncInvoked bool
 
 	RetrievePushInfoFunc        RetrievePushInfoFunc
 	RetrievePushInfoFuncInvoked bool
@@ -117,6 +124,9 @@ type MDMAppleStore struct {
 
 	AssociateCertHashFunc        AssociateCertHashFunc
 	AssociateCertHashFuncInvoked bool
+
+	EnrollmentFromHashFunc        EnrollmentFromHashFunc
+	EnrollmentFromHashFuncInvoked bool
 
 	RetrieveMigrationCheckinsFunc        RetrieveMigrationCheckinsFunc
 	RetrieveMigrationCheckinsFuncInvoked bool
@@ -153,18 +163,18 @@ func (fs *MDMAppleStore) StoreTokenUpdate(r *mdm.Request, msg *mdm.TokenUpdate) 
 	return fs.StoreTokenUpdateFunc(r, msg)
 }
 
-func (fs *MDMAppleStore) StoreUserAuthenticate(r *mdm.Request, msg *mdm.UserAuthenticate) error {
-	fs.mu.Lock()
-	fs.StoreUserAuthenticateFuncInvoked = true
-	fs.mu.Unlock()
-	return fs.StoreUserAuthenticateFunc(r, msg)
-}
-
 func (fs *MDMAppleStore) Disable(r *mdm.Request) error {
 	fs.mu.Lock()
 	fs.DisableFuncInvoked = true
 	fs.mu.Unlock()
 	return fs.DisableFunc(r)
+}
+
+func (fs *MDMAppleStore) StoreUserAuthenticate(r *mdm.Request, msg *mdm.UserAuthenticate) error {
+	fs.mu.Lock()
+	fs.StoreUserAuthenticateFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.StoreUserAuthenticateFunc(r, msg)
 }
 
 func (fs *MDMAppleStore) StoreCommandReport(r *mdm.Request, report *mdm.CommandResults) error {
@@ -174,7 +184,7 @@ func (fs *MDMAppleStore) StoreCommandReport(r *mdm.Request, report *mdm.CommandR
 	return fs.StoreCommandReportFunc(r, report)
 }
 
-func (fs *MDMAppleStore) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.Command, error) {
+func (fs *MDMAppleStore) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.CommandWithSubtype, error) {
 	fs.mu.Lock()
 	fs.RetrieveNextCommandFuncInvoked = true
 	fs.mu.Unlock()
@@ -202,11 +212,18 @@ func (fs *MDMAppleStore) RetrieveBootstrapToken(r *mdm.Request, msg *mdm.GetBoot
 	return fs.RetrieveBootstrapTokenFunc(r, msg)
 }
 
-func (fs *MDMAppleStore) RetrievePushInfo(p0 context.Context, p1 []string) (map[string]*mdm.Push, error) {
+func (fs *MDMAppleStore) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
+	fs.mu.Lock()
+	fs.ExpandEmbeddedSecretsFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.ExpandEmbeddedSecretsFunc(ctx, document)
+}
+
+func (fs *MDMAppleStore) RetrievePushInfo(ctx context.Context, ids []string) (map[string]*mdm.Push, error) {
 	fs.mu.Lock()
 	fs.RetrievePushInfoFuncInvoked = true
 	fs.mu.Unlock()
-	return fs.RetrievePushInfoFunc(p0, p1)
+	return fs.RetrievePushInfoFunc(ctx, ids)
 }
 
 func (fs *MDMAppleStore) IsPushCertStale(ctx context.Context, topic string, staleToken string) (bool, error) {
@@ -230,7 +247,7 @@ func (fs *MDMAppleStore) StorePushCert(ctx context.Context, pemCert []byte, pemK
 	return fs.StorePushCertFunc(ctx, pemCert, pemKey)
 }
 
-func (fs *MDMAppleStore) EnqueueCommand(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+func (fs *MDMAppleStore) EnqueueCommand(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 	fs.mu.Lock()
 	fs.EnqueueCommandFuncInvoked = true
 	fs.mu.Unlock()
@@ -263,6 +280,13 @@ func (fs *MDMAppleStore) AssociateCertHash(r *mdm.Request, hash string, certNotV
 	fs.AssociateCertHashFuncInvoked = true
 	fs.mu.Unlock()
 	return fs.AssociateCertHashFunc(r, hash, certNotValidAfter)
+}
+
+func (fs *MDMAppleStore) EnrollmentFromHash(ctx context.Context, hash string) (string, error) {
+	fs.mu.Lock()
+	fs.EnrollmentFromHashFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.EnrollmentFromHashFunc(ctx, hash)
 }
 
 func (fs *MDMAppleStore) RetrieveMigrationCheckins(p0 context.Context, p1 chan<- interface{}) error {

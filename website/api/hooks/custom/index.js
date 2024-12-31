@@ -73,7 +73,7 @@ will be disabled and/or hidden in the UI.
 
       // Override the default sails.LOOKS_LIKE_ASSET_RX with a regex that does not match paths starting with '/release/'.
       // Otherwise, our release blog posts are treated as assets because they contain periods in their URL (e.g., fleetdm.com/releases/fleet-4.29.0)
-      sails.LOOKS_LIKE_ASSET_RX = /^(?!\/releases\/.*$)[^?]*\/[^?\/]+\.[^?\/]+(\?.*)?$/;
+      sails.LOOKS_LIKE_ASSET_RX = /^(?!\/releases\/|\/announcements\/|\/success-stories\/|\/securing\/|\/engineering\/|\/podcasts\/*$)[^?]*\/[^?\/]+\.[^?\/]+(\?.*)?$/;
 
       // After "sails-hook-organics" finishes initializing, configure Stripe
       // and Sendgrid packs with any available credentials.
@@ -88,6 +88,19 @@ will be disabled and/or hidden in the UI.
           from: sails.config.custom.fromEmailAddress,
           fromName: sails.config.custom.fromName,
         });
+
+        // Validate all values in the githubRepoDRIByPath config variable.
+        if(sails.config.custom.githubRepoDRIByPath) {
+          if(!_.isObject(sails.config.custom.githubRepoDRIByPath)) {
+            throw new Error(`Invalid configuration! An invalid "sails.config.custom.githubRepoDRIByPath" value was provided. If set, this value should be a dictionary, where each key is a path in the GitHub repo, and each value is a GitHub username. Please change this value to be a dictionary and try running this script again.`);
+          }
+          for(let path in sails.config.custom.githubRepoDRIByPath) {
+            if(typeof sails.config.custom.githubRepoDRIByPath[path] !== 'string') {
+              throw new Error(`Invalid configuration! A path (${path}) in the "sails.config.custom.githubRepoDRIByPath" config value contains a DRI value that is not a string (type: ${typeof sails.config.custom.githubRepoDRIByPath[path]}). Please change the DRI for this path to be a string containing a single GitHub username and try running this script again.`);
+            }
+          }
+        }
+
         // Send a request to our Algolia crawler to reindex the website.
         // FUTURE: If this breaks again, use the Platform model to store when the website was last crawled
         // (platform.algoliaLastCrawledWebsiteAt), and then only send a request if it was <30m ago, then remove dyno check.
@@ -302,6 +315,7 @@ will be disabled and/or hidden in the UI.
                       firstName: sanitizedUser.firstName,
                       lastName: sanitizedUser.lastName,
                       organization: sanitizedUser.organization,
+                      contactSource: 'Website - Sign up',// Note: this is only set on new contacts.
                     });
                     let jsforce = require('jsforce');
                     // login to Salesforce
@@ -311,13 +325,23 @@ will be disabled and/or hidden in the UI.
                     await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
                     let today = new Date();
                     let nowOn = today.toISOString().replace('Z', '+0000');
+                    let websiteVisitReason;
+                    if(req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
+                      let thirtyMinutesAgoAt = Date.now() - (1000 * 60 * 30);
+                      // If this user visited the website from an ad, set the websiteVisitReason to be the adAttributionString stored in their session.
+                      if(req.session.visitedSiteFromAdAt > thirtyMinutesAgoAt) {
+                        websiteVisitReason = this.req.session.adAttributionString;
+                      }
+                    }
                     // Create the new Fleet website page view record.
                     return await sails.helpers.flow.build(async ()=>{
                       return await salesforceConnection.sobject('fleet_website_page_views__c')
                       .create({
                         Contact__c: recordIds.salesforceContactId,// eslint-disable-line camelcase
+                        Account__c: recordIds.salesforceAccountId,// eslint-disable-line camelcase
                         Page_URL__c: `https://fleetdm.com${req.url}`,// eslint-disable-line camelcase
                         Visited_on__c: nowOn,// eslint-disable-line camelcase
+                        Website_visit_reason__c: websiteVisitReason// eslint-disable-line camelcase
                       });
                     }).intercept((err)=>{
                       return new Error(`Could not create new Fleet website page view record. Error: ${err}`);

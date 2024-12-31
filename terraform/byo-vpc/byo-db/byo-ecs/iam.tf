@@ -1,4 +1,5 @@
 data "aws_iam_policy_document" "software_installers" {
+  count = var.fleet_config.software_installers.create_bucket == true ? 1 : 0
   statement {
     actions = [
       "s3:GetObject*",
@@ -17,7 +18,7 @@ data "aws_iam_policy_document" "software_installers" {
 
 resource "aws_iam_policy" "software_installers" {
   count  = var.fleet_config.software_installers.create_bucket == true ? 1 : 0
-  policy = data.aws_iam_policy_document.software_installers.json
+  policy = data.aws_iam_policy_document.software_installers[count.index].json
 }
 
 resource "aws_iam_role_policy_attachment" "software_installers" {

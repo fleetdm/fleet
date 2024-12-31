@@ -71,10 +71,20 @@
   description: "Research any research-ready accounts in this Salesforce report (https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001PUIT2A4/view) and advance them to 'Ads running'"
   moreInfoUrl: "https://fleetdm.com/handbook/demand#research-an-account"
   dri: "Drew-P-drawers"
-# -
-#   task: "Propose a fleet event"
-#   startedOn: "2023-10-02"
-#   frequency: "Daily"
-#   description: "Populate ideas for future events"
-#   moreInfoUrl: "https://fleetdm.com/handbook/demand#settle-event-strategy"
-#   dri: "Drew-P-drawers"
+-
+  task: "Check ongoing events"
+
+  startedOn: "2024-10-21"
+
+  frequency: "Daily"
+  description: "Check event issues and complete steps."
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering#book-an-event"
+  dri: "Drew-P-drawers"
+-
+  task: "Propose a Fleet event"
+  startedOn: "2023-10-21"
+  frequency: "Weekly"
+  description: "Populate ideas for future events"
+  moreInfoUrl: "https://fleetdm.com/handbook/demand#settle-event-strategy"
+  dri: "Drew-P-drawers"
+

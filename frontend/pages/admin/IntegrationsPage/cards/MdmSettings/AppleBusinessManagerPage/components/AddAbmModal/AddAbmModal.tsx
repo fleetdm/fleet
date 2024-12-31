@@ -110,14 +110,14 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
             <span>
               In the <b>Default Device Assignment</b> section, select{" "}
               <b>Change</b>, then assign the newly created server as the default
-              for your Macs, and select <b>Done</b>.
+              for your Macs, iPhones, and iPads. Then select <b>Done</b>.
             </span>
           </li>
           <li>
             <span>8.</span>
             <span>
               Select newly created server in the sidebar, then select{" "}
-              <b>Download Token</b> on the top.
+              <b>Download MDM Server Token</b> on the top.
             </span>
           </li>
           <li>

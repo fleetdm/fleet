@@ -84,11 +84,12 @@
       }
       .react-tabs__tab--selected {
         background-color: $ui-off-white;
-      }
-    }
 
-    .focus-visible {
-      background-color: $ui-vibrant-blue-10;
+        // When tabbing through the app
+        &:focus-visible {
+          background-color: $ui-vibrant-blue-10;
+        }
+      }
     }
   }
 

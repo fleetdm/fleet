@@ -18,6 +18,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -513,8 +514,7 @@ type agent struct {
 	MDMCheckInInterval    time.Duration
 	DiskEncryptionEnabled bool
 
-	scheduledQueriesMu sync.Mutex // protects the below members
-	scheduledQueryData map[string]scheduledQuery
+	scheduledQueryData *sync.Map
 	// bufferedResults contains result logs that are buffered when
 	// /api/v1/osquery/log requests to the Fleet server fail.
 	//
@@ -667,6 +667,7 @@ func newAgent(
 		disableFleetDesktop: disableFleetDesktop,
 		loggerTLSMaxLines:   loggerTLSMaxLines,
 		bufferedResults:     make(map[resultLog]int),
+		scheduledQueryData:  new(sync.Map),
 	}
 }
 
@@ -776,9 +777,19 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		// check if we have any scheduled queries that should be returning results
 		var results []resultLog
 		now := time.Now().Unix()
-		a.scheduledQueriesMu.Lock()
 		prevCount := a.countBuffered()
-		for queryName, query := range a.scheduledQueryData {
+
+		// NOTE The goroutine that pulls in new configurations
+		// MAY replace this map if it happens to run at the
+		// exact same time. The result would be. The result
+		// would be that the query lastRun does not get
+		// updated and cause the query to run more times than
+		// expected.
+		queryData := a.scheduledQueryData
+		queryData.Range(func(key, value any) bool {
+			queryName := key.(string)
+			query := value.(scheduledQuery)
+
 			if query.lastRun == 0 || now >= (query.lastRun+int64(query.ScheduleInterval)) {
 				results = append(results, resultLog{
 					packName:  query.packName,
@@ -786,18 +797,18 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 					numRows:   int(query.numRows),
 				})
 				// Update lastRun
-				v := a.scheduledQueryData[queryName]
-				v.lastRun = now
-				a.scheduledQueryData[queryName] = v
+				query.lastRun = now
+				queryData.Store(queryName, query)
 			}
-		}
+
+			return true
+		})
 		if prevCount+len(results) < 1_000_000 { // osquery buffered_log_max is 1M
 			a.addToBuffer(results)
 		}
 		a.sendLogsBatch()
 		newBufferedCount := a.countBuffered() - prevCount
 		a.stats.UpdateBufferedLogs(newBufferedCount)
-		a.scheduledQueriesMu.Unlock()
 	}
 }
 
@@ -1412,6 +1423,7 @@ func (a *agent) orbitEnroll() error {
 		EnrollSecret:   a.EnrollSecret,
 		HardwareUUID:   a.UUID,
 		HardwareSerial: a.SerialNumber,
+		Hostname:       a.CachedString("hostname"),
 	}
 	jsonBytes, err := json.Marshal(params)
 	if err != nil {
@@ -1516,7 +1528,16 @@ func (a *agent) config() error {
 		return fmt.Errorf("json parse at config: %w", err)
 	}
 
-	scheduledQueryData := make(map[string]scheduledQuery)
+	existingLastRunData := make(map[string]int64)
+
+	a.scheduledQueryData.Range(func(key, value any) bool {
+		existingLastRunData[key.(string)] = value.(scheduledQuery).lastRun
+
+		return true
+	})
+
+	newScheduledQueryData := new(sync.Map)
+
 	for packName, pack := range parsedResp.Packs {
 		for queryName, query := range pack.Queries {
 			m, ok := query.(map[string]interface{})
@@ -1544,17 +1565,14 @@ func (a *agent) config() error {
 			q.Query = m["query"].(string)
 
 			scheduledQueryName := packName + "_" + queryName
-			if existingEntry, ok := a.scheduledQueryData[scheduledQueryName]; ok {
-				// Keep lastRun if the query is already scheduled.
-				q.lastRun = existingEntry.lastRun
+			if lastRun, ok := existingLastRunData[scheduledQueryName]; ok {
+				q.lastRun = lastRun
 			}
-			scheduledQueryData[scheduledQueryName] = q
+			newScheduledQueryData.Store(scheduledQueryName, q)
 		}
 	}
 
-	a.scheduledQueriesMu.Lock()
-	a.scheduledQueryData = scheduledQueryData
-	a.scheduledQueriesMu.Unlock()
+	a.scheduledQueryData = newScheduledQueryData
 
 	return nil
 }
@@ -1850,13 +1868,12 @@ func (a *agent) runPolicy(query string) []map[string]string {
 }
 
 func (a *agent) randomQueryStats() []map[string]string {
-	a.scheduledQueriesMu.Lock()
-	defer a.scheduledQueriesMu.Unlock()
-
 	var stats []map[string]string
-	for scheduledQuery := range a.scheduledQueryData {
+	a.scheduledQueryData.Range(func(key, value any) bool {
+		queryName := key.(string)
+
 		stats = append(stats, map[string]string{
-			"name":           scheduledQuery,
+			"name":           queryName,
 			"delimiter":      "_",
 			"average_memory": fmt.Sprint(rand.Intn(200) + 10),
 			"denylisted":     "false",
@@ -1869,7 +1886,9 @@ func (a *agent) randomQueryStats() []map[string]string {
 			"wall_time":      fmt.Sprint(rand.Intn(4) + 1),
 			"wall_time_ms":   fmt.Sprint(rand.Intn(4000) + 10),
 		})
-	}
+
+		return true
+	})
 	return stats
 }
 
@@ -2097,8 +2116,9 @@ func (a *agent) runLiveQuery(query string) (results []map[string]string, status 
 		}
 }
 
-func (a *agent) processQuery(name, query string) (
-	handled bool, results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats,
+func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
+	handled bool, results []map[string]string,
+	status *fleet.OsqueryStatus, message *string, stats *fleet.Stats,
 ) {
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
@@ -2164,6 +2184,33 @@ func (a *agent) processQuery(name, query string) (
 		}
 		if ss == fleet.StatusOK {
 			results = a.softwareMacOS()
+			cachedResults.software = results
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"software_macos_codesign":
+		// Given queries run in lexicographic order software_macos already run and
+		// cachedResults.software should have its results.
+		ss := fleet.StatusOK
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
+			ss = fleet.OsqueryStatus(1)
+		}
+		if ss == fleet.StatusOK {
+			if len(cachedResults.software) > 0 {
+				for _, s := range cachedResults.software {
+					if s["source"] != "apps" {
+						continue
+					}
+					installedPath := s["installed_path"]
+					teamIdentifier := s["name"] // use name to be fixed (more realistic than changing often).
+					if len(teamIdentifier) > 10 {
+						teamIdentifier = teamIdentifier[:10]
+					}
+					results = append(results, map[string]string{
+						"path":            installedPath,
+						"team_identifier": teamIdentifier,
+					})
+				}
+			}
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_windows":
@@ -2254,6 +2301,10 @@ func (a *agent) processQuery(name, query string) (
 	}
 }
 
+type cachedResults struct {
+	software []map[string]string
+}
+
 func (a *agent) DistributedWrite(queries map[string]string) error {
 	r := service.SubmitDistributedQueryResultsRequest{
 		Results:  make(fleet.OsqueryDistributedQueryResults),
@@ -2262,8 +2313,21 @@ func (a *agent) DistributedWrite(queries map[string]string) error {
 		Stats:    make(map[string]*fleet.Stats),
 	}
 	r.NodeKey = a.nodeKey
-	for name, query := range queries {
-		handled, results, status, message, stats := a.processQuery(name, query)
+
+	cachedResults := cachedResults{}
+
+	// Sort queries to be executed by lexicographic name order (for result processing
+	// to be more predictable). This aligns to how osquery executes the queries.
+	queryNames := make([]string, 0, len(queries))
+	for name := range queries {
+		queryNames = append(queryNames, name)
+	}
+	sort.Strings(queryNames)
+
+	for _, name := range queryNames {
+		query := queries[name]
+
+		handled, results, status, message, stats := a.processQuery(name, query, &cachedResults)
 		if !handled {
 			// If osquery-perf does not handle the incoming query,
 			// always return status OK and the default query result.

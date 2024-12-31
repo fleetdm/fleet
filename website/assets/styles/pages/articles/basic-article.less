@@ -131,25 +131,45 @@
     transition-property: transform;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 500ms;
-    a:not([purpose='edit-button']) {
-      margin-bottom: 8px;
-      display: block;
-      color: #515774;
-      &:hover {
-        text-decoration: none;
-        color: @core-fleet-black;
+  }
+  [purpose='sidebar-link'] {
+    margin-bottom: 12px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    color: #515774;
+    img {
+      height: 16px;
+      width: 16px;
+      display: inline;
+      margin-right: 12px;
+    }
+    &:hover {
+      text-decoration: none;
+      color: @core-fleet-black;
+      img {
+        filter: brightness(0.5);
       }
     }
   }
-  [purpose='docs-links'] {
+  [purpose='edit-link'] {
+    padding-top: 24px;
+    padding-bottom: 16px;
+    margin-top: 24px;
+    border-top: 1px solid #E2E4EA;
     a {
-      display: block;
+      margin-bottom: 0px;
     }
   }
+  // [purpose='docs-links'] {
+  //   a {
+  //     display: block;
+  //   }
+  // }
   [purpose='social-share-buttons'] {
-    padding-bottom: 24px;
+    padding-top: 16px;
+    padding-bottom: 16px;
     margin-bottom: 24px;
-    border-bottom: 1px solid #E2E4EA;
     a {
       margin-right: 16px;
     }
@@ -159,12 +179,16 @@
     }
   }
   [purpose='subtopics'] {
-    padding-bottom: 24px;
     margin-bottom: 24px;
-    border-bottom: 1px solid #E2E4EA;
+    a {
+      margin-bottom: 8px;
+      &:last-of-type {
+        margin-bottom: 0px;
+      }
+    }
   }
   .header-hidden { // For scrolling the sidebar with the sticky header
-    transform: translateY(-80px);
+    transform: translateY(-120px);
   }
   [purpose='article-container'] {
     max-width: 800px;
@@ -256,6 +280,108 @@
       background-color: rgba(25, 33, 71, 0.1);
     }
   }
+
+  [purpose='sidebar-cta'] {
+    padding: 0px;
+    border-radius: 12px;
+    border: 1px solid #E2E4EA;
+    background: #FFF;
+    min-height: 290px;
+    text-align: center;
+    cursor: pointer;
+    margin-top: 24px;
+    margin-bottom: 8px;
+    max-width: 256px;
+    a {
+      text-decoration: none;
+    }
+    &:hover {
+      box-shadow: 0px 0px 0px 3px rgba(0, 0, 0, 0.03);
+    }
+    [purpose='cta-image'] {
+      height: 145px;
+      background-image: url('/images/cloud-city-cta-256x145@2x.png');
+      border-top-left-radius: 12px;
+      border-top-right-radius: 12px;
+      background-size: 100% 145px;
+      background-position: center bottom;
+    }
+    [purpose='cta-text'] {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 0px 24px 24px 24px;
+      h4 {
+        color: #192147;
+        text-align: center;
+        font-size: 20px;
+        font-weight: 800;
+        line-height: 120%;
+        margin-bottom: 0px;
+      }
+      p {
+        color: #515774;
+        text-align: center;
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 150%;
+        margin-bottom: 8px;
+      }
+    }
+    [purpose='cta-button'] {
+      display: flex;
+      width: 140px;
+      height: 36px;
+      padding: 16px 32px;
+      justify-content: center;
+      align-items: center;
+      color: #FFF;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 150%;
+      margin-bottom: 16px;
+    }
+    [purpose='cta-platform-icons'] {
+      img {
+        height: 16px;
+        &:not(:last-of-type) {
+          margin-right: 16px;
+        }
+      }
+    }
+  }
+
+  [purpose='sidebar-contact-cta'] {
+    display: flex;
+    padding: 16px;
+    align-items: center;
+    border-radius: 8px;
+    border: 1px solid #E2E4EA;
+    background: #FFF;
+    font-size: 14px;
+    line-height: 150%;
+    color: @core-fleet-black;
+    p {
+      line-height: 120%;
+      margin-bottom: 0px;
+      font-weight: 800;
+    }
+    [parasails-component='animated-arrow-button'] {
+      line-height: 150%;
+    }
+    img {
+      width: 20px;
+      height: 18.947px;
+      margin-right: 10px;
+    }
+    &:hover {
+      box-shadow: 0px 0px 0px 3px rgba(0, 0, 0, 0.03);
+      text-decoration: none;
+    }
+  }
+
   [purpose='article-details'] {
     font-size: 14px;
     line-height: 20px;
@@ -299,13 +425,13 @@
     }
     h2 {
       font-size: 24px;
-      margin-top: 40px;
-      margin-bottom: 24px;
+      margin-top: 64px;
+      margin-bottom: 32px;
     }
     h3 {
       font-size: 20px;
-      margin-top: 16px;
-      margin-bottom: 16px;
+      margin-top: 48px;
+      margin-bottom: 32px;
     }
     h4 {
       font-size: 16px;
@@ -326,8 +452,9 @@
     }
     p {
       font-size: 16px;
-      line-height: 28px;
-      margin-bottom: 24px;
+      line-height: 150%;
+      color: #515774;
+      margin-bottom: 32px;
     }
     img + em { // Image captions
       position: relative;
@@ -507,6 +634,66 @@
       width: 22px;
       height: 18px;
     }
+    [purpose='attribution-quote'] {
+      margin: 72px 0 32px 0px;
+      p {
+        font-style: italic;
+        line-height: 150%;
+        margin-bottom: 24px;
+        font-size: 20px;
+      }
+      p:last-of-type {
+        margin-bottom: 0px;
+      }
+      strong {
+        color: #515774;
+        font-family: Inter;
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 700;
+        line-height: 18px;
+      }
+    }
+    [purpose='attribution-quote']::before {
+      content: ' ';
+      background-image: url('/images/icon-quote-21x17@2x.png');
+      background-repeat: no-repeat;
+      background-size: 21px 17px;
+      display: block;
+      position: relative;
+      top: -16px;
+      left: 0px;
+      width: 21px;
+      height: 17px;
+    }
+    [purpose='checklist'] {
+      margin-bottom: 32px;
+      p {
+        font-size: 16px;
+        line-height: 150%;
+        font-style: normal;
+        font-weight: 400;
+        padding-left: 40px;
+        text-indent: -40px;
+        margin-bottom: 16px;
+        padding-top: 12px;
+        padding-bottom: 12px;
+        &:last-of-type {
+          margin-bottom: 0px;
+        }
+      }
+      p::before {
+        content: ' ';
+        background-image: url('/images/icon-checkbox-checked-24x24@2x.png');
+        background-size: 24px 24px;
+        display: inline-block;
+        position: relative;
+        top: 7px;
+        margin-right: 16px;
+        width: 24px;
+        height: 24px;
+      }
+    }
     [purpose='tip'] {
       margin: 16px 0 32px;
       background: #F7F7FC;
@@ -669,6 +856,7 @@
     [purpose='large-button-text'] { // Changes the Slack call to action (Join the Fleet community on Slack -> Join Fleet on Slack)
       display: none;
     }
+
   }
 
 }

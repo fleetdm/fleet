@@ -1,16 +1,14 @@
-# Automatic policy-based execution of scripts on hosts
+# Automatically run scripts
 
 ![Fleet MDM Cover](../website/assets/images/articles/introducing-cross-platform-script-execution-800x450@2x.png)
 
-Fleet [v4.58.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.58.0) introduces the ability to execute scripts on hosts automatically based on predefined policy failures. This guide will walk you through configuring Fleet to automatically execute scripts on hosts using uploaded scripts based on programmed policies.  You'll learn how to configure and use this feature and understand how the underlying mechanism works.
+Fleet [v4.58.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.58.0) introduces the ability to execute scripts on hosts automatically based on predefined policy failures. This guide will walk you through configuring Fleet to automatically execute scripts on hosts using uploaded scripts based on programmed policies.
 
-Fleet allows users to upload scripts executed on macOS, Windows, and Linux hosts to remediate issues with those hosts. These scripts can now be automated to run when a policy fails. See [the scripts guide](https://fleetdm.com/guides/scripts) for more information.
+Fleet allows users to upload scripts executed on macOS, Windows, and Linux hosts to remediate issues with those hosts. These scripts can now be automated to run when a policy fails. Learn more about scripts [here](https://fleetdm.com/guides/scripts).
 
 ## Prerequisites
 
-* Fleet Premium with admin permissions
-* Fleet [v4.58.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.58.0) or greater
-* [Scripts enabled](https://fleetdm.com/guides/scripts#enable-scripts) on all target hosts
+* `fleetd` deployed with the `--enable-scripts` flag. If you're using MDM features, scripts are enabled by default.
 
 ## Step-by-step instructions
 
@@ -19,6 +17,8 @@ Fleet allows users to upload scripts executed on macOS, Windows, and Linux hosts
 3. **Set the automation**: In the previous step's **Policies** list view you navigated to, click **Manage automations**, then click **Run script**. Check the box beside the policy (or policies) for which you want to run scripts, then select a script in the drop-down that appears next to the policy name. When you're done associating policies to scripts, click **Save**.
 
 The next time a fleetd host fails the policy you added automation for, Fleet will queue up the script you selected and run it on the host as if you had requested a script run manually.
+
+> Adding a script to a policy will reset the policy's host counts.
 
 ## How does it work?
 
@@ -44,7 +44,7 @@ Fleet now supports running scripts on hosts that fail a policy check. We showed 
 
 Host condition-related issues can be resolved by running a script on those hosts. You can now automate those resolutions inside Fleet, allowing zero-touch remediation of policy failures on hosts running fleetd.
 
-<meta name="articleTitle" value="Automatic policy-based execution of scripts on hosts">
+<meta name="articleTitle" value="Automatically run scripts">
 <meta name="authorFullName" value="Ian Littman">
 <meta name="authorGitHubUsername" value="iansltx">
 <meta name="category" value="guides">

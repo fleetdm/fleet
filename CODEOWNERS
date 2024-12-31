@@ -59,18 +59,16 @@ go.mod @fleetdm/go
 /infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
 /charts/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
 /terraform/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
-/it-and-security/ @noahtalerman @lukeheath @spokanemac @getvictor
 
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/docs                                           @rachaelshaw @lukeheath
-/docs/REST\ API/rest-api.md                     @rachaelshaw @lukeheath # « REST API reference documentation
-/docs/Contributing/API-for-contributors.md      @lukeheath # « Advanced / contributors-only API reference documentation
+/docs                                           @marko-lisica
+/docs/REST\ API/rest-api.md                     @iansltx # « REST API reference documentation
+/docs/Contributing/API-for-contributors.md      @iansltx # « Advanced / contributors-only API reference documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
-/docs/Deploy/_kubernetes/ @dherder # « Kubernetes best practice
 /render.yaml                                    @edwardsb
 
 ##############################################################################################
@@ -83,26 +81,22 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/handbook/company/README.md                                      @mikermcneil
-/handbook/company/communications.md                              @mikermcneil
-/handbook/company/leadership.md                                  @mikermcneil
-/handbook/company/why-this-way.md                                @mikermcneil
-/handbook/README.md                                              @mikermcneil
-/handbook/company/open-positions.yml                             @sampfluger88
-/handbook/company/product-groups.md                              @lukeheath
-/handbook/finance/README.md                          @sampfluger88
-/handbook/finance/finance.rituals.yml    @sampfluger88
-/handbook/digital-experience/application-security.md            @lukeheath
-/handbook/digital-experience/security-audits.md                 @lukeheath
-/handbook/digital-experience/security-policies.md               @lukeheath
-/handbook/digital-experience/security.md                        @lukeheath
-/handbook/digital-experience/vendor-questionnaires.md           @lukeheath
-/handbook/digital-experience                              @sampfluger88
-/handbook/customer-success                                @sampfluger88
-/handbook/demand                                          @sampfluger88
-/handbook/engineering                                     @sampfluger88 @lukeheath
-/handbook/sales                                           @sampfluger88
-/handbook/product-design                                  @sampfluger88
+/handbook/company/README.md                                     @mikermcneil
+/handbook/company/communications.md                             @sampfluger88
+/handbook/company/leadership.md                                 @sampfluger88
+/handbook/company/why-this-way.md                               @mikermcneil
+/handbook/README.md                                             @mikermcneil
+/handbook/company/open-positions.yml                            @sampfluger88
+#/handbook/company/product-groups.md                            🤡 Covered in custom.js
+/handbook/finance/README.md                   				          @sampfluger88
+/handbook/finance/finance.rituals.yml  						              @sampfluger88
+/handbook/digital-experience/security.md                        @sampfluger88
+/handbook/digital-experience                             	      @sampfluger88
+/handbook/customer-success                                		  @sampfluger88
+/handbook/demand                                          	  	@sampfluger88
+#/handbook/engineering                                     	  	🤡 Covered in custom.js
+/handbook/sales                                           	  	@sampfluger88
+#/handbook/product-design                                    	  🤡 Covered in custom.js
 
 ##############################################################################################
 # 🌐 GitHub issue templates

@@ -113,13 +113,12 @@ const Modal = ({
           <span>{title}</span>
           {!disableClosingModal && (
             <div className={`${baseClass}__ex`}>
-              <Button className="button button--unstyled" onClick={onExit}>
+              <Button variant="unstyled" onClick={onExit}>
                 <Icon name="close" color="core-fleet-black" size="medium" />
               </Button>
             </div>
           )}
         </div>
-
         <div className={contentWrapperClasses}>
           {isContentDisabled && (
             <div className={`${baseClass}__disabled-overlay`} />

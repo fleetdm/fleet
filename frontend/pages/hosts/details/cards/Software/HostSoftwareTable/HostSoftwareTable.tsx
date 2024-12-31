@@ -23,6 +23,8 @@ import Dropdown from "components/forms/fields/Dropdown";
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
 import { VulnsNotSupported } from "pages/SoftwarePage/components/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
+import { Row } from "react-table";
+import { IHostSoftware } from "interfaces/software";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -50,6 +52,9 @@ export const DROPDOWN_OPTIONS = [
   },
 ] as const;
 
+interface IHostSoftwareRowProps extends Row {
+  original: IHostSoftware;
+}
 interface IHostSoftwareTableProps {
   tableConfig: any; // TODO: type
   data?: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
@@ -64,6 +69,8 @@ interface IHostSoftwareTableProps {
   routeTemplate?: string;
   pathPrefix: string;
   hostSoftwareFilter: IHostSoftwareDropdownFilterVal;
+  isMyDevicePage?: boolean;
+  onShowSoftwareDetails: (software: IHostSoftware) => void;
 }
 
 const HostSoftwareTable = ({
@@ -80,6 +87,8 @@ const HostSoftwareTable = ({
   routeTemplate,
   pathPrefix,
   hostSoftwareFilter,
+  isMyDevicePage,
+  onShowSoftwareDetails,
 }: IHostSoftwareTableProps) => {
   const handleFilterDropdownChange = useCallback(
     (val: IHostSoftwareDropdownFilterVal) => {
@@ -102,6 +111,13 @@ const HostSoftwareTable = ({
         routeTemplate,
         queryParams: newParams,
       });
+      const prevYScroll = window.scrollY;
+      setTimeout(() => {
+        window.scroll({
+          top: prevYScroll,
+          behavior: "smooth",
+        });
+      }, 0);
       router.replace(nextPath);
     },
     [pathPrefix, routeTemplate, router, searchQuery, sortDirection, sortHeader]
@@ -207,6 +223,20 @@ const HostSoftwareTable = ({
     );
   }, [hostSoftwareFilter, platform, searchQuery]);
 
+  // Determines if a user should be able to filter or search in the table
+  const hasData = data && data.software.length > 0;
+  const hasQuery = searchQuery !== "";
+  const hasSoftwareFilter = hostSoftwareFilter !== "allSoftware";
+
+  const showFilterHeaders = hasData || hasQuery || hasSoftwareFilter;
+
+  const onClickMyDeviceRow = useCallback(
+    (row: IHostSoftwareRowProps) => {
+      onShowSoftwareDetails(row.original);
+    },
+    [onShowSoftwareDetails]
+  );
+
   return (
     <div className={baseClass}>
       <TableContainer
@@ -223,11 +253,15 @@ const HostSoftwareTable = ({
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
         emptyComponent={memoizedEmptyComponent}
-        customControl={memoizedFilterDropdown}
+        customControl={showFilterHeaders ? memoizedFilterDropdown : undefined}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        searchable
+        searchable={showFilterHeaders}
         manualSortBy
+        keyboardSelectableRows
+        // my device page row clickability
+        disableMultiRowSelect={isMyDevicePage}
+        onClickRow={isMyDevicePage ? onClickMyDeviceRow : undefined}
       />
     </div>
   );

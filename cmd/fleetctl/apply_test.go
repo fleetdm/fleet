@@ -208,6 +208,9 @@ func TestApplyTeamSpecs(t *testing.T) {
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return document, nil
+	}
 
 	filename := writeTmpYml(t, `
 ---
@@ -1358,6 +1361,9 @@ func TestApplyAsGitOps(t *testing.T) {
 
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return []*fleet.VPPTokenDB{}, nil
+	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return document, nil
 	}
 
 	// Apply global config.
@@ -3781,7 +3787,9 @@ spec:
     macos_settings:
       enable_disk_encryption: true
 `,
-			wantErr: `Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on`,
+
+			// Since Linux disk encryption does not use MDM, we allow enabling it even without MDM enabled and configured
+			wantOutput: `[+] applied fleet config`,
 		},
 		{
 			desc: "app config macos_settings.enable_disk_encryption false",

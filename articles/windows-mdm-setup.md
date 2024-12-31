@@ -4,7 +4,9 @@
 
 To control OS settings, updates, and more on Windows hosts follow the manual enrollment instructions.
 
-To use automatic enrollment (aka zero-touch) features on Windows, follow instructions to connect Fleet to Microsoft Azure Active Directory (aka Microsoft Entra). You can further customize zero-touch with Windows Autopilot.
+To use automatic enrollment (aka zero-touch) features on Windows, follow instructions to connect Fleet to Microsoft Entra ID. You can further customize zero-touch with Windows Autopilot.
+
+To migrate Windows hosts from your current MDM solution to Fleet, follow the instructions [here](#automatic-windows-mdm-migration). 
 
 ## Manual enrollment
 
@@ -34,9 +36,9 @@ Restart the Fleet server.
 
 ### Step 3: Turn on Windows MDM
 
-1. Head to the **Settings > Integrations > Mobile device management (MDM) enrollment** page.
+1. Head to the **Settings > Integrations > Mobile device management (MDM)** page.
 
-2. Next to **Turn on Windows MDM** select **Turn on** to navigate to the **Turn on Windows MDM** page.
+2. Next to **Turn on Windows MDM** select **Turn on** to navigate to the **Manage Windows MDM** page.
 
 3. Select **Turn on**.
 
@@ -48,13 +50,13 @@ With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet'
 
 > Available in Fleet Premium
 
-To automatically enroll Windows workstations when they’re first unboxed and set up by your end users, we will connect Fleet to Microsoft Azure Active Directory (Azure AD).
+To automatically enroll Windows workstations when they’re first unboxed and set up by your end users, we will connect Fleet to Microsoft Entra ID.
 
-After you connect Fleet to Azure AD, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
+After you connect Fleet to Microsoft Entra ID, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
 
-In order to connect Fleet to Azure AD, the IT admin (you) needs a Microsoft Enterprise Mobility + Security E3 license. 
+In order to connect Fleet to Microsoft Entra ID, the IT admin (you) needs a Microsoft Enterprise Mobility + Security E3 license. 
 
-Each end user who automatically enrolls needs a Microsoft Intune license.
+Each end user who automatically enrolls needs a [Microsoft license](https://learn.microsoft.com/en-us/mem/intune/fundamentals/licenses.)
 
 ### Step 1: Buy Microsoft licenses
 
@@ -68,9 +70,9 @@ Each end user who automatically enrolls needs a Microsoft Intune license.
 
 5. On the **Enterprise Mobility + Security E3** page, select **Buy** and follow instructions to purchase the license. 
 
-6. Find and buy an Intune license.
+6. Find and buy a license.
 
-7. Sign in to [Azure portal](https://portal.azure.com).
+7. Sign in to [Microsoft Entra ID portal](https://portal.azure.com).
 
 8. At the top of the page search "Users" and select **Users**.
 
@@ -78,15 +80,15 @@ Each end user who automatically enrolls needs a Microsoft Intune license.
 
 10. Select **+ Assignments** and assign yourself the **Enterprise Mobility + Security E3**. Assign the test user the Intune licnese.
 
-### Step 2: Connect Fleet to Azure AD
+### Step 2: Connect Fleet to Microsoft Entra ID
 
-For instructions on how to connect Fleet to Azure AD, in the Fleet UI, select the avatar on the right side of the top navigation and select **Settings > Integrations > Automatic enrollment**. Then, next to **Windows automatic enrollment** select **Details**.
+For instructions on how to connect Fleet to Microsoft Entra ID, in the Fleet UI, select the avatar on the right side of the top navigation and select **Settings > Integrations > Mobile device management (MDM)**. Then, next to **Windows automatic enrollment** select **Details**.
 
 ### Step 3: Test automatic enrollment
 
-Testing automatic enrollment requires creating a test user in Azure AD and a freshly wiped or new Windows workstation.
+Testing automatic enrollment requires creating a test user in Microsoft Entra ID and a freshly wiped or new Windows workstation.
 
-1. Sign in to [Azure portal](https://portal.azure.com).
+1. Sign in to [Microsoft Entra ID portal](https://portal.azure.com).
 
 2. At the top of the page search "Users" and select **Users**.
 
@@ -124,7 +126,7 @@ Testing automatic enrollment requires creating a test user in Azure AD and a fre
 
 ### Step 3: Upload your organization's logo
 
-1. Navigate to [Azure portal](https://portal.azure.com).
+1. Navigate to [Microsoft Entra ID portal](https://portal.azure.com).
 
 2. At the top of the page, search for "Microsoft Entra ID", select **Microsoft Entra ID**, and then select **Company branding**.
 
@@ -140,6 +142,34 @@ Testing automatic enrollment requires creating a test user in Azure AD and a fre
 
 2. After it's been wiped, open your workstation and follow the setup steps. At screen in which you're asked to sign in, you should see the title "Welcome to [your organziation]!" next to the logo you uploaded in step 4.
 
+
+## Automatic Windows MDM Migration
+
+Fleet can automatically migrate your Windows hosts from another MDM solution to Fleet without end user interaction.
+
+### Step 1: set up Windows MDM in Fleet
+
+Follow the [steps above](#manual-enrollment) to turn on Windows MDM in Fleet. 
+
+### Step 2: install Fleet's agent on the hosts
+
+1. [Enroll](https://fleetdm.com/docs/using-fleet/enroll-hosts) the Windows hosts you want to migrate to Fleet.
+
+2. Navigate to the **Hosts** tab in the main navigation bar and wait until your hosts are visible in the hosts list.
+
+### Step 3: enable automatic migration
+
+1. Head back to the **Settings > Integrations > Mobile device management (MDM)** page.
+
+2. Next to **Windows MDM turned on (servers excluded)** select **Edit** to navigate to the **Manage Windows MDM** page.
+
+3. On the **Manage Windows MDM** page, select **Automatically migrate hosts connected to another MDM solution**. Click **Save** to save the change.
+
+### Step 4: monitor your hosts as they migrate to Fleet MDM
+
+Once the automatic migration is enabled, Fleet sends a notification to each host to tell it to migrate. This process usually takes a few minutes at most.
+
+You can track migration progress in Fleet. Learn how [here](https://fleetdm.com/guides/mdm-migration#check-migration-progress).
 
 <meta name="articleTitle" value="Windows MDM setup">
 <meta name="authorFullName" value="Noah Talerman">

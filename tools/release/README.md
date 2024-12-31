@@ -17,6 +17,12 @@ This requires:
 
 The script will check that each of these are installed and available before running
 
+Make sure the repo is set to default (Needed only once) 
+```
+  gh repo set-default
+```
+
+
 ## Before publishing the release
 
 Make sure all tickets are tagged with the correct milestone.
@@ -69,22 +75,48 @@ LinkedIn post: https://www.linkedin.com/feed/update/urn:li:activity:719950989670
 
 ## Patch Release (middle of sprint / critical)
 
-example
+Follow this example:
+It is recommended to do a "dry run" like this:
 ```
-# Build release candidate and changelogs and QA ticket
+tools/release/publish_release.sh -d
+```
+This provides an opportunity to go over the tickets and their attached PRs.
+Specifically check cases where more than one ticket have the same PR and vice versa.
+
+# Build release candidate, changelogs and QA ticket
+
+```
 ./tools/release/publish_release.sh
+```
 # Do QA until ready to release
+
+After running the script:
+- Check #help-engineering for announcements and QA ticket.
+- Merge the patch branch changes PR.
+- Let QA know about the release here: https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml
+- This is a good time to post a request in #g-sales that we may want to deploy this release to dogfood.
 
 # QA is passed on all teams and ready for release
 
-# Tag patch
+Tag patch
+```
 ./tools/release/publish_release.sh -g
+
+```
+Wait for goreleaser to finish in terminal (This will take a long time)
+
+Publish patch
+```
+./tools/release/publish_release.sh -u
+```
+Go update osquery-slack version
+
+# Merge the final changes PR into main:
+
 # Publish patch
 ./tools/release/publish_release.sh -u
-# Go update osquery-slack version
+
+- Make sure to wait for the CLI to open NPM to publish fleetctl. 
+- If that fails, manually publish by going to the `/tools/fleetctl-npm/` directory and running `npm publish`
+- Go update osquery-slack version
 ```
-
-...
-TODO example output
-...
-

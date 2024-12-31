@@ -133,7 +133,7 @@ func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosS
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "assign profile")
 			}
-			if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
+			if err := m.Datastore.UpdateHostDEPAssignProfileResponsesSameABM(ctx, resp); err != nil {
 				return ctxerr.Wrap(ctx, err, "worker: run profile changed")
 			}
 		}
@@ -204,7 +204,7 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "assign profile")
 			}
-			if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
+			if err := m.Datastore.UpdateHostDEPAssignProfileResponsesSameABM(ctx, resp); err != nil {
 				return ctxerr.Wrap(ctx, err, "worker: run profile deleted")
 			}
 		}
@@ -272,7 +272,7 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "assign profile")
 		}
-		if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
+		if err := m.Datastore.UpdateHostDEPAssignProfileResponsesSameABM(ctx, resp); err != nil {
 			return ctxerr.Wrap(ctx, err, "worker: run hosts transferred")
 		}
 	}

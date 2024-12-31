@@ -11,6 +11,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_
 | Customer Support (CSE/CSA)            | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Rebecca Cowart](https://www.linkedin.com/in/rebeccaui/) _([@rebeccaui](https://github.com/rebeccaui))_ <br> [Brock Walters (CSA)](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_ <br> [Dale Ribeiro (CSA)](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_ 
 | Customer Success Manager (CSM)        | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_ <br> [Michael Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) _([@pintomi1989](https://github.com/pintomi1989))_
+| Technical Evangelist                  | [Zach Wasserman](https://www.linkedin.com/in/zacharywasserman/) _([@zwass](https://github.com/zwass))_
 
 
 ## Contact us
@@ -42,6 +43,19 @@ Before a routine customer call, the CSM prepares an agenda including the followi
 4. Follow ups to the agenda from the previous call or Slack
 5. Provide updates to open feature requests (can be done monthly or quarterly)
 6. Provide updates to open bug reports
+
+
+ ### Invite new customer DRI
+
+Sometimes there is a change in the champion within the customer's organization.
+1. Get an introduction to the new DRIs including names, roles, contact information.
+2. Make sure they're in the Slack channel.
+3. Invite them to the *Success* meetings.
+4. In the first meeting understand their proficiency level of osquery.
+    1. Make sure the meeting time is still convenient for their team. 
+    2. Understand their needs and goals for visibility.
+    3. Offer training to get them up to speed.
+    4. Provide a white glove experience.
 
 
 ### Generate an expansion opportunity in Salesforce

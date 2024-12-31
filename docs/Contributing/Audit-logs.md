@@ -521,6 +521,23 @@ This activity contains the following fields:
 }
 ```
 
+## fleet_enrolled
+
+Generated when a host is enrolled to Fleet (Fleet's agent fleetd is installed).
+
+This activity contains the following fields:
+- "host_serial": Serial number of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_serial": "B04FL3ALPT21",
+  "host_display_name": "WIN-DESKTOP-JGS78KJ7C"
+}
+```
+
 ## mdm_enrolled
 
 Generated when a host is enrolled in Fleet's MDM.
@@ -658,7 +675,7 @@ This activity contains the following fields:
 ```json
 {
   "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
+  "host_display_name": "Anna's MacBook Pro"
 }
 ```
 
@@ -874,6 +891,18 @@ This activity does not contain any detail fields.
 ## disabled_windows_mdm
 
 Generated when a user turns off MDM features for all Windows hosts.
+
+This activity does not contain any detail fields.
+
+## enabled_windows_mdm_migration
+
+Generated when a user enables automatic MDM migration for Windows hosts, if Windows MDM is turned on.
+
+This activity does not contain any detail fields.
+
+## disabled_windows_mdm_migration
+
+Generated when a user disables automatic MDM migration for Windows hosts, if Windows MDM is turned on.
 
 This activity does not contain any detail fields.
 
@@ -1212,6 +1241,9 @@ This activity contains the following fields:
 - "team_name": Name of the team to which this software was added. `null` if it was added to no team." +
 - "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
 - "self_service": Whether the software is available for installation by the end user.
+- "software_title_id": ID of the added software title.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.
 
 #### Example
 
@@ -1221,7 +1253,18 @@ This activity contains the following fields:
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
   "team_id": 123,
-  "self_service": true
+  "self_service": true,
+  "software_title_id": 2234,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }
 ```
 
@@ -1235,6 +1278,9 @@ This activity contains the following fields:
 - "team_name": Name of the team on which this software was updated. `null` if it was updated on no team.
 - "team_id": The ID of the team on which this software was updated. `null` if it was updated on no team.
 - "self_service": Whether the software is available for installation by the end user.
+- "software_title_id": ID of the added software title.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.
 
 #### Example
 
@@ -1244,7 +1290,18 @@ This activity contains the following fields:
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
   "team_id": 123,
-  "self_service": true
+  "self_service": true,
+  "software_title_id": 2234,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }
 ```
 
@@ -1258,6 +1315,8 @@ This activity contains the following fields:
 - "team_name": Name of the team to which this software was added. `null` if it was added to no team.
 - "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
 - "self_service": Whether the software was available for installation by the end user.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.
 
 #### Example
 
@@ -1267,7 +1326,17 @@ This activity contains the following fields:
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
   "team_id": 123,
-  "self_service": true
+  "self_service": true,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }
 ```
 
@@ -1389,6 +1458,42 @@ This activity does not contain any detail fields.
 ## edited_ndes_scep_proxy
 
 Generated when NDES SCEP proxy configuration is edited in Fleet.
+
+This activity does not contain any detail fields.
+
+## enabled_activity_automations
+
+Generated when activity automations are enabled
+
+This activity contains the following field:
+- "webhook_url": the URL to broadcast activities to.
+
+#### Example
+
+```json
+{
+	"webhook_url": "https://example.com/notify"
+}
+```
+
+## edited_activity_automations
+
+Generated when activity automations are edited while enabled
+
+This activity contains the following field:
+- "webhook_url": the URL to broadcast activities to, post-edit.
+
+#### Example
+
+```json
+{
+	"webhook_url": "https://example.com/notify"
+}
+```
+
+## disabled_activity_automations
+
+Generated when activity automations are disabled
 
 This activity does not contain any detail fields.
 

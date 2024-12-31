@@ -42,10 +42,11 @@ interface IHostSoftwareProps {
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   pathname: string;
   hostTeamId: number;
-  onShowSoftwareDetails?: (software: IHostSoftware) => void;
+  onShowSoftwareDetails: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
   hostScriptsEnabled?: boolean;
   isMyDevicePage?: boolean;
+  hostMDMEnrolled?: boolean;
 }
 
 const DEFAULT_SEARCH_QUERY = "";
@@ -96,6 +97,7 @@ const HostSoftware = ({
   onShowSoftwareDetails,
   isSoftwareEnabled = false,
   isMyDevicePage = false,
+  hostMDMEnrolled,
 }: IHostSoftwareProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const vulnFilterAndNotSupported =
@@ -248,13 +250,14 @@ const HostSoftware = ({
     return isMyDevicePage
       ? generateDeviceSoftwareTableConfig()
       : generateHostSoftwareTableConfig({
-          router,
-          softwareIdActionPending,
           userHasSWWritePermission,
           hostScriptsEnabled,
-          onSelectAction,
-          teamId: hostTeamId,
           hostCanWriteSoftware,
+          hostMDMEnrolled,
+          softwareIdActionPending,
+          router,
+          teamId: hostTeamId,
+          onSelectAction,
         });
   }, [
     isMyDevicePage,
@@ -265,6 +268,7 @@ const HostSoftware = ({
     onSelectAction,
     hostTeamId,
     hostCanWriteSoftware,
+    hostMDMEnrolled,
   ]);
 
   const isLoading = isMyDevicePage
@@ -325,6 +329,9 @@ const HostSoftware = ({
             pagePath={pathname}
             hostSoftwareFilter={getHostSoftwareFilterFromQueryParams()}
             pathPrefix={pathname}
+            // for my device software details modal toggling
+            isMyDevicePage={isMyDevicePage}
+            onShowSoftwareDetails={onShowSoftwareDetails}
           />
         )}
       </>

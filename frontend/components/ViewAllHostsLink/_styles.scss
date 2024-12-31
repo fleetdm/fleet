@@ -7,4 +7,9 @@
       }
     }
   }
+
+  // For tabbing through the app
+  &:focus-visible.row-hover-link {
+    opacity: 1;
+  }
 }

@@ -62,7 +62,7 @@
     }
   }
 
-  &__status-title{
+  &__status-title {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -71,6 +71,13 @@
 
   &__status-count {
     font-weight: normal;
+
+    // When tabbing
+    &:focus-visible {
+      overflow: initial;
+      outline: 2px solid $ui-vibrant-blue-25;
+      box-shadow: inset 0 0 0 1px $ui-vibrant-blue-10;
+    }
   }
 
   &__actions-wrapper {
@@ -78,21 +85,6 @@
     justify-content: flex-end;
     gap: $pad-medium;
     align-items: center;
-  }
-
-  &__self-service-badge {
-    display: flex;
-    height: 18px;
-    padding: 3px 6px;
-    align-items: center;
-    gap: 4px;
-    border-radius: 4px;
-    border: 1px solid $ui-fleet-black-10;
-    background: $ui-off-white;
-    color: $ui-fleet-black-75;
-    font-size: $xx-small;
-    font-weight: $bold;
-    white-space: nowrap;
   }
 
   &__actions {

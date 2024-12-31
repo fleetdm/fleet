@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	pkgscripts "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -70,20 +71,30 @@ type Runner struct {
 	scriptsEnabled func() bool
 
 	osqueryConnectionMutex sync.Mutex
+
+	rootDirPath string
 }
 
-func NewRunner(client Client, socketPath string, scriptsEnabled func() bool) *Runner {
+func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, rootDirPath string) *Runner {
 	r := &Runner{
 		OrbitClient:               client,
 		osquerySocketPath:         socketPath,
 		scriptsEnabled:            scriptsEnabled,
 		installerExecutionTimeout: pkgscripts.MaxHostSoftwareInstallExecutionTime,
+		rootDirPath:               rootDirPath,
 	}
 
 	return r
 }
 
 func (r *Runner) Run(config *fleet.OrbitConfig) error {
+	if runtime.GOOS == "darwin" {
+		if config.Notifications.RunSetupExperience && !update.CanRun(r.rootDirPath, "swiftDialog", update.SwiftDialogMacOSTarget) {
+			log.Debug().Msg("exiting software installer config runner early during setup experience: swiftDialog is not installed")
+			return nil
+		}
+	}
+
 	connectOsqueryFn := r.connectOsquery
 	if connectOsqueryFn == nil {
 		connectOsqueryFn = connectOsquery
@@ -282,7 +293,8 @@ func (r *Runner) runInstallerScript(ctx context.Context, scriptContents string, 
 		return "", -1, fmt.Errorf("writing script: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), r.installerExecutionTimeout)
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, r.installerExecutionTimeout)
 	defer cancel()
 
 	execFn := r.execCmdFn

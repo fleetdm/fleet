@@ -49,24 +49,24 @@ func generateMDMAppleCommand() *cli.Command {
 			// before printing the CSR output message.
 			client, err := clientFromCLI(c)
 			if err != nil {
-				fmt.Fprintf(c.App.ErrWriter, "client from CLI: %s", err)
+				fmt.Fprintf(c.App.ErrWriter, "client from CLI: %s\n", err)
 				return ErrGeneric
 			}
 
 			csr, err := client.RequestAppleCSR()
 			if err != nil {
-				fmt.Fprintf(c.App.ErrWriter, "requesting APNs CSR: %s", err)
+				fmt.Fprintf(c.App.ErrWriter, "requesting APNs CSR: %s\n", err)
 				return ErrGeneric
 			}
 
 			if err := os.WriteFile(csrPath, csr, defaultFileMode); err != nil {
-				fmt.Fprintf(c.App.ErrWriter, "write CSR: %s", err)
+				fmt.Fprintf(c.App.ErrWriter, "write CSR: %s\n", err)
 				return ErrGeneric
 			}
 
 			appCfg, err := client.GetAppConfig()
 			if err != nil {
-				fmt.Fprintf(c.App.ErrWriter, "fetching app config: %s", err)
+				fmt.Fprintf(c.App.ErrWriter, "fetching app config: %s\n", err)
 				return ErrGeneric
 			}
 

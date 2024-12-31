@@ -9,10 +9,10 @@ import { IUser } from "interfaces/user";
 import { QueryParams } from "utilities/url";
 
 import LinkWithContext from "components/LinkWithContext";
-import UserMenu from "components/top_nav/UserMenu";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 
+import UserMenu from "../UserMenu";
 import getNavItems, { INavItem } from "./navItems";
 
 interface ISiteTopNavProps {
@@ -20,12 +20,10 @@ interface ISiteTopNavProps {
   currentUser: IUser;
   location: {
     pathname: string;
-    search: string;
-    hash?: string;
     query: QueryParams;
   };
   onLogoutUser: () => void;
-  onNavItemClick: (path: string) => void;
+  onUserMenuItemClick: (path: string) => void;
 }
 
 // TODO(sarah): Build RegExps for other routes that need to be differentiated in order to build
@@ -75,9 +73,9 @@ const isGlobalPage = (path: string) => {
 const SiteTopNav = ({
   config,
   currentUser,
-  location: { pathname: currentPath, search, hash = "", query },
+  location: { pathname: currentPath, query },
   onLogoutUser,
-  onNavItemClick,
+  onUserMenuItemClick,
 }: ISiteTopNavProps): JSX.Element => {
   const {
     currentTeam,
@@ -212,7 +210,7 @@ const SiteTopNav = ({
         </ul>
         <UserMenu
           onLogout={onLogoutUser}
-          onNavItemClick={onNavItemClick}
+          onUserMenuItemClick={onUserMenuItemClick}
           currentUser={currentUser}
           isAnyTeamAdmin={isAnyTeamAdmin}
           isGlobalAdmin={isGlobalAdmin}

@@ -44,10 +44,13 @@ type DetailQuery struct {
 	// empty, run on all platforms.
 	Platforms []string
 	// SoftwareOverrideMatch is a function that can be used to override a software
-	// result.  The function evaluates a software detail query result row and deletes
+	// result. The function evaluates a software detail query result row and deletes
 	// the result if the function returns true so the result of this detail query can be
 	// used instead.
 	SoftwareOverrideMatch func(row map[string]string) bool
+	// SoftwareProcessResults is a function that can be used to process entries of the main
+	// software query and append or modify data using results of additional queries.
+	SoftwareProcessResults func(mainSoftwareResults []map[string]string, additionalSoftwareResults []map[string]string) []map[string]string
 	// IngestFunc translates a query result into an update to the host struct,
 	// around data that lives on the hosts table.
 	IngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error
@@ -413,8 +416,12 @@ func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.
 		}
 	}
 
-	if len(rows) != 1 {
-		logger.Log("err", fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
+	switch {
+	case len(rows) == 0:
+		level.Debug(logger).Log("err", "detail_query_network_interface did not find a private IP address")
+		return nil
+	case len(rows) > 1:
+		level.Error(logger).Log("msg", fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
 		return nil
 	}
 
@@ -816,11 +823,14 @@ var softwareMacOS = DetailQuery{
 	// ensure that the nested loops in the query generation are ordered correctly for the _extensions
 	// tables that need a uid parameter. CROSS JOIN ensures that SQLite does not reorder the loop
 	// nesting, which is important as described in https://youtu.be/hcn3HIcHAAo?t=77.
+	//
+	// Homebrew package casks are filtered to exclude those that have an associated .app bundle
+	// as these are already included in the apps table.  Apps table software includes bundle_identifier
+	// which is used in vulnerability scanning.
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name AS name,
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
-  'Application (macOS)' AS type,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,
   '' AS browser,
@@ -833,7 +843,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Python)' AS type,
   '' AS bundle_identifier,
   '' AS extension_id,
   '' AS browser,
@@ -846,7 +855,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Chrome)' AS type,
   '' AS bundle_identifier,
   identifier AS extension_id,
   browser_type AS browser,
@@ -859,7 +867,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Firefox)' AS type,
   '' AS bundle_identifier,
   identifier AS extension_id,
   'firefox' AS browser,
@@ -872,7 +879,6 @@ UNION
 SELECT
   name As name,
   version AS version,
-  'Browser plugin (Safari)' AS type,
   '' AS bundle_identifier,
   '' AS extension_id,
   '' AS browser,
@@ -885,7 +891,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Homebrew)' AS type,
   '' AS bundle_identifier,
   '' AS extension_id,
   '' AS browser,
@@ -893,7 +898,22 @@ SELECT
   '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
-FROM homebrew_packages;
+FROM homebrew_packages
+WHERE type = 'formula'
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS browser,
+  'homebrew_packages' AS source,
+  '' AS vendor,
+  0 AS last_opened_at,
+  path AS installed_path
+FROM homebrew_packages
+WHERE type = 'cask'
+AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path, '/%%%%') AND file.path LIKE '%%.app%%' LIMIT 1);
 `),
 	Platforms:        []string{"darwin"},
 	DirectIngestFunc: directIngestSoftware,
@@ -908,7 +928,6 @@ var softwareVSCodeExtensions = DetailQuery{
 SELECT
   name,
   version,
-  'IDE extension (VS Code)' AS type,
   '' AS bundle_identifier,
   uuid AS extension_id,
   '' AS browser,
@@ -937,7 +956,6 @@ var softwareLinux = DetailQuery{
 SELECT
   name AS name,
   version AS version,
-  'Package (deb)' AS type,
   '' AS extension_id,
   '' AS browser,
   'deb_packages' AS source,
@@ -951,7 +969,6 @@ UNION
 SELECT
   package AS name,
   version AS version,
-  'Package (Portage)' AS type,
   '' AS extension_id,
   '' AS browser,
   'portage_packages' AS source,
@@ -964,7 +981,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (RPM)' AS type,
   '' AS extension_id,
   '' AS browser,
   'rpm_packages' AS source,
@@ -977,7 +993,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (NPM)' AS type,
   '' AS extension_id,
   '' AS browser,
   'npm_packages' AS source,
@@ -990,7 +1005,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Chrome)' AS type,
   identifier AS extension_id,
   browser_type AS browser,
   'chrome_extensions' AS source,
@@ -1003,7 +1017,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Firefox)' AS type,
   identifier AS extension_id,
   'firefox' AS browser,
   'firefox_addons' AS source,
@@ -1016,7 +1029,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Python)' AS type,
   '' AS extension_id,
   '' AS browser,
   'python_packages' AS source,
@@ -1035,7 +1047,6 @@ var softwareWindows = DetailQuery{
 SELECT
   name AS name,
   version AS version,
-  'Program (Windows)' AS type,
   '' AS extension_id,
   '' AS browser,
   'programs' AS source,
@@ -1046,7 +1057,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Python)' AS type,
   '' AS extension_id,
   '' AS browser,
   'python_packages' AS source,
@@ -1057,7 +1067,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (IE)' AS type,
   '' AS extension_id,
   '' AS browser,
   'ie_extensions' AS source,
@@ -1068,7 +1077,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Chrome)' AS type,
   identifier AS extension_id,
   browser_type AS browser,
   'chrome_extensions' AS source,
@@ -1079,7 +1087,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Firefox)' AS type,
   identifier AS extension_id,
   'firefox' AS browser,
   'firefox_addons' AS source,
@@ -1090,7 +1097,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Chocolatey)' AS type,
   '' AS extension_id,
   '' AS browser,
   'chocolatey_packages' AS source,
@@ -1108,7 +1114,6 @@ var softwareChrome = DetailQuery{
   version AS version,
   identifier AS extension_id,
   browser_type AS browser,
-  'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source,
   '' AS vendor,
   '' AS installed_path
@@ -1123,10 +1128,13 @@ FROM chrome_extensions`,
 // Software queries expect specific columns to be present.  Reference the
 // software_{macos|windows|linux} queries for the expected columns.
 var SoftwareOverrideQueries = map[string]DetailQuery{
-	// macos_firefox Differentiates between Firefox and Firefox ESR by checking the RemotingName value in the
+	// macos_firefox differentiates between Firefox and Firefox ESR by checking the RemotingName value in the
 	// application.ini file. If the RemotingName is 'firefox-esr', the name is set to 'Firefox ESR.app'.
+	//
+	// NOTE(lucas): This could be re-written to use SoftwareProcessResults so that this query doesn't need to match
+	// the columns of the main softwareMacOS query.
 	"macos_firefox": {
-		Description: "A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS.  Requires `fleetd`",
+		Description: "A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS. Requires `fleetd`",
 		Query: `
 			WITH app_paths AS (
 				SELECT path
@@ -1145,7 +1153,6 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 					ELSE 'Firefox.app'
 				END AS name,
 				COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
-				'Application (macOS)' AS type,
 				apps.bundle_identifier AS bundle_identifier,
 				'' AS extension_id,
 				'' AS browser,
@@ -1163,6 +1170,40 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		),
 		SoftwareOverrideMatch: func(row map[string]string) bool {
 			return row["bundle_identifier"] == "org.mozilla.firefox"
+		},
+	},
+	// macos_codesign collects code signature information of apps on a separate query for two reasons:
+	//   - codesign is a fleetd table (not part of osquery core).
+	//   - Avoid growing the main `software_macos` query
+	//     (having big queries can cause performance issues or be denylisted).
+	"macos_codesign": {
+		Query: `
+		SELECT a.path, c.team_identifier
+		FROM apps a
+		JOIN codesign c ON a.path = c.path
+	`,
+		Description: "A software override query[^1] to append codesign information to macOS software entries. Requires `fleetd`",
+		Platforms:   []string{"darwin"},
+		Discovery:   discoveryTable("codesign"),
+		SoftwareProcessResults: func(mainSoftwareResults, codesignResults []map[string]string) []map[string]string {
+			codesignInformation := make(map[string]string) // path -> team_identifier
+			for _, codesignResult := range codesignResults {
+				codesignInformation[codesignResult["path"]] = codesignResult["team_identifier"]
+			}
+			if len(codesignInformation) == 0 {
+				return mainSoftwareResults
+			}
+
+			for _, result := range mainSoftwareResults {
+				codesignInfo := codesignInformation[result["installed_path"]]
+				if codesignInfo == "" {
+					// No codesign information for this application.
+					continue
+				}
+				result["team_identifier"] = codesignInfo
+			}
+
+			return mainSoftwareResults
 		},
 	},
 }
@@ -1546,7 +1587,18 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			// NOTE: osquery is sometimes incorrectly returning the value "null" for some install paths.
 			// Thus, we explicitly ignore such value here.
 			strings.ToLower(installedPath) != "null" {
-			key := fmt.Sprintf("%s%s%s", installedPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+			truncateString := func(str string, length int) string {
+				runes := []rune(str)
+				if len(runes) > length {
+					return string(runes[:length])
+				}
+				return str
+			}
+			teamIdentifier := truncateString(row["team_identifier"], fleet.SoftwareTeamIdentifierMaxLength)
+			key := fmt.Sprintf(
+				"%s%s%s%s%s",
+				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+			)
 			sPaths[key] = struct{}{}
 		}
 	}
@@ -1566,15 +1618,9 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 var (
 	macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
 	citrixName          = regexp.MustCompile(`Citrix Workspace [0-9]+`)
-)
-
-// sanitizeSoftware performs any sanitization required to the ingested software fields.
-//
-// Some fields are reported with known incorrect values and we need to fix them before using them.
-func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
-	softwareSanitizers := []struct {
+	softwareSanitizers  = []struct {
 		checkSoftware  func(*fleet.Host, *fleet.Software) bool
-		mutateSoftware func(*fleet.Software)
+		mutateSoftware func(*fleet.Software, log.Logger)
 	}{
 		// "Microsoft Teams" on macOS defines the `bundle_short_version` (CFBundleShortVersionString) in a different
 		// unexpected version format. Thus here we transform the version string to the expected format
@@ -1590,7 +1636,7 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
 				return h.Platform == "darwin" && (s.Name == "Microsoft Teams.app" || s.Name == "Microsoft Teams classic.app")
 			},
-			mutateSoftware: func(s *fleet.Software) {
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
 				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
 					s.Version = fmt.Sprintf("%s.%s.00.%s", matches[1], matches[2], matches[3])
 				}
@@ -1602,7 +1648,7 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
 				return h.Platform == "windows" && s.Name == "Cloudflare WARP" && s.Source == "programs"
 			},
-			mutateSoftware: func(s *fleet.Software) {
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
 				// Perform some sanity check on the version before mutating it.
 				parts := strings.Split(s.Version, ".")
 				if len(parts) <= 1 {
@@ -1625,7 +1671,7 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
 				return citrixName.Match([]byte(s.Name)) || s.Name == "Citrix Workspace.app"
 			},
-			mutateSoftware: func(s *fleet.Software) {
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
 				parts := strings.Split(s.Version, ".")
 				if len(parts) <= 1 {
 					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
@@ -1661,8 +1707,13 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
 				return s.Name == "minio" && strings.Contains(s.Version, "RELEASE.")
 			},
-			mutateSoftware: func(s *fleet.Software) {
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
+				// trim the "RELEASE." prefix from the version
 				s.Version = strings.TrimPrefix(s.Version, "RELEASE.")
+				// trim any unexpected trailing characters
+				if idx := strings.Index(s.Version, "_"); idx != -1 {
+					s.Version = s.Version[:idx]
+				}
 			},
 		},
 		{
@@ -1672,7 +1723,7 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 
 				return s.Name == "minio" && regex.MatchString(s.Version)
 			},
-			mutateSoftware: func(s *fleet.Software) {
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
 				timestamp, err := time.Parse("20060102150405", s.Version)
 				if err != nil {
 					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
@@ -1681,11 +1732,54 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 				s.Version = timestamp.Format("2006-01-02T15-04-05Z")
 			},
 		},
-	}
+		{
+			// JetBrains EAP version numbers aren't what are used in CPEs; this handles the translation for Mac versions.
+			// See #22723 for background. Bundle identifier for EAPs also ends with "-EAP" but checking version makes it
+			// a bit easier to add other platforms later. EAP version numbers are e.g. EAP GO-243.21565.42, and checking
+			// here for the dash ensures that string splitting in the mutator always works without a bounds check.
+			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+				return s.BundleIdentifier != "" && strings.HasPrefix(s.BundleIdentifier, "com.jetbrains.") &&
+					strings.HasPrefix(s.Version, "EAP ") && strings.Contains(s.Version, "-")
+			},
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
+				// 243 -> 2024.3
+				eapMajorVersion := strings.Split(strings.Split(s.Version, "-")[1], ".")[0]
+				yearBasedMajorVersion, err := strconv.Atoi("20" + eapMajorVersion[:2])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse JetBrains EAP major version", "version", s.Version, "err", err)
+					return
+				}
+				yearBasedMinorVersion, err := strconv.Atoi(eapMajorVersion[2:])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse JetBrains EAP minor version", "version", s.Version, "err", err)
+					return
+				}
 
+				// EAPs are treated as having all fixes from the previous year-based release, but no fixes from the
+				// year-based release they're an EAP of. The exception to this would be CVE-2024-37051, which was fixed
+				// in a second/third EAP depending on product, but at this point all vulnerable EAPs force exit on
+				// startup due to being expired, so that CVE can't be exploited.
+				yearBasedMinorVersion -= 1
+				if yearBasedMinorVersion <= 0 { // wrap e.g. 2024.1 to 2023.4 (not a real version, but has all 2023.3 fixes)
+					yearBasedMajorVersion -= 1
+					yearBasedMinorVersion = 4
+				}
+
+				// pass through minor and patch version for EAP to tell different EAP builds apart
+				eapMinorAndPatchVersion := strings.Join(strings.Split(strings.Split(s.Version, "-")[1], ".")[1:], ".")
+				s.Version = fmt.Sprintf("%d.%d.%s.%s", yearBasedMajorVersion, yearBasedMinorVersion, "99", eapMinorAndPatchVersion)
+			},
+		},
+	}
+)
+
+// sanitizeSoftware performs any sanitization required to the ingested software fields.
+//
+// Some fields are reported with known incorrect values and we need to fix them before using them.
+func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 	for _, softwareSanitizer := range softwareSanitizers {
 		if softwareSanitizer.checkSoftware(h, s) {
-			softwareSanitizer.mutateSoftware(s)
+			softwareSanitizer.mutateSoftware(s, logger)
 			return
 		}
 	}
@@ -1856,6 +1950,11 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 		return nil
 	}
 
+	if host.RefetchCriticalQueriesUntil != nil {
+		level.Debug(logger).Log("msg", "ingesting Windows mdm data during refetch critical queries window", "host_id", host.ID,
+			"data", fmt.Sprintf("%+v", rows))
+	}
+
 	data := rows[0]
 	var enrolled bool
 	var automatic bool
@@ -1871,13 +1970,20 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 	}
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
 
+	mdmSolutionName := deduceMDMNameWindows(data)
+	if !enrolled && mdmSolutionName != fleet.WellKnownMDMFleet && host.RefetchCriticalQueriesUntil != nil {
+		// the host was unenrolled from a non-Fleet MDM solution, and the refetch
+		// critical queries timestamp was set, so clear it.
+		host.RefetchCriticalQueriesUntil = nil
+	}
+
 	return ds.SetOrUpdateMDMData(ctx,
 		host.ID,
 		isServer,
 		enrolled,
 		serverURL,
 		automatic,
-		deduceMDMNameWindows(data),
+		mdmSolutionName,
 		"",
 	)
 }

@@ -20,6 +20,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/log/level"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -462,12 +463,15 @@ func (svc *Service) LogFleetdError(ctx context.Context, fleetdError fleet.Fleetd
 		return ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
 	}
 
-	svc.logger.Log(
+	err := ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap())
+	level.Warn(svc.logger).Log(
 		"msg",
 		"fleetd error",
 		"error",
-		ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap()),
+		err,
 	)
+	// Send to Redis/telemetry (if enabled)
+	ctxerr.Handle(ctx, err)
 
 	return nil
 }
@@ -498,7 +502,7 @@ func (r getDeviceMDMManualEnrollProfileResponse) hijackRender(ctx context.Contex
 	// detect short writes (if it fails to send the full content properly)
 	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.Profile)), 10))
 	// this content type will make macos open the profile with the proper application
-	w.Header().Set("Content-Type", "application/x-apple-aspen-config; charset=urf-8")
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config; charset=utf-8")
 	// prevent detection of content, obey the provided content-type
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 
@@ -555,7 +559,7 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]b
 	}
 
 	enrollSecret := tmSecrets[0].Secret
-	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.ServerSettings.ServerURL, enrollSecret)
+	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating ota mobileconfig file for manual enrollment")
 	}
@@ -602,6 +606,43 @@ func migrateMDMDeviceEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Host) error {
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Trigger linux key escrow
+////////////////////////////////////////////////////////////////////////////////
+
+type triggerLinuxDiskEncryptionEscrowRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *triggerLinuxDiskEncryptionEscrowRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type triggerLinuxDiskEncryptionEscrowResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r triggerLinuxDiskEncryptionEscrowResponse) error() error { return r.Err }
+
+func (r triggerLinuxDiskEncryptionEscrowResponse) Status() int { return http.StatusNoContent }
+
+func triggerLinuxDiskEncryptionEscrowEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return triggerLinuxDiskEncryptionEscrowResponse{Err: err}, nil
+	}
+
+	if err := svc.TriggerLinuxDiskEncryptionEscrow(ctx, host); err != nil {
+		return triggerLinuxDiskEncryptionEscrowResponse{Err: err}, nil
+	}
+	return triggerLinuxDiskEncryptionEscrowResponse{}, nil
+}
+
+func (svc *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fleet.Host) error {
 	return fleet.ErrMissingLicense
 }
 

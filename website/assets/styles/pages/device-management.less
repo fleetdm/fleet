@@ -81,7 +81,12 @@
         font-style: italic;
         font-weight: 400;
         line-height: @text-lineheight;
+        margin-bottom: 24px;
       }
+    }
+    [purpose='quote-logo'] {
+      height: 24px;
+      margin-bottom: 16px;
     }
     [purpose='quote-image'] {
       margin-right: 16px;
@@ -121,6 +126,42 @@
     padding-top: 64px;
     padding-bottom: 16px;
     margin-bottom: 0px;
+  }
+  [purpose='swag-request-button'] {
+    max-width: 380px;
+    cursor: pointer;
+    margin-top: 16px;
+    margin-bottom: 16px;
+    display: flex;
+    padding: 16px;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    align-self: stretch;
+    border-radius: 8px;
+    border: 1px solid #E2E4EA;
+    background: #F9FAFC;
+    &:hover {
+      box-shadow: 0px 0px 0px 3px rgba(0, 0, 0, 0.03);
+    }
+    img {
+      margin-right: 16px;
+    }
+    p {
+      color: var(--text-text-primary, #515774);
+      font-family: Inter;
+      font-size: 14px;
+      font-style: normal;
+      line-height: 21px;
+    }
+    span {
+      color: var(--Core-Fleet-Black, #192147);
+      font-family: Inter;
+      font-size: 14px;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 21px;
+    }
   }
 
   // Desktop features comparison table styles
@@ -398,6 +439,9 @@
     h3 {
       margin-bottom: 24px;
     }
+    p {
+      font-size: 16px;
+    }
     a {
       color: @core-fleet-black-75;
       text-decoration: underline;
@@ -539,10 +583,10 @@
     }
     [purpose='cta-button'] {
       cursor: pointer;
-      margin-right: 32px;
+      margin-right: 24px;
       background: @core-vibrant-red;
       border-radius: 8px;
-      padding: 16px 32px;
+      padding: 16px;
       height: 36px;
       display: flex;
       justify-content: center;
@@ -1070,6 +1114,14 @@
         dispaly: flex;
         flex-direction: column;
         width: calc(~' 100% - 32px');
+      }
+    }
+    [purpose='button-row'] {
+      flex-direction: column;
+      [purpose='cta-button'] {
+        width: 100%;
+        margin-bottom: 16px;
+        margin-right: 0;
       }
     }
     [purpose='tweets-container'] {

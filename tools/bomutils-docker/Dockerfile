@@ -5,7 +5,7 @@ RUN apt-get install -y build-essential autoconf libxml2-dev libssl-dev zlib1g-de
 
 # Build bomutils
 RUN git clone -b master \
-    --depth=1 --no-tags --progress \
+    --no-tags --progress \
     --no-recurse-submodules https://github.com/hogliux/bomutils.git && \
     cd bomutils && git reset --hard c41ad8b67d82a0071245ce8a5069023d39a885b8 && \
     make && make install

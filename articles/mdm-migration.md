@@ -1,6 +1,6 @@
 # MDM migration
 
-This guide provides instructions for migrating devices from your current MDM solution to Fleet.
+This guide provides instructions for migrating devices from your current MDM solution to Fleet. There are two different workflows to migrate your devices.
 
 > For seamless MDM migration, [view this guide](https://fleetdm.com/guides/seamless-mdm-migration).
 
@@ -8,6 +8,7 @@ This guide provides instructions for migrating devices from your current MDM sol
 
 - A [deployed Fleet instance](https://fleetdm.com/docs/deploy/deploy-fleet)
 - Fleet is connected to Apple Push Notification service (APNs) and Apple Business Manager (ABM). [See macOS MDM setup](https://fleetdm.com/guides/macos-mdm-setup)
+- For the end-user workflow: A service is required that can receive a webhook to send an unenroll request to the existing MDM server. See [this example](https://victoronsoftware.com/posts/webhook-flow-with-tines/) using Fleet webhooks with Tines.
 
 ## Migrate hosts
 
@@ -40,7 +41,7 @@ The end user migration workflow allows the user to kick off migration by unenrol
 
 End user experience:
 
-- After a host is unenrolled from your current MDM solution, the end user will be prompted with Apple's **Remote Management** full-screen popup if the host is assigned to Fleet in ABM.
+- After a host is unenrolled from your current MDM solution, eventually (within two hours) the end user will be prompted with Apple's **Remote Management** full-screen popup if the host is assigned to Fleet in ABM.
 <img width="1400" alt="macOS Remote Management popup" src="https://github.com/user-attachments/assets/084946a5-1658-4d8c-852d-3cf5f5d58655">
 - If the host is not assigned to Fleet in ABM (manual enrollment), the end user will be given the option to download the MDM enrollment profile on their **My device page**.
 <img width="1600" alt="Fleet icon in menu bar" src="https://raw.githubusercontent.com/fleetdm/fleet/main/website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg">
@@ -64,14 +65,17 @@ Configuration:
 
 - After configuring the end user workflow, instruct your end users to select the Fleet icon in their menu bar, select **Migrate to Fleet** and follow the on-screen instructions to migrate to Fleet.
 
-- Fleet UI:
+Fleet UI:
 1. Select the avatar on the right side of the top navigation and select **Settings > Integrations > Mobile device management (MDM)**.
 2. Scroll down to the **End user migration workflow** section and select the toggle to enable the workflow.
 3. Under **Mode**, choose a mode, enter the webhook URL for your automation tool (e.g., Tines) under **Webhook URL**, and select **Save**.
 4. During the end user migration workflow, an end user's device will have its selected system theme (light or dark) applied. If your logo is not easy to see on both light and dark backgrounds, you can optionally set a logo for each theme:
 Head to **Settings** > **Organization settings** > **Organization info**, add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields, and select **Save**.
-- Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#mdm-macos-migration)
-- GitOps:
+5. During migration, end users will see a button that says "Unsure? Contact IT". Head to **Settings** > **Organization settings** > **Organization info** > **Organization support URL** to direct users to your help desk if they have any questions. 
+
+Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#mdm-macos-migration)
+
+GitOps:
   - To manage macOS MDM migration configuration using Fleet's best practice GitOps, check out the `macos_migration` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#macos-migration).
   - To manage your organization's logo for dark and light backgrounds using Fleet's best practice GitOps, check out the `org_info` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info).
 

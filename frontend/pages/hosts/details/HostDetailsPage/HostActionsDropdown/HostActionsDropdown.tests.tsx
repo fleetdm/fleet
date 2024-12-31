@@ -116,7 +116,7 @@ describe("Host Actions Dropdown", () => {
 
       expect(
         screen.getByText("Query").parentElement?.parentElement?.parentElement
-      ).toHaveClass("is-disabled");
+      ).toHaveClass("actions-dropdown-select__option--is-disabled");
 
       await waitFor(() => {
         waitFor(() => {
@@ -153,7 +153,7 @@ describe("Host Actions Dropdown", () => {
       await user.click(screen.getByText("Actions"));
       expect(
         screen.getByText("Query").parentElement?.parentElement?.parentElement
-      ).toHaveClass("is-disabled");
+      ).toHaveClass("actions-dropdown-select__option--is-disabled");
     });
 
     it("renders the Query action as disabled when a host is updating", async () => {
@@ -180,7 +180,7 @@ describe("Host Actions Dropdown", () => {
       await user.click(screen.getByText("Actions"));
 
       expect(screen.getByText("Query").parentElement).toHaveClass(
-        "is-disabled"
+        "actions-dropdown-select__option--is-disabled"
       );
     });
   });
@@ -388,7 +388,7 @@ describe("Host Actions Dropdown", () => {
       debug();
 
       expect(screen.getByText("Turn off MDM").parentElement).toHaveClass(
-        "is-disabled"
+        "actions-dropdown-select__option--is-disabled"
       );
     });
 
@@ -590,7 +590,7 @@ describe("Host Actions Dropdown", () => {
 
       expect(
         screen.getByText("Lock").parentElement?.parentElement?.parentElement
-      ).toHaveClass("is-disabled");
+      ).toHaveClass("actions-dropdown-select__option--is-disabled");
 
       await waitFor(() => {
         waitFor(() => {
@@ -845,7 +845,7 @@ describe("Host Actions Dropdown", () => {
 
       expect(
         screen.getByText("Unlock").parentElement?.parentElement?.parentElement
-      ).toHaveClass("is-disabled");
+      ).toHaveClass("actions-dropdown-select__option--is-disabled");
 
       await waitFor(() => {
         waitFor(() => {
@@ -981,7 +981,7 @@ describe("Host Actions Dropdown", () => {
 
       expect(
         screen.getByText("Wipe").parentElement?.parentElement?.parentElement
-      ).toHaveClass("is-disabled");
+      ).toHaveClass("actions-dropdown-select__option--is-disabled");
 
       await waitFor(() => {
         waitFor(() => {
@@ -1055,7 +1055,7 @@ describe("Host Actions Dropdown", () => {
         screen
           .getByText("Run script")
           .parentElement?.parentElement?.parentElement?.classList.contains(
-            "is-disabled"
+            "actions-dropdown-select__option--is-disabled"
           )
       ).toBeFalsy();
 
@@ -1098,7 +1098,7 @@ describe("Host Actions Dropdown", () => {
       expect(
         screen.getByText("Run script").parentElement?.parentElement
           ?.parentElement
-      ).toHaveClass("is-disabled");
+      ).toHaveClass("actions-dropdown-select__option--is-disabled");
 
       await waitFor(() => {
         waitFor(() => {

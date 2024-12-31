@@ -166,6 +166,7 @@ const DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK: ISoftwareTitleDetails = {
   versions: [createMockSoftwareTitleVersion()],
   bundle_identifier: "com.test.Desktop",
   versions_count: 1,
+  counts_updated_at: "2024-11-01T01:23:45Z",
 };
 
 export const createMockSoftwareTitleDetails = (
@@ -199,6 +200,7 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
   version: "1.2.3",
   uploaded_at: "2020-01-01T00:00:00.000Z",
   install_script: "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
+  uninstall_script: "sudo rm -rf /Applications/Falcon.app",
   pre_install_query: "SELECT 1 FROM macos_profiles WHERE uuid='abc123';",
   post_install_script:
     "sudo /Applications/Falcon.app/Contents/Resources/falconctl license abc123",
@@ -211,6 +213,12 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
     pending_uninstall: 1,
     failed_uninstall: 1,
   },
+  automatic_install_policies: [],
+  last_install: null,
+  last_uninstall: null,
+  package_url: "",
+  labels_include_any: null,
+  labels_exclude_any: null,
 };
 
 export const createMockSoftwarePackage = (

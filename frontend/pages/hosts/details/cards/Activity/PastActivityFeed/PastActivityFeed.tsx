@@ -1,6 +1,6 @@
 import React from "react";
 
-import { IHostPastActivity } from "interfaces/activity";
+import { ActivityType, IHostPastActivity } from "interfaces/activity";
 import { IHostPastActivitiesResponse } from "services/entities/activities";
 
 // @ts-ignore
@@ -54,6 +54,17 @@ const PastActivityFeed = ({
     <div className={baseClass}>
       <div>
         {activitiesList.map((activity: IHostPastActivity) => {
+          // TODO: remove this once we have a proper way of handling "Fleet-initiated" activities in
+          // the backend. For now, if all these fields are empty, then we assume it was Fleet-initiated.
+          if (
+            !activity.actor_email &&
+            !activity.actor_full_name &&
+            (activity.type === ActivityType.InstalledSoftware ||
+              activity.type === ActivityType.InstalledAppStoreApp ||
+              activity.type === ActivityType.RanScript)
+          ) {
+            activity.actor_full_name = "Fleet";
+          }
           const ActivityItemComponent = pastActivityComponentMap[activity.type];
           return (
             <ActivityItemComponent

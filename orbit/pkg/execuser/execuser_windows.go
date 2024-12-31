@@ -8,6 +8,7 @@ package execuser
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"unsafe"
 
@@ -106,15 +107,23 @@ const (
 //	only a few changes, retrieve the current values using GetEnvironmentVariable, save these values,
 //	create an updated block for the child process to inherit, create the child process, and then
 //	restore the saved values using SetEnvironmentVariable, as shown in the following example."
-func run(path string, opts eopts) error {
+func run(path string, opts eopts) (lastLogs string, err error) {
 	if err := setupSyncChannel(constant.DesktopAppExecName); err != nil {
-		return fmt.Errorf("sync channel creation failed: %w", err)
+		return "", fmt.Errorf("sync channel creation failed: %w", err)
 	}
 
 	for _, nv := range opts.env {
 		os.Setenv(nv[0], nv[1])
 	}
-	return startProcessAsCurrentUser(path, "", "")
+	return "", startProcessAsCurrentUser(path, "", "")
+}
+
+func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
+	return nil, 0, errors.New("not implemented")
+}
+
+func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
+	return nil, errors.New("not implemented")
 }
 
 // getCurrentUserSessionId will attempt to resolve

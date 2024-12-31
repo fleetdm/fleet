@@ -1,10 +1,10 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -26,19 +26,30 @@ func (svc *Service) AddFleetMaintainedApp(
 	appID uint,
 	installScript, preInstallQuery, postInstallScript, uninstallScript string,
 	selfService bool,
-) error {
+	labelsIncludeAny, labelsExcludeAny []string,
+) (titleID uint, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
-		return err
+		return 0, err
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return fleet.ErrNoContext
+		return 0, fleet.ErrNoContext
+	}
+
+	// validate labels before we do anything else
+	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, labelsIncludeAny, labelsExcludeAny)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "validating software labels")
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{installScript, postInstallScript, uninstallScript}); err != nil {
+		return 0, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
 	}
 
 	app, err := svc.ds.GetMaintainedAppByID(ctx, appID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting maintained app by id")
+		return 0, ctxerr.Wrap(ctx, err, "getting maintained app by id")
 	}
 
 	// Download installer from the URL
@@ -48,14 +59,15 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	client := fleethttp.NewClient(fleethttp.WithTimeout(timeout))
-	installerBytes, filename, err := maintainedapps.DownloadInstaller(ctx, app.InstallerURL, client)
+	installerTFR, filename, err := maintainedapps.DownloadInstaller(ctx, app.InstallerURL, client)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "downloading app installer")
+		return 0, ctxerr.Wrap(ctx, err, "downloading app installer")
 	}
+	defer installerTFR.Close()
 
 	extension, err := maintainedapps.ExtensionForBundleIdentifier(app.BundleIdentifier)
 	if err != nil {
-		return ctxerr.Errorf(ctx, "getting extension from bundle identifier %q", app.BundleIdentifier)
+		return 0, ctxerr.Errorf(ctx, "getting extension from bundle identifier %q", app.BundleIdentifier)
 	}
 
 	// Validate the bytes we got are what we expected, if homebrew supports
@@ -63,14 +75,15 @@ func (svc *Service) AddFleetMaintainedApp(
 	// hash shouldn't be checked.
 	if app.SHA256 != noCheckHash {
 		h := sha256.New()
-		_, err = h.Write(installerBytes)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "generating SHA256 of maintained app installer")
-		}
+		_, _ = io.Copy(h, installerTFR) // writes to a Hash can never fail
 		gotHash := hex.EncodeToString(h.Sum(nil))
 
 		if gotHash != app.SHA256 {
-			return ctxerr.New(ctx, "mismatch in maintained app SHA256 hash")
+			return 0, ctxerr.New(ctx, "mismatch in maintained app SHA256 hash")
+		}
+
+		if err := installerTFR.Rewind(); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "rewind installer reader")
 		}
 	}
 
@@ -95,9 +108,8 @@ func (svc *Service) AddFleetMaintainedApp(
 		uninstallScript = app.UninstallScript
 	}
 
-	installerReader := bytes.NewReader(installerBytes)
 	payload := &fleet.UploadSoftwareInstallerPayload{
-		InstallerFile:     installerReader,
+		InstallerFile:     installerTFR,
 		Title:             app.Name,
 		UserID:            vc.UserID(),
 		TeamID:            teamID,
@@ -114,17 +126,18 @@ func (svc *Service) AddFleetMaintainedApp(
 		SelfService:       selfService,
 		InstallScript:     installScript,
 		UninstallScript:   uninstallScript,
+		ValidatedLabels:   validatedLabels,
 	}
 
 	// Create record in software installers table
-	_, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
+	_, titleID, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "setting downloaded installer")
+		return 0, ctxerr.Wrap(ctx, err, "setting downloaded installer")
 	}
 
 	// Save in S3
 	if err := svc.storeSoftware(ctx, payload); err != nil {
-		return ctxerr.Wrap(ctx, err, "upload maintained app installer to S3")
+		return 0, ctxerr.Wrap(ctx, err, "upload maintained app installer to S3")
 	}
 
 	// Create activity
@@ -132,29 +145,39 @@ func (svc *Service) AddFleetMaintainedApp(
 	if payload.TeamID != nil && *payload.TeamID != 0 {
 		t, err := svc.ds.Team(ctx, *payload.TeamID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting team")
+			return 0, ctxerr.Wrap(ctx, err, "getting team")
 		}
 		teamName = &t.Name
 	}
 
+	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
-		SoftwareTitle:   payload.Title,
-		SoftwarePackage: payload.Filename,
-		TeamName:        teamName,
-		TeamID:          payload.TeamID,
-		SelfService:     payload.SelfService,
+		SoftwareTitle:    payload.Title,
+		SoftwarePackage:  payload.Filename,
+		TeamName:         teamName,
+		TeamID:           payload.TeamID,
+		SelfService:      payload.SelfService,
+		SoftwareTitleID:  titleID,
+		LabelsIncludeAny: actLabelsIncl,
+		LabelsExcludeAny: actLabelsExcl,
 	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "creating activity for added software")
+		return 0, ctxerr.Wrap(ctx, err, "creating activity for added software")
 	}
 
-	return nil
+	return titleID, nil
 }
 
-func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{
-		TeamID: &teamID,
-	}, fleet.ActionRead); err != nil {
-		return nil, nil, err
+func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+	var authErr error
+	// viewing the maintained app list without showing team-specific info can be done by anyone who can view individual FMAs
+	if teamID == nil {
+		authErr = svc.authz.Authorize(ctx, &fleet.MaintainedApp{}, fleet.ActionRead)
+	} else { // viewing the maintained app list when showing team-specific info requires access to that team
+		authErr = svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead)
+	}
+
+	if authErr != nil {
+		return nil, nil, authErr
 	}
 
 	avail, meta, err := svc.ds.ListAvailableFleetMaintainedApps(ctx, teamID, opts)
@@ -166,9 +189,9 @@ func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, op
 }
 
 func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{
-		TeamID: nil,
-	}, fleet.ActionRead); err != nil {
+	// Special case auth for maintained apps (vs. normal installers) as maintained apps are not scoped to a team;
+	// use SoftwareInstaller for authorization elsewhere.
+	if err := svc.authz.Authorize(ctx, &fleet.MaintainedApp{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 

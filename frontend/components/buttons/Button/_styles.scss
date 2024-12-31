@@ -1,7 +1,7 @@
 $base-class: "button";
 
 @mixin button-focus-outline($offset: 2px) {
-  outline-color: #d9d9fe;
+  outline-color: $core-focused-outline;
   outline-offset: $offset;
   outline-style: solid;
   outline-width: 2px;
@@ -70,7 +70,6 @@ $base-class: "button";
   border: 0;
   position: relative;
   cursor: pointer;
-  min-width: max-content;
 
   &:focus {
     outline: none;
@@ -301,8 +300,13 @@ $base-class: "button";
       color: $core-vibrant-blue-down;
     }
 
-    &:focus {
+    &:focus-visible {
+      color: $core-vibrant-blue-over;
+      border: 1px;
+      border-radius: 2px; // Visble when tabbing
+      background: var(--Core-White, #fff);
       outline: none;
+      box-shadow: 0px 0px 0px 2px #fff, 0px 0px 0px 4px #d9d9fe;
     }
 
     &:hover,

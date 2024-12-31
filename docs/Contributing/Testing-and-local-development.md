@@ -267,7 +267,11 @@ The Fleet repo includes tools to start testing osquery hosts. Please see the doc
 
 To intercept sent emails while running a Fleet development environment, first, as an Admin in the Fleet UI, navigate to the Organization settings.
 
-Then, in the "SMTP options" section, enter any email address in the "Sender address" field, set the "SMTP server" to `localhost` on port `1025`, and set "Authentication type" to `None`. Note that you may use any active or inactive sender address.
+Then, in the "SMTP options" section, set:
+- "Sender address" to any email address. Note that you may use any active or inactive sender address.
+- "SMTP server" to `localhost` on port `1025`.
+- "Use SSL/TLS to connect (recommended)" to unchecked. 
+- "Authentication type" to `None`.
 
 Visit [localhost:8025](http://localhost:8025) to view MailHog's admin interface displaying all emails sent using the simulated mail server.
 
@@ -275,9 +279,11 @@ Visit [localhost:8025](http://localhost:8025) to view MailHog's admin interface 
 
 Alternatively, if you need to test a SMTP server with plain basic authentication enabled, set:
 - "SMTP server" to `localhost` on port `1026`
-- "Authentication type" to `Plain`.
-- "SMTP username" to `mailpit-username`.
-- "SMTP password" to `mailpit-password`.
+- "Use SSL/TLS to connect (recommended)" to unchecked.
+- "Authentication type" to `Username and Password`
+- "SMTP username" to `mailpit-username`
+- "SMTP password" to `mailpit-password`
+- "Auth method" to `Plain`
 - Note that you may use any active or inactive sender address.
 
 Visit [localhost:8026](http://localhost:8026) to view Mailpit's admin interface displaying all emails sent using the simulated mail server.
@@ -339,7 +345,7 @@ Configure SSO on the Organization Settings page with the following:
 ```
 Identity Provider Name: SimpleSAML
 Entity ID: https://localhost:8080
-Metadata URL: http://localhost:9080/simplesaml/saml2/idp/metadata.php
+Metadata URL: http://127.0.0.1:9080/simplesaml/saml2/idp/metadata.php
 ```
 
 The identity provider is configured with four users:
@@ -521,9 +527,11 @@ The base installers are used:
 - By Fleet MDM to automatically install `fleetd` when a host enables MDM features.
 - By customers deploying `fleetd` using third-party tools (e.g., Puppet or Chef).
 
-The Fleet server uses the production server by default, but you can change this during development using the development flag `FLEET_DEV_DOWNLOAD_FLEETDM_URL`.
+The Fleet server uses the production server by default, but you can change this during development
+using the development flag `FLEET_DEV_DOWNLOAD_FLEETDM_URL`.
 
-### Building your own fleetd-base installer
+
+### Building your own non-signed fleetd-base installer
 
 Due to historical reasons, each type of installer has its own peculiarities:
 
@@ -542,6 +550,58 @@ $ fleetctl package --type=msi --fleet-url=dummy --enroll-secret=dummy
 # Install a fleetd-base.msi installer
 $ msiexec /i fleetd-base.msi FLEET_URL="<target_url>" FLEET_SECRET="<secret_to_use>"
 ```
+
+**Note:** a non-signed base installer _cannot_ be installed on a macOS host during the ADE MDM enrollment
+flow. Apple requires that applications installed via an `InstallEnterpriseApplication` command be
+signed with a development certificate.
+
+### Building and serving your own signed fleetd-base installer for macOS
+
+Signed fleetd-installers can be used during the ADE MDM enrollment flow. If you are
+developing/testing logic that needs to run during that flow, you will need to build and serve a
+signed fleetd-base installer.
+
+You will also need to serve the manifest for the fleetd-base installer. This manifest is used as
+part of the `InstallEnterpriseApplication` command that installs fleetd; it contains a checksum of
+the fleetd-base installer file, as well as the URL at which the MDM protocol can download the actual
+installer file.
+
+#### Pre-requisites
+- An ngrok URL for serving the fleetd-base installer and the manifest .plist file
+
+#### Building a signed fleetd-base installer from `edge`
+
+We have a [GitHub workflow](../../.github/workflows/build-fleetd-base-pkg.yml) that can build a signed
+fleetd-base installer using fleetd components from any of the release channels we support. You'll
+most likely use `edge` since we release fleetd components built from an RC branch to `edge` for
+QA before an official release.
+
+To use the workflow, follow these steps:
+
+1. Trigger the build and codesign fleetd-base.pkg workflow at https://github.com/fleetdm/fleet/actions/workflows/build-fleetd-base-pkg.yml.
+2. Click the run workflow drop down and fill in `"edge"` for the first 3 fields. Fill in the ngrok URL
+  from the "Pre-requisites" above in the last field.
+3. Click the Run workflow button. This will generate two files:
+  - `fleet-base-manifest.plist`
+  - `fleet-base.pkg`
+4. Download them to your workstation.
+
+#### Serving the signed fleetd-base installer
+
+1. Create a directory named `fleetd-base-dir` and a subdirectory named `stable`. Tip: we have the `$FLEET_REPO_ROOT_DIR/tmp`
+   directory gitignored, so that's a convenient place to create the directories:
+```sh
+# From the Fleet repo root dir
+mkdir -p ./tmp/fleetd-base-dir/stable
+```
+2. Move `fleet-base.pkg` to `/fleetd-base-dir`.
+3. Move `fleet-base-manifest.plist` to `/fleetd-base-dir/stable`.
+4. Start up an HTTP file server from the Fleet repo root directory using the [`tools/file-server`](../../tools/file-server/README.md) tool: `go run ./tools/file-server 8085 ./tmp/fleetd-base-dir`
+5. Start your second ngrok tunnel and forward to http://localhost:8085.
+	- Example: `ngrok http --domain=more.pezhub.ngrok.app http://localhost:8085`
+6. Start your fleet server with `FLEET_DEV_DOWNLOAD_FLEETDM_URL` to point to the ngrok URL.
+	- Example: `FLEET_DEV_DOWNLOAD_FLEETDM_URL="https://more.pezhub.ngrok.app"`
+7. Enroll your mac with ADE. Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host.
 
 ## MDM setup and testing
 

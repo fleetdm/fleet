@@ -165,14 +165,22 @@ func ApplyWindowsMDMEnrollmentFetcherMiddleware(
 
 var errIsWindowsServer = errors.New("device is a Windows Server")
 
-// GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
-// server set the "needs windows enrollment" flag to true, executes the command
-// to enroll into Windows MDM (or not, if the device is a Windows Server).
+// Run checks if the fleet server set the "needs windows {un}enrollment" flag
+// to true, and executes the command to {un}enroll into Windows MDM (or not, if
+// the device is a Windows Server). It also unenrolls the device if the flag
+// "needs MDM migration" is set to true, so that the device can then be
+// enrolled in Fleet MDM.
 func (w *windowsMDMEnrollmentConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
-	if cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment {
+	switch {
+	case cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment:
 		w.attemptEnrollment(cfg.Notifications)
-	} else if cfg.Notifications.NeedsProgrammaticWindowsMDMUnenrollment {
-		w.attemptUnenrollment()
+	case cfg.Notifications.NeedsProgrammaticWindowsMDMUnenrollment,
+		cfg.Notifications.NeedsMDMMigration:
+		label := "unenroll"
+		if cfg.Notifications.NeedsMDMMigration {
+			label = "migrate"
+		}
+		w.attemptUnenrollment(label)
 	}
 	return nil
 }
@@ -227,18 +235,18 @@ func (w *windowsMDMEnrollmentConfigReceiver) attemptEnrollment(notifs fleet.Orbi
 	}
 }
 
-func (w *windowsMDMEnrollmentConfigReceiver) attemptUnenrollment() {
+func (w *windowsMDMEnrollmentConfigReceiver) attemptUnenrollment(actionLabel string) {
 	if w.mu.TryLock() {
 		defer w.mu.Unlock()
 
 		// do not unenroll Windows Servers, and do not attempt unenrollment if the
 		// last run is not at least Frequency ago.
 		if w.isWindowsServer {
-			log.Debug().Msg("skipped calling UnregisterDeviceWithManagement to unenroll Windows device, device is a server")
+			log.Debug().Msgf("skipped calling UnregisterDeviceWithManagement to %s Windows device, device is a server", actionLabel)
 			return
 		}
 		if time.Since(w.lastUnenrollRun) <= w.Frequency {
-			log.Debug().Msg("skipped calling UnregisterDeviceWithManagement to unenroll Windows device, last run was too recent")
+			log.Debug().Msgf("skipped calling UnregisterDeviceWithManagement to %s Windows device, last run was too recent", actionLabel)
 			return
 		}
 
@@ -252,15 +260,15 @@ func (w *windowsMDMEnrollmentConfigReceiver) attemptUnenrollment() {
 		if err := fn(args); err != nil {
 			if errors.Is(err, errIsWindowsServer) {
 				w.isWindowsServer = true
-				log.Info().Msg("device is a Windows Server, skipping unenrollment")
+				log.Info().Msgf("device is a Windows Server, skipping %s", actionLabel)
 			} else {
-				log.Info().Err(err).Msg("calling UnregisterDeviceWithManagement to unenroll Windows device failed")
+				log.Info().Err(err).Msgf("calling UnregisterDeviceWithManagement to %s Windows device failed", actionLabel)
 			}
 			return
 		}
 
 		w.lastUnenrollRun = time.Now()
-		log.Info().Msg("successfully called UnregisterDeviceWithManagement to unenroll Windows device")
+		log.Info().Msgf("successfully called UnregisterDeviceWithManagement to %s Windows device", actionLabel)
 	}
 }
 
@@ -293,15 +301,18 @@ type runScriptsConfigReceiver struct {
 
 	// ensures only one script execution runs at a time
 	mu sync.Mutex
+
+	rootDirPath string
 }
 
 func ApplyRunScriptsConfigFetcherMiddleware(
-	scriptsEnabled bool, scriptsClient scripts.Client,
+	scriptsEnabled bool, scriptsClient scripts.Client, rootDirPath string,
 ) (fleet.OrbitConfigReceiver, func() bool) {
 	scriptsFetcher := &runScriptsConfigReceiver{
 		ScriptsExecutionEnabled:            scriptsEnabled,
 		ScriptsClient:                      scriptsClient,
 		dynamicScriptsEnabledCheckInterval: 5 * time.Minute,
+		rootDirPath:                        rootDirPath,
 	}
 	// start the dynamic check for scripts enabled if required
 	scriptsFetcher.runDynamicScriptsEnabledCheck()
@@ -350,6 +361,13 @@ func (h *runScriptsConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 	timeout := fleetscripts.MaxHostExecutionTime
 	if cfg.ScriptExeTimeout > 0 {
 		timeout = time.Duration(cfg.ScriptExeTimeout) * time.Second
+	}
+
+	if runtime.GOOS == "darwin" {
+		if cfg.Notifications.RunSetupExperience && !CanRun(h.rootDirPath, "swiftDialog", SwiftDialogMacOSTarget) {
+			log.Debug().Msg("exiting scripts config runner early during setup experience: swiftDialog is not installed")
+			return nil
+		}
 	}
 
 	if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {

@@ -102,7 +102,7 @@ type baseDialog struct {
 }
 
 func newBaseDialog(path string) *baseDialog {
-	return &baseDialog{path: path, interruptCh: make(chan struct{})}
+	return &baseDialog{path: path, interruptCh: make(chan struct{}, 1)}
 }
 
 func (b *baseDialog) CanRun() bool {

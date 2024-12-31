@@ -39,7 +39,7 @@ const RenewAbmModal = ({
 
   const onRenewToken = useCallback(async () => {
     if (!tokenFile) {
-      // this shouldn'r happen, but just in case
+      // this shouldn't happen, but just in case
       renderFlash("error", "Please provide a token file.");
       return;
     }

@@ -7,6 +7,7 @@ import { pick, findIndex } from "lodash";
 
 import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
+import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
   IDeviceMappingResponse,
   IMacadminsResponse,
@@ -15,6 +16,7 @@ import {
 } from "interfaces/host";
 import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
+import { IHostSoftware } from "interfaces/software";
 
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
@@ -46,10 +48,12 @@ import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
 import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
+import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import SelfService from "../cards/Software/SelfService";
+import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import DeviceUserBanners from "./components/DeviceUserBanners";
 
 const baseClass = "device-user";
@@ -108,10 +112,18 @@ const DeviceUserPage = ({
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
+  const [showCreateLinuxKeyModal, setShowCreateLinuxKeyModal] = useState(false);
   const [globalConfig, setGlobalConfig] = useState<IDeviceGlobalConfig | null>(
     null
   );
   const [hasSelfService, setSelfService] = useState(false);
+  const [isTriggeringCreateLinuxKey, setIsTriggeringCreateLinuxKey] = useState(
+    false
+  );
+  const [
+    selectedSoftwareDetails,
+    setSelectedSoftwareDetails,
+  ] = useState<IHostSoftware | null>(null);
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", deviceAuthToken],
@@ -321,6 +333,22 @@ const DeviceUserPage = ({
     );
   };
 
+  const onTriggerEscrowLinuxKey = async () => {
+    setIsTriggeringCreateLinuxKey(true);
+    // modal opens in loading state
+    setShowCreateLinuxKeyModal(true);
+    try {
+      await diskEncryptionAPI.triggerLinuxDiskEncryptionKeyEscrow(
+        deviceAuthToken
+      );
+    } catch (e) {
+      renderFlash("error", "Failed to trigger key creation.");
+      setShowCreateLinuxKeyModal(false);
+    } finally {
+      setIsTriggeringCreateLinuxKey(false);
+    }
+  };
+
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
 
@@ -349,26 +377,30 @@ const DeviceUserPage = ({
           <div className={`${baseClass} main-content`}>
             <DeviceUserBanners
               hostPlatform={host.platform}
+              hostOsVersion={host.os_version}
               mdmEnrollmentStatus={host.mdm.enrollment_status}
               mdmEnabledAndConfigured={
                 !!globalConfig?.mdm.enabled_and_configured
               }
-              mdmConnectedToFleet={!!host.mdm.connected_to_fleet}
-              diskEncryptionStatus={
+              connectedToFleetMdm={!!host.mdm.connected_to_fleet}
+              macDiskEncryptionStatus={
                 host.mdm.macos_settings?.disk_encryption ?? null
               }
               diskEncryptionActionRequired={
                 host.mdm.macos_settings?.action_required ?? null
               }
               onTurnOnMdm={toggleEnrollMdmModal}
+              onTriggerEscrowLinuxKey={onTriggerEscrowLinuxKey}
+              diskEncryptionOSSetting={host.mdm.os_settings?.disk_encryption}
+              diskIsEncrypted={host.disk_encryption_enabled}
+              diskEncryptionKeyAvailable={host.mdm.encryption_key_available}
             />
             <HostSummaryCard
               summaryData={summaryData}
               bootstrapPackageData={bootstrapPackageData}
               isPremiumTier={isPremiumTier}
               toggleOSSettingsModal={toggleOSSettingsModal}
-              hostMdmProfiles={host?.mdm.profiles ?? []}
-              isConnectedToFleetMdm={host?.mdm.connected_to_fleet}
+              hostSettings={host?.mdm.profiles ?? []}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionDropdown={renderActionButtons}
@@ -429,6 +461,7 @@ const DeviceUserPage = ({
                       platform={host.platform}
                       hostTeamId={host.team_id || 0}
                       isSoftwareEnabled={isSoftwareEnabled}
+                      onShowSoftwareDetails={setSelectedSoftwareDetails}
                     />
                   </TabPanel>
                 )}
@@ -474,6 +507,21 @@ const DeviceUserPage = ({
               onClose={() => setShowBootstrapPackageModal(false)}
             />
           )}
+        {showCreateLinuxKeyModal && !!host && (
+          <CreateLinuxKeyModal
+            isTriggeringCreateLinuxKey={isTriggeringCreateLinuxKey}
+            onExit={() => {
+              setShowCreateLinuxKeyModal(false);
+            }}
+          />
+        )}
+        {selectedSoftwareDetails && !!host && (
+          <SoftwareDetailsModal
+            hostDisplayName={host.display_name}
+            software={selectedSoftwareDetails}
+            onExit={() => setSelectedSoftwareDetails(null)}
+          />
+        )}
       </div>
     );
   };
@@ -485,6 +533,7 @@ const DeviceUserPage = ({
         fullWidth
         notification={notification}
         onRemoveFlash={hideFlash}
+        pathname={location.pathname}
       />
       <nav className="site-nav-container">
         <div className="site-nav-content">
