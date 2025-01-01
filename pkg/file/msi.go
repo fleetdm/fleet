@@ -242,9 +242,25 @@ func decodeStrings(dataReader, poolReader io.Reader) ([]string, error) {
 			}
 			return nil, fmt.Errorf("failed to read pool entry: %w", err)
 		}
+		stringEntrySize := int(stringEntry.Size)
+
+		// For string pool entries too long for the size to fit in a single 4-byte entry, we get an 8-byte entry instead,
+		// with the first two bytes as zeroes, the next two are the two most-significant bytes of the size, shifted
+		// 17 (?!?) bits to the left, the following two are the less-significant bits of the size, and the last two are
+		// the reference count. Verified with the OpenVPN Connect v3 installer, which has a large string blob for
+		// licenses where a 17-bit shift captures the length properly.
+		if stringEntry.Size == 0 && stringEntry.RefCount != 0 {
+			stringEntrySize = int(stringEntry.RefCount) << 17
+			err := binary.Read(poolReader, binary.LittleEndian, &stringEntry)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read large string pool entry: %w", err)
+			}
+			stringEntrySize += int(stringEntry.Size)
+		}
+
 		buf.Reset()
-		buf.Grow(int(stringEntry.Size))
-		_, err = io.CopyN(&buf, dataReader, int64(stringEntry.Size))
+		buf.Grow(stringEntrySize)
+		_, err = io.CopyN(&buf, dataReader, int64(stringEntrySize))
 		if err != nil {
 			return nil, fmt.Errorf("failed to read string data: %w", err)
 		}
