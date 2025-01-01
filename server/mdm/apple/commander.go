@@ -171,6 +171,25 @@ func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host,
 	return nil
 }
 
+func (svc *MDMAppleCommander) RemoveApplication(ctx context.Context, hostUUIDs []string, uuid string, identifier string) error {
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+	<dict>
+		<key>RequestType</key>
+		<string>RemoveApplication</string>
+		<key>Identifier</key>
+		<string>%s</string>
+	</dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+</dict>
+</plist>`, identifier, uuid)
+	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+}
+
 func (svc *MDMAppleCommander) InstallApplication(ctx context.Context, hostUUIDs []string, uuid string, adamID string) error {
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -187,6 +206,15 @@ func (svc *MDMAppleCommander) InstallApplication(ctx context.Context, hostUUIDs 
         </dict>
         <key>RequestType</key>
         <string>InstallApplication</string>
+        <key>Attributes</key>
+        <dict>
+            <key>Removable</key>
+            <true />
+        </dict>        
+		<key>InstallAsManaged</key>
+		<true/>		
+        <key>ChangeManagementState</key>
+        <string>Managed</string>		
         <key>iTunesStoreID</key>
         <integer>%s</integer>
     </dict>
@@ -378,7 +406,8 @@ func (svc *MDMAppleCommander) EnqueueCommand(ctx context.Context, hostUUIDs []st
 }
 
 func (svc *MDMAppleCommander) enqueueAndNotify(ctx context.Context, hostUUIDs []string, cmd *mdm.Command,
-	subtype mdm.CommandSubtype) error {
+	subtype mdm.CommandSubtype,
+) error {
 	if _, err := svc.storage.EnqueueCommand(ctx, hostUUIDs,
 		&mdm.CommandWithSubtype{Command: *cmd, Subtype: subtype}); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing command")
@@ -393,7 +422,8 @@ func (svc *MDMAppleCommander) enqueueAndNotify(ctx context.Context, hostUUIDs []
 // EnqueueCommandInstallProfileWithSecrets is a special case of EnqueueCommand that does not expand secret variables.
 // Secret variables are expanded when the command is sent to the device, and secrets are never stored in the database unencrypted.
 func (svc *MDMAppleCommander) EnqueueCommandInstallProfileWithSecrets(ctx context.Context, hostUUIDs []string,
-	rawCommand mobileconfig.Mobileconfig, commandUUID string) error {
+	rawCommand mobileconfig.Mobileconfig, commandUUID string,
+) error {
 	cmd := &mdm.Command{
 		CommandUUID: commandUUID,
 		Raw:         []byte(rawCommand),
