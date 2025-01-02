@@ -1084,7 +1084,7 @@ func expectAppleDeclarations(
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		ctx := context.Background()
 		return sqlx.SelectContext(ctx, q, &got,
-			`SELECT declaration_uuid, team_id, identifier, name, raw_json, checksum, created_at, uploaded_at FROM mdm_apple_declarations WHERE team_id = ?`,
+			`SELECT declaration_uuid, team_id, identifier, name, raw_json, token, created_at, uploaded_at FROM mdm_apple_declarations WHERE team_id = ?`,
 			tmID)
 	})
 

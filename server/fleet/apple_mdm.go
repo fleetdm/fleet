@@ -589,9 +589,6 @@ type MDMAppleDeclaration struct {
 	// RawJSON is the raw JSON content of the declaration
 	RawJSON json.RawMessage `db:"raw_json" json:"-"`
 
-	// Checksum is a checksum of the JSON contents
-	Checksum string `db:"checksum" json:"-"`
-
 	// Token is used to identify if declaration needs to be re-applied.
 	// It contains the checksum of the JSON contents and secrets updated timestamp (if secret variables are present).
 	Token string `db:"token" json:"-"`
@@ -688,9 +685,9 @@ type MDMAppleHostDeclaration struct {
 	// either by the MDM protocol or the Fleet server.
 	Detail string `db:"detail" json:"detail"`
 
-	// Checksum contains the MD5 checksum of the declaration JSON uploaded
-	// by the IT admin. Fleet uses this value as the ServerToken.
-	Checksum string `db:"checksum" json:"-"`
+	// Token is used to identify if declaration needs to be re-applied.
+	// It contains the checksum of the JSON contents and secrets updated timestamp (if secret variables are present).
+	Token string `db:"token" json:"-"`
 
 	// SecretsUpdatedAt is the timestamp when the secrets were last updated or when this declaration was uploaded.
 	SecretsUpdatedAt *time.Time `db:"secrets_updated_at" json:"-"`
@@ -706,7 +703,7 @@ func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 		p.Identifier == other.Identifier &&
 		p.OperationType == other.OperationType &&
 		p.Detail == other.Detail &&
-		p.Checksum == other.Checksum &&
+		p.Token == other.Token &&
 		secretsEqual
 }
 

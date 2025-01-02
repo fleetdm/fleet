@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/google/uuid"
@@ -195,17 +194,14 @@ func (m *MySQLStorage) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*md
 	command := new(mdm.CommandWithSubtype)
 	id := "?"
 	var args []interface{}
-	// Validate the ID to avoid SQL injection.
-	// This performance optimization eliminates the prepare statement for this frequent query.
-	// Eventually, we should use binary storage for id (UUID).
+	// This performance optimization eliminates the prepare statement for this frequent query for macOS devices.
+	// For macOS devices, UDID is a UUID, so we can validate it and use it directly in the query.
 	if err := uuid.Validate(r.ID); err == nil {
 		id = "'" + r.ID + "'"
 	} else {
-		err = ctxerr.Wrap(r.Context, err, "device ID is not a valid UUID: %s", r.ID)
-		m.logger.Info("msg", "device ID is not a UUID", "device_id", r.ID, "err", err)
-		// Handle the error by sending it to Redis to be included in aggregated statistics.
-		// Before switching UUID to use binary storage, we should ensure that this error rate is low/none.
-		ctxerr.Handle(r.Context, err)
+		// iOS devices have a UDID that is not a valid UUID.
+		// User enrollments have their own identifier, which is not a UUID.
+		// We use a prepared statement for these cases to avoid SQL injection.
 		args = append(args, r.ID)
 	}
 	err := m.reader(r.Context).QueryRowxContext(

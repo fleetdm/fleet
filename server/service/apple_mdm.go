@@ -4328,7 +4328,7 @@ func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *
 			Status:        &status,
 			OperationType: fleet.MDMOperationTypeInstall,
 			Detail:        detail,
-			Checksum:      r.ServerToken,
+			Token:         r.ServerToken,
 		}
 	}
 
