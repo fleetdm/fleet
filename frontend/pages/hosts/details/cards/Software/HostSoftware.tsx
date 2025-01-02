@@ -223,6 +223,28 @@ const HostSoftware = ({
     [id, renderFlash, refetchSoftware]
   );
 
+  const uninstallHostVPPApp = useCallback(
+    async (softwareId: number) => {
+      setSoftwareIdActionPending(softwareId);
+      try {
+        await hostAPI.uninstallHostSoftwarePackage(id as number, softwareId);
+        renderFlash(
+          "success",
+          <>
+            The remove application command has been sent. Uninstallion will
+            occur when the device comes online. To see details, click
+            <b>Details &gt; Activity</b>.
+          </>
+        );
+      } catch (e) {
+        renderFlash("error", getUninstallErrorMessage(e));
+      }
+      setSoftwareIdActionPending(null);
+      refetchSoftware();
+    },
+    [id, renderFlash, refetchSoftware]
+  );
+
   const onSelectAction = useCallback(
     (software: IHostSoftware, action: string) => {
       switch (action) {
@@ -235,6 +257,9 @@ const HostSoftware = ({
         case "showDetails":
           onShowSoftwareDetails?.(software);
           break;
+        case "remove":
+          uninstallHostVPPApp(software.id);
+          break;
         default:
           break;
       }
@@ -243,6 +268,7 @@ const HostSoftware = ({
       installHostSoftwarePackage,
       onShowSoftwareDetails,
       uninstallHostSoftwarePackage,
+      uninstallHostVPPApp,
     ]
   );
 

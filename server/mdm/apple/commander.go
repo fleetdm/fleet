@@ -187,6 +187,9 @@ func (svc *MDMAppleCommander) RemoveApplication(ctx context.Context, hostUUIDs [
     <string>%s</string>
 </dict>
 </plist>`, identifier, uuid)
+	fmt.Println("Executing RemoveApplication command")
+	fmt.Println(raw)
+
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }
 
