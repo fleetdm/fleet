@@ -26,6 +26,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -1347,6 +1348,10 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 			{Identifier: "i4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			// Profiles from previous team being deleted
+			{Identifier: "i2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+			{Identifier: mobileconfig.FleetFileVaultPayloadIdentifier, OperationType: fleet.MDMOperationTypeRemove,
+				Status: &fleet.MDMDeliveryPending},
 		},
 	})
 
@@ -5536,5 +5541,104 @@ func (s *integrationMDMTestSuite) TestWindowsConfigSecretVariablesUpload() {
 	}
 
 	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "xml", "windows")
+
+}
+
+func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
+	t := s.T()
+	ctx := context.Background()
+
+	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
+	require.NoError(t, err)
+
+	globalProfiles := [][]byte{
+		mobileconfigForTest("N1", "I1"),
+	}
+	wantGlobalProfiles := globalProfiles
+	wantGlobalProfiles = append(
+		wantGlobalProfiles,
+		setupExpectedFleetdProfile(t, s.server.URL, t.Name(), nil),
+	)
+
+	// add global profiles
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+
+	// Create a host and then enroll to MDM.
+	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setupPusher(s, t, mdmDevice)
+
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes := checkNextPayloads(t, mdmDevice, false)
+	// verify that we received all profiles
+	s.signedProfilesMatch(
+		append(wantGlobalProfiles, setupExpectedCAProfile(t, s.ds)),
+		installs,
+	)
+	require.Empty(t, removes)
+
+	// Add a profile
+	globalProfilesPlusOne := [][]byte{
+		globalProfiles[0],
+		mobileconfigForTest("N2", "I2"),
+	}
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfilesPlusOne},
+		http.StatusNoContent)
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+
+	// Make sure profile was uploaded
+	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Len(t, profiles, 4)
+
+	// Delete a profile before it is sent to device
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	// The host grabs the removal command from Fleet
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	assert.Equal(t, "RemoveProfile", cmd.Command.RequestType)
+	// Since profile is not on the device, it returns an error.
+	errChain := []mdm.ErrorChain{
+		{
+			ErrorCode:            89,
+			ErrorDomain:          "FooErrorDomain",
+			LocalizedDescription: "The profile not found",
+		},
+	}
+	cmd, err = mdmDevice.Err(cmd.CommandUUID, errChain)
+	require.NoError(t, err)
+	assert.Nil(t, cmd)
+
+	// Make sure deleted profile no longer shows up
+	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Len(t, profiles, 3)
+
+	// Add a profile again
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfilesPlusOne},
+		http.StatusNoContent)
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+
+	// The host grabs the profile from Fleet
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	assert.Equal(t, "InstallProfile", cmd.Command.RequestType)
+
+	// While the host is installing the profile, we delete it.
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+
+	// Host acknowledges installing the profile and grabs the remove command
+	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "RemoveProfile", cmd.Command.RequestType)
+	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	assert.Nil(t, cmd)
 
 }
