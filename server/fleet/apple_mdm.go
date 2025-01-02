@@ -326,6 +326,7 @@ type MDMAppleProfilePayload struct {
 	OperationType     MDMOperationType   `db:"operation_type"`
 	Detail            string             `db:"detail"`
 	CommandUUID       string             `db:"command_uuid"`
+	IgnoreError       bool               `db:"ignore_error"`
 }
 
 // DidNotInstallOnHost indicates whether this profile was not installed on the host (and
@@ -357,6 +358,7 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	Detail            string
 	Checksum          []byte
 	SecretsUpdatedAt  *time.Time
+	IgnoreError       bool
 }
 
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
