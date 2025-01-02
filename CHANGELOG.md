@@ -1,3 +1,58 @@
+## Fleet 4.62.0 (Jan 02, 2025)
+
+### Bug fixes
+
+### Endpoint Operations
+- Added capability to automatically generate "trigger policies" for custom software packages.
+- Stop older scheduled queries from filling logs with errors
+- Changed script upload endpoint (`POST /api/v1/fleet/scripts`) to automatically switch CRLF line endings to LF
+- Fleshed out server response from `queries` endpoint to include `count` and `meta` pagination information.
+- Updated UI queries page to filter, sort, paginate, etc. via query params in call to server.
+- Updated platform filtering on queries page to refer to targeted platforms instead of compatible platforms
+- Updated queries API to support above targeted platform filtering
+
+### Device Management (MDM)
+- Added license key validation on `fleetctl preview` if a license key is provided; fixes cases where an invalid license key would cause `fleetctl preview` to hang.
+- Allowed team policy endpoint (`PATCH /api/latest/fleet/teams/{team_id}/policies/{policy_id}`) to receive explicit `null` as a value for `script_id` or `software_title_id` to unset a script or software installer respectively.
+- Alises EAP versions of JetBrains IDEs to "last release version plus all fixes" to avoid vulnerability false positives.
+
+### Vulnerability Management
+- Added Mastodon icon and URL to server email templates.
+- Added a validation to prevent label deletion if it is used to scope the hosts targeted by a software installer.
+- Fixed issue where minio software was not scanned for vulnerabilities correctly because of unexpected trailing characters in the version string
+
+### Bug fixes and improvements
+- Fleet UI: Fix export to CSV from trimming leading zeros by treating those values as strings
+- Send alert via SNS when a scheduled "cron" job returns errors
+- SNS topic for job error alerts can be configured separately from the existing monitor alert by adding "cron_job_failure_monitoring" to sns_topic_arns_map, otherwise defaults to the using the same topic
+- Fix bug when creating a label to preserve the selected team
+- Add UI for scoping software via labels
+- Removed server error if no private IP was found by detail_query_network_interface.
+- Added ability to use secrets ($FLEET_SECRET_YOURNAME) in scripts and profiles.
+- Fleet UI: Add searchable query targets and cleaner UI for uses with many teams or labels
+- Increased maximum length for installer URLs specified in GitOps to 4000 characters
+- Fixed a panic (and resulting failure to load CVE details) on new installs when OS versions have not been populated yet.
+- Add functionality to filter host software based on label scoping.
+- Add the ability to click a software row on the my device page and see the details of that software's installation on the host.
+- Update fleetctl dependencies that cause warnings
+- Added service annotation field to Helm Chart
+- Added features to scope Fleet-maintained apps and custom packages via labels in UI, API, and CLI.
+- Allowed software uninstalls and script-based host lock/unlock/wipe to run while global scripts are disabled.
+- Fix policy truncation UI bug
+- Add support for fleet secret validation in software installer scripts
+- Added fallback to FileVersion on EXE installers when FileVersion is set but ProductVersion isn't to allow more custom packages to be uploaded
+- Removed duplicate software records from homebrew casks already reported in the osquery `apps` table to address false positive vulnerabilities due to lack of bundle_identifier
+- Fixed cases where showing results of an inherited query viewed inside a team would include results from hosts not on thta team by adding an optional team_id parameter to queries report endpoint (`GET /api/latest/fleet/queries/{query_id}/report`)
+- Added the `labels_include_any` and `labels_exclude_any` fields to the software installer activities.
+- Updated the get host endpoint to include disk encryption stats for a linux host only if the setting is enabled
+- Added a descriptive error when a GitOps file contains script references that are missing paths
+- Fixed CVE-2024-10004 false positive on Fleet-supported platforms (vuln is iOS-only and iOS vuln checking is not supported)
+- Removed `invalid UUID` log message when validating Apple MDM UDID.
+- Fixed a bug in determining sort type of query result columns by deducing that type from the data present in those columns.
+- Display the correct percentage of hosts online, 0, when there are no hosts online.
+- Validate fleet secrets embedded into scripts and profiles on ingestion
+- Adds functionality for skipping automatic installs if the software is not scoped to the host via labels.
+
 ## Fleet 4.61.0 (Dec 17, 2024)
 
 ## Endpoint operations

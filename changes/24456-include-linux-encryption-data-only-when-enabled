@@ -1,1 +1,0 @@
-- Updated the get host endpoint to include disk encryption stats for a linux host only if the setting is enabled
