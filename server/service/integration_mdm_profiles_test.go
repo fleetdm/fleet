@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
+	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
@@ -5565,7 +5566,12 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 
 	// Create a host and then enroll to MDM.
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	setupPusher(s, t, mdmDevice)
+	// Add IdP email to host
+	mysql.ExecAdhocSQL(t, s.ds, func(e sqlx.ExtContext) error {
+		_, err := e.ExecContext(ctx, `INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`, "idp@example.com", host.ID,
+			fleet.DeviceMappingMDMIdpAccounts)
+		return err
+	})
 
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
@@ -5577,10 +5583,11 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	)
 	require.Empty(t, removes)
 
-	// Add a profile
+	// Add a profile with a Fleet variable. We are also testing that removal of a profile with a Fleet variable works.
+	// A unique command is created for each host when this Fleet variable is used.
 	globalProfilesPlusOne := [][]byte{
 		globalProfiles[0],
-		mobileconfigForTest("N2", "I2"),
+		mobileconfigForTest("N2", "$FLEET_VAR_"+FleetVarHostEndUserEmailIDP),
 	}
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfilesPlusOne},
 		http.StatusNoContent)
@@ -5596,21 +5603,24 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
-	// The host grabs the removal command from Fleet
-	cmd, err := mdmDevice.Idle()
-	require.NoError(t, err)
-	assert.Equal(t, "RemoveProfile", cmd.Command.RequestType)
-	// Since profile is not on the device, it returns an error.
-	errChain := []mdm.ErrorChain{
-		{
-			ErrorCode:            89,
-			ErrorDomain:          "FooErrorDomain",
-			LocalizedDescription: "The profile not found",
-		},
+	sendErrorOnRemoveProfile := func(device *mdmtest.TestAppleMDMClient) {
+		// The host grabs the removal command from Fleet
+		cmd, err := device.Idle()
+		require.NoError(t, err)
+		assert.Equal(t, "RemoveProfile", cmd.Command.RequestType)
+		// Since profile is not on the device, it returns an error.
+		errChain := []mdm.ErrorChain{
+			{
+				ErrorCode:            89,
+				ErrorDomain:          "FooErrorDomain",
+				LocalizedDescription: "The profile not found",
+			},
+		}
+		cmd, err = device.Err(cmd.CommandUUID, errChain)
+		require.NoError(t, err)
+		assert.Nil(t, cmd)
 	}
-	cmd, err = mdmDevice.Err(cmd.CommandUUID, errChain)
-	require.NoError(t, err)
-	assert.Nil(t, cmd)
+	sendErrorOnRemoveProfile(mdmDevice)
 
 	// Make sure deleted profile no longer shows up
 	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
@@ -5624,9 +5634,20 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	s.awaitTriggerProfileSchedule(t)
 
 	// The host grabs the profile from Fleet
-	cmd, err = mdmDevice.Idle()
+	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 	assert.Equal(t, "InstallProfile", cmd.Command.RequestType)
+	// Verify that the Fleet variable was replaced with the IdP email
+	type Command struct {
+		Command struct {
+			Payload []byte
+		}
+	}
+	var p Command
+	err = plist.Unmarshal(cmd.Raw, &p)
+	require.NoError(t, err)
+	assert.NotContains(t, string(p.Command.Payload), "$FLEET_VAR_"+FleetVarHostEndUserEmailIDP)
+	assert.Contains(t, string(p.Command.Payload), "idp@example.com")
 
 	// While the host is installing the profile, we delete it.
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
@@ -5640,5 +5661,40 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 	require.NoError(t, err)
 	assert.Nil(t, cmd)
+
+	// Add another device
+	host2, mdmDevice2 := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	// Add IdP email to host
+	mysql.ExecAdhocSQL(t, s.ds, func(e sqlx.ExtContext) error {
+		_, err := e.ExecContext(ctx, `INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`, "idp2@example.com", host2.ID,
+			fleet.DeviceMappingMDMIdpAccounts)
+		return err
+	})
+
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes = checkNextPayloads(t, mdmDevice2, false)
+	assert.Len(t, installs, 3)
+
+	// Add a profile again
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfilesPlusOne},
+		http.StatusNoContent)
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	// Delete a profile before it is sent to both devices
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	// The host grabs the removal command from Fleet
+	sendErrorOnRemoveProfile(mdmDevice)
+	sendErrorOnRemoveProfile(mdmDevice2)
+
+	// Make sure deleted profile no longer shows up on either host
+	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Len(t, profiles, 3)
+	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host2.UUID)
+	require.NoError(t, err)
+	assert.Len(t, profiles, 3)
 
 }
