@@ -138,8 +138,9 @@ export const generateActions = ({
   }
 
   if (app_store_app) {
-    // Why? Because we don't want to show the uninstall action for VPP apps
-    // remove uninstall for VPP apps
+    // remove `uninstall` for VPP apps and replace with `remove`
+    // iOS and iPadOS RemoveApplication MDM commands should be handled differently as the removal is not
+    // not executed via fleetd.
     actions.splice(indexUninstallAction, 1);
     actions.push({ value: "remove", label: "Uninstall", disabled: false });
 
