@@ -89,7 +89,11 @@ export const InstallTypeSection = ({
           name="install-type"
           label="Manual"
           onChange={onChangeInstallType}
-          helpText="Manually install on Host details page for each host."
+          helpText={
+            <>
+              Manually install on <b>Host details</b> page for each host.
+            </>
+          }
         />
         <Radio
           checked={installType === "automatic"}
