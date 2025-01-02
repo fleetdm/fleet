@@ -80,7 +80,7 @@ module.exports = {
     let teamsinformationForSoftware = [];
     let teamApids = _.pluck(teams, 'fleetApid');
     // Get all of the software packages on the Fleet instance.
-    for(let teamApid of teamApids){
+    await sails.helpers.flow.simultaneouslyForEach(teamApids, async (teamApid)=>{
       let configurationProfilesResponseData = await sails.helpers.http.get.with({
         url: `/api/latest/fleet/software/titles?team_id=${teamApid}`,
         baseUrl: sails.config.custom.fleetBaseUrl,
@@ -95,7 +95,12 @@ module.exports = {
       let softwareWithSoftwarePackages = _.filter(softwareForThisTeam, (software)=>{
         return !_.isEmpty(software.software_package);
       });
-      for(let softwareWithInstaller of softwareWithSoftwarePackages) {
+      // Exclude Fleet maintained apps from the list of software. (If a software item has a package_url value, it is a Fleet maintained app)
+      let softwarePackagesWithNoDownloadUrl = _.filter(softwareWithSoftwarePackages, (software)=>{
+        let softwarePackage = software.software_package;
+        return softwarePackage.package_url !== undefined;
+      });
+      await sails.helpers.flow.simultaneouslyForEach(softwarePackagesWithNoDownloadUrl, async (softwareWithInstaller)=>{
         let softwareWithInstallerResponse = await sails.helpers.http.get.with({
           url: `/api/latest/fleet/software/titles/${softwareWithInstaller.id}?team_id=${teamApid}&available_for_install=true`,
           baseUrl: sails.config.custom.fleetBaseUrl,
@@ -122,8 +127,10 @@ module.exports = {
         };
         teamsinformationForSoftware.push(teamInfo);
         allSoftwareWithPackages.push(packageInfo);
-      }
-    }
+      });// After every software item with an installer
+
+    });// After every team
+
     for(let software of allSoftwareWithPackages) {
       software.teams = _.where(teamsinformationForSoftware, {'softwareFleetApid': software.software_title_id});
       software.teams = _.map(software.teams, (team)=>{
