@@ -151,12 +151,12 @@ const QueriesTable = ({
       router?.push(locationPath);
     },
     [
-      sortHeader,
-      sortDirection,
-      searchQuery,
       curTargetedPlatformFilter,
+      sortDirection,
+      sortHeader,
+      searchQuery,
+      queryParams,
       router,
-      page,
     ]
   );
 
