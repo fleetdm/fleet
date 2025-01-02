@@ -1,6 +1,7 @@
 import React from "react";
 import { AxiosResponse } from "axios";
 import { IApiError } from "interfaces/errors";
+import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
 
 export const parseFile = async (file: File): Promise<[string, string]> => {
   // get the file name and extension
@@ -60,7 +61,7 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
   }
 
   if (apiReason.includes("Secret variable")) {
-    return apiReason.replace("missing from database", "doesn't exist");
+    return generateSecretErrMsg(err);
   }
 
   return apiReason || DEFAULT_ERROR_MESSAGE;

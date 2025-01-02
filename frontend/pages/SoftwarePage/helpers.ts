@@ -15,14 +15,25 @@ export const generateSecretErrMsg = (err: unknown) => {
     errorType = "post-install script";
   } else if (getErrorReason(err, { nameEquals: "uninstall script" })) {
     errorType = "uninstall script";
+  } else if (getErrorReason(err, { nameEquals: "profile" })) {
+    errorType = "profile";
   }
 
+  if (errorType === "profile") {
+    return reason
+      .split(":")[1]
+      .replace(/Secret variables?/i, "Variable")
+      .replace("missing from database", "doesn't exist.");
+  }
+
+  // all other specific error types
   if (errorType) {
     return reason
       .replace(/Secret variables?/i, `Variable used in ${errorType} `)
       .replace("missing from database", "doesn't exist.");
   }
 
+  // no error type. return generic secret error message
   return reason
     .replace(/Secret variables?/i, "Variable")
     .replace("missing from database", "doesn't exist.");
