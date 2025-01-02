@@ -47,6 +47,10 @@ interface IFleetMaintainedAppsTableProps {
   data?: ISoftwareFleetMaintainedAppsResponse;
 }
 
+interface IRowProps {
+  original: IFleetMaintainedApp;
+}
+
 const FleetMaintainedAppsTable = ({
   teamId,
   isLoading,
@@ -118,9 +122,10 @@ const FleetMaintainedAppsTable = ({
     [determineQueryParamChange, generateNewQueryParams, router]
   );
 
-  const handleRowClick = (row: IFleetMaintainedApp) => {
+  const handleRowClick = (row: IRowProps) => {
+    console.log("row", row);
     const path = `${PATHS.SOFTWARE_FLEET_MAINTAINED_DETAILS(
-      row.id
+      row.original.id
     )}?${buildQueryStringFromParams({
       team_id: teamId,
     })}`;
@@ -156,7 +161,7 @@ const FleetMaintainedAppsTable = ({
   };
 
   return (
-    <TableContainer<IFleetMaintainedApp>
+    <TableContainer<IRowProps>
       className={baseClass}
       columnConfigs={tableHeadersConfig}
       data={data?.fleet_maintained_apps ?? []}
