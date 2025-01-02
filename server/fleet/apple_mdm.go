@@ -330,8 +330,20 @@ type MDMAppleProfilePayload struct {
 
 // DidNotInstallOnHost indicates whether this profile was not installed on the host (and
 // therefore is not, as far as Fleet knows, currently on the host).
+// The profile in Pending status could be on the host, but Fleet has not received an Acknowledged status yet.
 func (p *MDMAppleProfilePayload) DidNotInstallOnHost() bool {
 	return p.Status != nil && (*p.Status == MDMDeliveryFailed || *p.Status == MDMDeliveryPending) && p.OperationType == MDMOperationTypeInstall
+}
+
+// FailedInstallOnHost indicates whether this profile failed to install on the host.
+func (p *MDMAppleProfilePayload) FailedInstallOnHost() bool {
+	return p.Status != nil && *p.Status == MDMDeliveryFailed && p.OperationType == MDMOperationTypeInstall
+}
+
+// PendingInstallOnHost indicates whether this profile is pending to install on the host.
+// The profile in Pending status could be on the host, but Fleet has not received an Acknowledged status yet.
+func (p *MDMAppleProfilePayload) PendingInstallOnHost() bool {
+	return p.Status != nil && *p.Status == MDMDeliveryPending && p.OperationType == MDMOperationTypeInstall
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {
