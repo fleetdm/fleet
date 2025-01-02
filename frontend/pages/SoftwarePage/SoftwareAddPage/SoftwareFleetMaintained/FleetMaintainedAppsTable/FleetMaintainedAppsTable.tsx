@@ -123,7 +123,6 @@ const FleetMaintainedAppsTable = ({
   );
 
   const handleRowClick = (row: IRowProps) => {
-    console.log("row", row);
     const path = `${PATHS.SOFTWARE_FLEET_MAINTAINED_DETAILS(
       row.original.id
     )}?${buildQueryStringFromParams({
