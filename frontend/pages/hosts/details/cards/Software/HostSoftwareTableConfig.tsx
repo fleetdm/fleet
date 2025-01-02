@@ -138,8 +138,10 @@ export const generateActions = ({
   }
 
   if (app_store_app) {
+    // Why? Because we don't want to show the uninstall action for VPP apps
     // remove uninstall for VPP apps
     actions.splice(indexUninstallAction, 1);
+    actions.push({ value: "remove", label: "Uninstall", disabled: false });
 
     if (!hostMDMEnrolled) {
       actions[indexInstallAction].disabled = true;
