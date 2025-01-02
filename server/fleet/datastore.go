@@ -1954,6 +1954,9 @@ type ProfileVerificationStore interface {
 	// profile status. It deletes the row if the profile operation is "remove"
 	// and the status is "verifying" (i.e. successfully removed).
 	UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *HostMDMAppleProfile) error
+	// ExpandEmbeddedSecrets expands the fleet secrets in a
+	// document using the secrets stored in the datastore.
+	ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error)
 }
 
 var _ ProfileVerificationStore = (Datastore)(nil)

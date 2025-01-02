@@ -468,7 +468,7 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	fieldsInEqualMethod++
 	items[1].Detail = items[0].Detail
 	fieldsInEqualMethod++
-	items[1].Checksum = items[0].Checksum
+	items[1].Token = items[0].Token
 	fieldsInEqualMethod++
 	items[1].Status = &status1
 	fieldsInEqualMethod++
