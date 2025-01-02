@@ -330,25 +330,25 @@ software:
       labels_include_any:
         - Engineering
         - Customer Support
-      auto_install: true
+      state: present
   # path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
   app_store_apps:
     - app_store_id: '1091189122'
       labels_include_any:
         - Product
         - Marketing
-      auto_install: true
+      state: present
   fleet_maintained_apps:
     - name: Microsoft Excel
       labels_include_any:
         - Design
         - Sales
-      auto_install: true
+      state: present
 ```
 
 - Use `labels_include_any` to target hosts that have any label in the array or `labels_exclude_any` to target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
-- Use `auto_install` to specify whether to automatically write a policy to install the software. If true, the software will be installed on every host that’s missing this software.
+- Use `state` to specify whether to automatically write a policy to install the software. If `present`, the package will be installed on every host that’s missing this software. <font color="red">QUERY: DO WE ALSO WANT TO UPGRADE IF OLDER?</font>
 
 
 ### packages
@@ -370,7 +370,7 @@ install_script:
 uninstall_script:
   path: ../lib/software/tailscale-uninstall-script.ps1
 self_service: true
-auto_install: true
+state: present
 ```
 
 ### app_store_apps
