@@ -244,7 +244,7 @@ func decodeStrings(dataReader, poolReader io.Reader) ([]string, error) {
 		}
 		stringEntrySize := int(stringEntry.Size)
 
-		// For string pool entries too long for the size to fit in a single 4-byte entry, we get an 8-byte entry instead,
+		// For string pool entries too long for the size to fit in a single uint16, entry size is 8 bytes instead of 4,
 		// with the first two bytes as zeroes, the next two are the two most-significant bytes of the size, shifted
 		// 17 (?!?) bits to the left, the following two are the less-significant bits of the size, and the last two are
 		// the reference count. Verified with the OpenVPN Connect v3 installer, which has a large string blob for
