@@ -20,10 +20,10 @@ export const generateSecretErrMsg = (err: unknown) => {
   if (errorType) {
     return reason
       .replace(/Secret variables?/i, `Variable used in ${errorType} `)
-      .replace("missing from database", "doesn't exist");
+      .replace("missing from database", "doesn't exist.");
   }
 
   return reason
     .replace(/Secret variables?/i, "Variable")
-    .replace("missing from database", "doesn't exist");
+    .replace("missing from database", "doesn't exist.");
 };
