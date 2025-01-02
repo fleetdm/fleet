@@ -33,7 +33,7 @@ export const generateSecretErrMsg = (err: unknown) => {
       .replace("missing from database", "doesn't exist.");
   }
 
-  // no error type. return generic secret error message
+  // no spcial error type. return generic secret error message
   return reason
     .replace(/Secret variables?/i, "Variable")
     .replace("missing from database", "doesn't exist.");
