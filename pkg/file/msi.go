@@ -242,24 +242,20 @@ func decodeStrings(dataReader, poolReader io.Reader) ([]string, error) {
 			}
 			return nil, fmt.Errorf("failed to read pool entry: %w", err)
 		}
-		stringEntrySize := int(stringEntry.Size)
+		stringEntrySize := uint32(stringEntry.Size)
 
-		// For string pool entries too long for the size to fit in a single uint16, entry size is 8 bytes instead of 4,
-		// with the first two bytes as zeroes, the next two are the two most-significant bytes of the size, shifted
-		// 17 (?!?) bits to the left, the following two are the less-significant bits of the size, and the last two are
-		// the reference count. Verified with the OpenVPN Connect v3 installer, which has a large string blob for
-		// licenses where a 17-bit shift captures the length properly.
+		// For string pool entries too long for the size to fit in a single uint16, the format sets the size as zero,
+		// maintains the reference count location in the structure, then uses the following four bytes (little-endian)
+		// to store the string size. See https://github.com/binref/refinery/issues/72.
 		if stringEntry.Size == 0 && stringEntry.RefCount != 0 {
-			stringEntrySize = int(stringEntry.RefCount) << 17
-			err := binary.Read(poolReader, binary.LittleEndian, &stringEntry)
+			err := binary.Read(poolReader, binary.LittleEndian, &stringEntrySize)
 			if err != nil {
-				return nil, fmt.Errorf("failed to read large string pool entry: %w", err)
+				return nil, fmt.Errorf("failed to read size of large string in string pool: %w", err)
 			}
-			stringEntrySize += int(stringEntry.Size)
 		}
 
 		buf.Reset()
-		buf.Grow(stringEntrySize)
+		buf.Grow(int(stringEntrySize))
 		_, err = io.CopyN(&buf, dataReader, int64(stringEntrySize))
 		if err != nil {
 			return nil, fmt.Errorf("failed to read string data: %w", err)
