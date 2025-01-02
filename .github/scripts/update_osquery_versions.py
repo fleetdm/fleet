@@ -14,9 +14,8 @@ def fetch_osquery_versions():
     resp = conn.getresponse()
     content = resp.read()
     conn.close()
-    releases = json.loads(content.decode('utf-8'))
 
-    return [release['tag_name'] for release in releases if not release['prerelease']]
+    return [release['tag_name'] for release in json.loads(content.decode('utf-8'))]
 
 def update_min_osquery_version_options(new_versions):
     with open(FILE_PATH, 'r') as file:
