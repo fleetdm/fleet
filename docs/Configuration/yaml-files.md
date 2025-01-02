@@ -348,7 +348,7 @@ software:
 
 - Use `labels_include_any` to target hosts that have any label in the array or `labels_exclude_any` to target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
-- Use `state` to specify whether to automatically write a policy to install the software. If `present`, the package will be installed on every host that’s missing this software. <font color="red">QUERY: DO WE ALSO WANT TO UPGRADE IF OLDER?</font>
+- Use `state` to specify whether to automatically write a policy to install the software. If `present`, Fleet will ensure the software is installed, but will not update it if an older version alreday exists on the host.
 
 
 ### packages
