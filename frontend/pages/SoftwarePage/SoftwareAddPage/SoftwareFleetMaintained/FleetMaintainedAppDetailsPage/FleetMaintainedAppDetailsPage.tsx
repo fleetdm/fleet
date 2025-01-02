@@ -12,7 +12,6 @@ import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import { QueryContext } from "context/query";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import { getErrorReason } from "interfaces/errors";
 import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { ILabelSummary } from "interfaces/label";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
@@ -33,6 +32,7 @@ import { IFleetMaintainedAppFormData } from "./FleetAppDetailsForm/FleetAppDetai
 import AddFleetAppSoftwareModal from "./AddFleetAppSoftwareModal";
 
 import {
+  getErrorMessage,
   getFleetAppPolicyDescription,
   getFleetAppPolicyName,
   getFleetAppPolicyQuery,
@@ -192,7 +192,7 @@ const FleetMaintainedAppDetailsPage = ({
     } catch (error) {
       // quick exit if there was an error adding the software. Skip the policy
       // creation.
-      renderFlash("error", getErrorReason(error));
+      renderFlash("error", getErrorMessage(error));
       setShowAddFleetAppSoftwareModal(false);
       return;
     }

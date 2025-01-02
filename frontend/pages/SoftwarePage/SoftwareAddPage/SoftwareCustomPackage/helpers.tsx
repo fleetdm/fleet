@@ -6,6 +6,8 @@ import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import CustomLink from "components/CustomLink";
 
+import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
+
 const DEFAULT_ERROR_MESSAGE = "Couldn't add. Please try again.";
 
 // eslint-disable-next-line import/prefer-default-export
@@ -30,7 +32,7 @@ export const getErrorMessage = (err: unknown) => {
       </>
     );
   } else if (reason.includes("Secret variable")) {
-    return reason.replace("missing from database", "doesn't exist");
+    return generateSecretErrMsg(err);
   } else if (reason.includes("Unable to extract necessary metadata")) {
     return (
       <>

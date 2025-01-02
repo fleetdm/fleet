@@ -6,6 +6,7 @@ import { ISoftwarePackage } from "interfaces/software";
 
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
 
 const DEFAULT_ERROR_MESSAGE = "Couldn't edit software. Please try again.";
 
@@ -36,9 +37,7 @@ export const getErrorMessage = (err: unknown, software: ISoftwarePackage) => {
       </>
     );
   } else if (reason.includes("Secret variable")) {
-    return reason
-      .replace("missing from database", "doesn't exist")
-      .replace("Couldn't add", "Couldn't edit");
+    return generateSecretErrMsg(err).replace("Couldn't add", "Couldn't edit");
   }
 
   return reason || DEFAULT_ERROR_MESSAGE;
