@@ -5675,6 +5675,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	s.awaitTriggerProfileSchedule(t)
 	installs, removes = checkNextPayloads(t, mdmDevice2, false)
 	assert.Len(t, installs, 3)
+	assert.Empty(t, removes)
 
 	// Add a profile again
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfilesPlusOne},
