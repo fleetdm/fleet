@@ -31,8 +31,8 @@ func main() {
 	}
 
 	fmt.Printf(
-		"- Name: '%s'\n- Bundle Identifier: '%s'\n- Package IDs: '%s'\n",
-		metadata.Name, metadata.BundleIdentifier, strings.Join(metadata.PackageIDs, ","),
+		"- Name: '%s'\n- Bundle Identifier: '%s'\n- Package IDs: '%s'\n- Version: %s\n\n",
+		metadata.Name, metadata.BundleIdentifier, strings.Join(metadata.PackageIDs, ","), metadata.Version,
 	)
 }
 
