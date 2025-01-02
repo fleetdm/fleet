@@ -89,6 +89,7 @@ const QueriesTable = ({
   const { currentUser } = useContext(AppContext);
 
   // Functions to avoid race conditions
+  // TODO - confirm these are still necessary
   const initialSearchQuery = (() => queryParams?.query ?? "")();
   const initialSortHeader = (() =>
     (queryParams?.order_key as "name" | "updated_at" | "author") ??
