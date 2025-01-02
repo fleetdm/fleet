@@ -4,9 +4,9 @@ Fleet can now help simplify software deployment for IT admins with automatic ins
 Fleet-maintained apps. This update eliminates the need for manual installation on individual hosts,
 saving time and effort when deploying new software across your organization. Here's how it works:
 
-1. **Select the App:** Navigate to the **Software** page and click the "Add Software". Then choose
+1. **Select the App:** Navigate to the **Software** page and click the "Add software". Then choose
    the **Fleet-maintained** section and select the desired Fleet-maintained app (e.g., Notion).
-2. **Choose Installation Method:** You'll now see a new option: a **Install** section with "Manual" and "Automatic" options. Selecting "Automatic" will create a policy to automatically install the app on hosts that don't currently have it.
+2. **Choose Installation Method:** You'll now see a new option: an **Install** section with "Manual" and "Automatic" options. Selecting "Automatic" will create a policy to automatically install the app on hosts that don't currently have it.
 3. **Add Software:** Click "Add Software" to initiate the automatic installation process.
 
 ## Key Benefits
