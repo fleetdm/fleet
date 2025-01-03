@@ -142,6 +142,24 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		smtpSettings = appConfig.SMTPSettings
 		ssoSettings = appConfig.SSOSettings
 		agentOptions = appConfig.AgentOptions
+	} else if vc.User.Teams != nil {
+		// gather the teams the current user is admin for.
+		currentUserTeamAdmin := make(map[uint]struct{})
+		for _, team := range vc.User.Teams {
+			if team.Role == fleet.RoleAdmin {
+				currentUserTeamAdmin[team.ID] = struct{}{}
+			}
+		}
+		if len(currentUserTeamAdmin) > 0 {
+			// if user is an admin for any team, include only whether or not these org-level settings are configured & enabled
+			smtpSettings = &fleet.SMTPSettings{
+				SMTPEnabled:    appConfig.SMTPSettings.SMTPConfigured,
+				SMTPConfigured: appConfig.SMTPSettings.SMTPConfigured,
+			}
+			ssoSettings = &fleet.SSOSettings{
+				EnableSSO: appConfig.SSOSettings.EnableSSO,
+			}
+		}
 	}
 
 	transparencyURL := fleet.DefaultTransparencyURL
@@ -1376,9 +1394,9 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 
 		var existingSSOProviderSettings fleet.SSOProviderSettings
 		if existing.SSOSettings != nil {
-			existingSSOProviderSettings = existing.SSOSettings.SSOProviderSettings
+			existingSSOProviderSettings = *existing.SSOSettings.SSOProviderSettings
 		}
-		validateSSOProviderSettings(p.SSOSettings.SSOProviderSettings, existingSSOProviderSettings, invalid)
+		validateSSOProviderSettings(*p.SSOSettings.SSOProviderSettings, existingSSOProviderSettings, invalid)
 
 		if !license.IsPremium() {
 			if p.SSOSettings.EnableJITProvisioning {

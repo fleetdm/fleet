@@ -55,12 +55,6 @@ spec:
       software:
     windows_settings:
       custom_settings:
-    end_user_authentication:
-      idp_name: ""
-      issuer_uri: ""
-      metadata: ""
-      metadata_url: ""
-      entity_id: ""
   scripts: null
   license:
     expiration: "0001-01-01T00:00:00Z"
@@ -116,30 +110,10 @@ spec:
     scripts_disabled: false
     ai_features_disabled: false
   smtp_settings:
-    authentication_method: ""
-    authentication_type: ""
     configured: false
-    domain: ""
     enable_smtp: false
-    enable_ssl_tls: false
-    enable_start_tls: false
-    password: ""
-    port: 0
-    sender_address: ""
-    server: ""
-    user_name: ""
-    verify_ssl_certs: false
   sso_settings:
-    enable_jit_provisioning: false
-    enable_jit_role_sync: false
     enable_sso: false
-    enable_sso_idp_login: false
-    entity_id: ""
-    idp_image_url: ""
-    idp_name: ""
-    issuer_uri: ""
-    metadata: ""
-    metadata_url: ""
   update_interval:
     osquery_detail: 1h0m0s
     osquery_policy: 1h0m0s
