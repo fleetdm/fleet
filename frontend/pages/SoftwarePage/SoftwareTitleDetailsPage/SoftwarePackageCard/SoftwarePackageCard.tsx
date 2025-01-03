@@ -189,8 +189,8 @@ const SoftwareActionsDropdown = ({
   onDeleteClick,
   onEditSoftwareClick,
 }: IActionsDropdownProps) => {
-  const onSelect = (value: string) => {
-    switch (value) {
+  const onSelect = (action: string) => {
+    switch (action) {
       case "download":
         onDownloadClick();
         break;
@@ -208,10 +208,9 @@ const SoftwareActionsDropdown = ({
   return (
     <div className={`${baseClass}__actions`}>
       <ActionsDropdown
-        className={`${baseClass}__host-actions-dropdown`}
+        className={`${baseClass}__software-actions-dropdown`}
         onChange={onSelect}
         placeholder="Actions"
-        isSearchable={false}
         options={
           isSoftwarePackage
             ? [...SOFTWARE_PACKAGE_DROPDOWN_OPTIONS]
