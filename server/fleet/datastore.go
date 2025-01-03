@@ -1706,6 +1706,10 @@ type Datastore interface {
 	// Software installers
 	//
 
+	GetHostsInScopeForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error)
+	GetHostsNotInScopeForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error)
+	ClearAutoInstallPolicyStatusForHost(ctx context.Context, installerID uint, hostIDs []uint) error
+
 	// GetSoftwareInstallDetails returns details required to fetch and
 	// run software installers
 	GetSoftwareInstallDetails(ctx context.Context, executionId string) (*SoftwareInstallDetails, error)
