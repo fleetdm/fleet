@@ -363,17 +363,20 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		Name:             assetMD.TrackName,
 		LatestVersion:    assetMD.Version,
 	}
-	if _, err := svc.ds.InsertVPPAppWithTeam(ctx, app, teamID); err != nil {
+
+	addedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, app, teamID)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "writing VPP app to db")
 	}
 
 	act := fleet.ActivityAddedAppStoreApp{
-		AppStoreID:    app.AdamID,
-		Platform:      app.Platform,
-		TeamName:      &teamName,
-		SoftwareTitle: app.Name,
-		TeamID:        teamID,
-		SelfService:   app.SelfService,
+		AppStoreID:      app.AdamID,
+		Platform:        app.Platform,
+		TeamName:        &teamName,
+		SoftwareTitle:   app.Name,
+		SoftwareTitleId: addedApp.TitleID,
+		TeamID:          teamID,
+		SelfService:     app.SelfService,
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for add app store app")
