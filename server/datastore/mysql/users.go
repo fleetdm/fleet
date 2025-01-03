@@ -326,11 +326,10 @@ func (ds *Datastore) UserSettings(ctx context.Context, userID uint) (*fleet.User
 	`
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &bytes, stmt, userID)
 	if err != nil {
-		// okay for a user not to have any settings
 		if err == sql.ErrNoRows {
-			return settings, nil
+			return nil, ctxerr.Wrap(ctx, notFound("UserSettings").WithID(userID))
 		}
-		return nil, ctxerr.Wrap(ctx, err, "selecting app config")
+		return nil, ctxerr.Wrap(ctx, err, "selecting user settings")
 	}
 
 	if len(bytes) == 0 {
