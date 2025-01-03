@@ -72,8 +72,8 @@ export const PlatformSelector = ({
       </span>
       <div className="form-field__help-text">
         Your policy will only run on the selected platform(s). Additionally, if
-        install software automation is enabled, it will run only on hosts
-        defined in the software scope.
+        install software automation is enabled, it will only be installed on
+        hosts defined in the software scope.
       </div>
     </div>
   );
