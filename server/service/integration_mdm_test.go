@@ -9751,9 +9751,13 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.Profiles)
-	require.Len(t, *getHostResp.Host.MDM.Profiles, 2)
+	// Since Fleet doesn't know for sure whether profile was installed or not, it sends a remove command just in case.
+	require.Len(t, *getHostResp.Host.MDM.Profiles, 3)
 	for _, hm := range *getHostResp.Host.MDM.Profiles {
 		require.Equal(t, fleet.MDMDeliveryPending, *hm.Status)
+		if hm.Name == "N3" {
+			assert.Equal(t, fleet.MDMOperationTypeRemove, hm.OperationType)
+		}
 	}
 }
 

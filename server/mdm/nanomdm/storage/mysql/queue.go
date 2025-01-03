@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/google/uuid"
@@ -259,4 +260,55 @@ WHERE
 		r.ID,
 	)
 	return err
+}
+
+// BulkDeleteHostUserCommandsWithoutResults deletes all commands without results for the given host/user IDs.
+// This is used to clean up the queue when a profile is deleted from Fleet.
+func (m *MySQLStorage) BulkDeleteHostUserCommandsWithoutResults(ctx context.Context, commandToIDs map[string][]string) error {
+	if len(commandToIDs) == 0 {
+		return nil
+	}
+	return common_mysql.WithRetryTxx(ctx, sqlx.NewDb(m.db, ""), func(tx sqlx.ExtContext) error {
+		return m.bulkDeleteHostUserCommandsWithoutResults(ctx, tx, commandToIDs)
+	}, loggerWrapper{m.logger})
+}
+
+func (m *MySQLStorage) bulkDeleteHostUserCommandsWithoutResults(ctx context.Context, tx sqlx.ExtContext,
+	commandToIDs map[string][]string) error {
+	stmt := `
+DELETE
+    eq
+FROM
+    nano_enrollment_queue AS eq
+	LEFT JOIN nano_command_results AS cr
+		ON cr.command_uuid = eq.command_uuid AND cr.id = eq.id
+WHERE
+	cr.command_uuid IS NULL AND eq.command_uuid = ? AND eq.id IN (?);`
+
+	// We process each commandUUID one at a time, in batches of hostUserIDs.
+	// This is because the number of hostUserIDs can be large, and number of unique commands is normally small.
+	// If we have a use case where each host has a unique command, we can create a separate method for that use case.
+	for commandUUID, hostUserIDs := range commandToIDs {
+		if len(hostUserIDs) == 0 {
+			continue
+		}
+
+		batchSize := 10000
+		err := common_mysql.BatchProcessSimple(hostUserIDs, batchSize, func(hostUserIDsToProcess []string) error {
+			expanded, args, err := sqlx.In(stmt, commandUUID, hostUserIDsToProcess)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "expanding bulk delete nano commands")
+			}
+			_, err = tx.ExecContext(ctx, expanded, args...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "bulk delete nano commands")
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

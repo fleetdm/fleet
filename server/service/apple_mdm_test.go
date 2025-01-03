@@ -2293,6 +2293,10 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		require.Empty(t, payload)
 		return nil
 	}
+	mdmStorage.BulkDeleteHostUserCommandsWithoutResultsFunc = func(ctx context.Context, commandToIDs map[string][]string) error {
+		require.Empty(t, commandToIDs)
+		return nil
+	}
 
 	var enqueueFailForOp fleet.MDMOperationType
 	var mu sync.Mutex

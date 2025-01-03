@@ -245,3 +245,8 @@ func (s *FileStorage) ExpandEmbeddedSecrets(_ context.Context, document string) 
 	// NOT IMPLEMENTED
 	return document, nil
 }
+
+func (s *FileStorage) BulkDeleteHostUserCommandsWithoutResults(_ context.Context, _ map[string][]string) error {
+	// NOT IMPLEMENTED
+	return nil
+}

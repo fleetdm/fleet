@@ -1,0 +1,1 @@
+Fixed issue where deleted Apple config profiles were installing on devices because devices were offline when the profile was added.

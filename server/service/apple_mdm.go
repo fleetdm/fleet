@@ -3464,16 +3464,24 @@ func ReconcileAppleProfiles(
 	}
 
 	for _, p := range toRemove {
+		// Exclude profiles that are also marked for installation.
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
 			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
 			continue
 		}
 
-		if p.DidNotInstallOnHost() {
-			// then we shouldn't send an additional remove command since it wasn't installed on the
-			// host.
+		if p.FailedInstallOnHost() {
+			// then we shouldn't send an additional remove command since it failed to install on the host.
 			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
 			continue
+		}
+		if p.PendingInstallOnHost() {
+			// The profile most likely did not install on host. However, it is possible that the profile
+			// is currently being installed. So, we clean up the profile from the database, but also send
+			// a remove command to the host.
+			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
+			// IgnoreError is set since the removal command is likely to fail.
+			p.IgnoreError = true
 		}
 
 		target := removeTargets[p.ProfileUUID]
@@ -3496,6 +3504,7 @@ func ReconcileAppleProfiles(
 			ProfileName:       p.ProfileName,
 			Checksum:          p.Checksum,
 			SecretsUpdatedAt:  p.SecretsUpdatedAt,
+			IgnoreError:       p.IgnoreError,
 		})
 	}
 
@@ -3504,6 +3513,16 @@ func ReconcileAppleProfiles(
 	// `InstallProfile` for the same identifier, which can cause race
 	// conditions. It's better to "update" the profile by sending a single
 	// `InstallProfile` command.
+	//
+	// Create a map of command UUIDs to host IDs
+	commandUUIDToHostIDsCleanupMap := make(map[string][]string)
+	for _, hp := range hostProfilesToCleanup {
+		commandUUIDToHostIDsCleanupMap[hp.CommandUUID] = append(commandUUIDToHostIDsCleanupMap[hp.CommandUUID], hp.HostUUID)
+	}
+	// We need to delete commands from the nano queue so they don't get sent to device.
+	if err := commander.BulkDeleteHostUserCommandsWithoutResults(ctx, commandUUIDToHostIDsCleanupMap); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting nano commands without results")
+	}
 	if err := ds.BulkDeleteMDMAppleHostsConfigProfiles(ctx, hostProfilesToCleanup); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
 	}

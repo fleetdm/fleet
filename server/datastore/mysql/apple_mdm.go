@@ -2719,7 +2719,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               detail,
               command_uuid,
               checksum,
-              secrets_updated_at
+              secrets_updated_at,
+			  ignore_error
             )
             VALUES %s
             ON DUPLICATE KEY UPDATE
@@ -2728,6 +2729,7 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               detail = VALUES(detail),
               checksum = VALUES(checksum),
               secrets_updated_at = VALUES(secrets_updated_at),
+              ignore_error = VALUES(ignore_error),
               profile_identifier = VALUES(profile_identifier),
               profile_name = VALUES(profile_name),
               command_uuid = VALUES(command_uuid)`,
@@ -2747,9 +2749,9 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	}
 
 	generateValueArgs := func(p *fleet.MDMAppleBulkUpsertHostProfilePayload) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
 		args := []any{p.ProfileUUID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID,
-			p.Checksum, p.SecretsUpdatedAt}
+			p.Checksum, p.SecretsUpdatedAt, p.IgnoreError}
 		return valuePart, args
 	}
 
@@ -2767,14 +2769,25 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 }
 
 func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
-	if profile.OperationType == fleet.MDMOperationTypeRemove &&
-		profile.Status != nil &&
-		(*profile.Status == fleet.MDMDeliveryVerifying || *profile.Status == fleet.MDMDeliveryVerified) {
-		_, err := ds.writer(ctx).ExecContext(ctx, `
+	if profile.OperationType == fleet.MDMOperationTypeRemove && profile.Status != nil {
+		var ignoreError bool
+		if *profile.Status == fleet.MDMDeliveryFailed {
+			// Check whether we should ignore the error.
+			err := sqlx.GetContext(ctx, ds.reader(ctx), &ignoreError, `
+				SELECT ignore_error FROM host_mdm_apple_profiles WHERE host_uuid = ? AND command_uuid = ?`,
+				profile.HostUUID, profile.CommandUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get ignore error")
+			}
+		}
+		if ignoreError ||
+			(*profile.Status == fleet.MDMDeliveryVerifying || *profile.Status == fleet.MDMDeliveryVerified) {
+			_, err := ds.writer(ctx).ExecContext(ctx, `
           DELETE FROM host_mdm_apple_profiles
           WHERE host_uuid = ? AND command_uuid = ?
         `, profile.HostUUID, profile.CommandUUID)
-		return err
+			return err
+		}
 	}
 
 	detail := profile.Detail

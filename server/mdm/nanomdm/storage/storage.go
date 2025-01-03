@@ -27,6 +27,8 @@ type CommandAndReportResultsStore interface {
 	StoreCommandReport(r *mdm.Request, report *mdm.CommandResults) error
 	RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.CommandWithSubtype, error)
 	ClearQueue(r *mdm.Request) error
+	// BulkDeleteHostUserCommandsWithoutResults deletes all commands without results for the given host/user IDs.
+	BulkDeleteHostUserCommandsWithoutResults(ctx context.Context, commandToId map[string][]string) error
 }
 
 type BootstrapTokenStore interface {
