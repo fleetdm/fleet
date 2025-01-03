@@ -307,7 +307,7 @@ Retrieves the user data for the authenticated user.
 
 #### Example
 
-`GET /api/v1/fleet/me?include_ui_settings=true`
+`GET /api/v1/fleet/me?include_settings=true`
 
 ##### Default response
 
