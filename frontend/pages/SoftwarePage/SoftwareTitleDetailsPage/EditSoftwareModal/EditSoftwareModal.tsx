@@ -24,6 +24,7 @@ import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/Pack
 import {
   generateSelectedLabels,
   getCustomTarget,
+  getInstallType,
   getTargetType,
 } from "pages/SoftwarePage/components/PackageForm/helpers";
 
@@ -70,11 +71,7 @@ const EditSoftwareModal = ({
   });
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  const {
-    data: labels,
-    isLoading: isLoadingLabels,
-    isError: isErrorLabels,
-  } = useQuery<ILabelSummary[], Error>(
+  const { data: labels } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
     () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
     {
@@ -178,6 +175,7 @@ const EditSoftwareModal = ({
       postInstallScript: software.post_install_script || "",
       uninstallScript: software.uninstall_script || "",
       selfService: software.self_service || false,
+      installType: getInstallType(software),
       targetType: getTargetType(software),
       customTarget: getCustomTarget(software),
       labelTargets: generateSelectedLabels(software),

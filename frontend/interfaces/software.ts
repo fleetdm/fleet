@@ -82,7 +82,7 @@ export interface ISoftwarePackage {
     pending_uninstall: number;
     failed_uninstall: number;
   };
-  automatic_install_policies?: ISoftwarePackagePolicy[];
+  automatic_install_policies?: ISoftwarePackagePolicy[] | null;
   install_during_setup?: boolean;
   labels_include_any: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;

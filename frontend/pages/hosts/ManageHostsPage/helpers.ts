@@ -40,7 +40,7 @@ export const getDeleteLabelErrorMessages = (error: unknown): string => {
   if (hasStatusKey(error) && error.status === 422) {
     return getErrorReason(error).includes("built-in")
       ? "Built-in labels can't be modified or deleted."
-      : "Couldn't delete. Software uses this label as a custom target. Please delete the software and try again.";
+      : "Couldn't delete. Software uses this label as a custom target. Remove the label from the software target and try again.";
   }
 
   return "Could not delete label. Please try again.";

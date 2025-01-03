@@ -71,8 +71,9 @@ export const PlatformSelector = ({
         </Checkbox>
       </span>
       <div className="form-field__help-text">
-        To apply the profile to new hosts, you&apos;ll have to delete it and
-        upload a new profile.
+        Your policy will only run on the selected platform(s). Additionally, if
+        install software automation is enabled, it will only be installed on
+        hosts defined in the software scope.
       </div>
     </div>
   );
