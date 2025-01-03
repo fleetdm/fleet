@@ -1,0 +1,4 @@
+Allow delivery of bootstrap packages and software installers using signed URLs from CloudFront CDN. To enable, configure server settings:
+- s3_software_installers_cloudfront_url
+- s3_software_installers_cloudfront_url_signing_public_key_id
+- s3_software_installers_cloudfront_url_signing_private_key
