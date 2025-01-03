@@ -10,6 +10,7 @@ import { QueryParams } from "utilities/url";
 
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import DataSet from "components/DataSet";
+import LastUpdatedText from "components/LastUpdatedText";
 
 import SoftwareIcon from "../icons/SoftwareIcon";
 
@@ -19,6 +20,7 @@ interface ISoftwareDetailsSummaryProps {
   title: string;
   type?: string;
   hosts: number;
+  countsUpdatedAt?: string;
   /** The query param that will be added when user clicks on "View all hosts" link */
   queryParams: QueryParams;
   name?: string;
@@ -31,6 +33,7 @@ const SoftwareDetailsSummary = ({
   title,
   type,
   hosts,
+  countsUpdatedAt,
   queryParams,
   name,
   source,
@@ -46,7 +49,26 @@ const SoftwareDetailsSummary = ({
           {!!type && <DataSet title="Type" value={type} />}
 
           {!!versions && <DataSet title="Versions" value={versions} />}
-          <DataSet title="Hosts" value={hosts === 0 ? "---" : hosts} />
+          <DataSet
+            title="Hosts"
+            value={
+              <>
+                {hosts === 0 ? "---" : hosts}{" "}
+                {countsUpdatedAt && (
+                  <LastUpdatedText
+                    lastUpdatedAt={countsUpdatedAt}
+                    customTooltipText={
+                      <>
+                        The last time host data was updated. <br />
+                        Click <b>View all hosts</b> to see the most
+                        <br /> up-to-date host count.
+                      </>
+                    }
+                  />
+                )}
+              </>
+            }
+          />
         </dl>
       </dl>
       <div>

@@ -178,6 +178,7 @@ const SoftwareTitleDetailsPage = ({
             type={formatSoftwareType(softwareTitle)}
             versions={softwareTitle.versions?.length ?? 0}
             hosts={softwareTitle.hosts_count}
+            countsUpdatedAt={softwareTitle.counts_updated_at}
             queryParams={{
               software_title_id: softwareId,
               team_id: teamIdForApi,
