@@ -289,10 +289,10 @@ const TableContainer = <T,>({
 
     // New preferred pattern uses grid container/box to allow for more dynamic responsiveness
     // At low widths, search bar (3rd div of 4) moves above other 3 divs
-    if (customFiltersButton) {
+    if (stackControls) {
       return (
         <div className="container">
-          <div className="header">
+          <div className="stackable-header">
             {renderCount && !disableCount && (
               <div
                 className={`${baseClass}__results-count ${
@@ -306,7 +306,7 @@ const TableContainer = <T,>({
           </div>
 
           {actionButton && !actionButton.hideButton && (
-            <div className="header">
+            <div className="stackable-header">
               <Button
                 disabled={disableActionButton}
                 onClick={actionButton.onActionButtonClick}
@@ -320,7 +320,7 @@ const TableContainer = <T,>({
               </Button>
             </div>
           )}
-          <div className="header top-shift-header">
+          <div className="stackable-header top-shift-header">
             {customControl ? customControl() : undefined}
             {searchable && !wideSearch && (
               <div className={`${baseClass}__search`}>
@@ -348,7 +348,7 @@ const TableContainer = <T,>({
                 </ReactTooltip>
               </div>
             )}
-            {customFiltersButton()}
+            {customFiltersButton && customFiltersButton()}
           </div>
         </div>
       );

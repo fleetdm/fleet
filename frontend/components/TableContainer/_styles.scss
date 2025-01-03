@@ -13,7 +13,7 @@
     gap: $pad-small $pad-medium;
   }
 
-  .header {
+  .stackable-header {
     min-width: max-content;
     align-content: center;
     display: flex;
@@ -23,6 +23,11 @@
     > div {
       display: flex;
       flex-direction: row;
+    }
+
+    // only if in stackable header
+    .table-container__search {
+      width: 100%;
     }
   }
 
@@ -36,7 +41,7 @@
     }
   }
 
-  .header:nth-child(1) {
+  .stackable-header:nth-child(1) {
     grid-column: 1 / span 2; /* Make Header 1 expand across two columns */
     grid-row: 2;
 
@@ -46,7 +51,7 @@
   }
 
   /* Media query for larger screens */
-  @media (min-width: $table-controls-break) {
+  @media (min-width: $break-md) {
     .container {
       grid-template-columns: 1fr auto; /* First column takes all remaining space */
       grid-template-rows: auto; /* Single row */
@@ -56,7 +61,7 @@
       grid-column: 2; /* Single row */
     }
 
-    .header:nth-child(1) {
+    .stackable-header:nth-child(1) {
       grid-column: 1; /* Ensure Header 1 stays in the first column */
       grid-row: 1; /* Single row */
     }
