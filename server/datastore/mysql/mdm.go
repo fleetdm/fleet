@@ -202,7 +202,7 @@ FROM (
 		name,
 		'darwin' AS platform,
 		identifier,
-		checksum AS checksum,
+		token AS checksum,
 		created_at,
 		uploaded_at
 	FROM mdm_apple_declarations
@@ -543,6 +543,10 @@ OR
 	// (and my hunch is that we could even do the same for
 	// profiles) but this could be optimized to use only a provided
 	// set of host uuids.
+	//
+	// Note(victor): Why is the status being set to nil? Shouldn't it be set to pending?
+	// Or at least pending for install and nil for remove profiles. Please update this comment if you know.
+	// This method is called bulkSetPendingMDMHostProfilesDB, so it is confusing that the status is NOT explicitly set to pending.
 	_, updates.AppleDeclaration, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, nil)
 	if err != nil {
 		return updates, ctxerr.Wrap(ctx, err, "bulk set pending apple declarations")

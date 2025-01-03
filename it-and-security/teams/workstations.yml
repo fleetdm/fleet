@@ -65,9 +65,8 @@ controls:
       - package_path: ../lib/macos/software/google-chrome.yml # Google Chrome for macOS
       - package_path: ../lib/macos/software/zoom.yml # Zoom for macOS
       - app_store_id: '803453959' # Slack Desktop
-      - app_store_id: '1333542190' # 1Password 7 Desktop
   macos_updates:
-    deadline: "2025-01-03"
+    deadline: "2025-01-07"
     minimum_version: "15.2"
   windows_settings:
     custom_settings: null
@@ -110,6 +109,3 @@ software:
     - path: ../lib/macos/software/google-chrome.yml # Google Chrome for macOS
   app_store_apps:
     - app_store_id: '803453959' # Slack Desktop
-    - app_store_id: '1333542190' # 1Password 7 Desktop
-    - app_store_id: '1477376905' # GitHub
-    - app_store_id: '1152747299' # Figma

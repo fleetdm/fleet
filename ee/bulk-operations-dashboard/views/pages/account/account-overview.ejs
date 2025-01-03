@@ -23,19 +23,19 @@
         <span v-if="me.emailStatus === 'unconfirmed' || me.emailStatus === 'change-requested'" class="badge badge-pill badge-warning">Unverified</span>
       </div>
     </div>
-    <hr/>
-    <div class="row mb-3">
+    <hr/ v-if="!replaceBuiltInAuthWithEntra">
+    <div class="row mb-3" v-if="!replaceBuiltInAuthWithEntra">
       <div class="col-sm-6">
         <h4>Password</h4>
       </div>
       <div class="col-sm-6">
         <span class="float-sm-right">
-          <a style="width: 150px" class="btn btn-sm btn-outline-info" href="/account/password">Change password</a>
+          <a style="width: 150px" class="btn btn-sm btn-outline-info" :disabled="replaceBuiltInAuthWithEntra" href="/account/password">Change password</a>
         </span>
       </div>
     </div>
-    <div class="row">
-      <div class="col-2">Password:</div>
+    <div class="row" v-if="!replaceBuiltInAuthWithEntra">
+      <div class="col-3">Password:</div>
       <div class="col"><strong>••••••••••</strong></div>
     </div>
     <hr/>

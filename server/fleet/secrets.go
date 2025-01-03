@@ -20,5 +20,5 @@ func (e MissingSecretsError) Error() string {
 	if len(secretVars) > 1 {
 		plural = "s"
 	}
-	return fmt.Sprintf("Couldn't add. Variable%s %s missing", plural, strings.Join(secretVars, ", "))
+	return fmt.Sprintf("Couldn't add. Secret variable%s %s missing from database", plural, strings.Join(secretVars, ", "))
 }

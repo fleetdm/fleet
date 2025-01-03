@@ -1777,6 +1777,7 @@ WHERE
   team_id = ?
 `
 
+	// For Windows profiles, if team_id and name are the same, we do an update. Otherwise, we do an insert.
 	const insertNewOrEditedProfile = `
 INSERT INTO
   mdm_windows_configuration_profiles (

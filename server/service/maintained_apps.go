@@ -10,13 +10,15 @@ import (
 )
 
 type addFleetMaintainedAppRequest struct {
-	TeamID            *uint  `json:"team_id"`
-	AppID             uint   `json:"fleet_maintained_app_id"`
-	InstallScript     string `json:"install_script"`
-	PreInstallQuery   string `json:"pre_install_query"`
-	PostInstallScript string `json:"post_install_script"`
-	SelfService       bool   `json:"self_service"`
-	UninstallScript   string `json:"uninstall_script"`
+	TeamID            *uint    `json:"team_id"`
+	AppID             uint     `json:"fleet_maintained_app_id"`
+	InstallScript     string   `json:"install_script"`
+	PreInstallQuery   string   `json:"pre_install_query"`
+	PostInstallScript string   `json:"post_install_script"`
+	SelfService       bool     `json:"self_service"`
+	UninstallScript   string   `json:"uninstall_script"`
+	LabelsIncludeAny  []string `json:"labels_include_any"`
+	LabelsExcludeAny  []string `json:"labels_exclude_any"`
 }
 
 type addFleetMaintainedAppResponse struct {
@@ -39,6 +41,8 @@ func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc
 		req.PostInstallScript,
 		req.UninstallScript,
 		req.SelfService,
+		req.LabelsIncludeAny,
+		req.LabelsExcludeAny,
 	)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -50,12 +54,30 @@ func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc
 	return &addFleetMaintainedAppResponse{SoftwareTitleID: titleId}, nil
 }
 
-func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool) (uint, error) {
+func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool, labelsIncludeAny, labelsExcludeAny []string) (uint, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
 	return 0, fleet.ErrMissingLicense
+}
+
+type editFleetMaintainedAppRequest struct {
+	TeamID            *uint    `json:"team_id"`
+	AppID             uint     `json:"fleet_maintained_app_id"`
+	InstallScript     string   `json:"install_script"`
+	PreInstallQuery   string   `json:"pre_install_query"`
+	PostInstallScript string   `json:"post_install_script"`
+	SelfService       bool     `json:"self_service"`
+	UninstallScript   string   `json:"uninstall_script"`
+	LabelsIncludeAny  []string `json:"labels_include_any"`
+	LabelsExcludeAny  []string `json:"labels_exclude_any"`
+}
+
+func editFleetMaintainedAppEndpoint(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+	// TODO: implement this
+
+	return nil, errors.New("not implemented")
 }
 
 type listFleetMaintainedAppsRequest struct {

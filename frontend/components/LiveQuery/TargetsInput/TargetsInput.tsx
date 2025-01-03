@@ -108,7 +108,7 @@ const TargetsInput = ({
               emptyComponent={() => (
                 <div className="empty-search">
                   <div className="empty-search__inner">
-                    <h4>No hosts match the current search criteria.</h4>
+                    <h4>No matching hosts.</h4>
                     <p>
                       Expecting to see hosts? Try again in a few seconds as the
                       system catches up.
@@ -122,7 +122,7 @@ const TargetsInput = ({
               disablePagination
               disableMultiRowSelect
               onClickRow={handleRowSelect}
-              keyboardSelectableRow
+              keyboardSelectableRows
             />
           </div>
         )}

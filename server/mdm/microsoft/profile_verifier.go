@@ -9,6 +9,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 )
@@ -31,6 +32,11 @@ func LoopHostMDMLocURIs(
 		return fmt.Errorf("getting host profiles for verification: %w", err)
 	}
 	for _, expectedProf := range profileMap {
+		expanded, err := ds.ExpandEmbeddedSecrets(ctx, string(expectedProf.RawProfile))
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "expanding embedded secrets for profile %s", expectedProf.Name)
+		}
+		expectedProf.RawProfile = []byte(expanded)
 		var prof fleet.SyncMLCmd
 		wrappedBytes := fmt.Sprintf("<Atomic>%s</Atomic>", expectedProf.RawProfile)
 		if err := xml.Unmarshal([]byte(wrappedBytes), &prof); err != nil {

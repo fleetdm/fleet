@@ -1,6 +1,7 @@
 import React from "react";
 import { AxiosResponse } from "axios";
 import { IApiError } from "interfaces/errors";
+import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
 
 export const parseFile = async (file: File): Promise<[string, string]> => {
   // get the file name and extension
@@ -37,7 +38,7 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
 
   if (
     apiReason.includes(
-      "The configuration profile can’t include BitLocker settings."
+      "The configuration profile can't include BitLocker settings."
     )
   ) {
     return (
@@ -49,7 +50,7 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
 
   if (
     apiReason.includes(
-      "The configuration profile can’t include Windows update settings."
+      "The configuration profile can't include Windows update settings."
     )
   ) {
     return (
@@ -58,5 +59,10 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
       </span>
     );
   }
+
+  if (apiReason.includes("Secret variable")) {
+    return generateSecretErrMsg(err);
+  }
+
   return apiReason || DEFAULT_ERROR_MESSAGE;
 };
