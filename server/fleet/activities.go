@@ -1932,7 +1932,7 @@ func (a ActivityAddedAppStoreApp) Documentation() (activity string, details stri
 - "team_name": Name of the team to which this App Store app was added, or ` + "`null`" + ` if it was added to no team.
 - "team_id": ID of the team to which this App Store app was added, or ` + "`null`" + `if it was added to no team.`, `{
   "software_title": "Logic Pro",
-	"software_title_id": 123,
+  "software_title_id": 123,
   "app_store_id": "1234567",
   "platform": "darwin",
   "self_service": false,
