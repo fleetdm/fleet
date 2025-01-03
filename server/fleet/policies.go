@@ -40,6 +40,10 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	SoftwareInstallerID *uint
+	// VPPAdamID is the identifier of the VPP app that will be installed if the policy fails.
+	//
+	// Only applies to team policies.
+	VPPAdamID *string
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	//
 	// Only applies to team policies.
@@ -222,9 +226,10 @@ type PolicyData struct {
 	// Empty string targets all platforms.
 	Platform string `json:"platform" db:"platforms"`
 
-	CalendarEventsEnabled bool  `json:"calendar_events_enabled" db:"calendar_events_enabled"`
-	SoftwareInstallerID   *uint `json:"-" db:"software_installer_id"`
-	ScriptID              *uint `json:"-" db:"script_id"`
+	CalendarEventsEnabled bool    `json:"calendar_events_enabled" db:"calendar_events_enabled"`
+	SoftwareInstallerID   *uint   `json:"-" db:"software_installer_id"`
+	VPPAdamID             *string `json:"-" db:"adam_id"`
+	ScriptID              *uint   `json:"-" db:"script_id"`
 
 	UpdateCreateTimestamps
 }
@@ -335,10 +340,10 @@ type PolicySpec struct {
 // PolicySoftwareTitle contains software title data for policies.
 type PolicySoftwareTitle struct {
 	// SoftwareTitleID is the ID of the title associated to the policy.
-	SoftwareTitleID uint `json:"software_title_id"`
+	SoftwareTitleID uint `json:"software_title_id" db:"software_title_id"`
 	// Name is the associated installer title name
 	// (not the package name, but the installed software title).
-	Name string `json:"name"`
+	Name string `json:"name" db:"name"`
 }
 
 // PolicyScript contains script data for policies.

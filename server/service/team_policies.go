@@ -112,17 +112,20 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 }
 
 func (svc *Service) populatePolicyInstallSoftware(ctx context.Context, p *fleet.Policy) error {
-	if p.SoftwareInstallerID == nil {
+	if p.SoftwareInstallerID != nil {
+		installerMetadata, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, *p.SoftwareInstallerID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
+		}
+		p.InstallSoftware = &fleet.PolicySoftwareTitle{
+			SoftwareTitleID: *installerMetadata.TitleID,
+			Name:            installerMetadata.SoftwareTitle,
+		}
 		return nil
 	}
-	installerMetadata, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, *p.SoftwareInstallerID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
-	}
-	p.InstallSoftware = &fleet.PolicySoftwareTitle{
-		SoftwareTitleID: *installerMetadata.TitleID,
-		Name:            installerMetadata.SoftwareTitle,
-	}
+
+	// TODO pull VPP metadata if adam ID exists
+
 	return nil
 }
 
@@ -139,7 +142,7 @@ func (svc *Service) populatePolicyRunScript(ctx context.Context, p *fleet.Policy
 }
 
 func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, teamID uint, p fleet.NewTeamPolicyPayload) (fleet.PolicyPayload, error) {
-	softwareInstallerID, err := svc.deduceSoftwareInstallerIDFromTitleID(ctx, &teamID, p.SoftwareTitleID)
+	softwareInstallerID, vppAdamID, err := svc.getInstallerOrVPPAppForTitle(ctx, &teamID, p.SoftwareTitleID)
 	if err != nil {
 		return fleet.PolicyPayload{}, err
 	}
@@ -153,6 +156,7 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		Platform:              p.Platform,
 		CalendarEventsEnabled: p.CalendarEventsEnabled,
 		SoftwareInstallerID:   softwareInstallerID,
+		VPPAdamID:             vppAdamID,
 		ScriptID:              p.ScriptID,
 	}, nil
 }
@@ -516,18 +520,20 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		policy.PassingHostCount = 0
 	}
 	if p.SoftwareTitleID.Set {
-		softwareInstallerID, err := svc.deduceSoftwareInstallerIDFromTitleID(ctx, teamID, &p.SoftwareTitleID.Value)
+		softwareInstallerID, vppAdamID, err := svc.getInstallerOrVPPAppForTitle(ctx, teamID, &p.SoftwareTitleID.Value)
 		if err != nil {
 			return nil, err
 		}
-		// If the associated installer is changed (or it's set and the policy didn't have an associated installer)
+		// If the associated installer/app is changed (or it's set and the policy didn't have an associated installer/app)
 		// then we clear the results of the policy so that automation can be triggered upon failure
 		// (automation is currently triggered on the first failure or when it goes from passing to failure).
-		if softwareInstallerID != nil && (policy.SoftwareInstallerID == nil || *policy.SoftwareInstallerID != *softwareInstallerID) {
+		if (softwareInstallerID != nil && (policy.SoftwareInstallerID == nil || *policy.SoftwareInstallerID != *softwareInstallerID)) ||
+			(vppAdamID != nil && (policy.VPPAdamID == nil || *policy.VPPAdamID != *vppAdamID)) {
 			removeAllMemberships = true
 			removeStats = true
 		}
 		policy.SoftwareInstallerID = softwareInstallerID
+		policy.VPPAdamID = vppAdamID
 	}
 	if p.ScriptID.Set { // indicates that script ID is changing, but might be to 0 to remove
 		// If the associated script is changed (or it's set and the policy didn't have an associated script)
@@ -575,18 +581,18 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	return policy, nil
 }
 
-func (svc *Service) deduceSoftwareInstallerIDFromTitleID(ctx context.Context, teamID *uint, softwareTitleID *uint) (*uint, error) {
+func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *uint, softwareTitleID *uint) (installerID *uint, vppAdamID *string, err error) {
 	if softwareTitleID == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	// If *p.SoftwareTitleID with value 0 is used to unset the current installer from the policy.
 	if *softwareTitleID == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	if teamID == nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: "software_title_id cannot be set on global policies",
 		})
 	}
@@ -594,24 +600,32 @@ func (svc *Service) deduceSoftwareInstallerIDFromTitleID(ctx context.Context, te
 	softwareTitle, err := svc.SoftwareTitleByID(ctx, *softwareTitleID, teamID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf("software_title_id %d on team_id %d not found", *softwareTitleID, *teamID),
 			})
 		}
-		return nil, ctxerr.Wrap(ctx, err, "software title by id")
+		return nil, nil, ctxerr.Wrap(ctx, err, "software title by id")
 	}
 	if softwareTitle.AppStoreApp != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message: fmt.Sprintf("software_title_id %d on team_id %d is assocated to a VPP app, only software installers are supported", *softwareTitleID, *teamID),
-		})
+		if softwareTitle.AppStoreApp.Platform != fleet.MacOSPlatform {
+			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf(
+					"software_title_id %d on team_id %d is assocated to an iOS or iPadOS VPP app, only software installers or macOS VPP apps are supported",
+					*softwareTitleID,
+					*teamID,
+				),
+			})
+		}
+
+		return nil, &softwareTitle.AppStoreApp.AdamID, nil
 	}
 	if softwareTitle.SoftwarePackage == nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("software_title_id %d on team_id %d does not have associated package", *softwareTitleID, *teamID),
 		})
 	}
 
 	// At this point we assume *softwareTitle.SoftwarePackage.TeamID == *teamID,
 	// because SoftwareTitleByID above receives the teamID.
-	return ptr.Uint(softwareTitle.SoftwarePackage.InstallerID), nil
+	return ptr.Uint(softwareTitle.SoftwarePackage.InstallerID), nil, nil
 }
