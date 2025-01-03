@@ -83,7 +83,7 @@ interface ITableContainerProps<T = any> {
   onQueryChange?:
     | ((queryData: ITableQueryData) => void)
     | ((queryData: ITableQueryData) => number);
-  customControl?: () => JSX.Element;
+  customControl?: () => JSX.Element | null;
   /** Filter button right of the search rendering alternative responsive design where search bar moves to new line but filter button remains inline with other table headers */
   customFiltersButton?: () => JSX.Element;
   stackControls?: boolean;
@@ -292,7 +292,7 @@ const TableContainer = <T,>({
     if (customFiltersButton) {
       return (
         <div className="container">
-          <div className="box">
+          <div className="header">
             {renderCount && !disableCount && (
               <div
                 className={`${baseClass}__results-count ${
@@ -304,8 +304,9 @@ const TableContainer = <T,>({
               </div>
             )}
           </div>
-          <div className="box">
-            {actionButton && !actionButton.hideButton && (
+
+          {actionButton && !actionButton.hideButton && (
+            <div className="header">
               <Button
                 disabled={disableActionButton}
                 onClick={actionButton.onActionButtonClick}
@@ -317,10 +318,10 @@ const TableContainer = <T,>({
                   {actionButton.iconSvg && <Icon name={actionButton.iconSvg} />}
                 </>
               </Button>
-            )}
-            {customControl && customControl()}
-          </div>
-          <div className="box search">
+            </div>
+          )}
+          <div className="header top-shift-header">
+            {customControl ? customControl() : undefined}
             {searchable && !wideSearch && (
               <div className={`${baseClass}__search`}>
                 <div
@@ -347,8 +348,8 @@ const TableContainer = <T,>({
                 </ReactTooltip>
               </div>
             )}
+            {customFiltersButton()}
           </div>
-          <div className="box"> {customFiltersButton()} </div>
         </div>
       );
     }
