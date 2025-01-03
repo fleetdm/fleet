@@ -299,9 +299,15 @@ Retrieves the user data for the authenticated user.
 
 `GET /api/v1/fleet/me`
 
+#### Parameters
+
+| Name                | Type    | In    | Description                                     |
+|:------------------- |:------- |:----- |:------------------------------------------------|
+| include_settings    | boolean | query | Include the user's settings (default: false)    |
+
 #### Example
 
-`GET /api/v1/fleet/me`
+`GET /api/v1/fleet/me?include_settings=true`
 
 ##### Default response
 
@@ -321,6 +327,31 @@ Retrieves the user data for the authenticated user.
     "gravatar_url": "",
     "sso_enabled": false,
     "teams": []
+  },
+  "available_teams" : [
+    {
+      "id": 1,
+      "name": "Workstations",
+      "description": "Employee workstations"
+    }
+  ],
+  "settings": {
+    "hidden_hosts_table_columns": [
+      "hostname",
+      "computer_name",
+      "device_mapping",
+      "primary_mac",
+      "public_ip",
+      "cpu_type",
+      "mdm.server_url",
+      "mdm.enrollment_status",
+      "memory",
+      "uptime",
+      "uuid",
+      "seen_time",
+      "hardware_model",
+      "hardware_serial",
+    ]
   }
 }
 ```
@@ -11139,13 +11170,14 @@ Returns all information about a specific user.
 
 #### Parameters
 
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required**. The user's id. |
+| Name             | Type    | In    | Description                                  |
+| ---------------- | ------- | -----| --------------------------------------------- |
+| id               | integer | path  | **Required**. The user's id.                 |
+| include_settings | boolean | query | Include the user's settings (default: false) |
 
 #### Example
 
-`GET /api/v1/fleet/users/2`
+`GET /api/v1/fleet/users/2?include_settings=true`
 
 ##### Default response
 
@@ -11166,6 +11198,24 @@ Returns all information about a specific user.
     "global_role": "admin",
     "api_only": false,
     "teams": []
+  },
+  "settings": {
+    "hidden_hosts_table_columns": [
+      "hostname",
+      "computer_name",
+      "device_mapping",
+      "primary_mac",
+      "public_ip",
+      "cpu_type",
+      "mdm.server_url",
+      "mdm.enrollment_status",
+      "memory",
+      "uptime",
+      "uuid",
+      "seen_time",
+      "hardware_model",
+      "hardware_serial",
+    ]
   }
 }
 ```
@@ -11205,6 +11255,7 @@ Returns all information about a specific user.
 | new_password| string  | body | The user's new password. |
 | global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                         |
 | teams       | array   | body | _Available in Fleet Premium_. The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
+| settings    | object  | body | Optional user-specific settings.
 
 #### Example
 
@@ -11215,7 +11266,25 @@ Returns all information about a specific user.
 ```json
 {
   "name": "Jane Doe",
-  "global_role": "admin"
+  "global_role": "admin",
+  "settings": {
+    "hidden_hosts_table_columns": [
+      "hostname",
+      "computer_name",
+      "device_mapping",
+      "primary_mac",
+      "public_ip",
+      "cpu_type",
+      "mdm.server_url",
+      "mdm.enrollment_status",
+      "memory",
+      "uptime",
+      "uuid",
+      "seen_time",
+      "hardware_model",
+      "hardware_serial",
+    ]
+  }
 }
 ```
 
