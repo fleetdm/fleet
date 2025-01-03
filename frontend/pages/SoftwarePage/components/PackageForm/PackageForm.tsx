@@ -241,12 +241,14 @@ const PackageForm = ({
             formData.software ? getFileDetails(formData.software) : undefined
           }
         />
-        <InstallTypeSection
-          isCustomPackage
-          isExeCustomPackage={isExePackage}
-          installType={formData.installType}
-          onChangeInstallType={onChangeInstallType}
-        />
+        {!isEditingSoftware && (
+          <InstallTypeSection
+            isCustomPackage
+            isExeCustomPackage={isExePackage}
+            installType={formData.installType}
+            onChangeInstallType={onChangeInstallType}
+          />
+        )}
         <TargetLabelSelector
           selectedTargetType={formData.targetType}
           selectedCustomTarget={formData.customTarget}
