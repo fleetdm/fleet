@@ -2497,9 +2497,9 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 		}
 	} else {
 		rawApnsKey := savedAssets[fleet.MDMAssetAPNSKey]
-		apnsKey, err = cryptoutil.ParsePrivateKey(ctx, rawApnsKey.Value, "APNS private key")
+		apnsKey, err = cryptoutil.ParsePrivateKey(rawApnsKey.Value, "APNS private key")
 		if err != nil {
-			return nil, err
+			return nil, ctxerr.Wrap(ctx, err, "parse APNS private key")
 		}
 	}
 

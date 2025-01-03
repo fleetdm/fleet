@@ -1,7 +1,6 @@
 package cryptoutil
 
 import (
-	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -12,8 +11,7 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"errors"
-
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"fmt"
 )
 
 // GenerateSubjectKeyID generates Subject Key Identifier (SKI) using SHA-256
@@ -41,10 +39,10 @@ func GenerateSubjectKeyID(pub crypto.PublicKey) ([]byte, error) {
 	return hash[:20], nil
 }
 
-func ParsePrivateKey(ctx context.Context, privKeyPEM []byte, keyName string) (crypto.PrivateKey, error) {
+func ParsePrivateKey(privKeyPEM []byte, keyName string) (crypto.PrivateKey, error) {
 	block, _ := pem.Decode(privKeyPEM)
 	if block == nil {
-		return nil, ctxerr.Errorf(ctx, "failed to decode %s", keyName)
+		return nil, fmt.Errorf("failed to decode %s", keyName)
 	}
 
 	// The code below is based on tls.parsePrivateKey
@@ -57,12 +55,12 @@ func ParsePrivateKey(ctx context.Context, privKeyPEM []byte, keyName string) (cr
 		case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
 			return key, nil
 		default:
-			return nil, ctxerr.Errorf(ctx, "unmarshaled PKCS8 %s is not an RSA, ECDSA, or Ed25519 private key", keyName)
+			return nil, fmt.Errorf("unmarshaled PKCS8 %s is not an RSA, ECDSA, or Ed25519 private key", keyName)
 		}
 	}
 	if key, err := x509.ParseECPrivateKey(block.Bytes); err == nil {
 		return key, nil
 	}
 
-	return nil, ctxerr.Errorf(ctx, "failed to parse %s of type %s", keyName, block.Type)
+	return nil, fmt.Errorf("failed to parse %s of type %s", keyName, block.Type)
 }
