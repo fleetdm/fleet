@@ -49,11 +49,6 @@ type ISoftwareOSDetailsPageProps = RouteComponentProps<
   ISoftwareOSDetailsRouteParams
 >;
 
-type QueryResult = {
-  os_version: IOperatingSystemVersion;
-  counts_updated_at?: string;
-};
-
 const SoftwareOSDetailsPage = ({
   routeParams,
   router,
@@ -83,7 +78,7 @@ const SoftwareOSDetailsPage = ({
   } = useQuery<
     IOSVersionResponse,
     AxiosError,
-    QueryResult,
+    IOSVersionResponse,
     IGetOsVersionQueryKey[]
   >(
     [
