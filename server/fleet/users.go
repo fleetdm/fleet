@@ -37,7 +37,20 @@ type User struct {
 }
 
 type UserSettings struct {
-	HiddenHostsTableColumns *[]string `json:"hidden_hosts_table_columns,omitempty"`
+	HiddenHostsTableColumns []string `json:"hidden_hosts_table_columns,omitempty"`
+}
+
+// Scan implements the sql.Scanner interface, tells DB driver how to convert MySQL type (json) to
+// custom Go type (UserSettings).
+func (us *UserSettings) Scan(val interface{}) error {
+	switch v := val.(type) {
+	case []byte:
+		return json.Unmarshal(v, us)
+	case string:
+		return json.Unmarshal([]byte(v), us)
+	default:
+		return fmt.Errorf("unsupported type: %T", v)
+	}
 }
 
 // IsGlobalObserver returns true if user is either a Global Observer or a Global Observer+
