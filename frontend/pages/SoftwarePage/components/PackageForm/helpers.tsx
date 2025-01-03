@@ -120,6 +120,10 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
   },
 ];
 
+export const getInstallType = (softwarePackage: ISoftwarePackage) => {
+  return softwarePackage.automatic_install_policies ? "automatic" : "manual";
+};
+
 export const getTargetType = (softwarePackage: ISoftwarePackage) => {
   if (!softwarePackage) return "All hosts";
 
