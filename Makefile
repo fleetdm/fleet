@@ -9,6 +9,7 @@ REVISION = $(shell git rev-parse HEAD)
 REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)
 DOCKER_IMAGE_NAME = fleetdm/fleet
+TOOL_CMD = "make"
 
 ifdef GO_BUILD_RACE_ENABLED
 GO_BUILD_RACE_ENABLED_VAR := true
@@ -59,47 +60,6 @@ LDFLAGS_VERSION = "\
 
 all: build
 
-define HELP_TEXT
-
-  Makefile commands
-
-	make deps         - Install dependent programs and libraries
-	make generate     - Generate and bundle required all code
-	make generate-go  - Generate and bundle required go code
-	make generate-js  - Generate and bundle required js code
-	make generate-dev - Generate and bundle required code in a watch loop
-
-	make migration - create a database migration file (supply name=TheNameOfYourMigration)
-
-	make generate-doc     - Generate updated API documentation for activities, osquery flags
-	make dump-test-schema - update schema.sql from current migrations
-	make generate-mock    - update mock data store
-
-	make clean        - Clean all build artifacts
-	make clean-assets - Clean assets only
-
-	make build        - Build the code
-	make package 	  - Build rpm and deb packages for linux
-
-	make run-go-tests   - Run Go tests in specific packages
-	make debug-go-tests - Debug Go tests in specific packages (with Delve)
-	make test-js        - Run the JavaScript tests
-
-	make lint         - Run all linters
-	make lint-go      - Run the Go linters
-	make lint-js      - Run the JavaScript linters
-	make lint-scss    - Run the SCSS linters
-	make lint-ts      - Run the TypeScript linters
-
-	For use in CI:
-
-	make test         - Run the full test suite (lint, Go and Javascript)
-	make test-go      - Run the Go tests (all packages and tests)
-
-endef
-
-help:
-	$(info $(HELP_TEXT))
 
 .prefix:
 	mkdir -p build/linux
@@ -115,7 +75,31 @@ help:
 .pre-fleetctl:
 	$(eval APP_NAME = fleetctl)
 
-build: fleet fleetctl
+BINS_TO_BUILD = fleet fleetctl
+ifdef FLEET
+	BINS_TO_BUILD = fleet
+else ifdef FLEETCTL
+	BINS_TO_BUILD = fleetctl
+endif
+.help-short--build:
+	@echo "Build binaries"
+.help-long--build:
+	@echo "Builds the specified binaries (defaults to building fleet and fleetctl)"
+.help-options--build:
+	@echo "FLEET"
+	@echo "Build the fleet binary only"
+	@echo "FLEETCTL"
+	@echo "Build the fleetctl binary only"
+	@echo "GO_BUILD_RACE_ENABLED"
+	@echo "Turn on data race detection when building"
+	@echo "EXTRA_FLEETCTL_LDFLAGS=\"--flag1 --flag2...\""
+	@echo "Flags to provide to the Go linker when building fleetctl"
+
+build: $(BINS_TO_BUILD)
+
+fdm:
+	go build -o build/fdm ./tools/fdm
+	ln -sf "$$(pwd)/build/fdm" /usr/local/bin/fdm	
 
 fleet: .prefix .pre-build .pre-fleet
 	CGO_ENABLED=1 go build -race=${GO_BUILD_RACE_ENABLED_VAR} -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${LDFLAGS_VERSION} ./cmd/fleet
@@ -132,32 +116,37 @@ fleetctl: .prefix .pre-build .pre-fleetctl
 fleetctl-dev: GO_BUILD_RACE_ENABLED_VAR=true
 fleetctl-dev: fleetctl
 
+.help-short--lint-js:
+	@echo "Run the JavaScript linters"
 lint-js:
 	yarn lint
 
+.help-short--lint-go:
+	@echo "Run the Go linters"
 lint-go:
 	golangci-lint run --exclude-dirs ./node_modules --timeout 15m
 
+.help-short--lint:
+	@echo "Run all linters"
 lint: lint-go lint-js
 
+.help-short--dump-test-schema:
+	@echo "Update schema.sql from current migrations"
 dump-test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
 
 # This is the base command to run Go tests.
 # Wrap this to run tests with presets (see `run-go-tests` and `test-go` targets).
-# PKG_TO_TEST: Go packages to test, e.g. "server/datastore/mysql".  Separate multiple packages with spaces.
-# TESTS_TO_RUN: Name specific tests to run in the specified packages.  Leave blank to run all tests in the specified packages.
-# GO_TEST_EXTRA_FLAGS: Used to specify other arguments to `go test`.
 # GO_TEST_MAKE_FLAGS: Internal var used by other targets to add arguments to `go test`.
 #						 
-PKG_TO_TEST := "" # default to empty string; can be overridden on command line.
+PKG_TO_TEST := ""
 go_test_pkg_to_test := $(addprefix ./,$(PKG_TO_TEST)) # set paths for packages to test
 dlv_test_pkg_to_test := $(addprefix github.com/fleetdm/fleet/v4/,$(PKG_TO_TEST)) # set URIs for packages to debug
 
 .run-go-tests:
 ifeq ($(PKG_TO_TEST), "")
-		@echo "Please specify one or more packages to test with argument PKG_TO_TEST=\"/path/to/pkg/1 /path/to/pkg/2\"..."; 
+		@echo "Please specify one or more packages to test. See '$(TOOL_CMD) help run-go-tests' for more info."; 
 else
 		@echo Running Go tests with command:
 		go test -tags full,fts5,netgo -run=${TESTS_TO_RUN} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... $(go_test_pkg_to_test)
@@ -165,46 +154,76 @@ endif
 
 # This is the base command to debug Go tests.
 # Wrap this to run tests with presets (see `debug-go-tests`)
-# PKG_TO_TEST: Go packages to test, e.g. "server/datastore/mysql".  Separate multiple packages with spaces.
-# TESTS_TO_RUN: Name specific tests to debug in the specified packages.  Leave blank to debug all tests in the specified packages.
 # DEBUG_TEST_EXTRA_FLAGS: Internal var used by other targets to add arguments to `dlv test`.
-# GO_TEST_EXTRA_FLAGS: Used to specify other arguments to `go test`.
 .debug-go-tests:
 ifeq ($(PKG_TO_TEST), "")
-		@echo "Please specify one or more packages to debug with argument PKG_TO_TEST=\"/path/to/pkg/1 /path/to/pkg/2\"..."; 
+		@echo "Please specify one or more packages to debug. See '$(TOOL_CMD) help run-go-tests' for more info."; 
 else
 		@echo Debugging tests with command:
 		dlv test ${dlv_test_pkg_to_test} --api-version=2 --listen=127.0.0.1:61179 ${DEBUG_TEST_EXTRA_FLAGS} -- -test.v -test.run=${TESTS_TO_RUN} ${GO_TEST_EXTRA_FLAGS} 
 endif
 
-# Command to run specific tests in development.  Can run all tests for one or more packages, or specific tests within packages.
+.help-short--run-go-tests:
+	@echo "Run Go tests in specific packages"
+.help-long--run-go-tests:
+	@echo Command to run specific tests in development. Can run all tests for one or more packages, or specific tests within packages.
+.help-options--run-go-tests:
+	@echo "PKG_TO_TEST=\"pkg1 pkg2...\""
+	@echo "Go packages to test, e.g. \"server/datastore/mysql\". Separate multiple packages with spaces."
+	@echo "TESTS_TO_RUN=\"test\""
+	@echo Name specific tests to debug in the specified packages. Leave blank to debug all tests in the specified packages.
+	@echo "GO_TEST_EXTRA_FLAGS=\"--flag1 --flag2...\""
+	@echo "Arguments to send to \"go test\"."
 run-go-tests:
 	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .run-go-tests GO_TEST_MAKE_FLAGS="-v"
 
+.help-short--debug-go-tests:
+	@echo "Debug Go tests in specific packages (with Delve)"
+.help-long--debug-go-tests:
+	@echo Command to run specific tests in the Go debugger. Can run all tests for one or more packages, or specific tests within packages.
+.help-options--debug-go-tests:
+	@echo "PKG_TO_TEST=\"pkg1 pkg2...\""
+	@echo "Go packages to test, e.g. \"server/datastore/mysql\". Separate multiple packages with spaces."
+	@echo "TESTS_TO_RUN=\"test\""
+	@echo Name specific tests to debug in the specified packages. Leave blank to debug all tests in the specified packages.
+	@echo "GO_TEST_EXTRA_FLAGS=\"--flag1 --flag2...\""
+	@echo "Arguments to send to \"go test\"."
 debug-go-tests:
 	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests 
 
 # Command used in CI to run all tests.
+.help-short--test-go:
+	@echo "Run the Go tests (all packages and tests -- used in CI)"
 test-go: dump-test-schema generate-mock 
 	make .run-go-tests PKG_TO_TEST="./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/..."
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...
 
+.help-short--test-js:
+	@echo "Run the JavaScript tests"
 test-js:
 	yarn test
 
+.help-short--test:
+	@echo "Run the full test suite (lint, Go and Javascript -- used in CI)"
 test: lint test-go test-js
 
+.help-short--generate:
+	@echo "Generate and bundle required all code"
 generate: clean-assets generate-js generate-go
 
 generate-ci:
 	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=development yarn run webpack
 	make generate-go
 
+.help-short--generate-js:
+	@echo "Generate and bundle required js code"
 generate-js: clean-assets .prefix
 	NODE_ENV=production yarn run webpack --progress
 
+.help-short--generate-go:
+	@echo "Generate and bundle required go code"
 generate-go: .prefix
 	go run github.com/kevinburke/go-bindata/go-bindata -pkg=bindata -tags full \
 		-o=server/bindata/generated.go \
@@ -213,6 +232,8 @@ generate-go: .prefix
 # we first generate the webpack bundle so that bindata knows to atch the
 # output bundle file. then, generate debug bindata source file. finally, we
 # run webpack in watch mode to continuously re-generate the bundle
+.help-short--generate-dev:
+	@echo "Generate and bundle required code in a watch loop"
 generate-dev: .prefix
 	NODE_ENV=development yarn run webpack --progress
 	go run github.com/kevinburke/go-bindata/go-bindata -debug -pkg=bindata -tags full \
@@ -220,13 +241,19 @@ generate-dev: .prefix
 		frontend/templates/ assets/... server/mail/templates
 	NODE_ENV=development yarn run webpack --progress --watch
 
+.help-short--generate-mock:
+	@echo "Update mock data store"
 generate-mock: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult github.com/fleetdm/fleet/v4/server/service/mock
 
+.help-short--generate-doc:
+	@echo "Generate updated API documentation for activities, osquery flags"
 generate-doc: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/fleet
 	go generate github.com/fleetdm/fleet/v4/server/service/osquery_utils
 
+.help-short--deps:
+	@echo "Install dependent programs and libraries"
 deps: deps-js deps-go
 
 deps-js:
@@ -245,14 +272,20 @@ check-go-cloner:
 update-go-cloner:
 	go run ./tools/cloner-check/main.go --update
 
+.help-short--migration:
+	@echo "Create a database migration file (supply name=TheNameOfYourMigration)"
 migration:
 	go run ./server/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)
 	gofmt -w server/datastore/mysql/migrations/tables/*_$(name)*.go
 
+.help-short--clean:
+	@echo "Clean all build artifacts"
 clean: clean-assets
 	rm -rf build vendor
 	rm -f assets/bundle.js
 
+.help-short--clean-assets:
+	@echo "Clean assets only"
 clean-assets:
 	git clean -fx assets
 
@@ -582,3 +615,5 @@ db-replica-reset: fleet
 # db-replica-run runs fleet serve with one main and one read MySQL instance.
 db-replica-run: fleet
 	FLEET_MYSQL_ADDRESS=127.0.0.1:3308 FLEET_MYSQL_READ_REPLICA_ADDRESS=127.0.0.1:3309 FLEET_MYSQL_READ_REPLICA_USERNAME=fleet FLEET_MYSQL_READ_REPLICA_DATABASE=fleet FLEET_MYSQL_READ_REPLICA_PASSWORD=insecure ./build/fleet serve --dev --dev_license
+
+include ./tools/makefile-support/helpsystem-targets
