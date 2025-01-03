@@ -7,16 +7,16 @@ export const getExploitedVulnerabilitiesDropdownOptions = (
     {
       disabled: false,
       label: "All vulnerabilities",
-      value: false,
+      value: "false",
       helpText: "All vulnerabilities detected on your hosts.",
     },
     {
       disabled: !isPremiumTier,
       label: "Exploited vulnerabilities",
-      value: true,
+      value: "true",
       helpText:
         "Vulnerabilities that have been actively exploited in the wild.",
-      tooltipContent: !isPremiumTier && disabledTooltipContent,
+      tooltipContent: !isPremiumTier ? disabledTooltipContent : undefined,
     },
   ];
 };
