@@ -78,7 +78,10 @@ module.exports = function (sails) {
 
     routes: {
       before: {
-        '/login': async (req, res) => {
+        '/login': async (req, res, next) => {
+          if (!sails.config.custom.entraClientId) {
+            return next();
+          }
           // Get the sso login url and redirect the user
           // [?]: https://learn.microsoft.com/en-us/javascript/api/%40azure/msal-node/confidentialclientapplication?view=msal-js-latest#@azure-msal-node-confidentialclientapplication-getauthcodeurl
           let entraAuthorizationUrl = await entraSSOClient.getAuthCodeUrl({
@@ -88,7 +91,10 @@ module.exports = function (sails) {
           // Redirect the user to the SSO login url.
           res.redirect(entraAuthorizationUrl);
         },
-        '/authorization-code/callback': async (req, res) => {
+        '/authorization-code/callback': async (req, res, next) => {
+          if (!sails.config.custom.entraClientId) {
+            return next();
+          }
           // Make sure there is a code query string.
           let codeToGetToken = req.query.code;
           if(!codeToGetToken){
@@ -107,7 +113,10 @@ module.exports = function (sails) {
           // Redirect the user to the signup-sso-user-or-redirect endpoint.
           res.redirect('/entrance/signup-sso-user-or-redirect'); // Note: This action handles signing in/up users who authenticate through Microsoft Entra.
         },
-        '/logout': async(req, res)=>{
+        '/logout': async(req, res, next)=>{
+          if (!sails.config.custom.entraClientId) {
+            return next();
+          }
           let logoutUri = `https://login.microsoftonline.com/${sails.config.custom.entraTenantId}/oauth2/v2.0/logout?post_logout_redirect_uri=${sails.config.custom.baseUrl}/`;
           delete req.session.userId;
           res.redirect(logoutUri);
