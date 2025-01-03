@@ -767,8 +767,7 @@ const ManageHostsPage = ({
       await usersAPI.update(currentUser!.id, {
         settings: { hidden_hosts_table_columns: newHiddenColumns },
       });
-      // No renderFlash, to make column setting more seamless
-      return true;
+      // No success renderFlash, to make column setting more seamless
     } catch (response) {
       renderFlash("error", "Couldn't save column settings. Please try again.");
     }
