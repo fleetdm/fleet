@@ -1056,6 +1056,7 @@ func expectAppleProfiles(
 		gotp.ProfileUUID = ""
 
 		gotp.CreatedAt = time.Time{}
+		gotp.SecretsUpdatedAt = nil
 
 		// if an expected uploaded_at timestamp is provided for this profile, keep
 		// its value, otherwise clear it as we don't care about asserting its
@@ -1083,7 +1084,7 @@ func expectAppleDeclarations(
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		ctx := context.Background()
 		return sqlx.SelectContext(ctx, q, &got,
-			`SELECT declaration_uuid, team_id, identifier, name, raw_json, checksum, created_at, uploaded_at FROM mdm_apple_declarations WHERE team_id = ?`,
+			`SELECT declaration_uuid, team_id, identifier, name, raw_json, token, created_at, uploaded_at FROM mdm_apple_declarations WHERE team_id = ?`,
 			tmID)
 	})
 
@@ -1119,7 +1120,7 @@ func expectAppleDeclarations(
 		require.NotEmpty(t, gotD.DeclarationUUID)
 		require.True(t, strings.HasPrefix(gotD.DeclarationUUID, fleet.MDMAppleDeclarationUUIDPrefix))
 		gotD.DeclarationUUID = ""
-		gotD.Checksum = "" // don't care about md5checksum here
+		gotD.Token = "" // don't care about md5checksum here
 
 		gotD.CreatedAt = time.Time{}
 
@@ -1399,6 +1400,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 		for _, p := range got {
 			require.NotEmpty(t, p.Checksum)
 			p.Checksum = nil
+			p.SecretsUpdatedAt = nil
 		}
 		require.ElementsMatch(t, want, got)
 	}
@@ -7336,7 +7338,9 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 	matchProfiles := func(want, got []*fleet.MDMAppleProfilePayload) {
 		// match only the fields we care about
 		for _, p := range got {
+			assert.NotEmpty(t, p.Checksum)
 			p.Checksum = nil
+			p.SecretsUpdatedAt = nil
 		}
 		require.ElementsMatch(t, want, got)
 	}

@@ -609,6 +609,10 @@ type Datastore interface {
 
 	ListHostSoftware(ctx context.Context, host *Host, opts HostSoftwareTitleListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
 
+	// IsSoftwareInstallerLabelScoped returns whether or not the given installerID is scoped to the
+	// given host ID by labels.
+	IsSoftwareInstallerLabelScoped(ctx context.Context, installerID, hostID uint) (bool, error)
+
 	// SetHostSoftwareInstallResult records the result of a software installation
 	// attempt on the host.
 	SetHostSoftwareInstallResult(ctx context.Context, result *HostSoftwareInstallResultPayload) error
@@ -786,7 +790,7 @@ type Datastore interface {
 	// InsertCronStats inserts cron stats for the named cron schedule.
 	InsertCronStats(ctx context.Context, statsType CronStatsType, name string, instance string, status CronStatsStatus) (int, error)
 	// UpdateCronStats updates the status of the identified cron stats record.
-	UpdateCronStats(ctx context.Context, id int, status CronStatsStatus) error
+	UpdateCronStats(ctx context.Context, id int, status CronStatsStatus, cronErrors *CronScheduleErrors) error
 	// UpdateAllCronStatsForInstance updates all records for the identified instance with the
 	// specified statuses
 	UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus CronStatsStatus, toStatus CronStatsStatus) error
@@ -1607,6 +1611,9 @@ type Datastore interface {
 	// NewHostScriptExecutionRequest creates a new host script result entry with
 	// just the script to run information (result is not yet available).
 	NewHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
+	// NewInternalScriptExecutionRequest creates a new host script result entry with
+	// just the script to run information (result is not yet available), with the script marked as internal.
+	NewInternalScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
 	// SetHostScriptExecutionResult stores the result of a host script execution
 	// and returns the updated host script result record. Note that it does not
 	// fail if the script execution request does not exist, in this case it will
@@ -1617,9 +1624,10 @@ type Datastore interface {
 	// received, it is the caller's responsibility to check if that was the case
 	// (with ExitCode being null).
 	GetHostScriptExecutionResult(ctx context.Context, execID string) (*HostScriptResult, error)
-	// ListPendingHostScriptExecutions returns all the pending host script
-	// executions, which are those that have yet to record a result.
-	ListPendingHostScriptExecutions(ctx context.Context, hostID uint) ([]*HostScriptResult, error)
+	// ListPendingHostScriptExecutions returns all the pending host script executions, which are those that have yet
+	// to record a result. Pass onlyShowInternal as true to return only scripts that execute when script execution is
+	// globally disabled (uninstall/lock/unlock/wipe).
+	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*HostScriptResult, error)
 
 	// NewScript creates a new saved script.
 	NewScript(ctx context.Context, script *Script) (*Script, error)
@@ -1891,6 +1899,10 @@ type Datastore interface {
 	// ExpandEmbeddedSecrets expands the fleet secrets in a
 	// document using the secrets stored in the datastore.
 	ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error)
+
+	// ExpandEmbeddedSecretsAndUpdatedAt is like ExpandEmbeddedSecrets but also
+	// returns the latest updated_at time of the secrets used in the expansion.
+	ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, document string) (string, *time.Time, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
@@ -1942,6 +1954,9 @@ type ProfileVerificationStore interface {
 	// profile status. It deletes the row if the profile operation is "remove"
 	// and the status is "verifying" (i.e. successfully removed).
 	UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *HostMDMAppleProfile) error
+	// ExpandEmbeddedSecrets expands the fleet secrets in a
+	// document using the secrets stored in the datastore.
+	ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error)
 }
 
 var _ ProfileVerificationStore = (Datastore)(nil)

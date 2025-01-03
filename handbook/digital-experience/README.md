@@ -220,6 +220,11 @@ Use the following steps to cancel a Fleet Premium subscription:
 3. Reach out to the community member (using the [correct email template](https://docs.google.com/document/d/1D02k0tc5v-sEJ4uahAouuqnvZ6phxA_gP-IqmkBdMTE/edit#heading=h.vw9mkh5e9msx)) and let them know their subscription was canceled.
 
 
+### Register a domain for Fleet
+
+Domain name registrations are handled through Namecheap. Access is managed via 1Password.
+
+
 ### Secure company-issued equipment for a team member
 
 As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time.
@@ -264,6 +269,45 @@ Once the Digital Experience department approves inventory to be shipped from Fle
   - If you encounter any issues, repeat the [process incoming equipment steps](https://fleetdm.com/handbook/digital-experience#process-incoming-equipment). If problems persist, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=) for IT to troubleshoot the device.
 6. Ship via FedEx to the address listed in the equipment request.
 7. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
+
+
+### Fix a laptop that's not checking in
+
+It is [possible for end users to remove launch agents](https://github.com/fleetdm/confidential/issues/6088) (this is true not just for osquery, but for anything). 
+
+If the host has MDM turned on, use the `fleetctl mdm run-command` CLI command to push the XML file located at https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/commands/macos-send-fleetd.xml to the device, which will reinstall fleetd.
+
+If the host doesn't have MDM turned on or isn't enrolled to dogfood, it is beyond our ability to control remotely.
+
+
+### Enroll a macOS host in dogfood
+
+When a device is purchased using the Apple eCommerce store, the device is automatically enrolled in Apple Business Manager (ABM) and assigned to the correct server to ensure the device is in dogfood.
+You can confirm that the device has been ordered correctly by following these steps:
+- Log into ABM
+- Use the device serial number to find the device.
+  - Note: if the device cannot be found, you will need to manually enroll the device.
+- View device settings and ensure the "MDM Server" selected is "Fleet Dogfood".
+
+On occasion there will be a need to manually enroll a macOS host in dogfood. This could be due to a BYOD arrangement, or because the Fleetie getting the device is in a country when DEP (automatic enrollment) isn't supported. To manually enroll a macOS host in dogfood, follow these steps:
+- If you have physical access to the macOS host, use Apple Configurator (docs are [here](https://support.apple.com/guide/apple-business-manager/add-devices-from-apple-configurator-axm200a54d59/web)).
+- If you do not have physical access to the device, the user will need to undertake the following steps:
+  - Install the fleetd package for your device from shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
+  - Once fleetd is installed, click on Fleet desktop icon in top right menu bar, and select "My device".
+  - In Fleet desktop, follow the instructions to turn on MDM.
+  - Once complete, follow instructions to reset disk encryption key.
+- Disk encryption key will now be stored in Fleet dogfood, which signifies that the device is now enrolled in dogfood.
+
+
+### Enroll a Windows or Ubuntu Linux device in dogfood
+
+To enroll a windows or Ubuntu Linux device in dogfood, instruct the user to install fleetd for their platform from internal shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
+Once the user has installed fleetd, verify the device is correctly enrolled by confirming the device encryption key is in dogfood.
+
+
+### Enroll a ChromeOS device in dogfood
+
+ChromeOS devices are automatically enrolled in dogfood after the IT admin sets up automatic enrollment. This is done in dogfood by following the steps found in the dialog popup when selecting "Add hosts > ChromeOS" from the dogfood Hosts page.
 
 
 ### Update personnel details

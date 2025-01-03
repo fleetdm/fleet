@@ -451,6 +451,8 @@ type ListCVEsFunc func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMe
 
 type ListHostSoftwareFunc func(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error)
 
+type IsSoftwareInstallerLabelScopedFunc func(ctx context.Context, installerID uint, hostID uint) (bool, error)
+
 type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error
 
 type UploadedSoftwareExistsFunc func(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
@@ -581,7 +583,7 @@ type GetLatestCronStatsFunc func(ctx context.Context, name string) ([]fleet.Cron
 
 type InsertCronStatsFunc func(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error)
 
-type UpdateCronStatsFunc func(ctx context.Context, id int, status fleet.CronStatsStatus) error
+type UpdateCronStatsFunc func(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error
 
 type UpdateAllCronStatsForInstanceFunc func(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error
 
@@ -1029,11 +1031,13 @@ type SetOrUpdateMDMAppleDeclarationFunc func(ctx context.Context, declaration *f
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
+type NewInternalScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
+
 type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.HostScriptResultPayload) (hsr *fleet.HostScriptResult, action string, err error)
 
 type GetHostScriptExecutionResultFunc func(ctx context.Context, execID string) (*fleet.HostScriptResult, error)
 
-type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error)
+type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error)
 
 type NewScriptFunc func(ctx context.Context, script *fleet.Script) (*fleet.Script, error)
 
@@ -1180,6 +1184,8 @@ type GetSecretVariablesFunc func(ctx context.Context, names []string) ([]fleet.S
 type ValidateEmbeddedSecretsFunc func(ctx context.Context, documents []string) error
 
 type ExpandEmbeddedSecretsFunc func(ctx context.Context, document string) (string, error)
+
+type ExpandEmbeddedSecretsAndUpdatedAtFunc func(ctx context.Context, document string) (string, *time.Time, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1826,6 +1832,9 @@ type DataStore struct {
 
 	ListHostSoftwareFunc        ListHostSoftwareFunc
 	ListHostSoftwareFuncInvoked bool
+
+	IsSoftwareInstallerLabelScopedFunc        IsSoftwareInstallerLabelScopedFunc
+	IsSoftwareInstallerLabelScopedFuncInvoked bool
 
 	SetHostSoftwareInstallResultFunc        SetHostSoftwareInstallResultFunc
 	SetHostSoftwareInstallResultFuncInvoked bool
@@ -2694,6 +2703,9 @@ type DataStore struct {
 	NewHostScriptExecutionRequestFunc        NewHostScriptExecutionRequestFunc
 	NewHostScriptExecutionRequestFuncInvoked bool
 
+	NewInternalScriptExecutionRequestFunc        NewInternalScriptExecutionRequestFunc
+	NewInternalScriptExecutionRequestFuncInvoked bool
+
 	SetHostScriptExecutionResultFunc        SetHostScriptExecutionResultFunc
 	SetHostScriptExecutionResultFuncInvoked bool
 
@@ -2921,6 +2933,9 @@ type DataStore struct {
 
 	ExpandEmbeddedSecretsFunc        ExpandEmbeddedSecretsFunc
 	ExpandEmbeddedSecretsFuncInvoked bool
+
+	ExpandEmbeddedSecretsAndUpdatedAtFunc        ExpandEmbeddedSecretsAndUpdatedAtFunc
+	ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4430,6 +4445,13 @@ func (s *DataStore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts
 	return s.ListHostSoftwareFunc(ctx, host, opts)
 }
 
+func (s *DataStore) IsSoftwareInstallerLabelScoped(ctx context.Context, installerID uint, hostID uint) (bool, error) {
+	s.mu.Lock()
+	s.IsSoftwareInstallerLabelScopedFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsSoftwareInstallerLabelScopedFunc(ctx, installerID, hostID)
+}
+
 func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error {
 	s.mu.Lock()
 	s.SetHostSoftwareInstallResultFuncInvoked = true
@@ -4885,11 +4907,11 @@ func (s *DataStore) InsertCronStats(ctx context.Context, statsType fleet.CronSta
 	return s.InsertCronStatsFunc(ctx, statsType, name, instance, status)
 }
 
-func (s *DataStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
+func (s *DataStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error {
 	s.mu.Lock()
 	s.UpdateCronStatsFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateCronStatsFunc(ctx, id, status)
+	return s.UpdateCronStatsFunc(ctx, id, status, cronErrors)
 }
 
 func (s *DataStore) UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error {
@@ -6453,6 +6475,13 @@ func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *
 	return s.NewHostScriptExecutionRequestFunc(ctx, request)
 }
 
+func (s *DataStore) NewInternalScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+	s.mu.Lock()
+	s.NewInternalScriptExecutionRequestFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewInternalScriptExecutionRequestFunc(ctx, request)
+}
+
 func (s *DataStore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (hsr *fleet.HostScriptResult, action string, err error) {
 	s.mu.Lock()
 	s.SetHostScriptExecutionResultFuncInvoked = true
@@ -6467,11 +6496,11 @@ func (s *DataStore) GetHostScriptExecutionResult(ctx context.Context, execID str
 	return s.GetHostScriptExecutionResultFunc(ctx, execID)
 }
 
-func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
 	s.mu.Lock()
 	s.ListPendingHostScriptExecutionsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListPendingHostScriptExecutionsFunc(ctx, hostID)
+	return s.ListPendingHostScriptExecutionsFunc(ctx, hostID, onlyShowInternal)
 }
 
 func (s *DataStore) NewScript(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {
@@ -6983,4 +7012,11 @@ func (s *DataStore) ExpandEmbeddedSecrets(ctx context.Context, document string) 
 	s.ExpandEmbeddedSecretsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ExpandEmbeddedSecretsFunc(ctx, document)
+}
+
+func (s *DataStore) ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, document string) (string, *time.Time, error) {
+	s.mu.Lock()
+	s.ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked = true
+	s.mu.Unlock()
+	return s.ExpandEmbeddedSecretsAndUpdatedAtFunc(ctx, document)
 }

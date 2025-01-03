@@ -26,6 +26,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	appID uint,
 	installScript, preInstallQuery, postInstallScript, uninstallScript string,
 	selfService bool,
+	labelsIncludeAny, labelsExcludeAny []string,
 ) (titleID uint, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return 0, err
@@ -34,6 +35,26 @@ func (svc *Service) AddFleetMaintainedApp(
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return 0, fleet.ErrNoContext
+	}
+
+	// validate labels before we do anything else
+	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, labelsIncludeAny, labelsExcludeAny)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "validating software labels")
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{installScript, postInstallScript, uninstallScript}); err != nil {
+		// We redo the validation on each script to find out which script has the missing secret.
+		// This is done to provide a more informative error message to the UI user.
+		var argErr *fleet.InvalidArgumentError
+		argErr = svc.validateEmbeddedSecretsOnScript(ctx, "install script", &installScript, argErr)
+		argErr = svc.validateEmbeddedSecretsOnScript(ctx, "post-install script", &postInstallScript, argErr)
+		argErr = svc.validateEmbeddedSecretsOnScript(ctx, "uninstall script", &uninstallScript, argErr)
+		if argErr != nil {
+			return 0, argErr
+		}
+		// We should not get to this point. If we did, it means we have another issue, such as large read replica latency.
+		return 0, ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
 	}
 
 	app, err := svc.ds.GetMaintainedAppByID(ctx, appID)
@@ -115,6 +136,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		SelfService:       selfService,
 		InstallScript:     installScript,
 		UninstallScript:   uninstallScript,
+		ValidatedLabels:   validatedLabels,
 	}
 
 	// Create record in software installers table
@@ -138,13 +160,16 @@ func (svc *Service) AddFleetMaintainedApp(
 		teamName = &t.Name
 	}
 
+	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
-		SoftwareTitle:   payload.Title,
-		SoftwarePackage: payload.Filename,
-		TeamName:        teamName,
-		TeamID:          payload.TeamID,
-		SelfService:     payload.SelfService,
-		SoftwareTitleID: titleID,
+		SoftwareTitle:    payload.Title,
+		SoftwarePackage:  payload.Filename,
+		TeamName:         teamName,
+		TeamID:           payload.TeamID,
+		SelfService:      payload.SelfService,
+		SoftwareTitleID:  titleID,
+		LabelsIncludeAny: actLabelsIncl,
+		LabelsExcludeAny: actLabelsExcl,
 	}); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "creating activity for added software")
 	}

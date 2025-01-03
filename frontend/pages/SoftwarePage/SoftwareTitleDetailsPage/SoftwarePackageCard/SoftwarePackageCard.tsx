@@ -4,7 +4,6 @@ import React, {
   useLayoutEffect,
   useState,
 } from "react";
-import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -190,8 +189,8 @@ const SoftwareActionsDropdown = ({
   onDeleteClick,
   onEditSoftwareClick,
 }: IActionsDropdownProps) => {
-  const onSelect = (value: string) => {
-    switch (value) {
+  const onSelect = (action: string) => {
+    switch (action) {
       case "download":
         onDownloadClick();
         break;
@@ -209,10 +208,9 @@ const SoftwareActionsDropdown = ({
   return (
     <div className={`${baseClass}__actions`}>
       <ActionsDropdown
-        className={`${baseClass}__host-actions-dropdown`}
+        className={`${baseClass}__software-actions-dropdown`}
         onChange={onSelect}
         placeholder="Actions"
-        isSearchable={false}
         options={
           isSoftwarePackage
             ? [...SOFTWARE_PACKAGE_DROPDOWN_OPTIONS]
@@ -239,7 +237,6 @@ interface ISoftwarePackageCardProps {
   // NOTE: we will only have this if we are working with a software package.
   softwarePackage?: ISoftwarePackage;
   onDelete: () => void;
-  router: InjectedRouter;
   refetchSoftwareTitle: () => void;
 }
 
@@ -256,7 +253,6 @@ const SoftwarePackageCard = ({
   softwareId,
   teamId,
   onDelete,
-  router,
   refetchSoftwareTitle,
 }: ISoftwarePackageCardProps) => {
   const {
@@ -393,13 +389,12 @@ const SoftwarePackageCard = ({
           teamId={teamId}
         />
       </div>
-      {showEditSoftwareModal && (
+      {showEditSoftwareModal && softwarePackage && (
         <EditSoftwareModal
           softwareId={softwareId}
           teamId={teamId}
           software={softwarePackage}
           onExit={() => setShowEditSoftwareModal(false)}
-          router={router}
           refetchSoftwareTitle={refetchSoftwareTitle}
         />
       )}

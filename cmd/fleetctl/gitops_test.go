@@ -660,6 +660,10 @@ func TestGitOpsFullGlobal(t *testing.T) {
 		return []*fleet.ABMToken{}, nil
 	}
 
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
+	}
+
 	const (
 		fleetServerURL = "https://fleet.example.com"
 		orgName        = "GitOps Test"
@@ -859,6 +863,10 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 		appliedPolicySpecs = specs
 		return nil
+	}
+
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
 	}
 
 	// Queries
@@ -1902,6 +1910,10 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_no_url.yml", "software URL is required"},
 		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "\"packages.self_service\" must be a bool, found string"},
+		{"testdata/gitops/team_software_installer_invalid_both_include_exclude.yml", `only one of "labels_exclude_any" or "labels_include_any" can be specified`},
+		{"testdata/gitops/team_software_installer_valid_include.yml", ""},
+		{"testdata/gitops/team_software_installer_valid_exclude.yml", ""},
+		{"testdata/gitops/team_software_installer_invalid_unknown_label.yml", "some or all the labels provided don't exist"},
 		// team tests for setup experience software/script
 		{"testdata/gitops/team_setup_software_valid.yml", ""},
 		{"testdata/gitops/team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
@@ -1930,6 +1942,22 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 					Token:     string(token),
 					Teams:     nil,
 				}, nil
+			}
+			labelToIDs := map[string]uint{
+				fleet.BuiltinLabelMacOS14Plus: 1,
+				"a":                           2,
+				"b":                           3,
+			}
+			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+				// for this test, recognize labels a and b (as well as the built-in macos 14+ one)
+				ret := make(map[string]uint)
+				for _, lbl := range labels {
+					id, ok := labelToIDs[lbl]
+					if ok {
+						ret[lbl] = id
+					}
+				}
+				return ret, nil
 			}
 
 			_, err = runAppNoChecks([]string{"gitops", "-f", c.file})
@@ -1984,6 +2012,10 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_no_url.yml", "software URL is required"},
 		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "\"packages.self_service\" must be a bool, found string"},
+		{"testdata/gitops/no_team_software_installer_invalid_both_include_exclude.yml", `only one of "labels_exclude_any" or "labels_include_any" can be specified`},
+		{"testdata/gitops/no_team_software_installer_valid_include.yml", ""},
+		{"testdata/gitops/no_team_software_installer_valid_exclude.yml", ""},
+		{"testdata/gitops/no_team_software_installer_invalid_unknown_label.yml", "some or all the labels provided don't exist"},
 		// No team tests for setup experience software/script
 		{"testdata/gitops/no_team_setup_software_valid.yml", ""},
 		{"testdata/gitops/no_team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
@@ -2012,6 +2044,22 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 					Token:     string(token),
 					Teams:     nil,
 				}, nil
+			}
+			labelToIDs := map[string]uint{
+				fleet.BuiltinLabelMacOS14Plus: 1,
+				"a":                           2,
+				"b":                           3,
+			}
+			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+				// for this test, recognize labels a and b (as well as the built-in macos 14+ one)
+				ret := make(map[string]uint)
+				for _, lbl := range labels {
+					id, ok := labelToIDs[lbl]
+					if ok {
+						ret[lbl] = id
+					}
+				}
+				return ret, nil
 			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
@@ -2550,6 +2598,9 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error {
 		return nil
+	}
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
 	}
 
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)

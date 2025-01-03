@@ -109,7 +109,7 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 	}
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 
-	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 		return nil, nil
 	}
 	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, tokens []string) (map[string]*mdm.Push, error) {
@@ -214,6 +214,9 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 	}
 	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
 		return document, nil
+	}
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
 	}
 	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
 	require.NoError(t, err)
@@ -2293,11 +2296,11 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 
 	var enqueueFailForOp fleet.MDMOperationType
 	var mu sync.Mutex
-	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 		require.NotNil(t, cmd)
 		require.NotEmpty(t, cmd.CommandUUID)
 
-		switch cmd.Command.RequestType {
+		switch cmd.Command.Command.RequestType {
 		case "InstallProfile":
 			// may be called for a single host or both
 			if len(id) == 2 {
@@ -2324,9 +2327,9 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			require.Contains(t, string(cmd.Raw), "com.remove.profile")
 		}
 		switch {
-		case enqueueFailForOp == fleet.MDMOperationTypeInstall && cmd.Command.RequestType == "InstallProfile":
+		case enqueueFailForOp == fleet.MDMOperationTypeInstall && cmd.Command.Command.RequestType == "InstallProfile":
 			return nil, errors.New("enqueue error")
-		case enqueueFailForOp == fleet.MDMOperationTypeRemove && cmd.Command.RequestType == "RemoveProfile":
+		case enqueueFailForOp == fleet.MDMOperationTypeRemove && cmd.Command.Command.RequestType == "RemoveProfile":
 			return nil, errors.New("enqueue error")
 		}
 		return nil, nil
@@ -3705,8 +3708,9 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollReference: ""}}, nil
 				}
 
-				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
-					require.Equal(t, "InstallProfile", cmd.Command.RequestType)
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error,
+					error) {
+					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
 					wantCommandUUID = cmd.CommandUUID
 					return map[string]error{}, nil
 				}
@@ -3731,7 +3735,8 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollReference: ""}}, nil
 				}
 
-				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error,
+					error) {
 					return map[string]error{}, errors.New("foo")
 				}
 			},
@@ -3744,8 +3749,9 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
 					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID2", EnrollReference: "ref1"}}, nil
 				}
-				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
-					require.Equal(t, "InstallProfile", cmd.Command.RequestType)
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error,
+					error) {
+					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
 					wantCommandUUID = cmd.CommandUUID
 					return map[string]error{}, nil
 				}
@@ -3769,7 +3775,8 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollReference: "ref1"}}, nil
 				}
 
-				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error,
+					error) {
 					return map[string]error{}, errors.New("foo")
 				}
 			},

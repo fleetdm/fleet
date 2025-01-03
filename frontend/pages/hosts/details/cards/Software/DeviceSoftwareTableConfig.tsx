@@ -15,6 +15,7 @@ import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCe
 import VersionCell from "pages/SoftwarePage/components/VersionCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/SoftwareTitlesTableConfig";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -83,6 +84,21 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
         const vulnerabilities = getVulnerabilities(cellProps.cell.value ?? []);
         return <VulnerabilitiesCell vulnerabilities={vulnerabilities} />;
       },
+    },
+    {
+      Header: "",
+      // accessor ends up defining the classname for this column (`id__header` in this case), but is
+      // type restricted, so using "id" here, which is unsued by another column
+      accessor: "id",
+      disableSortBy: true,
+      Cell: () => (
+        <ViewAllHostsLink
+          rowHover
+          noLink
+          excludeChevron
+          customText="Show details"
+        />
+      ),
     },
   ];
 

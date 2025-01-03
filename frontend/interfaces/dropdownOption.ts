@@ -16,4 +16,5 @@ export interface IDropdownOption {
   helpText?: ReactNode;
   premiumOnly?: boolean;
   tooltipContent?: TooltipContent;
+  onClick?: (() => void) | void | null;
 }
