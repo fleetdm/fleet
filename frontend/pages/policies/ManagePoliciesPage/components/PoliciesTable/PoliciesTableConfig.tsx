@@ -170,12 +170,7 @@ const generateTableHeaders = (
       title: "Yes",
       Header: (cellProps) => (
         <HeaderCell
-          value={
-            <PassingColumnHeader
-              isPassing
-              timeSinceHostCountUpdate={timeSinceHostCountUpdate}
-            />
-          }
+          value={<PassingColumnHeader isPassing />}
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
@@ -221,12 +216,7 @@ const generateTableHeaders = (
       title: "No",
       Header: (cellProps) => (
         <HeaderCell
-          value={
-            <PassingColumnHeader
-              isPassing={false}
-              timeSinceHostCountUpdate={timeSinceHostCountUpdate}
-            />
-          }
+          value={<PassingColumnHeader isPassing={false} />}
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
