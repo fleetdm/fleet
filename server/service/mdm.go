@@ -35,6 +35,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
@@ -2496,8 +2497,7 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 		}
 	} else {
 		rawApnsKey := savedAssets[fleet.MDMAssetAPNSKey]
-		block, _ := pem.Decode(rawApnsKey.Value)
-		apnsKey, err = parseAPNSPrivateKey(ctx, block)
+		apnsKey, err = cryptoutil.ParsePrivateKey(ctx, rawApnsKey.Value, "APNS private key")
 		if err != nil {
 			return nil, err
 		}

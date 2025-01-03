@@ -1,13 +1,18 @@
 package cryptoutil
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"math/big"
+	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateSubjectKeyID(t *testing.T) {
@@ -55,4 +60,37 @@ func testSKIEq(a, b []byte) bool {
 	}
 
 	return true
+}
+
+func TestParsePrivateKey(t *testing.T) {
+	t.Parallel()
+	// nil block not allowed
+	ctx := context.Background()
+	_, err := ParsePrivateKey(ctx, nil, "APNS private key")
+	assert.ErrorContains(t, err, "failed to decode")
+
+	// encrypted pkcs8 not supported
+	pkcs8Encrypted, err := os.ReadFile("testdata/pkcs8-encrypted.key")
+	require.NoError(t, err)
+	_, err = ParsePrivateKey(ctx, pkcs8Encrypted, "APNS private key")
+	assert.ErrorContains(t, err, "failed to parse APNS private key of type ENCRYPTED PRIVATE KEY")
+
+	// X25519 pkcs8 not supported
+	pkcs8Encrypted, err = os.ReadFile("testdata/pkcs8-x25519.key")
+	require.NoError(t, err)
+	_, err = ParsePrivateKey(ctx, pkcs8Encrypted, "APNS private key")
+	assert.ErrorContains(t, err, "unmarshaled PKCS8 APNS private key is not")
+
+	// In this test, the pkcs1 key and pkcs8 keys are the same key, just different formats
+	pkcs1, err := os.ReadFile("testdata/pkcs1.key")
+	require.NoError(t, err)
+	pkcs1Key, err := ParsePrivateKey(ctx, pkcs1, "APNS private key")
+	require.NoError(t, err)
+
+	pkcs8, err := os.ReadFile("testdata/pkcs8-rsa.key")
+	require.NoError(t, err)
+	pkcs8Key, err := ParsePrivateKey(ctx, pkcs8, "APNS private key")
+	require.NoError(t, err)
+
+	assert.Equal(t, pkcs1Key, pkcs8Key)
 }
