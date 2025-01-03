@@ -18,6 +18,15 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const whereFilterPendingScript = `
+	exit_code IS NULL
+    -- async requests + sync requests created within the given interval
+    AND (
+      sync_request = 0
+      OR created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
+    )
+`
+
 func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 	var res *fleet.HostScriptResult
 	return res, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -32,14 +41,26 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 			id, _ := scRes.LastInsertId()
 			request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 		}
-		res, err = newHostScriptExecutionRequest(ctx, tx, request)
+		res, err = newHostScriptExecutionRequest(ctx, tx, request, false)
 		return err
 	})
 }
 
-func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+func (ds *Datastore) NewInternalScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+	var res *fleet.HostScriptResult
+	var err error
+	return res, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if request.ScriptContentID == 0 {
+			return errors.New("script contents must be saved prior to execution")
+		}
+		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
+		return err
+	})
+}
+
+func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload, isInternal bool) (*fleet.HostScriptResult, error) {
 	const (
-		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, script_id, policy_id, user_id, sync_request, setup_experience_script_id) VALUES (?, ?, ?, '', ?, ?, ?, ?, ?)`
+		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, script_id, policy_id, user_id, sync_request, setup_experience_script_id, is_internal) VALUES (?, ?, ?, '', ?, ?, ?, ?, ?, ?)`
 		getStmt = `SELECT hsr.id, hsr.host_id, hsr.execution_id, hsr.created_at, hsr.script_id, hsr.policy_id, hsr.user_id, hsr.sync_request, sc.contents as script_contents, hsr.setup_experience_script_id FROM host_script_results hsr JOIN script_contents sc WHERE sc.id = hsr.script_content_id AND hsr.id = ?`
 	)
 
@@ -53,6 +74,7 @@ func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, requ
 		request.UserID,
 		request.SyncRequest,
 		request.SetupExperienceScriptID,
+		isInternal,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "new host script execution request")
@@ -203,8 +225,13 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 	return hsr, action, nil
 }
 
-func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
-	const listStmt = `
+func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+	internalWhere := ""
+	if onlyShowInternal {
+		internalWhere = " AND is_internal = TRUE"
+	}
+
+	listStmt := fmt.Sprintf(`
   SELECT
     id,
     host_id,
@@ -214,14 +241,10 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
     host_script_results
   WHERE
     host_id = ? AND
-    exit_code IS NULL
-    -- async requests + sync requests created within the given interval
-    AND (
-      sync_request = 0
-      OR created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
-    )
+    %s
+  	%s
   ORDER BY
-    created_at ASC`
+    created_at ASC`, whereFilterPendingScript, internalWhere)
 
 	var results []*fleet.HostScriptResult
 	seconds := int(constants.MaxServerWaitTime.Seconds())
@@ -469,6 +492,33 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 
 		return nil
 	})
+}
+
+// deletePendingHostScriptExecutionsForPolicy should be called when a policy is deleted to remove any pending script executions
+func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Context, teamID *uint, policyID uint) error {
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	deleteStmt := fmt.Sprintf(`
+		DELETE FROM
+			host_script_results
+		WHERE 
+			policy_id = ? AND
+			script_id IN (
+				SELECT id FROM scripts WHERE scripts.global_or_team_id = ?
+			) AND
+			%s
+	`, whereFilterPendingScript)
+
+	seconds := int(constants.MaxServerWaitTime.Seconds())
+	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, policyID, globalOrTeamID, seconds)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete pending host script executions for policy")
+	}
+
+	return nil
 }
 
 func (ds *Datastore) ListScripts(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
@@ -997,7 +1047,7 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
-		res, err = newHostScriptExecutionRequest(ctx, tx, request)
+		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "lock host via script create execution")
 		}
@@ -1047,7 +1097,7 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
-		res, err = newHostScriptExecutionRequest(ctx, tx, request)
+		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "unlock host via script create execution")
 		}
@@ -1098,7 +1148,7 @@ func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostS
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
-		res, err = newHostScriptExecutionRequest(ctx, tx, request)
+		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "wipe host via script create execution")
 		}

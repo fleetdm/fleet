@@ -396,41 +396,44 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	// create a couple of software installers
 	installer1, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
 	require.NoError(t, err)
-	sw1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install foo",
-		InstallerFile: installer1,
-		StorageID:     uuid.NewString(),
-		Filename:      "foo.pkg",
-		Title:         "foo",
-		Source:        "apps",
-		Version:       "0.0.1",
-		UserID:        u.ID,
+	sw1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install foo",
+		InstallerFile:   installer1,
+		StorageID:       uuid.NewString(),
+		Filename:        "foo.pkg",
+		Title:           "foo",
+		Source:          "apps",
+		Version:         "0.0.1",
+		UserID:          u.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	installer2, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
 	require.NoError(t, err)
-	sw2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install bar",
-		InstallerFile: installer2,
-		StorageID:     uuid.NewString(),
-		Filename:      "bar.pkg",
-		Title:         "bar",
-		Source:        "apps",
-		Version:       "0.0.2",
-		UserID:        u.ID,
+	sw2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install bar",
+		InstallerFile:   installer2,
+		StorageID:       uuid.NewString(),
+		Filename:        "bar.pkg",
+		Title:           "bar",
+		Source:          "apps",
+		Version:         "0.0.2",
+		UserID:          u.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	installer3, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
 	require.NoError(t, err)
-	sw3, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install to delete",
-		InstallerFile: installer3,
-		StorageID:     uuid.NewString(),
-		Filename:      "todelete.pkg",
-		Title:         "todelete",
-		Source:        "apps",
-		Version:       "0.0.3",
-		UserID:        u.ID,
+	sw3, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install to delete",
+		InstallerFile:   installer3,
+		StorageID:       uuid.NewString(),
+		Filename:        "todelete.pkg",
+		Title:           "todelete",
+		Source:          "apps",
+		Version:         "0.0.3",
+		UserID:          u.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	sw1Meta, err := ds.GetSoftwareInstallerMetadataByID(ctx, sw1)

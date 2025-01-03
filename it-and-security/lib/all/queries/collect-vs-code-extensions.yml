@@ -1,0 +1,12 @@
+- name: Collect Visual Studio (VS) Code extensions
+  automations_enabled: false
+  description: Collects the name, publisher, and version of the VS Code extensions
+    installed on hosts.
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  observer_can_run: false
+  platform: darwin,linux,windows
+  query: SELECT extension.name, extension.publisher, extension.version FROM users
+    JOIN vscode_extensions extension USING (uid);

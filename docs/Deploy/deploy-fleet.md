@@ -17,6 +17,8 @@ You can deploy Fleet anywhere, or we can [host it for you](/docs/get-started/faq
     </a>
 </div>
 
+Want to host Fleet yourself? Check out the [reference architecture](https://fleetdm.com/docs/deploy/reference-architectures#reference-architectures).
+
 Looking for other deployment options? Check out the [guides](https://fleetdm.com/guides).
 
 <h2 class="d-none markdown-heading">Render</h2>
@@ -33,7 +35,7 @@ Render is a cloud hosting service that makes it easy to get up and running fast,
 
 - A Render account with payment information.
 
->The Fleet Render Blueprint will provision a web service, a MySQL database, and a Redis in-memory data store. At current pricing this will total **$62/month**.
+>The Fleet Render Blueprint will provision a web service, a MySQL database, and a Redis in-memory data store. At current pricing this will total **$65/month**.
 
 
 ### Instructions

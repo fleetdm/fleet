@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
@@ -47,6 +48,8 @@ const (
 	stdQueryLibFilePath       = "std-query-lib-file-path"
 	previewConfigPathFlagName = "preview-config-path"
 	disableOpenBrowser        = "disable-open-browser"
+
+	licenseError = "License key is invalid. Please check your license key and try again, or run `fleetctl preview` without the --license-key option to try Fleet Free."
 
 	dockerComposeV1 dockerComposeVersion = 1
 	dockerComposeV2 dockerComposeVersion = 2
@@ -158,6 +161,11 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			},
 		},
 		Action: func(c *cli.Context) error {
+			licenseKey := c.String(licenseKeyFlagName)
+			if _, err := licensing.LoadLicense(licenseKey); err != nil {
+				return errors.New(licenseError)
+			}
+
 			if err := checkDocker(); err != nil {
 				return err
 			}
@@ -273,7 +281,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			fmt.Println("Starting Docker containers...")
 			cmd := compose.Command("up", "-d", "--remove-orphans", "mysql01", "redis01", "fleet01")
-			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName))
+			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+licenseKey)
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
@@ -289,7 +297,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			// has finished starting up so that there is no conflict with
 			// running database migrations.
 			cmd = compose.Command("up", "-d", "--remove-orphans", "fleet02")
-			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName))
+			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+licenseKey)
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))

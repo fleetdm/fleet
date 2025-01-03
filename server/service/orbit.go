@@ -295,18 +295,16 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	// load the pending script executions for that host
-	if !appConfig.ServerSettings.ScriptsDisabled {
-		pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID)
-		if err != nil {
-			return fleet.OrbitConfig{}, err
+	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID, appConfig.ServerSettings.ScriptsDisabled)
+	if err != nil {
+		return fleet.OrbitConfig{}, err
+	}
+	if len(pending) > 0 {
+		execIDs := make([]string, 0, len(pending))
+		for _, p := range pending {
+			execIDs = append(execIDs, p.ExecutionID)
 		}
-		if len(pending) > 0 {
-			execIDs := make([]string, 0, len(pending))
-			for _, p := range pending {
-				execIDs = append(execIDs, p.ExecutionID)
-			}
-			notifs.PendingScriptExecutionIDs = execIDs
-		}
+		notifs.PendingScriptExecutionIDs = execIDs
 	}
 
 	notifs.RunDiskEncryptionEscrow = host.IsLUKSSupported() &&
@@ -775,6 +773,14 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 	if script.HostID != host.ID {
 		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "no script found for this host")
 	}
+
+	// We expose secret variables in the script content to the host. The exposed secrets are only intended to go to the device and not accessible via the UI/API.
+	script.ScriptContents, err = svc.ds.ExpandEmbeddedSecrets(ctx, script.ScriptContents)
+	if err != nil {
+		// This error should never occur because we validate secret variables on script upload.
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand embedded secrets for host %d and script %s", host.ID, execID))
+	}
+
 	return script, nil
 }
 

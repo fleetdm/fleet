@@ -155,7 +155,6 @@
   jamfProtectHasFeature: yes
   waysToUse:
     - description: Enforce two-factor authentication when logging in to Fleet for added security.
-  comingSoonOn: 2024-12-31
 #  
 #  ╦═╗╔═╗╦  ╔═╗  ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ╔═╗╔═╗╔╗╔╔╦╗╦═╗╔═╗╦  
 #  ╠╦╝║ ║║  ║╣───╠╩╗╠═╣╚═╗║╣  ║║  ╠═╣║  ║  ║╣ ╚═╗╚═╗  ║  ║ ║║║║ ║ ╠╦╝║ ║║  
@@ -174,6 +173,9 @@
 #  ╩ ╩╚═╝═╩╝╩ ╩   ╩═╝╚═╝╚═╝╚═╝╩╝╚╝╚═╝
 - industryName: Audit logging
   description: Log all activity, including queries, scripts, access, etc.
+  demos:
+    - description: See activities for enabling/disabling the activities webhook and editing the destination URL so that I can know when the activities webhook was modified and by who.
+      moreInfoUrl: https://youtu.be/3Fndgrsk-Ss
   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#list-activities
   productCategories: [Endpoint operations, Device management]
   pricingTableCategories: [Configuration]
@@ -254,6 +256,11 @@
     - description: Customize the out-of-the-box setup experience for your end users.
     - description: Install a bootstrap package to run custom scripts during the setup experience.
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
+  demos:
+    - description: Install a bootstrap package to run custom scripts during the setup experience to enforce required configurations.
+      moreInfoUrl: https://youtu.be/gt7_dAU0VMY
+    - description: Connect end users to Wi-Fi by adding your SCEP server.
+      moreInfoUrl: https://youtu.be/secV4NCGYPg
 #  
 #  ╔╗ ╦ ╦╔═╗╔╦╗  ╔═╗╔╗╔╦═╗╔═╗╦  ╦  ╔╦╗╔═╗╔╗╔╔╦╗
 #  ╠╩╗╚╦╝║ ║ ║║  ║╣ ║║║╠╦╝║ ║║  ║  ║║║║╣ ║║║ ║ 
@@ -466,10 +473,6 @@
   pricingTableCategories: [Devices]
   usualDepartment: IT
   dri: mikermcneil
-  demos:
-    - description: A large tech company used the Fleet API to block access to corporate apps for outdated operating system versions with certain "celebrity" vulnerabilities.
-      quote: 
-      moreInfoUrl: https://play.goconsensus.com/s4e490bb9
   buzzwords: [Device trust,Zero trust,Layer 7 device trust,Beyondcorp,Device attestation,Conditional access]
   waysToUse:
     - description: Automatically manage the behavior of endpoints that are at higher risk of vulnerabilities or data loss due to their configuration or patch level.
@@ -478,6 +481,7 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14920
     - description: Control and restore access to applications by automatically restricting access when devices do not meet particular security requirements.
       moreInfoUrl: https://duo.com/docs/device-health
+  demos:
     - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems. Coming soon (2024-09-30).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/16236
     - description: Implement multivariate device trust
@@ -510,7 +514,9 @@
     - description: Surface security issues in all your deployed endpoints even data centers and factories.
     - description: Continually validate controls and policies
     - description: Block access to corporate apps if your end users are failing a specific number of critical policies.
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/16206       
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/16206
+    - description: A large tech company used the Fleet API to block access to corporate apps for outdated operating system versions with certain "celebrity" vulnerabilities.
+      moreInfoUrl: https://play.goconsensus.com/s4e490bb9
 #  
 #  ╔═╗╔═╗╔═╗╦  ╦╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ╔╦╗╔═╗╔═╗╦  ╔═╗╦ ╦╔╦╗╔═╗╔╗╔╔╦╗
 #  ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║   ║║║╣ ╠═╝║  ║ ║╚╦╝║║║║╣ ║║║ ║ 
@@ -585,6 +591,7 @@
   pricingTableCategories: [Devices]
   demos:
     - description: A large tech company used scripts to fix issues with their security and compliance agents on workstations.
+      moreInfoUrl: https://youtu.be/o1G0YZAsWzI
   buzzwords: [Remote script execution,PowerShell scripts,Bash scripts]
   waysToUse:
     - description: Execute custom macOS scripts (client platform engineering)
@@ -774,6 +781,8 @@
   pricingTableCategories: [Devices]
   usualDepartment: IT
   demos:
+    - description: Policy failure in Fleet to trigger a script run on a host so that I can run scripts on many hosts w/o using a third-party automation tool (ex. Tines).
+      moreInfoUrl: https://youtu.be/o1G0YZAsWzI
     - description: A top financial services company needed to set up rolling deployments for changes to osquery agents running on their production servers.
       moreInfoUrl: https://docs.google.com/document/d/1UdzZMyBLbs9SUXfSXN2x2wZQCbjZZUetYlNWH6-ryqQ/edit#heading=h.2lh6ehprpvl6
   waysToUse:

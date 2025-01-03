@@ -1,6 +1,7 @@
 import os
-import requests
 import re
+import json
+import http.client
 
 # Use GITHUB_WORKSPACE to get the root of your repository
 repo_root = os.environ.get('GITHUB_WORKSPACE', '')
@@ -8,9 +9,13 @@ FILE_PATH = os.path.join(repo_root, 'frontend', 'utilities', 'constants.tsx')
 
 
 def fetch_osquery_versions():
-    response = requests.get('https://api.github.com/repos/osquery/osquery/releases')
-    releases = response.json()
-    return [release['tag_name'] for release in releases if not release['prerelease']]
+    conn = http.client.HTTPSConnection('api.github.com')
+    conn.request('GET', '/repos/osquery/osquery/releases', headers={"User-Agent": "Fleet/osquery-checker"})
+    resp = conn.getresponse()
+    content = resp.read()
+    conn.close()
+
+    return [release['tag_name'] for release in json.loads(content.decode('utf-8'))]
 
 def update_min_osquery_version_options(new_versions):
     with open(FILE_PATH, 'r') as file:

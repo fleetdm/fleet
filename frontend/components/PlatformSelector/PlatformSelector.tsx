@@ -35,7 +35,7 @@ export const PlatformSelector = ({
 
   return (
     <div className={`${parentClass}__${baseClass} ${baseClass} form-field`}>
-      <span className={labelClasses}>Checks on:</span>
+      <span className={labelClasses}>Targets:</span>
       <span className={`${baseClass}__checkboxes`}>
         <Checkbox
           value={checkDarwin}
@@ -71,7 +71,9 @@ export const PlatformSelector = ({
         </Checkbox>
       </span>
       <div className="form-field__help-text">
-        Your policy will only be checked on the selected platform(s).
+        Your policy will only run on the selected platform(s). Additionally, if
+        install software automation is enabled, it will run only on hosts
+        defined in the software scope.
       </div>
     </div>
   );

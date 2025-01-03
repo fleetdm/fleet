@@ -12,8 +12,10 @@ Fleet maintains these [celebrity apps](https://github.com/fleetdm/fleet/blob/mai
 
 1. Head to the **Software** page and click **Add software**.
 2. From the **Add software** page, navigate to the **Fleet-maintained** tab.
-3. You’ll see a list of popular apps, such as Chrome, Visual Studio Code, and Notion. Click on a row in the table to select the desired app.
-4. You will be taken to the app details page after selecting the app. Here, you can set the app as a self-service app, allowing hosts to install it on demand. You can also expand the **Advanced options**, which will enable you to edit the following:
+3. You’ll see a list of popular apps, such as Chrome, Visual Studio Code, and Notion. Click on a row in the table to select the desired app and go to its details page.
+4. Select the hosts that you want to target with this software, under "Target". Select "All hosts" if you want the software to be available to all your hosts. Select "Custom" to scope the software to specific groups of hosts based on label membership. You can select "Include any", which will scope the software to hosts that have any of the labels you select, or "Exclude any", which will scope the software to hosts that do _not_ have the selected labels.
+5. Choose whether you want the app to be self-service. [Self-service apps](https://fleetdm.com/guides/software-self-service) are available for install on demand by end users on the "My device" page, which they can access via Fleet Desktop.
+6. You can also expand the **Advanced options**, which will enable you to edit the following:
 
    - Pre-install query
    - Installation script
@@ -21,8 +23,6 @@ Fleet maintains these [celebrity apps](https://github.com/fleetdm/fleet/blob/mai
    - Uninstall scripts
 
 These scripts are auto-generated based on the app's Homebrew Cask formula, but you can modify them. Modifying these scripts allows you to tailor the app installation process to your organization's needs, such as automating additional setup tasks or custom configurations post-installation.
-
-> Adding Fleet-maintained apps using Fleet's [best practice GitOps](https://fleetdm.com/docs/configuration/yaml-files) is coming soon.
 
 ## Install the app
 

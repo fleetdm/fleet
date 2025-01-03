@@ -1920,6 +1920,60 @@ func TestSanitizeSoftware(t *testing.T) {
 				Version: "2020-03-10T00-00-00Z",
 			},
 		},
+		{
+			name: "minio with trailing garbage",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "minio",
+				Version: "RELEASE.2022-03-10T00-00-00Z_1",
+			},
+			sanitized: &fleet.Software{
+				Name:    "minio",
+				Version: "2022-03-10T00-00-00Z",
+			},
+		},
+		{
+			name: "JetBrains non-EAP",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:             "GoLand.app",
+				Version:          "2024.3.1",
+				BundleIdentifier: "com.jetbrains.goland",
+			},
+			sanitized: &fleet.Software{
+				Name:             "GoLand.app",
+				Version:          "2024.3.1",
+				BundleIdentifier: "com.jetbrains.goland",
+			},
+		},
+		{
+			name: "JetBrains EAP",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:             "GoLand.app",
+				Version:          "EAP GO-243.21565.42",
+				BundleIdentifier: "com.jetbrains.goland-EAP",
+			},
+			sanitized: &fleet.Software{
+				Name:             "GoLand.app",
+				Version:          "2024.2.99.21565.42",
+				BundleIdentifier: "com.jetbrains.goland-EAP",
+			},
+		},
+		{
+			name: "JetBrains year-wrapped EAP",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:             "IntelliJ IDEA CE",
+				Version:          "EAP IC-241.12345.67",
+				BundleIdentifier: "com.jetbrains.intellij-EAP",
+			},
+			sanitized: &fleet.Software{
+				Name:             "IntelliJ IDEA CE",
+				Version:          "2023.4.99.12345.67",
+				BundleIdentifier: "com.jetbrains.intellij-EAP",
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sanitizeSoftware(tc.h, tc.s, log.NewNopLogger())
@@ -1966,6 +2020,9 @@ func TestDirectIngestWindowsProfiles(t *testing.T) {
 				result[p.Name] = p
 			}
 			return result, nil
+		}
+		ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, secret string) (string, error) {
+			return secret, nil
 		}
 
 		gotQuery := buildConfigProfilesWindowsQuery(ctx, logger, &fleet.Host{}, ds)
@@ -2037,9 +2094,7 @@ func TestIngestNetworkInterface(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overriden
+			h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overridden
 			err := ingestNetworkInterface(publicip.NewContext(context.Background(), tc.ip), log.NewNopLogger(), &h, nil)
 			require.NoError(t, err)
 			if tc.valid {
@@ -2049,6 +2104,48 @@ func TestIngestNetworkInterface(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("primaryIP and primaryMAC", func(t *testing.T) {
+		h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overridden
+		ip := "10.0.0.1"
+		var b bytes.Buffer
+		logger := log.NewLogfmtLogger(&b)
+
+		// Happy path
+		rows := []map[string]string{
+			{"address": "address", "mac": "mac"},
+		}
+		err := ingestNetworkInterface(publicip.NewContext(context.Background(), ip), logger, &h, rows)
+		require.NoError(t, err)
+		assert.Equal(t, ip, h.PublicIP)
+		assert.Equal(t, "mac", h.PrimaryMac)
+		assert.Equal(t, "address", h.PrimaryIP)
+		assert.Empty(t, b.String())
+
+		// No rows
+		b.Reset()
+		h = fleet.Host{PublicIP: "190.18.97.3"}
+		err = ingestNetworkInterface(publicip.NewContext(context.Background(), ip), logger, &h, []map[string]string{})
+		require.NoError(t, err)
+		assert.Equal(t, ip, h.PublicIP)
+		assert.Empty(t, h.PrimaryMac)
+		assert.Empty(t, h.PrimaryIP)
+		assert.Contains(t, b.String(), "did not find a private IP address")
+
+		// Too many rows
+		b.Reset()
+		h = fleet.Host{PublicIP: "190.18.97.3"}
+		rows = []map[string]string{
+			{"address": "address", "mac": "mac"},
+			{"address": "address2", "mac": "mac2"},
+		}
+		err = ingestNetworkInterface(publicip.NewContext(context.Background(), ip), logger, &h, rows)
+		require.NoError(t, err)
+		assert.Equal(t, ip, h.PublicIP)
+		assert.Empty(t, h.PrimaryMac)
+		assert.Empty(t, h.PrimaryIP)
+		assert.Contains(t, b.String(), "expected single result")
+	})
 }
 
 func TestGenerateSQLForAllExists(t *testing.T) {
