@@ -1077,6 +1077,12 @@ type WipeHostViaWindowsMDMFunc func(ctx context.Context, host *fleet.Host, cmd *
 
 type UpdateHostLockWipeStatusFromAppleMDMResultFunc func(ctx context.Context, hostUUID string, cmdUUID string, requestType string, succeeded bool) error
 
+type GetHostsInScopeForSoftwareInstallerFunc func(ctx context.Context, installerID uint) (map[uint]struct{}, error)
+
+type GetHostsNotInScopeForSoftwareInstallerFunc func(ctx context.Context, installerID uint) (map[uint]struct{}, error)
+
+type ClearAutoInstallPolicyStatusForHostFunc func(ctx context.Context, installerID uint, hostIDs []uint) error
+
 type GetSoftwareInstallDetailsFunc func(ctx context.Context, executionId string) (*fleet.SoftwareInstallDetails, error)
 
 type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]string, error)
@@ -2771,6 +2777,15 @@ type DataStore struct {
 
 	UpdateHostLockWipeStatusFromAppleMDMResultFunc        UpdateHostLockWipeStatusFromAppleMDMResultFunc
 	UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked bool
+
+	GetHostsInScopeForSoftwareInstallerFunc        GetHostsInScopeForSoftwareInstallerFunc
+	GetHostsInScopeForSoftwareInstallerFuncInvoked bool
+
+	GetHostsNotInScopeForSoftwareInstallerFunc        GetHostsNotInScopeForSoftwareInstallerFunc
+	GetHostsNotInScopeForSoftwareInstallerFuncInvoked bool
+
+	ClearAutoInstallPolicyStatusForHostFunc        ClearAutoInstallPolicyStatusForHostFunc
+	ClearAutoInstallPolicyStatusForHostFuncInvoked bool
 
 	GetSoftwareInstallDetailsFunc        GetSoftwareInstallDetailsFunc
 	GetSoftwareInstallDetailsFuncInvoked bool
@@ -6634,6 +6649,27 @@ func (s *DataStore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Conte
 	s.UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostLockWipeStatusFromAppleMDMResultFunc(ctx, hostUUID, cmdUUID, requestType, succeeded)
+}
+
+func (s *DataStore) GetHostsInScopeForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error) {
+	s.mu.Lock()
+	s.GetHostsInScopeForSoftwareInstallerFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostsInScopeForSoftwareInstallerFunc(ctx, installerID)
+}
+
+func (s *DataStore) GetHostsNotInScopeForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error) {
+	s.mu.Lock()
+	s.GetHostsNotInScopeForSoftwareInstallerFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostsNotInScopeForSoftwareInstallerFunc(ctx, installerID)
+}
+
+func (s *DataStore) ClearAutoInstallPolicyStatusForHost(ctx context.Context, installerID uint, hostIDs []uint) error {
+	s.mu.Lock()
+	s.ClearAutoInstallPolicyStatusForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearAutoInstallPolicyStatusForHostFunc(ctx, installerID, hostIDs)
 }
 
 func (s *DataStore) GetSoftwareInstallDetails(ctx context.Context, executionId string) (*fleet.SoftwareInstallDetails, error) {
