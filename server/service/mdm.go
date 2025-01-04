@@ -2546,31 +2546,6 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 	return signedCSRB64, nil
 }
 
-func parseAPNSPrivateKey(ctx context.Context, block *pem.Block) (crypto.PrivateKey, error) {
-	if block == nil {
-		return nil, ctxerr.New(ctx, "failed to decode saved APNS key")
-	}
-
-	// The code below is based on tls.parsePrivateKey
-	// https://cs.opensource.google/go/go/+/release-branch.go1.23:src/crypto/tls/tls.go;l=355-372
-	if key, err := x509.ParsePKCS1PrivateKey(block.Bytes); err == nil {
-		return key, nil
-	}
-	if key, err := x509.ParsePKCS8PrivateKey(block.Bytes); err == nil {
-		switch key := key.(type) {
-		case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
-			return key, nil
-		default:
-			return nil, errors.New("unmarshaled PKCS8 APNS key is not an RSA, ECDSA, or Ed25519 private key")
-		}
-	}
-	if key, err := x509.ParseECPrivateKey(block.Bytes); err == nil {
-		return key, nil
-	}
-
-	return nil, ctxerr.New(ctx, fmt.Sprintf("failed to parse APNS private key of type %s", block.Type))
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // POST /mdm/apple/apns_certificate
 ////////////////////////////////////////////////////////////////////////////////
