@@ -1110,6 +1110,9 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
 
 	checkShouldFail := func(t *testing.T, err error, shouldFail bool) {
 		if !shouldFail {
@@ -1185,6 +1188,12 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		hostUUIDs []string,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return document, nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
 	}
 
 	cases := []struct {
@@ -1281,6 +1290,12 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 		hostUUIDs []string,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
 	}
 
 	testCases := []struct {
@@ -1701,7 +1716,12 @@ func TestValidateProfiles(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateProfiles(tt.profiles)
+			// Convert slice to a map
+			profiles := make(map[int]fleet.MDMProfileBatchPayload, len(tt.profiles))
+			for i, profile := range tt.profiles {
+				profiles[i] = profile
+			}
+			err := validateProfiles(profiles)
 			if tt.wantErr {
 				require.Error(t, err)
 				if tt.errMsg != "" {
@@ -2089,6 +2109,12 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 			m[label] = labelID
 		}
 		return m, nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
 	}
 
 	profiles := []fleet.MDMProfileBatchPayload{

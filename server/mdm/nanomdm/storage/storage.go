@@ -25,7 +25,7 @@ type CheckinStore interface {
 // CommandAndReportResultsStore stores and retrieves MDM command queue data.
 type CommandAndReportResultsStore interface {
 	StoreCommandReport(r *mdm.Request, report *mdm.CommandResults) error
-	RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.Command, error)
+	RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.CommandWithSubtype, error)
 	ClearQueue(r *mdm.Request) error
 }
 
@@ -37,11 +37,16 @@ type BootstrapTokenStore interface {
 	RetrieveBootstrapToken(r *mdm.Request, msg *mdm.GetBootstrapToken) (*mdm.BootstrapToken, error)
 }
 
+type SecretStore interface {
+	ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error)
+}
+
 // ServiceStore stores & retrieves both command and check-in data.
 type ServiceStore interface {
 	CheckinStore
 	CommandAndReportResultsStore
 	BootstrapTokenStore
+	SecretStore
 }
 
 // PushStore retrieves APNs push-related data.
@@ -68,7 +73,7 @@ type PushCertStore interface {
 
 // CommandEnqueuer is able to enqueue MDM commands.
 type CommandEnqueuer interface {
-	EnqueueCommand(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error)
+	EnqueueCommand(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error)
 }
 
 // CertAuthStore stores and retrieves cert-to-enrollment associations.

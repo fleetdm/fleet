@@ -30,6 +30,22 @@ AND CONSTRAINT_NAME = ?
 	return count > 0
 }
 
+func constraintExists(tx *sql.Tx, table, name string) bool {
+	var count int
+	err := tx.QueryRow(`
+SELECT COUNT(1)
+FROM information_schema.TABLE_CONSTRAINTS
+WHERE CONSTRAINT_SCHEMA = DATABASE() 
+AND TABLE_NAME = ?
+AND CONSTRAINT_NAME = ? 
+	`, table, name).Scan(&count)
+	if err != nil {
+		return false
+	}
+
+	return count > 0
+}
+
 func columnExists(tx *sql.Tx, table, column string) bool {
 	return columnsExists(tx, table, column)
 }

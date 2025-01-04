@@ -60,4 +60,5 @@ module.exports.policies = {
   'view-testimonials': true,
   'view-app-library': true,
   'view-app-details': true,
+  'view-meetups': true,
 };

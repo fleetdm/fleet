@@ -39,8 +39,8 @@ func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMA
 	profUUID := "a" + uuid.New().String()
 	stmt := `
 INSERT INTO
-    mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at)
-(SELECT ?, ?, ?, ?, ?, UNHEX(MD5(?)), CURRENT_TIMESTAMP() FROM DUAL WHERE
+    mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at, secrets_updated_at)
+(SELECT ?, ?, ?, ?, ?, UNHEX(MD5(?)), CURRENT_TIMESTAMP(), ? FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
 	) AND NOT EXISTS (
@@ -56,7 +56,8 @@ INSERT INTO
 	var profileID int64
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, stmt,
-			profUUID, teamID, cp.Identifier, cp.Name, cp.Mobileconfig, cp.Mobileconfig, cp.Name, teamID, cp.Name, teamID)
+			profUUID, teamID, cp.Identifier, cp.Name, cp.Mobileconfig, cp.Mobileconfig, cp.SecretsUpdatedAt, cp.Name, teamID, cp.Name,
+			teamID)
 		if err != nil {
 			switch {
 			case IsDuplicate(err):
@@ -213,7 +214,8 @@ SELECT
 	mobileconfig,
 	checksum,
 	created_at,
-	uploaded_at
+	uploaded_at,
+	secrets_updated_at
 FROM
 	mdm_apple_configuration_profiles
 WHERE
@@ -276,9 +278,10 @@ SELECT
 	name,
 	identifier,
 	raw_json,
-	checksum,
+	token,
 	created_at,
-	uploaded_at
+	uploaded_at,
+	secrets_updated_at
 FROM
 	mdm_apple_declarations
 WHERE
@@ -1701,7 +1704,8 @@ func (ds *Datastore) batchSetMDMAppleProfilesDB(
 SELECT
   identifier,
   profile_uuid,
-  mobileconfig
+  mobileconfig,
+  secrets_updated_at
 FROM
   mdm_apple_configuration_profiles
 WHERE
@@ -1720,13 +1724,14 @@ WHERE
 	const insertNewOrEditedProfile = `
 INSERT INTO
   mdm_apple_configuration_profiles (
-    profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at
+    profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at, secrets_updated_at
   )
 VALUES
   -- see https://stackoverflow.com/a/51393124/1094941
-  ( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP() )
+  ( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(6), ?)
 ON DUPLICATE KEY UPDATE
-  uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
+  uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP(6)),
+  secrets_updated_at = VALUES(secrets_updated_at),
   checksum = VALUES(checksum),
   name = VALUES(name),
   mobileconfig = VALUES(mobileconfig)
@@ -1809,7 +1814,7 @@ ON DUPLICATE KEY UPDATE
 	// insert the new profiles and the ones that have changed
 	for _, p := range incomingProfs {
 		if result, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Identifier, p.Name,
-			p.Mobileconfig); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
+			p.Mobileconfig, p.SecretsUpdatedAt); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 			}
@@ -1988,13 +1993,14 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		ds.host_platform as host_platform,
 		ds.profile_identifier as profile_identifier,
 		ds.profile_name as profile_name,
-		ds.checksum as checksum
+		ds.checksum as checksum,
+		ds.secrets_updated_at as secrets_updated_at
 	FROM ( %s ) as ds
 		LEFT JOIN host_mdm_apple_profiles hmap
 			ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.host_uuid
 	WHERE
-		-- profile has been updated
-		( hmap.checksum != ds.checksum ) OR
+		-- profile or secret variables have been updated
+		( hmap.checksum != ds.checksum ) OR IFNULL(hmap.secrets_updated_at < ds.secrets_updated_at, FALSE) OR
 		-- profiles in A but not in B
 		( hmap.profile_uuid IS NULL AND hmap.host_uuid IS NULL ) OR
 		-- profiles in A and B but with operation type "remove"
@@ -2060,6 +2066,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		narrowByProfiles = "AND hmap.profile_uuid IN (?)"
 	}
 
+	// Note: We do not need secrets_updated_at in the remove statement
 	toRemoveStmt := fmt.Sprintf(`
 	SELECT
 		hmap.profile_uuid as profile_uuid,
@@ -2176,46 +2183,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	profilesToInsert := make(map[string]*fleet.MDMAppleProfilePayload)
 
 	executeUpsertBatch := func(valuePart string, args []any) error {
-		// Check if the update needs to be done at all.
-		selectStmt := fmt.Sprintf(`
-			SELECT
-				host_uuid,
-				profile_uuid,
-				profile_identifier,
-				status,
-				COALESCE(operation_type, '') AS operation_type,
-				COALESCE(detail, '') AS detail,
-				command_uuid,
-				profile_name,
-				checksum,
-				profile_uuid
-			FROM host_mdm_apple_profiles WHERE (host_uuid, profile_uuid) IN (%s)`,
-			strings.TrimSuffix(strings.Repeat("(?,?),", len(profilesToInsert)), ","))
-		var selectArgs []any
-		for _, p := range profilesToInsert {
-			selectArgs = append(selectArgs, p.HostUUID, p.ProfileUUID)
-		}
-		var existingProfiles []fleet.MDMAppleProfilePayload
-		if err := sqlx.SelectContext(ctx, tx, &existingProfiles, selectStmt, selectArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending profile status select existing")
-		}
-		var updateNeeded bool
-		if len(existingProfiles) == len(profilesToInsert) {
-			for _, exist := range existingProfiles {
-				insert, ok := profilesToInsert[fmt.Sprintf("%s\n%s", exist.HostUUID, exist.ProfileUUID)]
-				if !ok || !exist.Equal(*insert) {
-					updateNeeded = true
-					break
-				}
-			}
-		} else {
-			updateNeeded = true
-		}
-		if !updateNeeded {
-			// All profiles are already in the database, no need to update.
-			return nil
-		}
-
+		// If this call is made, we assume the update must be done -- a new profile was added or existing one modified.
 		updatedDB = true
 		baseStmt := fmt.Sprintf(`
 				INSERT INTO host_mdm_apple_profiles (
@@ -2224,6 +2192,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 					profile_identifier,
 					profile_name,
 					checksum,
+					secrets_updated_at,
 					operation_type,
 					status,
 					command_uuid,
@@ -2235,6 +2204,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 					status = VALUES(status),
 					command_uuid = VALUES(command_uuid),
 					checksum = VALUES(checksum),
+				    secrets_updated_at = VALUES(secrets_updated_at),
 					detail = VALUES(detail)
 			`, strings.TrimSuffix(valuePart, ","))
 
@@ -2271,14 +2241,15 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 					HostUUID:          p.HostUUID,
 					HostPlatform:      p.HostPlatform,
 					Checksum:          p.Checksum,
+					SecretsUpdatedAt:  p.SecretsUpdatedAt,
 					Status:            pp.Status,
 					OperationType:     pp.OperationType,
 					Detail:            pp.Detail,
 					CommandUUID:       pp.CommandUUID,
 				}
-				pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum,
+				pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum, p.SecretsUpdatedAt,
 					pp.OperationType, pp.Status, pp.CommandUUID, pp.Detail)
-				psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?),")
+				psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?),")
 				batchCount++
 
 				if batchCount >= batchSize {
@@ -2298,14 +2269,15 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 			HostUUID:          p.HostUUID,
 			HostPlatform:      p.HostPlatform,
 			Checksum:          p.Checksum,
+			SecretsUpdatedAt:  p.SecretsUpdatedAt,
 			OperationType:     fleet.MDMOperationTypeInstall,
 			Status:            nil,
 			CommandUUID:       "",
 			Detail:            "",
 		}
-		pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum,
+		pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum, p.SecretsUpdatedAt,
 			fleet.MDMOperationTypeInstall, nil, "", "")
-		psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?),")
+		psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?),")
 		batchCount++
 
 		if batchCount >= batchSize {
@@ -2334,14 +2306,15 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 			HostUUID:          p.HostUUID,
 			HostPlatform:      p.HostPlatform,
 			Checksum:          p.Checksum,
+			SecretsUpdatedAt:  p.SecretsUpdatedAt,
 			OperationType:     fleet.MDMOperationTypeRemove,
 			Status:            nil,
 			CommandUUID:       "",
 			Detail:            "",
 		}
-		pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum,
+		pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum, p.SecretsUpdatedAt,
 			fleet.MDMOperationTypeRemove, nil, "", "")
-		psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?),")
+		psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?),")
 		batchCount++
 
 		if batchCount >= batchSize {
@@ -2374,6 +2347,7 @@ var mdmEntityTypeToDynamicNames = map[string]map[string]string{
 		"mdmEntityLabelsTable":    "mdm_declaration_labels",
 		"appleEntityUUIDColumn":   "apple_declaration_uuid",
 		"hostMDMAppleEntityTable": "host_mdm_apple_declarations",
+		"checksumColumn":          "token",
 	},
 	"profile": {
 		"entityUUIDColumn":        "profile_uuid",
@@ -2384,6 +2358,7 @@ var mdmEntityTypeToDynamicNames = map[string]map[string]string{
 		"mdmEntityLabelsTable":    "mdm_configuration_profile_labels",
 		"appleEntityUUIDColumn":   "apple_profile_uuid",
 		"hostMDMAppleEntityTable": "host_mdm_apple_profiles",
+		"checksumColumn":          "checksum",
 	},
 }
 
@@ -2403,7 +2378,8 @@ func generateDesiredStateQuery(entityType string) string {
 		h.platform as host_platform,
 		mae.identifier as ${entityIdentifierColumn},
 		mae.name as ${entityNameColumn},
-		mae.checksum as checksum,
+		mae.${checksumColumn} as ${checksumColumn},
+		mae.secrets_updated_at as secrets_updated_at,
 		0 as ${countEntityLabelsColumn},
 		0 as count_non_broken_labels,
 		0 as count_host_labels,
@@ -2436,7 +2412,8 @@ func generateDesiredStateQuery(entityType string) string {
 		h.platform as host_platform,
 		mae.identifier as ${entityIdentifierColumn},
 		mae.name as ${entityNameColumn},
-		mae.checksum as checksum,
+		mae.${checksumColumn} as ${checksumColumn},
+		mae.secrets_updated_at as secrets_updated_at,
 		COUNT(*) as ${countEntityLabelsColumn},
 		COUNT(mel.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels,
@@ -2457,7 +2434,7 @@ func generateDesiredStateQuery(entityType string) string {
 		ne.type = 'Device' AND
 		( %s )
 	GROUP BY
-		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.checksum
+		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.${checksumColumn}, mae.secrets_updated_at
 	HAVING
 		${countEntityLabelsColumn} > 0 AND count_host_labels = ${countEntityLabelsColumn}
 
@@ -2474,7 +2451,8 @@ func generateDesiredStateQuery(entityType string) string {
 		h.platform as host_platform,
 		mae.identifier as ${entityIdentifierColumn},
 		mae.name as ${entityNameColumn},
-		mae.checksum as checksum,
+		mae.${checksumColumn} as ${checksumColumn},
+		mae.secrets_updated_at as secrets_updated_at,
 		COUNT(*) as ${countEntityLabelsColumn},
 		COUNT(mel.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels,
@@ -2499,7 +2477,7 @@ func generateDesiredStateQuery(entityType string) string {
 		ne.type = 'Device' AND
 		( %s )
 	GROUP BY
-		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.checksum
+		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.${checksumColumn}, mae.secrets_updated_at
 	HAVING
 		-- considers only the profiles with labels, without any broken label, with results reported after all labels were created and with the host not in any label
 		${countEntityLabelsColumn} > 0 AND ${countEntityLabelsColumn} = count_non_broken_labels AND ${countEntityLabelsColumn} = count_host_updated_after_labels AND count_host_labels = 0
@@ -2515,7 +2493,8 @@ func generateDesiredStateQuery(entityType string) string {
 		h.platform as host_platform,
 		mae.identifier as ${entityIdentifierColumn},
 		mae.name as ${entityNameColumn},
-		mae.checksum as checksum,
+		mae.${checksumColumn} as ${checksumColumn},
+		mae.secrets_updated_at as secrets_updated_at,
 		COUNT(*) as ${countEntityLabelsColumn},
 		COUNT(mel.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels,
@@ -2536,7 +2515,7 @@ func generateDesiredStateQuery(entityType string) string {
 		ne.type = 'Device' AND
 		( %s )
 	GROUP BY
-		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.checksum
+		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.${checksumColumn}, mae.secrets_updated_at
 	HAVING
 		${countEntityLabelsColumn} > 0 AND count_host_labels >= 1
 	`, func(s string) string { return dynamicNames[s] })
@@ -2590,7 +2569,7 @@ func generateEntitiesToInstallQuery(entityType string) string {
 			ON hmae.${entityUUIDColumn} = ds.${entityUUIDColumn} AND hmae.host_uuid = ds.host_uuid
 	WHERE
 		-- entity has been updated
-		( hmae.checksum != ds.checksum ) OR
+		( hmae.${checksumColumn} != ds.${checksumColumn} ) OR IFNULL(hmae.secrets_updated_at < ds.secrets_updated_at, FALSE) OR
 		-- entity in A but not in B
 		( hmae.${entityUUIDColumn} IS NULL AND hmae.host_uuid IS NULL ) OR
 		-- entities in A and B but with operation type "remove"
@@ -2661,7 +2640,8 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 		ds.host_platform,
 		ds.profile_identifier,
 		ds.profile_name,
-		ds.checksum
+		ds.checksum,
+		ds.secrets_updated_at
 	FROM %s `,
 		generateEntitiesToInstallQuery("profile"))
 	var profiles []*fleet.MDMAppleProfilePayload
@@ -2670,6 +2650,8 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 }
 
 func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
+	// Note: although some of these values (like secrets_updated_at) are not strictly necessary for profile removal,
+	// we are keeping them here for consistency.
 	query := fmt.Sprintf(`
 	SELECT
 		hmae.profile_uuid,
@@ -2677,6 +2659,7 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 		hmae.profile_name,
 		hmae.host_uuid,
 		hmae.checksum,
+		hmae.secrets_updated_at,
 		hmae.operation_type,
 		COALESCE(hmae.detail, '') as detail,
 		hmae.status,
@@ -2718,6 +2701,7 @@ func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, uuids []st
 	return results, nil
 }
 
+// BulkUpsertMDMAppleHostProfiles is used to update the status of profile delivery to hosts.
 func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
 	if len(payload) == 0 {
 		return nil
@@ -2734,7 +2718,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               operation_type,
               detail,
               command_uuid,
-              checksum
+              checksum,
+              secrets_updated_at
             )
             VALUES %s
             ON DUPLICATE KEY UPDATE
@@ -2742,6 +2727,7 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               operation_type = VALUES(operation_type),
               detail = VALUES(detail),
               checksum = VALUES(checksum),
+              secrets_updated_at = VALUES(secrets_updated_at),
               profile_identifier = VALUES(profile_identifier),
               profile_name = VALUES(profile_name),
               command_uuid = VALUES(command_uuid)`,
@@ -2761,12 +2747,13 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	}
 
 	generateValueArgs := func(p *fleet.MDMAppleBulkUpsertHostProfilePayload) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?),"
-		args := []any{p.ProfileUUID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID, p.Checksum}
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		args := []any{p.ProfileUUID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID,
+			p.Checksum, p.SecretsUpdatedAt}
 		return valuePart, args
 	}
 
-	const defaultBatchSize = 1000 // results in this times 9 placeholders
+	const defaultBatchSize = 1000 // number of parameters is this times number of placeholders
 	batchSize := defaultBatchSize
 	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
 		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
@@ -3050,7 +3037,7 @@ func subqueryFileVaultVerifying() (string, []interface{}) {
                 AND hmap.profile_identifier = ?
                 AND hmap.operation_type = ?
                 AND (
-		  (hmap.status = ? AND hdek.decryptable IS NULL)
+		  (hmap.status = ? AND hdek.decryptable IS NULL AND hdek.host_id IS NOT NULL)
 		  OR
 		  (hmap.status = ? AND hdek.decryptable = 1)
 		)`
@@ -3221,19 +3208,20 @@ func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, paylo
 			teamID = *cp.TeamID
 		}
 
-		args = append(args, teamID, cp.Identifier, cp.Name, cp.Mobileconfig)
+		args = append(args, teamID, cp.Identifier, cp.Name, cp.Mobileconfig, cp.SecretsUpdatedAt)
 		// see https://stackoverflow.com/a/51393124/1094941
-		sb.WriteString("( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP() ),")
+		sb.WriteString("( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(), ?),")
 	}
 
 	stmt := fmt.Sprintf(`
           INSERT INTO
-              mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at)
+              mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at, secrets_updated_at)
           VALUES %s
           ON DUPLICATE KEY UPDATE
             uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
             mobileconfig = VALUES(mobileconfig),
-            checksum = VALUES(checksum)
+            checksum = VALUES(checksum),
+		    secrets_updated_at = VALUES(secrets_updated_at)
 `, strings.TrimSuffix(sb.String(), ","))
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
@@ -4229,16 +4217,16 @@ INSERT INTO mdm_apple_declarations (
 	identifier,
 	name,
 	raw_json,
-	checksum,
+	secrets_updated_at,
 	uploaded_at,
 	team_id
 )
 VALUES (
-	?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP(),?
+	?,?,?,?,?,CURRENT_TIMESTAMP(),?
 )
 ON DUPLICATE KEY UPDATE
-  uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
-  checksum = VALUES(checksum),
+  uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND NULLIF(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, CURRENT_TIMESTAMP()),
+  secrets_updated_at = VALUES(secrets_updated_at),
   name = VALUES(name),
   identifier = VALUES(identifier),
   raw_json = VALUES(raw_json)
@@ -4338,14 +4326,13 @@ WHERE
 	}
 
 	for _, d := range incomingDeclarations {
-		checksum := md5ChecksumScriptContent(string(d.RawJSON))
 		declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
 		if result, err = tx.ExecContext(ctx, insertStmt,
 			declUUID,
 			d.Identifier,
 			d.Name,
 			d.RawJSON,
-			checksum,
+			d.SecretsUpdatedAt,
 			declTeamID); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
@@ -4420,9 +4407,9 @@ INSERT INTO mdm_apple_declarations (
 	identifier,
 	name,
 	raw_json,
-	checksum,
+	secrets_updated_at,
 	uploaded_at)
-(SELECT ?,?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP() FROM DUAL WHERE
+(SELECT ?,?,?,?,?,?,CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
@@ -4441,9 +4428,9 @@ INSERT INTO mdm_apple_declarations (
 	identifier,
 	name,
 	raw_json,
-	checksum,
+	secrets_updated_at,
 	uploaded_at)
-(SELECT ?,?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP() FROM DUAL WHERE
+(SELECT ?,?,?,?,?,?,CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
@@ -4452,16 +4439,14 @@ INSERT INTO mdm_apple_declarations (
 )
 ON DUPLICATE KEY UPDATE
 	identifier = VALUES(identifier),
-	uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
-	raw_json = VALUES(raw_json),
-	checksum = VALUES(checksum)`
+	uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND NULLIF(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, CURRENT_TIMESTAMP()),
+	raw_json = VALUES(raw_json)`
 
 	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration)
 }
 
 func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insOrUpsertStmt string, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 	declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
-	checksum := md5ChecksumScriptContent(string(declaration.RawJSON))
 
 	var tmID uint
 	if declaration.TeamID != nil {
@@ -4472,7 +4457,9 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insOrUpsertStmt,
-			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.RawJSON, checksum, declaration.Name, tmID, declaration.Name, tmID)
+			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.RawJSON,
+			declaration.SecretsUpdatedAt,
+			declaration.Name, tmID, declaration.Name, tmID)
 		if err != nil {
 			switch {
 			case IsDuplicate(err):
@@ -4652,9 +4639,9 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 func (ds *Datastore) MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*fleet.MDMAppleDDMDeclarationsToken, error) {
 	const stmt = `
 SELECT
-	COALESCE(MD5((count(0) + GROUP_CONCAT(HEX(mad.checksum)
+	COALESCE(MD5((count(0) + GROUP_CONCAT(HEX(mad.token)
 		ORDER BY
-			mad.uploaded_at DESC separator ''))), '') AS checksum,
+			mad.uploaded_at DESC separator ''))), '') AS token,
 	COALESCE(MAX(mad.created_at), NOW()) AS latest_created_timestamp
 FROM
 	host_mdm_apple_declarations hmad
@@ -4681,7 +4668,7 @@ WHERE
 func (ds *Datastore) MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]fleet.MDMAppleDDMDeclarationItem, error) {
 	const stmt = `
 SELECT
-	HEX(mad.checksum) as checksum,
+	HEX(mad.token) as token,
 	mad.identifier
 FROM
 	host_mdm_apple_declarations hmad
@@ -4704,7 +4691,7 @@ func (ds *Datastore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identi
 	// declarations are removed, but the join would provide an extra layer of safety.
 	const stmt = `
 SELECT
-	mad.raw_json, HEX(mad.checksum) as checksum
+	mad.raw_json, HEX(mad.token) as token
 FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
@@ -4792,13 +4779,14 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 ) (updatedDB bool, err error) {
 	baseStmt := `
 	  INSERT INTO host_mdm_apple_declarations
-	    (host_uuid, status, operation_type, checksum, declaration_uuid, declaration_identifier, declaration_name)
+	    (host_uuid, status, operation_type, token, secrets_updated_at, declaration_uuid, declaration_identifier, declaration_name)
 	  VALUES
 	    %s
 	  ON DUPLICATE KEY UPDATE
 	    status = VALUES(status),
 	    operation_type = VALUES(operation_type),
-	    checksum = VALUES(checksum)
+	    token = VALUES(token),
+	    secrets_updated_at = VALUES(secrets_updated_at)
 	  `
 
 	profilesToInsert := make(map[string]*fleet.MDMAppleHostDeclaration)
@@ -4812,7 +4800,8 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 				status,
 				COALESCE(operation_type, '') AS operation_type,
 				COALESCE(detail, '') AS detail,
-				checksum,
+				token,
+				secrets_updated_at,
 				declaration_uuid,
 				declaration_identifier,
 				declaration_name
@@ -4855,17 +4844,18 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 
 	generateValueArgs := func(d *fleet.MDMAppleHostDeclaration) (string, []any) {
 		profilesToInsert[fmt.Sprintf("%s\n%s", d.HostUUID, d.DeclarationUUID)] = &fleet.MDMAppleHostDeclaration{
-			HostUUID:        d.HostUUID,
-			DeclarationUUID: d.DeclarationUUID,
-			Name:            d.Name,
-			Identifier:      d.Identifier,
-			Status:          status,
-			OperationType:   d.OperationType,
-			Detail:          d.Detail,
-			Checksum:        d.Checksum,
+			HostUUID:         d.HostUUID,
+			DeclarationUUID:  d.DeclarationUUID,
+			Name:             d.Name,
+			Identifier:       d.Identifier,
+			Status:           status,
+			OperationType:    d.OperationType,
+			Detail:           d.Detail,
+			Token:            d.Token,
+			SecretsUpdatedAt: d.SecretsUpdatedAt,
 		}
-		valuePart := "(?, ?, ?, ?, ?, ?, ?),"
-		args := []any{d.HostUUID, status, d.OperationType, d.Checksum, d.DeclarationUUID, d.Identifier, d.Name}
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?),"
+		args := []any{d.HostUUID, status, d.OperationType, d.Token, d.SecretsUpdatedAt, d.DeclarationUUID, d.Identifier, d.Name}
 		return valuePart, args
 	}
 
@@ -4875,16 +4865,22 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 
 // mdmAppleGetHostsWithChangedDeclarationsDB returns a
 // MDMAppleHostDeclaration item for each (host x declaration) pair that
-// needs an status change, this includes declarations to install and
+// needs a status change, this includes declarations to install and
 // declarations to be removed. Those can be differentiated by the
 // OperationType field on each struct.
+//
+// Note (2024/12/24): This method returns some rows that DO NOT NEED TO BE UPDATED.
+// We should optimize this method to only return the rows that need to be updated.
+// Then we can eliminate the subsequent check for updates in the caller.
+// The check for updates is needed to log the correct activity item -- whether declarations were updated or not.
 func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtContext) ([]*fleet.MDMAppleHostDeclaration, error) {
 	stmt := fmt.Sprintf(`
         (
             SELECT
                 ds.host_uuid,
                 'install' as operation_type,
-                ds.checksum,
+                ds.token,
+				ds.secrets_updated_at,
                 ds.declaration_uuid,
                 ds.declaration_identifier,
                 ds.declaration_name
@@ -4896,7 +4892,8 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
             SELECT
                 hmae.host_uuid,
                 'remove' as operation_type,
-                hmae.checksum,
+                hmae.token,
+				hmae.secrets_updated_at,
                 hmae.declaration_uuid,
                 hmae.declaration_identifier,
                 hmae.declaration_name
@@ -4915,16 +4912,17 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
 	return decls, nil
 }
 
+// MDMAppleStoreDDMStatusReport updates the status of the host's declarations.
 func (ds *Datastore) MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error {
 	getHostDeclarationsStmt := `
-    SELECT host_uuid, status, operation_type, HEX(checksum) as checksum, declaration_uuid, declaration_identifier, declaration_name
+    SELECT host_uuid, status, operation_type, HEX(token) as token, secrets_updated_at, declaration_uuid, declaration_identifier, declaration_name
     FROM host_mdm_apple_declarations
     WHERE host_uuid = ?
   `
 
 	updateHostDeclarationsStmt := `
 INSERT INTO host_mdm_apple_declarations
-    (host_uuid, declaration_uuid, status, operation_type, detail, declaration_name, declaration_identifier, checksum)
+    (host_uuid, declaration_uuid, status, operation_type, detail, declaration_name, declaration_identifier, token, secrets_updated_at)
 VALUES
   %s
 ON DUPLICATE KEY UPDATE
@@ -4943,17 +4941,18 @@ ON DUPLICATE KEY UPDATE
 		return ctxerr.Wrap(ctx, err, "getting current host declarations")
 	}
 
-	updatesByChecksum := make(map[string]*fleet.MDMAppleHostDeclaration, len(updates))
+	updatesByToken := make(map[string]*fleet.MDMAppleHostDeclaration, len(updates))
 	for _, u := range updates {
-		updatesByChecksum[u.Checksum] = u
+		updatesByToken[u.Token] = u
 	}
 
 	var args []any
 	var insertVals strings.Builder
 	for _, c := range current {
-		if u, ok := updatesByChecksum[c.Checksum]; ok {
-			insertVals.WriteString("(?, ?, ?, ?, ?, ?, ?, UNHEX(?)),")
-			args = append(args, hostUUID, c.DeclarationUUID, u.Status, u.OperationType, u.Detail, c.Identifier, c.Name, c.Checksum)
+		if u, ok := updatesByToken[c.Token]; ok {
+			insertVals.WriteString("(?, ?, ?, ?, ?, ?, ?, UNHEX(?), ?),")
+			args = append(args, hostUUID, c.DeclarationUUID, u.Status, u.OperationType, u.Detail, c.Identifier, c.Name, c.Token,
+				c.SecretsUpdatedAt)
 		}
 	}
 

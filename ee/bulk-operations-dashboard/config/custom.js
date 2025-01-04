@@ -107,4 +107,19 @@ module.exports.custom = {
   // [?] Here's how you get one: https://fleetdm.com/docs/using-fleet/fleetctl-cli#get-the-api-token-of-an-api-only-user
   // fleetApiToken: 'asdfasdfasdfasdf',
 
+
+  /**************************************************************************
+  *                                                                         *
+  * Entra SSO configuration                                                  *
+  *                                                                         *
+  **************************************************************************/
+  // entraTenantId: '...', // « The tenant ID of this application in the Microsoft Entra dashboard.
+  // entraClientId: '...', // « The Application (client) ID of this application in the Microsoft Entra dashboard.
+  // entraClientSecret: '...', //« The client secret for the application that has been created for this dashboard.
+  //--------------------------------------------------------------------------
+  // /\  Configure these to replace the built-in authentication with Microsoft Entra SSO.
+  // ||
+  //--------------------------------------------------------------------------
+
+
 };

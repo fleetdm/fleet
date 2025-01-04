@@ -88,3 +88,4 @@ To learn more about how Fleet can support your organization, visit [fleetdm.com/
 <meta name="publishedOn" value="2024-12-06">
 <meta name="articleTitle" value="Leading financial company consolidates multiple tools with Fleet">
 <meta name="description" value="Leading financial company consolidates multiple tools with Fleet">
+<meta name="showOnTestimonialsPageWithEmoji" value="🥀">
