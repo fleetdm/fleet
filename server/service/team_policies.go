@@ -124,7 +124,13 @@ func (svc *Service) populatePolicyInstallSoftware(ctx context.Context, p *fleet.
 		return nil
 	}
 
-	// TODO pull VPP metadata if adam ID exists
+	if p.VPPAdamID != nil {
+		titleInfo, err := svc.ds.GetVPPTitleInfoByAdamIDAndPlatform(ctx, *p.VPPAdamID, fleet.MacOSPlatform)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get VPP title metadata by adam_id")
+		}
+		p.InstallSoftware = titleInfo
+	}
 
 	return nil
 }

@@ -463,6 +463,35 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 	return nil
 }
 
+func (ds *Datastore) GetVPPTitleInfoByAdamIDAndPlatform(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (info *fleet.PolicySoftwareTitle, err error) {
+	err = sqlx.GetContext(ctx, ds.reader(ctx), info, `SELECT name, title_id FROM vpp_apps WHERE adam_id = ? AND platform = ?`, adamID, platform)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP app")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get VPP app")
+	}
+
+	return info, nil
+}
+
+func (ds *Datastore) GetVPPAppMetadataByAdamIDAndPlatform(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.VPPApp, error) {
+	stmt := `SELECT va.adam_id, va.bundle_identifier, va.icon_url, va.name, va.title_id, va.platform, va.created_at, va.updated_at,
+		FROM vpp_apps va WHERE va.adam_id = ? AND va.platform = ?
+  `
+
+	var dest fleet.VPPApp
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, adamID, platform)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP app")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get VPP app")
+	}
+
+	return &dest, nil
+}
+
 func (ds *Datastore) GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error) {
 	stmt := `
 SELECT
@@ -498,22 +527,22 @@ WHERE vat.global_or_team_id = ? AND va.title_id = ?
 }
 
 func (ds *Datastore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID,
-	commandUUID, associatedEventID string, selfService bool,
+	commandUUID, associatedEventID string, selfService bool, policyID *uint,
 ) error {
 	stmt := `
 INSERT INTO host_vpp_software_installs
-  (host_id, adam_id, platform, command_uuid, user_id, associated_event_id, self_service)
+  (host_id, adam_id, platform, command_uuid, user_id, associated_event_id, self_service, policy_id)
 VALUES
-  (?,?,?,?,?,?,?)
+  (?,?,?,?,?,?,?,?)
 	`
 
 	var userID *uint
-	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil && policyID == nil {
 		userID = &ctxUser.ID
 	}
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, appID.AdamID, appID.Platform, commandUUID, userID,
-		associatedEventID, selfService); err != nil {
+		associatedEventID, selfService, policyID); err != nil {
 		return ctxerr.Wrap(ctx, err, "insert into host_vpp_software_installs")
 	}
 
@@ -535,13 +564,16 @@ SELECT
 	st.name AS software_title,
 	hvsi.adam_id AS app_store_id,
 	hvsi.command_uuid AS command_uuid,
-	hvsi.self_service AS self_service
+	hvsi.self_service AS self_service,
+	hvsi.policy_id AS policy_id,
+	hvsi.policy_name AS policy_name
 FROM
 	host_vpp_software_installs hvsi
 	LEFT OUTER JOIN users u ON hvsi.user_id = u.id
 	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hvsi.host_id
 	LEFT OUTER JOIN vpp_apps vpa ON hvsi.adam_id = vpa.adam_id
 	LEFT OUTER JOIN software_titles st ON st.id = vpa.title_id
+	LEFT OUTER JOIN policies ON policies.id = hvsi.policy_id
 WHERE
 	hvsi.command_uuid = :command_uuid
 	`
@@ -556,6 +588,8 @@ WHERE
 		UserID          *uint   `db:"user_id"`
 		UserEmail       *string `db:"user_email"`
 		SelfService     bool    `db:"self_service"`
+		PolicyID        *uint   `db:"policy_id"`
+		PolicyName      *string `db:"policy_name"`
 	}
 
 	listStmt, args, err := sqlx.Named(stmt, map[string]any{
@@ -605,6 +639,8 @@ WHERE
 		AppStoreID:      res.AppStoreID,
 		CommandUUID:     res.CommandUUID,
 		SelfService:     res.SelfService,
+		PolicyID:        res.PolicyID,
+		PolicyName:      res.PolicyName,
 		Status:          status,
 	}
 
