@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -142,7 +143,7 @@ func (ds *Datastore) ListSoftwareTitles(
 
 	// grab all the IDs to find matching versions below
 	titleIDs := make([]uint, len(softwareList))
-	// build an index to quickly access a title by it's ID
+	// build an index to quickly access a title by its ID
 	titleIndex := make(map[uint]int, len(softwareList))
 	for i, title := range softwareList {
 		// promote the package name and version to the proper destination fields
@@ -188,7 +189,11 @@ func (ds *Datastore) ListSoftwareTitles(
 
 	for _, p := range policies {
 		if i, ok := titleIndex[p.TitleID]; ok {
-			softwareList[i].SoftwarePackage.AutomaticInstallPolicies = append(softwareList[i].SoftwarePackage.AutomaticInstallPolicies, p)
+			if softwareList[i].AppStoreApp != nil {
+				softwareList[i].AppStoreApp.AutomaticInstallPolicies = append(softwareList[i].SoftwarePackage.AutomaticInstallPolicies, p)
+			} else {
+				softwareList[i].SoftwarePackage.AutomaticInstallPolicies = append(softwareList[i].SoftwarePackage.AutomaticInstallPolicies, p)
+			}
 		}
 	}
 
@@ -379,8 +384,17 @@ GROUP BY st.id, package_self_service, package_name, package_version, package_url
 	}
 
 	if opt.Platform != "" {
-		additionalWhere += ` AND ( si.platform = ? OR vap.platform = ? )`
-		args = append(args, opt.Platform, opt.Platform)
+		platforms := strings.Split(strings.Replace(opt.Platform, "macos", "darwin", -1), ",")
+		platformPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(platforms)), ",")
+
+		additionalWhere += fmt.Sprintf(` AND (si.platform IN (%s) OR vap.platform IN (%s))`, platformPlaceholders, platformPlaceholders)
+		slices.Grow(args, len(platformPlaceholders)*2)
+		for _, platform := range platforms { // for software installers
+			args = append(args, platform)
+		}
+		for _, platform := range platforms { // for VPP apps; could micro-optimize later by dropping non-Apple platforms
+			args = append(args, platform)
+		}
 	}
 
 	// default to "a software installer or VPP app exists", and see next condition.

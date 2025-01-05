@@ -1751,11 +1751,12 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 	SELECT
 		p.id AS id,
 		p.name AS name,
-		st.id AS software_title_id
+		COALESCE(si.title_id, va.title_id) AS software_title_id
 	FROM policies p
-	JOIN software_installers si ON p.software_installer_id = si.id
-	JOIN software_titles st ON si.title_id = st.id
-	WHERE st.id IN (?) AND p.team_id = ?
+	LEFT JOIN software_installers si ON p.software_installer_id = si.id
+	LEFT JOIN policy_vpp_automations pva ON p.id = pva.policy_id
+	LEFT JOIN vpp_apps va ON va.adam_id = pva.adam_id AND va.platform = pva.platform
+	WHERE (va.title_id IN (?) OR si.title_id IN (?)) AND p.team_id = ?
 `
 
 	var tmID uint
@@ -1763,7 +1764,7 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 		tmID = *teamID
 	}
 
-	query, args, err := sqlx.In(query, softwareTitleIDs, tmID)
+	query, args, err := sqlx.In(query, softwareTitleIDs, softwareTitleIDs, tmID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build select get policies by software id query")
 	}
