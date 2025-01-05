@@ -9089,11 +9089,11 @@ Get a list of all software.
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
-| platform | string | query | Filter software titles by platforms. Options are: `"macos"`, `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`. This parameter can be specified more than once to filter by multiple platforms (e.g. `?platform=darwin&platform=windows`). |
+| platform | string | query | Filter software titles by platforms. Options are: `"macos"` (alias of `"darwin"`), `"darwin"` `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=darwin,windows`). |
 
 #### Example
 
-`GET /api/v1/fleet/software/titles?team_id=3&platform=darwin&platform=windows`
+`GET /api/v1/fleet/software/titles?team_id=3&platform=darwin,windows`
 
 ##### Default response
 
