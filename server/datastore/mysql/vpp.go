@@ -463,8 +463,9 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 	return nil
 }
 
-func (ds *Datastore) GetVPPTitleInfoByAdamIDAndPlatform(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (info *fleet.PolicySoftwareTitle, err error) {
-	err = sqlx.GetContext(ctx, ds.reader(ctx), info, `SELECT name, title_id FROM vpp_apps WHERE adam_id = ? AND platform = ?`, adamID, platform)
+func (ds *Datastore) GetVPPTitleInfoByAdamIDAndPlatform(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.PolicySoftwareTitle, error) {
+	var info fleet.PolicySoftwareTitle
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &info, `SELECT name, title_id FROM vpp_apps WHERE adam_id = ? AND platform = ?`, adamID, platform)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP app")
@@ -472,7 +473,7 @@ func (ds *Datastore) GetVPPTitleInfoByAdamIDAndPlatform(ctx context.Context, ada
 		return nil, ctxerr.Wrap(ctx, err, "get VPP app")
 	}
 
-	return info, nil
+	return &info, nil
 }
 
 func (ds *Datastore) GetVPPAppMetadataByAdamIDAndPlatform(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.VPPApp, error) {

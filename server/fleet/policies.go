@@ -346,7 +346,7 @@ type PolicySpec struct {
 // PolicySoftwareTitle contains software title data for policies.
 type PolicySoftwareTitle struct {
 	// SoftwareTitleID is the ID of the title associated to the policy.
-	SoftwareTitleID uint `json:"software_title_id" db:"software_title_id"`
+	SoftwareTitleID uint `json:"software_title_id" db:"title_id"`
 	// Name is the associated installer title name
 	// (not the package name, but the installed software title).
 	Name string `json:"name" db:"name"`
