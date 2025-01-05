@@ -190,7 +190,7 @@ func (ds *Datastore) ListSoftwareTitles(
 	for _, p := range policies {
 		if i, ok := titleIndex[p.TitleID]; ok {
 			if softwareList[i].AppStoreApp != nil {
-				softwareList[i].AppStoreApp.AutomaticInstallPolicies = append(softwareList[i].SoftwarePackage.AutomaticInstallPolicies, p)
+				softwareList[i].AppStoreApp.AutomaticInstallPolicies = append(softwareList[i].AppStoreApp.AutomaticInstallPolicies, p)
 			} else {
 				softwareList[i].SoftwarePackage.AutomaticInstallPolicies = append(softwareList[i].SoftwarePackage.AutomaticInstallPolicies, p)
 			}
@@ -384,11 +384,11 @@ GROUP BY st.id, package_self_service, package_name, package_version, package_url
 	}
 
 	if opt.Platform != "" {
-		platforms := strings.Split(strings.Replace(opt.Platform, "macos", "darwin", -1), ",")
+		platforms := strings.Split(strings.ReplaceAll(opt.Platform, "macos", "darwin"), ",")
 		platformPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(platforms)), ",")
 
 		additionalWhere += fmt.Sprintf(` AND (si.platform IN (%s) OR vap.platform IN (%s))`, platformPlaceholders, platformPlaceholders)
-		slices.Grow(args, len(platformPlaceholders)*2)
+		args = slices.Grow(args, len(platformPlaceholders)*2)
 		for _, platform := range platforms { // for software installers
 			args = append(args, platform)
 		}
