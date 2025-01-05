@@ -24,7 +24,7 @@ import (
 const policyCols = `
 	p.id, p.team_id, p.resolution, p.name, p.query, p.description,
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
-	p.calendar_events_enabled, p.software_installer_id, p.script_id, vpa.adam_id
+	p.calendar_events_enabled, p.software_installer_id, p.script_id
 `
 
 var (
@@ -110,7 +110,6 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
 		LEFT JOIN policy_stats ps ON p.id = ps.policy_id
-		LEFT JOIN policy_vpp_automations vpa ON p.id = vpa.policy_id
 		AND ((p.team_id IS NULL AND ps.inherited_team_id IS NULL) OR (p.team_id IS NOT NULL))
 		WHERE p.id=? AND %s`, policyCols, teamWhere),
 		args...)
@@ -182,7 +181,7 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 			return ctxerr.Wrap(ctx, err, "resetting policy VPP automation")
 		}
 		if p.VPPAdamID != nil {
-			_, err = tx.ExecContext(ctx, `INSERT INTO policy_vpp_automations (policy_id, adam_id, platform) VALUES (?, ?, "darwin")`, p.ID, p.VPPAdamID)
+			_, err = tx.ExecContext(ctx, `INSERT INTO policy_vpp_automations (policy_id, adam_id, platform) VALUES (?, ?, ?)`, p.ID, p.VPPAdamID, fleet.MacOSPlatform)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "updating policy VPP automation")
 			}
@@ -454,8 +453,8 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 			COALESCE(ps.failing_host_count, 0) AS failing_host_count
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
+		LEFT JOIN policy_vpp_automations pva ON p.id = pva.policy_id
 		LEFT JOIN policy_stats ps ON p.id = ps.policy_id AND ps.inherited_team_id IS NULL
-		LEFT JOIN policy_vpp_automations vpa ON p.id = vpa.policy_id
 	`
 
 	if teamID != nil {
@@ -494,8 +493,8 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, tea
             COALESCE(ps.failing_host_count, 0) as failing_host_count
         FROM policies p
         LEFT JOIN users u ON p.author_id = u.id
+		LEFT JOIN policy_vpp_automations pva ON p.id = pva.policy_id
         LEFT JOIN policy_stats ps ON p.id = ps.policy_id AND ps.inherited_team_id = ?
-		LEFT JOIN policy_vpp_automations vpa ON p.id = vpa.policy_id
         WHERE p.team_id IS NULL
     `
 
@@ -571,9 +570,9 @@ func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fl
 	  COALESCE(ps.failing_host_count, 0) as failing_host_count
 	  FROM policies p
 	  LEFT JOIN users u ON p.author_id = u.id
+      LEFT JOIN policy_vpp_automations pva ON p.id = pva.policy_id
 	  LEFT JOIN policy_stats ps ON p.id = ps.policy_id
 	  	AND ((p.team_id IS NULL AND ps.inherited_team_id IS NULL) OR (p.team_id IS NOT NULL))
-      LEFT JOIN policy_vpp_automations vpa ON p.id = vpa.policy_id
 	  WHERE p.id IN (?)`
 	query, args, err := sqlx.In(sql, ids)
 	if err != nil {
@@ -761,8 +760,8 @@ func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, op
 			COALESCE(ps.failing_host_count, 0) as failing_host_count
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
+		LEFT JOIN policy_vpp_automations pva ON p.id = pva.policy_id
 		LEFT JOIN policy_stats ps ON p.id = ps.policy_id
-		LEFT JOIN policy_vpp_automations vpa ON p.id = vpa.policy_id
 		AND (p.team_id IS NOT NULL OR ps.inherited_team_id = ?)
 		WHERE (p.team_id = ? OR p.team_id IS NULL)
     `
