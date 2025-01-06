@@ -379,24 +379,29 @@ func packageCommand() *cli.Command {
 			path, _ = filepath.Abs(path)
 			pathBase := filepath.Base(path)
 			var installInstructions = "double-click the installer"
+			var deviceType string
 			switch c.String("type") {
 			case "pkg":
 				installInstructions += fmt.Sprintf(" or run the command `installer -pkg \"%s\" -target /`", pathBase)
+				deviceType = " macOS"
 			case "deb":
 				installInstructions += fmt.Sprintf(" or run the command `sudo apt install \"%s\"`", pathBase)
+				deviceType = " Debian-based Linux"
 			case "rpm":
 				installInstructions += fmt.Sprintf(" or run the command `sudo dnf install \"%s\"`", pathBase)
+				deviceType = " RPM-based Linux"
 			case "msi":
 				installInstructions += fmt.Sprintf(" or run the command `msiexec /i \"%s\"` as administrator", pathBase)
+				deviceType = " Windows"
 			}
 
 			fmt.Printf(`
 Success! You generated fleetd at %s
 
-To add this device to Fleet, %s.
+To add a new%s device to Fleet, %s.
 
 To add other devices to Fleet, distribute fleetd using Chef, Ansible, Jamf, or Puppet. Learn how: https://fleetdm.com/learn-more-about/enrolling-hosts
-`, path, installInstructions)
+`, path, deviceType, installInstructions)
 			if !disableOpenFolder {
 				open.Start(filepath.Dir(path)) //nolint:errcheck
 			}
