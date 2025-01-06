@@ -127,6 +127,7 @@ const FleetMaintainedAppDetailsPage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isPremiumTier,
+      retry: false,
       select: (res) => res.fleet_maintained_app,
       onError: (error) => handlePageError(error),
     }
