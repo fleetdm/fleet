@@ -29,16 +29,7 @@ export type ShowActivityDetailsHandler = (
 const UpcomingTooltip = () => {
   return (
     <TooltipWrapper
-      tipContent={
-        <>
-          Currently, only scripts run before other scripts and
-          <br />
-          software is installed before other software.
-          <br />
-          <br />
-          Failure of one activity won&apos;t cancel other activities.
-        </>
-      }
+      tipContent="Failure of one activity won’t cancel other activities."
       className={`${baseClass}__upcoming-tooltip`}
     >
       Activities run as listed
@@ -84,7 +75,9 @@ const Activity = ({
       <h2>Activity</h2>
       <TabsWrapper>
         <Tabs
-          selectedIndex={activeTab === "past" ? 0 : 1}
+          // selectedIndex={activeTab === "past" ? 0 : 1}
+          // TODO: REMOVE WHEN DONE
+          selectedIndex={1}
           onSelect={onChangeTab}
         >
           <TabList>
