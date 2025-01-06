@@ -1880,7 +1880,7 @@ WHERE
 
 	stmt, args, err := sqlx.In(stmt, installerID, hostIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building in statement for clearning auto install policy status")
+		return ctxerr.Wrap(ctx, err, "building in statement for clearing auto install policy status")
 	}
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {

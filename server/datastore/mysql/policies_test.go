@@ -72,6 +72,7 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesTeamPoliciesWithScript", testTeamPoliciesWithScript},
 		{"TeamPoliciesNoTeam", testTeamPoliciesNoTeam},
 		{"TestPoliciesBySoftwareTitleID", testPoliciesBySoftwareTitleID},
+		{"TestClearAutoInstallPolicyStatusForHost", testClearAutoInstallPolicyStatusForHost},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -5370,4 +5371,84 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer3.TitleID, *installer4.TitleID}, ptr.Uint(1))
 	require.NoError(t, err)
 	require.Len(t, policies, 0)
+}
+
+func testClearAutoInstallPolicyStatusForHost(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1" + t.Name()})
+	require.NoError(t, err)
+
+	// create a regular policy
+	policy1 := newTestPolicy(t, ds, user1, "policy 1"+t.Name(), "darwin", &team1.ID)
+
+	// create an automatic install policy
+	policy2 := newTestPolicy(t, ds, user1, "policy 2"+t.Name(), "darwin", &team1.ID)
+	installer, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+
+	installer1ID, _, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		InstallerFile:     installer,
+		StorageID:         "storage1",
+		Filename:          "file1",
+		Title:             "file1",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		TeamID:            &team1.ID,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	policy2.SoftwareInstallerID = ptr.Uint(installer1ID)
+	err = ds.SavePolicy(context.Background(), policy2, false, false)
+	require.NoError(t, err)
+
+	// create a host
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String(uuid.New().String()),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(uuid.New().String()),
+		UUID:            uuid.New().String(),
+		Hostname:        "host" + t.Name(),
+		TeamID:          &team1.ID,
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// record a policy run for both policies
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
+		policy1.ID: ptr.Bool(true),
+		policy2.ID: ptr.Bool(false), // software isn't installed on host, so Fleet should install it
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	hostPolicies, err := ds.ListPoliciesForHost(ctx, host)
+	require.NoError(t, err)
+	require.Len(t, hostPolicies, 2)
+	sort.Slice(hostPolicies, func(i, j int) bool {
+		return hostPolicies[i].ID < hostPolicies[j].ID
+	})
+	require.Equal(t, hostPolicies[0].Response, "pass")
+	require.Equal(t, hostPolicies[1].Response, "fail")
+
+	// clear status for automatic install policy
+	err = ds.ClearAutoInstallPolicyStatusForHost(ctx, installer1ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	// the status should be NULL for the automatic install policy but not the "regular" one
+	hostPolicies, err = ds.ListPoliciesForHost(ctx, host)
+	require.NoError(t, err)
+	require.Len(t, hostPolicies, 2)
+	sort.Slice(hostPolicies, func(i, j int) bool {
+		return hostPolicies[i].ID < hostPolicies[j].ID
+	})
+	require.Equal(t, hostPolicies[0].Response, "pass")
+	require.Empty(t, hostPolicies[1].Response)
 }
