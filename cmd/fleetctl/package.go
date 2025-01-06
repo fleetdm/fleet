@@ -377,16 +377,17 @@ func packageCommand() *cli.Command {
 			}
 
 			path, _ = filepath.Abs(path)
+			pathBase := filepath.Base(path)
 			var installInstructions = "double-click the installer"
 			switch c.String("type") {
 			case "pkg":
-				installInstructions += fmt.Sprintf(" or run the command `installer -pkg \"%s\" -target /`", path)
+				installInstructions += fmt.Sprintf(" or run the command `installer -pkg \"%s\" -target /`", pathBase)
 			case "deb":
-				installInstructions += fmt.Sprintf(" or run the command `sudo apt install \"%s\"`", path)
+				installInstructions += fmt.Sprintf(" or run the command `sudo apt install \"%s\"`", pathBase)
 			case "rpm":
-				installInstructions += fmt.Sprintf(" or run the command `sudo dnf install \"%s\"`", path)
+				installInstructions += fmt.Sprintf(" or run the command `sudo dnf install \"%s\"`", pathBase)
 			case "msi":
-				installInstructions += fmt.Sprintf(" or run the command `msiexec /i \"%s\"` as administrator", path)
+				installInstructions += fmt.Sprintf(" or run the command `msiexec /i \"%s\"` as administrator", pathBase)
 			}
 
 			fmt.Printf(`
