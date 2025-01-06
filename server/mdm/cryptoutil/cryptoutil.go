@@ -39,6 +39,8 @@ func GenerateSubjectKeyID(pub crypto.PublicKey) ([]byte, error) {
 	return hash[:20], nil
 }
 
+// ParsePrivateKey parses a PEM encoded private key and returns a crypto.PrivateKey.
+// It can be used for private keys passed in from environment variables or command line or files.
 func ParsePrivateKey(privKeyPEM []byte, keyName string) (crypto.PrivateKey, error) {
 	block, _ := pem.Decode(privKeyPEM)
 	if block == nil {
