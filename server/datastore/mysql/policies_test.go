@@ -5439,7 +5439,7 @@ func testClearAutoInstallPolicyStatusForHost(t *testing.T, ds *Datastore) {
 	require.Equal(t, hostPolicies[1].Response, "fail")
 
 	// clear status for automatic install policy
-	err = ds.ClearAutoInstallPolicyStatusForHost(ctx, installer1ID, []uint{host.ID})
+	err = ds.ClearAutoInstallPolicyStatusForHosts(ctx, installer1ID, []uint{host.ID})
 	require.NoError(t, err)
 
 	// the status should be NULL for the automatic install policy but not the "regular" one

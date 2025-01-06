@@ -1818,7 +1818,7 @@ HAVING
 	AND count_installer_labels = count_host_updated_after_labels
 	AND count_host_labels = 0) t`
 
-func (ds *Datastore) GetHostsInScopeForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error) {
+func (ds *Datastore) GetIncludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error) {
 	stmt := fmt.Sprintf(`SELECT
 	h.id
 FROM
@@ -1829,7 +1829,7 @@ WHERE
 
 	var hostIDs []uint
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs, stmt, installerID, installerID, installerID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing hosts in scope for software")
+		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software installer scope")
 	}
 
 	res := make(map[uint]struct{}, len(hostIDs))
@@ -1840,7 +1840,7 @@ WHERE
 	return res, nil
 }
 
-func (ds *Datastore) GetHostsNotInScopeForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error) {
+func (ds *Datastore) GetExcludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error) {
 	stmt := fmt.Sprintf(`SELECT
 	h.id
 FROM
@@ -1851,7 +1851,7 @@ WHERE
 
 	var hostIDs []uint
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs, stmt, installerID, installerID, installerID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing hosts in scope for software")
+		return nil, ctxerr.Wrap(ctx, err, "listing hosts excluded from software installer scope")
 	}
 
 	res := make(map[uint]struct{}, len(hostIDs))
@@ -1860,32 +1860,4 @@ WHERE
 	}
 
 	return res, nil
-}
-
-func (ds *Datastore) ClearAutoInstallPolicyStatusForHost(ctx context.Context, installerID uint, hostIDs []uint) error {
-	if len(hostIDs) == 0 {
-		return nil
-	}
-
-	stmt := `
-UPDATE
-	policies p
-	JOIN policy_membership pm ON pm.policy_id = p.id
-SET
-	passes = NULL
-WHERE
-	p.software_installer_id = ?
-	AND pm.host_id IN (?)
-		`
-
-	stmt, args, err := sqlx.In(stmt, installerID, hostIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building in statement for clearing auto install policy status")
-	}
-
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "clearing auto install policy status")
-	}
-
-	return nil
 }

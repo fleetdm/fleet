@@ -441,7 +441,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			// Get the hosts that are NOT in label scope currently (before the update happens)
 			var hostsNotInScope map[uint]struct{}
 			if dirty["Labels"] {
-				hostsNotInScope, err = svc.ds.GetHostsNotInScopeForSoftwareInstaller(ctx, payload.InstallerID)
+				hostsNotInScope, err = svc.ds.GetExcludedHostIDMapForSoftwareInstaller(ctx, payload.InstallerID)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "getting hosts not in scope for installer")
 				}
@@ -453,7 +453,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 			if dirty["Labels"] {
 				// Get the hosts that are now IN label scope (after the update)
-				hostsInScope, err := svc.ds.GetHostsInScopeForSoftwareInstaller(ctx, payload.InstallerID)
+				hostsInScope, err := svc.ds.GetIncludedHostIDMapForSoftwareInstaller(ctx, payload.InstallerID)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "getting hosts in scope for installer")
 				}
@@ -468,7 +468,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 				// We clear the policy status here because otherwise the policy automation machinery
 				// won't pick this up and the software won't install.
-				if err := svc.ds.ClearAutoInstallPolicyStatusForHost(ctx, payload.InstallerID, hostsToClear); err != nil {
+				if err := svc.ds.ClearAutoInstallPolicyStatusForHosts(ctx, payload.InstallerID, hostsToClear); err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "failed to clear auto install policy status for host")
 				}
 			}

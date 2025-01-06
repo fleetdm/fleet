@@ -5321,7 +5321,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, scoped)
 
-	hostsInScope, err := ds.GetHostsInScopeForSoftwareInstaller(ctx, installerID1)
+	hostsInScope, err := ds.GetIncludedHostIDMapForSoftwareInstaller(ctx, installerID1)
 	require.NoError(t, err)
 	require.Contains(t, hostsInScope, host.ID)
 
@@ -5347,7 +5347,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, software)
 
-	hostsNotInScope, err := ds.GetHostsNotInScopeForSoftwareInstaller(ctx, installerID1)
+	hostsNotInScope, err := ds.GetExcludedHostIDMapForSoftwareInstaller(ctx, installerID1)
 	require.NoError(t, err)
 	require.Contains(t, hostsNotInScope, host.ID)
 
