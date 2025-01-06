@@ -23,12 +23,10 @@ const LastUpdatedHostCount = ({
   return (
     <div className={baseClass}>
       <>{hostCount}</>
-      {lastUpdatedAt && (
-        <LastUpdatedText
-          lastUpdatedAt={lastUpdatedAt}
-          customTooltipText={tooltipContent}
-        />
-      )}
+      <LastUpdatedText
+        lastUpdatedAt={lastUpdatedAt}
+        customTooltipText={tooltipContent}
+      />
     </div>
   );
 };
