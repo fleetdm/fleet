@@ -26,7 +26,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509uti
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
