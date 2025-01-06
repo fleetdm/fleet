@@ -40,10 +40,10 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	SoftwareInstallerID *uint
-	// VPPAdamID is the identifier of the VPP app that will be installed if the policy fails.
+	// VPPAppsTeamsID is the team-specific PK of the VPP app that will be installed if the policy fails.
 	//
 	// Only applies to team policies.
-	VPPAdamID *string
+	VPPAppsTeamsID *uint
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	//
 	// Only applies to team policies.
@@ -226,10 +226,10 @@ type PolicyData struct {
 	// Empty string targets all platforms.
 	Platform string `json:"platform" db:"platforms"`
 
-	CalendarEventsEnabled bool    `json:"calendar_events_enabled" db:"calendar_events_enabled"`
-	SoftwareInstallerID   *uint   `json:"-" db:"software_installer_id"`
-	VPPAdamID             *string `json:"-" db:"adam_id"`
-	ScriptID              *uint   `json:"-" db:"script_id"`
+	CalendarEventsEnabled bool  `json:"calendar_events_enabled" db:"calendar_events_enabled"`
+	SoftwareInstallerID   *uint `json:"-" db:"software_installer_id"`
+	VPPAppsTeamsID        *uint `json:"-" db:"vpp_apps_teams_id"`
+	ScriptID              *uint `json:"-" db:"script_id"`
 
 	UpdateCreateTimestamps
 }

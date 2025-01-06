@@ -1107,7 +1107,7 @@ type GetVPPAppByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, title
 
 type GetVPPAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error)
 
-type GetVPPTitleInfoByAdamIDAndPlatformFunc func(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.PolicySoftwareTitle, error)
+type GetTitleInfoFromVPPAppsTeamsIDFunc func(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error)
 
 type GetVPPAppMetadataByAdamIDAndPlatformFunc func(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.VPPApp, error)
 
@@ -2823,8 +2823,8 @@ type DataStore struct {
 	GetVPPAppMetadataByTeamAndTitleIDFunc        GetVPPAppMetadataByTeamAndTitleIDFunc
 	GetVPPAppMetadataByTeamAndTitleIDFuncInvoked bool
 
-	GetVPPTitleInfoByAdamIDAndPlatformFunc        GetVPPTitleInfoByAdamIDAndPlatformFunc
-	GetVPPTitleInfoByAdamIDAndPlatformFuncInvoked bool
+	GetTitleInfoFromVPPAppsTeamsIDFunc        GetTitleInfoFromVPPAppsTeamsIDFunc
+	GetTitleInfoFromVPPAppsTeamsIDFuncInvoked bool
 
 	GetVPPAppMetadataByAdamIDAndPlatformFunc        GetVPPAppMetadataByAdamIDAndPlatformFunc
 	GetVPPAppMetadataByAdamIDAndPlatformFuncInvoked bool
@@ -6756,11 +6756,11 @@ func (s *DataStore) GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamI
 	return s.GetVPPAppMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID)
 }
 
-func (s *DataStore) GetVPPTitleInfoByAdamIDAndPlatform(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.PolicySoftwareTitle, error) {
+func (s *DataStore) GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error) {
 	s.mu.Lock()
-	s.GetVPPTitleInfoByAdamIDAndPlatformFuncInvoked = true
+	s.GetTitleInfoFromVPPAppsTeamsIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetVPPTitleInfoByAdamIDAndPlatformFunc(ctx, adamID, platform)
+	return s.GetTitleInfoFromVPPAppsTeamsIDFunc(ctx, vppAppsTeamsID)
 }
 
 func (s *DataStore) GetVPPAppMetadataByAdamIDAndPlatform(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.VPPApp, error) {

@@ -63,6 +63,8 @@ type VPPAppStoreApp struct {
 	IconURL       *string              `db:"icon_url" json:"icon_url"`
 	Status        *VPPAppStatusSummary `db:"-" json:"status"`
 	SelfService   bool                 `db:"self_service" json:"self_service"`
+	// only filled by GetVPPAppMetadataByTeamAndTitleID
+	VPPAppsTeamsID uint `db:"vpp_apps_teams_id" json:"-"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.

@@ -3,6 +3,7 @@ package tables
 import (
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,36 +44,50 @@ func TestUp_20250102205257(t *testing.T) {
 	hostID := execNoErrLastID(t, db, insertHostStmt, hostName, hostUUID, hostPlatform, osqueryVer,
 		osVersion, buildVersion, platformLike, codeName, cpuType, cpuSubtype, cpuBrand, hwVendor, hwModel, hwVersion, hwSerial, computerName, teamID)
 
-	// Create VPP app
+	// Create VPP app, token, and associated team
 	adamID := "a"
 	execNoErr(
 		t, db, `INSERT INTO vpp_apps (adam_id, platform) VALUES (?,?)`, adamID, hostPlatform,
+	)
+	vppTokenID := execNoErrLastID(t, db, `
+	INSERT INTO vpp_tokens (
+		organization_name,
+		location,
+		renew_at,
+		token
+	) VALUES
+		(?, ?, ?, ?)
+	`,
+		"org1", "loc1", "2030-01-01 10:10:10", "blob1",
+	)
+
+	vppAppsTeamsID := execNoErrLastID(
+		t,
+		db,
+		`INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, team_id, vpp_token_id) VALUES (?,?,?,?,?)`,
+		adamID,
+		fleet.IOSPlatform,
+		teamID,
+		teamID,
+		vppTokenID,
 	)
 
 	// Apply current migration.
 	applyNext(t, db)
 
-	// create a policy
-	policyID := execNoErrLastID(t, db, `INSERT INTO policies (name, query, description, team_id, checksum)
-		VALUES ('test_policy', "SELECT 1", "", ?, "a123b123")`, teamID)
-
-	// associate the policy with the VPP app
-	execNoErr(t, db, `INSERT INTO policy_vpp_automations (policy_id, adam_id, platform) VALUES (?, ?, ?)`, policyID, adamID, hostPlatform)
+	// create a policy associated with a VPP apps teams record
+	policyID := execNoErrLastID(t, db, `INSERT INTO policies (name, query, description, team_id, vpp_apps_teams_id, checksum)
+		VALUES ('test_policy', "SELECT 1", "", ?, ?, "a123b123")`, teamID, vppAppsTeamsID)
 
 	// create a VPP install with the policy ID
 	hvsi1 := execNoErrLastID(t, db, `INSERT INTO host_vpp_software_installs (host_id, adam_id, platform, command_uuid, user_id, policy_id) VALUES (?,?,?,?,?, ?)`, hostID, adamID, hostPlatform, "command_uuid", u1, policyID)
 
 	// attempt to delete the VPP app; should error
-	_, err := db.Exec(`DELETE FROM vpp_apps WHERE adam_id = ? AND platform = ?`, adamID, hostPlatform)
+	_, err := db.Exec(`DELETE FROM vpp_apps_teams WHERE id = ?`, vppAppsTeamsID)
 	require.Error(t, err)
 
 	// delete the policy
 	execNoErr(t, db, `DELETE FROM policies WHERE id = ?`, policyID)
-
-	// confirm that the policy association row is deleted
-	var hasNoRows bool
-	require.NoError(t, db.Get(&hasNoRows, `SELECT COUNT(*) = 0 FROM policy_vpp_automations WHERE adam_id = ? AND platform = ?`, adamID, hostPlatform))
-	require.True(t, hasNoRows)
 
 	// confirm that the policy ID on the existing install is null
 	var retrievedPolicyID *uint
@@ -80,5 +95,5 @@ func TestUp_20250102205257(t *testing.T) {
 	require.Nil(t, retrievedPolicyID)
 
 	// attempt to delete the VPP app; should succeed
-	execNoErr(t, db, `DELETE FROM vpp_apps WHERE adam_id = ? AND platform = ?`, adamID, hostPlatform)
+	execNoErr(t, db, `DELETE FROM vpp_apps_teams WHERE id = ?`, vppAppsTeamsID)
 }

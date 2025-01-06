@@ -1465,14 +1465,17 @@ CREATE TABLE `policies` (
   `calendar_events_enabled` tinyint unsigned NOT NULL DEFAULT '0',
   `software_installer_id` int unsigned DEFAULT NULL,
   `script_id` int unsigned DEFAULT NULL,
+  `vpp_apps_teams_id` int unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_policies_checksum` (`checksum`),
   KEY `idx_policies_author_id` (`author_id`),
   KEY `idx_policies_team_id` (`team_id`),
   KEY `fk_policies_software_installer_id` (`software_installer_id`),
   KEY `fk_policies_script_id` (`script_id`),
+  KEY `fk_policies_vpp_apps_team_id` (`vpp_apps_teams_id`),
   CONSTRAINT `policies_ibfk_3` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`),
   CONSTRAINT `policies_ibfk_4` FOREIGN KEY (`script_id`) REFERENCES `scripts` (`id`),
+  CONSTRAINT `policies_ibfk_5` FOREIGN KEY (`vpp_apps_teams_id`) REFERENCES `vpp_apps_teams` (`id`),
   CONSTRAINT `policies_queries_ibfk_1` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1515,18 +1518,6 @@ CREATE TABLE `policy_stats` (
   UNIQUE KEY `policy_id` (`policy_id`,`inherited_team_id_char`),
   CONSTRAINT `policy_stats_ibfk_1` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE CASCADE
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `policy_vpp_automations` (
-  `policy_id` int unsigned NOT NULL,
-  `adam_id` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `platform` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  KEY `fk_policy_vpp_automations_policy_id` (`policy_id`),
-  KEY `fk_policy_vpp_automations_app` (`adam_id`,`platform`),
-  CONSTRAINT `policy_vpp_automations_ibfk_1` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `policy_vpp_automations_ibfk_2` FOREIGN KEY (`adam_id`, `platform`) REFERENCES `vpp_apps` (`adam_id`, `platform`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;

@@ -11,15 +11,11 @@ func init() {
 
 func Up_20250102205257(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
-		CREATE TABLE policy_vpp_automations (
-			policy_id INT UNSIGNED NOT NULL,
-			adam_id VARCHAR(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-			platform VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-			FOREIGN KEY fk_policy_vpp_automations_policy_id (policy_id) REFERENCES policies (id) ON DELETE CASCADE,
-			FOREIGN KEY fk_policy_vpp_automations_app (adam_id, platform) REFERENCES vpp_apps (adam_id, platform)
-		)
+		ALTER TABLE policies
+		ADD COLUMN vpp_apps_teams_id INT UNSIGNED DEFAULT NULL,
+		ADD FOREIGN KEY fk_policies_vpp_apps_team_id (vpp_apps_teams_id) REFERENCES vpp_apps_teams (id);
 	`); err != nil {
-		return fmt.Errorf("failed to add policy_vpp_automations join table: %w", err)
+		return fmt.Errorf("failed to add vpp_apps_teams_id to policies: %w", err)
 	}
 
 	if _, err := tx.Exec(`

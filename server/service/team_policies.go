@@ -122,10 +122,8 @@ func (svc *Service) populatePolicyInstallSoftware(ctx context.Context, p *fleet.
 			Name:            installerMetadata.SoftwareTitle,
 		}
 		return nil
-	}
-
-	if p.VPPAdamID != nil {
-		titleInfo, err := svc.ds.GetVPPTitleInfoByAdamIDAndPlatform(ctx, *p.VPPAdamID, fleet.MacOSPlatform)
+	} else if p.VPPAppsTeamsID != nil {
+		titleInfo, err := svc.ds.GetTitleInfoFromVPPAppsTeamsID(ctx, *p.VPPAppsTeamsID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get VPP title metadata by adam_id")
 		}
@@ -148,7 +146,7 @@ func (svc *Service) populatePolicyRunScript(ctx context.Context, p *fleet.Policy
 }
 
 func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, teamID uint, p fleet.NewTeamPolicyPayload) (fleet.PolicyPayload, error) {
-	softwareInstallerID, vppAdamID, err := svc.getInstallerOrVPPAppForTitle(ctx, &teamID, p.SoftwareTitleID)
+	softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, &teamID, p.SoftwareTitleID)
 	if err != nil {
 		return fleet.PolicyPayload{}, err
 	}
@@ -162,7 +160,7 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		Platform:              p.Platform,
 		CalendarEventsEnabled: p.CalendarEventsEnabled,
 		SoftwareInstallerID:   softwareInstallerID,
-		VPPAdamID:             vppAdamID,
+		VPPAppsTeamsID:        vppAppsTeamsID,
 		ScriptID:              p.ScriptID,
 	}, nil
 }
@@ -526,7 +524,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		policy.PassingHostCount = 0
 	}
 	if p.SoftwareTitleID.Set {
-		softwareInstallerID, vppAdamID, err := svc.getInstallerOrVPPAppForTitle(ctx, teamID, &p.SoftwareTitleID.Value)
+		softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, teamID, &p.SoftwareTitleID.Value)
 		if err != nil {
 			return nil, err
 		}
@@ -534,12 +532,12 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		// then we clear the results of the policy so that automation can be triggered upon failure
 		// (automation is currently triggered on the first failure or when it goes from passing to failure).
 		if (softwareInstallerID != nil && (policy.SoftwareInstallerID == nil || *policy.SoftwareInstallerID != *softwareInstallerID)) ||
-			(vppAdamID != nil && (policy.VPPAdamID == nil || *policy.VPPAdamID != *vppAdamID)) {
+			(vppAppsTeamsID != nil && (policy.VPPAppsTeamsID == nil || *policy.VPPAppsTeamsID != *vppAppsTeamsID)) {
 			removeAllMemberships = true
 			removeStats = true
 		}
 		policy.SoftwareInstallerID = softwareInstallerID
-		policy.VPPAdamID = vppAdamID
+		policy.VPPAppsTeamsID = vppAppsTeamsID
 	}
 	if p.ScriptID.Set { // indicates that script ID is changing, but might be to 0 to remove
 		// If the associated script is changed (or it's set and the policy didn't have an associated script)
@@ -587,7 +585,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	return policy, nil
 }
 
-func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *uint, softwareTitleID *uint) (installerID *uint, vppAdamID *string, err error) {
+func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *uint, softwareTitleID *uint) (installerID *uint, vppAppsTeamsID *uint, err error) {
 	if softwareTitleID == nil {
 		return nil, nil, nil
 	}
@@ -623,7 +621,7 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 			})
 		}
 
-		return nil, &softwareTitle.AppStoreApp.AdamID, nil
+		return nil, &softwareTitle.AppStoreApp.VPPAppsTeamsID, nil
 	}
 	if softwareTitle.SoftwarePackage == nil {
 		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{

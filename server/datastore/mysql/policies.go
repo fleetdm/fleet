@@ -24,7 +24,8 @@ import (
 const policyCols = `
 	p.id, p.team_id, p.resolution, p.name, p.query, p.description,
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
-	p.calendar_events_enabled, p.software_installer_id, p.script_id
+	p.calendar_events_enabled, p.software_installer_id, p.script_id,
+	p.vpp_apps_teams_id
 `
 
 var (
@@ -156,40 +157,23 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	p.Name = norm.NFC.String(p.Name)
-	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		updateStmt := `
+	updateStmt := `
 		UPDATE policies
-			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, critical = ?, calendar_events_enabled = ?, software_installer_id = ?, script_id = ?, checksum = ` + policiesChecksumComputedColumn() + `
+			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, critical = ?, calendar_events_enabled = ?, software_installer_id = ?, script_id = ?, vpp_apps_teams_id = ?, checksum = ` + policiesChecksumComputedColumn() + `
 			WHERE id = ?
 	`
-		result, err := tx.ExecContext(
-			ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.ID,
-		)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "updating policy")
-		}
-		rows, err := result.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "rows affected updating policy")
-		}
-		if rows == 0 {
-			return ctxerr.Wrap(ctx, notFound("Policy").WithID(p.ID))
-		}
-
-		_, err = tx.ExecContext(ctx, `DELETE FROM policy_vpp_automations WHERE policy_id = ?`, p.ID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "resetting policy VPP automation")
-		}
-		if p.VPPAdamID != nil {
-			_, err = tx.ExecContext(ctx, `INSERT INTO policy_vpp_automations (policy_id, adam_id, platform) VALUES (?, ?, ?)`, p.ID, p.VPPAdamID, fleet.MacOSPlatform)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "updating policy VPP automation")
-			}
-		}
-
-		return nil
-	}); err != nil {
-		return err
+	result, err := ds.writer(ctx).ExecContext(
+		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, p.ID,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating policy")
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "rows affected updating policy")
+	}
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("Policy").WithID(p.ID))
 	}
 
 	return cleanupPolicy(
@@ -453,7 +437,6 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 			COALESCE(ps.failing_host_count, 0) AS failing_host_count
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
-		LEFT JOIN policy_vpp_automations pva ON p.id = pva.policy_id
 		LEFT JOIN policy_stats ps ON p.id = ps.policy_id AND ps.inherited_team_id IS NULL
 	`
 
@@ -493,7 +476,6 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, tea
             COALESCE(ps.failing_host_count, 0) as failing_host_count
         FROM policies p
         LEFT JOIN users u ON p.author_id = u.id
-		LEFT JOIN policy_vpp_automations pva ON p.id = pva.policy_id
         LEFT JOIN policy_stats ps ON p.id = ps.policy_id AND ps.inherited_team_id = ?
         WHERE p.team_id IS NULL
     `
@@ -570,7 +552,6 @@ func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fl
 	  COALESCE(ps.failing_host_count, 0) as failing_host_count
 	  FROM policies p
 	  LEFT JOIN users u ON p.author_id = u.id
-      LEFT JOIN policy_vpp_automations pva ON p.id = pva.policy_id
 	  LEFT JOIN policy_stats ps ON p.id = ps.policy_id
 	  	AND ((p.team_id IS NULL AND ps.inherited_team_id IS NULL) OR (p.team_id IS NOT NULL))
 	  WHERE p.id IN (?)`
@@ -667,12 +648,7 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 }
 
 func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (policy *fleet.Policy, err error) {
-	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		// running inside a transaction to ensure VPP automation and the rest of the policy get written atomically
-		policy, err = newTeamPolicy(ctx, tx, teamID, authorID, args)
-		return err
-	})
-	return policy, err
+	return newTeamPolicy(ctx, ds.writer(ctx), teamID, authorID, args)
 }
 
 func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
@@ -706,11 +682,11 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 
 	res, err := db.ExecContext(ctx,
 		fmt.Sprintf(
-			`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical, calendar_events_enabled, software_installer_id, script_id, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
+			`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical, calendar_events_enabled, software_installer_id, script_id, vpp_apps_teams_id, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
-		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID,
+		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID,
 	)
 	switch {
 	case err == nil:
@@ -723,12 +699,6 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 	lastIdInt64, err := res.LastInsertId()
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting last id after inserting policy")
-	}
-	if args.VPPAdamID != nil {
-		_, err = db.ExecContext(ctx, `INSERT INTO policy_vpp_automations (policy_id, adam_id, platform) VALUES (?, ?, ?)`, lastIdInt64, args.VPPAdamID, fleet.MacOSPlatform)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "adding policy VPP automation")
-		}
 	}
 
 	return policyDB(ctx, db, uint(lastIdInt64), &teamID) //nolint:gosec // dismiss G115
@@ -760,7 +730,6 @@ func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, op
 			COALESCE(ps.failing_host_count, 0) as failing_host_count
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
-		LEFT JOIN policy_vpp_automations pva ON p.id = pva.policy_id
 		LEFT JOIN policy_stats ps ON p.id = ps.policy_id
 		AND (p.team_id IS NOT NULL OR ps.inherited_team_id = ?)
 		WHERE (p.team_id = ? OR p.team_id IS NULL)
@@ -1658,7 +1627,7 @@ func (ds *Datastore) GetPoliciesWithAssociatedVPP(ctx context.Context, teamID ui
 	if len(policyIDs) == 0 {
 		return nil, nil
 	}
-	query := `SELECT id, adam_id, platform FROM policies p JOIN policy_vpp_automations pva ON pva.policy_id = p.id WHERE team_id = ? AND id IN (?);`
+	query := `SELECT id, adam_id, platform FROM policies p JOIN vpp_apps_teams vat ON vat.id = p.vpp_apps_teams_id WHERE p.team_id = ? AND p.id IN (?);`
 	query, args, err := sqlx.In(query, teamID, policyIDs)
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "build sqlx.In for get policies with associated installer")
@@ -1753,8 +1722,8 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 		COALESCE(si.title_id, va.title_id) AS software_title_id
 	FROM policies p
 	LEFT JOIN software_installers si ON p.software_installer_id = si.id
-	LEFT JOIN policy_vpp_automations pva ON p.id = pva.policy_id
-	LEFT JOIN vpp_apps va ON va.adam_id = pva.adam_id AND va.platform = pva.platform
+	LEFT JOIN vpp_apps_teams vat ON p.vpp_apps_teams_id = vat.id
+	LEFT JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
 	WHERE (va.title_id IN (?) OR si.title_id IN (?)) AND p.team_id = ?
 `
 

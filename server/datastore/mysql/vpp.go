@@ -28,6 +28,7 @@ SELECT
 	vap.name,
 	vap.latest_version,
 	vat.self_service,
+	vat.id vpp_apps_teams_id,
 	NULLIF(vap.icon_url, '') AS icon_url
 FROM
 	vpp_apps vap
@@ -463,9 +464,10 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 	return nil
 }
 
-func (ds *Datastore) GetVPPTitleInfoByAdamIDAndPlatform(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.PolicySoftwareTitle, error) {
+func (ds *Datastore) GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error) {
 	var info fleet.PolicySoftwareTitle
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &info, `SELECT name, title_id FROM vpp_apps WHERE adam_id = ? AND platform = ?`, adamID, platform)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &info, `SELECT name, title_id FROM vpp_apps va
+    	JOIN vpp_apps_teams vat ON vat.adam_id = va.adam_id AND vat.platform = va.platform AND vat.id = ?`, vppAppsTeamsID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP app")
