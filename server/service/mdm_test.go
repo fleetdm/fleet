@@ -8,7 +8,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"database/sql"
-	"encoding/pem"
 	"errors"
 	"math/big"
 	"net/http"
@@ -29,7 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil/x509util"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -2184,45 +2183,4 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	assert.Equal(t, ProfileLabels{IncludeAll: true}, *profileLabels["DIncAll"])
 	assert.Equal(t, ProfileLabels{IncludeAny: true}, *profileLabels["DIncAny"])
 	assert.Equal(t, ProfileLabels{ExcludeAny: true}, *profileLabels["DExclAny"])
-}
-
-func TestParseAPNSPrivateKey(t *testing.T) {
-	t.Parallel()
-	// nil block not allowed
-	ctx := context.Background()
-	_, err := parseAPNSPrivateKey(ctx, nil)
-	assert.ErrorContains(t, err, "failed to decode")
-
-	// encrypted pkcs8 not supported
-	pkcs8Encrypted, err := os.ReadFile("testdata/pkcs8-encrypted.key")
-	require.NoError(t, err)
-	block, _ := pem.Decode(pkcs8Encrypted)
-	assert.NotNil(t, block)
-	_, err = parseAPNSPrivateKey(ctx, block)
-	assert.ErrorContains(t, err, "failed to parse APNS private key of type ENCRYPTED PRIVATE KEY")
-
-	// X25519 pkcs8 not supported
-	pkcs8Encrypted, err = os.ReadFile("testdata/pkcs8-x25519.key")
-	require.NoError(t, err)
-	block, _ = pem.Decode(pkcs8Encrypted)
-	assert.NotNil(t, block)
-	_, err = parseAPNSPrivateKey(ctx, block)
-	assert.ErrorContains(t, err, "unmarshaled PKCS8 APNS key is not")
-
-	// In this test, the pkcs1 key and pkcs8 keys are the same key, just different formats
-	pkcs1, err := os.ReadFile("testdata/pkcs1.key")
-	require.NoError(t, err)
-	block, _ = pem.Decode(pkcs1)
-	assert.NotNil(t, block)
-	pkcs1Key, err := parseAPNSPrivateKey(ctx, block)
-	require.NoError(t, err)
-
-	pkcs8, err := os.ReadFile("testdata/pkcs8-rsa.key")
-	require.NoError(t, err)
-	block, _ = pem.Decode(pkcs8)
-	assert.NotNil(t, block)
-	pkcs8Key, err := parseAPNSPrivateKey(ctx, block)
-	require.NoError(t, err)
-
-	assert.Equal(t, pkcs1Key, pkcs8Key)
 }
