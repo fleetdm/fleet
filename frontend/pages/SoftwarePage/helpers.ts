@@ -20,8 +20,11 @@ export const generateSecretErrMsg = (err: unknown) => {
   }
 
   if (errorType === "profile") {
-    return reason
-      .split(":")[1]
+    // for profiles we can get two different error messages. One contains a colon
+    // and the other doesn't. We need to handle both cases.
+    const message = reason.split(":").pop() ?? "";
+
+    return message
       .replace(/Secret variables?/i, "Variable")
       .replace("missing from database", "doesn't exist.");
   }
