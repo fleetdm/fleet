@@ -1706,8 +1706,16 @@ type Datastore interface {
 	// Software installers
 	//
 
+	// GetHostsInScopeForSoftwareInstaller gets the set of hosts that are targeted/in scope for the
+	// given software installer, based label membership.
 	GetHostsInScopeForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error)
+
+	// GetHostsNotInScopeForSoftwareInstaller gets the set of hosts that are NOT targeted/in scope for the
+	// given software installer, based label membership.
 	GetHostsNotInScopeForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error)
+
+	// ClearAutoInstallPolicyStatusForHost clears out the status of the policy related to the given
+	// software installer for all the given hosts.
 	ClearAutoInstallPolicyStatusForHost(ctx context.Context, installerID uint, hostIDs []uint) error
 
 	// GetSoftwareInstallDetails returns details required to fetch and
