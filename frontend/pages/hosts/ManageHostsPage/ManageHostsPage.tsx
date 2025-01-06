@@ -762,8 +762,11 @@ const ManageHostsPage = ({
   };
 
   const onSaveColumns = async (newHiddenColumns: string[]) => {
+    if (!currentUser) {
+      return;
+    }
     try {
-      await usersAPI.update(currentUser!.id, {
+      await usersAPI.update(currentUser.id, {
         settings: { hidden_hosts_table_columns: newHiddenColumns },
       });
       // No success renderFlash, to make column setting more seamless
