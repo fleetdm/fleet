@@ -491,7 +491,8 @@ module "notify_slack_p2" {
   source  = "terraform-aws-modules/notify-slack/aws"
   version = "5.5.0"
 
-  sns_topic_name = "fleet-dogfood-p2-alerts"
+  lambda_function_name = "notify_slack_p2"
+  sns_topic_name       = "fleet-dogfood-p2-alerts"
 
   slack_webhook_url = var.slack_p2_webhook
   slack_channel     = "#help-p2"
