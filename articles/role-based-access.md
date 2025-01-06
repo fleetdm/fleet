@@ -34,7 +34,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 ## User permissions
 
 | **Action**                                                                                                                                 | Observer | Observer+* | Maintainer | Admin | GitOps* |
-| ------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ---------- | ---------- | ----- | ------- |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | :------: | :--------: | :--------: | :---: | :-----: |
 | View all [activity](https://fleetdm.com/docs/using-fleet/rest-api#activities)                                                              | ✅       | ✅         | ✅         | ✅    |         |
 | Manage [activity automations](https://fleetdm.com/docs/using-fleet/audit-logs)                                 |               |                |                 | ✅         | ✅          |
 | View all hosts                                                                                                                             | ✅       | ✅         | ✅         | ✅    |         |
@@ -123,7 +123,7 @@ Users can be assigned to multiple teams in Fleet.
 Users with access to multiple teams can be assigned different roles for each team. For example, a user can be given access to the "Workstations" team and assigned the "Observer" role. This same user can be given access to the "Servers" team and assigned the "Maintainer" role.
 
 | **Action**                                                                                                                       | Team observer | Team observer+ | Team maintainer | Team admin | Team GitOps |
-| -------------------------------------------------------------------------------------------------------------------------------- | ------------- | -------------- | --------------- | ---------- | ----------- |
+| -------------------------------------------------------------------------------------------------------------------------------- | :-----------: | :------------: | :-------------: | :--------: | :---------: |
 | View hosts                                                                                                                       | ✅            | ✅             | ✅              | ✅         |             |
 | View a host by identifier                                                                                                        | ✅            | ✅             | ✅              | ✅         | ✅          |
 | Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                | ✅            | ✅             | ✅              | ✅         |             |
