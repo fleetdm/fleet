@@ -41,6 +41,8 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 			id, _ := scRes.LastInsertId()
 			request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 		}
+		// TODO(mna): must insert in the upcoming queue instead (probably ok to
+		// create script contents immediately though)
 		res, err = newHostScriptExecutionRequest(ctx, tx, request, false)
 		return err
 	})
@@ -53,12 +55,14 @@ func (ds *Datastore) NewInternalScriptExecutionRequest(ctx context.Context, requ
 		if request.ScriptContentID == 0 {
 			return errors.New("script contents must be saved prior to execution")
 		}
+		// TODO(mna): must insert in the upcoming queue
 		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
 		return err
 	})
 }
 
 func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload, isInternal bool) (*fleet.HostScriptResult, error) {
+	// TODO(mna): this becomes an insert in the upcoming queue
 	const (
 		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, script_id, policy_id, user_id, sync_request, setup_experience_script_id, is_internal) VALUES (?, ?, ?, '', ?, ?, ?, ?, ?, ?)`
 		getStmt = `SELECT hsr.id, hsr.host_id, hsr.execution_id, hsr.created_at, hsr.script_id, hsr.policy_id, hsr.user_id, hsr.sync_request, sc.contents as script_contents, hsr.setup_experience_script_id FROM host_script_results hsr JOIN script_contents sc WHERE sc.id = hsr.script_content_id AND hsr.id = ?`
@@ -501,10 +505,11 @@ func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Cont
 		globalOrTeamID = *teamID
 	}
 
+	// TODO(mna): must delete from the upcoming queue
 	deleteStmt := fmt.Sprintf(`
 		DELETE FROM
 			host_script_results
-		WHERE 
+		WHERE
 			policy_id = ? AND
 			script_id IN (
 				SELECT id FROM scripts WHERE scripts.global_or_team_id = ?
@@ -1047,6 +1052,7 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
+		// TODO(mna): this will now insert in the upcoming queue
 		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "lock host via script create execution")
@@ -1097,6 +1103,7 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
+		// TODO(mna): this will now insert in the upcoming queue
 		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "unlock host via script create execution")
@@ -1148,6 +1155,7 @@ func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostS
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
+		// TODO(mna): this will now insert in the upcoming queue
 		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "wipe host via script create execution")

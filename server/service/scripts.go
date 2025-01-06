@@ -249,6 +249,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 			return nil, fleet.NewInvalidArgumentError("script_id", `The script does not belong to the same team (or no team) as the host.`)
 		}
 
+		// TODO(mna): must look in host_script_results and the upcoming queue
 		isQueued, err := svc.ds.IsExecutionPendingForHost(ctx, request.HostID, *request.ScriptID)
 		if err != nil {
 			return nil, err
@@ -281,6 +282,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewInvalidArgumentError("host_id", fleet.RunScriptHostOfflineErrMsg)
 	}
 
+	// TODO(mna): must look in host_script_results and the upcoming queue
 	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, false)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host pending script executions")
@@ -301,6 +303,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		request.UserID = &ctxUser.ID
 	}
 	request.SyncRequest = !asyncExecution
+	// TODO(mna): this will insert in the upcoming queue
 	script, err := svc.ds.NewHostScriptExecutionRequest(ctx, request)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create script execution request")
@@ -314,6 +317,9 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 
 	ctx, cancel := context.WithTimeout(ctx, waitForResult)
 	defer cancel()
+
+	// TODO(mna): should we bypass the unified queue and insert directly in host_script_results
+	// if we're in run sync script mode, where we wait for results?
 
 	// if waiting for a result times out, we still want to return the script's
 	// execution request information along with the error, so that the caller can

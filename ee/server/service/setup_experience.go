@@ -229,6 +229,7 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 				ScriptContentID:         *script.ScriptContentID,
 				SetupExperienceScriptID: script.SetupExperienceScriptID,
 			}
+			// TODO(mna): is it ok for setup experience scripts to go to the unified queue?
 			res, err := svc.ds.NewHostScriptExecutionRequest(ctx, req)
 			if err != nil {
 				return false, ctxerr.Wrap(ctx, err, "queueing setup experience script execution request")

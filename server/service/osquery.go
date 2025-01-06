@@ -1957,6 +1957,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			"script_name", scriptMetadata.Name,
 		)
 
+		// TODO(mna): this has to lookup in both host_script_results and the upcoming queue
 		allScriptsExecutionPending, err := svc.ds.ListPendingHostScriptExecutions(ctx, hostID, false)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "list host pending script executions")
@@ -1984,6 +1985,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			continue
 		}
 
+		// TODO(mna): this has to look both in host_script_results and the upcoming queue
 		scriptIsAlreadyPending, err := svc.ds.IsExecutionPendingForHost(ctx, hostID, scriptMetadata.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "check whether script is pending execution")
@@ -2007,6 +2009,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			// no user ID as scripts are executed by Fleet
 		}
 
+		// TODO(mna): this should insert in the upcoming queue and be Fleet-initiated
 		scriptResult, err := svc.ds.NewHostScriptExecutionRequest(ctx, &runScriptRequest)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err,
