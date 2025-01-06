@@ -300,10 +300,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
     let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
     if (userData?.email !== formData.email) {
-      const senderAddressMessage = config?.smtp_settings?.sender_address
-        ? ` from ${config?.smtp_settings?.sender_address}`
-        : "";
-      userUpdatedFlashMessage += `: A confirmation email was sent${senderAddressMessage} to ${formData.email}`;
+      userUpdatedFlashMessage += `. A confirmation email was sent to ${formData.email}.`;
     }
     const userUpdatedEmailError =
       "A user with this email address already exists";
