@@ -382,7 +382,7 @@ func packageCommand() *cli.Command {
 			var deviceType string
 			switch c.String("type") {
 			case "pkg":
-				installInstructions += fmt.Sprintf(" or run the command `installer -pkg \"%s\" -target /`", pathBase)
+				installInstructions += fmt.Sprintf(" or run the command `sudo installer -pkg \"%s\" -target /`", pathBase)
 				deviceType = "macOS"
 			case "deb":
 				installInstructions += fmt.Sprintf(" or run the command `sudo apt install \"%s\"`", pathBase)
