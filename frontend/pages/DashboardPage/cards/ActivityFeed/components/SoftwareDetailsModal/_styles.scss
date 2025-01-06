@@ -1,7 +1,9 @@
 .software-details-modal {
   &__modal-content {
     display: flex;
-    gap: $pad-xxlarge;
+    column-gap: $pad-xxlarge;
+    row-gap: $pad-xlarge;
+    flex-wrap: wrap;
   }
 
   .react-tooltip {

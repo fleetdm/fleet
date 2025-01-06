@@ -114,9 +114,7 @@ jobs:
           Start-Sleep -Seconds 5
           cd "C:\Windows\System32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs"
           Get-ChildItem
-          if (!(Test-Path
-          "C:\Windows\System32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log"
-          -PathType Leaf)) { exit 1 }
+          if (!(Test-Path "C:\Windows\System32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" -PathType Leaf)) { exit 1 }
       - name: Slack Notification
         if: failure()
         uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
