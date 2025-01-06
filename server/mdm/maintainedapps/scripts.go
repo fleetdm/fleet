@@ -15,6 +15,7 @@ func installScriptForApp(app maintainedApp, cask *brewCask) (string, error) {
 
 	sb.AddVariable("TMPDIR", `$(dirname "$(realpath $INSTALLER_PATH)")`)
 	sb.AddVariable("APPDIR", `"/Applications/"`)
+	sb.AddVariable("FOOBAR", `"ZOOBAR"`)
 
 	formats := strings.Split(app.InstallerFormat, ":")
 	sb.Extract(formats[0])
@@ -252,7 +253,6 @@ func (s *scriptBuilder) Writef(format string, args ...any) {
 // Supported formats are "dmg" and "zip". It adds the necessary extraction
 // commands to the script.
 func (s *scriptBuilder) Extract(format string) {
-
 	switch format {
 	case "dmg":
 		s.Write("# extract contents")
@@ -270,6 +270,7 @@ hdiutil detach "$MOUNT_POINT"`)
 // Copy writes a command to copy a file from the temporary directory to a
 // destination.
 func (s *scriptBuilder) Copy(file, dest string) {
+	s.Writef(`sudo [ -f "$APPDIR/%s" ] && sudo mv "$APPDIR/%s" "$TMPDIR/%s.bkp"`, file, file, file)
 	s.Writef(`sudo cp -R "$TMPDIR/%s" "%s"`, file, dest)
 }
 
