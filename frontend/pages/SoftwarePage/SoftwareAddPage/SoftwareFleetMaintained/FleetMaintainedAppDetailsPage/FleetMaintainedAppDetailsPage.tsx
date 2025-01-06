@@ -2,6 +2,7 @@ import React, { useContext, useState } from "react";
 import { Location } from "history";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
+import { useErrorHandler } from "react-error-boundary";
 
 import PATHS from "router/paths";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -105,6 +106,7 @@ const FleetMaintainedAppDetailsPage = ({
   }
 
   const { renderFlash } = useContext(NotificationContext);
+  const handlePageError = useErrorHandler();
   const { isPremiumTier } = useContext(AppContext);
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
@@ -125,7 +127,9 @@ const FleetMaintainedAppDetailsPage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isPremiumTier,
+      retry: false,
       select: (res) => res.fleet_maintained_app,
+      onError: (error) => handlePageError(error),
     }
   );
 
