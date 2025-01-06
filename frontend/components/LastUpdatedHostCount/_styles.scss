@@ -1,0 +1,9 @@
+.last-updated-host-count {
+  display: flex;
+  align-items: baseline;
+  gap: $pad-small;
+
+  .component__tooltip-wrapper__underline {
+    font-weight: $bold;
+  }
+}

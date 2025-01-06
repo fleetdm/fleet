@@ -10,7 +10,7 @@ import { QueryParams } from "utilities/url";
 
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import DataSet from "components/DataSet";
-import LastUpdatedText from "components/LastUpdatedText";
+import LastUpdatedHostCount from "components/LastUpdatedHostCount";
 
 import SoftwareIcon from "../icons/SoftwareIcon";
 
@@ -52,21 +52,10 @@ const SoftwareDetailsSummary = ({
           <DataSet
             title="Hosts"
             value={
-              <>
-                {hosts === 0 ? "---" : hosts}{" "}
-                {countsUpdatedAt && (
-                  <LastUpdatedText
-                    lastUpdatedAt={countsUpdatedAt}
-                    customTooltipText={
-                      <>
-                        The last time host data was updated. <br />
-                        Click <b>View all hosts</b> to see the most
-                        <br /> up-to-date host count.
-                      </>
-                    }
-                  />
-                )}
-              </>
+              <LastUpdatedHostCount
+                hostCount={hosts === 0 ? "---" : hosts}
+                lastUpdatedAt={countsUpdatedAt}
+              />
             }
           />
         </dl>
