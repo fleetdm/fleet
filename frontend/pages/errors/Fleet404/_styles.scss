@@ -5,7 +5,6 @@
   }
 
   button {
-    margin: $pad-medium;
     width: 197px;
     font-size: $small;
 
@@ -17,6 +16,11 @@
   }
 
   &__button-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $pad-medium;
+
     margin-bottom: $pad-large;
   }
 
