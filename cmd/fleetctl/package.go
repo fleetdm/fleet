@@ -383,22 +383,22 @@ func packageCommand() *cli.Command {
 			switch c.String("type") {
 			case "pkg":
 				installInstructions += fmt.Sprintf(" or run the command `installer -pkg \"%s\" -target /`", pathBase)
-				deviceType = " macOS"
+				deviceType = "macOS"
 			case "deb":
 				installInstructions += fmt.Sprintf(" or run the command `sudo apt install \"%s\"`", pathBase)
-				deviceType = " Debian-based Linux"
+				deviceType = "Debian-based Linux"
 			case "rpm":
 				installInstructions += fmt.Sprintf(" or run the command `sudo dnf install \"%s\"`", pathBase)
-				deviceType = " RPM-based Linux"
+				deviceType = "RPM-based Linux"
 			case "msi":
 				installInstructions += fmt.Sprintf(" or run the command `msiexec /i \"%s\"` as administrator", pathBase)
-				deviceType = " Windows"
+				deviceType = "Windows"
 			}
 
 			fmt.Printf(`
 Success! You generated fleetd at %s
 
-To add a new%s device to Fleet, %s.
+To add a new %s device to Fleet, %s.
 
 To add other devices to Fleet, distribute fleetd using Chef, Ansible, Jamf, or Puppet. Learn how: https://fleetdm.com/learn-more-about/enrolling-hosts
 `, path, deviceType, installInstructions)
