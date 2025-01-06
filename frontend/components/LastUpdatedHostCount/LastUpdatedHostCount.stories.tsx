@@ -6,7 +6,7 @@ const meta: Meta<typeof LastUpdatedHostCount> = {
   title: "Components/LastUpdatedHostCount",
   component: LastUpdatedHostCount,
   args: {
-    // whatToRetrieve: "apples",
+    hostCount: 40,
   },
 };
 
