@@ -42,7 +42,7 @@ interface IRequirePasswordReset {
 export interface IGetMeResponse {
   user: IUser;
   available_teams: ITeamSummary[];
-  user_settings: IUserSettings;
+  settings: IUserSettings;
 }
 
 export default {
@@ -116,11 +116,11 @@ export default {
     // include the user's settings when calling from the UI
     const path = `${endpoints.ME}?include_settings=true`;
     return sendRequest("GET", path).then(
-      ({ user, available_teams, user_settings }) => {
+      ({ user, available_teams, settings }) => {
         return {
           user: helpers.addGravatarUrlToResource(user),
           available_teams,
-          user_settings,
+          settings,
         };
       }
     );

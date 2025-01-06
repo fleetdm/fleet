@@ -49,10 +49,10 @@ const TeamManagementPage = (): JSX.Element => {
 
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     enabled: false,
-    onSuccess: ({ user, available_teams, user_settings }: IGetMeResponse) => {
+    onSuccess: ({ user, available_teams, settings }: IGetMeResponse) => {
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);
-      setUserSettings(user_settings);
+      setUserSettings(settings);
     },
   });
 

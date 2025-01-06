@@ -61,10 +61,10 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
       const { token } = await usersAPI.setup(formData);
       local.setItem("auth_token", token);
 
-      const { user, available_teams, user_settings } = await usersAPI.me();
+      const { user, available_teams, settings } = await usersAPI.me();
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);
-      setUserSettings(user_settings);
+      setUserSettings(settings);
       router.push(DASHBOARD);
       window.location.reload();
     } catch (error) {

@@ -166,10 +166,10 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
 
   const fetchCurrentUser = async () => {
     try {
-      const { user, available_teams, user_settings } = await usersAPI.me();
+      const { user, available_teams, settings } = await usersAPI.me();
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);
-      setUserSettings(user_settings);
+      setUserSettings(settings);
       fetchConfig();
     } catch (error) {
       if (

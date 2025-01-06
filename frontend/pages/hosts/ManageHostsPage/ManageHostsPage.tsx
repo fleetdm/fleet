@@ -762,7 +762,6 @@ const ManageHostsPage = ({
   };
 
   const onSaveColumns = async (newHiddenColumns: string[]) => {
-    // localStorage.setItem("hostHiddenColumns", JSON.stringify(newHiddenColumns));
     try {
       await usersAPI.update(currentUser!.id, {
         settings: { hidden_hosts_table_columns: newHiddenColumns },
