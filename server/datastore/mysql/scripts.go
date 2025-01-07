@@ -18,6 +18,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// TODO(mna): does it still make sense to have that sync/async distinction?
+// A pending script is a pending script, no?
 const whereFilterPendingScript = `
 	exit_code IS NULL
     -- async requests + sync requests created within the given interval
@@ -75,7 +77,7 @@ VALUES
 
 		getStmt = `
 SELECT
-	ua.host_id, ua.execution_id, ua.created_at, ua.script_id, ua.policy_id, ua.user_id,
+	ua.id, ua.host_id, ua.execution_id, ua.created_at, ua.script_id, ua.policy_id, ua.user_id,
 	JSON_EXTRACT(payload, '$.sync_request') AS sync_request,
 	sc.contents as script_contents, ua.setup_experience_script_id
 FROM
@@ -249,12 +251,14 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 }
 
 func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+	// TODO(mna): pending host script executions are those without results in
+	// host_script_results UNION those in the upcoming activities queue
 	internalWhere := ""
 	if onlyShowInternal {
 		internalWhere = " AND is_internal = TRUE"
 	}
 
-	listStmt := fmt.Sprintf(`
+	listHSRStmt := fmt.Sprintf(`
   SELECT
     id,
     host_id,
@@ -269,9 +273,33 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
   ORDER BY
     created_at ASC`, whereFilterPendingScript, internalWhere)
 
+	if onlyShowInternal {
+		internalWhere = " AND JSON_EXTRACT(payload, '$.is_internal') = 1"
+	}
+	listUAStmt := fmt.Sprintf(`
+  SELECT
+    id,
+    host_id,
+    execution_id,
+    script_id
+  FROM
+    upcoming_activities
+  WHERE
+    host_id = ? AND
+		activity_type = 'script' AND
+		(
+			JSON_EXTRACT(payload, '$.sync_request') = 0 OR
+      created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
+		)
+  	%s
+  ORDER BY
+    priority DESC, created_at ASC`, internalWhere)
+
+	stmt := fmt.Sprintf(`(%s) UNION (%s)`, listHSRStmt, listUAStmt)
+
 	var results []*fleet.HostScriptResult
 	seconds := int(constants.MaxServerWaitTime.Seconds())
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, hostID, seconds); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, hostID, seconds, hostID, seconds); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list pending host script executions")
 	}
 	return results, nil

@@ -14,6 +14,9 @@ CREATE TABLE upcoming_activities (
 	id             INT UNSIGNED NOT NULL AUTO_INCREMENT,
 	host_id        INT UNSIGNED NOT NULL,
 
+	-- priority 0 is normal, > 0 is higher priority, < 0 is lower priority.
+	priority       INT NOT NULL DEFAULT 0,
+
 	-- user_id is the user that triggered the activity, it may be null if the
 	-- activity is fleet-initiated or the user was deleted. Additional user
 	-- information (name, email, etc.) is stored in the JSON payload.
@@ -46,7 +49,7 @@ CREATE TABLE upcoming_activities (
 
 	PRIMARY KEY (id),
 	UNIQUE KEY idx_upcoming_activities_execution_id (execution_id),
-	INDEX idx_upcoming_activities_host_id_activity_type (host_id, created_at, activity_type),
+	INDEX idx_upcoming_activities_host_id_activity_type (host_id, priority, created_at, activity_type),
 	CONSTRAINT fk_upcoming_activities_script_id
 		FOREIGN KEY (script_id) REFERENCES scripts (id) ON DELETE SET NULL,
 	CONSTRAINT fk_upcoming_activities_script_content_id
