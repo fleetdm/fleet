@@ -2681,6 +2681,31 @@ Returns the information of the specified host.
     "percent_disk_space_available": 74,
     "gigs_total_disk_space": 160,
     "disk_encryption_enabled": true,
+    "status": "online",
+    "display_text": "23cfc9caacf0",
+    "issues": {
+        "failing_policies_count": 1,
+        "critical_vulnerabilities_count": 2, // Fleet Premium only
+        "total_issues_count": 3
+    },
+    "batteries": [
+      {
+        "cycle_count": 999,
+        "health": "Normal"
+      }
+    ],
+    "geolocation": {
+      "country_iso": "US",
+      "city_name": "New York",
+      "geometry": {
+        "type": "point",
+        "coordinates": [40.6799, -74.0028]
+      }
+    },
+    "maintenance_window": {
+      "starts_at": "2024-06-18T13:27:18−04:00",
+      "timezone": "America/New_York"
+    },
     "users": [
       {
         "uid": 0,
@@ -2733,8 +2758,6 @@ Returns the information of the specified host.
       }
     ],
     "packs": [],
-    "status": "online",
-    "display_text": "23cfc9caacf0",
     "policies": [
       {
         "id": 2,
@@ -2800,29 +2823,6 @@ Returns the information of the specified host.
         "installed_paths": ["/usr/lib/some-path-2"]
       }
     ],
-    "issues": {
-        "failing_policies_count": 1,
-        "critical_vulnerabilities_count": 2, // Fleet Premium only
-        "total_issues_count": 3
-    },
-    "batteries": [
-      {
-        "cycle_count": 999,
-        "health": "Normal"
-      }
-    ],
-    "geolocation": {
-      "country_iso": "US",
-      "city_name": "New York",
-      "geometry": {
-        "type": "point",
-        "coordinates": [40.6799, -74.0028]
-      }
-    },
-    "maintenance_window": {
-      "starts_at": "2024-06-18T13:27:18−04:00",
-      "timezone": "America/New_York"
-    },
     "mdm": {
       "encryption_key_available": true,
       "enrollment_status": "On (manual)",
