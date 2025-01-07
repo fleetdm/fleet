@@ -14,8 +14,8 @@ CREATE TABLE upcoming_activities (
 	id             INT UNSIGNED NOT NULL AUTO_INCREMENT,
 	host_id        INT UNSIGNED NOT NULL,
 
-	-- user_id is the user that triggered the activity, it may be null if the 
-	-- activity is fleet-initiated or the user was deleted. Additional user 
+	-- user_id is the user that triggered the activity, it may be null if the
+	-- activity is fleet-initiated or the user was deleted. Additional user
 	-- information (name, email, etc.) is stored in the JSON payload.
 	user_id        INT UNSIGNED NULL,
 
@@ -29,16 +29,16 @@ CREATE TABLE upcoming_activities (
 	-- so we need to generate it immediately.
 	execution_id   VARCHAR(255) NOT NULL,
 
-	-- those are all columns and not JSON fields because we need FKs on them to 
-	-- do processing ON DELETE, otherwise we'd have to check for existence of 
-	-- each one when executing the activity (we need the enqueue next activity 
+	-- those are all columns and not JSON fields because we need FKs on them to
+	-- do processing ON DELETE, otherwise we'd have to check for existence of
+	-- each one when executing the activity (we need the enqueue next activity
 	-- action to be efficient).
 	script_id                  INT UNSIGNED NULL,
 	script_content_id          INT UNSIGNED NULL,
 	policy_id                  INT UNSIGNED NULL,
 	setup_experience_script_id INT UNSIGNED NULL,
 
-	payload                    JSON NOT NULL DEFAULT '{}',
+	payload                    JSON NOT NULL,
 
 	-- Using DATETIME instead of TIMESTAMP to prevent future Y2K38 issues
 	created_at   DATETIME(6) NOT NULL DEFAULT NOW(6),
@@ -46,9 +46,9 @@ CREATE TABLE upcoming_activities (
 
 	PRIMARY KEY (id),
 	UNIQUE KEY idx_upcoming_activities_execution_id (execution_id),
-	CONSTRAINT fk_upcoming_activities_script_id 
+	CONSTRAINT fk_upcoming_activities_script_id
 		FOREIGN KEY (script_id) REFERENCES scripts (id) ON DELETE SET NULL,
-	CONSTRAINT fk_upcoming_activities_script_content_id 
+	CONSTRAINT fk_upcoming_activities_script_content_id
 		FOREIGN KEY (script_content_id) REFERENCES script_contents (id) ON DELETE CASCADE,
 	CONSTRAINT fk_upcoming_activities_policy_id
 		FOREIGN KEY (policy_id) REFERENCES policies (id) ON DELETE SET NULL,
