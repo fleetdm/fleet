@@ -72,7 +72,7 @@ func (s *integrationInstallTestSuite) TearDownTest() {
 }
 
 // TestSoftwareInstallerSignedURL tests that the software installer signed URL is returned.
-// We are
+// We test using both mock and real fleet.SoftwareInstallerStore.Sign functions.
 func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 	t := s.T()
 
