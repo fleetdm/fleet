@@ -55,7 +55,6 @@ func (ds *Datastore) NewInternalScriptExecutionRequest(ctx context.Context, requ
 		if request.ScriptContentID == 0 {
 			return errors.New("script contents must be saved prior to execution")
 		}
-		// TODO(mna): must insert in the upcoming queue
 		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
 		return err
 	})
@@ -251,7 +250,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 }
 
 func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
-	// TODO(mna): pending host script executions are those without results in
+	// pending host script executions are those without results in
 	// host_script_results UNION those in the upcoming activities queue
 	internalWhere := ""
 	if onlyShowInternal {
@@ -1099,7 +1098,6 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
-		// TODO(mna): this will now insert in the upcoming queue
 		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "lock host via script create execution")
@@ -1150,7 +1148,6 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
-		// TODO(mna): this will now insert in the upcoming queue
 		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "unlock host via script create execution")
@@ -1202,7 +1199,6 @@ func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostS
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
-		// TODO(mna): this will now insert in the upcoming queue
 		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "wipe host via script create execution")
