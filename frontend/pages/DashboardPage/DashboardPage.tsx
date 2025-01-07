@@ -322,7 +322,15 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             setSoftwareTitleDetail(
               <LastUpdatedText
                 lastUpdatedAt={data.counts_updated_at}
-                whatToRetrieve="software"
+                customTooltipText={
+                  <>
+                    Fleet periodically queries all hosts to
+                    <br />
+                    retrieve software. Click to view
+                    <br />
+                    hosts for the most up-to-date lists.
+                  </>
+                }
               />
             );
           setShowSoftwareCard(true);

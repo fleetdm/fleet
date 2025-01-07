@@ -1,5 +1,4 @@
 .fleet-app-details-form {
-
   &__advanced-options-section {
     display: flex;
     flex-direction: column;
@@ -29,9 +28,13 @@
     }
   }
 
-  &__radio-inputs {
+  &__radio-input {
     display: flex;
     flex-direction: column;
     gap: $pad-small;
+  }
+
+  .info-banner {
+    margin-top: $pad-small;
   }
 }

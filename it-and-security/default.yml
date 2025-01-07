@@ -31,6 +31,7 @@ org_settings:
       - "💻🐣 Workstations (canary)"
       - "📱🏢 Company-owned iPhones"
       - "🔳🏢 Company-owned iPads"
+      - "📱🔐 Personally-owned iPhones"
   org_info:
     contact_url: https://fleetdm.com/company/contact
     org_logo_url: ""
@@ -62,8 +63,8 @@ org_settings:
     metadata_url: ""
   webhook_settings:
     failing_policies_webhook:
-      destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
-      enable_failing_policies_webhook: true
+      destination_url: ""
+      enable_failing_policies_webhook: false
       host_batch_size: 0
       policy_ids: []
     host_status_webhook:
@@ -73,8 +74,8 @@ org_settings:
       host_percentage: 25
     interval: 1m0s
     vulnerabilities_webhook:
-      destination_url: $DOGFOOD_VULNERABILITIES_WEBHOOK_URL
-      enable_vulnerabilities_webhook: true
+      destination_url: ""
+      enable_vulnerabilities_webhook: false
       host_batch_size: 0
 policies:
 queries:
@@ -86,5 +87,4 @@ controls:
     mode: voluntary
     webhook_url: $DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL
   windows_enabled_and_configured: true
-  windows_migration:
-    enable: true
+  windows_migration_enabled: true

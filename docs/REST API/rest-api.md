@@ -736,14 +736,9 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 - [Modify global enroll secrets](#modify-global-enroll-secrets)
 - [Get team enroll secrets](#get-team-enroll-secrets)
 - [Modify team enroll secrets](#modify-team-enroll-secrets)
-- [Create invite](#create-invite)
-- [List invites](#list-invites)
-- [Delete invite](#delete-invite)
-- [Verify invite](#verify-invite)
-- [Update invite](#update-invite)
 - [Version](#version)
 
-The Fleet server exposes a handful of API endpoints that handle the configuration of Fleet as well as endpoints that manage invitation and enroll secret operations. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
+The Fleet server exposes API endpoints that handle the configuration of Fleet as well as endpoints that manage enroll secret operations. These endpoints require prior authentication, you so you'll need to log in before calling any of the endpoints documented below.
 
 ### Get certificate
 
@@ -773,7 +768,9 @@ None.
 
 Returns all information about the Fleet's configuration.
 
-> NOTE: The `agent_options`, `sso_settings` and `smtp_settings` fields are only returned to Global Admin users.
+The `agent_options`, `sso_settings` and `smtp_settings` fields are only returned for admin users with global access. Learn more about roles and permissions [here](https://fleetdm.com/guides/role-based-access).
+
+`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, and `scripts` only include the configuration profiles and scripts applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles or scripts added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles) or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) endpoints instead.
 
 `GET /api/v1/fleet/config`
 
@@ -1793,7 +1790,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                   | array   | macOS hosts that belong to no team will have custom profiles applied. |
+| custom_settings                   | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Add configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) instead. |
 
 <br/>
 
@@ -1803,7 +1800,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                   | array   | Windows hosts that belong to no team will have custom profiles applied. |
+| custom_settings                   | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Add configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) instead. |
 
 <br/>
 
@@ -2084,285 +2081,6 @@ Delete all of a team's existing enroll secrets
 ```json
 {
   "secrets": null
-}
-```
-
-### Create invite
-
-`POST /api/v1/fleet/invites`
-
-#### Parameters
-
-| Name        | Type    | In   | Description                                                                                                                                           |
-| ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| global_role | string  | body | Role the user will be granted. Either a global role is needed, or a team role.                                                                        |
-| email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                             |
-| name        | string  | body | **Required.** The name of the invited user.                                                                                                           |
-| sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                                |
-| teams       | array   | body | _Available in Fleet Premium_. A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
-
-#### Example
-
-##### Request body
-
-```json
-{
-  "email": "john_appleseed@example.com",
-  "name": "John",
-  "sso_enabled": false,
-  "global_role": null,
-  "teams": [
-    {
-      "id": 2,
-      "role": "observer"
-    },
-    {
-      "id": 3,
-      "role": "maintainer"
-    }
-  ]
-}
-```
-
-`POST /api/v1/fleet/invites`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "invite": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "id": 3,
-    "invited_by": 1,
-    "email": "john_appleseed@example.com",
-    "name": "John",
-    "sso_enabled": false,
-    "teams": [
-      {
-        "id": 10,
-        "created_at": "0001-01-01T00:00:00Z",
-        "name": "Apples",
-        "description": "",
-        "agent_options": null,
-        "user_count": 0,
-        "host_count": 0,
-        "role": "observer"
-      },
-      {
-        "id": 14,
-        "created_at": "0001-01-01T00:00:00Z",
-        "name": "Best of the Best Engineering",
-        "description": "",
-        "agent_options": null,
-        "user_count": 0,
-        "host_count": 0,
-        "role": "maintainer"
-      }
-    ]
-  }
-}
-```
-
-### List invites
-
-Returns a list of the active invitations in Fleet.
-
-`GET /api/v1/fleet/invites`
-
-#### Parameters
-
-| Name            | Type   | In    | Description                                                                                                                   |
-| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| order_key       | string | query | What to order results by. Can be any column in the invites table.                                                             |
-| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
-| query           | string | query | Search query keywords. Searchable fields include `name` and `email`.                                                          |
-
-#### Example
-
-`GET /api/v1/fleet/invites`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "invites": [
-    {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "id": 3,
-      "email": "john_appleseed@example.com",
-      "name": "John",
-      "sso_enabled": false,
-      "global_role": "admin",
-      "teams": []
-    },
-    {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "id": 4,
-      "email": "bob_marks@example.com",
-      "name": "Bob",
-      "sso_enabled": false,
-      "global_role": "admin",
-      "teams": []
-    }
-  ]
-}
-```
-
-### Delete invite
-
-Delete the specified invite from Fleet.
-
-`DELETE /api/v1/fleet/invites/:id`
-
-#### Parameters
-
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required.** The user's id. |
-
-#### Example
-
-`DELETE /api/v1/fleet/invites/123`
-
-##### Default response
-
-`Status: 200`
-
-
-### Verify invite
-
-Verify the specified invite.
-
-`GET /api/v1/fleet/invites/:token`
-
-#### Parameters
-
-| Name  | Type    | In   | Description                            |
-| ----- | ------- | ---- | -------------------------------------- |
-| token | integer | path | **Required.** The user's invite token. |
-
-#### Example
-
-`GET /api/v1/fleet/invites/abcdef012456789`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "invite": {
-    "created_at": "2021-01-15T00:58:33Z",
-    "updated_at": "2021-01-15T00:58:33Z",
-    "id": 4,
-    "email": "steve@example.com",
-    "name": "Steve",
-    "sso_enabled": false,
-    "global_role": "admin",
-    "teams": []
-  }
-}
-```
-
-##### Not found
-
-`Status: 404`
-
-```json
-{
-  "message": "Resource Not Found",
-  "errors": [
-    {
-      "name": "base",
-      "reason": "Invite with token <token> was not found in the datastore"
-    }
-  ]
-}
-```
-
-### Update invite
-
-`PATCH /api/v1/fleet/invites/:id`
-
-#### Parameters
-
-| Name        | Type    | In   | Description                                                                                                                                           |
-| ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| global_role | string  | body | Role the user will be granted. Either a global role is needed, or a team role.                                                                        |
-| email       | string  | body | The email of the invited user. Updates on the email won't resend the invitation.                                                             |
-| name        | string  | body | The name of the invited user.                                                                                                           |
-| sso_enabled | boolean | body | Whether or not SSO will be enabled for the invited user.                                                                                |
-| teams       | array   | body | _Available in Fleet Premium_. A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
-
-#### Example
-
-`PATCH /api/v1/fleet/invites/123`
-
-##### Request body
-
-```json
-{
-  "email": "john_appleseed@example.com",
-  "name": "John",
-  "sso_enabled": false,
-  "global_role": null,
-  "teams": [
-    {
-      "id": 2,
-      "role": "observer"
-    },
-    {
-      "id": 3,
-      "role": "maintainer"
-    }
-  ]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "invite": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "id": 3,
-    "invited_by": 1,
-    "email": "john_appleseed@example.com",
-    "name": "John",
-    "sso_enabled": false,
-    "teams": [
-      {
-        "id": 10,
-        "created_at": "0001-01-01T00:00:00Z",
-        "name": "Apples",
-        "description": "",
-        "agent_options": null,
-        "user_count": 0,
-        "host_count": 0,
-        "role": "observer"
-      },
-      {
-        "id": 14,
-        "created_at": "0001-01-01T00:00:00Z",
-        "name": "Best of the Best Engineering",
-        "description": "",
-        "agent_options": null,
-        "user_count": 0,
-        "host_count": 0,
-        "role": "maintainer"
-      }
-    ]
-  }
 }
 ```
 
@@ -7614,7 +7332,7 @@ Returns a list of global queries or team queries.
 | team_id         | integer | query | _Available in Fleet Premium_. The ID of the parent team for the queries to be listed. When omitted, returns global queries.                  |
 | query           | string  | query | Search query keywords. Searchable fields include `name`.                                                                      |
 | merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global queries in addition to team queries when filtering by `team_id`. (If no `team_id` is provided, this parameter is ignored.) |
-| compatible_platform | string | query | Return queries that only reference tables compatible with this platform (not a strict compatibility check). One of: `"macos"`, `"windows"`, `"linux"`, `"chrome"` (case-insensitive). |
+| platform        | string  | query | Return queries that are scheduled to run on this platform. One of: `"macos"`, `"windows"`, `"linux"` (case-insensitive). (Since queries cannot be scheduled to run on `"chrome"` hosts, it's not a valid value here) |
 | page                    | integer | query | Page number of the results to fetch. |
 | per_page                | integer | query | Results per page. |
 
@@ -10628,6 +10346,8 @@ _Available in Fleet Premium_
 
 `GET /api/v1/fleet/teams/:id`
 
+`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, and `scripts` only include the configuration profiles and scripts applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles or scripts added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles) or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) endpoints instead.
+
 #### Parameters
 
 | Name | Type    | In   | Description                          |
@@ -10838,10 +10558,10 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline_days                   | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows.                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;grace_period_days               | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates.                                                                    |
 | &nbsp;&nbsp;macos_settings                              | object  | body | macOS-specific settings.                                                                                                                                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | array    | body | The list of objects where each object includes .mobileconfig or JSON file (configuration profile) and label name to apply to macOS hosts that belong to this team and are members of the specified label.                                                                                                                                        |
+| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | array    | body | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Add configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) instead.                                                                                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_disk_encryption          | boolean | body | Hosts that belong to this team will have disk encryption enabled if set to true.                                                                                        |
 | &nbsp;&nbsp;windows_settings                            | object  | body | Windows-specific settings.                                                                                                                                                                                |
-| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | array    | body | The list of objects where each object includes XML file (configuration profile) and label name to apply to Windows hosts that belong to this team and are members of the specified label.                                                                                                                               |
+| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | array    | body | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Add configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) instead.                                                                                                                             |
 | &nbsp;&nbsp;macos_setup                                 | object  | body | Setup for automatic MDM enrollment of macOS hosts.                                                                                                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_end_user_authentication  | boolean | body | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula).                                                                                      |
 | integrations                                            | object  | body | Integration settings for this team.                                                                                                                                                                   |
@@ -11265,8 +10985,13 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
 - [Require password reset](#require-password-reset)
 - [List a user's sessions](#list-a-users-sessions)
 - [Delete a user's sessions](#delete-a-users-sessions)
+- [Create invite](#create-invite)
+- [List invites](#list-invites)
+- [Delete invite](#delete-invite)
+- [Verify invite](#verify-invite)
+- [Modify invite](#modify-invite)
 
-The Fleet server exposes a handful of API endpoints that handles common user management operations. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
+The Fleet server exposes API endpoints that handles common user management operations, including managing emailed invites to new users. All of these endpoints require prior authentication, so you'll need to log in before calling any of the endpoints documented below.
 
 ### List all users
 
@@ -11837,6 +11562,294 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 ##### Default response
 
 `Status: 200`
+
+### Create invite
+
+`POST /api/v1/fleet/invites`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                                                                                                                                           |
+| ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| global_role | string  | body | Role the user will be granted. Either a global role is needed, or a team role.                                                                        |
+| email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                             |
+| name        | string  | body | **Required.** The name of the invited user.                                                                                                           |
+| sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                                |
+| mfa_enabled | boolean | body | _Available in Fleet Premium._ Whether or not the invited user must click a magic link emailed to them to log in, after they successfully enter their username and password. Users can have SSO or MFA enabled, but not both. |
+| teams       | array   | body | _Available in Fleet Premium_. A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
+
+#### Example
+
+##### Request body
+
+```json
+{
+  "email": "john_appleseed@example.com",
+  "name": "John",
+  "sso_enabled": false,
+  "mfa_enabled": false,
+  "global_role": null,
+  "teams": [
+    {
+      "id": 2,
+      "role": "observer"
+    },
+    {
+      "id": 3,
+      "role": "maintainer"
+    }
+  ]
+}
+```
+
+`POST /api/v1/fleet/invites`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "invite": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 3,
+    "invited_by": 1,
+    "email": "john_appleseed@example.com",
+    "name": "John",
+    "sso_enabled": false,
+    "mfa_enabled": false,
+    "teams": [
+      {
+        "id": 10,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Apples",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "observer"
+      },
+      {
+        "id": 14,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Best of the Best Engineering",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "maintainer"
+      }
+    ]
+  }
+}
+```
+
+### List invites
+
+Returns a list of the active invitations in Fleet.
+
+`GET /api/v1/fleet/invites`
+
+#### Parameters
+
+| Name            | Type   | In    | Description                                                                                                                   |
+| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| order_key       | string | query | What to order results by. Can be any column in the invites table.                                                             |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| query           | string | query | Search query keywords. Searchable fields include `name` and `email`.                                                          |
+
+#### Example
+
+`GET /api/v1/fleet/invites`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "invites": [
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 3,
+      "email": "john_appleseed@example.com",
+      "name": "John",
+      "sso_enabled": false,
+      "mfa_enabled": false,
+      "global_role": "admin",
+      "teams": []
+    },
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 4,
+      "email": "bob_marks@example.com",
+      "name": "Bob",
+      "sso_enabled": false,
+      "mfa_enabled": false,
+      "global_role": "admin",
+      "teams": []
+    }
+  ]
+}
+```
+
+### Delete invite
+
+Delete the specified invite from Fleet.
+
+`DELETE /api/v1/fleet/invites/:id`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required.** The user's id. |
+
+#### Example
+
+`DELETE /api/v1/fleet/invites/123`
+
+##### Default response
+
+`Status: 200`
+
+
+### Verify invite
+
+Verify the specified invite.
+
+`GET /api/v1/fleet/invites/:token`
+
+#### Parameters
+
+| Name  | Type    | In   | Description                            |
+| ----- | ------- | ---- | -------------------------------------- |
+| token | integer | path | **Required.** The user's invite token. |
+
+#### Example
+
+`GET /api/v1/fleet/invites/abcdef012456789`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "invite": {
+    "created_at": "2021-01-15T00:58:33Z",
+    "updated_at": "2021-01-15T00:58:33Z",
+    "id": 4,
+    "email": "steve@example.com",
+    "name": "Steve",
+    "sso_enabled": false,
+    "mfa_enabled": false,
+    "global_role": "admin",
+    "teams": []
+  }
+}
+```
+
+##### Not found
+
+`Status: 404`
+
+```json
+{
+  "message": "Resource Not Found",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Invite with token <token> was not found in the datastore"
+    }
+  ]
+}
+```
+
+### Modify invite
+
+`PATCH /api/v1/fleet/invites/:id`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                                                                                                                                           |
+| ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| global_role | string  | body | Role the user will be granted. Either a global role is needed, or a team role.                                                                        |
+| email       | string  | body | The email of the invited user. Updates on the email won't resend the invitation.                                                             |
+| name        | string  | body | The name of the invited user.                                                                                                           |
+| sso_enabled | boolean | body | Whether or not SSO will be enabled for the invited user.                                                                                |
+| mfa_enabled | boolean | body | _Available in Fleet Premium._ Whether or not the invited user must click a magic link emailed to them to log in, after they successfully enter their username and password. Users can have SSO or MFA enabled, but not both. |
+| teams       | array   | body | _Available in Fleet Premium_. A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
+
+#### Example
+
+`PATCH /api/v1/fleet/invites/123`
+
+##### Request body
+
+```json
+{
+  "email": "john_appleseed@example.com",
+  "name": "John",
+  "sso_enabled": false,
+  "mfa_enabled": false,
+  "global_role": null,
+  "teams": [
+    {
+      "id": 2,
+      "role": "observer"
+    },
+    {
+      "id": 3,
+      "role": "maintainer"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "invite": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 3,
+    "invited_by": 1,
+    "email": "john_appleseed@example.com",
+    "name": "John",
+    "sso_enabled": false,
+    "mfa_enabled": false,
+    "teams": [
+      {
+        "id": 10,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Apples",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "observer"
+      },
+      {
+        "id": 14,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Best of the Best Engineering",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "maintainer"
+      }
+    ]
+  }
+}
+```
 
 ## Debug
 

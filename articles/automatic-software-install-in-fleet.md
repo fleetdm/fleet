@@ -73,7 +73,7 @@ SELECT 1 FROM apps WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(bund
 SELECT 1 FROM programs WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<VERSION>') >= 0;
 ```
 
-### Ubuntu (deb)
+### Debian-based (deb)
 
 ```sql
 SELECT 1 FROM deb_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
@@ -82,15 +82,15 @@ SELECT 1 FROM deb_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_comp
 If your team has both Ubuntu and RHEL-based hosts then you should use the following template for the policy queries:
 ```sql
 SELECT 1 WHERE EXISTS (
-   -- This will mark the policies as successful on RHEL hosts.
-   -- This is only required if RHEL-based and Debian based system share a team.
-   SELECT 1 FROM os_version WHERE platform = 'rhel'
+   -- This will mark the policies as successful on non-Debian-based hosts.
+   -- This is only required if Debian-based and RPM-based hosts share a team.
+   SELECT 1 WHERE (SELECT COUNT(*) FROM deb_packages) = 0
 ) OR EXISTS (
    SELECT 1 FROM deb_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0
 );
 ```
 
-### RHEL-based (rpm)
+### RPM-based (rpm)
 
 ```sql
 SELECT 1 FROM rpm_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
@@ -99,9 +99,9 @@ SELECT 1 FROM rpm_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_comp
 If your team has both Ubuntu and RHEL-based hosts then you should use the following template for the policy queries:
 ```sql
 SELECT 1 WHERE EXISTS (
-   -- This will mark the policies as successfull on non-RHEL hosts.
-   -- This is only required if RHEL-based and Debian based system share a team.
-   SELECT 1 FROM os_version WHERE platform != 'rhel'
+   -- This will mark the policies as successful on non-RPM-based hosts.
+   -- This is only required if Debian-based and RPM-based hosts share a team.
+   SELECT 1 WHERE (SELECT COUNT(*) FROM rpm_packages) = 0
 ) OR EXISTS (
    SELECT 1 FROM rpm_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, 'SOFTWARE_PACKAGE_VERSION') >= 0
 );

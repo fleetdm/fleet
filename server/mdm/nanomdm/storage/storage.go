@@ -25,8 +25,10 @@ type CheckinStore interface {
 // CommandAndReportResultsStore stores and retrieves MDM command queue data.
 type CommandAndReportResultsStore interface {
 	StoreCommandReport(r *mdm.Request, report *mdm.CommandResults) error
-	RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.Command, error)
+	RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.CommandWithSubtype, error)
 	ClearQueue(r *mdm.Request) error
+	// BulkDeleteHostUserCommandsWithoutResults deletes all commands without results for the given host/user IDs.
+	BulkDeleteHostUserCommandsWithoutResults(ctx context.Context, commandToId map[string][]string) error
 }
 
 type BootstrapTokenStore interface {
@@ -73,7 +75,7 @@ type PushCertStore interface {
 
 // CommandEnqueuer is able to enqueue MDM commands.
 type CommandEnqueuer interface {
-	EnqueueCommand(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error)
+	EnqueueCommand(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error)
 }
 
 // CertAuthStore stores and retrieves cert-to-enrollment associations.

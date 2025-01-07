@@ -1921,6 +1921,18 @@ func TestSanitizeSoftware(t *testing.T) {
 			},
 		},
 		{
+			name: "minio with trailing garbage",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "minio",
+				Version: "RELEASE.2022-03-10T00-00-00Z_1",
+			},
+			sanitized: &fleet.Software{
+				Name:    "minio",
+				Version: "2022-03-10T00-00-00Z",
+			},
+		},
+		{
 			name: "JetBrains non-EAP",
 			h:    &fleet.Host{},
 			s: &fleet.Software{
@@ -2008,6 +2020,9 @@ func TestDirectIngestWindowsProfiles(t *testing.T) {
 				result[p.Name] = p
 			}
 			return result, nil
+		}
+		ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, secret string) (string, error) {
+			return secret, nil
 		}
 
 		gotQuery := buildConfigProfilesWindowsQuery(ctx, logger, &fleet.Host{}, ds)

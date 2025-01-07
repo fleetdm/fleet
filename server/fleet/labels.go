@@ -194,3 +194,30 @@ func DetectMissingLabels(validLabelMap map[string]uint, unvalidatedLabels []stri
 
 	return missingLabels
 }
+
+// LabelIdent is a simple struct to hold the ID and Name of a label
+type LabelIdent struct {
+	LabelID   uint
+	LabelName string
+}
+
+// LabelScope identifies the manner by which labels may be used to scope entities, such as MDM
+// profiles and software installers, to subsets of hosts.
+type LabelScope string
+
+const (
+	// LabelScopeExcludeAny indicates that a label-scoped entity (e.g., MDM profiles, software
+	// installers) should NOT be applied to a host if the host is a mamber of any of the associated labels.
+	LabelScopeExcludeAny LabelScope = "exclude_any"
+	// LabelScopeIncludeAny indicates that a label-scoped entity (e.g., MDM profiles, software
+	// installers) should be applied to a host that if the host is a member of all of the associated labels.
+	LabelScopeIncludeAny LabelScope = "include_any"
+	// LabelScopeIncludeAll indicates that a label-scoped entity (e.g., MDM profiles, software
+	// installers) should be applied to a host if the host is a member of all of the associated labels.
+	LabelScopeIncludeAll LabelScope = "include_all"
+)
+
+type LabelIdentsWithScope struct {
+	LabelScope LabelScope
+	ByName     map[string]LabelIdent
+}

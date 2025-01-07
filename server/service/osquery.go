@@ -1010,6 +1010,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
+		// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
+		// host details.
 		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults); err != nil {
 			logging.WithErr(ctx, err)
 		}
@@ -1795,6 +1797,17 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			level.Debug(logger).Log("msg", "installer platform does not match host platform")
 			continue
 		}
+		scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, failingPolicyWithInstaller.InstallerID, hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if software installer is label scoped to host")
+		}
+		if !scoped {
+			// NOTE: we update the policy status here to stop it from showing up as "failed" in the
+			// host details.
+			incomingPolicyResults[failingPolicyWithInstaller.ID] = nil
+			level.Debug(logger).Log("msg", "not marking policy as failed since software is out of scope for host")
+			continue
+		}
 		hostLastInstall, err := svc.ds.GetHostLastInstallData(ctx, hostID, installerMetadata.InstallerID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get host last install data")
@@ -1944,7 +1957,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			"script_name", scriptMetadata.Name,
 		)
 
-		allScriptsExecutionPending, err := svc.ds.ListPendingHostScriptExecutions(ctx, hostID)
+		allScriptsExecutionPending, err := svc.ds.ListPendingHostScriptExecutions(ctx, hostID, false)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "list host pending script executions")
 		}

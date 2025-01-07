@@ -25,9 +25,11 @@ type StoreUserAuthenticateFunc func(r *mdm.Request, msg *mdm.UserAuthenticate) e
 
 type StoreCommandReportFunc func(r *mdm.Request, report *mdm.CommandResults) error
 
-type RetrieveNextCommandFunc func(r *mdm.Request, skipNotNow bool) (*mdm.Command, error)
+type RetrieveNextCommandFunc func(r *mdm.Request, skipNotNow bool) (*mdm.CommandWithSubtype, error)
 
 type ClearQueueFunc func(r *mdm.Request) error
+
+type BulkDeleteHostUserCommandsWithoutResultsFunc func(ctx context.Context, commandToId map[string][]string) error
 
 type StoreBootstrapTokenFunc func(r *mdm.Request, msg *mdm.SetBootstrapToken) error
 
@@ -43,7 +45,7 @@ type RetrievePushCertFunc func(ctx context.Context, topic string) (cert *tls.Cer
 
 type StorePushCertFunc func(ctx context.Context, pemCert []byte, pemKey []byte) error
 
-type EnqueueCommandFunc func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error)
+type EnqueueCommandFunc func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error)
 
 type HasCertHashFunc func(r *mdm.Request, hash string) (bool, error)
 
@@ -88,6 +90,9 @@ type MDMAppleStore struct {
 
 	ClearQueueFunc        ClearQueueFunc
 	ClearQueueFuncInvoked bool
+
+	BulkDeleteHostUserCommandsWithoutResultsFunc        BulkDeleteHostUserCommandsWithoutResultsFunc
+	BulkDeleteHostUserCommandsWithoutResultsFuncInvoked bool
 
 	StoreBootstrapTokenFunc        StoreBootstrapTokenFunc
 	StoreBootstrapTokenFuncInvoked bool
@@ -184,7 +189,7 @@ func (fs *MDMAppleStore) StoreCommandReport(r *mdm.Request, report *mdm.CommandR
 	return fs.StoreCommandReportFunc(r, report)
 }
 
-func (fs *MDMAppleStore) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.Command, error) {
+func (fs *MDMAppleStore) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.CommandWithSubtype, error) {
 	fs.mu.Lock()
 	fs.RetrieveNextCommandFuncInvoked = true
 	fs.mu.Unlock()
@@ -196,6 +201,13 @@ func (fs *MDMAppleStore) ClearQueue(r *mdm.Request) error {
 	fs.ClearQueueFuncInvoked = true
 	fs.mu.Unlock()
 	return fs.ClearQueueFunc(r)
+}
+
+func (fs *MDMAppleStore) BulkDeleteHostUserCommandsWithoutResults(ctx context.Context, commandToId map[string][]string) error {
+	fs.mu.Lock()
+	fs.BulkDeleteHostUserCommandsWithoutResultsFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.BulkDeleteHostUserCommandsWithoutResultsFunc(ctx, commandToId)
 }
 
 func (fs *MDMAppleStore) StoreBootstrapToken(r *mdm.Request, msg *mdm.SetBootstrapToken) error {
@@ -247,7 +259,7 @@ func (fs *MDMAppleStore) StorePushCert(ctx context.Context, pemCert []byte, pemK
 	return fs.StorePushCertFunc(ctx, pemCert, pemKey)
 }
 
-func (fs *MDMAppleStore) EnqueueCommand(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+func (fs *MDMAppleStore) EnqueueCommand(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 	fs.mu.Lock()
 	fs.EnqueueCommandFuncInvoked = true
 	fs.mu.Unlock()

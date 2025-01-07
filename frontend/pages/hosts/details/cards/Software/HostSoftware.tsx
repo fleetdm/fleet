@@ -42,7 +42,7 @@ interface IHostSoftwareProps {
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   pathname: string;
   hostTeamId: number;
-  onShowSoftwareDetails?: (software: IHostSoftware) => void;
+  onShowSoftwareDetails: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
   hostScriptsEnabled?: boolean;
   isMyDevicePage?: boolean;
@@ -329,6 +329,9 @@ const HostSoftware = ({
             pagePath={pathname}
             hostSoftwareFilter={getHostSoftwareFilterFromQueryParams()}
             pathPrefix={pathname}
+            // for my device software details modal toggling
+            isMyDevicePage={isMyDevicePage}
+            onShowSoftwareDetails={onShowSoftwareDetails}
           />
         )}
       </>
