@@ -1,9 +1,6 @@
 .manage-policies-page {
   &__header-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 38px;
+    @include normalize-team-header;
 
     .button-wrap {
       display: flex;
@@ -294,9 +291,5 @@
         border-bottom: none;
       }
     }
-  }
-
-  .component__last-updated-text {
-    font-weight: normal;
   }
 }
