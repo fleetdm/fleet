@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
@@ -27,6 +28,9 @@ type Service struct {
 
 	// GetToken handler
 	gt service.GetToken
+
+	// ProfileService
+	ps service.ProfileService
 }
 
 // normalize generates enrollment IDs that are used by other
@@ -67,6 +71,12 @@ func WithLogger(logger log.Logger) Option {
 func WithDeclarativeManagement(dm service.DeclarativeManagement) Option {
 	return func(s *Service) {
 		s.dm = dm
+	}
+}
+
+func WithProfileService(ps service.ProfileService) Option {
+	return func(s *Service) {
+		s.ps = ps
 	}
 }
 
@@ -244,20 +254,48 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 			"error_chain", results.ErrorChain,
 		)
 	}
+	if results.Status != "Idle" {
+		// If the host is not idle, we use primary DB since we just wrote results of previous command.
+		ctxdb.RequirePrimary(r.Context, true)
+	}
 	cmd, err := s.store.RetrieveNextCommand(r, results.Status == "NotNow")
 	if err != nil {
 		return nil, fmt.Errorf("retrieving next command: %w", err)
 	}
-	if cmd != nil {
+	if cmd == nil {
 		logger.Debug(
-			"msg", "command retrieved",
-			"command_uuid", cmd.CommandUUID,
-			"request_type", cmd.Command.RequestType,
+			"msg", "no command retrieved",
 		)
-		return cmd, nil
+		return nil, nil
 	}
 	logger.Debug(
-		"msg", "no command retrieved",
+		"msg", "command retrieved",
+		"command_uuid", cmd.CommandUUID,
+		"request_type", cmd.Command.Command.RequestType,
+		"subtype", cmd.Subtype,
 	)
-	return nil, nil
+	// We expand secrets in the command before returning it to the caller so that we never store unencrypted secrets in the database.
+	// User can issue a one-off MDM command that contains a secret variable, for example.
+	expanded, err := s.store.ExpandEmbeddedSecrets(r.Context, string(cmd.Raw))
+	if err != nil {
+		// This error should never happen since secrets have been validated on profile upload.
+		logger.Info("level", "error", "msg", "expanding embedded secrets", "err", err)
+		// Since this error should not happen, we simply use the command as is, without expanding secrets.
+	} else {
+		cmd.Raw = []byte(expanded)
+	}
+	switch cmd.Subtype {
+	case mdm.CommandSubtypeProfileWithSecrets:
+		// Secrets were expanded above. Now we need to base64 encode and sign the configuration profile before returning it to the caller.
+		processed, err := s.ps.SignAndEncodeInstallProfile(r.Context, cmd.Raw, cmd.CommandUUID)
+		if err != nil {
+			logger.Info("level", "error", "msg", "signing and encoding profile", "err", err)
+			// Since this error should not normally happen, we simply use the command as is. This way the client can fetch the next command and will not be blocked.
+			return &cmd.Command, nil
+		}
+		cmd.Raw = []byte(processed)
+		return &cmd.Command, nil
+	default:
+		return &cmd.Command, nil
+	}
 }

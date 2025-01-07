@@ -99,14 +99,10 @@ After an account is marked "[Research-ready](https://fleetdm.lightning.force.com
 
 The Head of Marketing is the DRI for deploying Fleet's outward-facing content. The content schedule is settled significantly in advance to provide ample time for strategy and planning. Use the following steps to settle content strategy:
 
-1. Using the [content calendar](https://docs.google.com/spreadsheets/d/1KUMsb5OkAsCBQHGkGnNoj__UCPJ7Vbhk1LaEWGEARsg/edit?gid=1931288160#gid=1931288160), propose the content that Fleet will produce in the current quarter, and the strategy behind that content, including:
-  - Content type and title (e.g. "Article: Fleet takes bacon to new heights with flying pigs release").
-  - Create date: The date by which the DRI will start crafting the content.
+1. Using the [content calendar](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=809357993#gid=809357993), propose the content that Fleet will produce in the current quarter, and the strategy behind that content, including:
   - Release date: The date by which the content will be complete and finalized.
-  - Primary buying situation: The intended audience.
   - DRI: Person(s) responsible for the project management of this content.
-  - Author: Person(s) responsible for the creation of this content.
-  - Related event?: Related community or Fleet event, if any.
+  - Title (e.g. "Article: Fleet takes bacon to new heights with flying pigs release").
 2. Attend a 30m meeting with Fleet's Client Platform Engineer & Community Advocate, CTO, and CEO to review and settle the proposed content.
 
 
@@ -234,9 +230,15 @@ To do this:
 6. Repeat this process until all remaining draft orders show "Waiting for Fulfillment"
 
 
+### Request swag
+There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. To request swag:
+1. [Create an issue](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/issues/gh/fleetdm/confidential/new?issueType=issue) on the #g-demand board.
+2. Provide order details (e.g. expected shirt size, name, and shipping details).
+3. Decide if you'd like to include a personalized message and attach it to the issue.
+
 ### Fulfill a swag request
 
-There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. Swag requests are received in the form of issues and will be fulfilled based on availability. To process a swag request:
+Swag requests are received in the form of issues and will be fulfilled based on availability. To process a swag request:
 1. Check and communicate availability to the requestor.
 2. Use the appropriate shipping method that best serves the company.
 3. Attach tracking number to the issue and tag the requestor.

@@ -189,10 +189,11 @@ type MDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
-	MacOSSettings         MacOSSettings            `json:"macos_settings"`
-	MacOSSetup            MacOSSetup               `json:"macos_setup"`
-	MacOSMigration        MacOSMigration           `json:"macos_migration"`
-	EndUserAuthentication MDMEndUserAuthentication `json:"end_user_authentication"`
+	MacOSSettings           MacOSSettings            `json:"macos_settings"`
+	MacOSSetup              MacOSSetup               `json:"macos_setup"`
+	MacOSMigration          MacOSMigration           `json:"macos_migration"`
+	WindowsMigrationEnabled bool                     `json:"windows_migration_enabled"`
+	EndUserAuthentication   MDMEndUserAuthentication `json:"end_user_authentication"`
 
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
@@ -1124,6 +1125,9 @@ type ListQueryOptions struct {
 	// MergeInherited merges inherited global queries into the team list.  Is only valid when TeamID
 	// is set.
 	MergeInherited bool
+	// Return queries that are scheduled to run on this platform. One of "macos",
+	// "windows", or "linux"
+	Platform *string
 }
 
 type ListActivitiesOptions struct {

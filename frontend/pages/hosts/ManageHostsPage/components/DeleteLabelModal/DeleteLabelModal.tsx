@@ -24,7 +24,16 @@ const DeleteLabelModal = ({
       className={baseClass}
     >
       <>
-        <p>Are you sure you wish to delete this label?</p>
+        <p>
+          If a configuration profile uses this label as a custom target, the
+          profile will break. After deleting the label, remove broken profiles
+          and upload new profiles in their place.
+        </p>
+        <p>
+          If software uses this label as a custom target, the label will not be
+          able to be deleted. Please remove the label from the software target
+          first before deleting.
+        </p>
         <div className="modal-cta-wrap">
           <Button
             onClick={onSubmit}

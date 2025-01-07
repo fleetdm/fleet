@@ -7,11 +7,8 @@ import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 
 import paths from "router/paths";
-
 import useTeamIdParam from "hooks/useTeamIdParam";
-
 import { AppContext } from "context/app";
-
 import {
   ISoftwareTitleDetails,
   formatSoftwareType,
@@ -151,7 +148,6 @@ const SoftwareTitleDetailsPage = ({
           softwareId={softwareId}
           teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
           onDelete={onDeleteInstaller}
-          router={router}
           refetchSoftwareTitle={refetchSoftwareTitle}
         />
       );

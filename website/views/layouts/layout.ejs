@@ -159,7 +159,7 @@
                   <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Multi platform</a>
                   <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
                     <a purpose="mobile-dropdown-link" href="/device-management">Device management &nbsp; <small>(+ MDM)</small></a>
-                    <a purpose="mobile-dropdown-link" href="/observability">Observability &nbsp; <small>(+ scripting)</small></a>
+                    <a purpose="mobile-dropdown-link" href="/observability">Orchestration &nbsp; <small>(+ monitoring)</small></a>
                     <a purpose="mobile-dropdown-link" href="/software-management">Software management &nbsp; <small>(+ CVEs)</small></a>
                     <a purpose="mobile-dropdown-link" href="/integrations">Integrations</a>
                   </div>
@@ -169,6 +169,7 @@
                     <a purpose="mobile-dropdown-link" href="/docs">Get started</a>
                     <a purpose="mobile-dropdown-link" href="/queries">Built-in checks</a>
                     <a purpose="mobile-dropdown-link" href="/tables">Raw data</a>
+                    <a purpose="mobile-dropdown-link" href="/app-library">App library</a>
                     <a purpose="mobile-dropdown-link" href="/docs/get-started/tutorials-and-guides">Tutorials &amp; guides</a>
                     <a purpose="mobile-dropdown-link" href="/docs/rest-api">API</a>
                     <span class="mt-2 mb-2">SUPPORT</span>
@@ -219,7 +220,7 @@
                   <a purpose="header-nav-btn" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Multi platform</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
                     <a class="dropdown-item" href="/device-management">Device management <small>+ MDM</small></a>
-                    <a class="dropdown-item" href="/observability">Observability <small>+ scripting, monitoring</small></a>
+                    <a class="dropdown-item" href="/observability">Orchestration <small>+ monitoring</small></a>
                     <a class="dropdown-item" href="/software-management">Software management <small>+ CVEs, usage, app library</small></a>
                     <a class="dropdown-item" href="/integrations">Integrations</a>
                   </div>
@@ -230,6 +231,7 @@
                     <a class="dropdown-item" href="/docs">Get started</a>
                     <a class="dropdown-item" href="/queries">Built-in checks</a><!-- «« FUTURE: consider different menu label such as 'Off the shelf', because i'm just casually a hover menu here and so it's less intentional.  I didn't click "docs" first, like I did on mobile-->
                     <a class="dropdown-item" href="/tables">Raw data</a>
+                    <a class="dropdown-item" href="/app-library">App library</a>
                     <a class="dropdown-item" href="/docs/get-started/tutorials-and-guides">Tutorials &amp; guides</a>
                     <a class="dropdown-item" href="/docs/rest-api">API</a>
                     <span class="muted dropdown-header">SUPPORT</span>
@@ -308,7 +310,7 @@
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
               <strong purpose="footer-nav-header">Multi platform</strong>
               <a href="/device-management">Device management</a>
-              <a href="/observability">Observability</a>
+              <a href="/observability">Orchestration</a>
               <a href="/software-management">Software management</a>
               <a href="/integrations">Integrations</a>
               <a href="/pricing">Pricing</a>
@@ -467,6 +469,8 @@
     <script src="/js/pages/admin/email-templates.page.js"></script>
     <script src="/js/pages/admin/generate-license.page.js"></script>
     <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
+    <script src="/js/pages/app-details.page.js"></script>
+    <script src="/js/pages/app-library.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
     <script src="/js/pages/connect-vanta.page.js"></script>
@@ -489,6 +493,7 @@
     <script src="/js/pages/integrations.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
+    <script src="/js/pages/meetups.page.js"></script>
     <script src="/js/pages/observability.page.js"></script>
     <script src="/js/pages/osquery-table-details.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>

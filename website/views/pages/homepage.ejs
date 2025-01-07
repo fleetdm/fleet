@@ -7,10 +7,10 @@
           <%/* Hero text */%>
           <div purpose="hero-text"  class="d-flex flex-column justify-content-center">
             <h1 class="mx-auto <%= primaryBuyingSituation%>"><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
-            <p>Replace the sprawl with <%= primaryBuyingSituation === 'vm'? 'secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'open-source endpoint observability for every platform' : 'a modern device management platform that works the way you want' %>.</p>
+            <p>Replace the sprawl with <%= primaryBuyingSituation === 'vm'? 'secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'open-source endpoint orchestration for every platform' : 'lightning fast device management that lets employees see what\'s going on' %>.</p>
             <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
-              <a purpose="cta-button" href="<%= primaryBuyingSituation === 'mdm' ? '/device-management' : primaryBuyingSituation === 'vm' ? '/vulnerability-management' : primaryBuyingSituation === 'eo-security' ? '/observability' : primaryBuyingSituation === 'eo-it' ? '/observability' : '/device-management' %>">Learn how</a>
-              <animated-arrow-button href="/testimonials">What people are saying</animated-arrow-button>
+              <a purpose="cta-button" href="<%= primaryBuyingSituation === 'mdm' ? '/device-management' : primaryBuyingSituation === 'vm' ? '/vulnerability-management' : primaryBuyingSituation === 'eo-security' ? '/orchestration' : primaryBuyingSituation === 'eo-it' ? '/orchestration' : '/device-management' %>">Learn how</a>
+              <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>
             </div>
           </div>
         </div>
@@ -21,17 +21,25 @@
   <div purpose="hero-logos" class="mx-auto">
     <logo-carousel></logo-carousel>
     <div purpose="statistics">
-      <div purpose="customers">
-        <h4>100+</h4>
-        <p>customers</p>
+      <div purpose="statistics-column">
+        <div purpose="customers">
+          <h4>100+</h4>
+          <p>customers</p>
+        </div>
+        <div purpose="devices">
+          <h4>2,000,000+</h4>
+          <p>computing devices</p>
+        </div>
       </div>
-      <div purpose="devices">
-        <h4>2,000,000+</h4>
-        <p>computing devices</p>
-      </div>
-      <div purpose="countries" >
-        <h4>90+</h4>
-        <p>countries</p>
+      <div purpose="statistics-column">
+        <div purpose="countries">
+          <h4>90+</h4>
+          <p>countries</p>
+        </div>
+        <div purpose="response-time">
+          <h4>8 minutes</h4>
+          <p>avg support response time</p>
+        </div>
       </div>
     </div>
   </div>
@@ -41,9 +49,9 @@
     <% if(!primaryBuyingSituation){ %>
       <div purpose="category-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
         <div purpose="category-switch-option" :class="[selectedCategory === 'mdm' ? 'selected' : '']" @click="selectedCategory = 'mdm'">Device management</div>
+        <div purpose="category-switch-option" :class="[selectedCategory === 'software-management' ? 'selected' : '']" @click="selectedCategory = 'software-management'">Software management</div>
         <div purpose="category-switch-option" :class="[selectedCategory === 'eo-it' ? 'selected' : '']" @click="selectedCategory = 'eo-it'">IT engineering</div>
-        <div purpose="category-switch-option" :class="[selectedCategory === 'eo-security' ? 'selected' : '']" @click="selectedCategory = 'eo-security'">Security engineering</div>
-        <div purpose="category-tier-switch" :class="[selectedCategory === 'eo-it' ? 'it-selected' : selectedCategory === 'eo-security' ? 'security-selected' : selectedCategory === 'mdm' ? 'mdm-selected' : 'mdm-selected']"></div>
+        <div purpose="category-tier-switch" :class="[selectedCategory === 'eo-it' ? 'it-selected' : selectedCategory === 'software-management' ? 'software-management-selected' : selectedCategory === 'mdm' ? 'mdm-selected' : 'mdm-selected']"></div>
       </div>
       <%/* Device management block */%>
       <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" :class="[selectedCategory === 'mdm' ? 'visible' : '']" v-if="selectedCategory === 'mdm'">
@@ -51,14 +59,14 @@
           <img alt="Operating systems entering a glass device management dome" src="/images/device-management-hero-380x293@2x.png">
         </div>
         <div purpose="category-text-block" class="d-flex flex-column">
-          <strong>Everything in one place - even Linux</strong>
-          <p>Enroll all your computing devices from a single system. Going only Apple or 50/50 Mac and Windows? What about Linux? It’s up to you. </p>
-          <strong>Debunk the cross-platform myth</strong>
-          <p>Fleet exposes familiar concepts from traditional MDMs like custom attributes and dynamic grouping, but in a way that lets you work directly with data and events from each native operating system.</p>
-          <strong>Less friction</strong>
-          <p>Automatically manage updates and apps on Apple, Windows, and Linux computers.</p>
+          <strong>Real employee choice — even Linux</strong>
+          <p>Enroll all your computing devices. Going only Apple or 50/50 Mac and Windows? What about Linux? Speak to them all in one language.</p>
+          <strong>Users have choice, you should too</strong>
+          <p>Love working in the UI? Check. Want to work in GitOps? Double check. Don't use GitOps? That's ok, plenty of people use Fleet without it.</p>
+          <strong>Know the state of your devices in seconds</strong>
+          <p>Collect and normalize the latest details about any device, like hardware specs, installed software, and security configurations.</p>
           <div>
-            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/device-management">Start with device management</a>
+            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/device-management">See how we compare</a>
           </div>
         </div>
       </div>
@@ -69,32 +77,32 @@
           <img alt="Endpoint ops" src="/images/endpoint-operations-hero-image-380x380@2x.png">
         </div>
         <div purpose="category-text-block" class="d-flex flex-column">
-          <strong>Automate anything</strong>
-          <p>Remotely run scripts and prompts to complete tasks on every kind of computer, including Linux.</p>
-          <strong>Ship data to any platform</strong>
-          <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
-          <strong>Osquery on easy mode</strong>
-          <p>Use "read-only" mode or enable remote scripting to automate anything on every operating system, including Linux.</p>
+          <strong>Orchestrate anything</strong>
+          <p>Use a robust API to remotely run scripts, verify configs, or create webhooks for every kind of device — including servers.</p>
+          <strong>Democratize change with GitOps</strong>
+          <p>Maintain reliable employee experiences with version-controlled changes and enhancements. Use CI/CD and peer reviews to look before you leap.</p>
+          <strong>In the cloud or on-prem</strong>
+          <p>Fleet uses the same open-source code base regardless of where it’s installed. You can deploy and configure it to fit your needs.</p>
           <div>
-            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/observability?purpose=it">Start with IT engineering</a>
+            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/orchestration?purpose=it">More about IT engineering</a>
           </div>
         </div>
       </div>
 
       <%/* Security engineering block */%>
-      <div purpose="platform-block" :class="[selectedCategory === 'eo-security' ? 'visible' : '']" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'eo-security'">
+      <div purpose="platform-block" :class="[selectedCategory === 'software-management' ? 'visible' : '']" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'software-management'">
         <div purpose="vuln-management-image" class="left">
-          <img  alt="An orb being scanned for vulnerabilities" src="/images/vulnerability-management-hero-image-345x380@2x.png">
+          <img  alt="An orb being scanned for vulnerabilities" src="/images/software-management-hero-image-380x380@2x.png">
         </div>
         <div purpose="category-text-block" class="d-flex flex-column">
-          <strong>Osquery on easy mode</strong>
-          <p>Use "read-only" mode or enable remote scripting to automate anything on every operating system, including Linux.</p>
-          <strong>Pulse check anything</strong>
-          <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
-          <strong>Ship data to any platform</strong>
-          <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
+          <strong>Comprehensive software inventory</strong>
+          <p>In-depth insights into everything installed on your devices, all accessible from a single unified view.</p>
+          <strong>Patch software automatically</strong>
+          <p>Seamlessly enforce security updates and automate software installations or script execution.</p>
+          <strong>Head to head with the big players</strong>
+          <p>Fleet has the features you need, including zero-touch installs and self-service, to keep your employees secure and productive.</p>
           <div>
-            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/observability?purpose=security">Start with security engineering</a>
+            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/software-management">See how we compare</a>
           </div>
         </div>
       </div>
@@ -122,7 +130,7 @@
              <h2><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Talk to your computers'%></h2>
              <p>A <%= primaryBuyingSituation==='eo-security'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='eo-security'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
              <div>
-               <animated-arrow-button href="/observability">Start with <%= primaryBuyingSituation==='eo-security' ? 'security engineering' : 'IT engineering'%></animated-arrow-button>
+               <animated-arrow-button href="/orchestration">Start with <%= primaryBuyingSituation==='eo-security' ? 'security engineering' : 'IT engineering'%></animated-arrow-button>
              </div>
            </div>
            <div purpose="endpoint-ops-image" class="right">
@@ -189,7 +197,7 @@
              <h2><%= primaryBuyingSituation==='vm'? 'Instrument your endpoints' : 'Talk to your computers'%></h2>
              <p>A <%= primaryBuyingSituation==='vm'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='vm'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
              <div>
-               <animated-arrow-button href="/observability">Start with <%= primaryBuyingSituation==='mdm' ? 'IT engineering' : 'security engineering'%></animated-arrow-button>
+               <animated-arrow-button href="/orchestration">Start with <%= primaryBuyingSituation==='mdm' ? 'IT engineering' : 'security engineering'%></animated-arrow-button>
              </div>
            </div>
          </div>

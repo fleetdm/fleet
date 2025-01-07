@@ -119,7 +119,10 @@ export const mapDeviceUsersForDisplay = (
         idpUser = d;
         break;
       case "custom":
-        customUser = d;
+        // exclude custom user without email
+        if (d.email) {
+          customUser = d;
+        }
         break;
       default:
         newDeviceMapping.push(getDeviceUserForDisplay(d));

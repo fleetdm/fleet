@@ -18,6 +18,14 @@
     .Select-multi-value-wrapper {
       width: 146px;
     }
+
+    // When tabbing through the app
+    .manage-policies-page__manage-automations-dropdown {
+      &.is-focused {
+        outline: 2px solid $ui-vibrant-blue-25;
+      }
+    }
+
     .Select > .Select-menu-outer {
       left: -186px;
       width: 360px;
@@ -286,5 +294,9 @@
         border-bottom: none;
       }
     }
+  }
+
+  .component__last-updated-text {
+    font-weight: normal;
   }
 }

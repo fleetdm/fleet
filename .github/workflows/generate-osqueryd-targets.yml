@@ -24,10 +24,13 @@ defaults:
     shell: bash
 
 env:
-  OSQUERY_VERSION: 5.14.1
+  OSQUERY_VERSION: 5.15.0
 
 permissions:
-  contents: read
+  contents: write
+  id-token: write
+  attestations: write
+  packages: write
 
 jobs:
   generate-macos:
@@ -45,6 +48,12 @@ jobs:
         run: |
           make osqueryd-app-tar-gz out-path=. version=$OSQUERY_VERSION
 
+      - name: Attest binary
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: "osqueryd.app.tar.gz"
+          
       - name: Upload osqueryd.app.tar.gz
         uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
         with:
@@ -69,6 +78,12 @@ jobs:
           tar xf data.tar.gz
           chmod +x ./opt/osquery/bin/osqueryd
           ./opt/osquery/bin/osqueryd --version
+
+      - name: Attest binary
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: "opt/osquery/bin/osqueryd"
 
       - name: Upload osqueryd for linux
         uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
@@ -99,6 +114,12 @@ jobs:
           chmod +x ./opt/osquery/bin/osqueryd
           file ./opt/osquery/bin/osqueryd | grep aarch64
 
+      - name: Attest binary
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: "opt/osquery/bin/osqueryd"
+
       - name: Upload osqueryd for linux-arm64
         uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
         with:
@@ -125,6 +146,12 @@ jobs:
         run: |
           msiexec /a osquery-${{ env.OSQUERY_VERSION }}.msi /qb TARGETDIR=C:\temp
           C:\temp\osquery\osqueryd\osqueryd.exe --version
+
+      - name: Attest binary
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: C:\temp\osquery\osqueryd\osqueryd.exe
 
       - name: Upload osqueryd for Windows
         uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2

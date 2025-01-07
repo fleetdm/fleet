@@ -3,8 +3,9 @@ import React, { useState } from "react";
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
 import Checkbox from "components/forms/fields/Checkbox";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import { roleOptions } from "../../helpers/userManagementHelpers";
 
 interface ITeamCheckboxListItem extends ITeam {
@@ -16,6 +17,7 @@ interface ISelectedTeamsFormProps {
   usersCurrentTeams: ITeam[];
   onFormChange: (teams: ITeam[]) => void;
   isApiOnly?: boolean;
+  onMenuOpen?: () => void;
 }
 
 const baseClass = "selected-teams-form";
@@ -62,7 +64,7 @@ const generateSelectedTeamData = (
 const updateFormState = (
   prevTeamItems: ITeamCheckboxListItem[],
   teamId: number,
-  newValue: UserRole | boolean | undefined
+  newValue: SingleValue<CustomOptionType> | boolean | undefined
 ): ITeamCheckboxListItem[] => {
   const prevItemIndex = prevTeamItems.findIndex((item) => item.id === teamId);
   const prevItem = prevTeamItems[prevItemIndex];
@@ -70,7 +72,7 @@ const updateFormState = (
   if (typeof newValue === "boolean") {
     prevItem.isChecked = newValue;
   } else {
-    prevItem.role = newValue;
+    prevItem.role = newValue?.value as UserRole;
   }
 
   return [...prevTeamItems];
@@ -87,7 +89,7 @@ const useSelectedTeamState = (
 
   const updateSelectedTeams = (
     teamId: number,
-    newValue: UserRole | boolean
+    newValue: CustomOptionType | boolean
   ) => {
     setTeamsFormList((prevState) => {
       const updatedTeamFormList = updateFormState(prevState, teamId, newValue);
@@ -105,6 +107,7 @@ const SelectedTeamsForm = ({
   usersCurrentTeams,
   onFormChange,
   isApiOnly,
+  onMenuOpen,
 }: ISelectedTeamsFormProps): JSX.Element => {
   const [teamsFormList, updateSelectedTeams] = useSelectedTeamState(
     availableTeams,
@@ -127,15 +130,16 @@ const SelectedTeamsForm = ({
             >
               {name}
             </Checkbox>
-            <Dropdown
+            <DropdownWrapper
+              name={name}
               value={role}
               className={`${baseClass}__role-dropdown`}
               options={roleOptions({ isPremiumTier: true, isApiOnly })}
-              searchable={false}
-              onChange={(newValue: UserRole) =>
-                updateSelectedTeams(teamItem.id, newValue)
+              isSearchable={false}
+              onChange={(newValue: SingleValue<CustomOptionType>) =>
+                updateSelectedTeams(teamItem.id, newValue as CustomOptionType)
               }
-              testId={`${name}-checkbox`}
+              onMenuOpen={onMenuOpen}
             />
           </div>
         );

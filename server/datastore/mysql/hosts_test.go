@@ -123,6 +123,7 @@ func TestHosts(t *testing.T) {
 		{"HostsIncludesScheduledQueriesInPackStats", testHostsIncludesScheduledQueriesInPackStats},
 		{"HostsAllPackStats", testHostsAllPackStats},
 		{"HostsPackStatsMultipleHosts", testHostsPackStatsMultipleHosts},
+		{"HostsPackStatsNoDuplication", testHostsPackStatsNoDuplication},
 		{"HostsPackStatsForPlatform", testHostsPackStatsForPlatform},
 		{"HostsReadsLessRows", testHostsReadsLessRows},
 		{"HostsNoSeenTime", testHostsNoSeenTime},
@@ -3406,8 +3407,40 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	// verifying status
 	upsertHostCPs([]*fleet.Host{hosts[0], hosts[1]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
 	oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
-	createDiskEncryptionRecord(ctx, ds, t, hosts[0].ID, "key-1", true, oneMinuteAfterThreshold)
+	// host 0 needs to finish key rotation (action required), host 1 has finished key rotation but profile is verifying
 	createDiskEncryptionRecord(ctx, ds, t, hosts[1].ID, "key-1", true, oneMinuteAfterThreshold)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionFailed}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 0)
+
+	// mark profile send as verified for host 0; should still show as action required
+	upsertHostCPs([]*fleet.Host{hosts[0]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerified, ctx, ds, t)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionFailed}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 0)
+
+	// simulate osquery ping from host 0 with unverified key after key rotation; should switch host to verifying
+	require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0].ID, "key-1", "", nil))
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionFailed}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 0)
+
+	// mark profile send back to verifying for host 0
+	upsertHostCPs([]*fleet.Host{hosts[0]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
+	// mark encryption key for host 0 as verified; should still show host as verifying
+	require.NoError(t, ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[0].ID}, true, oneMinuteAfterThreshold))
 
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 2)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)
@@ -4625,6 +4658,61 @@ func testHostsPackStatsMultipleHosts(t *testing.T, ds *Datastore) {
 		tc.expectedStats[0].WallTimeMs = 0
 		require.ElementsMatch(t, packStats[0].QueryStats, tc.expectedStats)
 	}
+}
+
+// See #22384.
+func testHostsPackStatsNoDuplication(t *testing.T, ds *Datastore) {
+	osqueryHostID, _ := server.GenerateRandomText(10)
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		Platform:        "darwin",
+		OsqueryHostID:   &osqueryHostID,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	query, err := ds.NewQuery(context.Background(), &fleet.Query{
+		Name:               "global-time",
+		Query:              "select * from time",
+		Saved:              true,
+		TeamID:             nil,
+		Interval:           30,
+		AutomationsEnabled: false,
+		Logging:            fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+
+	host, err = ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+
+	// host should see just one stats entry at this point
+	host, err = ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	packStats := host.PackStats
+	require.Len(t, packStats, 1)
+	require.Len(t, packStats[0].QueryStats, 1)
+
+	// record query results
+	require.NoError(t, ds.OverwriteQueryResultRows(context.Background(), []*fleet.ScheduledQueryResultRow{{
+		QueryID: query.ID,
+		HostID:  host.ID,
+		Data:    ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
+	}}, fleet.DefaultMaxQueryReportRows))
+
+	// host should still see just one stats entry at this point, despite seeing stats from both queries in the UNION
+	host, err = ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	packStats = host.PackStats
+	require.Len(t, packStats, 1)
+	require.Len(t, packStats[0].QueryStats, 1)
 }
 
 // See #2964.
@@ -6847,11 +6935,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 			`, host.ID, calendarEventID)
 	require.NoError(t, err)
 
-	softwareInstaller, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
+	softwareInstaller, _, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:   "",
 		PreInstallQuery: "",
 		Title:           "ChocolateRain",
 		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, softwareInstaller, false, nil)

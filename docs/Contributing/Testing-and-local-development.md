@@ -267,7 +267,11 @@ The Fleet repo includes tools to start testing osquery hosts. Please see the doc
 
 To intercept sent emails while running a Fleet development environment, first, as an Admin in the Fleet UI, navigate to the Organization settings.
 
-Then, in the "SMTP options" section, enter any email address in the "Sender address" field, set the "SMTP server" to `localhost` on port `1025`, and set "Authentication type" to `None`. Note that you may use any active or inactive sender address.
+Then, in the "SMTP options" section, set:
+- "Sender address" to any email address. Note that you may use any active or inactive sender address.
+- "SMTP server" to `localhost` on port `1025`.
+- "Use SSL/TLS to connect (recommended)" to unchecked. 
+- "Authentication type" to `None`.
 
 Visit [localhost:8025](http://localhost:8025) to view MailHog's admin interface displaying all emails sent using the simulated mail server.
 
@@ -275,9 +279,11 @@ Visit [localhost:8025](http://localhost:8025) to view MailHog's admin interface 
 
 Alternatively, if you need to test a SMTP server with plain basic authentication enabled, set:
 - "SMTP server" to `localhost` on port `1026`
-- "Authentication type" to `Plain`.
-- "SMTP username" to `mailpit-username`.
-- "SMTP password" to `mailpit-password`.
+- "Use SSL/TLS to connect (recommended)" to unchecked.
+- "Authentication type" to `Username and Password`
+- "SMTP username" to `mailpit-username`
+- "SMTP password" to `mailpit-password`
+- "Auth method" to `Plain`
 - Note that you may use any active or inactive sender address.
 
 Visit [localhost:8026](http://localhost:8026) to view Mailpit's admin interface displaying all emails sent using the simulated mail server.
@@ -339,7 +345,7 @@ Configure SSO on the Organization Settings page with the following:
 ```
 Identity Provider Name: SimpleSAML
 Entity ID: https://localhost:8080
-Metadata URL: http://localhost:9080/simplesaml/saml2/idp/metadata.php
+Metadata URL: http://127.0.0.1:9080/simplesaml/saml2/idp/metadata.php
 ```
 
 The identity provider is configured with four users:

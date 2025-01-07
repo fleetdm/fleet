@@ -22,6 +22,7 @@ import TeamDetailsWrapper from "pages/admin/TeamManagementPage/TeamDetailsWrappe
 import App from "components/App";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
 import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
+import MfaPage from "pages/MfaPage";
 import CoreLayout from "layouts/CoreLayout";
 import DashboardPage from "pages/DashboardPage";
 import DeviceUserPage from "pages/hosts/details/DeviceUserPage";
@@ -144,6 +145,7 @@ const routes = (
             path="login/ssoinvites/:invite_token"
             component={ConfirmSSOInvitePage}
           />
+          <Route path="login/mfa/:token" component={MfaPage} />
           <Route path="login/forgot" component={ForgotPasswordPage} />
           <Route path="login/reset" component={ResetPasswordPage} />
           <Route path="login/denied" component={NoAccessPage} />

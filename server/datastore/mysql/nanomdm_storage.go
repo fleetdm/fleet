@@ -10,6 +10,7 @@ import (
 
 	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
@@ -54,6 +55,7 @@ func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
 	s, err := nanomdm_mysql.New(
 		nanomdm_mysql.WithDB(ds.primary.DB),
 		nanomdm_mysql.WithLogger(nanoMDMLogAdapter{logger: ds.logger}),
+		nanomdm_mysql.WithReaderFunc(ds.reader),
 	)
 	if err != nil {
 		return nil, err
@@ -73,6 +75,7 @@ func (ds *Datastore) NewTestMDMAppleMDMStorage(asyncCap int, asyncInterval time.
 	s, err := nanomdm_mysql.New(
 		nanomdm_mysql.WithDB(ds.primary.DB),
 		nanomdm_mysql.WithLogger(nanoMDMLogAdapter{logger: ds.logger}),
+		nanomdm_mysql.WithReaderFunc(ds.reader),
 		nanomdm_mysql.WithAsyncLastSeen(asyncCap, asyncInterval),
 	)
 	if err != nil {
@@ -123,7 +126,7 @@ func (s *NanoMDMStorage) EnqueueDeviceLockCommand(
 	cmd *mdm.Command,
 	pin string,
 ) error {
-	return withRetryTxx(ctx, s.db, func(tx sqlx.ExtContext) error {
+	return common_mysql.WithRetryTxx(ctx, s.db, func(tx sqlx.ExtContext) error {
 		if err := enqueueCommandDB(ctx, tx, []string{host.UUID}, cmd); err != nil {
 			return err
 		}
@@ -152,7 +155,7 @@ func (s *NanoMDMStorage) EnqueueDeviceLockCommand(
 
 // EnqueueDeviceWipeCommand enqueues a EraseDevice command for the given host.
 func (s *NanoMDMStorage) EnqueueDeviceWipeCommand(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error {
-	return withRetryTxx(ctx, s.db, func(tx sqlx.ExtContext) error {
+	return common_mysql.WithRetryTxx(ctx, s.db, func(tx sqlx.ExtContext) error {
 		if err := enqueueCommandDB(ctx, tx, []string{host.UUID}, cmd); err != nil {
 			return err
 		}
@@ -182,6 +185,11 @@ func (s *NanoMDMStorage) GetAllMDMConfigAssetsByName(ctx context.Context, assetN
 
 func (s *NanoMDMStorage) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
 	return s.ds.GetABMTokenByOrgName(ctx, orgName)
+}
+
+// ExpandEmbeddedSecrets in NanoMDMStorage overrides the implementation in nanomdm_mysql.MySQLStorage.
+func (s *NanoMDMStorage) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
+	return s.ds.ExpandEmbeddedSecrets(ctx, document)
 }
 
 // NewMDMAppleDEPStorage returns a MySQL nanodep storage that uses the Datastore

@@ -404,6 +404,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Fleet-maintained apps
 	ue.POST("/api/_version_/fleet/software/fleet_maintained_apps", addFleetMaintainedAppEndpoint, addFleetMaintainedAppRequest{})
+	ue.PATCH("/api/_version_/fleet/software/fleet_maintained_apps", editFleetMaintainedAppEndpoint, editFleetMaintainedAppRequest{})
 	ue.GET("/api/_version_/fleet/software/fleet_maintained_apps", listFleetMaintainedAppsEndpoint, listFleetMaintainedAppsRequest{})
 	ue.GET("/api/_version_/fleet/software/fleet_maintained_apps/{app_id}", getFleetMaintainedApp, getFleetMaintainedAppRequest{})
 
@@ -524,6 +525,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Generative AI
 	ue.POST("/api/_version_/fleet/autofill/policy", autofillPoliciesEndpoint, autofillPoliciesRequest{})
+
+	// Secret variables
+	ue.PUT("/api/_version_/fleet/spec/secret_variables", secretVariablesEndpoint, secretVariablesRequest{})
 
 	// Only Fleet MDM specific endpoints should be within the root /mdm/ path.
 	// NOTE: remember to update
@@ -731,7 +735,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAnyMW.POST("/api/_version_/fleet/mdm/profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
 	mdmAnyMW.POST("/api/_version_/fleet/configuration_profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
 
+	// Deprecated: POST /hosts/{host_id:[0-9]+}/configuration_profiles/resend/{profile_uuid} is now deprecated, replaced by the
+	// POST /hosts/{host_id:[0-9]+}/configuration_profiles/{profile_uuid}/resend endpoint.
 	mdmAnyMW.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/configuration_profiles/resend/{profile_uuid}", resendHostMDMProfileEndpoint, resendHostMDMProfileRequest{})
+	mdmAnyMW.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/configuration_profiles/{profile_uuid}/resend", resendHostMDMProfileEndpoint, resendHostMDMProfileRequest{})
 
 	// Deprecated: PATCH /mdm/apple/settings is deprecated, replaced by POST /disk_encryption.
 	// It was only used to set disk encryption.
@@ -751,6 +758,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/abm_tokens", uploadABMTokenEndpoint, uploadABMTokenRequest{})
 	ue.DELETE("/api/_version_/fleet/abm_tokens/{id:[0-9]+}", deleteABMTokenEndpoint, deleteABMTokenRequest{})
 	ue.GET("/api/_version_/fleet/abm_tokens", listABMTokensEndpoint, nil)
+	ue.GET("/api/_version_/fleet/abm_tokens/count", countABMTokensEndpoint, nil)
 	ue.PATCH("/api/_version_/fleet/abm_tokens/{id:[0-9]+}/teams", updateABMTokenTeamsEndpoint, updateABMTokenTeamsRequest{})
 	ue.PATCH("/api/_version_/fleet/abm_tokens/{id:[0-9]+}/renew", renewABMTokenEndpoint, renewABMTokenRequest{})
 
@@ -988,10 +996,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	ne.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
 		POST("/api/_version_/fleet/login", loginEndpoint, loginRequest{})
-
-	// Fleet Sandbox demo login (always errors unless config.server.sandbox_enabled is set)
-	ne.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
-		POST("/api/_version_/fleet/demologin", makeDemologinEndpoint(config.Server.URLPrefix), demologinRequest{})
+	ne.WithCustomMiddleware(limiter.Limit("mfa", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
+		POST("/api/_version_/fleet/sessions", sessionCreateEndpoint, sessionCreateRequest{})
 
 	ne.HEAD("/api/fleet/device/ping", devicePingEndpoint, devicePingRequest{})
 
@@ -1104,11 +1110,12 @@ func RegisterAppleMDMProtocolServices(
 	logger kitlog.Logger,
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 	ddmService nanomdm_service.DeclarativeManagement,
+	profileService nanomdm_service.ProfileService,
 ) error {
 	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
-	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, logger); err != nil {
+	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, logger); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
 	return nil
@@ -1200,6 +1207,7 @@ func registerMDM(
 	mdmStorage fleet.MDMAppleStore,
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 	ddmService nanomdm_service.DeclarativeManagement,
+	profileService nanomdm_service.ProfileService,
 	logger kitlog.Logger,
 ) error {
 	certVerifier := mdmcrypto.NewSCEPVerifier(mdmStorage)
@@ -1213,7 +1221,8 @@ func registerMDM(
 	// enrollments and updates the Fleet hosts table accordingly with the UDID and serial number of
 	// the device.
 	// 5. Run actual MDM service operation (checkin handler or command and results handler).
-	coreMDMService := nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger), nanomdm.WithDeclarativeManagement(ddmService))
+	coreMDMService := nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger), nanomdm.WithDeclarativeManagement(ddmService),
+		nanomdm.WithProfileService(profileService))
 	// NOTE: it is critical that the coreMDMService runs first, as the first
 	// service in the multi-service feature is run to completion _before_ running
 	// the other ones in parallel. This way, subsequent services have access to

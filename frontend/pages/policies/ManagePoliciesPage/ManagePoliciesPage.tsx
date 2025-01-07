@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import PATHS from "router/paths";
 import { isEqual } from "lodash";
+import { formatDistanceToNowStrict } from "date-fns";
 
 import { getNextLocationPath, wait } from "utilities/helpers";
 
@@ -22,6 +23,7 @@ import {
   IPolicy,
 } from "interfaces/policy";
 import { API_ALL_TEAMS_ID, API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import { IDropdownOption, TooltipContent } from "interfaces/dropdownOption";
 
 import configAPI from "services/entities/config";
 import globalPoliciesAPI, {
@@ -43,6 +45,7 @@ import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
+import LastUpdatedText from "components/LastUpdatedText";
 
 import PoliciesTable from "./components/PoliciesTable";
 import OtherWorkflowsModal from "./components/OtherWorkflowsModal";
@@ -168,7 +171,10 @@ const ManagePolicyPage = ({
 
   // Needs update on location change or table state might not match URL
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
-  const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
+  const [
+    tableQueryDataForApi,
+    setTableQueryDataForApi,
+  ] = useState<ITableQueryData>();
   const [sortHeader, setSortHeader] = useState(initialSortHeader);
   const [sortDirection, setSortDirection] = useState<
     "asc" | "desc" | undefined
@@ -224,7 +230,7 @@ const ManagePolicyPage = ({
     [
       {
         scope: "globalPolicies",
-        page: tableQueryData?.pageIndex,
+        page: tableQueryDataForApi?.pageIndex,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDirection: sortDirection,
@@ -280,7 +286,7 @@ const ManagePolicyPage = ({
     [
       {
         scope: "teamPolicies",
-        page: tableQueryData?.pageIndex,
+        page: tableQueryDataForApi?.pageIndex,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDirection: sortDirection,
@@ -336,7 +342,8 @@ const ManagePolicyPage = ({
 
   const canAddOrDeletePolicy =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
-  const canManageAutomations = isGlobalAdmin || isTeamAdmin;
+  const canManageAutomations =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   const {
     data: config,
@@ -388,7 +395,7 @@ const ManagePolicyPage = ({
 
   // NOTE: used to reset page number to 0 when modifying filters
   const handleResetPageIndex = () => {
-    setTableQueryData(
+    setTableQueryDataForApi(
       (prevState) =>
         ({
           ...prevState,
@@ -410,11 +417,11 @@ const ManagePolicyPage = ({
   // TODO: Look into useDebounceCallback with dependencies
   const onQueryChange = useCallback(
     async (newTableQuery: ITableQueryData) => {
-      if (!isRouteOk || isEqual(newTableQuery, tableQueryData)) {
+      if (!isRouteOk || isEqual(newTableQuery, tableQueryDataForApi)) {
         return;
       }
 
-      setTableQueryData({ ...newTableQuery });
+      setTableQueryDataForApi({ ...newTableQuery });
 
       const {
         pageIndex: newPageIndex,
@@ -449,11 +456,11 @@ const ManagePolicyPage = ({
         queryParams: { ...queryParams, ...newQueryParams },
       });
 
-      router?.replace(locationPath);
+      router?.push(locationPath);
     },
     [
       isRouteOk,
-      tableQueryData,
+      tableQueryDataForApi,
       sortDirection,
       sortHeader,
       searchQuery,
@@ -555,9 +562,9 @@ const ManagePolicyPage = ({
       responses.concat(
         changedPolicies.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
-            // "software_title_id": 0 will unset software install for the policy
+            // "software_title_id": null will unset software install for the policy
             // "software_title_id": X will set the value to the given integer (except 0).
-            software_title_id: changedPolicy.swIdToInstall || 0,
+            software_title_id: changedPolicy.swIdToInstall || null,
             team_id: teamIdForApi,
           });
         })
@@ -608,9 +615,9 @@ const ManagePolicyPage = ({
       responses.concat(
         changedPolicies.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
-            // "script_id": 0 will unset running a script for the policy (a script never has ID 0)
+            // "script_id": null will unset running a script for the policy
             // "script_id": X will sets script X to run when the policy fails
-            script_id: changedPolicy.scriptIdToRun || 0,
+            script_id: changedPolicy.scriptIdToRun || null,
             team_id: teamIdForApi,
           });
         })
@@ -771,22 +778,43 @@ const ManagePolicyPage = ({
     }
   }
 
-  const renderPoliciesCount = (count?: number) => {
+  const renderPoliciesCountAndLastUpdated = (
+    count?: number,
+    policies?: IPolicyStats[]
+  ) => {
     // Hide count if fetching count || there are errors OR there are no policy results with no a search filter
     const isFetchingCount = !isAllTeamsSelected
       ? isFetchingTeamCountMergeInherited
       : isFetchingGlobalCount;
 
-    const hideCount =
+    const hide =
       isFetchingCount ||
       policiesErrors ||
       (!policyResults && searchQuery === "");
 
-    if (hideCount) {
+    if (hide) {
       return null;
     }
+    // Figure the time since the host counts were updated by finding first policy item with host_count_updated_at.
+    const updatedAt =
+      policies?.find((p) => !!p.host_count_updated_at)?.host_count_updated_at ||
+      "";
 
-    return <TableCount name="policies" count={count} />;
+    return (
+      <>
+        <TableCount name="policies" count={count} />
+        <LastUpdatedText
+          lastUpdatedAt={updatedAt}
+          customTooltipText={
+            <>
+              Counts are updated hourly. Click host
+              <br />
+              counts for the most up-to-date count.
+            </>
+          }
+        />
+      </>
+    );
   };
 
   const renderMainTable = () => {
@@ -810,7 +838,12 @@ const ManagePolicyPage = ({
           currentTeam={currentTeamSummary}
           currentAutomatedPolicies={currentAutomatedPolicies}
           isPremiumTier={isPremiumTier}
-          renderPoliciesCount={() => renderPoliciesCount(globalPoliciesCount)}
+          renderPoliciesCount={() =>
+            renderPoliciesCountAndLastUpdated(
+              globalPoliciesCount,
+              globalPolicies
+            )
+          }
           searchQuery={searchQuery}
           sortHeader={sortHeader}
           sortDirection={sortDirection}
@@ -839,7 +872,10 @@ const ManagePolicyPage = ({
           currentTeam={currentTeamSummary}
           currentAutomatedPolicies={currentAutomatedPolicies}
           renderPoliciesCount={() =>
-            renderPoliciesCount(teamPoliciesCountMergeInherited)
+            renderPoliciesCountAndLastUpdated(
+              teamPoliciesCountMergeInherited,
+              teamPolicies
+            )
           }
           isPremiumTier={isPremiumTier}
           searchQuery={searchQuery}
@@ -853,10 +889,18 @@ const ManagePolicyPage = ({
     );
   };
 
+  const isCalEventsConfigured =
+    (config?.integrations.google_calendar &&
+      config?.integrations.google_calendar.length > 0) ??
+    false;
+
+  const isCalEventsEnabled =
+    teamConfig?.integrations.google_calendar?.enable_calendar_events ?? false;
+
   const getAutomationsDropdownOptions = (configPresent: boolean) => {
-    let disabledInstallTooltipContent: React.ReactNode;
-    let disabledCalendarTooltipContent: React.ReactNode;
-    let disabledRunScriptTooltipContent: React.ReactNode;
+    let disabledInstallTooltipContent: TooltipContent;
+    let disabledCalendarTooltipContent: TooltipContent;
+    let disabledRunScriptTooltipContent: TooltipContent;
     if (!isPremiumTier) {
       disabledInstallTooltipContent = "Available in Fleet Premium.";
       disabledCalendarTooltipContent = "Available in Fleet Premium.";
@@ -883,27 +927,20 @@ const ManagePolicyPage = ({
           run script automation.
         </>
       );
-    }
-    const installSWOption = {
-      label: "Install software",
-      value: "install_software",
-      disabled: !!disabledInstallTooltipContent,
-      helpText: "Install software to resolve failing policies.",
-      tooltipContent: disabledInstallTooltipContent,
-    };
-    const runScriptOption = {
-      label: "Run script",
-      value: "run_script",
-      disabled: !!disabledRunScriptTooltipContent,
-      helpText: "Run script to resolve failing policies.",
-      tooltipContent: disabledRunScriptTooltipContent,
-    };
-
-    if (!configPresent) {
-      return [installSWOption, runScriptOption];
+    } else if (
+      (isGlobalMaintainer || isTeamMaintainer) &&
+      !isCalEventsEnabled
+    ) {
+      disabledCalendarTooltipContent = (
+        <>
+          Contact a user with an
+          <br />
+          admin role for access.
+        </>
+      );
     }
 
-    return [
+    const options: IDropdownOption[] = [
       {
         label: "Calendar events",
         value: "calendar_events",
@@ -911,21 +948,34 @@ const ManagePolicyPage = ({
         helpText: "Automatically reserve time to resolve failing policies.",
         tooltipContent: disabledCalendarTooltipContent,
       },
-      installSWOption,
-      runScriptOption,
       {
+        label: "Install software",
+        value: "install_software",
+        disabled: !!disabledInstallTooltipContent,
+        helpText: "Install software to resolve failing policies.",
+        tooltipContent: disabledInstallTooltipContent,
+      },
+      {
+        label: "Run script",
+        value: "run_script",
+        disabled: !!disabledRunScriptTooltipContent,
+        helpText: "Run script to resolve failing policies.",
+        tooltipContent: disabledRunScriptTooltipContent,
+      },
+    ];
+
+    // Maintainers do not have access to other workflows
+    if (configPresent && !isGlobalMaintainer && !isTeamMaintainer) {
+      options.push({
         label: "Other workflows",
         value: "other_workflows",
         disabled: false,
         helpText: "Create tickets or fire webhooks for failing policies.",
-      },
-    ];
-  };
+      });
+    }
 
-  const isCalEventsConfigured =
-    (config?.integrations.google_calendar &&
-      config?.integrations.google_calendar.length > 0) ??
-    false;
+    return options;
+  };
 
   if (!isRouteOk) {
     return <Spinner />;
@@ -1048,10 +1098,7 @@ const ManagePolicyPage = ({
             onExit={toggleCalendarEventsModal}
             onSubmit={onUpdateCalendarEvents}
             configured={isCalEventsConfigured}
-            enabled={
-              teamConfig?.integrations.google_calendar
-                ?.enable_calendar_events ?? false
-            }
+            enabled={isCalEventsEnabled}
             url={teamConfig?.integrations.google_calendar?.webhook_url || ""}
             policies={policiesAvailableToAutomate}
             isUpdating={isUpdatingPolicies}

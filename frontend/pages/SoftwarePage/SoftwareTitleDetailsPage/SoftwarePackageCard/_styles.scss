@@ -87,35 +87,6 @@
     align-items: center;
   }
 
-  &__self-service-badge {
-    display: flex;
-    height: 18px;
-    padding: 3px 6px;
-    align-items: center;
-    gap: 4px;
-    border-radius: 4px;
-    border: 1px solid $ui-fleet-black-10;
-    background: $ui-off-white;
-    color: $ui-fleet-black-75;
-    font-size: $xx-small;
-    font-weight: $bold;
-    white-space: nowrap;
-  }
-
-  &__actions {
-    @include button-dropdown;
-    color: $core-fleet-black;
-    .Select-multi-value-wrapper {
-      width: 55px;
-    }
-    .Select > .Select-menu-outer {
-      left: -120px;
-    }
-    .Select-placeholder {
-      color: $core-fleet-black;
-    }
-  }
-
   &__download-icon {
     display: flex;
     justify-content: center;

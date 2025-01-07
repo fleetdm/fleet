@@ -6,6 +6,8 @@ To control OS settings, updates, and more on Windows hosts follow the manual enr
 
 To use automatic enrollment (aka zero-touch) features on Windows, follow instructions to connect Fleet to Microsoft Entra ID. You can further customize zero-touch with Windows Autopilot.
 
+To migrate Windows hosts from your current MDM solution to Fleet, follow the instructions [here](#automatic-windows-mdm-migration). 
+
 ## Manual enrollment
 
 ### Step 1: Generate your certificate and key
@@ -36,7 +38,7 @@ Restart the Fleet server.
 
 1. Head to the **Settings > Integrations > Mobile device management (MDM)** page.
 
-2. Next to **Turn on Windows MDM** select **Turn on** to navigate to the **Turn on Windows MDM** page.
+2. Next to **Turn on Windows MDM** select **Turn on** to navigate to the **Manage Windows MDM** page.
 
 3. Select **Turn on**.
 
@@ -140,6 +142,34 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 2. After it's been wiped, open your workstation and follow the setup steps. At screen in which you're asked to sign in, you should see the title "Welcome to [your organziation]!" next to the logo you uploaded in step 4.
 
+
+## Automatic Windows MDM Migration
+
+Fleet can automatically migrate your Windows hosts from another MDM solution to Fleet without end user interaction.
+
+### Step 1: set up Windows MDM in Fleet
+
+Follow the [steps above](#manual-enrollment) to turn on Windows MDM in Fleet. 
+
+### Step 2: install Fleet's agent on the hosts
+
+1. [Enroll](https://fleetdm.com/docs/using-fleet/enroll-hosts) the Windows hosts you want to migrate to Fleet.
+
+2. Navigate to the **Hosts** tab in the main navigation bar and wait until your hosts are visible in the hosts list.
+
+### Step 3: enable automatic migration
+
+1. Head back to the **Settings > Integrations > Mobile device management (MDM)** page.
+
+2. Next to **Windows MDM turned on (servers excluded)** select **Edit** to navigate to the **Manage Windows MDM** page.
+
+3. On the **Manage Windows MDM** page, select **Automatically migrate hosts connected to another MDM solution**. Click **Save** to save the change.
+
+### Step 4: monitor your hosts as they migrate to Fleet MDM
+
+Once the automatic migration is enabled, Fleet sends a notification to each host to tell it to migrate. This process usually takes a few minutes at most.
+
+You can track migration progress in Fleet. Learn how [here](https://fleetdm.com/guides/mdm-migration#check-migration-progress).
 
 <meta name="articleTitle" value="Windows MDM setup">
 <meta name="authorFullName" value="Noah Talerman">

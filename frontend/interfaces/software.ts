@@ -4,6 +4,7 @@ import PropTypes from "prop-types";
 import { IconNames } from "components/icons";
 
 import vulnerabilityInterface from "./vulnerability";
+import { ILabelSoftwareTitle } from "./label";
 
 export default PropTypes.shape({
   type: PropTypes.string,
@@ -55,13 +56,23 @@ export interface ISoftwareTitleVersion {
   hosts_count?: number;
 }
 
+export interface ISoftwarePackagePolicy {
+  id: number;
+  name: string;
+}
+
 export interface ISoftwarePackage {
   name: string;
+  last_install: string | null;
+  last_uninstall: string | null;
+  package_url: string;
   version: string;
   uploaded_at: string;
   install_script: string;
+  uninstall_script: string;
   pre_install_query?: string;
   post_install_script?: string;
+  automatic_install?: boolean; // POST only
   self_service: boolean;
   icon_url: string | null;
   status: {
@@ -71,7 +82,10 @@ export interface ISoftwarePackage {
     pending_uninstall: number;
     failed_uninstall: number;
   };
+  automatic_install_policies?: ISoftwarePackagePolicy[] | null;
   install_during_setup?: boolean;
+  labels_include_any: ILabelSoftwareTitle[] | null;
+  labels_exclude_any: ILabelSoftwareTitle[] | null;
 }
 
 export const isSoftwarePackage = (

@@ -416,8 +416,12 @@ func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.
 		}
 	}
 
-	if len(rows) != 1 {
-		logger.Log("err", fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
+	switch {
+	case len(rows) == 0:
+		level.Debug(logger).Log("err", "detail_query_network_interface did not find a private IP address")
+		return nil
+	case len(rows) > 1:
+		level.Error(logger).Log("msg", fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
 		return nil
 	}
 
@@ -819,6 +823,10 @@ var softwareMacOS = DetailQuery{
 	// ensure that the nested loops in the query generation are ordered correctly for the _extensions
 	// tables that need a uid parameter. CROSS JOIN ensures that SQLite does not reorder the loop
 	// nesting, which is important as described in https://youtu.be/hcn3HIcHAAo?t=77.
+	//
+	// Homebrew package casks are filtered to exclude those that have an associated .app bundle
+	// as these are already included in the apps table.  Apps table software includes bundle_identifier
+	// which is used in vulnerability scanning.
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name AS name,
@@ -890,7 +898,22 @@ SELECT
   '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
-FROM homebrew_packages;
+FROM homebrew_packages
+WHERE type = 'formula'
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS browser,
+  'homebrew_packages' AS source,
+  '' AS vendor,
+  0 AS last_opened_at,
+  path AS installed_path
+FROM homebrew_packages
+WHERE type = 'cask'
+AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path, '/%%%%') AND file.path LIKE '%%.app%%' LIMIT 1);
 `),
 	Platforms:        []string{"darwin"},
 	DirectIngestFunc: directIngestSoftware,
@@ -1595,15 +1618,9 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 var (
 	macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
 	citrixName          = regexp.MustCompile(`Citrix Workspace [0-9]+`)
-)
-
-// sanitizeSoftware performs any sanitization required to the ingested software fields.
-//
-// Some fields are reported with known incorrect values and we need to fix them before using them.
-func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
-	softwareSanitizers := []struct {
+	softwareSanitizers  = []struct {
 		checkSoftware  func(*fleet.Host, *fleet.Software) bool
-		mutateSoftware func(*fleet.Software)
+		mutateSoftware func(*fleet.Software, log.Logger)
 	}{
 		// "Microsoft Teams" on macOS defines the `bundle_short_version` (CFBundleShortVersionString) in a different
 		// unexpected version format. Thus here we transform the version string to the expected format
@@ -1619,7 +1636,7 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
 				return h.Platform == "darwin" && (s.Name == "Microsoft Teams.app" || s.Name == "Microsoft Teams classic.app")
 			},
-			mutateSoftware: func(s *fleet.Software) {
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
 				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
 					s.Version = fmt.Sprintf("%s.%s.00.%s", matches[1], matches[2], matches[3])
 				}
@@ -1631,7 +1648,7 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
 				return h.Platform == "windows" && s.Name == "Cloudflare WARP" && s.Source == "programs"
 			},
-			mutateSoftware: func(s *fleet.Software) {
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
 				// Perform some sanity check on the version before mutating it.
 				parts := strings.Split(s.Version, ".")
 				if len(parts) <= 1 {
@@ -1654,7 +1671,7 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
 				return citrixName.Match([]byte(s.Name)) || s.Name == "Citrix Workspace.app"
 			},
-			mutateSoftware: func(s *fleet.Software) {
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
 				parts := strings.Split(s.Version, ".")
 				if len(parts) <= 1 {
 					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
@@ -1690,8 +1707,13 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
 				return s.Name == "minio" && strings.Contains(s.Version, "RELEASE.")
 			},
-			mutateSoftware: func(s *fleet.Software) {
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
+				// trim the "RELEASE." prefix from the version
 				s.Version = strings.TrimPrefix(s.Version, "RELEASE.")
+				// trim any unexpected trailing characters
+				if idx := strings.Index(s.Version, "_"); idx != -1 {
+					s.Version = s.Version[:idx]
+				}
 			},
 		},
 		{
@@ -1701,7 +1723,7 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 
 				return s.Name == "minio" && regex.MatchString(s.Version)
 			},
-			mutateSoftware: func(s *fleet.Software) {
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
 				timestamp, err := time.Parse("20060102150405", s.Version)
 				if err != nil {
 					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
@@ -1710,11 +1732,54 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 				s.Version = timestamp.Format("2006-01-02T15-04-05Z")
 			},
 		},
-	}
+		{
+			// JetBrains EAP version numbers aren't what are used in CPEs; this handles the translation for Mac versions.
+			// See #22723 for background. Bundle identifier for EAPs also ends with "-EAP" but checking version makes it
+			// a bit easier to add other platforms later. EAP version numbers are e.g. EAP GO-243.21565.42, and checking
+			// here for the dash ensures that string splitting in the mutator always works without a bounds check.
+			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+				return s.BundleIdentifier != "" && strings.HasPrefix(s.BundleIdentifier, "com.jetbrains.") &&
+					strings.HasPrefix(s.Version, "EAP ") && strings.Contains(s.Version, "-")
+			},
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
+				// 243 -> 2024.3
+				eapMajorVersion := strings.Split(strings.Split(s.Version, "-")[1], ".")[0]
+				yearBasedMajorVersion, err := strconv.Atoi("20" + eapMajorVersion[:2])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse JetBrains EAP major version", "version", s.Version, "err", err)
+					return
+				}
+				yearBasedMinorVersion, err := strconv.Atoi(eapMajorVersion[2:])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse JetBrains EAP minor version", "version", s.Version, "err", err)
+					return
+				}
 
+				// EAPs are treated as having all fixes from the previous year-based release, but no fixes from the
+				// year-based release they're an EAP of. The exception to this would be CVE-2024-37051, which was fixed
+				// in a second/third EAP depending on product, but at this point all vulnerable EAPs force exit on
+				// startup due to being expired, so that CVE can't be exploited.
+				yearBasedMinorVersion -= 1
+				if yearBasedMinorVersion <= 0 { // wrap e.g. 2024.1 to 2023.4 (not a real version, but has all 2023.3 fixes)
+					yearBasedMajorVersion -= 1
+					yearBasedMinorVersion = 4
+				}
+
+				// pass through minor and patch version for EAP to tell different EAP builds apart
+				eapMinorAndPatchVersion := strings.Join(strings.Split(strings.Split(s.Version, "-")[1], ".")[1:], ".")
+				s.Version = fmt.Sprintf("%d.%d.%s.%s", yearBasedMajorVersion, yearBasedMinorVersion, "99", eapMinorAndPatchVersion)
+			},
+		},
+	}
+)
+
+// sanitizeSoftware performs any sanitization required to the ingested software fields.
+//
+// Some fields are reported with known incorrect values and we need to fix them before using them.
+func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 	for _, softwareSanitizer := range softwareSanitizers {
 		if softwareSanitizer.checkSoftware(h, s) {
-			softwareSanitizer.mutateSoftware(s)
+			softwareSanitizer.mutateSoftware(s, logger)
 			return
 		}
 	}
@@ -1885,6 +1950,11 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 		return nil
 	}
 
+	if host.RefetchCriticalQueriesUntil != nil {
+		level.Debug(logger).Log("msg", "ingesting Windows mdm data during refetch critical queries window", "host_id", host.ID,
+			"data", fmt.Sprintf("%+v", rows))
+	}
+
 	data := rows[0]
 	var enrolled bool
 	var automatic bool
@@ -1900,13 +1970,20 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 	}
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
 
+	mdmSolutionName := deduceMDMNameWindows(data)
+	if !enrolled && mdmSolutionName != fleet.WellKnownMDMFleet && host.RefetchCriticalQueriesUntil != nil {
+		// the host was unenrolled from a non-Fleet MDM solution, and the refetch
+		// critical queries timestamp was set, so clear it.
+		host.RefetchCriticalQueriesUntil = nil
+	}
+
 	return ds.SetOrUpdateMDMData(ctx,
 		host.ID,
 		isServer,
 		enrolled,
 		serverURL,
 		automatic,
-		deduceMDMNameWindows(data),
+		mdmSolutionName,
 		"",
 	)
 }

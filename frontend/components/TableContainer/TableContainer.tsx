@@ -93,6 +93,8 @@ interface ITableContainerProps<T = any> {
    * if we want to keep this
    */
   onClickRow?: (row: T) => void;
+  /** Used if users can click the row and another child element does not have the same onClick functionality */
+  keyboardSelectableRows?: boolean;
   /** Use for clientside filtering: Use key global for filtering on any column, or use column id as
    * key */
   filters?: Record<string, string | number | boolean>;
@@ -160,6 +162,7 @@ const TableContainer = <T,>({
   stackControls,
   onSelectSingleRow,
   onClickRow,
+  keyboardSelectableRows,
   renderCount,
   renderTableHelpText,
   setExportRows,
@@ -511,6 +514,7 @@ const TableContainer = <T,>({
                 secondarySelectActions={secondarySelectActions}
                 onSelectSingleRow={onSelectSingleRow}
                 onClickRow={onClickRow}
+                keyboardSelectableRows={keyboardSelectableRows}
                 onResultsCountChange={setClientFilterCount}
                 isClientSidePagination={isClientSidePagination}
                 onClientSidePaginationChange={onClientSidePaginationChange}

@@ -308,6 +308,10 @@ func (svc *mockMailService) SendEmail(e fleet.Email) error {
 	return svc.SendEmailFn(e)
 }
 
+func (svc *mockMailService) CanSendEmail(smtpSettings fleet.SMTPSettings) bool {
+	return smtpSettings.SMTPConfigured
+}
+
 type TestNewScheduleFunc func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc
 
 type TestServerOpts struct {
@@ -389,6 +393,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 					ds:     ds,
 					logger: logger,
 				},
+				commander,
 			)
 			require.NoError(t, err)
 		}

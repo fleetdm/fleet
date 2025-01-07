@@ -1,8 +1,8 @@
 -
-  task: "Design sprint review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
+  task: "🦢📊 Design sprint review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "1. Add all stories that are not estimated to the feature fest board. Remove the stories from the drafting board that we're not actively working on and notify stakeholders. 2. Record the number of dropped stories for KPIs (all user stories that did not meet the 3 week drafting timeline). 3. Retro: What went well? What could go better? What to remember for next time?" 
+  description: "1. Record the number of dropped stories for KPIs (all user stories that did not meet the 3 week drafting timeline). 2. For all stories that are not estimated, add their respective customer requests to the feature fest board. For stories that we're no longer working on, remove them from the drafting board, remove their respective customer requests from the 💝 Customer requests board, and notify stakeholders. 3. Retro: What went well? What could go better? What to remember for next time?" 
   moreInfoUrl:  
   dri: "noahtalerman" 
 -
@@ -44,7 +44,7 @@
   task: "Quarterly roadmap blog post"
   startedOn: "2024-11-05" 
   frequency: "Monthly" 
-  description: "Every quarter, Head of Product Design (HPD) writes a short blog post with the theme and an embedded YouTube video in which HPD walks through this." 
+  description: "Every quarter, Head of Product Design (HPD) meets with the CEO to run through the current quarter objectives and the 3 biggest open opportunities in the product and the solutions we're envisioning for next quarter. Then, the HPD writes a short blog with the objectives, opportunities, and an embedded YouTube video in which HPD walks through this." 
   moreInfoUrl: "" 
   dri: "noahtalerman"
   autoIssue:   

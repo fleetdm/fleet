@@ -45,7 +45,7 @@ When you collect data with Fleet, the [performance impact](https://fleetdm.com/r
 
 You can test changes on a small subset of hosts first, then roll them out to the rest of your organization.
 
-## What browsers does Fleet supported?
+## What browsers does Fleet support?
 
 Fleet supports the latest, stable releases of all major browsers and platforms.
 
@@ -94,7 +94,7 @@ If a table is not available for your host, Fleet will generally handle things be
 
 Fleet Desktop is supported on Ubuntu and Fedora.
 
-Fedora requires a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) and Google Chrome for Fleet Desktop.
+Fedora and some flavors of Ubuntu (e.g. Kubuntu) require a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) and Google Chrome for Fleet Desktop.
 
 Fleet's default (un)install scripts use `apt-get` for Debian-based distributions, and `dnf` for Red Hat-based distributions. To install packages on CentOS versions prior to 8, either add `dnf` or edit install and uninstall scripts to use the `yum` or `rpm` command.
 
@@ -659,7 +659,7 @@ Yes! Please sign up for the [Fleet Cloud Beta](https://kqphpqst851.typeform.com/
 
 ### What MySQL versions are supported?
 
-Fleet is tested with MySQL 8.0.36 and 8.4.2. Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.07.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
+Fleet is tested with MySQL 8.0.36, 8.4.3, and 9.1.0. Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.07.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
 
 ### What are the MySQL user requirements?
 

@@ -7,15 +7,21 @@ import React, {
   useMemo,
 } from "react";
 import { InjectedRouter } from "react-router";
+
 import { pull, size } from "lodash";
 import classnames from "classnames";
 import { useDebouncedCallback } from "use-debounce";
+import { IAceEditor } from "react-ace/lib/types";
+import ReactTooltip from "react-tooltip";
+
 import { COLORS } from "styles/var/colors";
 
 import PATHS from "router/paths";
+
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
+
 import {
   addGravatarUrlToResource,
   getCustomDropdownOptions,
@@ -30,7 +36,9 @@ import {
   INVALID_PLATFORMS_REASON,
   INVALID_PLATFORMS_FLASH_MESSAGE,
 } from "utilities/constants";
+
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
+
 import { getErrorReason, IApiError } from "interfaces/errors";
 import {
   ISchedulableQuery,
@@ -38,10 +46,8 @@ import {
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
 import { SelectedPlatformString } from "interfaces/platform";
-import queryAPI from "services/entities/queries";
 
-import { IAceEditor } from "react-ace/lib/types";
-import ReactTooltip from "react-tooltip";
+import queryAPI from "services/entities/queries";
 
 import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce";
@@ -57,6 +63,8 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
+import LogDestinationIndicator from "components/LogDestinationIndicator";
+
 import SaveQueryModal from "../SaveQueryModal";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 import DiscardDataOption from "../DiscardDataOption";
@@ -176,11 +184,10 @@ const EditQueryForm = ({
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [queryWasChanged, setQueryWasChanged] = useState(false);
 
   const platformCompatibility = usePlatformCompatibility();
   const { setCompatiblePlatforms } = platformCompatibility;
-
-  const logDestination = config?.logging.result.plugin || "";
 
   const debounceSQL = useDebouncedCallback((sql: string) => {
     const { errors: newErrors } = validateQuerySQL(sql);
@@ -227,6 +234,7 @@ const EditQueryForm = ({
   };
 
   const onChangeQuery = (sqlString: string) => {
+    setQueryWasChanged(true);
     setLastEditedQueryBody(sqlString);
   };
 
@@ -766,7 +774,14 @@ const EditQueryForm = ({
                   <>
                     Historical results will
                     {!lastEditedQueryAutomationsEnabled ? " not " : " "}be sent
-                    to your log destination: <b>{logDestination}</b>.
+                    to your log destination:{" "}
+                    <b>
+                      <LogDestinationIndicator
+                        logDestination={config?.logging.result.plugin || ""}
+                        excludeTooltip
+                      />
+                    </b>
+                    .
                   </>
                 }
               />
@@ -869,7 +884,17 @@ const EditQueryForm = ({
                 className={`${baseClass}__run`}
                 variant="blue-green"
                 onClick={() => {
-                  setEditingExistingQuery(true); // Persists edited query data through live query flow
+                  // calling `setEditingExistingQuery` here prevents
+                  // inclusion of `query_id` in the subsequent `run` API call, which prevents counting
+                  // this live run in performance impact. Since we DO want to count this run in those
+                  // stats if the query is the same as the saved one, only set below IF the query
+                  // has been changed.
+                  // TODO - product: should host details > action > query > <select existing query>
+                  // go to the host details page instead of the edit query page, where the user has
+                  // the choice to edit the query or run it live directly?
+                  if (queryWasChanged) {
+                    setEditingExistingQuery(true); // Persists edited query data through live query flow
+                  }
                   router.push(
                     PATHS.LIVE_QUERY(queryIdForEdit) +
                       TAGGED_TEMPLATES.queryByHostRoute(hostId, currentTeamId)

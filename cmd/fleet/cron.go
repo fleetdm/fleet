@@ -309,7 +309,7 @@ func checkWinVulnerabilities(
 				"found new", len(r))
 			results = append(results, r...)
 			if err != nil {
-				errHandler(ctx, logger, "analyzing hosts for Windows vulnerabilities", err)
+				errHandler(ctx, kitlog.With(logger, "os name", o.Name, "display version", o.DisplayVersion), "analyzing hosts for Windows vulnerabilities", err)
 			}
 		}
 	}
@@ -963,6 +963,9 @@ func newCleanupsAndAggregationSchedule(
 		}),
 		schedule.WithJob("cleanup_host_mdm_managed_certificates", func(ctx context.Context) error {
 			return ds.CleanUpMDMManagedCertificates(ctx)
+		}),
+		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
+			return ds.CleanupHostMDMAppleProfiles(ctx)
 		}),
 	)
 

@@ -228,10 +228,10 @@ module.exports.routes = {
     }
   },
 
-  'GET /observability': {
+  'GET /orchestration': {
     action: 'view-observability',
     locals: {
-      pageTitleForMeta: 'Observability',
+      pageTitleForMeta: 'Orchestration',
       pageDescriptionForMeta: 'Pulse check anything, build reports, and ship data to any platform with Fleet.',
       currentSection: 'platform',
     }
@@ -293,11 +293,31 @@ module.exports.routes = {
     }
   },
 
-  'GET /customer-stories': {
+  'GET /testimonials': {
     action: 'view-testimonials',
     locals: {
-      pageTitleForMeta: 'Customer stories',
-      pageDescriptionForMeta: 'See what people are saying about Fleet'
+      pageTitleForMeta: 'What people are saying',
+      pageDescriptionForMeta: 'See what people are saying about Fleet.'
+    }
+  },
+
+  'GET /app-library': {
+    action: 'view-app-library',
+    locals: {
+      pageTitleForMeta: 'App library',
+      pageDescriptionForMeta: 'Install Fleet-maintained apps on your hosts without the need for additional configuration. Activate self-service for your end users.',
+    }
+  },
+
+  'GET /app-library/:appIdentifier': {
+    action: 'view-app-details',// Meta title and description set in view action
+  },
+
+  'GET /meetups': {
+    action: 'view-meetups',
+    locals: {
+      pageTitleForMeta: 'Meetups',
+      pageDescriptionForMeta: 'See upcoming meetup locations.',
     }
   },
 
@@ -319,6 +339,7 @@ module.exports.routes = {
   // ```
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
+  'GET /customer-stories': '/testimonials',
   'GET /try': '/get-started',
   'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
   'GET /handbook/customer-experience': '/handbook/customers',
@@ -509,7 +530,6 @@ module.exports.routes = {
   //
   // For example, a clever user might try to visit fleetdm.com/documentation, not knowing that Fleet's website
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
-  'GET /testimonials':               '/customer-stories',
   'GET /admin':                      '/admin/email-preview',
   'GET /renew':                      'https://calendly.com/zayhanlon/fleet-renewal-discussion',
   'GET /documentation':              '/docs',
@@ -538,9 +558,10 @@ module.exports.routes = {
   'GET /try-fleet/sandbox':   '/try-fleet',
   'GET /try-fleet/waitlist':   '/try-fleet',
   'GET /endpoint-operations': '/endpoint-ops',// « just in case we type it the wrong way
-  'GET /example-dep-profile': 'https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/automatic-enrollment.dep.json',
+  'GET /example-dep-profile': 'https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/enrollment-profiles/automatic-enrollment.dep.json',
   'GET /vulnerability-management': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/software-management'+originalQueryString);},
-  'GET /endpoint-ops': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/observability'+originalQueryString);},
+  'GET /endpoint-ops': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/orchestration'+originalQueryString);},
+  'GET /observability': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/orchestration'+originalQueryString);},
 
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
@@ -558,9 +579,10 @@ module.exports.routes = {
   'GET /sign-in-to/microsoft-automatic-enrollment-tool': 'https://portal.azure.com',
   'GET /learn-more-about/custom-os-settings': '/docs/using-fleet/mdm-custom-os-settings',
   'GET /learn-more-about/ndes': 'https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview', // TODO: Confirm URL
+  'GET /learn-more-about/setup-ndes': '/guides/ndes-scep-proxy',
   'GET /learn-more-about/idp-email': 'https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping',
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
-  'GET /learn-more-about/setup-assistant': '/docs/using-fleet/mdm-macos-setup-experience#macos-setup-assistant',
+  'GET /learn-more-about/setup-assistant': '/guides/macos-setup-experience#macos-setup-assistant',
   'GET /learn-more-about/policy-automations': '/docs/using-fleet/automations',
   'GET /install-wine': 'https://github.com/fleetdm/fleet/blob/main/scripts/macos-install-wine.sh',
   'GET /learn-more-about/creating-service-accounts': 'https://console.cloud.google.com/projectselector2/iam-admin/serviceaccounts/create?walkthrough_id=iam--create-service-account&pli=1#step_index=1',
@@ -598,7 +620,10 @@ module.exports.routes = {
   'GET /learn-more-about/policy-automation-run-script': '/guides/policy-automation-run-script',
   'GET /learn-more-about/installing-fleetctl': '/guides/fleetctl#installing-fleetctl',
   'GET /learn-more-about/mdm-disk-encryption': '/guides/enforce-disk-encryption',
+  'GET /learn-more-about/encrypt-linux-device': '/guides/linux-disk-encryption-end-user',
   'GET /contribute-to/policies': 'https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml',
+  'GET /learn-more-about/end-user-license-agreement': '/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula',
+  'GET /learn-more-about/end-user-authentication': '/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula',
 
   // Sitemap
   // =============================================================================================================

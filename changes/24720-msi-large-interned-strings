@@ -1,0 +1,1 @@
+* Fixed MSI parsing for packages including long interned strings (e.g. licenses for the OpenVPN Connect installer)

@@ -58,18 +58,6 @@
           em {
             font-style: normal;
           }
-
-          &--configured {
-            em {
-              color: $ui-success;
-            }
-          }
-
-          &--notconfigured {
-            em {
-              color: $ui-error;
-            }
-          }
         }
       }
 

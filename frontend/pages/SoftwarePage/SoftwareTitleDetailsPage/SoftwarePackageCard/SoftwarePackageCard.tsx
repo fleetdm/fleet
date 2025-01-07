@@ -4,7 +4,6 @@ import React, {
   useLayoutEffect,
   useState,
 } from "react";
-import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -22,6 +21,7 @@ import ActionsDropdown from "components/ActionsDropdown";
 import TooltipWrapper from "components/TooltipWrapper";
 import DataSet from "components/DataSet";
 import Icon from "components/Icon";
+import Tag from "components/Tag";
 
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import endpoints from "utilities/endpoints";
@@ -34,6 +34,7 @@ import {
   SOFTWARE_PACKAGE_DROPDOWN_OPTIONS,
   downloadFile,
 } from "./helpers";
+import AutomaticInstallModal from "../AutomaticInstallModal";
 
 const baseClass = "software-package-card";
 
@@ -188,8 +189,8 @@ const SoftwareActionsDropdown = ({
   onDeleteClick,
   onEditSoftwareClick,
 }: IActionsDropdownProps) => {
-  const onSelect = (value: string) => {
-    switch (value) {
+  const onSelect = (action: string) => {
+    switch (action) {
       case "download":
         onDownloadClick();
         break;
@@ -207,10 +208,9 @@ const SoftwareActionsDropdown = ({
   return (
     <div className={`${baseClass}__actions`}>
       <ActionsDropdown
-        className={`${baseClass}__host-actions-dropdown`}
+        className={`${baseClass}__software-actions-dropdown`}
         onChange={onSelect}
         placeholder="Actions"
-        isSearchable={false}
         options={
           isSoftwarePackage
             ? [...SOFTWARE_PACKAGE_DROPDOWN_OPTIONS]
@@ -237,7 +237,6 @@ interface ISoftwarePackageCardProps {
   // NOTE: we will only have this if we are working with a software package.
   softwarePackage?: ISoftwarePackage;
   onDelete: () => void;
-  router: InjectedRouter;
   refetchSoftwareTitle: () => void;
 }
 
@@ -254,7 +253,6 @@ const SoftwarePackageCard = ({
   softwareId,
   teamId,
   onDelete,
-  router,
   refetchSoftwareTitle,
 }: ISoftwarePackageCardProps) => {
   const {
@@ -267,6 +265,9 @@ const SoftwarePackageCard = ({
 
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showAutomaticInstallModal, setShowAutomaticInstallModal] = useState(
+    false
+  );
 
   const onEditSoftwareClick = () => {
     setShowEditSoftwareModal(true);
@@ -342,16 +343,22 @@ const SoftwarePackageCard = ({
           </div>
         </div>
         <div className={`${baseClass}__actions-wrapper`}>
-          {isSelfService && (
-            <div className={`${baseClass}__self-service-badge`}>
-              <Icon
-                name="install-self-service"
-                size="small"
-                color="ui-fleet-black-75"
-              />
-              Self-service
-            </div>
-          )}
+          {softwarePackage?.automatic_install_policies &&
+            softwarePackage?.automatic_install_policies.length > 0 && (
+              <TooltipWrapper
+                showArrow
+                position="top"
+                tipContent="Click to see policy that triggers automatic install."
+                underline={false}
+              >
+                <Tag
+                  icon="refresh"
+                  text="Automatic install"
+                  onClick={() => setShowAutomaticInstallModal(true)}
+                />
+              </TooltipWrapper>
+            )}
+          {isSelfService && <Tag icon="user" text="Self-service" />}
           {showActions && (
             <SoftwareActionsDropdown
               isSoftwarePackage={!!softwarePackage}
@@ -382,13 +389,12 @@ const SoftwarePackageCard = ({
           teamId={teamId}
         />
       </div>
-      {showEditSoftwareModal && (
+      {showEditSoftwareModal && softwarePackage && (
         <EditSoftwareModal
           softwareId={softwareId}
           teamId={teamId}
           software={softwarePackage}
           onExit={() => setShowEditSoftwareModal(false)}
-          router={router}
           refetchSoftwareTitle={refetchSoftwareTitle}
         />
       )}
@@ -401,6 +407,15 @@ const SoftwarePackageCard = ({
           onSuccess={onDeleteSuccess}
         />
       )}
+      {showAutomaticInstallModal &&
+        softwarePackage?.automatic_install_policies &&
+        softwarePackage?.automatic_install_policies.length > 0 && (
+          <AutomaticInstallModal
+            teamId={teamId}
+            policies={softwarePackage.automatic_install_policies}
+            onExit={() => setShowAutomaticInstallModal(false)}
+          />
+        )}
     </Card>
   );
 };

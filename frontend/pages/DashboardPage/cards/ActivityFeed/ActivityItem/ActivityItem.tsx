@@ -37,6 +37,8 @@ const PREMIUM_ACTIVITIES = new Set([
   "enabled_macos_setup_end_user_auth",
   "disabled_macos_setup_end_user_auth",
   "tranferred_hosts",
+  "enabled_windows_mdm_migration",
+  "disabled_windows_mdm_migration",
 ]);
 
 const getProfileMessageSuffix = (
@@ -663,6 +665,24 @@ const TAGGED_TEMPLATES = {
   disabledWindowsMdm: () => {
     return <> told Fleet to turn off Windows MDM features.</>;
   },
+  enabledWindowsMdmMigration: () => {
+    return (
+      <>
+        {" "}
+        told Fleet to automatically migrate Windows hosts connected to another
+        MDM solution.
+      </>
+    );
+  },
+  disabledWindowsMdmMigration: () => {
+    return (
+      <>
+        {" "}
+        told Fleet to stop migrating Windows hosts connected to another MDM
+        solution.
+      </>
+    );
+  },
   // TODO: Combine ranScript template with host details page templates
   // frontend/pages/hosts/details/cards/Activity/PastActivity/PastActivity.tsx and
   // frontend/pages/hosts/details/cards/Activity/UpcomingActivity/UpcomingActivity.tsx
@@ -872,54 +892,129 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  addedSoftware: (activity: IActivity) => {
+  addedSoftware: (
+    activity: IActivity,
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
+  ) => {
+    const {
+      software_title,
+      software_package,
+      self_service,
+      labels_include_any,
+      labels_exclude_any,
+    } = activity.details || {};
+
     return (
       <>
         {" "}
-        added software <b>{activity.details?.software_title}</b> (
-        {activity.details?.software_package}) to{" "}
+        added <b>{activity.details?.software_package}</b> to{" "}
         {activity.details?.team_name ? (
           <>
-            {" "}
             the <b>{activity.details?.team_name}</b> team.
           </>
         ) : (
           "no team."
-        )}
+        )}{" "}
+        <Button
+          className={`${baseClass}__show-query-link`}
+          variant="text-link"
+          onClick={() =>
+            onDetailsClick?.(activity.type, {
+              software_title,
+              software_package,
+              self_service,
+              labels_include_any,
+              labels_exclude_any,
+            })
+          }
+        >
+          Show details{" "}
+          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+        </Button>
       </>
     );
   },
-  editedSoftware: (activity: IActivity) => {
+  editedSoftware: (
+    activity: IActivity,
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
+  ) => {
+    const {
+      software_title,
+      software_package,
+      self_service,
+      labels_include_any,
+      labels_exclude_any,
+    } = activity.details || {};
+
     return (
       <>
         {" "}
-        edited software <b>{activity.details?.software_title}</b> (
-        {activity.details?.software_package}) on{" "}
+        edited <b>{activity.details?.software_package}</b> on{" "}
         {activity.details?.team_name ? (
           <>
-            {" "}
             the <b>{activity.details?.team_name}</b> team.
           </>
         ) : (
           "no team."
-        )}
+        )}{" "}
+        <Button
+          className={`${baseClass}__show-query-link`}
+          variant="text-link"
+          onClick={() =>
+            onDetailsClick?.(activity.type, {
+              software_title,
+              software_package,
+              self_service,
+              labels_include_any,
+              labels_exclude_any,
+            })
+          }
+        >
+          Show details{" "}
+          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+        </Button>
       </>
     );
   },
-  deletedSoftware: (activity: IActivity) => {
+  deletedSoftware: (
+    activity: IActivity,
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
+  ) => {
+    const {
+      software_title,
+      software_package,
+      self_service,
+      labels_include_any,
+      labels_exclude_any,
+    } = activity.details || {};
+
     return (
       <>
         {" "}
-        deleted software <b>{activity.details?.software_title}</b> (
-        {activity.details?.software_package}) from{" "}
+        deleted <b>{activity.details?.software_package}</b> from{" "}
         {activity.details?.team_name ? (
           <>
-            {" "}
             the <b>{activity.details?.team_name}</b> team.
           </>
         ) : (
           "no team."
-        )}
+        )}{" "}
+        <Button
+          className={`${baseClass}__show-query-link`}
+          variant="text-link"
+          onClick={() =>
+            onDetailsClick?.(activity.type, {
+              software_title,
+              software_package,
+              self_service,
+              labels_include_any,
+              labels_exclude_any,
+            })
+          }
+        >
+          Show details{" "}
+          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+        </Button>
       </>
     );
   },
@@ -1262,6 +1357,12 @@ const getDetail = (
     case ActivityType.DisabledWindowsMdm: {
       return TAGGED_TEMPLATES.disabledWindowsMdm();
     }
+    case ActivityType.EnabledWindowsMdmMigration: {
+      return TAGGED_TEMPLATES.enabledWindowsMdmMigration();
+    }
+    case ActivityType.DisabledWindowsMdmMigration: {
+      return TAGGED_TEMPLATES.disabledWindowsMdmMigration();
+    }
     case ActivityType.RanScript: {
       return TAGGED_TEMPLATES.ranScript(activity, onDetailsClick);
     }
@@ -1308,13 +1409,13 @@ const getDetail = (
       return TAGGED_TEMPLATES.resentConfigProfile(activity);
     }
     case ActivityType.AddedSoftware: {
-      return TAGGED_TEMPLATES.addedSoftware(activity);
+      return TAGGED_TEMPLATES.addedSoftware(activity, onDetailsClick);
     }
     case ActivityType.EditedSoftware: {
-      return TAGGED_TEMPLATES.editedSoftware(activity);
+      return TAGGED_TEMPLATES.editedSoftware(activity, onDetailsClick);
     }
     case ActivityType.DeletedSoftware: {
-      return TAGGED_TEMPLATES.deletedSoftware(activity);
+      return TAGGED_TEMPLATES.deletedSoftware(activity, onDetailsClick);
     }
     case ActivityType.InstalledSoftware: {
       return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
@@ -1385,10 +1486,14 @@ const ActivityItem = ({
     ? addGravatarUrlToResource({ email: actor_email })
     : { gravatar_url: DEFAULT_GRAVATAR_LINK };
 
+  // Add the "Fleet" name to the activity if needed.
+  // TODO: remove/refactor this once we have "fleet-initiated" activities.
   if (
     !activity.actor_email &&
     !activity.actor_full_name &&
-    !activity.actor_id
+    (activity.type === ActivityType.InstalledSoftware ||
+      activity.type === ActivityType.InstalledAppStoreApp ||
+      activity.type === ActivityType.RanScript)
   ) {
     activity.actor_full_name = "Fleet";
   }
