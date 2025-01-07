@@ -4,15 +4,19 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/url"
 	"path"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/feature/cloudfront/sign"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
-// commonFileStore implements the common Get, Put, Exists and Cleanup
+const signedURLExpiresIn = 6 * time.Hour
+
+// commonFileStore implements the common Get, Put, Exists, Sign and Cleanup
 // operations typical for storage of files in the SoftwareInstallers S3 bucket
 // configuration. It is used by the SoftwareInstallerStore and the
 // BootstrapPackageStore. The only variable thing is the path prefix inside
@@ -132,6 +136,22 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 		},
 	})
 	return len(res.Deleted), ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel)
+}
+
+func (s *commonFileStore) Sign(ctx context.Context, fileID string) (string, error) {
+	if s.cloudFrontConfig == nil {
+		return "", ctxerr.New(ctx, "cloudfront config not set for S3 store")
+	}
+	urlToAccess, err := url.JoinPath(s.cloudFrontConfig.BaseURL, s.keyForFile(fileID))
+	if err != nil {
+		return "", ctxerr.Wrapf(ctx, err, "building URL for %s  with ID %s in S3 store", s.fileLabel, fileID)
+	}
+	signer := sign.NewURLSigner(s.cloudFrontConfig.SigningPublicKeyID, s.cloudFrontConfig.Signer)
+	signedURL, err := signer.Sign(urlToAccess, time.Now().Add(signedURLExpiresIn))
+	if err != nil {
+		return "", ctxerr.Wrapf(ctx, err, "signing %s URL %s in S3 store", s.fileLabel, urlToAccess)
+	}
+	return signedURL, nil
 }
 
 // keyForFile builds an S3 key to identify the file.
