@@ -929,7 +929,7 @@
 #  ╩ ╩╩ ╩╩═╝╚╩╝╩ ╩╩╚═╚═╝  ═╩╝╚═╝ ╩ ╚═╝╚═╝ ╩ ╩╚═╝╝╚╝  └─ ╩ ╩ ╩╩╚═╩ ╩─┘
 - industryName: Malware detection (YARA/custom IoCs)  # TODO: consider: technically more than YARA, consider generalizing this and including the concept of comparing known binary hashes and other IoCs (either via live query or in the data lake to compare threat intel feed)
   friendlyName: Scan files for zero days and malware signatures
-  description: Use YARA signatures to report and trigger automations when zero days, malware, or unexpected files are detected on a host.  YARA rules can be deployed remotely and privately.
+  description: Deploy YARA signatures (rules) to report and trigger automations when zero days, malware, or unexpected files are detected on a host.  YARA rules can be deployed remotely and privately.
   documentationUrl: https://fleetdm.com/guides/remote-yara-rules
   tier: Free
   jamfProHasFeature: no
