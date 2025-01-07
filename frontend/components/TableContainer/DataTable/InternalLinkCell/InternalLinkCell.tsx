@@ -11,6 +11,12 @@ interface IInternalLinkCellProps {
   value: string;
   onClick?: () => void;
   className?: string;
+  /** iconName is the name of the icon that will be dislayed to the right
+   * of the text.
+   *
+   * NOTE: This component has not been tested with all icons. Callers should
+   * ensure that the specified icon displays properly. Some issue were observed
+   * with icon clipping, sizing etc. */
   iconName?: IconNames;
 }
 
