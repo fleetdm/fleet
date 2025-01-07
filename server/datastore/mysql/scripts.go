@@ -560,8 +560,12 @@ func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Cont
 		globalOrTeamID = *teamID
 	}
 
-	// TODO(mna): must delete from the upcoming queue
-	deleteStmt := fmt.Sprintf(`
+	deletePendingFunc := func(stmt string, args ...any) error {
+		_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+		return ctxerr.Wrap(ctx, err, "delete pending host script executions for policy")
+	}
+
+	deleteHSRStmt := fmt.Sprintf(`
 		DELETE FROM
 			host_script_results
 		WHERE
@@ -573,9 +577,22 @@ func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Cont
 	`, whereFilterPendingScript)
 
 	seconds := int(constants.MaxServerWaitTime.Seconds())
-	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, policyID, globalOrTeamID, seconds)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete pending host script executions for policy")
+	if err := deletePendingFunc(deleteHSRStmt, policyID, globalOrTeamID, seconds); err != nil {
+		return err
+	}
+
+	deleteUAStmt := `
+		DELETE FROM 
+			upcoming_activities
+		WHERE 
+			policy_id = ? AND 
+			activity_type = 'script' AND
+			script_id IN (
+				SELECT id FROM scripts WHERE scripts.global_or_team_id = ?
+			)
+`
+	if err := deletePendingFunc(deleteUAStmt, policyID, globalOrTeamID); err != nil {
+		return err
 	}
 
 	return nil
