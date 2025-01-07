@@ -425,6 +425,11 @@ func (svc *MDMAppleCommander) SendNotifications(ctx context.Context, hostUUIDs [
 	return nil
 }
 
+// BulkDeleteHostUserCommandsWithoutResults calls the storage method with the same name.
+func (svc *MDMAppleCommander) BulkDeleteHostUserCommandsWithoutResults(ctx context.Context, commandToIDs map[string][]string) error {
+	return svc.storage.BulkDeleteHostUserCommandsWithoutResults(ctx, commandToIDs)
+}
+
 // APNSDeliveryError records an error and the associated host UUIDs in which it
 // occurred.
 type APNSDeliveryError struct {

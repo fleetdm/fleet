@@ -3,8 +3,6 @@ import React from "react";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 
-import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
-
 const baseClass = "save-changes-modal";
 
 export interface IConfirmSaveChangesModalProps {
@@ -38,7 +36,7 @@ const ConfirmSaveChangesModal = ({
         <p>{warningText}</p>
         <p>
           Installs or uninstalls currently running on a host will still
-          complete, but results won’t appear in Fleet.
+          complete, but results won&apos;t appear in Fleet.
         </p>
         <p>You cannot undo this action.</p>
         <div className="modal-cta-wrap">

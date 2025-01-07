@@ -25,6 +25,14 @@ $max-width: 2560px;
   }
 }
 
+// Used to normalize styling of team header wrapper on various pages
+@mixin normalize-team-header {
+  display: flex;
+  align-items: center;
+  height: 38px;
+  justify-content: space-between;
+}
+
 //  Used to keep the settings description sticky under the main nav and sub nav.
 // TODO: figure out how to calculate these values with variables. Will be tedious to change otherwise
 @mixin sticky-settings-description {

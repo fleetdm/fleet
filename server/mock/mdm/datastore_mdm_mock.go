@@ -29,6 +29,8 @@ type RetrieveNextCommandFunc func(r *mdm.Request, skipNotNow bool) (*mdm.Command
 
 type ClearQueueFunc func(r *mdm.Request) error
 
+type BulkDeleteHostUserCommandsWithoutResultsFunc func(ctx context.Context, commandToId map[string][]string) error
+
 type StoreBootstrapTokenFunc func(r *mdm.Request, msg *mdm.SetBootstrapToken) error
 
 type RetrieveBootstrapTokenFunc func(r *mdm.Request, msg *mdm.GetBootstrapToken) (*mdm.BootstrapToken, error)
@@ -88,6 +90,9 @@ type MDMAppleStore struct {
 
 	ClearQueueFunc        ClearQueueFunc
 	ClearQueueFuncInvoked bool
+
+	BulkDeleteHostUserCommandsWithoutResultsFunc        BulkDeleteHostUserCommandsWithoutResultsFunc
+	BulkDeleteHostUserCommandsWithoutResultsFuncInvoked bool
 
 	StoreBootstrapTokenFunc        StoreBootstrapTokenFunc
 	StoreBootstrapTokenFuncInvoked bool
@@ -196,6 +201,13 @@ func (fs *MDMAppleStore) ClearQueue(r *mdm.Request) error {
 	fs.ClearQueueFuncInvoked = true
 	fs.mu.Unlock()
 	return fs.ClearQueueFunc(r)
+}
+
+func (fs *MDMAppleStore) BulkDeleteHostUserCommandsWithoutResults(ctx context.Context, commandToId map[string][]string) error {
+	fs.mu.Lock()
+	fs.BulkDeleteHostUserCommandsWithoutResultsFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.BulkDeleteHostUserCommandsWithoutResultsFunc(ctx, commandToId)
 }
 
 func (fs *MDMAppleStore) StoreBootstrapToken(r *mdm.Request, msg *mdm.SetBootstrapToken) error {

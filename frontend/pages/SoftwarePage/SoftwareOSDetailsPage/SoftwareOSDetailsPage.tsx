@@ -72,13 +72,13 @@ const SoftwareOSDetailsPage = ({
   });
 
   const {
-    data: osVersionDetails,
+    data: { os_version: osVersionDetails, counts_updated_at } = {},
     isLoading,
     isError: isOsVersionError,
   } = useQuery<
     IOSVersionResponse,
     AxiosError,
-    IOperatingSystemVersion,
+    IOSVersionResponse,
     IGetOsVersionQueryKey[]
   >(
     [
@@ -93,7 +93,10 @@ const SoftwareOSDetailsPage = ({
       ...DEFAULT_USE_QUERY_OPTIONS,
       retry: false,
       enabled: !!osVersionIdFromURL,
-      select: (data) => data.os_version,
+      select: (data) => ({
+        os_version: data.os_version,
+        counts_updated_at: data.counts_updated_at,
+      }),
       onError: (error) => {
         if (!ignoreAxiosError(error, [403, 404])) {
           handlePageError(error);
@@ -154,7 +157,7 @@ const SoftwareOSDetailsPage = ({
             onTeamChange={onTeamChange}
           />
         )}
-        {isOsVersionError ? (
+        {isOsVersionError || !osVersionDetails ? (
           <DetailsNoHosts
             header="OS not detected"
             details="No hosts have this OS installed."
@@ -164,6 +167,7 @@ const SoftwareOSDetailsPage = ({
             <SoftwareDetailsSummary
               title={osVersionDetails.name}
               hosts={osVersionDetails.hosts_count}
+              countsUpdatedAt={counts_updated_at}
               queryParams={{
                 os_name: osVersionDetails.name_only,
                 os_version: osVersionDetails.version,
