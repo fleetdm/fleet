@@ -4,6 +4,11 @@ import { useQuery } from "react-query";
 import { omit } from "lodash";
 
 import { IPolicyStats } from "interfaces/policy";
+import {
+  Platform,
+  PLATFORM_DISPLAY_NAMES,
+  SelectedPlatformString,
+} from "interfaces/platform";
 import softwareAPI, {
   ISoftwareTitlesQueryKey,
   ISoftwareTitlesResponse,
@@ -22,18 +27,18 @@ import Button from "components/buttons/Button";
 import { ISoftwareTitle } from "interfaces/software";
 import TooltipWrapper from "components/TooltipWrapper";
 
-const getPlatformDisplayFromPackageExtension = (ext: string | undefined) => {
+const getPlatformFromExtension = (ext: string | undefined): Platform | null => {
   switch (ext) {
     case "pkg":
     case "zip":
     case "dmg":
-      return "macOS";
+      return "darwin";
     case "deb":
     case "rpm":
-      return "Linux";
+      return "linux";
     case "exe":
     case "msi":
-      return "Windows";
+      return "windows";
     default:
       return null;
   }
@@ -52,6 +57,7 @@ interface IFormPolicy {
   id: number;
   installSoftwareEnabled: boolean;
   swIdToInstall?: number;
+  platform: SelectedPlatformString;
 }
 
 export type IInstallSoftwareFormData = IFormPolicy[];
@@ -76,6 +82,7 @@ const InstallSoftwareModal = ({
       id: policy.id,
       installSoftwareEnabled: !!policy.install_software,
       swIdToInstall: policy.install_software?.software_title_id,
+      platform: policy.platform,
     }))
   );
 
@@ -152,19 +159,36 @@ const InstallSoftwareModal = ({
     [formData]
   );
 
-  const availableSoftwareOptions = titlesAFI?.map((title) => {
-    const splitName = title.software_package?.name.split(".") ?? "";
-    const ext =
-      splitName.length > 1 ? splitName[splitName.length - 1] : undefined;
-    const platformString = ext
-      ? `${getPlatformDisplayFromPackageExtension(ext)} (.${ext}) • `
-      : "";
-    return {
-      label: title.name,
-      value: title.id,
-      helpText: `${platformString}${title.software_package?.version ?? ""}`,
-    };
-  });
+  /**
+   * Filters and transforms software titles into dropdown options
+   * Filters titlesAFI to include only software compatible with the policy's
+   * platform(s) by using the file extension to determine the platform
+   */
+  const availableSoftwareOptions = (policy: IFormPolicy) => {
+    return titlesAFI
+      ?.filter((title) => {
+        const splitName = title.software_package?.name.split(".") ?? "";
+        const ext =
+          splitName.length > 1 ? splitName[splitName.length - 1] : undefined;
+        const platform = getPlatformFromExtension(ext);
+        return platform && policy.platform.split(",").includes(platform);
+      })
+      .map((title) => {
+        const splitName = title.software_package?.name.split(".") ?? "";
+        const ext =
+          splitName.length > 1 ? splitName[splitName.length - 1] : undefined;
+        const platformString = ext
+          ? `${
+              PLATFORM_DISPLAY_NAMES[getPlatformFromExtension(ext) as Platform]
+            } (.${ext}) • `
+          : "";
+        return {
+          label: title.name,
+          value: title.id,
+          helpText: `${platformString}${title.software_package?.version ?? ""}`,
+        };
+      });
+  };
 
   const renderPolicySwInstallOption = (policy: IFormPolicy) => {
     const {
@@ -194,7 +218,7 @@ const InstallSoftwareModal = ({
         </Checkbox>
         {enabled && (
           <Dropdown
-            options={availableSoftwareOptions}
+            options={availableSoftwareOptions(policy)} // Options filtered for policy's platform(s)
             value={swIdToInstall}
             onChange={onSelectPolicySoftware}
             placeholder="Select software"
