@@ -50,7 +50,7 @@ parasails.registerPage('articles', {
         this.articleCategory = 'Reports';
         this.categoryDescription = '';
         break;
-      case 'all':
+      case 'articles':
         this.articleCategory = 'Articles';
         this.categoryDescription = 'Read the latest articles from the Fleet team and community.';
         break;

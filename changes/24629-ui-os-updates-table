@@ -1,0 +1,2 @@
+- Fixed UI bug on the "Controls" page where incorrect timestamp information was displayed while the
+  "Current versions" table was loading.
