@@ -15,6 +15,7 @@ func installScriptForApp(app maintainedApp, cask *brewCask) (string, error) {
 
 	sb.AddVariable("TMPDIR", `$(dirname "$(realpath $INSTALLER_PATH)")`)
 	sb.AddVariable("APPDIR", `"/Applications/"`)
+	sb.AddFunction("quit_application", quitApplicationFunc)
 
 	formats := strings.Split(app.InstallerFormat, ":")
 	sb.Extract(formats[0])
@@ -23,7 +24,9 @@ func installScriptForApp(app maintainedApp, cask *brewCask) (string, error) {
 		switch {
 		case len(artifact.App) > 0:
 			sb.Write("# copy to the applications folder")
+			sb.Writef("quit_application '%s'", app.BundleIdentifier)
 			for _, appPath := range artifact.App {
+				sb.Writef(`sudo [ -d "$APPDIR/%[1]s" ] && sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"`, appPath)
 				sb.Copy(appPath, "$APPDIR")
 			}
 
@@ -269,7 +272,6 @@ hdiutil detach "$MOUNT_POINT"`)
 // Copy writes a command to copy a file from the temporary directory to a
 // destination.
 func (s *scriptBuilder) Copy(file, dest string) {
-	s.Writef(`sudo [ -f "$APPDIR/%s" ] && sudo mv "$APPDIR/%s" "$TMPDIR/%s.bkp"`, file, file, file)
 	s.Writef(`sudo cp -R "$TMPDIR/%s" "%s"`, file, dest)
 }
 
