@@ -1,6 +1,6 @@
 .software-table {
   &__filter-dropdown {
-    min-width: 234px;
+    min-width: 213px;
   }
 
   &__filter-controls {
@@ -47,7 +47,7 @@
       width: 100%; // Search bar across entire table
 
       .input-icon-field__input {
-        width: 100%;
+        min-width: 213px;
       }
 
       @media (min-width: $table-controls-break) {
