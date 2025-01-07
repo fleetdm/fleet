@@ -1156,6 +1156,12 @@ func main() {
 		// override all other flags and flagfile entries.
 		options = append(options, osquery.WithFlags(c.Args().Slice()))
 
+		if runtime.GOOS == "windows" {
+			if systemDrive, ok := os.LookupEnv("SystemDrive"); ok {
+				options = append(options, osquery.WithEnv([]string{fmt.Sprintf("SystemDrive=%s", systemDrive)}))
+			}
+		}
+
 		// Create an osquery runner with the provided options.
 		r, err := osquery.NewRunner(osquerydPath, options...)
 		if err != nil {
