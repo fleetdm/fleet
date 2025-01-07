@@ -1320,6 +1320,9 @@ WHERE
   AND NOT EXISTS (
     SELECT 1 FROM setup_experience_scripts WHERE script_content_id = script_contents.id
 	)
+  AND NOT EXISTS (
+    SELECT 1 FROM upcoming_activities WHERE script_content_id = script_contents.id
+	)
 `
 	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
 	if err != nil {
