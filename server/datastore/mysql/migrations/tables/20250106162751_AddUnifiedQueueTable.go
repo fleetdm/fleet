@@ -46,6 +46,7 @@ CREATE TABLE upcoming_activities (
 
 	PRIMARY KEY (id),
 	UNIQUE KEY idx_upcoming_activities_execution_id (execution_id),
+	INDEX idx_upcoming_activities_host_id_activity_type (host_id, created_at, activity_type),
 	CONSTRAINT fk_upcoming_activities_script_id
 		FOREIGN KEY (script_id) REFERENCES scripts (id) ON DELETE SET NULL,
 	CONSTRAINT fk_upcoming_activities_script_content_id

@@ -41,8 +41,6 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 			id, _ := scRes.LastInsertId()
 			request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 		}
-		// TODO(mna): must insert in the upcoming queue instead (probably ok to
-		// create script contents immediately though)
 		res, err = newHostScriptExecutionRequest(ctx, tx, request, false)
 		return err
 	})
@@ -62,23 +60,45 @@ func (ds *Datastore) NewInternalScriptExecutionRequest(ctx context.Context, requ
 }
 
 func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload, isInternal bool) (*fleet.HostScriptResult, error) {
-	// TODO(mna): this becomes an insert in the upcoming queue
 	const (
-		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, script_id, policy_id, user_id, sync_request, setup_experience_script_id, is_internal) VALUES (?, ?, ?, '', ?, ?, ?, ?, ?, ?)`
-		getStmt = `SELECT hsr.id, hsr.host_id, hsr.execution_id, hsr.created_at, hsr.script_id, hsr.policy_id, hsr.user_id, hsr.sync_request, sc.contents as script_contents, hsr.setup_experience_script_id FROM host_script_results hsr JOIN script_contents sc WHERE sc.id = hsr.script_content_id AND hsr.id = ?`
+		insStmt = `
+INSERT INTO upcoming_activities
+	(host_id, user_id, activity_type, execution_id, script_id, script_content_id, policy_id, setup_experience_script_id, payload)
+VALUES
+	(?, ?, 'script', ?, ?, ?, ?, ?,
+		JSON_OBJECT(
+			'sync_request', ?,
+			'is_internal', ?,
+			'user', (SELECT JSON_OBJECT('name', name, 'email', email) FROM users WHERE id = ?)
+		)
+	)`
+
+		getStmt = `
+SELECT
+	ua.host_id, ua.execution_id, ua.created_at, ua.script_id, ua.policy_id, ua.user_id,
+	JSON_EXTRACT(payload, '$.sync_request') AS sync_request,
+	sc.contents as script_contents, ua.setup_experience_script_id
+FROM
+	upcoming_activities ua
+	INNER JOIN script_contents sc
+		ON ua.script_content_id = sc.id
+WHERE
+	ua.id = ?
+`
 	)
 
 	execID := uuid.New().String()
 	result, err := tx.ExecContext(ctx, insStmt,
 		request.HostID,
-		execID,
-		request.ScriptContentID,
-		request.ScriptID,
-		request.PolicyID,
 		request.UserID,
-		request.SyncRequest,
+		execID,
+		request.ScriptID,
+		request.ScriptContentID,
+		request.PolicyID,
 		request.SetupExperienceScriptID,
+		request.SyncRequest,
 		isInternal,
+		request.UserID,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "new host script execution request")
@@ -90,7 +110,6 @@ func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, requ
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting the created host script result to return")
 	}
-
 	return &script, nil
 }
 
