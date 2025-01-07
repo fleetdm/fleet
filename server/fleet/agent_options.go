@@ -48,6 +48,27 @@ func (o *AgentOptions) ForPlatform(platform string) json.RawMessage {
 // The validation always uses the most recent Osquery version that is available
 // at the time of the Fleet release.
 func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.RawMessage, isPremium bool) error {
+	err := validateJSONAgentOptionsInternal(ctx, ds, rawJSON, isPremium)
+	if field := GetJSONUnknownField(err); field != nil {
+		correctKeyPath, keyErr := findAgentOptionsKeyPath(*field)
+		if keyErr != nil {
+			return fmt.Errorf("agent options struct parsing: %w", err)
+		}
+		var keyPathJoined string
+		switch pathLen := len(correctKeyPath); {
+		case pathLen > 1:
+			keyPathJoined = fmt.Sprintf("%q", strings.Join(correctKeyPath[:len(correctKeyPath)-1], "."))
+		case pathLen == 1:
+			keyPathJoined = "top level"
+		}
+		if keyPathJoined != "" {
+			err = fmt.Errorf("%q should be part of the %s object", *field, keyPathJoined)
+		}
+	}
+	return err
+}
+
+func validateJSONAgentOptionsInternal(ctx context.Context, ds Datastore, rawJSON json.RawMessage, isPremium bool) error {
 	var opts AgentOptions
 	if err := JSONStrictDecode(bytes.NewReader(rawJSON), &opts); err != nil {
 		return err
@@ -326,7 +347,7 @@ func validateJSONAgentOptionsSet(rawJSON json.RawMessage) error {
 	return nil
 }
 
-func FindAgentOptionsKeyPath(key string) ([]string, error) {
+func findAgentOptionsKeyPath(key string) ([]string, error) {
 	if key == "script_execution_timeout" {
 		return []string{"script_execution_timeout"}, nil
 	}
