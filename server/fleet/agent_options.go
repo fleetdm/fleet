@@ -396,6 +396,10 @@ func findAgentOptionsKeyPath(key string) ([]string, error) {
 
 // Only searches two layers deep
 func locateStructJSONKeyPath(key, startKey string, target any) ([]string, error) {
+	if key == startKey {
+		return []string{startKey}, nil
+	}
+
 	optionsBytes, err := json.Marshal(target)
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshall target: %w", err)
