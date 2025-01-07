@@ -522,9 +522,28 @@ func main() {
 
 		opt.RootDirectory = c.String("root-dir")
 		opt.ServerURL = c.String("update-url")
+		checkAccessToNewTUF := false
 		if opt.ServerURL == update.OldFleetTUFURL {
-			// orbit 1.38.0+ will use the new TUF repository
-			opt.ServerURL = update.DefaultURL
+			//
+			// This only gets executed on orbit 1.38.0+
+			// when it is configured to connect to the old TUF server
+			// (fleetd instances packaged before the migration,
+			// built by fleetctl previous to v4.63.0).
+			//
+
+			if ok := update.HasAccessToNewTUFServer(opt); ok {
+				// orbit 1.38.0+ will use the new TUF server if it has access to the new TUF repository.
+				opt.ServerURL = update.DefaultURL
+			} else {
+				// orbit 1.38.0+ will use the old TUF server and old metadata path if it does not have access
+				// to the new TUF repository. During its execution (update.Runner) it will exit once it finds
+				// out it can access the new TUF server.
+				localStore, err = filestore.New(filepath.Join(c.String("root-dir"), update.OldMetadataFileName))
+				if err != nil {
+					log.Fatal().Err(err).Msg("create local old metadata store")
+				}
+				checkAccessToNewTUF = true
+			}
 		}
 		opt.LocalStore = localStore
 		opt.InsecureTransport = c.Bool("insecure")
@@ -593,6 +612,7 @@ func main() {
 				CheckInterval:              c.Duration("update-interval"),
 				Targets:                    targets,
 				SignaturesExpiredAtStartup: signaturesExpiredAtStartup,
+				CheckAccessToNewTUF:        checkAccessToNewTUF,
 			})
 			if err != nil {
 				return err

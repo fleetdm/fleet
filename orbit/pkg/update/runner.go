@@ -39,6 +39,11 @@ type RunnerOptions struct {
 	// An expired signature for the "timestamp" role does not cause issues
 	// at start up (the go-tuf libary allows loading the targets).
 	SignaturesExpiredAtStartup bool
+
+	// CheckAccessToNewTUF, if set to true, will perform a check of access to the new Fleet TUF
+	// server on every update interval (once the access is confirmed it will store the confirmation
+	// of access to disk and will exit to restart).
+	CheckAccessToNewTUF bool
 }
 
 // Runner is a specialized runner for an Updater. It is designed with Execute and
@@ -211,6 +216,13 @@ func (r *Runner) Execute() error {
 			return nil
 		case <-ticker.C:
 			ticker.Reset(r.opt.CheckInterval)
+
+			if r.opt.CheckAccessToNewTUF {
+				if HasAccessToNewTUFServer(r.updater.opt) {
+					log.Info().Msg("detected access to new TUF repository, exiting")
+					return nil
+				}
+			}
 
 			if r.opt.SignaturesExpiredAtStartup {
 				if r.updater.SignaturesExpired() {

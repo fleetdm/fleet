@@ -21,7 +21,9 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
@@ -48,7 +50,7 @@ var (
 	//	- orbit 1.38.0+ will start using `updates-metadata.json` instead of `tuf-metadata.json` (if it is missing then
 	// 	  it will perform a copy).
 	//
-	// For both Fleet's TUF and custom TUF, fleetd packages built with fleetctl 4.62.0+ will contain both files
+	// For both Fleet's TUF and custom TUF, fleetd packages built with fleetctl 4.63.0+ will contain both files
 	// `updates-metadata.json` and `tuf-metadata.json` (same content) to support downgrades to orbit 1.37.0 or lower.
 
 	//
@@ -148,32 +150,10 @@ func NewUpdater(opt Options) (*Updater, error) {
 		return nil, errors.New("opt.LocalStore must be non-nil")
 	}
 
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: opt.InsecureTransport,
-	}
-
-	if opt.ServerCertificatePath != "" {
-		rootCAs, err := certificate.LoadPEM(opt.ServerCertificatePath)
-		if err != nil {
-			return nil, fmt.Errorf("loading server root CA: %w", err)
-		}
-		tlsConfig.RootCAs = rootCAs
-	}
-
-	if opt.ClientCertificate != nil {
-		tlsConfig.Certificates = []tls.Certificate{*opt.ClientCertificate}
-	}
-
-	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(tlsConfig))
-
-	remoteOpt := &client.HTTPRemoteOptions{
-		UserAgent: fmt.Sprintf("orbit/%s (%s %s)", build.Version, runtime.GOOS, runtime.GOARCH),
-	}
-	remoteStore, err := client.HTTPRemoteStore(opt.ServerURL, remoteOpt, httpClient)
+	remoteStore, err := createTUFRemoteStore(opt, opt.ServerURL)
 	if err != nil {
-		return nil, fmt.Errorf("init remote store: %w", err)
+		return nil, fmt.Errorf("get tls config: %w", err)
 	}
-
 	tufClient := client.NewClient(opt.LocalStore, remoteStore)
 
 	// TODO(lucas): Related to the NOTE below.
@@ -774,4 +754,111 @@ func CanRun(rootDirPath, targetName string, targetInfo TargetInfo) bool {
 	}
 
 	return true
+}
+
+// HasAccessToNewTUFServer will verify if the agent has access to Fleet's new TUF
+// by downloading the metadata and the orbit stable target.
+//
+// The metadata and the test target files will be downloaded to a temporary directory
+// that will be removed before this method returns.
+func HasAccessToNewTUFServer(opt Options) bool {
+	fp := filepath.Join(opt.RootDirectory, "new-tuf-checked")
+	ok, err := file.Exists(fp)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to check new-tuf-checked file exists")
+		return false
+	}
+	if ok {
+		return true
+	}
+	tmpDir, err := os.MkdirTemp(opt.RootDirectory, "tuf-tmp*")
+	if err != nil {
+		log.Error().Err(err).Msg("failed to create tuf-tmp directory")
+		return false
+	}
+	defer os.RemoveAll(tmpDir)
+	localStore, err := filestore.New(filepath.Join(tmpDir, "tuf-tmp.json"))
+	if err != nil {
+		log.Error().Err(err).Msg("failed to create tuf-tmp local store")
+		return false
+	}
+	remoteStore, err := createTUFRemoteStore(opt, DefaultURL)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to create TUF remote store")
+		return false
+	}
+	tufClient := client.NewClient(localStore, remoteStore)
+	if err := tufClient.Init([]byte(opt.RootKeys)); err != nil {
+		log.Error().Err(err).Msg("failed to pin root keys")
+		return false
+	}
+	if _, err := tufClient.Update(); err != nil {
+		// Logging as debug to not fill logs until users allow connections to new TUF server.
+		log.Debug().Err(err).Msg("failed to update metadata from new TUF")
+		return false
+	}
+	tmpFile, err := secure.OpenFile(
+		filepath.Join(tmpDir, "orbit"),
+		os.O_CREATE|os.O_WRONLY,
+		constant.DefaultFileMode,
+	)
+	if err != nil {
+		log.Error().Err(err).Msg("failed open temp file for download")
+		return false
+	}
+	defer tmpFile.Close()
+	// We are using the orbit stable target as the test target.
+	var (
+		platform   string
+		executable string
+	)
+	switch runtime.GOOS {
+	case "darwin":
+		platform = "macos"
+		executable = "orbit"
+	case "windows":
+		platform = "windows"
+		executable = "orbit.exe"
+	case "linux":
+		platform = "linux"
+		executable = "orbit"
+	}
+	if err := tufClient.Download(fmt.Sprintf("orbit/%s/stable/%s", platform, executable), &fileDestination{tmpFile}); err != nil {
+		// Logging as debug to not fill logs until users allow connections to new TUF server.
+		log.Debug().Err(err).Msg("failed to download orbit from TUF")
+		return false
+	}
+
+	if err := os.WriteFile(fp, []byte("new-tuf-checked"), constant.DefaultFileMode); err != nil {
+		// We log the error and return success below anyway because the access check was successful.
+		log.Error().Err(err).Msg("failed to write new-tuf-checked file")
+	}
+	// We assume access to the whole repository
+	// if the orbit macOS stable target is downloaded successfully.
+	return true
+}
+
+func createTUFRemoteStore(opt Options, serverURL string) (client.RemoteStore, error) {
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: opt.InsecureTransport,
+	}
+	if opt.ServerCertificatePath != "" {
+		rootCAs, err := certificate.LoadPEM(opt.ServerCertificatePath)
+		if err != nil {
+			return nil, fmt.Errorf("loading server root CA: %w", err)
+		}
+		tlsConfig.RootCAs = rootCAs
+	}
+	if opt.ClientCertificate != nil {
+		tlsConfig.Certificates = []tls.Certificate{*opt.ClientCertificate}
+	}
+	remoteOpt := &client.HTTPRemoteOptions{
+		UserAgent: fmt.Sprintf("orbit/%s (%s %s)", build.Version, runtime.GOOS, runtime.GOARCH),
+	}
+	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(tlsConfig))
+	remoteStore, err := client.HTTPRemoteStore(serverURL, remoteOpt, httpClient)
+	if err != nil {
+		return nil, fmt.Errorf("init remote store: %w", err)
+	}
+	return remoteStore, nil
 }
