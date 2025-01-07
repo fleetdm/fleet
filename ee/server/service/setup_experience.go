@@ -224,12 +224,14 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 				return false, ctxerr.Errorf(ctx, "setup experience script missing content id: %d", *script.SetupExperienceScriptID)
 			}
 			req := &fleet.HostScriptRequestPayload{
-				HostID:                  host.ID,
-				ScriptName:              script.Name,
-				ScriptContentID:         *script.ScriptContentID,
+				HostID:          host.ID,
+				ScriptName:      script.Name,
+				ScriptContentID: *script.ScriptContentID,
+				// because the script execution request is associated with setup experience,
+				// it will be enqueued with a higher priority and will run before other
+				// items in the queue.
 				SetupExperienceScriptID: script.SetupExperienceScriptID,
 			}
-			// TODO(mna): setup experience scripts go to the unified queue, but must be higher priority.
 			res, err := svc.ds.NewHostScriptExecutionRequest(ctx, req)
 			if err != nil {
 				return false, ctxerr.Wrap(ctx, err, "queueing setup experience script execution request")

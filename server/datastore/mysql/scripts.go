@@ -64,9 +64,12 @@ func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, requ
 	const (
 		insStmt = `
 INSERT INTO upcoming_activities
-	(host_id, user_id, activity_type, execution_id, script_id, script_content_id, policy_id, setup_experience_script_id, payload)
+	(
+		host_id, user_id, activity_type, execution_id, script_id, script_content_id,
+		policy_id, setup_experience_script_id, priority, payload
+	)
 VALUES
-	(?, ?, 'script', ?, ?, ?, ?, ?,
+	(?, ?, 'script', ?, ?, ?, ?, ?, ?,
 		JSON_OBJECT(
 			'sync_request', ?,
 			'is_internal', ?,
@@ -88,6 +91,13 @@ WHERE
 `
 	)
 
+	var priority int
+	if request.SetupExperienceScriptID != nil {
+		// a bit naive/simplistic for now, but we'll support user-provided
+		// priorities in a future story and we can improve on how we manage those.
+		priority = 100
+	}
+
 	execID := uuid.New().String()
 	result, err := tx.ExecContext(ctx, insStmt,
 		request.HostID,
@@ -97,6 +107,7 @@ WHERE
 		request.ScriptContentID,
 		request.PolicyID,
 		request.SetupExperienceScriptID,
+		priority,
 		request.SyncRequest,
 		isInternal,
 		request.UserID,
@@ -582,10 +593,10 @@ func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Cont
 	}
 
 	deleteUAStmt := `
-		DELETE FROM 
+		DELETE FROM
 			upcoming_activities
-		WHERE 
-			policy_id = ? AND 
+		WHERE
+			policy_id = ? AND
 			activity_type = 'script' AND
 			script_id IN (
 				SELECT id FROM scripts WHERE scripts.global_or_team_id = ?
