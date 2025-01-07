@@ -79,7 +79,12 @@ const SelectSoftwareModal = ({
   );
 
   return (
-    <Modal className={baseClass} title="Select software" onExit={onExit}>
+    <Modal
+      className={baseClass}
+      title="Select software"
+      width="large"
+      onExit={onExit}
+    >
       <>
         <SelectSoftwareTable
           softwareTitles={softwareTitles}

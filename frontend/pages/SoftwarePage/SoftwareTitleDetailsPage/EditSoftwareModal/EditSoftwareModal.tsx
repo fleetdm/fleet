@@ -1,36 +1,45 @@
 import React, { useContext, useState, useEffect } from "react";
-import { InjectedRouter } from "react-router";
+import { useQuery } from "react-query";
 import classnames from "classnames";
-import { isAxiosError } from "axios";
 
-import { getErrorReason } from "interfaces/errors";
+import { ILabelSummary } from "interfaces/label";
+import { ISoftwarePackage } from "interfaces/software";
 
 import { NotificationContext } from "context/notification";
 import softwareAPI, {
   MAX_FILE_SIZE_BYTES,
   MAX_FILE_SIZE_MB,
 } from "services/entities/software";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import deepDifference from "utilities/deep_difference";
 import { getFileDetails } from "utilities/file/fileUtils";
 
-import CustomLink from "components/CustomLink";
 import FileProgressModal from "components/FileProgressModal";
 import Modal from "components/Modal";
 
 import PackageForm from "pages/SoftwarePage/components/PackageForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
+import {
+  generateSelectedLabels,
+  getCustomTarget,
+  getInstallType,
+  getTargetType,
+} from "pages/SoftwarePage/components/PackageForm/helpers";
+
 import { getErrorMessage } from "./helpers";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 
 const baseClass = "edit-software-modal";
 
+// Install type used on add but not edit
+export type IEditPackageFormData = Omit<IPackageFormData, "installType">;
+
 interface IEditSoftwareModalProps {
   softwareId: number;
   teamId: number;
-  router: InjectedRouter;
-  software?: any; // TODO
+  software: ISoftwarePackage; // TODO
   refetchSoftwareTitle: () => void;
   onExit: () => void;
 }
@@ -52,12 +61,23 @@ const EditSoftwareModal = ({
     showConfirmSaveChangesModal,
     setShowConfirmSaveChangesModal,
   ] = useState(false);
-  const [pendingUpdates, setPendingUpdates] = useState<IPackageFormData>({
+  const [pendingUpdates, setPendingUpdates] = useState<IEditPackageFormData>({
     software: null,
     installScript: "",
     selfService: false,
+    targetType: "",
+    customTarget: "",
+    labelTargets: {},
   });
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  const { data: labels } = useQuery<ILabelSummary[], Error>(
+    ["custom_labels"],
+    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+    }
+  );
 
   // Work around to not lose Edit Software modal data when Save changes modal opens
   // by using CSS to hide Edit Software modal when Save changes modal is open
@@ -101,7 +121,7 @@ const EditSoftwareModal = ({
     setShowConfirmSaveChangesModal(!showConfirmSaveChangesModal);
   };
 
-  const onSaveSoftwareChanges = async (formData: IPackageFormData) => {
+  const onSaveSoftwareChanges = async (formData: IEditPackageFormData) => {
     setIsUpdatingSoftware(true);
 
     if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
@@ -118,6 +138,7 @@ const EditSoftwareModal = ({
     try {
       await softwareAPI.editSoftwarePackage({
         data: formData,
+        orignalPackage: software,
         softwareId,
         teamId,
         onUploadProgress: (progressEvent) => {
@@ -140,37 +161,7 @@ const EditSoftwareModal = ({
       onExit();
       refetchSoftwareTitle();
     } catch (e) {
-      const isTimeout =
-        isAxiosError(e) &&
-        (e.response?.status === 504 || e.response?.status === 408);
-      const reason = getErrorReason(e);
-      if (isTimeout) {
-        renderFlash(
-          "error",
-          `Couldn’t upload. Request timeout. Please make sure your server and load balancer timeout is long enough.`
-        );
-      } else if (reason.includes("Fleet couldn't read the version from")) {
-        renderFlash(
-          "error",
-          <>
-            Couldn&apos;t edit <b>{software.name}</b>. {reason}.
-            <CustomLink
-              newTab
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
-              text="Learn more"
-            />
-          </>
-        );
-      } else if (reason.includes("selected package is")) {
-        renderFlash(
-          "error",
-          <>
-            Couldn&apos;t edit <b>{software.name}</b>. {reason}
-          </>
-        );
-      } else {
-        renderFlash("error", getErrorMessage(e));
-      }
+      renderFlash("error", getErrorMessage(e, software));
     }
     setIsUpdatingSoftware(false);
   };
@@ -184,18 +175,22 @@ const EditSoftwareModal = ({
       postInstallScript: software.post_install_script || "",
       uninstallScript: software.uninstall_script || "",
       selfService: software.self_service || false,
+      installType: getInstallType(software),
+      targetType: getTargetType(software),
+      customTarget: getCustomTarget(software),
+      labelTargets: generateSelectedLabels(software),
     });
 
     setPendingUpdates(formData);
 
     const onlySelfServiceUpdated =
       Object.keys(updates).length === 1 && "selfService" in updates;
-    if (!onlySelfServiceUpdated) {
-      // Open the confirm save changes modal
-      setShowConfirmSaveChangesModal(true);
-    } else {
+    if (onlySelfServiceUpdated) {
       // Proceed with saving changes (API expects only changes)
       onSaveSoftwareChanges(formData);
+    } else {
+      // Open the confirm save changes modal
+      setShowConfirmSaveChangesModal(true);
     }
   };
 
@@ -213,6 +208,7 @@ const EditSoftwareModal = ({
         width="large"
       >
         <PackageForm
+          labels={labels ?? []}
           className={`${baseClass}__package-form`}
           isEditingSoftware
           onCancel={onExit}

@@ -301,11 +301,12 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 
 	// create a software installer not installed on any host
 	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "installer1",
-		Source:        "apps",
-		InstallScript: "echo",
-		Filename:      "installer1.pkg",
-		UserID:        user1.ID,
+		Title:           "installer1",
+		Source:          "apps",
+		InstallScript:   "echo",
+		Filename:        "installer1.pkg",
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
@@ -316,11 +317,12 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	})
 	// create a software installer with an install request on host1
 	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "installer2",
-		Source:        "apps",
-		InstallScript: "echo",
-		Filename:      "installer2.pkg",
-		UserID:        user1.ID,
+		Title:           "installer2",
+		Source:          "apps",
+		InstallScript:   "echo",
+		Filename:        "installer2.pkg",
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2, false, nil)
@@ -639,6 +641,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 		BundleIdentifier: "foo.bar",
 		TeamID:           &team1.ID,
 		UserID:           user1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
@@ -649,12 +652,13 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	})
 	// create a software installer for team2
 	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "installer2",
-		Source:        "apps",
-		InstallScript: "echo",
-		Filename:      "installer2.pkg",
-		TeamID:        &team2.ID,
-		UserID:        user1.ID,
+		Title:           "installer2",
+		Source:          "apps",
+		InstallScript:   "echo",
+		Filename:        "installer2.pkg",
+		TeamID:          &team2.ID,
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
@@ -876,20 +880,22 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 
 	// create a couple software installers not installed on any host
 	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "installer1",
-		Source:        "apps",
-		InstallScript: "echo",
-		Filename:      "installer1.pkg",
-		UserID:        user1.ID,
+		Title:           "installer1",
+		Source:          "apps",
+		InstallScript:   "echo",
+		Filename:        "installer1.pkg",
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
 	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "installer2",
-		Source:        "apps",
-		InstallScript: "echo",
-		Filename:      "installer2.pkg",
-		UserID:        user1.ID,
+		Title:           "installer2",
+		Source:          "apps",
+		InstallScript:   "echo",
+		Filename:        "installer2.pkg",
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
@@ -981,20 +987,22 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 
 	// create 2 software installers
 	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "installer1",
-		Source:        "apps",
-		InstallScript: "echo",
-		Filename:      "installer1.pkg",
-		UserID:        user1.ID,
+		Title:           "installer1",
+		Source:          "apps",
+		InstallScript:   "echo",
+		Filename:        "installer1.pkg",
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
 	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "installer2",
-		Source:        "apps",
-		InstallScript: "echo",
-		Filename:      "installer2.pkg",
-		UserID:        user1.ID,
+		Title:           "installer2",
+		Source:          "apps",
+		InstallScript:   "echo",
+		Filename:        "installer2.pkg",
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
@@ -1178,6 +1186,7 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 		Filename:         "foobar.pkg",
 		TeamID:           nil,
 		UserID:           user1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 
@@ -1361,6 +1370,7 @@ func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {
 		Filename:         "installer1.pkg",
 		BundleIdentifier: "com.foo.installer1",
 		UserID:           user1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
@@ -1372,6 +1382,7 @@ func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {
 		TeamID:           &tm.ID,
 		BundleIdentifier: "com.foo.installer2",
 		UserID:           user1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer2)

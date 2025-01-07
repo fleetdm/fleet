@@ -48,8 +48,8 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 	t := s.T()
 	// Skip worker jobs to avoid running into timing issues with this test.
 	// We can manually run the jobs if needed with s.runWorker().
-	s.skipWorkerJobs = true
-	t.Cleanup(func() { s.skipWorkerJobs = false })
+	s.skipWorkerJobs.Store(true)
+	t.Cleanup(func() { s.skipWorkerJobs.Store(false) })
 
 	s.setupLifecycleSettings()
 
@@ -599,8 +599,8 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 
 	// Skip worker jobs to avoid running into timing issues with this test.
 	// We can manually run the jobs if needed with s.runWorker().
-	s.skipWorkerJobs = true
-	t.Cleanup(func() { s.skipWorkerJobs = false })
+	s.skipWorkerJobs.Store(true)
+	t.Cleanup(func() { s.skipWorkerJobs.Store(false) })
 
 	// ensure there's a token for automatic enrollments
 	s.enableABM(t.Name())

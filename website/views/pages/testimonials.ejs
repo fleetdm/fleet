@@ -113,30 +113,15 @@
       </div>
       <div purpose="page-section">
         <div purpose="section-headline">
-          <h2>Case strudies</h2>
+          <h2>Case studies</h2>
           <p>Real-world stories of why the community and customers love Fleet.</p>
         </div>
         <div purpose="articles">
-          <div purpose="articles">
+          <%for(let article of articlesForThisPage) {%>
             <div purpose="article-link">
-              <animated-arrow-button arrow-color="#3E4771" class="w-100" href="/announcements/consolidate-multiple-tools-with-fleet">🥀 Leading financial company consolidates multiple tools with Fleet</animated-arrow-button>
+              <animated-arrow-button arrow-color="#3E4771" class="w-100" href="<%= article.url%>"><%= article.meta.showOnTestimonialsPageWithEmoji %> <%= article.meta.articleTitle %></animated-arrow-button>
             </div>
-            <div purpose="article-link">
-              <animated-arrow-button arrow-color="#3E4771" class="w-100" href="/announcements/global-cloud-platform-simplifies-device-management-with-fleet">🪟 Global edge cloud platform simplifies device management with Fleet</animated-arrow-button>
-            </div>
-            <div purpose="article-link">
-              <animated-arrow-button arrow-color="#3E4771" class="w-100" href="/announcements/worldwide-security-and-authentication-platform-chooses-fleet-for-linux">🚪 Worldwide security and authentication platform chooses Fleet for Linux management</animated-arrow-button>
-            </div>
-            <div purpose="article-link">
-              <animated-arrow-button arrow-color="#3E4771" class="w-100" href="/announcements/large-gaming-company-enhances-server-observability-with-fleet">🔌 Large gaming company enhances server observability with Fleet</animated-arrow-button>
-            </div>
-            <div purpose="article-link">
-              <animated-arrow-button arrow-color="#3E4771" class="w-100" href="/announcements/vehicle-manufacturer-transitions-to-fleet-for-endpoint-security">🚪 Vehicle manufacturer transitions to Fleet for endpoint security</animated-arrow-button>
-            </div>
-            <div purpose="article-link">
-              <animated-arrow-button arrow-color="#3E4771" class="w-100" href="/announcements/foursquare-quickly-migrates-to-fleet">🚪 Foursquare quickly migrates to Fleet for Device Management</animated-arrow-button>
-            </div>
-          </div>
+          <% } %>
         </div>
         <div class="d-flex flex-row align-items-center justify-content-center">
           <a purpose="share-button" href="https://github.com/fleetdm/fleet/edit/main/handbook/company/testimonials.yml" target="_blank">Share your story</a>

@@ -2,11 +2,7 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-import {
-  formatDistanceToNowStrict,
-  millisecondsToHours,
-  millisecondsToMinutes,
-} from "date-fns";
+import { millisecondsToHours, millisecondsToMinutes } from "date-fns";
 import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
@@ -91,27 +87,10 @@ const generateTableHeaders = (
     hasPermissionAndPoliciesToDelete?: boolean;
     tableType?: string;
   },
-  policiesList: IPolicyStats[] = [],
   isPremiumTier?: boolean
 ): IDataColumn[] => {
   const { selectedTeamId, hasPermissionAndPoliciesToDelete } = options;
   const viewingTeamPolicies = selectedTeamId !== -1;
-  // Figure the time since the host counts were updated.
-  // First, find first policy item with host_count_updated_at.
-  const updatedAt =
-    policiesList.find((p) => !!p.host_count_updated_at)
-      ?.host_count_updated_at || "";
-  let timeSinceHostCountUpdate = "";
-  if (updatedAt) {
-    try {
-      timeSinceHostCountUpdate = formatDistanceToNowStrict(
-        new Date(updatedAt),
-        { addSuffix: true }
-      );
-    } catch (e) {
-      // Do nothing.
-    }
-  }
 
   const tableHeaders: IDataColumn[] = [
     {
@@ -170,12 +149,7 @@ const generateTableHeaders = (
       title: "Yes",
       Header: (cellProps) => (
         <HeaderCell
-          value={
-            <PassingColumnHeader
-              isPassing
-              timeSinceHostCountUpdate={timeSinceHostCountUpdate}
-            />
-          }
+          value={<PassingColumnHeader isPassing />}
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
@@ -221,12 +195,7 @@ const generateTableHeaders = (
       title: "No",
       Header: (cellProps) => (
         <HeaderCell
-          value={
-            <PassingColumnHeader
-              isPassing={false}
-              timeSinceHostCountUpdate={timeSinceHostCountUpdate}
-            />
-          }
+          value={<PassingColumnHeader isPassing={false} />}
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),

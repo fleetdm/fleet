@@ -97,7 +97,6 @@ const PoliciesTable = ({
             selectedTeamId: currentTeam?.id,
             hasPermissionAndPoliciesToDelete,
           },
-          policiesList,
           isPremiumTier
         )}
         data={generateDataSet(

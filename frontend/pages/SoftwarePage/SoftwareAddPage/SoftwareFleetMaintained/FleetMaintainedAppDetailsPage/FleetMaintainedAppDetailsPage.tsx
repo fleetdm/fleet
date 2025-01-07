@@ -2,17 +2,19 @@ import React, { useContext, useState } from "react";
 import { Location } from "history";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
+import { useErrorHandler } from "react-error-boundary";
 
 import PATHS from "router/paths";
 import { buildQueryStringFromParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import softwareAPI from "services/entities/software";
 import teamPoliciesAPI from "services/entities/team_policies";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import { QueryContext } from "context/query";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import { getErrorReason } from "interfaces/errors";
 import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
+import { ILabelSummary } from "interfaces/label";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 
 import BackLink from "components/BackLink";
@@ -31,6 +33,7 @@ import { IFleetMaintainedAppFormData } from "./FleetAppDetailsForm/FleetAppDetai
 import AddFleetAppSoftwareModal from "./AddFleetAppSoftwareModal";
 
 import {
+  getErrorMessage,
   getFleetAppPolicyDescription,
   getFleetAppPolicyName,
   getFleetAppPolicyQuery,
@@ -103,6 +106,7 @@ const FleetMaintainedAppDetailsPage = ({
   }
 
   const { renderFlash } = useContext(NotificationContext);
+  const handlePageError = useErrorHandler();
   const { isPremiumTier } = useContext(AppContext);
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
@@ -113,13 +117,34 @@ const FleetMaintainedAppDetailsPage = ({
     setShowAddFleetAppSoftwareModal,
   ] = useState(false);
 
-  const { data: fleetApp, isLoading, isError } = useQuery(
+  const {
+    data: fleetApp,
+    isLoading: isLoadingFleetApp,
+    isError: isErrorFleetApp,
+  } = useQuery(
     ["fleet-maintained-app", appId],
     () => softwareAPI.getFleetMainainedApp(appId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isPremiumTier,
+      retry: false,
       select: (res) => res.fleet_maintained_app,
+      onError: (error) => handlePageError(error),
+    }
+  );
+
+  const {
+    data: labels,
+    isLoading: isLoadingLabels,
+    isError: isErrorLabels,
+  } = useQuery<ILabelSummary[], Error>(
+    ["custom_labels"],
+    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isPremiumTier,
+      staleTime: 10000,
     }
   );
 
@@ -171,7 +196,7 @@ const FleetMaintainedAppDetailsPage = ({
     } catch (error) {
       // quick exit if there was an error adding the software. Skip the policy
       // creation.
-      renderFlash("error", getErrorReason(error));
+      renderFlash("error", getErrorMessage(error));
       setShowAddFleetAppSoftwareModal(false);
       return;
     }
@@ -221,12 +246,12 @@ const FleetMaintainedAppDetailsPage = ({
       return <PremiumFeatureMessage />;
     }
 
-    if (isLoading) {
+    if (isLoadingFleetApp || isLoadingLabels) {
       return <Spinner />;
     }
 
-    if (isError) {
-      return <DataError />;
+    if (isErrorFleetApp || isErrorLabels) {
+      return <DataError className={`${baseClass}__data-error`} />;
     }
 
     if (fleetApp) {
@@ -245,6 +270,8 @@ const FleetMaintainedAppDetailsPage = ({
               version={fleetApp.version}
             />
             <FleetAppDetailsForm
+              labels={labels || []}
+              name={fleetApp.name}
               showSchemaButton={!isSidePanelOpen}
               defaultInstallScript={fleetApp.install_script}
               defaultPostInstallScript={fleetApp.post_install_script}

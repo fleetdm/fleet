@@ -1,9 +1,6 @@
 .software-page {
   &__header-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 38px;
+    @include normalize-team-header;
 
     .button-wrap {
       display: flex;

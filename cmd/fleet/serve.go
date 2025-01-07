@@ -779,6 +779,8 @@ the way that the Fleet server works.
 					}
 					bootstrapPackageStore = bstore
 					level.Info(logger).Log("msg", "using S3 bootstrap package store", "bucket", config.S3.SoftwareInstallersBucket)
+
+					config.S3.ValidateCloudfrontURL(initFatal)
 				} else {
 					installerDir := os.TempDir()
 					if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
@@ -1132,6 +1134,7 @@ the way that the Fleet server works.
 					logger,
 					mdmCheckinAndCommandService,
 					ddmService,
+					commander,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}

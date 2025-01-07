@@ -23,6 +23,7 @@ import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDet
 import ActivityItem from "./ActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
 import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
+import SoftwareDetailsModal from "./components/SoftwareDetailsModal";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {
@@ -57,6 +58,11 @@ const ActivityFeed = ({
     activityAutomationDetails,
     setActivityAutomationDetails,
   ] = useState<IActivityDetails | null>(null);
+  const [
+    softwareDetails,
+    setSoftwareDetails,
+  ] = useState<IActivityDetails | null>(null);
+
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
   const scriptExecutionId = useRef("");
@@ -130,6 +136,11 @@ const ActivityFeed = ({
       case ActivityType.EnabledActivityAutomations:
       case ActivityType.EditedActivityAutomations:
         setActivityAutomationDetails({ ...details });
+        break;
+      case ActivityType.AddedSoftware:
+      case ActivityType.EditedSoftware:
+      case ActivityType.DeletedSoftware:
+        setSoftwareDetails({ ...details });
         break;
       default:
         break;
@@ -243,6 +254,12 @@ const ActivityFeed = ({
         <ActivityAutomationDetailsModal
           details={activityAutomationDetails}
           onCancel={() => setActivityAutomationDetails(null)}
+        />
+      )}
+      {softwareDetails && (
+        <SoftwareDetailsModal
+          details={softwareDetails}
+          onCancel={() => setSoftwareDetails(null)}
         />
       )}
     </div>

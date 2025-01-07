@@ -89,6 +89,7 @@ module.exports = {
                         Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
                         ...form.getHeaders()
                       },
+                      maxRedirects: 0
                     });
                   })()
                   .then(()=>{

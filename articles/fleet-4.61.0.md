@@ -1,5 +1,9 @@
 # Fleet 4.61.0 | Auto-install software, email two-factor authentication (2FA), automatic Windows migration
 
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/f_uopfwa3ys?si=taTKh9l8iXJ-sC88" frameborder="0" allowfullscreen></iframe>
+</div>
+
 Fleet 4.61.0 is live. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.61.0) or continue reading to get the highlights.
 For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
@@ -18,7 +22,7 @@ You can now enable email 2FA for Fleet user accounts. This adds an extra layer o
 
 ### Automatic Windows migration
 
-Fleet now supports migrating Windows workstations from your old MDM solution without end user interaction. Once migrated, you can enforce [disk encryption](https://fleetdm.com/guides/enforce-disk-encryption), [OS updates](https://fleetdm.com/guides/enforce-os-updates), and other [custom OS settings](https://fleetdm.com/guides/custom-os-settings) to consolidating device management into a single, cross-platform MDM.
+Fleet now supports migrating Windows workstations from your old MDM solution without end user interaction. Once migrated, you can enforce [disk encryption](https://fleetdm.com/guides/enforce-disk-encryption), [OS updates](https://fleetdm.com/guides/enforce-os-updates), and other [custom OS settings](https://fleetdm.com/guides/custom-os-settings) to consolidate device management into a single, cross-platform MDM.
 
 ## Changes
 

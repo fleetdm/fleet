@@ -44,7 +44,13 @@ jobs:
       matrix:
         suite: ["integration", "core"]
         os: [ubuntu-latest]
-        mysql: ["mysql:8.0.36", "mysql:8.4.3"] # make sure to update supported versions docs when this changes
+        mysql: ["mysql:8.0.36", "mysql:8.4.3", "mysql:9.1.0"] # make sure to update supported versions docs when this changes
+        isCron:
+          - ${{ github.event_name == 'schedule' }}
+        # Only run MySQL 9 tests on cron schedule
+        exclude:
+          - isCron: false
+            mysql: "mysql:9.1.0"
     continue-on-error: ${{ matrix.suite == 'integration' }} # Since integration tests have a higher chance of failing, often for unrelated reasons, we don't want to fail the whole job if they fail
     runs-on: ${{ matrix.os }}
 

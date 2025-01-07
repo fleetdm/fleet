@@ -1378,6 +1378,7 @@ Generated when an App Store app is added to Fleet.
 
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
+- "software_title_id": ID of the added software title.
 - "app_store_id": ID of the app on the Apple App Store.
 - "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
 - "self_service": App installation can be initiated by device owner.
@@ -1391,6 +1392,7 @@ This activity contains the following fields:
 ```json
 {
   "software_title": "Logic Pro",
+  "software_title_id": 123,
   "app_store_id": "1234567",
   "platform": "darwin",
   "self_service": false,

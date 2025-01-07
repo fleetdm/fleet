@@ -359,6 +359,14 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: true,
 		},
+		"cpe:2.3:a:mozilla:firefox:*:*:*:*:*:*:*:*": {
+			excludedCVEs:      []string{"CVE-2024-10004"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:okta:verify:9.27.0:*:*:*:*:macos:*:*": {
+			excludedCVEs:      []string{"CVE-2024-10327"},
+			continuesToUpdate: true,
+		},
 	}
 
 	cveOSTests := []struct {

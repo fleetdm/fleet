@@ -9,6 +9,8 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         name: "Test Software",
         versions: [{ id: 1, version: "1.0.0", vulnerabilities: [] }],
         software_package: {
+          labels_include_any: null,
+          labels_exclude_any: null,
           name: "TestPackage.pkg",
           version: "1.0.0",
           self_service: true,
@@ -21,6 +23,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
             failed_uninstall: 1,
           },
           install_script: "echo foo",
+          uninstall_script: "echo bar",
           icon_url: "https://example.com/icon.png",
           automatic_install_policies: [],
           last_install: null,
