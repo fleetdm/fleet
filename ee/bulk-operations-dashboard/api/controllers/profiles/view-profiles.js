@@ -48,7 +48,7 @@ module.exports = {
     let allProfiles = [];
     let teamApids = _.pluck(allTeams, 'id');
     // Get all of the configuration profiles on the Fleet instance.
-    for(let teamApid of teamApids){
+    await sails.helpers.flow.simultaneouslyForEach(teamApids, async (teamApid)=>{
       let configurationProfilesResponseData = await sails.helpers.http.get.with({
         url: `/api/v1/fleet/configuration_profiles?team_id=${teamApid}`,
         baseUrl: sails.config.custom.fleetBaseUrl,
@@ -60,7 +60,7 @@ module.exports = {
       .retry(['requestFailed', {name: 'TimeoutError'}]);
       let profilesForThisTeam = configurationProfilesResponseData.profiles;
       allProfiles = allProfiles.concat(profilesForThisTeam);
-    }
+    });
     // Add the configurations profiles that are assigned to the "no team" team.
     let noTeamConfigurationProfilesResponseData = await sails.helpers.http.get.with({
       url: '/api/v1/fleet/configuration_profiles',
@@ -76,7 +76,7 @@ module.exports = {
     allProfiles = allProfiles.concat(profilesForNoTeam);
 
     let profilesInformation = [];
-    for(let profile of allProfiles) {
+    await sails.helpers.flow.simultaneouslyForEach(allProfiles, async (profile)=>{
       let profileInformation = {
         name: profile.name,
         identifier: profile.identifier,
@@ -99,7 +99,7 @@ module.exports = {
         profileInformation.labelTargetBehavior = 'exclude';
       }
       profilesInformation.push(profileInformation);
-    }
+    });
     // Group the profiles based on identifier, labels, and labelTargetBehavior
     let profilesGroupedbyLabelsAndIdentifier = _.groupBy(profilesInformation, (profile)=>{
       return `${profile.identifier}|${JSON.stringify(profile.labels)}|${profile.labelTargetBehavior}`;
