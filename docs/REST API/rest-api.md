@@ -2685,7 +2685,7 @@ Returns the information of the specified host.
     "display_text": "23cfc9caacf0",
     "issues": {
         "failing_policies_count": 1,
-        "critical_vulnerabilities_count": 2, // Fleet Premium only
+        "critical_vulnerabilities_count": 2, // Available in Fleet Premium
         "total_issues_count": 3
     },
     "batteries": [
