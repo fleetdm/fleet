@@ -145,7 +145,7 @@ const CurrentVersionSection = ({
     <div className={baseClass}>
       <SectionHeader
         title="Current versions"
-        subTitle={!isLoadingOsVersions ? generateSubTitleText() : null}
+        subTitle={isLoadingOsVersions ? null : generateSubTitleText()}
         wrapperCustomClass={`${baseClass}__header`}
       />
       {renderTable()}
