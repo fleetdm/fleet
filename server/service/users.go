@@ -227,7 +227,7 @@ func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 // Me (get own current user)
 // //////////////////////////////////////////////////////////////////////////////
 type getMeRequest struct {
-	IncludeSettings bool `query:"include_settings,optional"`
+	IncludeUISettings bool `query:"include_ui_settings,optional"`
 }
 
 func meEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -245,7 +245,7 @@ func meEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (er
 	}
 	req := request.(*getMeRequest)
 	var userSettings *fleet.UserSettings
-	if req.IncludeSettings {
+	if req.IncludeUISettings {
 		userSettings, err = svc.GetUserSettings(ctx, user.ID)
 		if err != nil {
 			return getUserResponse{Err: err}, nil
@@ -275,8 +275,8 @@ func (svc *Service) AuthenticatedUser(ctx context.Context) (*fleet.User, error) 
 ////////////////////////////////////////////////////////////////////////////////
 
 type getUserRequest struct {
-	ID              uint `url:"id"`
-	IncludeSettings bool `query:"include_settings,optional"`
+	ID                uint `url:"id"`
+	IncludeUISettings bool `query:"include_ui_settings,optional"`
 }
 
 type getUserResponse struct {
@@ -304,7 +304,7 @@ func getUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 	}
 
 	var userSettings *fleet.UserSettings
-	if req.IncludeSettings {
+	if req.IncludeUISettings {
 		userSettings, err = svc.GetUserSettings(ctx, user.ID)
 		if err != nil {
 			return getUserResponse{Err: err}, nil
