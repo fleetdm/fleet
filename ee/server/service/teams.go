@@ -420,12 +420,15 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 					level.Error(svc.logger).Log("err", err, "msg", "failed to find missing agent option")
 				}
 				var keyPathJoined string
-				if len(correctKeyPath) > 1 {
+				switch pathLen := len(correctKeyPath); {
+				case pathLen > 1:
 					keyPathJoined = fmt.Sprintf("%q", strings.Join(correctKeyPath[:len(correctKeyPath)-1], "."))
-				} else {
+				case pathLen == 1:
 					keyPathJoined = "top level"
 				}
-				err = fmt.Errorf("%q should be part of the %s object", *field, keyPathJoined)
+				if keyPathJoined != "" {
+					err = fmt.Errorf("%q should be part of the %s object", *field, keyPathJoined)
+				}
 			}
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOptions.Force && !applyOptions.DryRun {
