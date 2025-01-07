@@ -30,12 +30,12 @@ module.exports = {
     let allTeams = teamsResponseData.teams;
 
     let teams = [];
-    for(let team of allTeams) {
-      teams.push({
+    let teams = allTeams.map((team)=>{
+      return {
         fleetApid: team.id,
-        teamName: team.name,
-      });
-    }
+        teamName: team.name
+      };
+    });
     // Add the "team" for hosts with no team
     teams.push({
       fleetApid: 0,
