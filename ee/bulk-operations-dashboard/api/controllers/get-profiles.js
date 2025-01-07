@@ -29,7 +29,6 @@ module.exports = {
 
     let allTeams = teamsResponseData.teams;
 
-    let teams = [];
     let teams = allTeams.map((team)=>{
       return {
         fleetApid: team.id,
