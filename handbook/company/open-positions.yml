@@ -32,8 +32,30 @@
       - 🛠️ Produce quality code, raising the bar for team performance and speed.
       - 📖 Mentor junior team members.
       - 🤝 Collaboration: You work best in a participatory, team-based environment.
-      - 🚀 Prototype-first: You embrace speed and failure as we iterate towards the right solution. You have hands-on experience in creating low and high fidelity prototypes. You’re comfortable accepting suboptimal designs in favor of iteration.
+      - 🚀 Prototype-first: You embrace speed and failure as we iterate towards the right solution. You have hands-on experience in creating low and high-fidelity prototypes. You’re comfortable accepting suboptimal designs in favor of iteration.
       - 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
       - 🛠️ Technical: You understand the software development processes. You understand that software quality matters.
       - 🟣 Openness: You are flexible and open to new ideas and ways of working.
       - ➕ Bonus: Cybersecurity or IT background.
+
+- jobTitle: 🚀 Customer Support Engineer
+  department: Sales
+  hiringManagerName: Zay Hanlon
+  hiringManagerGithubUsername: zayhanlon
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
+  responsibilities: |
+      - 🏋🏻 Train under our customer support and engineering team to learn the ins and outs of Fleet, frequently asked customer questions, develop an understanding of our troubleshooting guide, and learn how to search through documentation and Fleet repo. 
+      - 🚀 Deploy Fleet on your own to better understand the customer experience and how the product works. 
+      - ⏫ Work hand-in-hand with the customer success team by participating in calls with customers to discuss any support issues they may have.
+      - 🥇 Be the first line of defense in customer Slack channels for any reported problems, how-to questions, feature request intake, and bug report filling.
+      - 🎯 Strong attention to detail and can act as an encyclopedia of knowledge about how Fleet works - our customers represent a wide range of needs across many different use cases. Be adaptable to learning new things quickly and then share this knowledge with others.
+      - 💡 Excellent communication and collaboration skills, with the ability to work closely with customer success, engineering, and product teams.
+      - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
+  experience: |
+      - 🦉 Experience: 2-3 years of work experience supporting Windows, Linux, and MacOS devices. Experience with AWS, SQL, Redis, Terraform, and osquery. 
+      - 🛠️ Communication: You are outgoing, customer-facing, and enjoy problem-solving while assisting external stakeholders.
+      - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+      - 💭 IT background, experience with device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc.
+      - 💖 An excellent understanding of macOS, Windows, Linux and core services like Autopilot, ABM/ASM, MDM, ADE, APNs, syslog, etc.
+      - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using the terminal to execute commands or run scripts is a bonus. 
+      - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
