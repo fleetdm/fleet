@@ -15,7 +15,6 @@ func installScriptForApp(app maintainedApp, cask *brewCask) (string, error) {
 
 	sb.AddVariable("TMPDIR", `$(dirname "$(realpath $INSTALLER_PATH)")`)
 	sb.AddVariable("APPDIR", `"/Applications/"`)
-	sb.AddVariable("FOOBAR", `"ZOOBAR"`)
 
 	formats := strings.Split(app.InstallerFormat, ":")
 	sb.Extract(formats[0])

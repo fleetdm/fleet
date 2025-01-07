@@ -2,6 +2,7 @@ package tables
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -90,6 +91,12 @@ WHERE fla.token IN (?)
 
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 	if err := txx.Select(&scriptContents, stmt, args...); err != nil {
+		// if this migration is running on a brand-new Fleet deployment, then there won't be
+		// anything in the fleet_library_apps table, so we can just exit.
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+
 		return fmt.Errorf("selecting script contents: %w", err)
 	}
 
@@ -111,12 +118,12 @@ WHERE fla.token IN (?)
 			appFileName = "Visual Studio Code.app"
 		}
 
-		// Add the "quit_application" function to the script
-		lines = slices.Insert(lines, 2, quitApplicationFunc)
 		// This line will move the old version of the .app (if it exists) to the temporary directory
 		lines = slices.Insert(lines, index, fmt.Sprintf(`sudo [ -d "$APPDIR/%[1]s" ] && sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"`, appFileName))
 		// Add a call to our "quit_application" function
 		lines = slices.Insert(lines, index, fmt.Sprintf("quit_application %s", sc.BundleID))
+		// Add the "quit_application" function to the script
+		lines = slices.Insert(lines, 2, quitApplicationFunc)
 
 		updatedScript := strings.Join(lines, "\n")
 
