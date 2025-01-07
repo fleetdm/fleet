@@ -11,6 +11,7 @@ import (
 //go:generate go run ./mockimpl/impl.go -o nanodep/storage.go "s *Storage" "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage.AllDEPStorage"
 //go:generate go run ./mockimpl/impl.go -o mdm/datastore_mdm_mock.go "fs *MDMAppleStore" "fleet.MDMAppleStore"
 //go:generate go run ./mockimpl/impl.go -o scep/depot.go "d *Depot" "depot.Depot"
+//go:generate go run ./mockimpl/impl.go -o mdm/bootstrap_package_store.go "fs *MDMBootstrapPackageStore" "fleet.MDMBootstrapPackageStore"
 
 var _ fleet.Datastore = (*Store)(nil)
 

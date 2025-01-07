@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 const signedURLExpiresIn = 6 * time.Hour
@@ -140,7 +141,7 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 
 func (s *commonFileStore) Sign(ctx context.Context, fileID string) (string, error) {
 	if s.cloudFrontConfig == nil {
-		return "", ctxerr.New(ctx, "cloudfront config not set for S3 store")
+		return "", ctxerr.Wrapf(ctx, fleet.ErrNotConfigured, "signing %s URL in S3 store", s.fileLabel)
 	}
 	urlToAccess, err := url.JoinPath(s.cloudFrontConfig.BaseURL, s.keyForFile(fileID))
 	if err != nil {

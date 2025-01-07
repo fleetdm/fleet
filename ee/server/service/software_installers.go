@@ -826,16 +826,11 @@ func (svc *Service) getSoftwareInstallURL(ctx context.Context, installerID uint)
 		return nil, ctxerr.Wrap(ctx, err, "validating software installer metadata for download")
 	}
 
-	// TODO: Check if installer URL is already in the Redis cache. Refresh it if 1 hour passed.
-
-	// check if the installer exists in the store
-	exists, err := svc.softwareInstallStore.Exists(ctx, meta.StorageID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "checking if installer exists")
-	}
-	if !exists {
-		return nil, ctxerr.Wrap(ctx, notFoundError{}, "does not exist in software installer store")
-	}
+	// Note: we could check if the installer exists in the S3 store.
+	// However, if we fail and don't return a URL installer, the Orbit client will still try to download the installer via the Fleet server,
+	// and we will end up checking if the installer exists in the S3 store again.
+	// So, to reduce server load and speed up the "happy path" software install, we skip the check here and risk returning a URL that doesn't work.
+	// If CloudFront is misconfigured, the server and Orbit clients will experience a greater load since they'll be doing throw-away work.
 
 	// Get the signed URL
 	signedURL, err := svc.softwareInstallStore.Sign(ctx, meta.StorageID)
