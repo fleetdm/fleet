@@ -419,9 +419,8 @@ func locateStructJSONKeyPath(key, startKey string, target any) ([]string, error)
 			return path[:2], nil
 		}
 
-		switch v.(type) {
-		case map[string]any:
-			for k2 := range v.(map[string]any) {
+		if inner, ok := v.(map[string]any); ok {
+			for k2 := range inner {
 				path[2] = k2
 				if key == k2 {
 					return path[:3], nil
