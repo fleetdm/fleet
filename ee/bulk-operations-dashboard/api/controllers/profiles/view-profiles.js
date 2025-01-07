@@ -30,20 +30,17 @@ module.exports = {
     .retry(['requestFailed', {name: 'TimeoutError'}]);
 
     let allTeams = teamsResponseData.teams;
-
-    let teams = [];
-    for(let team of allTeams) {
-      teams.push({
+    let teams = allTeams.map((team)=>{
+      return {
         fleetApid: team.id,
-        teamName: team.name,
-      });
-    }
+        teamName: team.name
+      };
+    });
     // Add the "team" for hosts with no team
     teams.push({
       fleetApid: 0,
       teamName: 'No team',
     });
-
 
     let allProfiles = [];
     let teamApids = _.pluck(allTeams, 'id');
