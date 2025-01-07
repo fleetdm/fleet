@@ -438,8 +438,39 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				payload.SelfService = &existingInstaller.SelfService
 			}
 
+			// Get the hosts that are NOT in label scope currently (before the update happens)
+			var hostsNotInScope map[uint]struct{}
+			if dirty["Labels"] {
+				hostsNotInScope, err = svc.ds.GetExcludedHostIDMapForSoftwareInstaller(ctx, payload.InstallerID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "getting hosts not in scope for installer")
+				}
+			}
+
 			if err := svc.ds.SaveInstallerUpdates(ctx, payload); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "saving installer updates")
+			}
+
+			if dirty["Labels"] {
+				// Get the hosts that are now IN label scope (after the update)
+				hostsInScope, err := svc.ds.GetIncludedHostIDMapForSoftwareInstaller(ctx, payload.InstallerID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "getting hosts in scope for installer")
+				}
+
+				var hostsToClear []uint
+				for id := range hostsInScope {
+					if _, ok := hostsNotInScope[id]; ok {
+						// it was not in scope but now it is, so we should clear policy status
+						hostsToClear = append(hostsToClear, id)
+					}
+				}
+
+				// We clear the policy status here because otherwise the policy automation machinery
+				// won't pick this up and the software won't install.
+				if err := svc.ds.ClearAutoInstallPolicyStatusForHosts(ctx, payload.InstallerID, hostsToClear); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "failed to clear auto install policy status for host")
+				}
 			}
 
 			// if we're updating anything other than self-service, we cancel pending installs/uninstalls,
@@ -484,7 +515,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 }
 
 func (svc *Service) validateEmbeddedSecretsOnScript(ctx context.Context, scriptName string, script *string,
-	argErr *fleet.InvalidArgumentError) *fleet.InvalidArgumentError {
+	argErr *fleet.InvalidArgumentError,
+) *fleet.InvalidArgumentError {
 	if script != nil {
 		if errScript := svc.ds.ValidateEmbeddedSecrets(ctx, []string{*script}); errScript != nil {
 			if argErr != nil {
