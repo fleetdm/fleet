@@ -314,10 +314,19 @@ func (ds *Datastore) IsExecutionPendingForHost(ctx context.Context, hostID uint,
 		  host_id = ? AND
 		  script_id = ? AND
 		  exit_code IS NULL
+		UNION
+		SELECT
+			1
+		FROM
+			upcoming_activities
+		WHERE
+			host_id = ? AND
+			activity_type = 'script' AND
+			script_id = ?
 	`
 
 	var results []*uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, getStmt, hostID, scriptID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, getStmt, hostID, scriptID, hostID, scriptID); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "is execution pending for host")
 	}
 	return len(results) > 0, nil

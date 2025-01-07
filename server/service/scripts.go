@@ -249,7 +249,6 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 			return nil, fleet.NewInvalidArgumentError("script_id", `The script does not belong to the same team (or no team) as the host.`)
 		}
 
-		// TODO(mna): must look in host_script_results and the upcoming queue
 		isQueued, err := svc.ds.IsExecutionPendingForHost(ctx, request.HostID, *request.ScriptID)
 		if err != nil {
 			return nil, err

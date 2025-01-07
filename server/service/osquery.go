@@ -1984,7 +1984,6 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			continue
 		}
 
-		// TODO(mna): this has to look both in host_script_results and the upcoming queue
 		scriptIsAlreadyPending, err := svc.ds.IsExecutionPendingForHost(ctx, hostID, scriptMetadata.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "check whether script is pending execution")
