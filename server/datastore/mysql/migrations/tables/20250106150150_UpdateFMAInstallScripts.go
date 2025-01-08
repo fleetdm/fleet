@@ -56,7 +56,7 @@ quit_application() {
 `
 
 func Up_20250106150150(tx *sql.Tx) error {
-	var scriptContents []struct {
+	var scriptsToModify []struct {
 		InstallScriptContents string `db:"contents"`
 		AppName               string `db:"name"`
 		BundleID              string `db:"bundle_identifier"`
@@ -90,7 +90,7 @@ WHERE fla.token IN (?)
 	}
 
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
-	if err := txx.Select(&scriptContents, stmt, args...); err != nil {
+	if err := txx.Select(&scriptsToModify, stmt, args...); err != nil {
 		// if this migration is running on a brand-new Fleet deployment, then there won't be
 		// anything in the fleet_library_apps table, so we can just exit.
 		if errors.Is(err, sql.ErrNoRows) {
@@ -100,14 +100,15 @@ WHERE fla.token IN (?)
 		return fmt.Errorf("selecting script contents: %w", err)
 	}
 
-	for _, sc := range scriptContents {
+	for _, sc := range scriptsToModify {
 		lines := strings.Split(sc.InstallScriptContents, "\n")
 		// Find the line where we copy the new .app file into the Applications folder. We want to
 		// add our changes right before that line.
-		var index int
+		var copyLineNumber int
 		for i, l := range lines {
 			if strings.Contains(l, `sudo cp -R "$TMPDIR/`) {
-				index = i
+				copyLineNumber = i
+				break
 			}
 		}
 
@@ -119,9 +120,9 @@ WHERE fla.token IN (?)
 		}
 
 		// This line will move the old version of the .app (if it exists) to the temporary directory
-		lines = slices.Insert(lines, index, fmt.Sprintf(`sudo [ -d "$APPDIR/%[1]s" ] && sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"`, appFileName))
+		lines = slices.Insert(lines, copyLineNumber, fmt.Sprintf(`sudo [ -d "$APPDIR/%[1]s" ] && sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"`, appFileName))
 		// Add a call to our "quit_application" function
-		lines = slices.Insert(lines, index, fmt.Sprintf("quit_application %s", sc.BundleID))
+		lines = slices.Insert(lines, copyLineNumber, fmt.Sprintf("quit_application %s", sc.BundleID))
 		// Add the "quit_application" function to the script
 		lines = slices.Insert(lines, 2, quitApplicationFunc)
 
