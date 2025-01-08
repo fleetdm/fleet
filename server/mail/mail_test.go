@@ -17,6 +17,7 @@ var testFunctions = [...]func(*testing.T, fleet.MailService){
 	testSMTPPlainAuthInvalidCreds,
 	testSMTPSkipVerify,
 	testSMTPNoAuthWithTLS,
+	testSMTPDomain,
 	testMailTest,
 }
 
@@ -157,6 +158,31 @@ func testSMTPNoAuthWithTLS(t *testing.T, mailer fleet.MailService) {
 
 	err := mailer.SendEmail(mail)
 	assert.Nil(t, err)
+}
+
+func testSMTPDomain(t *testing.T, mailer fleet.MailService) {
+	mail := fleet.Email{
+		Subject: "custom client hello",
+		To:      []string{"bob@foo.com"},
+		SMTPSettings: fleet.SMTPSettings{
+			SMTPConfigured:         true,
+			SMTPAuthenticationType: fleet.AuthTypeNameNone,
+			SMTPEnableTLS:          false,
+			SMTPVerifySSLCerts:     false,
+			SMTPEnableStartTLS:     false,
+			SMTPPort:               1027,
+			SMTPServer:             "localhost",
+			SMTPDomain:             "foo.com",
+			SMTPSenderAddress:      "test@example.com",
+		},
+		Mailer: &SMTPTestMailer{
+			BaseURL: "https://localhost:8080",
+		},
+	}
+
+	err := mailer.SendEmail(mail)
+	assert.Nil(t, err)
+
 }
 
 func testMailTest(t *testing.T, mailer fleet.MailService) {
