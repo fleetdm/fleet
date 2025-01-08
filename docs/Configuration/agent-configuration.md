@@ -497,7 +497,7 @@ How to update agent options:
 
 The agents may take several seconds to update because Fleet has to wait for the hosts to check in. Additionally, hosts enrolled with removed enroll secrets must properly rotate their secret to have the new changes take effect.
 
-
+> When configuring a value for [`script_execution_timeout`](https://fleetdm.com/docs/configuration/agent-configuration#script-execution-timeout) in the UI, make sure to put the key at the top level of the YAML, _not_ as a child of `config`.  
 
 <meta name="pageOrderInSection" value="300">
 <meta name="description" value="Learn how to use configuration files and the fleetctl command line tool to configure agent options.">

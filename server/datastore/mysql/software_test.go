@@ -5321,6 +5321,10 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, scoped)
 
+	hostsInScope, err := ds.GetIncludedHostIDMapForSoftwareInstaller(ctx, installerID1)
+	require.NoError(t, err)
+	require.Contains(t, hostsInScope, host.ID)
+
 	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1" + t.Name()})
 	require.NoError(t, err)
 
@@ -5342,6 +5346,10 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Empty(t, software)
+
+	hostsNotInScope, err := ds.GetExcludedHostIDMapForSoftwareInstaller(ctx, installerID1)
+	require.NoError(t, err)
+	require.Contains(t, hostsNotInScope, host.ID)
 
 	// installer1 should be out of scope since the label is "exclude any"
 	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
