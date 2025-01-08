@@ -1,27 +1,45 @@
 .host-activity-item {
   display: grid; // Grid system is used to create variable dashed line lengths
-  grid-template-columns: 16px 16px 1fr;
-  grid-template-rows: 32px max-content;
+  grid-template-columns: 16px 16px 8px 1fr;
+  grid-template-rows: max-content;
 
-  .avatar-wrapper {
+  &__avatar-wrapper {
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: 16px 16px;
+    grid-template-rows: 8px 32px 1fr;
     grid-column-start: 1;
-    width: 32px;
-    height: 32px;
+    grid-column-end: 3;
+
+    .avatar-wrapper {
+      grid-column-start: 1;
+      grid-column-end: 3;
+      grid-row-start: 2;
+      grid-row-end: 3;
+    }
   }
 
-  &__dash {
+  &__avatar-upper-dash {
     border-right: 1px dashed $ui-fleet-black-25;
     grid-column-start: 1;
-    grid-row-start: 2;
-    grid-row-end: 3;
+    grid-column-end: 2;
+    grid-row-start: 1;
+    grid-row-end: 2;
+  }
+
+  &__avatar-lower-dash {
+    border-right: 1px dashed $ui-fleet-black-25;
+    grid-column-start: 1;
+    grid-column-end: 2;
+    grid-row-start: 3;
+    grid-row-end: 4;
   }
 
   &__details-wrapper {
-    grid-column-start: 3;
+    grid-column-start: 4;
     grid-row-start: 1;
-    grid-row-end: 3;
-    padding-left: $pad-large;
-    padding-bottom: $pad-large;
+    padding: $pad-small;
+    margin-bottom: $pad-large;
 
     .premium-icon-tip {
       position: relative;
@@ -53,8 +71,14 @@
     margin-left: $pad-xsmall;
   }
 
+  &:first-child {
+    .host-activity-item__avatar-upper-dash {
+      border-right: none;
+    }
+  }
+
   &:last-child {
-    .host-activity-item__dash {
+    .host-activity-item__avatar-lower-dash {
       border-right: none;
     }
 

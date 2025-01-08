@@ -51,7 +51,7 @@ const UpcomingActivityFeed = ({
 
   return (
     <div className={baseClass}>
-      <div>
+      <div className={`${baseClass}__feed-list`}>
         {activitiesList.map((activity: IHostUpcomingActivity) => {
           const ActivityItemComponent =
             upcomingActivityComponentMap[activity.type];

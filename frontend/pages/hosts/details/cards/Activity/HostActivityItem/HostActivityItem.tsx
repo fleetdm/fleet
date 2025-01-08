@@ -1,6 +1,5 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
-import { formatDistanceToNowStrict } from "date-fns";
 import classnames from "classnames";
 
 import { IActivity } from "interfaces/activity";
@@ -51,12 +50,16 @@ const HostActivityItem = ({
 
   return (
     <div className={classNames}>
-      <Avatar
-        className={`${baseClass}__avatar-image`}
-        user={{ gravatar_url }}
-        size="small"
-        hasWhiteBackground
-      />
+      <div className={`${baseClass}__avatar-wrapper`}>
+        <div className={`${baseClass}__avatar-upper-dash`} />
+        <Avatar
+          className={`${baseClass}__avatar-image`}
+          user={{ gravatar_url }}
+          size="small"
+          hasWhiteBackground
+        />
+        <div className={`${baseClass}__avatar-lower-dash`} />
+      </div>
       <div className={`${baseClass}__details-wrapper`}>
         <div className={"activity-details"}>
           <span className={`${baseClass}__details-topline`}>
@@ -84,7 +87,7 @@ const HostActivityItem = ({
           )}
         </div>
       </div>
-      <div className={`${baseClass}__dash`} />
+      {/* <div className={`${baseClass}__dash`} /> */}
     </div>
   );
 };
