@@ -2100,13 +2100,13 @@ func (a *agent) runLiveQuery(query string) (results []map[string]string, status 
 	lcQuery := strings.ToLower(query)
 	switch {
 	case strings.Contains(lcQuery, "from yara") && strings.Contains(lcQuery, "sigurl"):
-		return a.RunLiveYaraQuery(query)
+		return a.runLiveYaraQuery(query)
 	default:
-		return a.RunLiveMockQuery(query)
+		return a.runLiveMockQuery(query)
 	}
 }
 
-func (a *agent) RunLiveYaraQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats) {
+func (a *agent) runLiveYaraQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats) {
 	// Get the URL of the YARA rule to request (i.e. the sigurl).
 	urlRegex := regexp.MustCompile(`sigurl=(["'])([^"']*)["']`)
 	matches := urlRegex.FindStringSubmatch(query)
@@ -2166,7 +2166,7 @@ func (a *agent) RunLiveYaraQuery(query string) (results []map[string]string, sta
 		}
 }
 
-func (a *agent) RunLiveMockQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats) {
+func (a *agent) runLiveMockQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats) {
 	ss := fleet.OsqueryStatus(0)
 	return []map[string]string{
 			{
