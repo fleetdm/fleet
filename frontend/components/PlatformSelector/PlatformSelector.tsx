@@ -1,6 +1,12 @@
 import React from "react";
 import classNames from "classnames";
+
+import { IPolicySoftwareToInstall } from "interfaces/policy";
 import Checkbox from "components/forms/fields/Checkbox";
+import CustomLink from "components/CustomLink";
+import TooltipWrapper from "components/TooltipWrapper";
+import { buildQueryStringFromParams } from "utilities/url";
+import paths from "router/paths";
 
 interface IPlatformSelectorProps {
   baseClass?: string;
@@ -13,6 +19,8 @@ interface IPlatformSelectorProps {
   setCheckLinux: (val: boolean) => void;
   setCheckChrome: (val: boolean) => void;
   disabled?: boolean;
+  installSoftware?: IPolicySoftwareToInstall;
+  currentTeamId?: number;
 }
 
 export const PlatformSelector = ({
@@ -26,6 +34,8 @@ export const PlatformSelector = ({
   setCheckLinux,
   setCheckChrome,
   disabled = false,
+  installSoftware,
+  currentTeamId,
 }: IPlatformSelectorProps): JSX.Element => {
   const baseClass = "platform-selector";
 
@@ -33,9 +43,39 @@ export const PlatformSelector = ({
     [`form-field__label--disabled`]: disabled,
   });
 
+  const renderInstallSoftwareHelpText = () => {
+    if (!installSoftware) {
+      return null;
+    }
+    const softwareName = installSoftware.name;
+    const softwareId = installSoftware.software_title_id.toString();
+    const softwareLink = `${paths.SOFTWARE_TITLE_DETAILS(
+      softwareId
+    )}?${buildQueryStringFromParams({ team_id: currentTeamId })}`;
+
+    return (
+      <span className={`${baseClass}__install-software`}>
+        <CustomLink text={softwareName} url={softwareLink} /> will only install
+        on{" "}
+        <TooltipWrapper
+          tipContent={
+            <>
+              To see targets, select{" "}
+              <b>{softwareName} &gt; Actions &gt; Edit</b>. Currently, hosts
+              that aren&apos;t targeted show an empty (---) policy status.
+            </>
+          }
+        >
+          targeted hosts
+        </TooltipWrapper>
+        .
+      </span>
+    );
+  };
+
   return (
     <div className={`${parentClass}__${baseClass} ${baseClass} form-field`}>
-      <span className={labelClasses}>Targets:</span>
+      <span className={labelClasses}>Target:</span>
       <span className={`${baseClass}__checkboxes`}>
         <Checkbox
           value={checkDarwin}
@@ -71,9 +111,8 @@ export const PlatformSelector = ({
         </Checkbox>
       </span>
       <div className="form-field__help-text">
-        Your policy will only run on the selected platform(s). Additionally, if
-        install software automation is enabled, it will only be installed on
-        hosts defined in the software scope.
+        Policy runs on all hosts with these platform(s).
+        {renderInstallSoftwareHelpText()}
       </div>
     </div>
   );
