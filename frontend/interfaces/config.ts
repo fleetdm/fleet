@@ -224,5 +224,5 @@ export type IAutomationsConfig = Pick<
 export const CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS = 30;
 
 export interface IUserSettings {
-  hidden_hosts_table_columns: string[];
+  hidden_host_columns: string[];
 }

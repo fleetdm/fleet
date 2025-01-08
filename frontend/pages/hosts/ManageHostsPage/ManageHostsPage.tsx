@@ -207,7 +207,7 @@ const ManageHostsPage = ({
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
-    userSettings?.hidden_hosts_table_columns || defaultHiddenColumns
+    userSettings?.hidden_host_columns || defaultHiddenColumns
   );
   const [selectedHostIds, setSelectedHostIds] = useState<number[]>([]);
   const [isAllMatchingHostsSelected, setIsAllMatchingHostsSelected] = useState(
@@ -767,7 +767,7 @@ const ManageHostsPage = ({
     }
     try {
       await usersAPI.update(currentUser.id, {
-        settings: { hidden_hosts_table_columns: newHiddenColumns },
+        settings: { hidden_host_columns: newHiddenColumns },
       });
       // No success renderFlash, to make column setting more seamless
     } catch (response) {
