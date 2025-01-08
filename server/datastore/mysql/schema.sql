@@ -1912,7 +1912,7 @@ CREATE TABLE `teams` (
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `upcoming_activities` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `host_id` int unsigned NOT NULL,
   `priority` int NOT NULL DEFAULT '0',
   `user_id` int unsigned DEFAULT NULL,

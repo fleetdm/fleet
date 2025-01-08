@@ -11,7 +11,7 @@ func init() {
 func Up_20250106162751(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE upcoming_activities (
-	id             INT UNSIGNED NOT NULL AUTO_INCREMENT,
+	id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 	host_id        INT UNSIGNED NOT NULL,
 
 	-- priority 0 is normal, > 0 is higher priority, < 0 is lower priority.
