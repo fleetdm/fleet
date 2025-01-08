@@ -1945,12 +1945,13 @@ func (a ActivityDisabledVPP) Documentation() (activity string, details string, d
 }
 
 type ActivityAddedAppStoreApp struct {
-	SoftwareTitle string              `json:"software_title"`
-	AppStoreID    string              `json:"app_store_id"`
-	TeamName      *string             `json:"team_name"`
-	TeamID        *uint               `json:"team_id"`
-	Platform      AppleDevicePlatform `json:"platform"`
-	SelfService   bool                `json:"self_service"`
+	SoftwareTitle   string              `json:"software_title"`
+	SoftwareTitleId uint                `json:"software_title_id"`
+	AppStoreID      string              `json:"app_store_id"`
+	TeamName        *string             `json:"team_name"`
+	TeamID          *uint               `json:"team_id"`
+	Platform        AppleDevicePlatform `json:"platform"`
+	SelfService     bool                `json:"self_service"`
 }
 
 func (a ActivityAddedAppStoreApp) ActivityName() string {
@@ -1960,12 +1961,14 @@ func (a ActivityAddedAppStoreApp) ActivityName() string {
 func (a ActivityAddedAppStoreApp) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when an App Store app is added to Fleet.", `This activity contains the following fields:
 - "software_title": Name of the App Store app.
+- "software_title_id": ID of the added software title.
 - "app_store_id": ID of the app on the Apple App Store.
 - "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team to which this App Store app was added, or ` + "`null`" + ` if it was added to no team.
 - "team_id": ID of the team to which this App Store app was added, or ` + "`null`" + `if it was added to no team.`, `{
   "software_title": "Logic Pro",
+  "software_title_id": 123,
   "app_store_id": "1234567",
   "platform": "darwin",
   "self_service": false,

@@ -30,7 +30,6 @@ import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 import PATHS from "router/paths";
 import { DEFAULT_QUERY } from "utilities/constants";
 import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 import TeamsDropdown from "components/TeamsDropdown";

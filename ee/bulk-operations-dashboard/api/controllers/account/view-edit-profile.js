@@ -18,7 +18,9 @@ module.exports = {
 
   fn: async function () {
 
-    return {};
+    return {
+      replaceBuiltInAuthWithEntra: (sails.config.custom.entraClientSecret !== undefined),
+    };
 
   }
 

@@ -1,4 +1,5 @@
 import { getErrorReason } from "interfaces/errors";
+import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
 
 const DEFAULT_ERROR_MESSAGE = "Couldn't upload. Please try again.";
 
@@ -13,7 +14,7 @@ export const getErrorMessage = (err: unknown) => {
   ) {
     return "Couldn't upload. The file should be .sh or .ps1 file.";
   } else if (apiErrMessage.includes("Secret variable")) {
-    return apiErrMessage.replace("missing from database", "doesn't exist");
+    return generateSecretErrMsg(err);
   }
 
   return apiErrMessage || DEFAULT_ERROR_MESSAGE;

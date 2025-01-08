@@ -29,9 +29,7 @@ interface IActionsDropdownProps {
 }
 
 const getOptionBackgroundColor = (state: any) => {
-  return state.isSelected || state.isFocused
-    ? COLORS["ui-vibrant-blue-10"]
-    : "transparent";
+  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
 };
 
 const getLeftMenuAlign = (menuAlign: "right" | "left" | "default") => {
@@ -238,6 +236,7 @@ const ActionsDropdown = ({
         }}
         controlShouldRenderValue={false} // Doesn't change placeholder text to selected text
         isOptionSelected={() => false} // Hides any styling on selected option
+        value={null} // Prevent an option from being selected
         className={dropdownClassnames}
         classNamePrefix={`${baseClass}-select`}
         isOptionDisabled={(option) => !!option.disabled}

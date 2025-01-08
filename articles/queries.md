@@ -35,12 +35,6 @@ How to create a query:
 
 ## View a query report
 
-Fleet will store up to 1000 results for each scheduled query to give users a snapshot of query results. If the number of results for a scheduled query is below 1000, then the results will continuously get updated every time the hosts send results to Fleet.
-
-As you enable query reports, it is advisable to monitor your database to determine if it needs to be scaled up. As an alternative, you can disable query reports.
-
-> To disable query reports globally, modify `server_settings.query_reports_disabled` field in the global configuration. To disable reports for individual queries, use the `discard_data` field.
-
 How to view a query report:
 
 1. In the top navigation, select **Queries**.
@@ -49,6 +43,16 @@ How to view a query report:
 
 3. If you want to download the query report, select **Export results** to save it as a CSV.
 
+Fleet will store up to 1000 results for each scheduled query to give users a snapshot of query results. If the number of results for a scheduled query is below 1000, then the results will continuously get updated every time the hosts send results to Fleet.
+
+> You can tell Fleet to store more than 1000 results in query reports by setting [`server_settings.query_report_cap`](https://fleetdm.com/docs/rest-api/rest-api#server-settings) via [the Modify configuration API endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration).
+
+Persisting query reports within Fleet creates load on the database, so you'll want to monitor database load as you add queries. If needed, you can disable query reports either globally or per-query.
+
+* Globally via the UI: **Settings** > **Advanced options** > **Disable query reports**
+* Globally via the API: set [`server_settings.query_reports_disabled`](https://fleetdm.com/docs/rest-api/rest-api#server-settings) via [the Modify configuration endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration)
+* Per-query via the UI: **Edit query** > **Show advanced options** > **Discard data**
+* Per-query via the API: Set the `discard_data` field when [creating](https://fleetdm.com/docs/rest-api/rest-api#create-query) or [modifying](https://fleetdm.com/docs/rest-api/rest-api#modify-query) the query
 
 ## Run a query
 
@@ -73,8 +77,6 @@ The query may take several seconds to complete because Fleet has to wait for the
 > Fleet's query response time is inherently variable because of osquery's heartbeat response time. This helps prevent performance issues on hosts.
 
 ## Schedule a query
-
-*In Fleet 4.35.0, the "Schedule" page was removed, and query automations are now configured on the "Queries" page. Instructions for scheduling queries in earlier versions of Fleet can be found [here](https://github.com/fleetdm/fleet/blob/ac797c8f81ede770853c25fd04102da9f5e109bf/docs/Using-Fleet/Fleet-UI.md#schedule-a-query).*
 
 Fleet allows you to schedule queries to run at a set frequency. By default, queries that run on a schedule will only target platforms compatible with that query. This behavior can be overridden by setting the platforms in **Advanced options** when saving a query.
 
@@ -103,6 +105,6 @@ How to configure query automations in bulk:
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
-<meta name="publishedOn" value="2024-08-09">
+<meta name="publishedOn" value="2025-01-01">
 <meta name="articleTitle" value="Queries">
 <meta name="description" value="Learn how to create, run, and schedule queries, as well as update agent options in the Fleet user interface.">
