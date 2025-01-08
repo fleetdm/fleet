@@ -99,7 +99,7 @@ export enum ActivityType {
   DisabledActivityAutomations = "disabled_activity_automations",
 }
 
-// This is a subset of ActivityType that are shown only for the host past activities
+/** This is a subset of ActivityType that are shown only for the host past activities */
 export type IHostPastActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
@@ -108,7 +108,7 @@ export type IHostPastActivityType =
   | ActivityType.UninstalledSoftware
   | ActivityType.InstalledAppStoreApp;
 
-// This is a subset of ActivityType that are shown only for the host upcoming activities
+/** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
   | ActivityType.RanScript
   | ActivityType.InstalledSoftware
@@ -123,6 +123,7 @@ export interface IActivity {
   actor_gravatar: string;
   actor_email?: string;
   type: ActivityType;
+  fleet_initiated: boolean;
   details?: IActivityDetails;
 }
 

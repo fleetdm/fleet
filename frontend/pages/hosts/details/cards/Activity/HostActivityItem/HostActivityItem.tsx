@@ -13,6 +13,7 @@ import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 import Avatar from "components/Avatar";
 
 import { COLORS } from "styles/var/colors";
+import { dateAgo } from "utilities/date_format";
 
 const baseClass = "host-activity-item";
 
@@ -67,10 +68,7 @@ const HostActivityItem = ({
             data-tip
             data-for={`activity-${activity.id}`}
           >
-            {activityCreatedAt &&
-              formatDistanceToNowStrict(activityCreatedAt, {
-                addSuffix: true,
-              })}
+            {activityCreatedAt && dateAgo(activityCreatedAt)}
           </span>
           {activityCreatedAt && (
             <ReactTooltip
