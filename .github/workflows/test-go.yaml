@@ -123,14 +123,8 @@ jobs:
         elif [[ "${{ matrix.suite }}" == "integration" ]]; then
           CI_TEST_PKG=main
           RUN_TESTS_ARG='-run=^TestIntegrations'
-        elif [[ "${{ matrix.suite }}" == "fleetctl" ]]; then
-          CI_TEST_PKG=fleetctl
-          RUN_TESTS_ARG=''
-        elif [[ "${{ matrix.suite }}" == "migration" ]]; then
-          CI_TEST_PKG=migration
-          RUN_TESTS_ARG=''
-        elif [[ "${{ matrix.suite }}" == "vuln" ]]; then
-          CI_TEST_PKG=vuln
+        else
+          CI_TEST_PKG="${{ matrix.suite }}"
           RUN_TESTS_ARG=''
         fi
         GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT $RUN_TESTS_ARG" \

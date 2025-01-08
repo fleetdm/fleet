@@ -157,7 +157,7 @@ dlv_test_pkg_to_test := $(addprefix github.com/fleetdm/fleet/v4/,$(PKG_TO_TEST))
 
 DEFAULT_PKG_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
 ifeq ($(CI_TEST_PKG), main)
-	CI_PKG_TO_TEST=$(shell go list ${DEFAULT_PKG_TO_TEST} | sed -e 's|github.com/fleetdm/fleet/v4/||g')
+	CI_PKG_TO_TEST=$(shell go list ${DEFAULT_PKG_TO_TEST} | grep -v "server/datastore/mysql/migrations" | grep -v "cmd/fleetctl" | grep -v "server/vulnerabilities" | sed -e 's|github.com/fleetdm/fleet/v4/||g')
 else ifeq ($(CI_TEST_PKG), migration)
 	CI_PKG_TO_TEST="server/datastore/mysql/migrations/..."
 else ifeq ($(CI_TEST_PKG), fleetctl)
@@ -168,7 +168,7 @@ else
 	CI_PKG_TO_TEST=$(DEFAULT_PKG_TO_TEST)
 endif
 
-ci-pkg:
+ci-pkg-list:
 	@echo $(CI_PKG_TO_TEST)
 
 .run-go-tests:
