@@ -8,7 +8,9 @@ import { size } from "lodash";
 import classnames from "classnames";
 import { COLORS } from "styles/var/colors";
 
+import paths from "router/paths";
 import { addGravatarUrlToResource } from "utilities/helpers";
+import { buildQueryStringFromParams } from "utilities/url";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
@@ -29,6 +31,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
+import CustomLink from "components/CustomLink";
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
 
 const baseClass = "policy-form";
@@ -116,6 +119,7 @@ const PolicyForm = ({
 
   const {
     currentUser,
+    currentTeam,
     isGlobalObserver,
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -474,6 +478,37 @@ const PolicyForm = ({
     return platformCompatibility.render();
   };
 
+  const renderInstallSoftware = () => {
+    if (!storedPolicy?.install_software) {
+      return null;
+    }
+
+    const softwareName = storedPolicy.install_software.name;
+    const softwareId = storedPolicy.install_software.software_title_id.toString();
+    const softwareLink = `${paths.SOFTWARE_TITLE_DETAILS(
+      softwareId
+    )}?${buildQueryStringFromParams({ team_id: currentTeam?.id })}`;
+
+    return (
+      <div>
+        <CustomLink text={softwareName} url={softwareLink} /> will only install
+        on{" "}
+        <TooltipWrapper
+          tipContent={
+            <>
+              To see targets, select{" "}
+              <b>{softwareName} &gt; Actions &gt; Edit</b>. Currently, hosts
+              that aren&apos;t targeted show an empty (---) policy status.
+            </>
+          }
+        >
+          targeted hosts
+        </TooltipWrapper>
+        .
+      </div>
+    );
+  };
+
   const renderCriticalPolicy = () => {
     return (
       <div className="critical-checkbox-wrapper">
@@ -590,6 +625,7 @@ const PolicyForm = ({
           />
           {renderPlatformCompatibility()}
           {(isEditMode || defaultPolicy) && platformSelector.render()}
+          {isEditMode && renderInstallSoftware()}
           {isEditMode && isPremiumTier && renderCriticalPolicy()}
           {renderLiveQueryWarning()}
           <div className="button-wrap">
