@@ -169,15 +169,17 @@ func testSettingsAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User
 
 		verify, err := ds.UserByID(context.Background(), user.ID)
 		assert.Nil(t, err)
-		assert.Empty(t, verify.Settings.HiddenHostColumns)
+		// settings should only be returned via dedicated method
+		assert.Nil(t, verify.Settings)
 
 		user.Settings.HiddenHostColumns = []string{"osquery_version"}
 		err = ds.SaveUser(context.Background(), user)
 		assert.Nil(t, err)
 
-		verify, err = ds.UserByID(context.Background(), user.ID)
+		// call the settings db method here
+		settings, err := ds.UserSettings(context.Background(), user.ID)
 		assert.Nil(t, err)
-		assert.Equal(t, verify.Settings.HiddenHostColumns, user.Settings.HiddenHostColumns)
+		assert.Equal(t, settings.HiddenHostColumns, user.Settings.HiddenHostColumns)
 	}
 }
 

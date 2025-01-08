@@ -4671,7 +4671,9 @@ func (s *integrationTestSuite) TestUsers() {
 	// session user id 1
 	assert.Equal(t, uint(1), getMeResp.User.ID)
 	assert.NotNil(t, getMeResp.User.GlobalRole)
-	assert.Empty(t, getMeResp.User.Settings)
+	// settings should only be present in dedicated settings field, not in user object
+	assert.Nil(t, getMeResp.User.Settings)
+	assert.Empty(t, getMeResp.Settings)
 
 	// modify session user - add ui setting
 	var modResp modifyUserResponse
@@ -4683,7 +4685,8 @@ func (s *integrationTestSuite) TestUsers() {
 	// get session user with ui settings, should now be present, two endpoints
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
 	assert.Equal(t, uint(1), getResp.User.ID)
-	assert.Equal(t, getResp.User.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}})
+	assert.Nil(t, getMeResp.User.Settings)
+	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}})
 
 	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
 		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
@@ -4692,7 +4695,8 @@ func (s *integrationTestSuite) TestUsers() {
 	require.NoError(t, err)
 	assert.Equal(t, uint(1), getMeResp.User.ID)
 	assert.NotNil(t, getMeResp.User.GlobalRole)
-	assert.Equal(t, getResp.User.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}})
+	assert.Nil(t, getMeResp.User.Settings)
+	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}})
 
 	// modify user ui settings, check they are returned modified
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
@@ -4703,7 +4707,8 @@ func (s *integrationTestSuite) TestUsers() {
 	// get session user with ui settings, should now be present, two endpoints
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
 	assert.Equal(t, uint(1), getResp.User.ID)
-	assert.Equal(t, getResp.User.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}})
+	assert.Nil(t, getResp.User.Settings)
+	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}})
 
 	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
 		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
@@ -4712,7 +4717,8 @@ func (s *integrationTestSuite) TestUsers() {
 	require.NoError(t, err)
 	assert.Equal(t, uint(1), getMeResp.User.ID)
 	assert.NotNil(t, getMeResp.User.GlobalRole)
-	assert.Equal(t, getResp.User.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}})
+	assert.Nil(t, getResp.User.Settings)
+	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}})
 
 	// create a new user
 	var createResp createUserResponse

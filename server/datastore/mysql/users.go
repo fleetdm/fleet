@@ -75,7 +75,8 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
 
 func (ds *Datastore) findUser(ctx context.Context, searchCol string, searchVal interface{}) (*fleet.User, error) {
 	sqlStatement := fmt.Sprintf(
-		"SELECT * FROM users "+
+		// everything except `settings`
+		"SELECT id, created_at, updated_at, password, salt, name, email, admin_forced_password_reset, gravatar_url, position, sso_enabled, global_role, api_only, mfa_enabled FROM users "+
 			"WHERE %s = ? LIMIT 1",
 		searchCol,
 	)
