@@ -179,7 +179,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ | ----------------------- | --------------- | ----- |
 | Redis        | 6                       | cache.t4g.small | 3     |
-| MySQL        | 8.0.mysql_aurora.3.04.2 | db.t4g.medium   | 2     |
+| MySQL        | 8.0.mysql_aurora.3.07.1 | db.t4g.medium   | 2     |
 
 
 ###### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=d735758715f059118dbce8dc42f3ff2410adc621)
@@ -191,7 +191,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ | ----------------------- | --------------- | ----- |
 | Redis        | 6                       | cache.m6g.large | 3     |
-| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.large    | 2     |
+| MySQL        | 8.0.mysql_aurora.3.07.1 | db.r6g.large    | 2     |
 
 
 ###### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=689fea65efff361ee070b15044a01224b8d26621)
@@ -203,7 +203,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ | ----------------------- | --------------- | ----- |
 | Redis        | 6                       | cache.m6g.large | 3     |
-| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.4xlarge  | 2     |
+| MySQL        | 8.0.mysql_aurora.3.07.1 | db.r6g.4xlarge  | 2     |
 
 
 ###### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=19b667fde567df0d64d9fae632d4885d7fdc726a)
@@ -215,7 +215,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ | ----------------------- | --------------- | ----- |
 | Redis        | 6                       | cache.m6g.large | 3     |
-| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.16xlarge | 2     |
+| MySQL        | 8.0.mysql_aurora.3.07.1 | db.r6g.16xlarge | 2     |
 
 AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/terraform/example). This configuration includes:
 
