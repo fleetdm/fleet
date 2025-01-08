@@ -5,13 +5,13 @@ export const getExploitedVulnerabilitiesDropdownOptions = (
 
   return [
     {
-      disabled: false,
+      isDisabled: false,
       label: "All vulnerabilities",
       value: "false",
       helpText: "All vulnerabilities detected on your hosts.",
     },
     {
-      disabled: !isPremiumTier,
+      isDisabled: !isPremiumTier,
       label: "Exploited vulnerabilities",
       value: "true",
       helpText:

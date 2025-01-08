@@ -280,7 +280,6 @@ const DropdownWrapper = ({
         color: COLORS["ui-fleet-black-50"],
         fontStyle: "italic",
         cursor: "not-allowed",
-        pointerEvents: "none",
       }),
       // Styles for custom option
       ".dropdown-wrapper__option": {
