@@ -142,6 +142,7 @@ func truncateScriptResult(output string) string {
 func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult,
 	string, error,
 ) {
+	// TODO(mna): this sets results of execution, so no impact on pending upcoming queue
 	const resultExistsStmt = `
 	SELECT
 		1
@@ -348,6 +349,7 @@ func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID st
 }
 
 func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.QueryerContext, execID string) (*fleet.HostScriptResult, error) {
+	// TODO(mna): this should probably return if it's pending still in upcoming_activities too
 	const getStmt = `
   SELECT
     hsr.id,
@@ -537,6 +539,7 @@ var errDeleteScriptWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn'
 
 func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// TODO(mna): delete pending execution from upcoming_activities
 		_, err := tx.ExecContext(ctx, `DELETE FROM host_script_results WHERE script_id = ?
        		  AND exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)`,
 			id, int(constants.MaxServerWaitTime.Seconds()),
@@ -699,6 +702,8 @@ func (ds *Datastore) GetHostScriptDetails(ctx context.Context, hostID uint, team
 		ExitCode    *int64     `db:"exit_code"`
 	}
 
+	// TODO(mna): must also look in upcoming queue, looks like this returns the latest
+	// execution/pending state for each script for a host?
 	sql := `
 SELECT
 	s.id AS script_id,
@@ -788,6 +793,7 @@ WHERE
 `
 	const unsetAllScriptsFromPolicies = `UPDATE policies SET script_id = NULL WHERE team_id = ?`
 
+	// TODO(mna): must clear pending executions from upcoming_activities too
 	const clearAllPendingExecutions = `DELETE FROM host_script_results WHERE
        		  exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
        		  AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
@@ -805,6 +811,7 @@ WHERE
   name NOT IN (?)
 `
 
+	// TODO(mna): must also clear pending executions from upcoming_activities
 	const clearPendingExecutionsNotInList = `DELETE FROM host_script_results WHERE
        		  exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
        		  AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))`
@@ -820,6 +827,7 @@ ON DUPLICATE KEY UPDATE
   script_content_id = VALUES(script_content_id), id=LAST_INSERT_ID(id)
 `
 
+	// TODO(mna): must also clear pending executions from upcoming_activities
 	const clearPendingExecutionsWithObsoleteScript = `DELETE FROM host_script_results WHERE
        		  exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
        		  AND script_id = ? AND script_content_id != ?`
@@ -1371,6 +1379,7 @@ func updateHostLockWipeStatusFromResult(ctx context.Context, tx sqlx.ExtContext,
 }
 
 func updateUninstallStatusFromResult(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string, exitCode int) error {
+	// TODO(mna): this sets results, no impact on pending upcoming queue
 	stmt := `
 	UPDATE host_software_installs SET uninstall_script_exit_code = ? WHERE execution_id = ? AND host_id = ?
 	`

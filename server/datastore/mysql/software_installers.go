@@ -18,6 +18,7 @@ import (
 )
 
 func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
+	// TODO(mna): must union with upcoming queue
 	const stmt = `
   SELECT
     execution_id
@@ -38,6 +39,7 @@ func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uin
 }
 
 func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId string) (*fleet.SoftwareInstallDetails, error) {
+	// TODO(mna): must also look in upcoming queue
 	const stmt = `
   SELECT
     hsi.host_id AS host_id,
@@ -456,6 +458,8 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 }
 
 func (ds *Datastore) ValidateOrbitSoftwareInstallerAccess(ctx context.Context, hostID uint, installerID uint) (bool, error) {
+	// TODO(mna): this is ok to only look in host_software_installs, because orbit should not
+	// be able to get the installer until it is ready to install.
 	query := `
     SELECT 1
     FROM
@@ -671,6 +675,7 @@ func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context,
 		globalOrTeamID = *teamID
 	}
 
+	// TODO(mna): must also delete from upcoming queue
 	const deleteStmt = `
 		DELETE FROM
 			host_software_installs
@@ -690,6 +695,7 @@ func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context,
 }
 
 func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool, policyID *uint) (string, error) {
+	// TODO(mna): must insert in upcoming queue
 	const (
 		getInstallerStmt = `SELECT filename, "version", title_id, COALESCE(st.name, '[deleted title]') title_name
 			FROM software_installers si LEFT JOIN software_titles st ON si.title_id = st.id WHERE si.id = ?`
@@ -755,6 +761,9 @@ func (ds *Datastore) ProcessInstallerUpdateSideEffects(ctx context.Context, inst
 
 func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Context, tx sqlx.ExtContext, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error {
 	if wasMetadataUpdated || wasPackageUpdated { // cancel pending installs/uninstalls
+		// TODO(mna): this deletes from host_script_results, but is actually related to software installs.
+		// Must add deletion from upcoming queue.
+
 		// TODO make this less naive; this assumes that installs/uninstalls execute and report back immediately
 		_, err := tx.ExecContext(ctx, `DELETE FROM host_script_results WHERE execution_id IN (
 				SELECT execution_id FROM host_software_installs WHERE software_installer_id = ? AND status = 'pending_uninstall'
@@ -782,6 +791,7 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 }
 
 func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error {
+	// TODO(mna): must insert in upcoming queue
 	const (
 		getInstallerStmt = `SELECT title_id, COALESCE(st.name, '[deleted title]') title_name
 			FROM software_installers si LEFT JOIN software_titles st ON si.title_id = st.id WHERE si.id = ?`
@@ -832,6 +842,7 @@ func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executi
 }
 
 func (ds *Datastore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+	// TODO(mna): must also look in upcoming queue
 	query := `
 SELECT
 	hsi.execution_id AS execution_id,
@@ -880,6 +891,7 @@ WHERE
 func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
 	var dest fleet.SoftwareInstallerStatusSummary
 
+	// TODO(mna): must also look in upcoming queue for pending
 	stmt := `
 SELECT
 	COALESCE(SUM( IF(status = :software_status_pending_install, 1, 0)), 0) AS pending_install,
@@ -936,6 +948,7 @@ func (ds *Datastore) vppAppJoin(appID fleet.VPPAppID, status fleet.SoftwareInsta
 	default:
 		// no change
 	}
+	// TODO(mna): must join with upcoming queue for pending
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
 	host_id
@@ -985,6 +998,7 @@ func (ds *Datastore) softwareInstallerJoin(installerID uint, status fleet.Softwa
 	if status2 != "" {
 		statusFilter = "hsi.status IN (:status, :status2)"
 	}
+	// TODO(mna): must join with upcoming queue for pending
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
 	host_id
@@ -1012,6 +1026,8 @@ WHERE
 }
 
 func (ds *Datastore) GetHostLastInstallData(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+	// TODO(mna): I think that if there's none in host_software_installs, must take
+	// latest in upcoming queue.
 	stmt := `
 		SELECT execution_id, hsi.status
 		FROM host_software_installs hsi
@@ -1088,6 +1104,8 @@ WHERE
   team_id = ?
 `
 
+	// TODO(mna): this deletes from host_script_results but is related to software installs
+	// must add deletion from upcoming queue (here and many others below)
 	const deleteAllPendingUninstallScriptExecutions = `
 		DELETE FROM host_script_results WHERE execution_id IN (
 			SELECT execution_id FROM host_software_installs WHERE status = 'pending_uninstall'
@@ -1605,6 +1623,7 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 }
 
 func (ds *Datastore) GetSoftwareTitleNameFromExecutionID(ctx context.Context, executionID string) (string, error) {
+	// TODO(mna): must also look in upcoming queue
 	stmt := `
 	SELECT name
 	FROM software_titles st
@@ -1709,24 +1728,24 @@ func (ds *Datastore) IsSoftwareInstallerLabelScoped(ctx context.Context, install
 
 			UNION
 
-			-- exclude any, ignore software that depends on labels created 
-			-- _after_ the label_updated_at timestamp of the host (because 
-			-- we don't have results for that label yet, the host may or may 
+			-- exclude any, ignore software that depends on labels created
+			-- _after_ the label_updated_at timestamp of the host (because
+			-- we don't have results for that label yet, the host may or may
 			-- not be a member).
 			SELECT
 				COUNT(*) AS count_installer_labels,
 				COUNT(lm.label_id) AS count_host_labels,
-				SUM(CASE 
-				WHEN 
-					lbl.created_at IS NOT NULL AND (SELECT label_updated_at FROM hosts WHERE id = :host_id) >= lbl.created_at THEN 1 
-				ELSE 
-					0 
+				SUM(CASE
+				WHEN
+					lbl.created_at IS NOT NULL AND (SELECT label_updated_at FROM hosts WHERE id = :host_id) >= lbl.created_at THEN 1
+				ELSE
+					0
 				END) as count_host_updated_after_labels
 			FROM
 				software_installer_labels sil
 				LEFT OUTER JOIN labels lbl
 					ON lbl.id = sil.label_id
-				LEFT OUTER JOIN label_membership lm 
+				LEFT OUTER JOIN label_membership lm
 					ON lm.label_id = sil.label_id AND lm.host_id = :host_id
 			WHERE
 				sil.software_installer_id = :installer_id
@@ -1756,7 +1775,7 @@ func (ds *Datastore) IsSoftwareInstallerLabelScoped(ctx context.Context, install
 	return res, nil
 }
 
-const labelScopedFilter = `	
+const labelScopedFilter = `
 SELECT
 	1
 FROM (

@@ -60,6 +60,7 @@ func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *u
 ) {
 	var dest fleet.VPPAppStatusSummary
 
+	// TODO(mna): must consider upcoming queue for pending
 	stmt := fmt.Sprintf(`
 SELECT
 	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending,
@@ -500,6 +501,7 @@ WHERE vat.global_or_team_id = ? AND va.title_id = ?
 func (ds *Datastore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID,
 	commandUUID, associatedEventID string, selfService bool,
 ) error {
+	// TODO(mna): insert in upcoming queue (and ensure command is not sent immediately)
 	stmt := `
 INSERT INTO host_vpp_software_installs
   (host_id, adam_id, platform, command_uuid, user_id, associated_event_id, self_service)
@@ -525,6 +527,7 @@ func (ds *Datastore) GetPastActivityDataForVPPAppInstall(ctx context.Context, co
 		return nil, nil, nil
 	}
 
+	// TODO(mna): this should only ever be called for non-pending installs, no impact on upcoming queue
 	stmt := `
 SELECT
 	u.name AS user_name,

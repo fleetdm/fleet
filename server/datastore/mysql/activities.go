@@ -248,6 +248,9 @@ func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs [
 func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
 	// NOTE: Be sure to update both the count (here) and list statements (below)
 	// if the query condition is modified.
+
+	// TODO(mna): use the upcoming queue instead (but also include in-execution stuff
+	// that have no results yet)?
 	countStmts := []string{
 		`SELECT
 			COUNT(*) c
@@ -299,6 +302,9 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 
 	// NOTE: Be sure to update both the count (above) and list statements (below)
 	// if the query condition is modified.
+
+	// TODO(mna): use the upcoming queue instead (but also include in-execution stuff
+	// that have no results yet)?
 	listStmts := []string{
 		// list pending scripts
 		`SELECT
@@ -436,15 +442,15 @@ SELECT
 	) AS details
 FROM
 	host_vpp_software_installs hvsi
-INNER JOIN 
+INNER JOIN
 	nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid
-LEFT OUTER JOIN 
+LEFT OUTER JOIN
 	users u ON hvsi.user_id = u.id
-LEFT OUTER JOIN 
+LEFT OUTER JOIN
 	host_display_names hdn ON hdn.host_id = hvsi.host_id
-LEFT OUTER JOIN 
+LEFT OUTER JOIN
 	vpp_apps vpa ON hvsi.adam_id = vpa.adam_id AND hvsi.platform = vpa.platform
-LEFT OUTER JOIN 
+LEFT OUTER JOIN
 	software_titles st ON st.id = vpa.title_id
 WHERE
 	nvq.status IS NULL
