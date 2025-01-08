@@ -150,14 +150,30 @@ dump-test-schema:
 # TESTS_TO_RUN: Name specific tests to run in the specified packages.  Leave blank to run all tests in the specified packages.
 # GO_TEST_EXTRA_FLAGS: Used to specify other arguments to `go test`.
 # GO_TEST_MAKE_FLAGS: Internal var used by other targets to add arguments to `go test`.
-#						 
+#
 PKG_TO_TEST := "" # default to empty string; can be overridden on command line.
 go_test_pkg_to_test := $(addprefix ./,$(PKG_TO_TEST)) # set paths for packages to test
 dlv_test_pkg_to_test := $(addprefix github.com/fleetdm/fleet/v4/,$(PKG_TO_TEST)) # set URIs for packages to debug
 
+DEFAULT_PKG_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
+ifeq ($(CI_TEST_PKG), main)
+	CI_PKG_TO_TEST=$(shell go list ${DEFAULT_PKG_TO_TEST} | sed -e 's|github.com/fleetdm/fleet/v4/||g')
+else ifeq ($(CI_TEST_PKG), migration)
+	CI_PKG_TO_TEST="server/datastore/mysql/migrations/..."
+else ifeq ($(CI_TEST_PKG), fleetctl)
+	CI_PKG_TO_TEST="cmd/fleetctl/..."
+else ifeq ($(CI_TEST_PKG), vuln)
+	CI_PKG_TO_TEST="server/vulnerabilities/..."
+else
+	CI_PKG_TO_TEST=$(DEFAULT_PKG_TO_TEST)
+endif
+
+ci-pkg:
+	@echo $(CI_PKG_TO_TEST)
+
 .run-go-tests:
 ifeq ($(PKG_TO_TEST), "")
-		@echo "Please specify one or more packages to test with argument PKG_TO_TEST=\"/path/to/pkg/1 /path/to/pkg/2\"..."; 
+		@echo "Please specify one or more packages to test with argument PKG_TO_TEST=\"/path/to/pkg/1 /path/to/pkg/2\"...";
 else
 		@echo Running Go tests with command:
 		go test -tags full,fts5,netgo -run=${TESTS_TO_RUN} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... $(go_test_pkg_to_test)
@@ -171,10 +187,10 @@ endif
 # GO_TEST_EXTRA_FLAGS: Used to specify other arguments to `go test`.
 .debug-go-tests:
 ifeq ($(PKG_TO_TEST), "")
-		@echo "Please specify one or more packages to debug with argument PKG_TO_TEST=\"/path/to/pkg/1 /path/to/pkg/2\"..."; 
+		@echo "Please specify one or more packages to debug with argument PKG_TO_TEST=\"/path/to/pkg/1 /path/to/pkg/2\"...";
 else
 		@echo Debugging tests with command:
-		dlv test ${dlv_test_pkg_to_test} --api-version=2 --listen=127.0.0.1:61179 ${DEBUG_TEST_EXTRA_FLAGS} -- -test.v -test.run=${TESTS_TO_RUN} ${GO_TEST_EXTRA_FLAGS} 
+		dlv test ${dlv_test_pkg_to_test} --api-version=2 --listen=127.0.0.1:61179 ${DEBUG_TEST_EXTRA_FLAGS} -- -test.v -test.run=${TESTS_TO_RUN} ${GO_TEST_EXTRA_FLAGS}
 endif
 
 # Command to run specific tests in development.  Can run all tests for one or more packages, or specific tests within packages.
@@ -182,11 +198,11 @@ run-go-tests:
 	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .run-go-tests GO_TEST_MAKE_FLAGS="-v"
 
 debug-go-tests:
-	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests 
+	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests
 
 # Command used in CI to run all tests.
-test-go: dump-test-schema generate-mock 
-	make .run-go-tests PKG_TO_TEST="./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/..."
+test-go: # dump-test-schema generate-mock
+	make .run-go-tests PKG_TO_TEST="$(CI_PKG_TO_TEST)"
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...

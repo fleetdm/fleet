@@ -42,7 +42,7 @@ jobs:
   test-go:
     strategy:
       matrix:
-        suite: ["integration", "core"]
+        suite: ["integration", "core", "migration", "fleetctl", "vuln"]
         os: [ubuntu-latest]
         mysql: ["mysql:8.0.36", "mysql:8.4.3", "mysql:9.1.0"] # make sure to update supported versions docs when this changes
         isCron:
@@ -118,11 +118,15 @@ jobs:
     - name: Run Go Tests
       run: |
         if [[ "${{ matrix.suite }}" == "core" ]]; then
-          RUN_TESTS_ARG='-skip=^TestIntegrations'
+          CI_TEST_PKG=main RUN_TESTS_ARG='-skip=^TestIntegrations'
         elif [[ "${{ matrix.suite }}" == "integration" ]]; then
-          RUN_TESTS_ARG='-run=^TestIntegrations'
-        else
-          RUN_TESTS_ARG=''
+          CI_TEST_PKG=main RUN_TESTS_ARG='-run=^TestIntegrations'
+        elif [[ "${{ matrix.suite }}" == "fleetctl" ]]; then
+          CI_TEST_PKG=fleetctl RUN_TESTS_ARG=''
+        elif [[ "${{ matrix.suite }}" == "migration" ]]; then
+          CI_TEST_PKG=migration RUN_TESTS_ARG=''
+        elif [[ "${{ matrix.suite }}" == "vuln" ]]; then
+          CI_TEST_PKG=vuln RUN_TESTS_ARG=''
         fi
         GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT $RUN_TESTS_ARG" \
           TEST_LOCK_FILE_PATH=$(pwd)/lock \
