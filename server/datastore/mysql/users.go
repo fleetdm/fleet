@@ -75,7 +75,10 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
 
 func (ds *Datastore) findUser(ctx context.Context, searchCol string, searchVal interface{}) (*fleet.User, error) {
 	sqlStatement := fmt.Sprintf(
-		// everything except `settings`
+		// everything except `settings`. Since we only want to include user settings on an opt-in basis
+		// from the API perspective (see `include_ui_settings` query param on `GET` `/me` and `GET` `/users/:id`), excluding it here ensures it's only included in API responses
+		// when explicitly coded to be, via calling the dedicated UserSettings method. Otherwise,
+		// `settings` would be included in `user` objects in various places, which we do not want.
 		"SELECT id, created_at, updated_at, password, salt, name, email, admin_forced_password_reset, gravatar_url, position, sso_enabled, global_role, api_only, mfa_enabled FROM users "+
 			"WHERE %s = ? LIMIT 1",
 		searchCol,
