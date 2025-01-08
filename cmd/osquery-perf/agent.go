@@ -2108,7 +2108,7 @@ func (a *agent) runLiveQuery(query string) (results []map[string]string, status 
 
 func (a *agent) RunLiveYaraQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats) {
 	// Get the URL of the YARA rule to request (i.e. the sigurl).
-	urlRegex := regexp.MustCompile(`sigurl=(["'])([^"']*)\1`)
+	urlRegex := regexp.MustCompile(`sigurl=(["'])([^"']*)["']`)
 	matches := urlRegex.FindStringSubmatch(query)
 	var url string
 	if len(matches) > 2 {
