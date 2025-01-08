@@ -1644,6 +1644,28 @@ CREATE TABLE `script_contents` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `script_upcoming_activities` (
+  `upcoming_activity_id` bigint unsigned NOT NULL,
+  `script_id` int unsigned DEFAULT NULL,
+  `script_content_id` int unsigned DEFAULT NULL,
+  `policy_id` int unsigned DEFAULT NULL,
+  `setup_experience_script_id` int unsigned DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`upcoming_activity_id`),
+  KEY `fk_script_upcoming_activities_script_id` (`script_id`),
+  KEY `fk_script_upcoming_activities_script_content_id` (`script_content_id`),
+  KEY `fk_script_upcoming_activities_policy_id` (`policy_id`),
+  KEY `fk_script_upcoming_activities_setup_experience_script_id` (`setup_experience_script_id`),
+  CONSTRAINT `fk_script_upcoming_activities_policy_id` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_script_upcoming_activities_script_content_id` FOREIGN KEY (`script_content_id`) REFERENCES `script_contents` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_script_upcoming_activities_script_id` FOREIGN KEY (`script_id`) REFERENCES `scripts` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_script_upcoming_activities_setup_experience_script_id` FOREIGN KEY (`setup_experience_script_id`) REFERENCES `setup_experience_scripts` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_script_upcoming_activities_upcoming_activity_id` FOREIGN KEY (`upcoming_activity_id`) REFERENCES `upcoming_activities` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `scripts` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `team_id` int unsigned DEFAULT NULL,
@@ -1916,27 +1938,16 @@ CREATE TABLE `upcoming_activities` (
   `host_id` int unsigned NOT NULL,
   `priority` int NOT NULL DEFAULT '0',
   `user_id` int unsigned DEFAULT NULL,
+  `fleet_initiated` tinyint(1) NOT NULL DEFAULT '0',
   `activity_type` enum('script','software_install','vpp_app_install') COLLATE utf8mb4_unicode_ci NOT NULL,
   `execution_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `script_id` int unsigned DEFAULT NULL,
-  `script_content_id` int unsigned DEFAULT NULL,
-  `policy_id` int unsigned DEFAULT NULL,
-  `setup_experience_script_id` int unsigned DEFAULT NULL,
   `payload` json NOT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_upcoming_activities_execution_id` (`execution_id`),
   KEY `idx_upcoming_activities_host_id_activity_type` (`host_id`,`priority`,`created_at`,`activity_type`),
-  KEY `fk_upcoming_activities_script_id` (`script_id`),
-  KEY `fk_upcoming_activities_script_content_id` (`script_content_id`),
-  KEY `fk_upcoming_activities_policy_id` (`policy_id`),
-  KEY `fk_upcoming_activities_setup_experience_script_id` (`setup_experience_script_id`),
   KEY `fk_upcoming_activities_user_id` (`user_id`),
-  CONSTRAINT `fk_upcoming_activities_policy_id` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE SET NULL,
-  CONSTRAINT `fk_upcoming_activities_script_content_id` FOREIGN KEY (`script_content_id`) REFERENCES `script_contents` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_upcoming_activities_script_id` FOREIGN KEY (`script_id`) REFERENCES `scripts` (`id`) ON DELETE SET NULL,
-  CONSTRAINT `fk_upcoming_activities_setup_experience_script_id` FOREIGN KEY (`setup_experience_script_id`) REFERENCES `setup_experience_scripts` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_upcoming_activities_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
