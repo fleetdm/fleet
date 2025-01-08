@@ -62,14 +62,11 @@ func (ds *Datastore) NewInternalScriptExecutionRequest(ctx context.Context, requ
 
 func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload, isInternal bool) (*fleet.HostScriptResult, error) {
 	const (
-		insStmt = `
+		insUAStmt = `
 INSERT INTO upcoming_activities
-	(
-		host_id, user_id, activity_type, execution_id, script_id, script_content_id,
-		policy_id, setup_experience_script_id, priority, payload
-	)
+	(host_id, priority, user_id, fleet_initiated, activity_type, execution_id, payload)
 VALUES
-	(?, ?, 'script', ?, ?, ?, ?, ?, ?,
+	(?, ?, ?, ?, 'script', ?, 
 		JSON_OBJECT(
 			'sync_request', ?,
 			'is_internal', ?,
@@ -77,15 +74,24 @@ VALUES
 		)
 	)`
 
+		insSUAStmt = `
+INSERT INTO script_upcoming_activities 
+	(upcoming_activity_id, script_id, script_content_id, policy_id, setup_experience_script_id)
+VALUES
+	(?, ?, ?, ?, ?)
+`
+
 		getStmt = `
 SELECT
-	ua.id, ua.host_id, ua.execution_id, ua.created_at, ua.script_id, ua.policy_id, ua.user_id,
+	ua.id, ua.host_id, ua.execution_id, ua.created_at, sua.script_id, sua.policy_id, ua.user_id,
 	JSON_EXTRACT(payload, '$.sync_request') AS sync_request,
-	sc.contents as script_contents, ua.setup_experience_script_id
+	sc.contents as script_contents, sua.setup_experience_script_id
 FROM
 	upcoming_activities ua
+	INNER JOIN script_upcoming_activities sua
+		ON ua.id = sua.upcoming_activity_id
 	INNER JOIN script_contents sc
-		ON ua.script_content_id = sc.id
+		ON sua.script_content_id = sc.id
 WHERE
 	ua.id = ?
 `
@@ -99,28 +105,36 @@ WHERE
 	}
 
 	execID := uuid.New().String()
-	result, err := tx.ExecContext(ctx, insStmt,
+	result, err := tx.ExecContext(ctx, insUAStmt,
 		request.HostID,
-		request.UserID,
-		execID,
-		request.ScriptID,
-		request.ScriptContentID,
-		request.PolicyID,
-		request.SetupExperienceScriptID,
 		priority,
+		request.UserID,
+		false, // TODO(mna): do we have fleet-initiated scripts?
+		execID,
 		request.SyncRequest,
 		isInternal,
 		request.UserID,
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "new host script execution request")
+		return nil, ctxerr.Wrap(ctx, err, "new script upcoming activity")
+	}
+
+	activityID, _ := result.LastInsertId()
+	_, err = tx.ExecContext(ctx, insSUAStmt,
+		activityID,
+		request.ScriptID,
+		request.ScriptContentID,
+		request.PolicyID,
+		request.SetupExperienceScriptID,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "new join script upcoming activity")
 	}
 
 	var script fleet.HostScriptResult
-	id, _ := result.LastInsertId()
-	err = sqlx.GetContext(ctx, tx, &script, getStmt, id)
+	err = sqlx.GetContext(ctx, tx, &script, getStmt, activityID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting the created host script result to return")
+		return nil, ctxerr.Wrap(ctx, err, "getting the created host script activity to return")
 	}
 	return &script, nil
 }
@@ -289,22 +303,24 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
 	}
 	listUAStmt := fmt.Sprintf(`
   SELECT
-    id,
-    host_id,
-    execution_id,
-    script_id
+    ua.id,
+    ua.host_id,
+    ua.execution_id,
+    sua.script_id
   FROM
-    upcoming_activities
+    upcoming_activities ua 
+		INNER JOIN script_upcoming_activities sua
+			ON ua.id = sua.upcoming_activity_id
   WHERE
-    host_id = ? AND
-		activity_type = 'script' AND
+    ua.host_id = ? AND
+		ua.activity_type = 'script' AND
 		(
-			JSON_EXTRACT(payload, '$.sync_request') = 0 OR
-      created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
+			JSON_EXTRACT(ua.payload, '$.sync_request') = 0 OR
+      ua.created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
 		)
   	%s
   ORDER BY
-    priority DESC, created_at ASC`, internalWhere)
+    ua.priority DESC, ua.created_at ASC`, internalWhere)
 
 	stmt := fmt.Sprintf(`(%s) UNION (%s)`, listHSRStmt, listUAStmt)
 
@@ -330,11 +346,13 @@ func (ds *Datastore) IsExecutionPendingForHost(ctx context.Context, hostID uint,
 		SELECT
 			1
 		FROM
-			upcoming_activities
+			upcoming_activities ua
+			INNER JOIN script_upcoming_activities sua
+				ON ua.id = sua.upcoming_activity_id
 		WHERE
-			host_id = ? AND
-			activity_type = 'script' AND
-			script_id = ?
+			ua.host_id = ? AND
+			ua.activity_type = 'script' AND
+			sua.script_id = ?
 	`
 
 	var results []*uint
@@ -597,11 +615,15 @@ func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Cont
 
 	deleteUAStmt := `
 		DELETE FROM
+			upcoming_activities 
+		USING
 			upcoming_activities
+			INNER JOIN script_upcoming_activities sua
+				ON upcoming_activities.id = sua.upcoming_activity_id 
 		WHERE
-			policy_id = ? AND
-			activity_type = 'script' AND
-			script_id IN (
+			upcoming_activities.activity_type = 'script' AND
+			sua.policy_id = ? AND
+			sua.script_id IN (
 				SELECT id FROM scripts WHERE scripts.global_or_team_id = ?
 			)
 `
@@ -1410,7 +1432,7 @@ WHERE
     SELECT 1 FROM setup_experience_scripts WHERE script_content_id = script_contents.id
 	)
   AND NOT EXISTS (
-    SELECT 1 FROM upcoming_activities WHERE script_content_id = script_contents.id
+    SELECT 1 FROM script_upcoming_activities WHERE script_content_id = script_contents.id
 	)
 `
 	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
