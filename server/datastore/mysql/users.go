@@ -174,7 +174,7 @@ func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error
         sso_enabled = ?,
         mfa_enabled = ?,
         api_only = ?,
-				settings = ?,
+        settings = ?,
 		global_role = ?
       WHERE id = ?
       `
