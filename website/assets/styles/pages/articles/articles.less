@@ -40,6 +40,34 @@
       margin-right: 6px;
     }
   }
+  [purpose='changelog-button'] {
+    display: flex;
+    padding: var(--spacing-spacing-xxs, 4px) var(--spacing-spacing-sm, 16px);
+    justify-content: center;
+    align-items: center;
+    gap: var(--spacing-spacing-xxs, 4px);
+    border-radius: var(--spacing-spacing-xs, 8px);
+    border: 1px solid var(--color-grey-200, #E2E4EA);
+    background: var(--color-grey-50, #F9FAFC);
+    color: #515774;
+    text-align: center;
+    font-family: Inter;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 21px;
+    img {
+      width: 16px;
+      height: 16px;
+    }
+    &:hover {
+      color: #515774;
+      text-decoration: none;
+      border-radius: var(--spacing-spacing-xs, 8px);
+      border: 1px solid var(--color-grey-400, #C5C7D1);
+      background: var(--color-grey-100, #F2F2F5);
+    }
+  }
   [purpose='rss-button'] {
     padding: 4px 8px;
     cursor: pointer;
