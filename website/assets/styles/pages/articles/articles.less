@@ -32,6 +32,10 @@
   }
   [purpose='category-title'] {
     padding-bottom: 40px;
+    margin-right: 25px;
+    p {
+      margin-bottom: 0px;
+    }
   }
 
   [purpose='guides-category-page'] {
@@ -56,9 +60,11 @@
     font-style: normal;
     font-weight: 400;
     line-height: 21px;
+    width: 168px;
     img {
       width: 16px;
       height: 16px;
+      margin-right: 8px;
     }
     &:hover {
       color: #515774;
@@ -318,6 +324,10 @@
       margin-left: 10px;
       margin-right: 10px;
     }
+    [purpose='category-title'] {
+      padding-bottom: 40px;
+      margin-right: 35px;
+    }
     [purpose='articles'] {
       [purpose='article-card'] {
         flex: 1 1 350px;
@@ -332,6 +342,7 @@
   }
 
    @media (min-width: 991px) {
+
     [purpose='articles'] {
       [purpose='article-card'] {
         flex: 1 1 290px;
@@ -343,6 +354,9 @@
    @media (max-width: 991px) {
     [purpose='page-container'] {
       padding: 64px 32px;
+    }
+    [purpose='category-title'] {
+      margin-right: 20px;
     }
     [purpose='guide-card'] {
       max-width: unset;
@@ -386,6 +400,11 @@
         width: 100%;
       }
     }
+    [purpose='category-title'] {
+      p {
+        margin-bottom: 16px;
+      }
+    }
     [purpose='guides'] {
       column-count: 2;
     }
@@ -420,6 +439,7 @@
         max-width: 100%;
       }
     }
+
     [purpose='guide-card'] {
       width: 100%;
     }
