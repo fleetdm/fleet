@@ -162,6 +162,116 @@
   },
   {
     "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.PhpStorm/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["phpstorm"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.aqua/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["aqua"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.CLion/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["clion"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.datagrip/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["datagrip"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.dataspell/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["dataspell"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.goland/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["goland"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.rider/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["rider"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.rubymine/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["rubymine"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.rustrover/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["rustrover"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.WebStorm/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["webstorm"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.mps/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["mps"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
       "name": ["ms-python.python"],
       "source": ["vscode_extensions"]
     },
