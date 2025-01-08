@@ -45,8 +45,8 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      # Download top-level dependencies and build Storybook in the website's assets/ folder.
-      - run: npm install --legacy-peer-deps && npm run build-storybook -- -o ./website/assets/storybook --loglevel verbose
+      # # Download top-level dependencies and build Storybook in the website's assets/ folder.
+      # - run: npm install --legacy-peer-deps && npm run build-storybook -- -o ./website/assets/storybook --loglevel verbose
 
       # Now start building!
       # > …but first, get a little crazy for a sec and delete the top-level package.json file
