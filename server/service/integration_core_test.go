@@ -4685,7 +4685,7 @@ func (s *integrationTestSuite) TestUsers() {
 	// get session user with ui settings, should now be present, two endpoints
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
 	assert.Equal(t, uint(1), getResp.User.ID)
-	assert.Nil(t, getMeResp.User.Settings)
+	assert.Nil(t, getResp.User.Settings)
 	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}})
 
 	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
@@ -4717,8 +4717,8 @@ func (s *integrationTestSuite) TestUsers() {
 	require.NoError(t, err)
 	assert.Equal(t, uint(1), getMeResp.User.ID)
 	assert.NotNil(t, getMeResp.User.GlobalRole)
-	assert.Nil(t, getResp.User.Settings)
-	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}})
+	assert.Nil(t, getMeResp.User.Settings)
+	assert.Equal(t, getMeResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}})
 
 	// create a new user
 	var createResp createUserResponse
