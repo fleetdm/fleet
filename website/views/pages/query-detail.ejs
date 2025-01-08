@@ -42,14 +42,12 @@
             </div>
 
             <div v-if="query.script">
-              <p>Create or edit a configuration profile with the following information:</p>
+              <p>Create or edit the following script and configure it to run when the check fails:</p>
               <div  purpose="codeblock">
                 <div purpose="copy-button"></div>
-                <pre><code><%= query.script %></code></pre>
+                <pre><code class="nohighlight"><%= query.script %></code></pre>
               </div>
             </div>
-
-            <p v-if="query.controlType === 'script'">Create or edit the following script and configure it to run when the check fails:</p>
           </div>
           <div purpose="policy-check">
             <h3>Check</h3>
