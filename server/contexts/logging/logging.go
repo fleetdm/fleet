@@ -115,10 +115,11 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 	defer l.l.Unlock()
 
 	switch {
-	case len(l.Errs) > 0:
-		logger = level.Error(logger)
+	// Allow ForceLevel to override level.Error. Specific level can be set for benign/expected/user-caused errors.
 	case l.ForceLevel != nil:
 		logger = l.ForceLevel(logger)
+	case len(l.Errs) > 0:
+		logger = level.Error(logger)
 	default:
 		logger = level.Debug(logger)
 	}
