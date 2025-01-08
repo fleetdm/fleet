@@ -26,7 +26,7 @@ CREATE TABLE upcoming_activities (
 
 	-- type of activity to be executed, currently we only support those, but as
 	-- more activity types get added, we can enrich the ENUM with an ALTER TABLE.
-	activity_type  ENUM('script', 'software_install', 'vpp_app_install') NOT NULL,
+	activity_type  ENUM('script', 'software_install', 'software_uninstall', 'vpp_app_install') NOT NULL,
 
 	-- execution_id is the identifier of the activity that will be used when
 	-- executed - e.g. scripts and software installs have an execution_id, and
@@ -42,7 +42,10 @@ CREATE TABLE upcoming_activities (
 
 	PRIMARY KEY (id),
 	UNIQUE KEY idx_upcoming_activities_execution_id (execution_id),
-	INDEX idx_upcoming_activities_host_id_activity_type (host_id, priority, created_at, activity_type),
+	-- index for the common access pattern to get the next activity to execute
+	INDEX idx_upcoming_activities_host_id_priority_created_at (host_id, priority, created_at),
+	-- index for the common access pattern to get by activity type (e.g. deleting pending scripts)
+	INDEX idx_upcoming_activities_host_id_activity_type (activity_type, host_id),
 	CONSTRAINT fk_upcoming_activities_user_id
 		FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci
@@ -80,6 +83,38 @@ CREATE TABLE script_upcoming_activities (
 		FOREIGN KEY (policy_id) REFERENCES policies (id) ON DELETE SET NULL,
 	CONSTRAINT fk_script_upcoming_activities_setup_experience_script_id
 		FOREIGN KEY (setup_experience_script_id) REFERENCES setup_experience_scripts (id) ON DELETE SET NULL
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci
+`,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(`
+CREATE TABLE software_install_upcoming_activities (
+	upcoming_activity_id       BIGINT UNSIGNED NOT NULL,
+
+	-- those are all columns and not JSON fields because we need FKs on them to
+	-- do processing ON DELETE, otherwise we'd have to check for existence of
+	-- each one when executing the activity (we need the enqueue next activity
+	-- action to be efficient).
+	software_installer_id      INT UNSIGNED NULL,
+	policy_id                  INT UNSIGNED NULL,
+	software_title_id          INT UNSIGNED NULL,
+
+	-- Using DATETIME instead of TIMESTAMP to prevent future Y2K38 issues
+	created_at   DATETIME(6) NOT NULL DEFAULT NOW(6),
+	updated_at   DATETIME(6) NOT NULL DEFAULT NOW(6) ON UPDATE NOW(6),
+
+	PRIMARY KEY (upcoming_activity_id),
+	CONSTRAINT fk_software_install_upcoming_activities_upcoming_activity_id
+		FOREIGN KEY (upcoming_activity_id) REFERENCES upcoming_activities (id) ON DELETE CASCADE,
+	CONSTRAINT fk_software_install_upcoming_activities_software_installer_id
+		FOREIGN KEY (software_installer_id) REFERENCES software_installers (id) ON DELETE SET NULL ON UPDATE CASCADE,
+	CONSTRAINT fk_software_install_upcoming_activities_policy_id
+		FOREIGN KEY (policy_id) REFERENCES policies (id) ON DELETE SET NULL,
+	CONSTRAINT fk_software_install_upcoming_activities_software_title_id
+		FOREIGN KEY (software_title_id) REFERENCES software_titles (id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci
 `,
 	)

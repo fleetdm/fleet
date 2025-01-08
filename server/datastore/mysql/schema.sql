@@ -1819,6 +1819,25 @@ CREATE TABLE `software_host_counts` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `software_install_upcoming_activities` (
+  `upcoming_activity_id` bigint unsigned NOT NULL,
+  `software_installer_id` int unsigned DEFAULT NULL,
+  `policy_id` int unsigned DEFAULT NULL,
+  `software_title_id` int unsigned DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`upcoming_activity_id`),
+  KEY `fk_software_install_upcoming_activities_software_installer_id` (`software_installer_id`),
+  KEY `fk_software_install_upcoming_activities_policy_id` (`policy_id`),
+  KEY `fk_software_install_upcoming_activities_software_title_id` (`software_title_id`),
+  CONSTRAINT `fk_software_install_upcoming_activities_policy_id` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_software_install_upcoming_activities_software_installer_id` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_software_install_upcoming_activities_software_title_id` FOREIGN KEY (`software_title_id`) REFERENCES `software_titles` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_software_install_upcoming_activities_upcoming_activity_id` FOREIGN KEY (`upcoming_activity_id`) REFERENCES `upcoming_activities` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `software_installer_labels` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `software_installer_id` int unsigned NOT NULL,
@@ -1939,14 +1958,15 @@ CREATE TABLE `upcoming_activities` (
   `priority` int NOT NULL DEFAULT '0',
   `user_id` int unsigned DEFAULT NULL,
   `fleet_initiated` tinyint(1) NOT NULL DEFAULT '0',
-  `activity_type` enum('script','software_install','vpp_app_install') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `activity_type` enum('script','software_install','software_uninstall','vpp_app_install') COLLATE utf8mb4_unicode_ci NOT NULL,
   `execution_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `payload` json NOT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_upcoming_activities_execution_id` (`execution_id`),
-  KEY `idx_upcoming_activities_host_id_activity_type` (`host_id`,`priority`,`created_at`,`activity_type`),
+  KEY `idx_upcoming_activities_host_id_priority_created_at` (`host_id`,`priority`,`created_at`),
+  KEY `idx_upcoming_activities_host_id_activity_type` (`activity_type`,`host_id`),
   KEY `fk_upcoming_activities_user_id` (`user_id`),
   CONSTRAINT `fk_upcoming_activities_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
