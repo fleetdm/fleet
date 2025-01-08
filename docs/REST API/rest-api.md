@@ -2634,39 +2634,6 @@ Returns the information of the specified host.
   "host": {
     "created_at": "2021-08-19T02:02:22Z",
     "updated_at": "2021-08-19T21:14:58Z",
-    "software": [
-      {
-        "id": 408,
-        "name": "osquery",
-        "version": "4.5.1",
-        "source": "rpm_packages",
-        "browser": "",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "installed_paths": ["/usr/lib/some-path-1"]
-      },
-      {
-        "id": 1146,
-        "name": "tar",
-        "version": "1.30",
-        "source": "rpm_packages",
-        "browser": "",
-        "generated_cpe": "",
-        "vulnerabilities": null
-      },
-      {
-        "id": 321,
-        "name": "SomeApp.app",
-        "version": "1.0",
-        "source": "apps",
-        "browser": "",
-        "bundle_identifier": "com.some.app",
-        "last_opened_at": "2021-08-18T21:14:00Z",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "installed_paths": ["/usr/lib/some-path-2"]
-      }
-    ],
     "id": 1,
     "detail_updated_at": "2021-08-19T21:07:53Z",
     "last_restarted_at": "2020-11-01T03:01:45Z",
@@ -2714,6 +2681,31 @@ Returns the information of the specified host.
     "percent_disk_space_available": 74,
     "gigs_total_disk_space": 160,
     "disk_encryption_enabled": true,
+    "status": "online",
+    "display_text": "23cfc9caacf0",
+    "issues": {
+        "failing_policies_count": 1,
+        "critical_vulnerabilities_count": 2, // Available in Fleet Premium
+        "total_issues_count": 3
+    },
+    "batteries": [
+      {
+        "cycle_count": 999,
+        "health": "Normal"
+      }
+    ],
+    "geolocation": {
+      "country_iso": "US",
+      "city_name": "New York",
+      "geometry": {
+        "type": "point",
+        "coordinates": [40.6799, -74.0028]
+      }
+    },
+    "maintenance_window": {
+      "starts_at": "2024-06-18T13:27:18−04:00",
+      "timezone": "America/New_York"
+    },
     "users": [
       {
         "uid": 0,
@@ -2766,8 +2758,6 @@ Returns the information of the specified host.
       }
     ],
     "packs": [],
-    "status": "online",
-    "display_text": "23cfc9caacf0",
     "policies": [
       {
         "id": 2,
@@ -2800,29 +2790,39 @@ Returns the information of the specified host.
         "critical": false
       }
     ],
-    "issues": {
-        "failing_policies_count": 1,
-        "critical_vulnerabilities_count": 2, // Fleet Premium only
-        "total_issues_count": 3
-    },
-    "batteries": [
+    "software": [
       {
-        "cycle_count": 999,
-        "health": "Normal"
+        "id": 408,
+        "name": "osquery",
+        "version": "4.5.1",
+        "source": "rpm_packages",
+        "browser": "",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": ["/usr/lib/some-path-1"]
+      },
+      {
+        "id": 1146,
+        "name": "tar",
+        "version": "1.30",
+        "source": "rpm_packages",
+        "browser": "",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+      {
+        "id": 321,
+        "name": "SomeApp.app",
+        "version": "1.0",
+        "source": "apps",
+        "browser": "",
+        "bundle_identifier": "com.some.app",
+        "last_opened_at": "2021-08-18T21:14:00Z",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": ["/usr/lib/some-path-2"]
       }
     ],
-    "geolocation": {
-      "country_iso": "US",
-      "city_name": "New York",
-      "geometry": {
-        "type": "point",
-        "coordinates": [40.6799, -74.0028]
-      }
-    },
-    "maintenance_window": {
-      "starts_at": "2024-06-18T13:27:18−04:00",
-      "timezone": "America/New_York"
-    },
     "mdm": {
       "encryption_key_available": true,
       "enrollment_status": "On (manual)",
