@@ -770,12 +770,14 @@ const ManageHostsPage = ({
         settings: { hidden_host_columns: newHiddenColumns },
       });
       // No success renderFlash, to make column setting more seamless
+      // only set state and close modal if server persist succeeds, keeping UI and server state in
+      // sync.
+      // Can also add local storage fallback behavior in next iteration if we want.
+      setHiddenColumns(newHiddenColumns);
+      setShowEditColumnsModal(false);
     } catch (response) {
       renderFlash("error", "Couldn't save column settings. Please try again.");
     }
-
-    setHiddenColumns(newHiddenColumns);
-    setShowEditColumnsModal(false);
   };
 
   // NOTE: this is called once on initial render and every time the query changes
