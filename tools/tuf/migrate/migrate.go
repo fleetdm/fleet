@@ -73,6 +73,14 @@ func main() {
 			return errors.New("entry not found in source directory")
 		}
 
+		// It seems this very old version has invalid length and sha256.
+		// Validation fails with:
+		// 2025/01/07 18:11:40 target: "desktop/macos/1.11.0/desktop.app.tar.gz": failed to process target: mismatch length: 10518528 vs 30373384
+		if target == "desktop/macos/1.11.0/desktop.app.tar.gz" {
+			log.Printf("Skipping %s (old version) due to invalid length and sha256", target)
+			return nil
+		}
+
 		if sourceEntry.length != length {
 			return fmt.Errorf("mismatch length: %d vs %d", length, sourceEntry.length)
 		}
@@ -138,9 +146,11 @@ func iterateRepository(repositoryDirectory string, fn func(target, targetPath, p
 		targetName := parts[0]
 		platform := parts[1]
 		channel := parts[2]
+		executable := parts[3]
 
 		// Unused targets (probably accidentally pushed).
-		if targetName == "desktop.tar.gz" {
+		if targetName == "desktop.tar.gz" || // correct target name is just "desktop".
+			(targetName == "desktop" && executable == "desktop") { // correct executable for Linux is "desktop.tar.gz".
 			continue
 		}
 
