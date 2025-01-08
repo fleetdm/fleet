@@ -2,7 +2,7 @@
 name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
-labels: '#g-mdm,#g-endpoint-ops,:release'
+labels: '#g-mdm,#g-orchestration,#g-software:release'
 assignees: 'xpkoala,pezhub,jmwatts'
 
 ---
