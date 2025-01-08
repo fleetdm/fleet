@@ -278,6 +278,14 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
 	// pending host script executions are those without results in
 	// host_script_results UNION those in the upcoming activities queue
+	//
+	// Note that:
+	// > Use of ORDER BY for individual SELECT statements implies nothing about
+	// > the order in which the rows appear in the final result because UNION by
+	// > default produces an unordered set of rows.
+	//
+	// So we need to order the final result set.
+
 	internalWhere := ""
 	if onlyShowInternal {
 		internalWhere = " AND is_internal = TRUE"
@@ -288,15 +296,16 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
     id,
     host_id,
     execution_id,
-    script_id
+    script_id,
+		1 as topmost,
+		0 as priority,
+		created_at
   FROM
     host_script_results
   WHERE
     host_id = ? AND
     %s
-  	%s
-  ORDER BY
-    created_at ASC`, whereFilterPendingScript, internalWhere)
+  	%s`, whereFilterPendingScript, internalWhere)
 
 	if onlyShowInternal {
 		internalWhere = " AND JSON_EXTRACT(payload, '$.is_internal') = 1"
@@ -306,7 +315,10 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
     ua.id,
     ua.host_id,
     ua.execution_id,
-    sua.script_id
+    sua.script_id,
+		0 as topmost,
+		ua.priority,
+		ua.created_at
   FROM
     upcoming_activities ua 
 		INNER JOIN script_upcoming_activities sua
@@ -318,11 +330,12 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
 			JSON_EXTRACT(ua.payload, '$.sync_request') = 0 OR
       ua.created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
 		)
-  	%s
-  ORDER BY
-    ua.priority DESC, ua.created_at ASC`, internalWhere)
+  	%s`, internalWhere)
 
-	stmt := fmt.Sprintf(`(%s) UNION (%s)`, listHSRStmt, listUAStmt)
+	stmt := fmt.Sprintf(`
+		SELECT id, host_id, execution_id, script_id 
+		FROM ( (%s) UNION (%s) ) as t 
+		ORDER BY topmost DESC, priority DESC, created_at ASC`, listHSRStmt, listUAStmt)
 
 	var results []*fleet.HostScriptResult
 	seconds := int(constants.MaxServerWaitTime.Seconds())
