@@ -18,21 +18,37 @@ import (
 )
 
 func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
-	// TODO(mna): must union with upcoming queue
 	const stmt = `
-  SELECT
-    execution_id
-  FROM
-    host_software_installs
-  WHERE
-    host_id = ?
-  AND
-	status = ?
-  ORDER BY
-    created_at ASC
+	SELECT 
+		execution_id
+	FROM (
+		SELECT
+			execution_id,
+			1 as topmost,
+			0 as priority,
+			created_at
+		FROM
+			host_software_installs
+		WHERE
+			host_id = ? AND
+			status = ?
+		UNION 
+		SELECT
+			execution_id,
+			0 as topmost,
+			priority,
+			created_at
+		FROM
+			upcoming_activities
+		WHERE
+			host_id = ? AND
+			activity_type = 'software_install'
+	) as t 
+	ORDER BY topmost DESC, priority ASC, created_at ASC
 `
 	var results []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, hostID, fleet.SoftwareInstallPending); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results,
+		stmt, hostID, fleet.SoftwareInstallPending, hostID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list pending software installs")
 	}
 	return results, nil
@@ -695,15 +711,37 @@ func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context,
 }
 
 func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool, policyID *uint) (string, error) {
-	// TODO(mna): must insert in upcoming queue
 	const (
-		getInstallerStmt = `SELECT filename, "version", title_id, COALESCE(st.name, '[deleted title]') title_name
-			FROM software_installers si LEFT JOIN software_titles st ON si.title_id = st.id WHERE si.id = ?`
-		insertStmt = `
-		  INSERT INTO host_software_installs
-		    (execution_id, host_id, software_installer_id, user_id, self_service, policy_id, installer_filename, version, software_title_id, software_title_name)
-		  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		    `
+		getInstallerStmt = `
+SELECT
+	filename, "version", title_id, COALESCE(st.name, '[deleted title]') title_name
+FROM
+	software_installers si
+	LEFT JOIN software_titles st
+		ON si.title_id = st.id
+WHERE si.id = ?`
+
+		//(execution_id, host_id, software_installer_id, user_id, self_service, policy_id, installer_filename, version, software_title_id, software_title_name)
+		insertUAStmt = `
+INSERT INTO upcoming_activities
+	(host_id, priority, user_id, fleet_initiated, activity_type, execution_id, payload)
+VALUES
+	(?, ?, ?, ?, 'software_install', ?,
+		JSON_OBJECT(
+			'self_service', ?,
+			'installer_filename', ?,
+			'version', ?,
+			'software_title_name', ?,
+			'user', (SELECT JSON_OBJECT('name', name, 'email', email) FROM users WHERE id = ?)
+		)
+	)`
+
+		insertSIUAStmt = `
+INSERT INTO software_install_upcoming_activities
+	(upcoming_activity_id, software_installer_id, policy_id, software_title_id)
+VALUES
+	(?, ?, ?, ?)`
+
 		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
 	)
 
@@ -733,24 +771,43 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 	}
 
 	var userID *uint
+	fleetInitiated := true
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
 		userID = &ctxUser.ID
+		fleetInitiated = false
 	}
-	installID := uuid.NewString()
-	_, err = ds.writer(ctx).ExecContext(ctx, insertStmt,
-		installID,
-		hostID,
-		softwareInstallerID,
-		userID,
-		selfService,
-		policyID,
-		installerDetails.Filename,
-		installerDetails.Version,
-		installerDetails.TitleID,
-		installerDetails.TitleName,
-	)
+	execID := uuid.NewString()
 
-	return installID, ctxerr.Wrap(ctx, err, "inserting new install software request")
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := ds.writer(ctx).ExecContext(ctx, insertUAStmt,
+			hostID,
+			0, // TODO(mna): detect if this is software install for setup exp, to boost priority
+			userID,
+			fleetInitiated,
+			execID,
+			selfService,
+			installerDetails.Filename,
+			installerDetails.Version,
+			installerDetails.TitleName,
+			userID,
+		)
+		if err != nil {
+			return err
+		}
+
+		activityID, _ := res.LastInsertId()
+		_, err = ds.writer(ctx).ExecContext(ctx, insertSIUAStmt,
+			activityID,
+			softwareInstallerID,
+			policyID,
+			installerDetails.TitleID,
+		)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return execID, ctxerr.Wrap(ctx, err, "inserting new install software request")
 }
 
 func (ds *Datastore) ProcessInstallerUpdateSideEffects(ctx context.Context, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error {
