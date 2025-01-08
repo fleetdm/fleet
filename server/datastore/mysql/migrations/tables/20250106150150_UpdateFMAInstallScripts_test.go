@@ -34,9 +34,15 @@ sudo cp -R "$TMPDIR/Figma.app" "$APPDIR"
 	installScriptID, err := getOrInsertScript(txx, originalContents)
 	require.NoError(t, err)
 	uninstallScriptID, err := getOrInsertScript(txx, "echo uninstall")
+	require.NoError(t, err)
+	boxInstallScriptID, err := getOrInsertScript(txx, "echo install")
+	require.NoError(t, err)
+	boxUninstallScriptID, err := getOrInsertScript(txx, "echo uninstall")
+	require.NoError(t, err)
 	err = tx.Commit()
 	require.NoError(t, err)
 
+	// Insert Figma (one of our target FMAs)
 	execNoErr(
 		t,
 		db,
@@ -52,6 +58,22 @@ sudo cp -R "$TMPDIR/Figma.app" "$APPDIR"
 		uninstallScriptID,
 	)
 
+	// Insert Box Drive, should be unaffected
+	execNoErr(
+		t,
+		db,
+		`INSERT INTO fleet_library_apps (name, token, version, platform, installer_url, sha256, bundle_identifier, install_script_content_id, uninstall_script_content_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"Box Drive",
+		"box-drive",
+		"2.42.212",
+		"darwin",
+		"https://e3.boxcdn.net/desktop/releases/mac/BoxDrive-2.42.212.pkg",
+		"93550756150c434bc058c30b82352c294a21e978caf436ac99e0a5f431adfb6e",
+		"com.box.desktop",
+		boxInstallScriptID,
+		boxUninstallScriptID,
+	)
+
 	// Apply current migration.
 	applyNext(t, db)
 
@@ -61,28 +83,20 @@ sudo cp -R "$TMPDIR/Figma.app" "$APPDIR"
 	// ...
 	var scriptContents struct {
 		InstallScriptContents string `db:"contents"`
-		AppName               string `db:"name"`
-		BundleID              string `db:"bundle_identifier"`
-		ScriptContentID       uint   `db:"script_content_id"`
-		Token                 string `db:"token"`
 		Checksum              string `db:"md5_checksum"`
 	}
 
 	selectStmt := `
 SELECT 
 	sc.contents AS contents,
-	fla.name AS name,
-	fla.bundle_identifier AS bundle_identifier,
-	sc.id AS script_content_id,
-	fla.token AS token,
 	HEX(sc.md5_checksum) AS md5_checksum
 FROM 
 	fleet_library_apps fla 
 	JOIN script_contents sc 
 	ON fla.install_script_content_id = sc.id
-WHERE fla.token = 'figma'`
+WHERE fla.token = ?`
 
-	err = sqlx.Get(db, &scriptContents, selectStmt)
+	err = sqlx.Get(db, &scriptContents, selectStmt, "figma")
 	require.NoError(t, err)
 
 	expectedContents := `
@@ -143,4 +157,9 @@ sudo cp -R "$TMPDIR/Figma.app" "$APPDIR"
 
 	require.Equal(t, expectedContents, scriptContents.InstallScriptContents)
 	require.Equal(t, expectedChecksum, scriptContents.Checksum)
+
+	err = sqlx.Get(db, &scriptContents, selectStmt, "box-drive")
+	require.NoError(t, err)
+	require.Equal(t, "echo install", scriptContents.InstallScriptContents)
+	require.Equal(t, md5ChecksumScriptContent("echo install"), scriptContents.Checksum)
 }
