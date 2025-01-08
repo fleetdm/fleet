@@ -771,12 +771,6 @@ func main() {
 			)
 		}
 
-		if runtime.GOOS == "windows" {
-			if systemDrive, ok := os.LookupEnv("SystemDrive"); ok {
-				options = append(options, osquery.WithEnv([]string{fmt.Sprintf("SystemDrive=%s", systemDrive)}))
-			}
-		}
-
 		var certPath string
 		if fleetURL != "https://" && c.Bool("insecure") {
 			proxy, err := insecure.NewTLSProxy(fleetURL)
