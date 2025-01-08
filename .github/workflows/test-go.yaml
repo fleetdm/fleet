@@ -144,7 +144,7 @@ jobs:
           SAML_IDP_TEST=1 \
           MAIL_TEST=1 \
           NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
-          CI_TEST_PKG="$(CI_TEST_PKG)" \
+          CI_TEST_PKG="${CI_TEST_PKG}" \
           make test-go 2>&1 | tee /tmp/gotest.log
 
     - name: Create mysql identifier without colon
