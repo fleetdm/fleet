@@ -1795,6 +1795,7 @@ type Datastore interface {
 
 	InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, associatedEventID string, selfService bool) error
 	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
+	GetActivityDataForVPPAppUnInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityUnInstalledAppStoreApp, error)
 
 	GetVPPTokenByLocation(ctx context.Context, loc string) (*VPPTokenDB, error)
 

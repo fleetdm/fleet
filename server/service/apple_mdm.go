@@ -2973,6 +2973,26 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		detail := fmt.Sprintf("%s. Make sure the host is on macOS 13+, iOS 17+, iPadOS 17+.", apple_mdm.FmtErrorChain(cmdResult.ErrorChain))
 		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.UDID, status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
+	case "RemoveApplication":
+		//
+		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
+			cmdResult.Status == fleet.MDMAppleStatusError ||
+			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
+			// Get the host's user and activity data for the app removal
+			user, act, err := svc.ds.GetActivityDataForVPPAppUnInstall(r.Context, cmdResult)
+			if err != nil {
+				if fleet.IsNotFound(err) {
+					// Then this isn't a VPP install, so no activity generated
+					return nil, nil
+				}
+				return nil, ctxerr.Wrap(r.Context, err, "fetching data for uninstalled app store app activity")
+			}
+
+			if err := newActivity(r.Context, user, act, svc.ds, svc.logger); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "creating activity for uninstalled app store app")
+			}
+		}
+
 	case "InstallApplication":
 		// this might be a setup experience VPP install, so we'll try to update setup experience status
 		// TODO: consider limiting this to only macOS hosts
@@ -2991,10 +3011,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
 			cmdResult.Status == fleet.MDMAppleStatusError ||
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
+
 			user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(r.Context, cmdResult)
 			if err != nil {
 				if fleet.IsNotFound(err) {
-					// Then this isn't a VPP install, so no activity generated
+					// Then this isn't a VPP uninstall, so no activity generated
 					return nil, nil
 				}
 

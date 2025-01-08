@@ -1075,18 +1075,14 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 		return ctxerr.Wrap(ctx, err, "get host")
 	}
 
-	if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" {
-		// fleetd is required to install software so if the host is enrolled via plain osquery we
-		// return an error
-		// Handle iOS and iPadOS devices
-		if !strings.Contains(host.OSVersion, "iPadOS") && !strings.Contains(host.OSVersion, "iOS") {
-			svc.authz.SkipAuthorization(ctx)
-			return fleet.NewUserMessageError(errors.New("host does not have fleetd installed"), http.StatusUnprocessableEntity)
-		} else {
-			// For iOS and iPadOS devices, we don't need fleetd to install/uninstall software
-			// We can proceed with the uninstallation
-			fmt.Printf("iOS and iPadOS devices don't need fleetd to install/uninstall software, proceed to uninstall via Apple MDM")
-		}
+	platform := host.FleetPlatform()
+	mobileAppleDevice := fleet.AppleDevicePlatform(platform) == fleet.IOSPlatform || fleet.AppleDevicePlatform(platform) == fleet.IPadOSPlatform
+
+	if !mobileAppleDevice && (host.OrbitNodeKey == nil || *host.OrbitNodeKey == "") {
+		// fleetd is required to install software so if the host is
+		// enrolled via plain osquery we return an error
+		svc.authz.SkipAuthorization(ctx)
+		return fleet.NewUserMessageError(errors.New("Host doesn't have fleetd installed"), http.StatusUnprocessableEntity)
 	}
 
 	// If scripts are disabled (according to the last detail query), we return an error.
@@ -1101,11 +1097,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 		return err
 	}
 	// Try Apple MDM uninstallation for iOS and iPadOS devices
-
-	if strings.Contains(host.OSVersion, "iPadOS") || strings.Contains(host.OSVersion, "iOS") {
-		fmt.Println("Checking host os version")
-		fmt.Println(host.OSVersion)
-		// add command to uninstall
+	if mobileAppleDevice {
 		vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "finding VPP app for title")

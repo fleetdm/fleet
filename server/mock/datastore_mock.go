@@ -1135,6 +1135,8 @@ type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, app
 
 type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
 
+type GetActivityDataForVPPAppUnInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityUnInstalledAppStoreApp, error)
+
 type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPPTokenDB, error)
 
 type SetSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint, titleIDs []uint) error
@@ -2858,6 +2860,9 @@ type DataStore struct {
 
 	GetPastActivityDataForVPPAppInstallFunc        GetPastActivityDataForVPPAppInstallFunc
 	GetPastActivityDataForVPPAppInstallFuncInvoked bool
+
+	GetActivityDataForVPPAppUnInstallFunc        GetActivityDataForVPPAppUnInstallFunc
+	GetActivityDataForVPPAppUnInstallFuncInvoked bool
 
 	GetVPPTokenByLocationFunc        GetVPPTokenByLocationFunc
 	GetVPPTokenByLocationFuncInvoked bool
@@ -6837,6 +6842,13 @@ func (s *DataStore) GetPastActivityDataForVPPAppInstall(ctx context.Context, com
 	s.GetPastActivityDataForVPPAppInstallFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetPastActivityDataForVPPAppInstallFunc(ctx, commandResults)
+}
+
+func (s *DataStore) GetActivityDataForVPPAppUnInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityUnInstalledAppStoreApp, error) {
+	s.mu.Lock()
+	s.GetActivityDataForVPPAppUnInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetActivityDataForVPPAppUnInstallFunc(ctx, commandResults)
 }
 
 func (s *DataStore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fleet.VPPTokenDB, error) {
