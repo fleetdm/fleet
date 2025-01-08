@@ -1314,6 +1314,16 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version: "6.0.1",
 			}, cpe: "",
 		},
+		{ // checks vendor/product matching based on bundle name, including EAPs
+			software: fleet.Software{
+				Name:             "GoLand EAP.app",
+				Source:           "apps",
+				Version:          "2022.3.99.123.456",
+				Vendor:           "",
+				BundleIdentifier: "com.jetbrains.goland-EAP",
+			},
+			cpe: "cpe:2.3:a:jetbrains:goland:2022.3.99.123.456:*:*:*:*:macos:*:*",
+		},
 		{
 			software: fleet.Software{
 				Name:             "IntelliJ IDEA.app",
