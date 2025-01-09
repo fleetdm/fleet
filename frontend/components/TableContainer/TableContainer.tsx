@@ -288,7 +288,7 @@ const TableContainer = <T,>({
     const opacity = isLoading ? { opacity: 0.4 } : { opacity: 1 };
 
     // New preferred pattern uses grid container/box to allow for more dynamic responsiveness
-    // At low widths, search bar (3rd div of 4) moves above other 3 divs
+    // At low widths, right header stacks on top of left header
     if (stackControls) {
       return (
         <div className="container">
@@ -321,7 +321,7 @@ const TableContainer = <T,>({
             </div>
           )}
           <div className="stackable-header top-shift-header">
-            {customControl ? customControl() : undefined}
+            {customControl && customControl()}
             {searchable && !wideSearch && (
               <div className={`${baseClass}__search`}>
                 <div
