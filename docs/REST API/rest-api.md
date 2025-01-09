@@ -2684,9 +2684,9 @@ Returns the information of the specified host.
     "status": "online",
     "display_text": "23cfc9caacf0",
     "issues": {
-        "failing_policies_count": 1,
-        "critical_vulnerabilities_count": 2, // Available in Fleet Premium
-        "total_issues_count": 3
+      "failing_policies_count": 1,
+      "critical_vulnerabilities_count": 2, // Available in Fleet Premium
+      "total_issues_count": 3
     },
     "batteries": [
       {
@@ -2940,9 +2940,9 @@ If `hostname` is specified when there is more than one host with the same hostna
     "percent_disk_space_available": 74,
     "gigs_total_disk_space": 192,
     "issues": {
-        "failing_policies_count": 1,
-        "critical_vulnerabilities_count": 2, // Fleet Premium only
-        "total_issues_count": 3
+      "failing_policies_count": 1,
+      "critical_vulnerabilities_count": 2, // Fleet Premium only
+      "total_issues_count": 3
     },
     "batteries": [
       {
