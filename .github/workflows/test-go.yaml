@@ -121,13 +121,13 @@ jobs:
           CI_TEST_PKG=main
           RUN_TESTS_ARG='-skip=^TestIntegrations'
         elif [[ "${{ matrix.suite }}" == "integration-core" ]]; then
-          CI_TEST_PKG=main
+          CI_TEST_PKG=integration
           RUN_TESTS_ARG='-run=^TestIntegrations -skip "^(TestIntegrationsMDM|TestIntegrationsEnterprise)"'
         elif [[ "${{ matrix.suite }}" == "integration-mdm" ]]; then
-          CI_TEST_PKG=main
+          CI_TEST_PKG=integration
           RUN_TESTS_ARG='-run=^TestIntegrationsMDM'
         elif [[ "${{ matrix.suite }}" == "integration-enterprise" ]]; then
-          CI_TEST_PKG=main
+          CI_TEST_PKG=integration
           RUN_TESTS_ARG='-run=^TestIntegrationsEnterprise'
         else
           CI_TEST_PKG="${{ matrix.suite }}"
