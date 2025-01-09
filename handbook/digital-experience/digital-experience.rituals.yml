@@ -87,9 +87,6 @@
   description: "Using your departmental kanban board, prioritize and finalize next sprint's goals for your team by draging the appropriate issues to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/digital-experiencemunication)"
   moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
   dri: "sampfluger88" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
-  autoIssue:   # Enables automation of GitHub issues
-    labels: [ "#g-digital-experience" ] # label to be applied to issue
-    repo: "confidential" # The GitHub repo that issues will be created in
 -
   task: "Process the CEO's inbox"
   startedOn: "2023-07-29"
@@ -118,9 +115,6 @@
   description: "Process and backup E-group agenda"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-and-backup-sid-agenda"
   dri: "SFriendLee"
-  autoIssue:  
-    labels: [ "#g-digital-experience" ] 
-    repo: "confidential"
 -
   task: "Process and backup Sid agenda"
   startedOn: "2023-09-25"
@@ -128,9 +122,6 @@
   description: "Process and backup Sid agenda"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-and-backup-e-group-agenda"
   dri: "SFriendLee"
-  autoIssue:  
-    labels: [ "#g-digital-experience" ] 
-    repo: "confidential"
 -
   task: "Share recording of all hands meeting"
   startedOn: "2023-07-01"
