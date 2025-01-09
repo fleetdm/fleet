@@ -201,7 +201,7 @@ debug-go-tests:
 	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests
 
 # Command used in CI to run all tests.
-test-go: # dump-test-schema generate-mock
+test-go: dump-test-schema generate-mock
 	make .run-go-tests PKG_TO_TEST="$(CI_PKG_TO_TEST)"
 
 analyze-go:
