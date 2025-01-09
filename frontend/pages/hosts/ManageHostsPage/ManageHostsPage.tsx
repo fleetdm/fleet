@@ -178,12 +178,12 @@ const ManageHostsPage = ({
 
   // migrate users with current local storage based solution to db persistence
   const locallyHiddenCols = localStorage.getItem("hostHiddenColumns");
-  if (!currentUser) {
-    // for type checker
-    return <></>;
-  }
   if (locallyHiddenCols) {
     (async () => {
+      if (!currentUser) {
+        // for type checker
+        return;
+      }
       const parsed = JSON.parse(locallyHiddenCols) as string[];
       try {
         await usersAPI.update(currentUser.id, {
