@@ -274,7 +274,7 @@ jobs:
 
       - name: Download macos pre-built apps
         id: download
-        uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: macos-pre-built-apps
 
@@ -336,7 +336,7 @@ jobs:
 
       - name: Download pkg
         id: download
-        uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: fleet-osquery.pkg
 
@@ -387,7 +387,7 @@ jobs:
 
       - name: Download deb
         id: download
-        uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: fleet-osquery_42.0.0_amd64.deb
 
@@ -438,7 +438,7 @@ jobs:
 
       - name: Download msi
         id: download
-        uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: fleet-osquery.msi
 
