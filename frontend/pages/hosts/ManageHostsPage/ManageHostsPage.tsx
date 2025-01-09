@@ -176,27 +176,6 @@ const ManageHostsPage = ({
     },
   });
 
-  // migrate users with current local storage based solution to db persistence
-  const locallyHiddenCols = localStorage.getItem("hostHiddenColumns");
-  if (locallyHiddenCols) {
-    (async () => {
-      if (!currentUser) {
-        // for type checker
-        return;
-      }
-      const parsed = JSON.parse(locallyHiddenCols) as string[];
-      try {
-        await usersAPI.update(currentUser.id, {
-          settings: { ...userSettings, hidden_host_columns: parsed },
-        });
-        localStorage.removeItem("hostHiddenColumns");
-      } catch {
-        // don't remove local storage, proceed with setting context with local storage value
-      }
-      setUserSettings({ ...userSettings, hidden_host_columns: parsed });
-    })();
-  }
-
   // Functions to avoid race conditions
   const initialSortBy: ISortOption[] = (() => {
     let key = DEFAULT_SORT_HEADER;
@@ -483,6 +462,29 @@ const ManageHostsPage = ({
       select: (data) => data.count,
     }
   );
+
+  // migrate users with current local storage based solution to db persistence
+  const locallyHiddenCols = localStorage.getItem("hostHiddenColumns");
+  if (locallyHiddenCols) {
+    console.log("found local hidden columns: ", locallyHiddenCols);
+    console.log("migrating to server persistence...");
+    (async () => {
+      if (!currentUser) {
+        // for type checker
+        return;
+      }
+      const parsed = JSON.parse(locallyHiddenCols) as string[];
+      try {
+        await usersAPI.update(currentUser.id, {
+          settings: { ...userSettings, hidden_host_columns: parsed },
+        });
+        localStorage.removeItem("hostHiddenColumns");
+      } catch {
+        // don't remove local storage, proceed with setting context with local storage value
+      }
+      setHiddenColumns(parsed);
+    })();
+  }
 
   const refetchHosts = () => {
     refetchHostsAPI();
