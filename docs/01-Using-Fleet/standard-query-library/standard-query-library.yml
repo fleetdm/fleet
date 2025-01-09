@@ -45,7 +45,7 @@ spec:
         );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, premium,
-  contributors: sharon-fdm
+  contributors: sharon-fdm,ddribeiro
   configuration_profile: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -108,7 +108,7 @@ spec:
         );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, premium
-  contributors: sharon-fdm
+  contributors: sharon-fdm,ddribeiro
   configuration_profile: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -645,7 +645,7 @@ spec:
   resolution: "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
   tags: compliance, hardening, built-in, CIS, CIS2.5.2.1, critical
   platform: darwin
-  contributors: groob
+  contributors: groob,ddribeiro
   script: |
     #!/bin/sh
 
@@ -743,7 +743,7 @@ spec:
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables automatic login."
   tags: MDM required, compliance, hardening, built-in, critical
   platform: darwin
-  contributors: groob
+  contributors: groob,ddribeiro
   configuration_profile: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -788,7 +788,7 @@ spec:
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables secure keyboard entry for the Terminal application."
   tags: MDM required, compliance, hardening, built-in
   platform: darwin
-  contributors: groob
+  contributors: groob,ddribeiro
   configuration_profile: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
