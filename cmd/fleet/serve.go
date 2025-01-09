@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto"
 	"crypto/sha256"
 	"crypto/subtle"
 	"crypto/tls"
@@ -43,6 +44,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/buford"
@@ -766,6 +768,23 @@ the way that the Fleet server works.
 					if config.S3.BucketsAndPrefixesMatch() {
 						level.Warn(logger).Log("msg", "the S3 buckets and prefixes for carves and software installers appear to be identical, this can cause issues")
 					}
+					// Extract the CloudFront URL signer before creating the S3 stores.
+					config.S3.ValidateCloudFrontURL(initFatal)
+					if config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey != "" {
+						// Strip newlines from private key
+						signingPrivateKey := strings.ReplaceAll(config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey, "\\n", "\n")
+						privateKey, err := cryptoutil.ParsePrivateKey([]byte(signingPrivateKey),
+							"CloudFront URL signing private key")
+						if err != nil {
+							initFatal(err, "parsing CloudFront URL signing private key")
+						}
+						var ok bool
+						config.S3.SoftwareInstallersCloudFrontSigner, ok = privateKey.(crypto.Signer)
+						if !ok {
+							initFatal(errors.New("CloudFront URL signing private key is not a crypto.Signer"),
+								"parsing CloudFront URL signing private key")
+						}
+					}
 					store, err := s3.NewSoftwareInstallerStore(config.S3)
 					if err != nil {
 						initFatal(err, "initializing S3 software installer store")
@@ -780,7 +799,6 @@ the way that the Fleet server works.
 					bootstrapPackageStore = bstore
 					level.Info(logger).Log("msg", "using S3 bootstrap package store", "bucket", config.S3.SoftwareInstallersBucket)
 
-					config.S3.ValidateCloudfrontURL(initFatal)
 				} else {
 					installerDir := os.TempDir()
 					if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
@@ -914,7 +932,7 @@ the way that the Fleet server works.
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander)
+				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, bootstrapPackageStore)
 			}); err != nil {
 				initFatal(err, "failed to register worker integrations schedule")
 			}

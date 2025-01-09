@@ -2,7 +2,7 @@
   // override global form-field width: 100%
   width: auto;
 
-  span {
+  &__checkboxes {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -14,5 +14,11 @@
 
   &__platform-checkbox-wrapper {
     width: auto;
+  }
+
+  .form-field__help-text {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
   }
 }
