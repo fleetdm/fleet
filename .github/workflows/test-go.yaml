@@ -42,7 +42,7 @@ jobs:
   test-go:
     strategy:
       matrix:
-        suite: ["integration", "core", "mysql", "fleetctl", "vuln"]
+        suite: ["integration-core", "integration-enterprise", "integration-mdm", "core", "mysql", "fleetctl", "vuln"]
         os: [ubuntu-latest]
         mysql: ["mysql:8.0.36", "mysql:8.4.3", "mysql:9.1.0"] # make sure to update supported versions docs when this changes
         isCron:
@@ -120,9 +120,15 @@ jobs:
         if [[ "${{ matrix.suite }}" == "core" ]]; then
           CI_TEST_PKG=main
           RUN_TESTS_ARG='-skip=^TestIntegrations'
-        elif [[ "${{ matrix.suite }}" == "integration" ]]; then
+        elif [[ "${{ matrix.suite }}" == "integration-core" ]]; then
           CI_TEST_PKG=main
-          RUN_TESTS_ARG='-run=^TestIntegrations'
+          RUN_TESTS_ARG='-run=^TestIntegrations -skip "^(TestIntegrationsMDM|TestIntegrationsEnterprise)"'
+        elif [[ "${{ matrix.suite }}" == "integration-mdm" ]]; then
+          CI_TEST_PKG=main
+          RUN_TESTS_ARG='-run=^TestIntegrationsMDM'
+        elif [[ "${{ matrix.suite }}" == "integration-enterprise" ]]; then
+          CI_TEST_PKG=main
+          RUN_TESTS_ARG='-run=^TestIntegrationsEnterprise'
         else
           CI_TEST_PKG="${{ matrix.suite }}"
           RUN_TESTS_ARG=''
