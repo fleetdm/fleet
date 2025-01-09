@@ -5,8 +5,9 @@
 
   &__left-header {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: $pad-small;
+
     &--vertical {
       flex-direction: column;
     }
