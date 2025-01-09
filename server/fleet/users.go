@@ -37,7 +37,7 @@ type User struct {
 }
 
 type UserSettings struct {
-	HiddenHostColumns []string `json:"hidden_host_columns,omitempty"`
+	HiddenHostColumns []string `json:"hidden_host_columns"`
 }
 
 // Scan implements the sql.Scanner interface, tells DB driver how to convert MySQL type (json) to
