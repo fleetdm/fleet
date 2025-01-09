@@ -2141,12 +2141,13 @@ func (a *agent) runLiveYaraQuery(query string) (results []map[string]string, sta
 		ss := fleet.OsqueryStatus(1)
 		return []map[string]string{}, &ss, ptr.String(fmt.Sprintf("yara request failed to run: %v", err)), nil
 	}
+	defer response.Body.Close()
+
 	// For load testing purposes we don't actually care about the response, but check that we at least got one.
 	if _, err := io.Copy(io.Discard, response.Body); err != nil {
 		ss := fleet.OsqueryStatus(1)
 		return []map[string]string{}, &ss, ptr.String(fmt.Sprintf("error reading response from yara API: %v", err)), nil
 	}
-	defer response.Body.Close()
 
 	// Return a response indicating that the file is clean.
 	ss := fleet.OsqueryStatus(0)
