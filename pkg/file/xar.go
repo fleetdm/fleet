@@ -110,6 +110,7 @@ type distributionXML struct {
 	Title   string               `xml:"title"`
 	Product distributionProduct  `xml:"product"`
 	PkgRefs []distributionPkgRef `xml:"pkg-ref"`
+	Choices []distributionChoice `xml:"choice"`
 }
 
 type packageInfoXML struct {
@@ -133,6 +134,11 @@ type distributionPkgRef struct {
 	MustClose         distributionMustClose       `xml:"must-close"`
 	PackageIdentifier string                      `xml:"packageIdentifier,attr"`
 	InstallKBytes     string                      `xml:"installKBytes,attr"`
+}
+
+type distributionChoice struct {
+	PkgRef distributionPkgRef `xml:"pkg-ref"`
+	Title  string             `xml:"title,attr"`
 }
 
 // distributionBundleVersion represents the bundle-version element
@@ -272,6 +278,14 @@ func parseDistributionFile(rawXML []byte) (*InstallerMetadata, error) {
 	}, nil
 }
 
+// Set of package names we know are incorrect. If we see these in the Distribution file we should
+// try to get the name some other way.
+var knownBadNames = map[string]struct{}{
+	"DISTRIBUTION_TITLE": {},
+	"MacFULL":            {},
+	"SU_TITLE":           {},
+}
+
 // getDistributionInfo gets the name, bundle identifier and version of a PKG distribution file
 func getDistributionInfo(d *distributionXML) (name string, identifier string, version string, packageIDs []string) {
 	var appVersion string
@@ -367,10 +381,17 @@ out:
 	if name == "" && d.Title != "" {
 		name = d.Title
 	}
-	// "DISTRIBUTION_TITLE" is a default title that is sometimes left in the Distribution file. Fall
-	// back to the bundle ID if this is the case.
-	if name == "" || name == "DISTRIBUTION_TITLE" {
+
+	if _, ok := knownBadNames[name]; name == "" || ok {
 		name = identifier
+
+		// Try to find a <choice> tag that matches the bundle ID for this app. It might have the app
+		// name, so if we find it we can use that.
+		for _, c := range d.Choices {
+			if c.PkgRef.ID == identifier && c.Title != "" {
+				name = c.Title
+			}
+		}
 	}
 
 	// for the version, try to use the top-level product version, if not,
