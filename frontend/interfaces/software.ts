@@ -105,6 +105,10 @@ export interface IAppStoreApp {
     failed: number;
   };
   install_during_setup?: boolean;
+  automatic_installed_policies?: null; // why isn't this on this interface but in the api?
+  last_install?: string; // why isn't this on this interface but in the api
+  last_uninstall?: string; // why isn't this on this interface but in the api
+  version?: string; // why isn't this on this interface but in the api
 }
 
 export interface ISoftwareTitle {

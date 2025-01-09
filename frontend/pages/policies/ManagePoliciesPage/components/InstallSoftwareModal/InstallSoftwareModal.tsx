@@ -109,8 +109,7 @@ const InstallSoftwareModal = ({
         orderDirection: "desc",
         orderKey: "hosts_count",
         teamId,
-        availableForInstall: true,
-        packagesOnly: true,
+        availableForInstall: true, // Includes FMA, VPP, and custom packages
       },
     ],
     ({ queryKey: [queryKey] }) =>
@@ -171,21 +170,47 @@ const InstallSoftwareModal = ({
         const ext =
           splitName.length > 1 ? splitName[splitName.length - 1] : undefined;
         const platform = getPlatformFromExtension(ext);
-        return platform && policy.platform.split(",").includes(platform);
+
+        // Filter apps to FMA/custom packages with extensions that match policy's platform
+        const isAvailableSoftwarePackageOption =
+          platform && policy.platform.split(",").includes(platform);
+
+        // Filters apps to only macOS VPP apps for macOS policies
+        const isAvailableVPPOption =
+          policy.platform.split(",").includes("darwin") &&
+          title.source === "apps" &&
+          !!title.app_store_app;
+
+        return isAvailableSoftwarePackageOption || isAvailableVPPOption;
       })
       .map((title) => {
+        const vppOption = title.source === "apps" && !!title.app_store_app;
         const splitName = title.software_package?.name.split(".") ?? "";
         const ext =
           splitName.length > 1 ? splitName[splitName.length - 1] : undefined;
-        const platformString = ext
-          ? `${
-              PLATFORM_DISPLAY_NAMES[getPlatformFromExtension(ext) as Platform]
-            } (.${ext}) • `
-          : "";
+        const platformString = () => {
+          if (vppOption) {
+            return "macOS (App Store) • ";
+          }
+          return ext
+            ? `${
+                PLATFORM_DISPLAY_NAMES[
+                  getPlatformFromExtension(ext) as Platform
+                ]
+              } (.${ext}) • `
+            : "";
+        };
+
+        const versionString = () => {
+          vppOption
+            ? title.app_store_app?.version
+            : title.software_package?.version ?? "";
+        };
+
         return {
           label: title.name,
           value: title.id,
-          helpText: `${platformString}${title.software_package?.version ?? ""}`,
+          helpText: `${platformString()}${versionString()}`,
         };
       });
   };
