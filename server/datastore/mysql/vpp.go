@@ -441,8 +441,21 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 	if teamID != nil {
 		globalOrTeamID = *teamID
 	}
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, globalOrTeamID, appID.AdamID, appID.Platform)
+	tx := ds.writer(ctx) // make sure we're looking at a consistent vision of the world when deleting
+	res, err := tx.ExecContext(ctx, stmt, globalOrTeamID, appID.AdamID, appID.Platform)
 	if err != nil {
+		if isMySQLForeignKey(err) {
+			// Check if the app is referenced by a policy automation.
+			var count int
+			if err := sqlx.GetContext(ctx, tx, &count, `SELECT COUNT(*) FROM policies p JOIN vpp_apps_teams vat
+					ON vat.id = p.vpp_apps_teams_id AND vat.global_or_team_id = ?
+				    AND vat.adam_id = ? AND vat.platform = ?`, globalOrTeamID, appID.AdamID, appID.Platform); err != nil {
+				return ctxerr.Wrapf(ctx, err, "getting reference from policies")
+			}
+			if count > 0 {
+				return errDeleteInstallerWithAssociatedPolicy
+			}
+		}
 		return ctxerr.Wrap(ctx, err, "delete VPP app from team")
 	}
 
@@ -451,7 +464,7 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 		// could be that the VPP app does not exist, or it is installed during
 		// setup, do additional check.
 		var installDuringSetup bool
-		if err := sqlx.GetContext(ctx, ds.reader(ctx), &installDuringSetup,
+		if err := sqlx.GetContext(ctx, tx, &installDuringSetup,
 			`SELECT install_during_setup FROM vpp_apps_teams WHERE global_or_team_id = ? AND adam_id = ? AND platform = ?`, globalOrTeamID, appID.AdamID, appID.Platform); err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return ctxerr.Wrap(ctx, err, "check if vpp app is installed during setup")
 		}
@@ -871,7 +884,10 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 			null_team_type
 	) VALUES `
 	stmtValues := `(?, ?, ?)`
-	// Delete all apps associated with a token if we change its team
+	// Delete all apps, and associated policy automations, associated with a token if we change its team
+	stmtRemovePolicyAutomations := `UPDATE policies p
+		JOIN vpp_apps_teams vat ON vat.id = p.vpp_apps_teams_id AND vat.vpp_token_id = ?
+		SET vpp_apps_teams_id = NULL`
 	stmtDeleteApps := `DELETE FROM vpp_apps_teams WHERE vpp_token_id = ?`
 	deleteArgs := []any{id}
 
@@ -918,6 +934,10 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 			return ctxerr.Wrap(ctx, err, "vpp token null team check")
 		}
 
+		if _, err := tx.ExecContext(ctx, stmtRemovePolicyAutomations, deleteArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting old vpp team apps policy automations")
+		}
+
 		if _, err := tx.ExecContext(ctx, stmtDeleteApps, deleteArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting old vpp team apps associations")
 		}
@@ -957,12 +977,21 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 }
 
 func (ds *Datastore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM vpp_tokens WHERE id = ?`, tokenID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting vpp token")
-	}
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `UPDATE policies p
+			JOIN vpp_apps_teams vat ON vat.id = p.vpp_apps_teams_id AND vat.vpp_token_id = ?
+			SET vpp_apps_teams_id = NULL`, tokenID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "removing policy automations associated with vpp token")
+		}
 
-	return nil
+		_, err = tx.ExecContext(ctx, `DELETE FROM vpp_tokens WHERE id = ?`, tokenID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting vpp token")
+		}
+
+		return nil
+	})
 }
 
 func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
