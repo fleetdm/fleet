@@ -82,7 +82,7 @@ WHERE fla.token IN (?)
 
 	// This is the list of Fleet-maintained apps we want to update ("token" is an ID found on the brew
 	// metadata)
-	appTokens := []string{"1password", "brave-browser", "docker", "figma", "google-chrome", "visual-studio-code", "firefox", "notion", "slack", "whatsapp"}
+	appTokens := []string{"1password", "brave-browser", "docker", "figma", "google-chrome", "visual-studio-code", "firefox", "notion", "slack", "whatsapp", "postman"}
 
 	stmt, args, err := sqlx.In(selectStmt, appTokens)
 	if err != nil {
