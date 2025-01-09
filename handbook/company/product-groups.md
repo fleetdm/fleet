@@ -723,7 +723,7 @@ Here are some tips for making this meeting effective:
 
 ### User story reviews
 
-User story reviews (happen weekly)[https://fleetdm.com/handbook/product-design#rituals] between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) and the each product group's Product Designer, Engineering Manager (EM), and Quality Assurance (QA) Engineer. The attendees review all user stories that have completed product design in the past week and are in the "Ready to spec" column. The Product Designer is the DRI for completing all product checklist items before bringing to review.
+User story reviews (happen weekly)[https://fleetdm.com/handbook/product-design#rituals] between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) and the each product group's Product Designer, Engineering Manager (EM), and Quality Assurance (QA) Engineer. The attendees review all user stories that have completed product design in the past week and are in the "In review" column. The Product Designer is the DRI for completing all product checklist items before bringing to review.
 
 The purpose of the review is to familiarize the EM and QA Engineer with the user story, and provide an opportunity to ask questions, clarify requirements, and highlight potential implementation issues. The first draft of the test plan produced by the Product Designer is reviewed and revised as needed during the call. The QA Engineer is the DRI for finalizing the test plan.
 
