@@ -49,6 +49,8 @@ type UserByEmailFunc func(ctx context.Context, email string) (*fleet.User, error
 
 type UserByIDFunc func(ctx context.Context, id uint) (*fleet.User, error)
 
+type UserSettingsFunc func(ctx context.Context, userID uint) (*fleet.UserSettings, error)
+
 type SaveUserFunc func(ctx context.Context, user *fleet.User) error
 
 type SaveUsersFunc func(ctx context.Context, users []*fleet.User) error
@@ -1235,6 +1237,9 @@ type DataStore struct {
 
 	UserByIDFunc        UserByIDFunc
 	UserByIDFuncInvoked bool
+
+	UserSettingsFunc				UserSettingsFunc
+	UserSettingsFuncInvoked bool
 
 	SaveUserFunc        SaveUserFunc
 	SaveUserFuncInvoked bool
@@ -3051,6 +3056,13 @@ func (s *DataStore) UserByID(ctx context.Context, id uint) (*fleet.User, error) 
 	s.UserByIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.UserByIDFunc(ctx, id)
+}
+
+func (s *DataStore) UserSettings(ctx context.Context, userID uint) (*fleet.UserSettings, error) {
+	s.mu.Lock()
+	s.UserSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UserSettingsFunc(ctx, userID)
 }
 
 func (s *DataStore) SaveUser(ctx context.Context, user *fleet.User) error {

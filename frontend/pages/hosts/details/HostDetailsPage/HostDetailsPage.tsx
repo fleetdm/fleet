@@ -9,7 +9,6 @@ import { pick } from "lodash";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 
 import activitiesAPI, {
@@ -17,7 +16,6 @@ import activitiesAPI, {
   IHostUpcomingActivitiesResponse,
 } from "services/entities/activities";
 import hostAPI from "services/entities/hosts";
-import queryAPI from "services/entities/queries";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 
 import {
@@ -32,19 +30,9 @@ import { ILabel } from "interfaces/label";
 import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
 import { IHostSoftware } from "interfaces/software";
-import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import { ITeam } from "interfaces/team";
-import {
-  IListQueriesResponse,
-  IQueryKeyQueriesLoadAll,
-  ISchedulableQuery,
-} from "interfaces/schedulable_query";
 
-import {
-  normalizeEmptyValues,
-  wrapFleetHelper,
-  TAGGED_TEMPLATES,
-} from "utilities/helpers";
+import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
 import {
   DOCUMENT_TITLE_SUFFIX,
@@ -155,7 +143,6 @@ const HostDetailsPage = ({
     filteredHostsPath,
     currentTeam,
   } = useContext(AppContext);
-  const { setSelectedQueryTargetsByType } = useContext(QueryContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const handlePageError = useErrorHandler();
@@ -213,25 +200,6 @@ const HostDetailsPage = ({
     "past" | "upcoming"
   >("past");
   const [activityPage, setActivityPage] = useState(0);
-
-  // Optimization TODO: move this call into the SelectQuery modal, since queries are only used if that modal is opened
-  const { data: fleetQueries, error: fleetQueriesError } = useQuery<
-    IListQueriesResponse,
-    Error,
-    ISchedulableQuery[],
-    IQueryKeyQueriesLoadAll[]
-  >(
-    [{ scope: "queries", teamId: undefined }],
-    ({ queryKey }) => queryAPI.loadAll(queryKey[0]),
-    {
-      enabled: !!hostIdFromURL,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
-      retry: false,
-      select: (data: IListQueriesResponse) => data.queries,
-    }
-  );
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     "teams",
@@ -641,22 +609,6 @@ const HostDetailsPage = ({
       : router.push(PATHS.MANAGE_HOSTS_LABEL(label.id));
   };
 
-  const onQueryHostCustom = () => {
-    setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
-    router.push(
-      PATHS.NEW_QUERY() +
-        TAGGED_TEMPLATES.queryByHostRoute(host?.id, currentTeam?.id)
-    );
-  };
-
-  const onQueryHostSaved = (selectedQuery: ISchedulableQuery) => {
-    setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
-    router.push(
-      PATHS.EDIT_QUERY(selectedQuery.id) +
-        TAGGED_TEMPLATES.queryByHostRoute(host?.id, currentTeam?.id)
-    );
-  };
-
   const onCancelRunScriptDetailsModal = useCallback(() => {
     setScriptExecutiontId("");
     // refetch activities to make sure they up-to-date with what was displayed in the modal
@@ -1002,12 +954,11 @@ const HostDetailsPage = ({
         {showSelectQueryModal && host && (
           <SelectQueryModal
             onCancel={() => setShowSelectQueryModal(false)}
-            queries={fleetQueries || []}
-            queryErrors={fleetQueriesError}
             isOnlyObserver={isOnlyObserver}
-            onQueryHostCustom={onQueryHostCustom}
-            onQueryHostSaved={onQueryHostSaved}
-            hostsTeamId={host?.team_id}
+            hostId={hostIdFromURL}
+            hostTeamId={host?.team_id}
+            router={router}
+            currentTeamId={currentTeam?.id}
           />
         )}
         {showScriptModalGroup && (

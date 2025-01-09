@@ -55,7 +55,7 @@ jobs:
           subject-path: "osqueryd.app.tar.gz"
           
       - name: Upload osqueryd.app.tar.gz
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: osqueryd.app.tar.gz
           path: osqueryd.app.tar.gz
@@ -86,7 +86,7 @@ jobs:
           subject-path: "opt/osquery/bin/osqueryd"
 
       - name: Upload osqueryd for linux
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: osqueryd
           path: opt/osquery/bin/osqueryd
@@ -121,7 +121,7 @@ jobs:
           subject-path: "opt/osquery/bin/osqueryd"
 
       - name: Upload osqueryd for linux-arm64
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: osqueryd-arm64
           path: opt/osquery/bin/osqueryd
@@ -154,7 +154,7 @@ jobs:
           subject-path: C:\temp\osquery\osqueryd\osqueryd.exe
 
       - name: Upload osqueryd for Windows
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: osqueryd.exe
           path: C:\temp\osquery\osqueryd\osqueryd.exe
