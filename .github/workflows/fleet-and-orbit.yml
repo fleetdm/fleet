@@ -155,7 +155,7 @@ jobs:
 
       - name: Upload fleet logs
         if: always()
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: fleet-logs
           path: |
@@ -163,7 +163,7 @@ jobs:
 
       - name: Upload cloudflared logs
         if: always()
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: cloudflared.log
           path: cloudflared.log
@@ -235,7 +235,7 @@ jobs:
           make osqueryd-app-tar-gz version=$OSQUERY_VERSION out-path=.
 
       - name: Upload desktop.app.tar.gz and osqueryd.app.tar.gz
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: macos-pre-built-apps
           path: |
@@ -301,21 +301,21 @@ jobs:
           ./tools/tuf/test/main.sh
 
       - name: Upload PKG installer
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: fleet-osquery.pkg
           path: |
             fleet-osquery.pkg
 
       - name: Upload DEB installer
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: fleet-osquery_42.0.0_amd64.deb
           path: |
             fleet-osquery_42.0.0_amd64.deb
 
       - name: Upload MSI installer
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: fleet-osquery.msi
           path: |
@@ -365,7 +365,7 @@ jobs:
 
       - name: Upload orbit logs
         if: always()
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: orbit-logs
           path: |
@@ -416,7 +416,7 @@ jobs:
 
       - name: Upload orbit logs
         if: always()
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: orbit-logs
           path: |
@@ -535,7 +535,7 @@ jobs:
 
       - name: Upload Orbit logs
         if: always()
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: orbit-logs-windows
           path: C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log
