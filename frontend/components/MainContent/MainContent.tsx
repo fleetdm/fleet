@@ -1,12 +1,9 @@
 import React, { ReactNode, useContext } from "react";
 import classnames from "classnames";
-import { formatDistanceToNow } from "date-fns";
-import { hasLicenseExpired, willExpireWithinXDays } from "utilities/helpers";
+import { hasLicenseExpired } from "utilities/helpers";
 
-import SandboxExpiryMessage from "components/Sandbox/SandboxExpiryMessage";
 import AppleBMTermsMessage from "components/MDM/AppleBMTermsMessage";
 
-import SandboxGate from "components/Sandbox/SandboxGate";
 import { AppContext } from "context/app";
 import LicenseExpirationBanner from "components/LicenseExpirationBanner";
 import ApplePNCertRenewalMessage from "components/MDM/ApplePNCertRenewalMessage";
@@ -33,10 +30,8 @@ const MainContent = ({
 }: IMainContentProps): JSX.Element => {
   const classes = classnames(baseClass, className);
   const {
-    sandboxExpiry,
     config,
     isPremiumTier,
-    noSandboxHosts,
     isApplePnsExpired,
     isAppleBmExpired,
     isVppExpired,
@@ -45,11 +40,6 @@ const MainContent = ({
     willApplePnsExpire,
     willVppExpire,
   } = useContext(AppContext);
-
-  const sandboxExpiryTime =
-    sandboxExpiry === undefined
-      ? "..."
-      : formatDistanceToNow(new Date(sandboxExpiry));
 
   const renderAppWideBanner = () => {
     const isFleetLicenseExpired = hasLicenseExpired(
@@ -73,24 +63,18 @@ const MainContent = ({
     }
 
     if (banner) {
-      return <div className={`${baseClass}__warning-banner`}>{banner}</div>;
+      return (
+        <div className={`${baseClass}--animation-disabled`}>
+          <div className={`${baseClass}__warning-banner`}>{banner}</div>
+        </div>
+      );
     }
 
     return null;
   };
   return (
     <div className={classes}>
-      <div className={`${baseClass}--animation-disabled`}>
-        {renderAppWideBanner()}
-        <SandboxGate
-          fallbackComponent={() => (
-            <SandboxExpiryMessage
-              expiry={sandboxExpiryTime}
-              noSandboxHosts={noSandboxHosts}
-            />
-          )}
-        />
-      </div>
+      {renderAppWideBanner()}
       {children}
     </div>
   );
