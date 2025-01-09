@@ -199,9 +199,11 @@ User stories are small and independently valuable.
 
 To successfully deliver a user story, the people working on it need to know what "done" means. 
 
-Every user story has a "Product" and "Engineering" checklist that is completed before the user story is estimated. This populates the user story with the requirements, wireframes, and test plan necessary for the product group to effectively estimate, implement, and test the change. The Product Designer is the DRI for populaticompletingng the "Product" checklist, and the Engineering Manager (EM) is the DRI for comleting the "Engineering" checklist.
+Every user story has a product and engineering checklist that is completed before the user story is estimated. This populates the user story with the requirements, wireframes, and test plan necessary for the product group to effectively specify, estimate, implement, and test the change. The Product Designer is the DRI for completing the product checklist, and the Engineering Manager (EM) is the DRI for comleting the engineering checklist.
 
-When a user story has completed the drafting process, it moves to the "Specified" column on the drafting board. The EM is responsible for making sure the user story and test plan are finalized before bringing to estimation.
+When the Product Designer has completed the product checklist, it is moved to the "In review" column of the drafting board and reviewed during the (weekly user story review)[https://fleetdm.com/handbook/company/product-groups#user-story-reviews] rituals.
+
+When a user story completes the review process, it is moved to the "Ready for spec" column on the drafting board and assigned to the product group's EM. The EM is responsible for completing the engineering checklist and finalizing the test plan with the QA Engineer before moving to the "Ready to estimate" column.
 
 
 #### Providing context
@@ -718,13 +720,15 @@ Here are some tips for making this meeting effective:
 - Bring 1 key engineer who has been helping out with the user story, when possible and helpful.
 - Read Fleet's [best practices for meetings](https://fleetdm.com/handbook/company/communications#meetings).
 
+
 ### User story reviews
 
-User story reviews happen weekly between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) and each product group's Product Designer, Engineering Manager (EM), and Quality Assurance (QA) Engineer. The attendees review all user stories that have completed product design in the past week and are in the "Ready to spec" column. The Product Designer is the DRI for completing all "Product" checklist items before bringing to review. 
+User story reviews (happen weekly)[https://fleetdm.com/handbook/product-design#rituals] between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) and the each product group's Product Designer, Engineering Manager (EM), and Quality Assurance (QA) Engineer. The attendees review all user stories that have completed product design in the past week and are in the "Ready to spec" column. The Product Designer is the DRI for completing all product checklist items before bringing to review.
 
-The purpose of the review is to familiarize the EM and QA Engineer with the user story, and provide an opportunity to ask questions, clarify requirements, and highlight potential implementation issues. The first draft of the test plan produced by the Product Designer is reviewed and revised as needed during the call.
+The purpose of the review is to familiarize the EM and QA Engineer with the user story, and provide an opportunity to ask questions, clarify requirements, and highlight potential implementation issues. The first draft of the test plan produced by the Product Designer is reviewed and revised as needed during the call. The QA Engineer is the DRI for finalizing the test plan.
 
 If there are design changes, the user story is brought back into product design for additional drafting. If there are no design changes, the story is assigned to the EM to [complete the drafting process](#defining-done) before bringing to estimation.
+
 
 ### Group weeklies
 
@@ -752,7 +756,8 @@ This meeting is to disseminate engineering-wide announcements, promote cohesion 
   - Everyone is welcome to present on a technical topic. Add your name and tech talk subject in the agenda doc included in the Eng Together calendar event.
 - Social
   - Structured and/or unstructured social activities
- 
+
+
 ### New customer promise(s)
 
 The Account Executive (AE) schedules this meeting before Fleet commits to one or more new customer promises. It's meant to streamline communication and encourage getting the best product decisions.
@@ -764,6 +769,7 @@ If the buyer (aka the "Santa") hasn't reviewed the price in the first order form
 **Agenda:**
 - Discuss new promises from an order form with promises
 - Kick off 1 business day SLA for Head of Product Design to process this and work with CTO to deliver a revised order form back to the AE.
+
 
 ## Development best practices
 

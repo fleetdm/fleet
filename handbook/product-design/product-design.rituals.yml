@@ -84,3 +84,9 @@
   frequency: "Triweekly"
   description: "Align on priorities for upcoming sprint."
   dri: "noahtalerman"
+-
+  task: "User story review"
+  startedOn: "2025-01-16"
+  frequency: "Weekly"
+  description: "Review user stories in the 'In review' column on the drafting board with each product group's Product Designer, Engineering Mananger, and Quality Assurance Engineer."
+  dri: "noahtalerman"
