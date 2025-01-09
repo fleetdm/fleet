@@ -3228,6 +3228,32 @@ This is the API route used by the **My device** page in Fleet desktop to display
         "label_membership_type": "dynamic"
       }
     ],
+    "certificates": [ // Available for macOS/iOS/iPadOS hosts
+      {
+        "id": 3,
+        "not_valid_after": "2021-08-19T02:02:17Z",
+        "not_valid_before": "2021-08-19T02:02:17Z",
+        "certificate_authority": true,
+        "common_name": "FleetDM",
+        "key_algorithm": "rsaEncryption",
+        "key_strength": 2048,
+        "key_usage": "CRL Sign, Key Cert Sign",
+        "serial": 1,
+        "signing_algorithm": "sha256WithRSAEncryption",
+        "subject": {
+          "country": "US",
+          "organization": "Fleet Device Management Inc.",
+          "organizational_unit": "Fleet Device Management Inc.",
+          "common_name": "FleetDM"
+        },
+        "issuer": {
+          "country": "US",
+          "organization": "Fleet Device Management Inc.",
+          "organizational_unit": "Fleet Device Management Inc.",
+          "common_name": "FleetDM"
+        },
+      }
+    ],
     "software": [
       {
         "id": 321,
