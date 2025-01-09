@@ -136,6 +136,26 @@ The only way we are able to partner as a business to provide support and build n
 ## How can I uninstall fleetd?
 To uninstall Fleet's agent (fleetd), follow the instructions [here](https://fleetdm.com/guides/how-to-uninstall-fleetd).
 
+## What is your commitment to open source stewardship?
+
+- When a feature is free and open source we won't move that feature to a paid tier. Features might be removed from the open source codebase in other cases, for example when combining features from multiple tiers into one new feature.
+
+- The majority of new capabilities added to Fleet will benefit all users, not just customers.
+
+- We won't introduce features into the open source codebase with a fixed delay; if a feature is planned to land in both it will be released simultaneously in both.
+
+- We will always release and open source all tests that we have for any open source feature.
+
+- The free version of Fleet is enterprise ready.
+
+- The open source codebase will not contain any artificial limits on the number of hosts, users, size, or performance.
+
+- The majority of new features contributed by Fleet Device Management Inc will be open source.
+
+- The product will be available for download without leaving an email address or logging in.
+
+- We will always allow you to benchmark the performance of Fleet. (Fleet also [load tests the platform before every release](https://fleetdm.com/handbook/engineering#rituals), with increasingly ambitious targets. The scale of real time reporting supported by Fleet has increased 5,000% since 2019. Today, Fleet deployments support 500,000 devices, and counting. The company is committed to driving this number to 1M+, and beyond.)
+
 <!--
 Mike T: In 2023 we made the decision to comment out the following questions because the FAQs had become a dumping ground for miscellaneous content that wasn't quite reference docs and wasn't quite committed learning docs (suitable for articles). We chose to hide the content rather than remove, or spend time trying to figure out better places in the docs, with the assumption that if it's important enough content, someone will circle back at some point to prioritize a better home.
 
