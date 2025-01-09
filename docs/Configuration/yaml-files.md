@@ -348,7 +348,7 @@ software:
 
 - Use `labels_include_any` to target hosts that have any label in the array or `labels_exclude_any` to target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
-- Use `install` to specify whether to automatically write a policy to install the software. If `manual`, the software will need to be installed manually. If `auto`, Fleet will ensure the software is installed, but will not update it if an older version alreday exists on the host. 
+- Use `install` to specify whether to automatically write a policy to install the software. If `auto`, Fleet will ensure the software is installed, but will not update it if an older version alreday exists on the host. If `manual`, the software will need to be installed manually. 
 
 
 ### packages
