@@ -218,7 +218,7 @@
   frequency: "Annually"
   description: "Check GitHub's terms to make sure the “inbound=outbound” clause is unchanged."
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-github-terms"
-  dri: "hollidayn"s
+  dri: "hollidayn"
   autoIssue:  
     labels: [ "#g-digital-experience" ] 
     repo: "confidential"
