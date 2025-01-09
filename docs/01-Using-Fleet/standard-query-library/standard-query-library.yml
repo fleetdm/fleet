@@ -1518,39 +1518,39 @@ spec:
   platform: darwin
   contributors: GuillaumeRoss,ddribeiro
   configuration_profile: |
-  <?xml version="1.0" encoding="UTF-8"?>
-  <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-  <plist version="1.0">
-  <dict>
-    <key>PayloadContent</key>
-    <array>
-      <dict>
-        <key>PayloadDisplayName</key>
-        <string>iCloud</string>
-        <key>PayloadIdentifier</key>
-        <string>com.apple.icloud.managed.19CEE0E2-2D04-43E7-AB98-B93B179A20ED</string>
-        <key>PayloadType</key>
-        <string>com.apple.icloud.managed</string>
-        <key>PayloadUUID</key>
-        <string>19CEE0E2-2D04-43E7-AB98-B93B179A20ED</string>
-        <key>PayloadVersion</key>
-        <integer>1</integer>
-        <key>DisableCloudSync</key>
-        <true/>
-      </dict>
-    </array>
-    <key>PayloadDisplayName</key>
-    <string>Limit ad tracking</string>
-    <key>PayloadIdentifier</key>
-    <string>com.fleetdm.disableiCloudDesktopAndDocumentsSync.9CEE4A9A-3BC6-4E2C-A093-8CC3B7F26EF8</string>
-    <key>PayloadType</key>
-    <string>Configuration</string>
-    <key>PayloadUUID</key>
-    <string>9CEE4A9A-3BC6-4E2C-A093-8CC3B7F26EF8</string>
-    <key>PayloadVersion</key>
-    <integer>1</integer>
-  </dict>
-  </plist>
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>PayloadDisplayName</key>
+          <string>iCloud</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.icloud.managed.19CEE0E2-2D04-43E7-AB98-B93B179A20ED</string>
+          <key>PayloadType</key>
+          <string>com.apple.icloud.managed</string>
+          <key>PayloadUUID</key>
+          <string>19CEE0E2-2D04-43E7-AB98-B93B179A20ED</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+          <key>DisableCloudSync</key>
+          <true/>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Limit ad tracking</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.disableiCloudDesktopAndDocumentsSync.9CEE4A9A-3BC6-4E2C-A093-8CC3B7F26EF8</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>9CEE4A9A-3BC6-4E2C-A093-8CC3B7F26EF8</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
