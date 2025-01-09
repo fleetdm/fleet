@@ -74,6 +74,8 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// get no-team app
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID1)
 	require.NoError(t, err)
+	require.NotZero(t, meta.VPPAppsTeamsID)
+	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK for comparison purposes
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp1", VPPAppID: vpp1}, meta)
 
 	// try to add the same app again, update self_service field
@@ -86,6 +88,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// get no-team app
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID1)
 	require.NoError(t, err)
+	meta.VPPAppsTeamsID = 0
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp1", VPPAppID: vpp1, SelfService: true}, meta)
 
 	// create team1 app
@@ -99,11 +102,13 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// get it for team 1
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, titleID2)
 	require.NoError(t, err)
+	meta.VPPAppsTeamsID = 0
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
 
 	// get it for all teams
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID2)
 	require.NoError(t, err)
+	meta.VPPAppsTeamsID = 0
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
 
 	// try to add the same app again, fails
@@ -116,6 +121,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// get it for team 1
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, titleID2)
 	require.NoError(t, err)
+	meta.VPPAppsTeamsID = 0
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, SelfService: true}, meta)
 
 	// get it for team 2, does not exist
@@ -134,9 +140,11 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// get it for team 1 and team 2, both work
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, titleID2)
 	require.NoError(t, err)
+	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, SelfService: true}, meta)
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team2.ID, titleID2)
 	require.NoError(t, err)
+	meta.VPPAppsTeamsID = 0
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
 
 	// create another no-team app
@@ -156,6 +164,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// get it for no-team
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID3)
 	require.NoError(t, err)
+	meta.VPPAppsTeamsID = 0
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp3", VPPAppID: vpp3}, meta)
 
 	// delete vpp1
@@ -168,6 +177,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// vpp3 (also in no team) is left untouched
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID3)
 	require.NoError(t, err)
+	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp3", VPPAppID: vpp3}, meta)
 
 	// delete vpp2 for team1
@@ -180,6 +190,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// but still found for team2
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team2.ID, titleID2)
 	require.NoError(t, err)
+	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
 
 	// mark it as install_during_setup for team 2
