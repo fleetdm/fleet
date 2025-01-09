@@ -27,7 +27,7 @@ module.exports = async function (req, res, proceed) {
   if (!req.me.canUseQueryGenerator) {
     return res.forbidden();
   // Then check that this user is a "super admin".
-  } else if (!req.me.isSuperAdmin) {
+  } else if (!req.me.canUseQueryGenerator && !req.me.isSuperAdmin) {
     return res.forbidden();
   }
 
