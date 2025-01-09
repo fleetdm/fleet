@@ -344,7 +344,7 @@ const PlatformWrapper = ({
       } else if (packageType === "msi") {
         return "Install this package to add hosts to Fleet. For Windows, this generates an MSI package.";
       } else if (packageType === "pkg") {
-        return "Install this package to add hosts to Fleet";
+        return "Install this package to add hosts to Fleet.";
       }
       return "";
     };
