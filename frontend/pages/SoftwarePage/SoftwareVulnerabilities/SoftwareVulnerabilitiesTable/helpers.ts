@@ -16,7 +16,7 @@ export const getExploitedVulnerabilitiesDropdownOptions = (
       value: "true",
       helpText:
         "Vulnerabilities that have been actively exploited in the wild.",
-      tooltipContent: !isPremiumTier && disabledTooltipContent,
+      tooltipContent: !isPremiumTier ? disabledTooltipContent : undefined,
     },
   ];
 };
