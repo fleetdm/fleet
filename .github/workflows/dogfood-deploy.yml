@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       DOCKER_IMAGE:
-        description: 'The full name of the docker image to be deployed. (e.g. fleetdm/fleet:v4.30.0). Note: do not use fleetdm/fleet:main directly.  Use the short hash instead.  If pull-rate limited, try using the quay.io/fleetdm/fleet mirror.'
+        description: "The full name of the docker image to be deployed. (e.g. fleetdm/fleet:v4.30.0). Note: do not use fleetdm/fleet:main directly.  Use the short hash instead.  If pull-rate limited, try using the quay.io/fleetdm/fleet mirror."
         required: true
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -26,7 +26,8 @@ env:
   TF_WORKSPACE: fleet
   TF_VAR_fleet_image: ${{ github.event.inputs.DOCKER_IMAGE || 'fleetdm/fleet:main' }}
   TF_VAR_fleet_license: ${{ secrets.DOGFOOD_LICENSE_KEY }}
-  TF_VAR_slack_webhook: ${{ secrets.SLACK_G_HELP_P1_WEBHOOK_URL }}
+  TF_VAR_slack_p1_webhook: ${{ secrets.SLACK_G_HELP_P1_WEBHOOK_URL }}
+  TF_VAR_slack_p2_webhook: ${{ secrets.SLACK_G_HELP_P2_WEBHOOK_URL }}
   TF_VAR_fleet_sentry_dsn: ${{ secrets.DOGFOOD_SENTRY_DSN }}
   TF_VAR_elastic_url: ${{ secrets.ELASTIC_APM_SERVER_URL }}
   TF_VAR_elastic_token: ${{ secrets.ELASTIC_APM_SECRET_TOKEN }}
@@ -64,7 +65,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@633666f66e0061ca3b725c73b2ec20cd13a8fdd1 # v2.0.3
         with:
-          terraform_version: 1.6.3
+          terraform_version: 1.10.2
           terraform_wrapper: false
       - name: Terraform Init
         id: init

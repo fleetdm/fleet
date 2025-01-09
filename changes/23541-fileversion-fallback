@@ -1,0 +1,1 @@
+* Added fallback to FileVersion on EXE installers when FileVersion is set but ProductVersion isn't to allow more custom packages to be uploaded

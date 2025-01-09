@@ -9,6 +9,7 @@ Queries in Fleet allow you to ask questions to help you manage, monitor, and ide
 ### In this guide:
 
 - [Create a query](#create-a-query)
+- [View a query report](#view-a-query-report)
 - [Run a query](#run-a-query)
 - [Schedule a query](#schedule-a-query)
 
@@ -31,6 +32,28 @@ How to create a query:
 
 4. Select **Save**, enter a name and description for your query, select the frequency that the query should run at, and select **Save query**.
 
+
+## View a query report
+
+How to view a query report:
+
+1. In the top navigation, select **Queries**.
+
+2. In the **Queries** table, find the query you'd like to run and select the query's name to navigate to the query console.
+
+3. If you want to download the query report, select **Export results** to save it as a CSV.
+
+Fleet will store up to 1000 results for each scheduled query to give users a snapshot of query results. If the number of results for a scheduled query is below 1000, then the results will continuously get updated every time the hosts send results to Fleet.
+
+> You can tell Fleet to store more than 1000 results in query reports by setting [`server_settings.query_report_cap`](https://fleetdm.com/docs/rest-api/rest-api#server-settings) via [the Modify configuration API endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration).
+
+Persisting query reports within Fleet creates load on the database, so you'll want to monitor database load as you add queries. If needed, you can disable query reports either globally or per-query.
+
+* Globally via the UI: **Settings** > **Advanced options** > **Disable query reports**
+* Globally via the API: set [`server_settings.query_reports_disabled`](https://fleetdm.com/docs/rest-api/rest-api#server-settings) via [the Modify configuration endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration)
+* Per-query via the UI: **Edit query** > **Show advanced options** > **Discard data**
+* Per-query via the API: Set the `discard_data` field when [creating](https://fleetdm.com/docs/rest-api/rest-api#create-query) or [modifying](https://fleetdm.com/docs/rest-api/rest-api#modify-query) the query
+
 ## Run a query
 
 Run a live query to get answers for all of your online hosts.
@@ -43,7 +66,11 @@ How to run a query:
 
 2. In the **Queries** table, find the query you'd like to run and select the query's name to navigate to the query console.
 
-3. Select **Run query** to navigate to the target picker. Select **All hosts** and select **Run**. This will run the query against all your hosts.
+3. Select **Live query** to navigate to the target picker. Select **All hosts** and select **Run**. This will run the query against all your hosts.
+
+4. If you want to download the live query results, select **Export results** to save it as a CSV.
+
+> Fleet 4.24.0 and later versions provide notifications in the activity feed for live queries. 
 
 The query may take several seconds to complete because Fleet has to wait for the hosts to respond with results.
 
@@ -51,13 +78,11 @@ The query may take several seconds to complete because Fleet has to wait for the
 
 ## Schedule a query
 
-*In Fleet 4.35.0, the "Schedule" page was removed, and query automations are now configured on the "Queries" page. Instructions for scheduling queries in earlier versions of Fleet can be found [here](https://github.com/fleetdm/fleet/blob/ac797c8f81ede770853c25fd04102da9f5e109bf/docs/Using-Fleet/Fleet-UI.md#schedule-a-query).*
+Fleet allows you to schedule queries to run at a set frequency. By default, queries that run on a schedule will only target platforms compatible with that query. This behavior can be overridden by setting the platforms in **Advanced options** when saving a query.
 
-Fleet allows you to schedule queries to run at a set frequency. Scheduled queries will send data to Fleet and/or your [log destination](https://fleetdm.com/docs/using-fleet/log-destinations) automatically. 
+Scheduled queries will send data to Fleet and/or your [log destination](https://fleetdm.com/docs/using-fleet/log-destinations) automatically. Query automations can be turned off in **Advanced options** or using the bulk query automations UI.
 
-By default, queries that run on a schedule will only target platforms compatible with that query. This behavior can be overridden by setting the platforms in **Advanced options** when saving a query.
-
-**How to send data to your log destination:**
+How to configure query automations in bulk:
 
 *Only users with the [admin role](https://fleetdm.com/docs/using-fleet/manage-access#admin) can manage query automations.*
 
@@ -71,13 +96,15 @@ By default, queries that run on a schedule will only target platforms compatible
 
 ### Further reading
 
+- [REST API documentation for queries](https://fleetdm.com/docs/rest-api/rest-api#queries)
 - [Import and export queries in Fleet](https://fleetdm.com/guides/import-and-export-queries-in-fleet)
-- [Osquery: Consider joining against the users table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table) 
+- [Using fleetctl to run a live query and how live queries work](https://fleetdm.com/guides/get-current-telemetry-from-your-devices-with-live-queries#basic-article)
+- [Osquery: Consider joining against the users table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
 
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
-<meta name="publishedOn" value="2024-08-09">
+<meta name="publishedOn" value="2025-01-01">
 <meta name="articleTitle" value="Queries">
 <meta name="description" value="Learn how to create, run, and schedule queries, as well as update agent options in the Fleet user interface.">

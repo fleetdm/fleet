@@ -99,7 +99,9 @@ build: $(BINS_TO_BUILD)
 
 fdm:
 	go build -o build/fdm ./tools/fdm
-	ln -sf "$$(pwd)/build/fdm" /usr/local/bin/fdm	
+	@if [ ! -f /usr/local/bin/fdm ]; then \
+		sudo ln -sf "$$(pwd)/build/fdm" /usr/local/bin/fdm; \
+	fi
 
 fleet: .prefix .pre-build .pre-fleet
 	CGO_ENABLED=1 go build -race=${GO_BUILD_RACE_ENABLED_VAR} -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${LDFLAGS_VERSION} ./cmd/fleet
@@ -130,9 +132,9 @@ lint-go:
 	@echo "Run all linters"
 lint: lint-go lint-js
 
-.help-short--dump-test-schema:
+.help-short--test-schema:
 	@echo "Update schema.sql from current migrations"
-dump-test-schema:
+test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
 
@@ -143,6 +145,22 @@ dump-test-schema:
 PKG_TO_TEST := ""
 go_test_pkg_to_test := $(addprefix ./,$(PKG_TO_TEST)) # set paths for packages to test
 dlv_test_pkg_to_test := $(addprefix github.com/fleetdm/fleet/v4/,$(PKG_TO_TEST)) # set URIs for packages to debug
+
+DEFAULT_PKG_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
+ifeq ($(CI_TEST_PKG), main)
+	CI_PKG_TO_TEST=$(shell go list ${DEFAULT_PKG_TO_TEST} | grep -v "server/datastore/mysql" | grep -v "cmd/fleetctl" | grep -v "server/vulnerabilities" | sed -e 's|github.com/fleetdm/fleet/v4/||g')
+else ifeq ($(CI_TEST_PKG), mysql)
+	CI_PKG_TO_TEST="server/datastore/mysql/..."
+else ifeq ($(CI_TEST_PKG), fleetctl)
+	CI_PKG_TO_TEST="cmd/fleetctl/..."
+else ifeq ($(CI_TEST_PKG), vuln)
+	CI_PKG_TO_TEST="server/vulnerabilities/..."
+else
+	CI_PKG_TO_TEST=$(DEFAULT_PKG_TO_TEST)
+endif
+
+ci-pkg-list:
+	@echo $(CI_PKG_TO_TEST)
 
 .run-go-tests:
 ifeq ($(PKG_TO_TEST), "")
@@ -160,7 +178,7 @@ ifeq ($(PKG_TO_TEST), "")
 		@echo "Please specify one or more packages to debug. See '$(TOOL_CMD) help run-go-tests' for more info."; 
 else
 		@echo Debugging tests with command:
-		dlv test ${dlv_test_pkg_to_test} --api-version=2 --listen=127.0.0.1:61179 ${DEBUG_TEST_EXTRA_FLAGS} -- -test.v -test.run=${TESTS_TO_RUN} ${GO_TEST_EXTRA_FLAGS} 
+		dlv test ${dlv_test_pkg_to_test} --api-version=2 --listen=127.0.0.1:61179 ${DEBUG_TEST_EXTRA_FLAGS} -- -test.v -test.run=${TESTS_TO_RUN} ${GO_TEST_EXTRA_FLAGS}
 endif
 
 .help-short--run-go-tests:
@@ -189,13 +207,13 @@ run-go-tests:
 	@echo "GO_TEST_EXTRA_FLAGS=\"--flag1 --flag2...\""
 	@echo "Arguments to send to \"go test\"."
 debug-go-tests:
-	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests 
+	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests
 
 # Command used in CI to run all tests.
 .help-short--test-go:
 	@echo "Run the Go tests (all packages and tests -- used in CI)"
-test-go: dump-test-schema generate-mock 
-	make .run-go-tests PKG_TO_TEST="./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/..."
+test-go: test-schema mock
+	make .run-go-tests PKG_TO_TEST="$(CI_PKG_TO_TEST)"
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...
@@ -210,7 +228,7 @@ test-js:
 test: lint test-go test-js
 
 .help-short--generate:
-	@echo "Generate and bundle required all code"
+	@echo "Generate and bundle required Go code and Javascript code"
 generate: clean-assets generate-js generate-go
 
 generate-ci:
@@ -233,7 +251,7 @@ generate-go: .prefix
 # output bundle file. then, generate debug bindata source file. finally, we
 # run webpack in watch mode to continuously re-generate the bundle
 .help-short--generate-dev:
-	@echo "Generate and bundle required code in a watch loop"
+	@echo "Generate and bundle required Javascript code in a watch loop"
 generate-dev: .prefix
 	NODE_ENV=development yarn run webpack --progress
 	go run github.com/kevinburke/go-bindata/go-bindata -debug -pkg=bindata -tags full \
@@ -241,14 +259,14 @@ generate-dev: .prefix
 		frontend/templates/ assets/... server/mail/templates
 	NODE_ENV=development yarn run webpack --progress --watch
 
-.help-short--generate-mock:
+.help-short--mock:
 	@echo "Update mock data store"
-generate-mock: .prefix
+mock: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult github.com/fleetdm/fleet/v4/server/service/mock
 
-.help-short--generate-doc:
+.help-short--doc:
 	@echo "Generate updated API documentation for activities, osquery flags"
-generate-doc: .prefix
+doc: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/fleet
 	go generate github.com/fleetdm/fleet/v4/server/service/osquery_utils
 

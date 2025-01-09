@@ -363,6 +363,18 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2024-10004"},
 			continuesToUpdate: true,
 		},
+		"cpe:2.3:a:okta:verify:9.27.0:*:*:*:*:macos:*:*": {
+			excludedCVEs:      []string{"CVE-2024-10327"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:jetbrains:goland:2022.3.99.123.456:*:*:*:*:macos:*:*": {
+			includedCVEs:      []cve{{ID: "CVE-2024-37051", resolvedInVersion: ""}},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:jetbrains:goland:2024.3:*:*:*:*:macos:*:*": {
+			excludedCVEs:      []string{"CVE-2024-37051"},
+			continuesToUpdate: true,
+		},
 	}
 
 	cveOSTests := []struct {

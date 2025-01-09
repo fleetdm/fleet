@@ -104,3 +104,10 @@ func (ms *MultiAllStorage) ExpandEmbeddedSecrets(ctx context.Context, document s
 	})
 	return doc.(string), err
 }
+
+func (ms *MultiAllStorage) BulkDeleteHostUserCommandsWithoutResults(ctx context.Context, commandToIDs map[string][]string) error {
+	_, err := ms.execStores(ctx, func(s storage.AllStorage) (interface{}, error) {
+		return nil, s.BulkDeleteHostUserCommandsWithoutResults(ctx, commandToIDs)
+	})
+	return err
+}

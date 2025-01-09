@@ -26,9 +26,11 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
+	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
@@ -259,11 +261,46 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary) // empty because host was transferred
 	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)  // host still verifying team profiles
 
-	// with no changes
+	// Upload the same profiles again. No changes expected.
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent,
+		"team_id", fmt.Sprint(tm.ID))
 	s.awaitTriggerProfileSchedule(t)
 	installs, removes = checkNextPayloads(t, mdmDevice, false)
 	require.Empty(t, installs)
 	require.Empty(t, removes)
+
+	// Change the secret variable and upload the profiles again. We should see the profile with updated secret installed.
+	secretName = "newSecretName"
+	req = secretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{
+				Name:  "FLEET_SECRET_NAME",
+				Value: secretName, // changed
+			},
+			{
+				Name:  "FLEET_SECRET_PROFILE",
+				Value: secretProfile, // did not change
+			},
+		},
+	}
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent,
+		"team_id", fmt.Sprint(tm.ID))
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes = checkNextPayloads(t, mdmDevice, false)
+	// Manually replace the expected secret variables in the profile
+	wantTeamProfilesChanged := [][]byte{
+		teamProfiles[1],
+	}
+	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_IDENTIFIER",
+		secretIdentifier))
+	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "${FLEET_SECRET_TYPE}", secretType))
+	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_NAME", secretName))
+	// verify that we should install the team profiles
+	s.signedProfilesMatch(wantTeamProfilesChanged, installs)
+	wantTeamProfiles[1] = wantTeamProfilesChanged[0]
+	// No profiles should be deleted
+	assert.Empty(t, removes)
 
 	// Clear the profiles using the new (non-deprecated) endpoint.
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil}, http.StatusNoContent, "team_id",
@@ -294,6 +331,47 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	assert.Empty(t, removes)
 	// verify that we should install the team profiles
 	s.signedProfilesMatch(wantTeamProfiles, installs)
+
+	// Upload the same profiles again. No changes expected.
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID), "dry_run", "true")
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes = checkNextPayloads(t, mdmDevice, false)
+	require.Empty(t, installs)
+	require.Empty(t, removes)
+
+	// Change the secret variable and upload the profiles again. We should see the profile with updated secret installed.
+	secretName = "new2SecretName"
+	req = secretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{
+				Name:  "FLEET_SECRET_NAME",
+				Value: secretName, // changed
+			},
+			{
+				Name:  "FLEET_SECRET_PROFILE",
+				Value: secretProfile, // did not change
+			},
+		},
+	}
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID), "dry_run", "true")
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes = checkNextPayloads(t, mdmDevice, false)
+	// Manually replace the expected secret variables in the profile
+	wantTeamProfilesChanged = [][]byte{
+		teamProfiles[1],
+	}
+	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_IDENTIFIER",
+		secretIdentifier))
+	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "${FLEET_SECRET_TYPE}", secretType))
+	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_NAME", secretName))
+	// verify that we should install the team profiles
+	s.signedProfilesMatch(wantTeamProfilesChanged, installs)
+	wantTeamProfiles[1] = wantTeamProfilesChanged[0]
+	// No profiles should be deleted
+	assert.Empty(t, removes)
 
 	var hostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), getHostRequest{}, http.StatusOK, &hostResp)
@@ -1271,6 +1349,10 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 			{Identifier: "i4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			// Profiles from previous team being deleted
+			{Identifier: "i2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+			{Identifier: mobileconfig.FleetFileVaultPayloadIdentifier, OperationType: fleet.MDMOperationTypeRemove,
+				Status: &fleet.MDMDeliveryPending},
 		},
 	})
 
@@ -5270,4 +5352,350 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 	require.Contains(t, string(b), "com.fleetdm.fleet.mdm.apple.ota")
 	require.Contains(t, string(b), fmt.Sprintf("%s/api/v1/fleet/ota_enrollment?enroll_secret=%s", cfg.ServerSettings.ServerURL, escSec))
 	require.Contains(t, string(b), cfg.OrgInfo.OrgName)
+}
+
+// TestAppleDDMSecretVariablesUpload tests uploading DDM profiles with secrets via the /configuration_profiles endpoint
+func (s *integrationMDMTestSuite) TestAppleDDMSecretVariablesUpload() {
+	tmpl := `
+{
+	"Type": "com.apple.configuration.decl%d",
+	"Identifier": "com.fleet.config%d",
+	"Payload": {
+		"ServiceType": "com.apple.bash%d",
+		"DataAssetReference": "com.fleet.asset.bash"
+	}
+}`
+
+	newProfileBytes := func(i int) []byte {
+		return []byte(fmt.Sprintf(tmpl, i, i, i))
+	}
+
+	getProfileContents := func(profileUUID string) string {
+		profile, err := s.ds.GetMDMAppleDeclaration(context.Background(), profileUUID)
+		require.NoError(s.T(), err)
+		assert.NotNil(s.T(), profile.SecretsUpdatedAt)
+		return string(profile.RawJSON)
+	}
+
+	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "json", "darwin")
+}
+
+func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func(i int) []byte,
+	getProfileContents func(profileUUID string) string, fileExtension string, platform string) {
+	t := s.T()
+	const numProfiles = 2
+	var profiles [][]byte
+	for i := 0; i < numProfiles; i++ {
+		profiles = append(profiles, newProfileBytes(i))
+	}
+	// Use secrets
+	myBash := "com.apple.bash0"
+	profiles[0] = []byte(strings.ReplaceAll(string(profiles[0]), myBash, "$"+fleet.ServerSecretPrefix+"BASH"))
+	secretProfile := profiles[1]
+	profiles[1] = []byte("${" + fleet.ServerSecretPrefix + "PROFILE}")
+
+	body, headers := generateNewProfileMultipartRequest(
+		t, "secret-config0."+fileExtension, profiles[0], s.token, nil,
+	)
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusUnprocessableEntity, headers)
+	assertBodyContains(t, res, `Secret variable \"$FLEET_SECRET_BASH\" missing`)
+
+	// Add secret(s) to server
+	req := secretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{
+				Name:  "FLEET_SECRET_BASH",
+				Value: myBash,
+			},
+			{
+				Name:  "FLEET_SECRET_PROFILE",
+				Value: string(secretProfile),
+			},
+		},
+	}
+	secretResp := secretVariablesResponse{}
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+	var resp newMDMConfigProfileResponse
+	err := json.NewDecoder(res.Body).Decode(&resp)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp.ProfileUUID)
+
+	body, headers = generateNewProfileMultipartRequest(
+		t, "secret-config1."+fileExtension, profiles[1], s.token, nil,
+	)
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(res.Body).Decode(&resp)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp.ProfileUUID)
+
+	var listResp listMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &listResp)
+	require.Len(t, listResp.Profiles, numProfiles)
+	profileUUIDs := make([]string, numProfiles)
+	for _, p := range listResp.Profiles {
+		switch p.Name {
+		case "secret-config0":
+			assert.Equal(t, platform, p.Platform)
+			profileUUIDs[0] = p.ProfileUUID
+		case "secret-config1":
+			assert.Equal(t, platform, p.Platform)
+			profileUUIDs[1] = p.ProfileUUID
+		default:
+			t.Errorf("unexpected profile %s", p.Name)
+		}
+	}
+
+	// Check that contents are masking secret values
+	for i := 0; i < numProfiles; i++ {
+		assert.Equal(t, string(profiles[i]), getProfileContents(profileUUIDs[i]))
+	}
+
+	// Delete profiles -- make sure there is no issue deleting profiles with secrets
+	for i := 0; i < numProfiles; i++ {
+		s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+profileUUIDs[i], nil, http.StatusOK)
+	}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &listResp)
+	require.Empty(t, listResp.Profiles)
+
+}
+
+// TestAppleConfigSecretVariablesUpload tests uploading Apple config profiles with secrets via the /configuration_profiles endpoint
+func (s *integrationMDMTestSuite) TestAppleConfigSecretVariablesUpload() {
+	tmpl := `
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadDescription</key>
+  <string>For secret variables</string>
+  <key>PayloadDisplayName</key>
+  <string>secret-config%d</string>
+  <key>PayloadIdentifier</key>
+  <string>PI%d</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>%d</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>Bash</key>
+      <string>$FLEET_SECRET_BASH</string>
+      <key>PayloadDisplayName</key>
+      <string>secret payload</string>
+      <key>PayloadIdentifier</key>
+      <string>com.test.secret</string>
+      <key>PayloadType</key>
+      <string>com.test.secretd</string>
+      <key>PayloadUUID</key>
+      <string>476F5334-D501-4768-9A31-1A18A4E1E808</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+  </array>
+</dict>
+</plist>`
+
+	newProfileBytes := func(i int) []byte {
+		return []byte(fmt.Sprintf(tmpl, i, i, i))
+	}
+
+	getProfileContents := func(profileUUID string) string {
+		profile, err := s.ds.GetMDMAppleConfigProfile(context.Background(), profileUUID)
+		require.NoError(s.T(), err)
+		assert.NotNil(s.T(), profile.SecretsUpdatedAt)
+		return string(profile.Mobileconfig)
+	}
+
+	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "mobileconfig", "darwin")
+
+}
+
+// TestWindowsConfigSecretVariablesUpload tests uploading Windows profiles with secrets via the /configuration_profiles endpoint
+func (s *integrationMDMTestSuite) TestWindowsConfigSecretVariablesUpload() {
+	tmpl := `
+<Replace>
+    <Item>
+        <Meta>
+            <Format xmlns="syncml:metinf">int</Format>
+        </Meta>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/Policy/Config/System/DisableOneDriveFileSync</LocURI>
+        </Target>
+        <Data>$FLEET_SECRET_BASH</Data>
+    </Item>
+</Replace>
+`
+
+	newProfileBytes := func(i int) []byte {
+		return []byte(fmt.Sprintf(tmpl, i, i, i))
+	}
+
+	getProfileContents := func(profileUUID string) string {
+		profile, err := s.ds.GetMDMWindowsConfigProfile(context.Background(), profileUUID)
+		require.NoError(s.T(), err)
+		return string(profile.SyncML)
+	}
+
+	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "xml", "windows")
+
+}
+
+func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
+	t := s.T()
+	ctx := context.Background()
+
+	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
+	require.NoError(t, err)
+
+	globalProfiles := [][]byte{
+		mobileconfigForTest("N1", "I1"),
+	}
+	wantGlobalProfiles := globalProfiles
+	wantGlobalProfiles = append(
+		wantGlobalProfiles,
+		setupExpectedFleetdProfile(t, s.server.URL, t.Name(), nil),
+	)
+
+	// add global profiles
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+
+	// Create a host and then enroll to MDM.
+	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	// Add IdP email to host
+	mysql.ExecAdhocSQL(t, s.ds, func(e sqlx.ExtContext) error {
+		_, err := e.ExecContext(ctx, `INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`, "idp@example.com", host.ID,
+			fleet.DeviceMappingMDMIdpAccounts)
+		return err
+	})
+
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes := checkNextPayloads(t, mdmDevice, false)
+	// verify that we received all profiles
+	s.signedProfilesMatch(
+		append(wantGlobalProfiles, setupExpectedCAProfile(t, s.ds)),
+		installs,
+	)
+	require.Empty(t, removes)
+
+	// Add a profile with a Fleet variable. We are also testing that removal of a profile with a Fleet variable works.
+	// A unique command is created for each host when this Fleet variable is used.
+	globalProfilesPlusOne := [][]byte{
+		globalProfiles[0],
+		mobileconfigForTest("N2", "$FLEET_VAR_"+FleetVarHostEndUserEmailIDP),
+	}
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfilesPlusOne},
+		http.StatusNoContent)
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+
+	// Make sure profile was uploaded
+	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Len(t, profiles, 4)
+
+	// Delete a profile before it is sent to device
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	sendErrorOnRemoveProfile := func(device *mdmtest.TestAppleMDMClient) {
+		// The host grabs the removal command from Fleet
+		cmd, err := device.Idle()
+		require.NoError(t, err)
+		assert.Equal(t, "RemoveProfile", cmd.Command.RequestType)
+		// Since profile is not on the device, it returns an error.
+		errChain := []mdm.ErrorChain{
+			{
+				ErrorCode:            89,
+				ErrorDomain:          "FooErrorDomain",
+				LocalizedDescription: "The profile not found",
+			},
+		}
+		cmd, err = device.Err(cmd.CommandUUID, errChain)
+		require.NoError(t, err)
+		assert.Nil(t, cmd)
+	}
+	sendErrorOnRemoveProfile(mdmDevice)
+
+	// Make sure deleted profile no longer shows up
+	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Len(t, profiles, 3)
+
+	// Add a profile again
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfilesPlusOne},
+		http.StatusNoContent)
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+
+	// The host grabs the profile from Fleet
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	assert.Equal(t, "InstallProfile", cmd.Command.RequestType)
+	// Verify that the Fleet variable was replaced with the IdP email
+	type Command struct {
+		Command struct {
+			Payload []byte
+		}
+	}
+	var p Command
+	err = plist.Unmarshal(cmd.Raw, &p)
+	require.NoError(t, err)
+	assert.NotContains(t, string(p.Command.Payload), "$FLEET_VAR_"+FleetVarHostEndUserEmailIDP)
+	assert.Contains(t, string(p.Command.Payload), "idp@example.com")
+
+	// While the host is installing the profile, we delete it.
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+
+	// Host acknowledges installing the profile and grabs the remove command
+	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "RemoveProfile", cmd.Command.RequestType)
+	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	assert.Nil(t, cmd)
+
+	// Add another device
+	host2, mdmDevice2 := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	// Add IdP email to host
+	mysql.ExecAdhocSQL(t, s.ds, func(e sqlx.ExtContext) error {
+		_, err := e.ExecContext(ctx, `INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`, "idp2@example.com", host2.ID,
+			fleet.DeviceMappingMDMIdpAccounts)
+		return err
+	})
+
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes = checkNextPayloads(t, mdmDevice2, false)
+	assert.Len(t, installs, 3)
+	assert.Empty(t, removes)
+
+	// Add a profile again
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfilesPlusOne},
+		http.StatusNoContent)
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	// Delete a profile before it is sent to both devices
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	// The host grabs the removal command from Fleet
+	sendErrorOnRemoveProfile(mdmDevice)
+	sendErrorOnRemoveProfile(mdmDevice2)
+
+	// Make sure deleted profile no longer shows up on either host
+	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Len(t, profiles, 3)
+	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host2.UUID)
+	require.NoError(t, err)
+	assert.Len(t, profiles, 3)
+
 }

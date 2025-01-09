@@ -6,7 +6,7 @@
 	"name": [
 		"Slack"
 	],
-	"desc": "Team communication and collaboration software",
+	"desc": "Slack is a team communication and collaboration software for modern workplaces",
 	"homepage": "https://slack.com/",
 	"url": "https://downloads.slack-edge.com/desktop-releases/mac/arm64/4.40.126/Slack-4.40.126-macOS.dmg",
 	"url_specs": {

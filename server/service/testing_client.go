@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -122,6 +123,24 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, ts.ds.DeleteHost(ctx, host.ID))
 	}
 
+	teams, err := ts.ds.ListTeams(ctx, fleet.TeamFilter{User: &u}, fleet.ListOptions{})
+	require.NoError(t, err)
+	for _, tm := range teams {
+		err := ts.ds.DeleteTeam(ctx, tm.ID)
+		require.NoError(t, err)
+	}
+
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM policies;`)
+		return err
+	})
+
+	// Clean software installers in "No team" (the others are deleted in ts.ds.DeleteTeam above).
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
+		return err
+	})
+
 	lbls, err := ts.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
 	require.NoError(t, err)
 	for _, lbl := range lbls {
@@ -151,24 +170,6 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 			require.NoError(t, err)
 		}
 	}
-
-	teams, err := ts.ds.ListTeams(ctx, fleet.TeamFilter{User: &u}, fleet.ListOptions{})
-	require.NoError(t, err)
-	for _, tm := range teams {
-		err := ts.ds.DeleteTeam(ctx, tm.ID)
-		require.NoError(t, err)
-	}
-
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `DELETE FROM policies;`)
-		return err
-	})
-
-	// Clean software installers in "No team" (the others are deleted in ts.ds.DeleteTeam above).
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
-		return err
-	})
 
 	// Clean scripts in "No team" (the others are deleted in ts.ds.DeleteTeam above).
 	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
@@ -557,9 +558,27 @@ func (ts *withServer) uploadSoftwareInstaller(
 	expectedStatus int,
 	expectedError string,
 ) {
+	ts.uploadSoftwareInstallerWithErrorNameReason(t, payload, expectedStatus, expectedError, "")
+}
+
+func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
+	t *testing.T,
+	payload *fleet.UploadSoftwareInstallerPayload,
+	expectedStatus int,
+	expectedErrorReason string,
+	expectedErrorName string,
+) {
 	t.Helper()
 
 	tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
+	// Try the test installers in the pkg/file testdata (to reduce clutter/copies).
+	if errors.Is(err, os.ErrNotExist) {
+		var err2 error
+		tfr, err2 = fleet.NewKeepFileReader(filepath.Join("..", "..", "pkg", "file", "testdata", "software-installers", payload.Filename))
+		if err2 == nil {
+			err = nil
+		}
+	}
 	require.NoError(t, err)
 	defer tfr.Close()
 
@@ -587,6 +606,19 @@ func (ts *withServer) uploadSoftwareInstaller(
 	if payload.SelfService {
 		require.NoError(t, w.WriteField("self_service", "true"))
 	}
+	if payload.LabelsIncludeAny != nil {
+		for _, l := range payload.LabelsIncludeAny {
+			require.NoError(t, w.WriteField("labels_include_any", l))
+		}
+	}
+	if payload.LabelsExcludeAny != nil {
+		for _, l := range payload.LabelsExcludeAny {
+			require.NoError(t, w.WriteField("labels_exclude_any", l))
+		}
+	}
+	if payload.AutomaticInstall {
+		require.NoError(t, w.WriteField("automatic_install", "true"))
+	}
 
 	w.Close()
 
@@ -597,6 +629,89 @@ func (ts *withServer) uploadSoftwareInstaller(
 	}
 
 	r := ts.DoRawWithHeaders("POST", "/api/latest/fleet/software/package", b.Bytes(), expectedStatus, headers)
+	defer r.Body.Close()
+
+	if expectedErrorReason != "" || expectedErrorName != "" {
+		errName, errReason := extractServerErrorNameReason(r.Body)
+		if expectedErrorName != "" {
+			require.Equal(t, expectedErrorName, errName)
+		}
+		if expectedErrorReason != "" {
+			require.Contains(t, errReason, expectedErrorReason)
+		}
+	}
+}
+
+func (ts *withServer) updateSoftwareInstaller(
+	t *testing.T,
+	payload *fleet.UpdateSoftwareInstallerPayload,
+	expectedStatus int,
+	expectedError string,
+) {
+	t.Helper()
+
+	tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
+	require.NoError(t, err)
+	defer tfr.Close()
+
+	payload.InstallerFile = tfr
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+
+	// add the software field
+	fw, err := w.CreateFormFile("software", payload.Filename)
+	require.NoError(t, err)
+	n, err := io.Copy(fw, payload.InstallerFile)
+	require.NoError(t, err)
+	require.NotZero(t, n)
+
+	// add the team_id field
+	var tmID uint
+	if payload.TeamID != nil {
+		tmID = *payload.TeamID
+	}
+	require.NoError(t, w.WriteField("team_id", fmt.Sprintf("%d", tmID)))
+	// add the remaining fields
+	if payload.InstallScript != nil {
+		require.NoError(t, w.WriteField("install_script", *payload.InstallScript))
+	}
+	if payload.PreInstallQuery != nil {
+		require.NoError(t, w.WriteField("pre_install_query", *payload.PreInstallQuery))
+	}
+	if payload.PostInstallScript != nil {
+		require.NoError(t, w.WriteField("post_install_script", *payload.PostInstallScript))
+	}
+	if payload.UninstallScript != nil {
+		require.NoError(t, w.WriteField("uninstall_script", *payload.UninstallScript))
+	}
+	if payload.SelfService != nil {
+		if *payload.SelfService {
+			require.NoError(t, w.WriteField("self_service", "true"))
+		} else {
+			require.NoError(t, w.WriteField("self_service", "false"))
+		}
+	}
+	if payload.LabelsIncludeAny != nil {
+		for _, l := range payload.LabelsIncludeAny {
+			require.NoError(t, w.WriteField("labels_include_any", l))
+		}
+	}
+	if payload.LabelsExcludeAny != nil {
+		for _, l := range payload.LabelsExcludeAny {
+			require.NoError(t, w.WriteField("labels_exclude_any", l))
+		}
+	}
+
+	w.Close()
+
+	headers := map[string]string{
+		"Content-Type":  w.FormDataContentType(),
+		"Accept":        "application/json",
+		"Authorization": fmt.Sprintf("Bearer %s", ts.token),
+	}
+
+	r := ts.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", payload.TitleID), b.Bytes(), expectedStatus, headers)
 	defer r.Body.Close()
 
 	if expectedError != "" {

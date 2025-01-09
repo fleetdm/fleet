@@ -1,38 +1,93 @@
 import React, { useState, useCallback, useContext } from "react";
-
+import { useQuery } from "react-query";
 import { filter, includes } from "lodash";
-import { AppContext } from "context/app";
+import { InjectedRouter } from "react-router";
 
-import Button from "components/buttons/Button";
-import Modal from "components/Modal";
+import { TAGGED_TEMPLATES } from "utilities/helpers";
+
+import PATHS from "router/paths";
+
+import permissions from "utilities/permissions";
+
+import { AppContext } from "context/app";
+import { QueryContext } from "context/query";
+
+import queryAPI from "services/entities/queries";
+
 // @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
-
+import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 import DataError from "components/DataError";
-import permissions from "utilities/permissions";
-import { ISchedulableQuery } from "interfaces/schedulable_query";
+
+import {
+  IListQueriesResponse,
+  IQueryKeyQueriesLoadAll,
+  ISchedulableQuery,
+} from "interfaces/schedulable_query";
+import { API_ALL_TEAMS_ID } from "interfaces/team";
+import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 
 export interface ISelectQueryModalProps {
   onCancel: () => void;
-  onQueryHostCustom: () => void;
-  onQueryHostSaved: (selectedQuery: ISchedulableQuery) => void;
-  queries: ISchedulableQuery[] | [];
-  queryErrors: Error | null;
   isOnlyObserver?: boolean;
-  hostsTeamId: number | null;
+  hostId: number;
+  hostTeamId: number | null;
+  router: InjectedRouter; // v3
+  currentTeamId: number | undefined;
 }
 
 const baseClass = "select-query-modal";
 
 const SelectQueryModal = ({
   onCancel,
-  onQueryHostCustom,
-  onQueryHostSaved,
-  queries,
-  queryErrors,
   isOnlyObserver,
-  hostsTeamId,
+  hostId,
+  hostTeamId,
+  router,
+  currentTeamId,
 }: ISelectQueryModalProps): JSX.Element => {
+  const { setSelectedQueryTargetsByType } = useContext(QueryContext);
+
+  const { data: queries, error: queriesErr } = useQuery<
+    IListQueriesResponse,
+    Error,
+    ISchedulableQuery[],
+    IQueryKeyQueriesLoadAll[]
+  >(
+    [
+      {
+        scope: "queries",
+        teamId: hostTeamId || API_ALL_TEAMS_ID,
+        mergeInherited: hostTeamId !== API_ALL_TEAMS_ID,
+      },
+    ],
+    ({ queryKey }) => queryAPI.loadAll(queryKey[0]),
+    {
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      retry: false,
+      select: (data: IListQueriesResponse) => data.queries,
+    }
+  );
+
+  const onQueryHostCustom = () => {
+    setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
+    router.push(
+      PATHS.NEW_QUERY() +
+        TAGGED_TEMPLATES.queryByHostRoute(hostId, currentTeamId)
+    );
+  };
+
+  const onQueryHostSaved = (selectedQuery: ISchedulableQuery) => {
+    setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
+    router.push(
+      PATHS.EDIT_QUERY(selectedQuery.id) +
+        TAGGED_TEMPLATES.queryByHostRoute(hostId, currentTeamId)
+    );
+  };
+
   let queriesAvailableToRun = queries;
 
   const { currentUser, isObserverPlus } = useContext(AppContext);
@@ -40,15 +95,14 @@ const SelectQueryModal = ({
   /*  Context team id might be different that host's team id
   Observer plus must be checked against host's team id  */
   const isHostsTeamObserverPlus = currentUser
-    ? permissions.isObserverPlus(currentUser, hostsTeamId)
+    ? permissions.isObserverPlus(currentUser, hostTeamId)
     : false;
 
   const [queriesFilter, setQueriesFilter] = useState("");
 
   if (isOnlyObserver && !isObserverPlus && !isHostsTeamObserverPlus) {
-    queriesAvailableToRun = queries.filter(
-      (query) => query.observer_can_run === true
-    );
+    queriesAvailableToRun =
+      queries?.filter((query) => query.observer_can_run === true) || [];
   }
 
   const getQueries = () => {
@@ -78,7 +132,7 @@ const SelectQueryModal = ({
 
   const queriesFiltered = getQueries();
 
-  const queriesCount = queriesFiltered.length;
+  const queriesCount = queriesFiltered?.length || 0;
 
   const renderDescription = (): JSX.Element => {
     return (
@@ -99,7 +153,7 @@ const SelectQueryModal = ({
   };
 
   const renderQueries = (): JSX.Element => {
-    if (queryErrors) {
+    if (queriesErr) {
       return <DataError />;
     }
 
@@ -116,23 +170,24 @@ const SelectQueryModal = ({
     }
 
     if (queriesCount > 0) {
-      const queryList = queriesFiltered.map((query) => {
-        return (
-          <Button
-            key={query.id}
-            variant="unstyled-modal-query"
-            className={`${baseClass}__modal-query-button`}
-            onClick={() => onQueryHostSaved(query)}
-          >
-            <>
-              <span className="info__header">{query.name}</span>
-              {query.description && (
-                <span className="info__data">{query.description}</span>
-              )}
-            </>
-          </Button>
-        );
-      });
+      const queryList =
+        queriesFiltered?.map((query) => {
+          return (
+            <Button
+              key={query.id}
+              variant="unstyled-modal-query"
+              className={`${baseClass}__modal-query-button`}
+              onClick={() => onQueryHostSaved(query)}
+            >
+              <>
+                <span className="info__header">{query.name}</span>
+                {query.description && (
+                  <span className="info__data">{query.description}</span>
+                )}
+              </>
+            </Button>
+          );
+        }) || [];
 
       return (
         <>

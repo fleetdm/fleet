@@ -162,6 +162,8 @@ type Service interface {
 	// write the new email address to user.
 	ChangeUserEmail(ctx context.Context, token string) (string, error)
 
+	GetUserSettings(ctx context.Context, id uint) (settings *UserSettings, err error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Session
 
@@ -258,6 +260,11 @@ type Service interface {
 
 	// ListHostsInLabel returns a slice of hosts in the label with the given ID.
 	ListHostsInLabel(ctx context.Context, lid uint, opt HostListOptions) ([]*Host, error)
+
+	// BatchValidateLabels validates that each of the provided label names exists. The returned map
+	// is keyed by label name. Caller must ensure that appropirate authorization checks are
+	// performed prior to calling this method.
+	BatchValidateLabels(ctx context.Context, labelNames []string) (map[string]LabelIdent, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// QueryService
@@ -649,7 +656,7 @@ type Service interface {
 
 	// BatchSetSoftwareInstallers asynchronously replaces the software installers for a specified team.
 	// Returns a request UUID that can be used to track an ongoing batch request (with GetBatchSetSoftwareInstallersResult).
-	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []SoftwareInstallerPayload, dryRun bool) (string, error)
+	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []*SoftwareInstallerPayload, dryRun bool) (string, error)
 	// GetBatchSetSoftwareInstallersResult polls for the status of a batch-apply started by BatchSetSoftwareInstallers.
 	// Return values:
 	//	- 'status': status of the batch-apply which can be "processing", "completed" or "failed".
@@ -1163,7 +1170,7 @@ type Service interface {
 	// Fleet-maintained apps
 
 	// AddFleetMaintainedApp adds a Fleet-maintained app to the given team.
-	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool) (uint, error)
+	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool, labelsIncludeAny, labelsExcludeAny []string) (uint, error)
 	// ListFleetMaintainedApps lists Fleet-maintained apps available to a specific team
 	ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 	// GetFleetMaintainedApp returns a Fleet-maintained app by ID
