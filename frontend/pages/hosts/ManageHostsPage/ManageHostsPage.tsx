@@ -789,7 +789,7 @@ const ManageHostsPage = ({
     }
     try {
       await usersAPI.update(currentUser.id, {
-        settings: { hidden_host_columns: newHiddenColumns },
+        settings: { ...userSettings, hidden_host_columns: newHiddenColumns },
       });
       // No success renderFlash, to make column setting more seamless
       // only set state and close modal if server persist succeeds, keeping UI and server state in
