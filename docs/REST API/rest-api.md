@@ -2643,31 +2643,31 @@ Returns the information of the specified host.
     "last_enrolled_at": "2021-08-19T02:02:22Z",
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
-    "hostname": "23cfc9caacf0",
+    "hostname": "Annas-MacBook-Pro.local",
     "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
-    "platform": "rhel",
-    "osquery_version": "5.12.0",
+    "platform": "darwin",
+    "osquery_version": "5.15.0",
     "orbit_version": "1.22.0",
     "fleet_desktop_version": "1.22.0",
     "scripts_enabled": true,
-    "os_version": "CentOS Linux 8.3.2011",
-    "build": "",
-    "platform_like": "rhel",
+    "os_version": "macOS 15.2",
+    "build": "24C101",
+    "platform_like": "darwin",
     "code_name": "",
     "uptime": 210671000000000,
     "memory": 16788398080,
-    "cpu_type": "x86_64",
-    "cpu_subtype": "158",
-    "cpu_brand": "Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz",
-    "cpu_physical_cores": 12,
-    "cpu_logical_cores": 12,
-    "hardware_vendor": "",
-    "hardware_model": "",
+    "cpu_type": "arm64e",
+    "cpu_subtype": "ARM64E",
+    "cpu_brand": "Apple M1",
+    "cpu_physical_cores": 8,
+    "cpu_logical_cores": 8,
+    "hardware_vendor": "Apple Inc.",
+    "hardware_model": "MacBookPro17,1",
     "hardware_version": "",
-    "hardware_serial": "",
-    "computer_name": "23cfc9caacf0",
-    "display_name": "23cfc9caacf0",
-    "public_ip": "",
+    "hardware_serial": "C0124FXASD6G",
+    "computer_name": "Anna's MacBook Pro",
+    "display_name": "Anna's MacBook Pro",
+    "public_ip": "123.45.678.910",
     "primary_ip": "172.27.0.6",
     "primary_mac": "02:42:ac:1b:00:06",
     "distributed_interval": 10,
@@ -2676,13 +2676,13 @@ Returns the information of the specified host.
     "team_id": null,
     "pack_stats": null,
     "team_name": null,
-    "additional": {},
-    "gigs_disk_space_available": 46.1,
-    "percent_disk_space_available": 74,
-    "gigs_total_disk_space": 160,
+    "gigs_disk_space_available": 174.98,
+    "percent_disk_space_available": 71,
+    "gigs_total_disk_space": 246,
     "disk_encryption_enabled": true,
     "status": "online",
-    "display_text": "23cfc9caacf0",
+    "display_text": "Annas-MacBook-Pro.local",
+    "additional": {},
     "issues": {
       "failing_policies_count": 1,
       "critical_vulnerabilities_count": 2, // Available in Fleet Premium
@@ -2712,14 +2712,14 @@ Returns the information of the specified host.
         "username": "root",
         "type": "",
         "groupname": "root",
-        "shell": "/bin/bash"
+        "shell": "/bin/sh"
       },
       {
         "uid": 1,
-        "username": "bin",
+        "username": "annachao",
         "type": "",
-        "groupname": "bin",
-        "shell": "/sbin/nologin"
+        "groupname": "staff",
+        "shell": "/bin/zsh"
       }
     ],
     "labels": [
@@ -2738,9 +2738,9 @@ Returns the information of the specified host.
         "created_at": "2021-08-19T02:02:17Z",
         "updated_at": "2021-08-19T02:02:17Z",
         "id": 9,
-        "name": "CentOS Linux",
-        "description": "All CentOS hosts",
-        "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
+        "name": "macOS",
+        "description": "All macOS hosts",
+        "query": "select 1 from os_version where platform = 'darwin';",
         "platform": "",
         "label_type": "builtin",
         "label_membership_type": "dynamic"
@@ -2749,11 +2749,11 @@ Returns the information of the specified host.
         "created_at": "2021-08-19T02:02:17Z",
         "updated_at": "2021-08-19T02:02:17Z",
         "id": 12,
-        "name": "All Linux",
-        "description": "All Linux distributions",
-        "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+        "name": "Hosts with Chrome installed",
+        "description": "",
+        "query": "SELECT * FROM apps WHERE name LIKE \"%Chrome%\"",
         "platform": "",
-        "label_type": "builtin",
+        "label_type": "regular",
         "label_membership_type": "dynamic"
       }
     ],
@@ -3090,67 +3090,36 @@ This is the API route used by the **My device** page in Fleet desktop to display
   "host": {
     "created_at": "2021-08-19T02:02:22Z",
     "updated_at": "2021-08-19T21:14:58Z",
-    "software": [
-      {
-        "id": 408,
-        "name": "osquery",
-        "version": "4.5.1",
-        "source": "rpm_packages",
-        "browser": "",
-        "generated_cpe": "",
-        "vulnerabilities": null
-      },
-      {
-        "id": 1146,
-        "name": "tar",
-        "version": "1.30",
-        "source": "rpm_packages",
-        "browser": "",
-        "generated_cpe": "",
-        "vulnerabilities": null
-      },
-      {
-        "id": 321,
-        "name": "SomeApp.app",
-        "version": "1.0",
-        "source": "apps",
-        "browser": "",
-        "bundle_identifier": "com.some.app",
-        "last_opened_at": "2021-08-18T21:14:00Z",
-        "generated_cpe": "",
-        "vulnerabilities": null
-      }
-    ],
     "id": 1,
     "detail_updated_at": "2021-08-19T21:07:53Z",
     "label_updated_at": "2021-08-19T21:07:53Z",
     "last_enrolled_at": "2021-08-19T02:02:22Z",
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
-    "hostname": "23cfc9caacf0",
+    "hostname": "Annas-MacBook-Pro.local",
     "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
-    "platform": "rhel",
-    "osquery_version": "4.5.1",
-    "os_version": "CentOS Linux 8.3.2011",
-    "build": "",
-    "platform_like": "rhel",
+    "platform": "darwin",
+    "osquery_version": "5.15.0",
+    "os_version": "macOS 15.2",
+    "build": "24C101",
+    "platform_like": "darwin",
     "code_name": "",
     "uptime": 210671000000000,
     "memory": 16788398080,
-    "cpu_type": "x86_64",
-    "cpu_subtype": "158",
-    "cpu_brand": "Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz",
-    "cpu_physical_cores": 12,
-    "cpu_logical_cores": 12,
-    "hardware_vendor": "",
-    "hardware_model": "",
+    "cpu_type": "arm64e",
+    "cpu_subtype": "ARM64E",
+    "cpu_brand": "Apple M1",
+    "cpu_physical_cores": 8,
+    "cpu_logical_cores": 8,
+    "hardware_vendor": "Apple Inc.",
+    "hardware_model": "MacBookPro17,1",
     "hardware_version": "",
     "hardware_serial": "",
-    "computer_name": "23cfc9caacf0",
-    "display_name": "23cfc9caacf0",
-    "public_ip": "",
-    "primary_ip": "172.27.0.6",
-    "primary_mac": "02:42:ac:1b:00:06",
+    "computer_name": "Anna's MacBook Pro",
+    "display_name": "Anna's MacBook Pro",
+    "public_ip": "123.45.678.910",
+    "primary_ip": "192.12.345.678",
+    "primary_mac": "36:34:a5:6b:7b:5c",
     "distributed_interval": 10,
     "config_tls_refresh": 10,
     "logger_tls_period": 10,
@@ -3158,25 +3127,44 @@ This is the API route used by the **My device** page in Fleet desktop to display
     "pack_stats": null,
     "team_name": null,
     "additional": {},
-    "gigs_disk_space_available": 46.1,
-    "percent_disk_space_available": 74,
-    "gigs_total_disk_space": 160,
+    "gigs_disk_space_available": 174.98,
+    "percent_disk_space_available": 71,
+    "gigs_total_disk_space": 246,
     "disk_encryption_enabled": true,
     "dep_assigned_to_fleet": false,
+    "status": "online",
+    "display_text": "Annas-MacBook-Pro.local",
+    "self_service": true,
+    "org_logo_url": "https://example.com/logo.jpg",
+    "license": {
+      "tier": "free",
+      "expiration": "2031-01-01T00:00:00Z"
+    },
+    "global_config": {
+      "mdm": {
+        "enabled_and_configured": false
+      }
+    },
+    "batteries": [
+      {
+        "cycle_count": 999,
+        "health": "Good"
+      }
+    ],
     "users": [
       {
         "uid": 0,
         "username": "root",
         "type": "",
         "groupname": "root",
-        "shell": "/bin/bash"
+        "shell": "/bin/sh"
       },
       {
         "uid": 1,
-        "username": "bin",
+        "username": "annachao",
         "type": "",
-        "groupname": "bin",
-        "shell": "/sbin/nologin"
+        "groupname": "staff",
+        "shell": "/bin/zsh"
       }
     ],
     "labels": [
@@ -3195,9 +3183,9 @@ This is the API route used by the **My device** page in Fleet desktop to display
         "created_at": "2021-08-19T02:02:17Z",
         "updated_at": "2021-08-19T02:02:17Z",
         "id": 9,
-        "name": "CentOS Linux",
-        "description": "All CentOS hosts",
-        "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
+        "name": "macOS",
+        "description": "All macOS hosts",
+        "query": "select 1 from os_version where platform = 'darwin';",
         "platform": "",
         "label_type": "builtin",
         "label_membership_type": "dynamic"
@@ -3206,23 +3194,28 @@ This is the API route used by the **My device** page in Fleet desktop to display
         "created_at": "2021-08-19T02:02:17Z",
         "updated_at": "2021-08-19T02:02:17Z",
         "id": 12,
-        "name": "All Linux",
-        "description": "All Linux distributions",
-        "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+        "name": "Hosts with Chrome installed",
+        "description": "",
+        "query": "SELECT * FROM apps WHERE name LIKE \"%Chrome%\"",
         "platform": "",
-        "label_type": "builtin",
+        "label_type": "regular",
         "label_membership_type": "dynamic"
       }
     ],
-    "packs": [],
-    "status": "online",
-    "display_text": "23cfc9caacf0",
-    "batteries": [
+    "software": [
       {
-        "cycle_count": 999,
-        "health": "Good"
+        "id": 321,
+        "name": "SomeApp.app",
+        "version": "1.0",
+        "source": "apps",
+        "browser": "",
+        "bundle_identifier": "com.some.app",
+        "last_opened_at": "2021-08-18T21:14:00Z",
+        "generated_cpe": "",
+        "vulnerabilities": null
       }
     ],
+    "packs": [],
     "mdm": {
       "encryption_key_available": true,
       "enrollment_status": "On (manual)",
@@ -3230,7 +3223,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
       "connected_to_fleet": true,
       "server_url": "https://acme.com/mdm/apple/mdm",
       "macos_settings": {
-        "disk_encryption": null,
+        "disk_encryption": "verified",
         "action_required": null
       },
       "macos_setup": {
@@ -3240,7 +3233,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
       },
       "os_settings": {
         "disk_encryption": {
-          "status": null,
+          "status": "verified",
           "detail": ""
         }
       },
@@ -3253,17 +3246,6 @@ This is the API route used by the **My device** page in Fleet desktop to display
           "detail": ""
         }
       ]
-    }
-  },
-  "self_service": true,
-  "org_logo_url": "https://example.com/logo.jpg",
-  "license": {
-    "tier": "free",
-    "expiration": "2031-01-01T00:00:00Z"
-  },
-  "global_config": {
-    "mdm": {
-      "enabled_and_configured": false
     }
   }
 }
