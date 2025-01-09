@@ -1,4 +1,6 @@
 .software-install-details {
+  overflow-wrap: anywhere; // Prevent long software name overflow
+
   &__status-message {
     display: flex;
     align-items: center;

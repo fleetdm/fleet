@@ -18,6 +18,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -1858,10 +1859,89 @@ func (a *agent) runLiveQuery(query string) (results []map[string]string, status 
 		ss := fleet.OsqueryStatus(1)
 		return []map[string]string{}, &ss, ptr.String("live query failed with error foobar"), nil
 	}
-	ss := fleet.OsqueryStatus(0)
 	if a.liveQueryNoResultsProb > 0.0 && rand.Float64() <= a.liveQueryNoResultsProb {
+		ss := fleet.OsqueryStatus(0)
 		return []map[string]string{}, &ss, nil, nil
 	}
+
+	// Switch based on contents of the query.
+	lcQuery := strings.ToLower(query)
+	switch {
+	case strings.Contains(lcQuery, "from yara") && strings.Contains(lcQuery, "sigurl"):
+		return a.runLiveYaraQuery(query)
+	default:
+		return a.runLiveMockQuery(query)
+	}
+}
+
+func (a *agent) runLiveYaraQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats) {
+	// Get the URL of the YARA rule to request (i.e. the sigurl).
+	urlRegex := regexp.MustCompile(`sigurl=(["'])([^"']*)["']`)
+	matches := urlRegex.FindStringSubmatch(query)
+	var url string
+	if len(matches) > 2 {
+		url = matches[2]
+	} else {
+		ss := fleet.OsqueryStatus(1)
+		return []map[string]string{}, &ss, ptr.String("live yara query failed because a valid sigurl could not be found"), nil
+	}
+
+	// Osquery validates that the sigurl is one of a configured set, so that it's not
+	// sending requests to just anywhere. We'll check that it's at least the same host
+	// as the Fleet server.
+	if !strings.HasPrefix(url, a.serverAddress) {
+		ss := fleet.OsqueryStatus(1)
+		return []map[string]string{}, &ss, ptr.String("live yara query failed because sigurl host did not match server address"), nil
+	}
+
+	// Make the request.
+	body := []byte(`{"node_key": "` + a.nodeKey + `"}`)
+	request, err := http.NewRequest("POST", url, bytes.NewReader(body))
+	if err != nil {
+		ss := fleet.OsqueryStatus(1)
+		return []map[string]string{}, &ss, ptr.String("live yara query failed due to error creating request"), nil
+	}
+	request.Header.Add("Content-type", "application/json")
+
+	// Make the request.
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		ss := fleet.OsqueryStatus(1)
+		return []map[string]string{}, &ss, ptr.String(fmt.Sprintf("yara request failed to run: %v", err)), nil
+	}
+	defer response.Body.Close()
+
+	// For load testing purposes we don't actually care about the response, but check that we at least got one.
+	if _, err := io.Copy(io.Discard, response.Body); err != nil {
+		ss := fleet.OsqueryStatus(1)
+		return []map[string]string{}, &ss, ptr.String(fmt.Sprintf("error reading response from yara API: %v", err)), nil
+	}
+
+	// Return a response indicating that the file is clean.
+	ss := fleet.OsqueryStatus(0)
+	return []map[string]string{
+			{
+				"count":     "0",
+				"matches":   "",
+				"strings":   "",
+				"tags":      "",
+				"sig_group": "",
+				"sigfile":   "",
+				"sigrule":   "",
+				"sigurl":    url,
+				// Could pull this from the query, but not necessary for load testing.
+				"path": "/some/path",
+			},
+		}, &ss, nil, &fleet.Stats{
+			WallTimeMs: uint64(rand.Intn(1000) * 1000),
+			UserTime:   uint64(rand.Intn(1000)),
+			SystemTime: uint64(rand.Intn(1000)),
+			Memory:     uint64(rand.Intn(1000)),
+		}
+}
+
+func (a *agent) runLiveMockQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats) {
+	ss := fleet.OsqueryStatus(0)
 	return []map[string]string{
 			{
 				"admindir":   "/var/lib/dpkg",
