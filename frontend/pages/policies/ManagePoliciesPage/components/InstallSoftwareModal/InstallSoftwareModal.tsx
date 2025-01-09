@@ -30,7 +30,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 const getPlatformFromExtension = (ext: string | undefined): Platform | null => {
   switch (ext) {
     case "pkg":
-    case "zip":
+    case "zip": // Note: .zip > macOS only, may need platform identifier if .zip > Windows
     case "dmg":
       return "darwin";
     case "deb":
