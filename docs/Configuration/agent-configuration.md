@@ -1,6 +1,6 @@
 # Agent configuration
 
-Agent configuration options (agent options) update the settings of [Fleet's agent (fleed)](https://fleetdm.com/docs/get-started/anatomy#fleetd) installed on all your hosts.
+Agent configuration (agent options) updates the settings of the [Fleet agent (fleed)](https://fleetdm.com/docs/get-started/anatomy#fleetd) installed on all your hosts.
 
 You can modify agent options in **Settings > Organization settings > Agent options** or via Fleet's [API](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) or [YAML files](https://fleetdm.com/docs/configuration/yaml-files).
 
@@ -8,7 +8,7 @@ You can modify agent options in **Settings > Organization settings > Agent optio
 
 The `config` section allows you to update settings like performance and and how often the agent checks-in.
 
-####Example
+#### Example
 
 ```yaml
 config:
@@ -44,10 +44,6 @@ config:
       sig_group_2:
       - /Users/wxs/sigs/baz.sig
 ```
-
-- `decorators`
-- `yara`
-- `auto_table_contructions`
 
 ### options and command_line_flags
 
@@ -94,63 +90,16 @@ In the `decorators` key, you can specify queries to include additional informati
 
 ### yara
 
-You can use Fleet to configure the `yara` and `yara_events` osquery tables. Fore more information on YARA configuration and continuous monitoring using the `yara_events` table, check out the [YARA-based scanning with osquery section](https://osquery.readthedocs.io/en/stable/deployment/yara/) of the osquery documentation.
-
-### auto_table_construction
-
-You can use Fleet to query local SQLite databases as tables. For more information on creating ATC configuration from a SQLite database, check out the [Automatic Table Construction section](https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction) of the osquery documentation.
-
-If you already know what your ATC configuration needs to look like, you can add it to an options config file:
-
-```yaml
-agent_options:
-  config:
-    options:
-      # ...
-  overrides:
-    platforms:
-      darwin:
-        auto_table_construction:
-          tcc_system_entries:
-            # This query and columns are restricted for compatability.  Open TCC.db with sqlite on
-            # your endpoints to expand this out.
-            query: "SELECT service, client, last_modified FROM access"
-            # Note that TCC.db requires fleetd to have full-disk access, ensure that endpoints have 
-            # this enabled.
-            path: "/Library/Application Support/com.apple.TCC/TCC.db"
-            columns:
-              - "service"
-              - "client"
-              - "last_modified"
-```
-
-If you're editing this directly from the UI consider copying and pasting the following at the end of your agent configuration block:
-
-```
-overrides:
-  platforms:
-    darwin:
-      auto_table_construction:
-        tcc_system_entries:
-          # This query and columns are restricted for compatability.  Open TCC.db with sqlite on
-          # your endpoints to expand this out.
-          query: "SELECT service, client, last_modified FROM access"
-          # Note that TCC.db requires Orbit to have full-disk access, ensure that endpoints have
-          # this enabled.
-          path: "/Library/Application Support/com.apple.TCC/TCC.db"
-          columns:
-            - "service"
-            - "client"
-            - "last_modified"
-```
+You can use Fleet to configure the `yara` and `yara_events` osquery tables. Learn more about YARA configuration and continuous monitoring [here](https://fleetdm.com/guides/remote-yara-rules#basic-article).
 
 ## extensions
 
-> This feature requires [Fleetd, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager), along with a custom TUF auto-update server (a Fleet Premium feature).
+> This feature requires a custom TUF auto-update server (available in Fleet Premium). Learn more [here](https://fleetdm.com/guides/fleetd-updates).
 
 The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. Just like other `agent_options` the `extensions` key can be applied either to a team specific one or the global one.
 
-This is best illustrated with an example. Here is an example of using the `extensions` key:
+#### Example
+
 ```yaml
 agent_options:
   extensions: # requires Fleet's agent (fleetd)
@@ -205,7 +154,7 @@ Fleet recommends deploying extensions created with osquery-go or natively with C
 
 ### Targeting extensions with labels
 
-_Available in Fleet Premium v4.38.0_
+_Available in Fleet Premium_
 
 Fleet allows you to target extensions to hosts that belong to specific labels. To set these labels, you'll need to define a `labels` list under the extension name.
 The label names in the list:
@@ -213,7 +162,8 @@ The label names in the list:
 - are case insensitive.
 - must **all** apply to a host in order to deploy the extension to that host.
 
-Example:
+#### Example
+
 ```yaml
 agent_options:
   extensions: # requires Fleet's agent (fleetd)
@@ -232,17 +182,19 @@ agent_options:
       channel: 'stable'
       platform: 'windows'
 ```
+
 In the above example:
 - the `hello_world_macos` extension is deployed to macOS hosts that are members of the 'Zoom installed' label.
 - the `hello_world_linux` extension is deployed to Linux hosts that are members of the 'Ubuntu Linux' **and** 'Zoom installed' labels.
 
 ## update_channels
 
-_Available in Fleet Premium v4.43.0 and fleetd v1.20.0_
+_Available in Fleet Premium_
 
 Users can configure fleetd component TUF auto-update channels from Fleet's agent options. The components that can be configured are `orbit`, `osqueryd` and `desktop` (Fleet Desktop). When one of these components is omitted in `update_channels` then `stable` is assumed as the value for such component. Available options for update channels can be viewed [here](https://fleetdm.com/docs/using-fleet/enroll-hosts#specifying-update-channels).
 
-Examples:
+#### Examples
+
 ```yaml
 agent_options:
   update_channels: # requires Fleet's agent (fleetd)
@@ -250,6 +202,7 @@ agent_options:
     osqueryd: '5.10.2'
     desktop: edge
 ```
+
 ```yaml
 agent_options:
   update_channels: # requires Fleet's agent (fleetd)
@@ -281,9 +234,13 @@ B. Upgrading channel `B` to >= `1.20.0`.
 
 The `overrides` key allows you to segment hosts, by their platform, and supply these groups with unique osquery configuration options. When you choose to use the overrides option for a specific platform, all options specified in the default configuration will be ignored for that platform.
 
-In the example file below, all Darwin and Ubuntu hosts will **only** receive the options specified in their respective overrides sections.
+Note that the `command_line_flags` key is not supported in the `overrides`.
+
+In the example file below, all macOS hosts will **only** receive the options specified in their respective overrides sections.
 
 If a given option is not specified in a platform override section, its default value will be enforced.
+
+#### Example
 
 ```yaml
 agent_options:
@@ -308,22 +265,34 @@ agent_options:
             - /Users/%/Documents/%%
           etc:
             - /etc/%%
+        auto_table_construction:
+          tcc_system_entries:
+            # This query and columns are restricted for compatability.  Open TCC.db with sqlite on
+            # your endpoints to expand this out.
+            query: "SELECT service, client, last_modified FROM access"
+            # Note that TCC.db requires fleetd to have full-disk access, ensure that endpoints have 
+            # this enabled.
+            path: "/Library/Application Support/com.apple.TCC/TCC.db"
+            columns:
+              - "service"
+              - "client"
+              - "last_modified"
 ```
 
-Note that the `command_line_flags` key is not supported in the `overrides`.
+### auto_table_construction
+
+You can use Fleet to query local SQLite databases as tables. For more information on creating ATC configuration from a SQLite database, check out the [Automatic Table Construction section](https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction) of the osquery documentation.
 
 ## script_execution_timeout
 
-The `script_execution_timeout` allows you to change the default script execution timeout.
+The `script_execution_timeout` allows you to change the default script execution timeout (default: `300`, maximum: `3600`).
 
-- Optional setting (integer)
-- Default value: 300
-- Maximum value: 3600
-- Config file format:
-  ```yaml
-  agent_options:
-    script_execution_timeout: 600
-  ```
+#### Example
+
+```yaml
+agent_options:
+  script_execution_timeout: 600
+```
 
 <meta name="pageOrderInSection" value="300">
 <meta name="description" value="Learn how to use configuration files and the fleetctl command line tool to configure agent options.">
