@@ -43,7 +43,8 @@ jobs:
     strategy:
       matrix:
         suite: ["integration", "core"]
-        os: [ubuntu-latest]
+        # Pinning to 22.04 instead of using ubuntu-latest (updated to 24.04) to fix instability.
+        os: [ubuntu-22.04]
         mysql: ["mysql:8.0.36", "mysql:8.4.3", "mysql:9.1.0"] # make sure to update supported versions docs when this changes
         isCron:
           - ${{ github.event_name == 'schedule' }}
@@ -194,7 +195,8 @@ jobs:
 
   # Based on https://github.com/micromdm/nanomdm/blob/main/.github/workflows/on-push-pr.yml#L87
   test-go-nanomdm:
-    runs-on: 'ubuntu-latest'
+    # Pinning to 22.04 instead of using ubuntu-latest (updated to 24.04) to fix instability.
+    runs-on: 'ubuntu-22.04'
     services:
       mysql:
         image: mysql:8.0.36
@@ -298,7 +300,8 @@ jobs:
   # We upload all backend coverage in one step so that we're less like to end up in a situation with a partial coverage report.
   upload-coverage:
     needs: [test-go, test-go-nanomdm]
-    runs-on: ubuntu-latest
+    # Pinning to 22.04 instead of using ubuntu-latest (updated to 24.04) to fix instability.
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout Code
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3

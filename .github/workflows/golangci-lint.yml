@@ -37,7 +37,8 @@ jobs:
       fail-fast: false
       matrix:
         # See #9943, we just need to add windows-latest here once all issues are fixed.
-        os: [ubuntu-latest, macos-latest]
+        # Pinning to ubuntu-22.04 instead of using ubuntu-latest (updated to 24.04) to fix instability.
+        os: [ubuntu-22.04, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Harden Runner
@@ -54,7 +55,7 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: Install dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-22.04'
         run: |
           # The following packages are needed to build Fleet Desktop on Ubuntu.
           sudo apt update -y && sudo apt install -y gcc libgtk-3-dev libayatana-appindicator3-dev
