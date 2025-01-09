@@ -146,13 +146,17 @@
 
   &__results-count {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
     margin: 0;
     height: 40px;
     gap: 12px;
+
+    > span {
+      line-height: 40px; // Match other header components' height but still align text baseline
+    }
 
     .count-error {
       color: $ui-error;
