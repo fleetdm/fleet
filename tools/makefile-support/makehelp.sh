@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# If a command was specified like `make help SPECIFIC_CMD=build` then try to
+# If a command was specified like `make help CMD=build` then try to
 # gather help for that command.
-if [ -n "$SPECIFIC_CMD" ]; then
+if [ -n "$CMD" ]; then
   # Get the make targets for generating different help sections
-  short_target=".help-short--$SPECIFIC_CMD";
-  long_target=".help-long--$SPECIFIC_CMD";
-  options_target=".help-options--$SPECIFIC_CMD";
+  short_target=".help-short--$CMD";
+  long_target=".help-long--$CMD";
+  options_target=".help-options--$CMD";
   
   delim=$'\036'  # ASCII 30
   nl=$'\037'
@@ -25,7 +25,7 @@ if [ -n "$SPECIFIC_CMD" ]; then
   # If we found a long help description, then continue printing help.
   if [ -n "$long_desc" ]; then
     # Print a loading message since make takes a second to run.
-    echo -n "Gathering help for $SPECIFIC_CMD command...";
+    echo -n "Gathering help for $CMD command...";
     # If this command has options, output them as well.
     if [ -n "$options_text" ]; then
       # The REFORMAT_OPTIONS flag turns makefile options like DO_THE_THING into 
@@ -40,7 +40,7 @@ if [ -n "$SPECIFIC_CMD" ]; then
     echo -ne "\r\033[K";
     # Output whatever help we hot.
     echo "NAME:";
-    echo "  $SPECIFIC_CMD - $short_desc";
+    echo "  $CMD - $short_desc";
     if [ -n "$long_desc" ]; then
       echo;
       echo "DESCRIPTION:";
@@ -53,7 +53,7 @@ if [ -n "$SPECIFIC_CMD" ]; then
     fi;
   # If there's no long help description, there's no additional help for the command.
   else
-    echo "No help found for $SPECIFIC_CMD command.";
+    echo "No help found for $CMD command.";
   fi;
   
 # If no specific help was requested, output all the available commands.

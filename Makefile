@@ -76,9 +76,9 @@ all: build
 	$(eval APP_NAME = fleetctl)
 
 BINS_TO_BUILD = fleet fleetctl
-ifdef FLEET
+ifeq ($(ARG1), fleet)
 	BINS_TO_BUILD = fleet
-else ifdef FLEETCTL
+else ifeq ($(ARG1), fleetctl)
 	BINS_TO_BUILD = fleetctl
 endif
 .help-short--build:
@@ -97,6 +97,8 @@ endif
 
 build: $(BINS_TO_BUILD)
 
+.help-short--fdm:
+	@echo "Builds the fdm command"
 fdm:
 	go build -o build/fdm ./tools/fdm
 	@if [ ! -f /usr/local/bin/fdm ]; then \
@@ -130,7 +132,13 @@ lint-go:
 
 .help-short--lint:
 	@echo "Run all linters"
+ifeq ($(ARG1), go)
+lint: lint-go
+else ifeq ($(ARG1), js)
+lint: lint-js
+else
 lint: lint-go lint-js
+endif
 
 .help-short--test-schema:
 	@echo "Update schema.sql from current migrations"

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -37,7 +38,6 @@ func main() {
 	// Special logic for the help command.
 	if makeTarget == "help" {
 		if len(os.Args) > 2 && !strings.HasPrefix(os.Args[2], "--") {
-			options["SPECIFIC_CMD"] = os.Args[2]
 			options["REFORMAT_OPTIONS"] = "true"
 		} else {
 			fmt.Println("fdm - developer tools for fleet device management")
@@ -66,6 +66,7 @@ func main() {
 func splitArgs(args []string) (map[string]string, []string) {
 	options := make(map[string]string)
 	var makeArgs []string
+	positionalArgsIndex := 1
 	isMakeArgs := false
 	skipNext := false
 
@@ -94,6 +95,9 @@ func splitArgs(args []string) (map[string]string, []string) {
 				// Flags without values default to "true".
 				options[parts[0]] = "true"
 			}
+		} else {
+			options["arg"+strconv.Itoa(positionalArgsIndex)] = arg
+			positionalArgsIndex++
 		}
 	}
 

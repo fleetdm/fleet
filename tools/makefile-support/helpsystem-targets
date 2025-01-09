@@ -1,10 +1,11 @@
 # Default prefix for commands in the main help command, e.g. "make build".
 # The FDM utility may change this to "fdm".
 HELP_CMD_PREFIX ?= make
+CMD = $(ARG1)
 
 # Run the main help command.
 help:
-	@SPECIFIC_CMD=$(SPECIFIC_CMD) REFORMAT_OPTIONS=$(REFORMAT_OPTIONS) HELP_CMD_PREFIX=$(HELP_CMD_PREFIX) ./tools/makefile-support/makehelp.sh
+	@CMD=$(CMD) REFORMAT_OPTIONS=$(REFORMAT_OPTIONS) HELP_CMD_PREFIX=$(HELP_CMD_PREFIX) ./tools/makefile-support/makehelp.sh
 
 # Print separators between help sections.
 .help-sep-1:
