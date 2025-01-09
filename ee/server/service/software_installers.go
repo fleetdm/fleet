@@ -514,9 +514,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	return updatedInstaller, nil
 }
 
-func (svc *Service) validateEmbeddedSecretsOnScript(ctx context.Context, scriptName string, script *string,
-	argErr *fleet.InvalidArgumentError,
-) *fleet.InvalidArgumentError {
+func (svc *Service) validateEmbeddedSecretsOnScript(ctx context.Context, scriptName string, script *string, argErr *fleet.InvalidArgumentError, ) *fleet.InvalidArgumentError {
 	if script != nil {
 		if errScript := svc.ds.ValidateEmbeddedSecrets(ctx, []string{*script}); errScript != nil {
 			if argErr != nil {
