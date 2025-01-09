@@ -633,6 +633,7 @@ func newWorkerIntegrationsSchedule(
 	logger kitlog.Logger,
 	depStorage *mysql.NanoDEPStorage,
 	commander *apple_mdm.MDMAppleCommander,
+	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -681,9 +682,10 @@ func newWorkerIntegrationsSchedule(
 		DEPClient:  depCli,
 	}
 	appleMDM := &worker.AppleMDM{
-		Datastore: ds,
-		Log:       logger,
-		Commander: commander,
+		Datastore:             ds,
+		Log:                   logger,
+		Commander:             commander,
+		BootstrapPackageStore: bootstrapPackageStore,
 	}
 	dbMigrate := &worker.DBMigration{
 		Datastore: ds,

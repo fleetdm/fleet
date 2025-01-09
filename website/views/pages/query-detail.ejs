@@ -30,6 +30,11 @@
       <div purpose="policy-details-and-sidebar" class="d-flex flex-lg-row flex-column">
         <div purpose="policy-details" class="d-flex flex-column">
           <h2 purpose="policy-name"><%- query.name %></h2>
+          <div purpose="policy-attribution">
+            <img alt="Contributor's GitHub profile picture" purpose="contributor-profile-picture" src="https://github.com/<%- query.contributors[0].handle %>.png?size=200">
+            <a purpose="policy-link" href="https://github.com/<%- query.contributors[0].handle %>" class="d-flex align-items-center">
+            <p purpose="contributor-profile-name" class="mb-0"><%= query.contributors[0].name %></p></a>
+          </div>
           <p purpose="policy-description"><%- query.description %></p>
           <div purpose="policy-control" v-if="query.configuration_profile || query.script">
             <h3>Control</h3>

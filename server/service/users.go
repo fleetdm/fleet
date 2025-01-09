@@ -223,9 +223,12 @@ func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 	return svc.ds.ListUsers(ctx, opt)
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 // Me (get own current user)
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
+type getMeRequest struct {
+	IncludeUISettings bool `query:"include_ui_settings,optional"`
+}
 
 func meEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	user, err := svc.AuthenticatedUser(ctx)
@@ -240,7 +243,15 @@ func meEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (er
 			return getUserResponse{Err: err}, nil
 		}
 	}
-	return getUserResponse{User: user, AvailableTeams: availableTeams}, nil
+	req := request.(*getMeRequest)
+	var userSettings *fleet.UserSettings
+	if req.IncludeUISettings {
+		userSettings, err = svc.GetUserSettings(ctx, user.ID)
+		if err != nil {
+			return getUserResponse{Err: err}, nil
+		}
+	}
+	return getUserResponse{User: user, AvailableTeams: availableTeams, Settings: userSettings}, nil
 }
 
 func (svc *Service) AuthenticatedUser(ctx context.Context) (*fleet.User, error) {
@@ -264,12 +275,14 @@ func (svc *Service) AuthenticatedUser(ctx context.Context) (*fleet.User, error) 
 ////////////////////////////////////////////////////////////////////////////////
 
 type getUserRequest struct {
-	ID uint `url:"id"`
+	ID                uint `url:"id"`
+	IncludeUISettings bool `query:"include_ui_settings,optional"`
 }
 
 type getUserResponse struct {
 	User           *fleet.User          `json:"user,omitempty"`
 	AvailableTeams []*fleet.TeamSummary `json:"available_teams"`
+	Settings       *fleet.UserSettings  `json:"settings,omitempty"`
 	Err            error                `json:"error,omitempty"`
 }
 
@@ -289,7 +302,22 @@ func getUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 			return getUserResponse{Err: err}, nil
 		}
 	}
-	return getUserResponse{User: user, AvailableTeams: availableTeams}, nil
+
+	var userSettings *fleet.UserSettings
+	if req.IncludeUISettings {
+		userSettings, err = svc.GetUserSettings(ctx, user.ID)
+		if err != nil {
+			return getUserResponse{Err: err}, nil
+		}
+	}
+	return getUserResponse{User: user, AvailableTeams: availableTeams, Settings: userSettings}, nil
+}
+
+func (svc *Service) GetUserSettings(ctx context.Context, userID uint) (*fleet.UserSettings, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.User{ID: userID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	return svc.ds.UserSettings(ctx, userID)
 }
 
 // setAuthCheckedOnPreAuthErr can be used to set the authentication as checked
@@ -453,6 +481,10 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 
 	if p.SSOEnabled != nil {
 		user.SSOEnabled = *p.SSOEnabled
+	}
+
+	if p.Settings != nil {
+		user.Settings = p.Settings
 	}
 
 	currentUser := authz.UserFromContext(ctx)
