@@ -309,7 +309,7 @@
     code {
       color: #515774;
       &.has-linebreaks {
-        white-space: pre;
+        white-space: break-spaces;
       }
       &.no-linebreaks {
         white-space: normal;
@@ -369,6 +369,13 @@
     }
     [purpose='breadcrumbs-and-search'] {
       margin-bottom: 32px;
+    }
+    pre {
+      code {
+        &.has-linebreaks {
+          white-space: pre;
+        }
+      }
     }
   }
 
