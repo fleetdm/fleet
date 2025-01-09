@@ -20,7 +20,7 @@ Fleet's best practice teams:
 - `Compliance exclusions`: All contributors' test work computers or virtual machines (VMs). Used for validating workflows for Fleet customers or reproducing bugs in the Fleet product.
 - `📱🏢 Company-owned iPhones`: iPhones purchased by the organization that enroll to Fleet automatically via Apple Business Manager. For example, iPhones used by iOS Engineers.
 - `🔳🏢 Company-owned iPads`: iPads purchased by the organization that enroll to Fleet automatically via Apple Business Manager. For example, conference-room iPads.
-<!--- - `📱👔 BYOD iPhones`: End users' personal iPhones that have access to company resources. For example, Slack and Gmail. contributors' test iOS hosts. (BYOD iPhone features are coming soon) -->
+- `📱🔐 Personally-owned iPhones`: End users' personal iPhones, like those enrolled through a BYOD program, that have access to company resources.
 
 If some of your hosts don't fall under the above teams, what are these hosts for? The answer determines the the hosts' risk/compliance needs, and thus their security basline, and thus their "team" in Fleet. If the hosts' have a different compliance needs, and thus different security baseline, then it's time to create a new team in Fleet.
 

@@ -1,9 +1,6 @@
 .manage-queries-page {
   &__header-wrap {
-    height: 38px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    @include normalize-team-header;
   }
 
   &__header {

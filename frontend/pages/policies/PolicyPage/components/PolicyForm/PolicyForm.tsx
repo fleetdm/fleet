@@ -116,6 +116,7 @@ const PolicyForm = ({
 
   const {
     currentUser,
+    currentTeam,
     isGlobalObserver,
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -146,7 +147,9 @@ const PolicyForm = ({
   const platformSelector = usePlatformSelector(
     lastEditedQueryPlatform,
     baseClass,
-    platformSelectorDisabled
+    platformSelectorDisabled,
+    storedPolicy?.install_software,
+    currentTeam?.id
   );
 
   const {

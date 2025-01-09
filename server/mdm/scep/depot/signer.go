@@ -5,7 +5,7 @@ import (
 	"crypto/x509"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil"
+	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	"github.com/smallstep/scep"
 )
 

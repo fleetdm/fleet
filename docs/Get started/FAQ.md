@@ -106,26 +106,6 @@ The `fleetctl package` command is not supported on DISA-STIG distribution.
 
 Different portions of the Fleet software are licensed differently, as noted in the [LICENSE](https://github.com/fleetdm/fleet/blob/main/LICENSE) file. The majority of Fleet is MIT licensed. Paid features require a license key.
 
-## What is your commitment to open source stewardship?
-
-- When a feature is free and open source we won't move that feature to a paid tier. Features might be removed from the open source codebase in other cases, for example when combining features from multiple tiers into one new feature.
-
-- The majority of new capabilities added to Fleet will benefit all users, not just customers.
-
-- We won't introduce features into the open source codebase with a fixed delay; if a feature is planned to land in both it will be released simultaneously in both.
-
-- We will always release and open source all tests that we have for any open source feature.
-
-- The free version of Fleet is enterprise ready.
-
-- The open source codebase will not contain any artificial limits on the number of hosts, users, size, or performance.
-
-- The majority of new features contributed by Fleet Device Management Inc will be open source.
-
-- The product will be available for download without leaving an email address or logging in.
-
-- We will always allow you to benchmark the performance of Fleet. (Fleet also [load tests the platform before every release](https://fleetdm.com/handbook/engineering#rituals), with increasingly ambitious targets. The scale of real time reporting supported by Fleet has increased 5,000% since 2019. Today, Fleet deployments support 500,000 devices, and counting. The company is committed to driving this number to 1M+, and beyond.)
-
 ## How do I contact Fleet for support?
 
 A lot of questions can be answered [in the documentation](https://fleetdm.com/docs) or [guides](https://fleetdm.com/guides).
@@ -134,21 +114,9 @@ To get help from the community, visit https://fleetdm.com/support.
 
 If your organization has Fleet Premium, you can [access professional support](https://fleetdm.com/customers/login) with a guaranteed response time.
 
-## What if we choose not to renew?
-
-If you opt not to renew Fleet Premium, you can continue using only the free capabilities of Fleet (same code base, just unconfigure the license key.)
-
-## Can we buy a license to access premium features with reduced support for a reduced cost?
-
-We aren’t able to sell licenses and support separately.
-
 ## Do you offer pricing for unmanaged hosts? What about ephemeral hosts which may scale up or down?
 
 For now, the number of hosts is the maximum cap of hosts enrolled at any given time. Umanaged hosts ("Pending" MDM status in Fleet) are not included in the enrolled hosts count.
-
-## When run locally, what resources does the Fleet app typically consume on an individual instance, and when run in HA, at high volume? And how is latency on an individual instance vs clustered deployment?
-
-Like any modern application, Fleet scales horizontally. The biggest potential bottleneck for Fleet is the number of hosts being monitored, so that's where we've devoted the most attention when testing. The largest number of hosts we've had a customer ask about was 350,000, for all of the production servers and employee laptops of a publicly traded company.
 
 ## Where's the data stored?
 
