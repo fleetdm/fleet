@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250106150150, Down_20250106150150)
+	MigrationClient.AddMigration(Up_20250109150150, Down_20250109150150)
 }
 
 const quitApplicationFunc = `
@@ -55,7 +55,7 @@ quit_application() {
 }
 `
 
-func Up_20250106150150(tx *sql.Tx) error {
+func Up_20250109150150(tx *sql.Tx) error {
 	var scriptsToModify []struct {
 		InstallScriptContents string `db:"contents"`
 		AppName               string `db:"name"`
@@ -138,6 +138,6 @@ WHERE fla.token IN (?)
 	return nil
 }
 
-func Down_20250106150150(tx *sql.Tx) error {
+func Down_20250109150150(tx *sql.Tx) error {
 	return nil
 }
