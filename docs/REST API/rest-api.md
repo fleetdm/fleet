@@ -2900,18 +2900,6 @@ If `hostname` is specified when there is more than one host with the same hostna
   "host": {
     "created_at": "2022-02-10T02:29:13Z",
     "updated_at": "2022-10-14T17:07:11Z",
-    "software": [
-      {
-        "id": 16923,
-        "name": "Automat",
-        "version": "0.8.0",
-        "source": "python_packages",
-        "browser": "",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "installed_paths": ["/usr/lib/some_path/"]
-      }
-    ],
     "id": 33,
     "detail_updated_at": "2022-10-14T17:07:12Z",
     "label_updated_at": "2022-10-14T17:07:12Z",
@@ -2947,6 +2935,29 @@ If `hostname` is specified when there is more than one host with the same hostna
     "config_tls_refresh": 60,
     "logger_tls_period": 10,
     "team_id": 2,
+    "team_name": null,
+    "gigs_disk_space_available": 19.29,
+    "percent_disk_space_available": 74,
+    "gigs_total_disk_space": 192,
+    "issues": {
+        "failing_policies_count": 1,
+        "critical_vulnerabilities_count": 2, // Fleet Premium only
+        "total_issues_count": 3
+    },
+    "batteries": [
+      {
+        "cycle_count": 999,
+        "health": "Normal"
+      }
+    ],
+    "geolocation": {
+      "country_iso": "US",
+      "city_name": "New York",
+      "geometry": {
+        "type": "point",
+        "coordinates": [40.6799, -74.0028]
+      }
+    },
     "pack_stats": [
       {
         "pack_id": 1,
@@ -2972,15 +2983,6 @@ If `hostname` is specified when there is more than one host with the same hostna
         ]
       }
     ],
-    "team_name": null,
-    "gigs_disk_space_available": 19.29,
-    "percent_disk_space_available": 74,
-    "gigs_total_disk_space": 192,
-    "issues": {
-        "failing_policies_count": 1,
-        "critical_vulnerabilities_count": 2, // Fleet Premium only
-        "total_issues_count": 3
-    },
     "labels": [
       {
         "created_at": "2021-09-14T05:11:02Z",
@@ -3029,23 +3031,18 @@ If `hostname` is specified when there is more than one host with the same hostna
         "critical": false
       }
     ],
-    "batteries": [
+    "software": [
       {
-        "cycle_count": 999,
-        "health": "Normal"
+        "id": 16923,
+        "name": "Automat",
+        "version": "0.8.0",
+        "source": "python_packages",
+        "browser": "",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": ["/usr/lib/some_path/"]
       }
     ],
-    "geolocation": {
-      "country_iso": "US",
-      "city_name": "New York",
-      "geometry": {
-        "type": "point",
-        "coordinates": [40.6799, -74.0028]
-      }
-    },
-    "status": "online",
-    "display_text": "dogfood-ubuntu-box",
-    "display_name": "dogfood-ubuntu-box",
     "mdm": {
       "encryption_key_available": false,
       "enrollment_status": null,
