@@ -4655,6 +4655,93 @@ func (s *integrationTestSuite) TestUsers() {
 	assert.Len(t, getMeResp.User.Teams, 0)
 	assert.Len(t, getMeResp.AvailableTeams, 0)
 
+	// test user settings from 2 endpoints
+
+	// get session user with ui settings, which should be empty, two endpoints
+	var getResp getUserResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
+	assert.Equal(t, uint(1), getResp.User.ID)
+	assert.Empty(t, getResp.User.Settings)
+
+	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
+	}, "include_ui_settings", "true")
+	err = json.NewDecoder(resp.Body).Decode(&getMeResp)
+	require.NoError(t, err)
+	// session user id 1
+	assert.Equal(t, uint(1), getMeResp.User.ID)
+	assert.NotNil(t, getMeResp.User.GlobalRole)
+	// settings should only be present in dedicated settings field, not in user object
+	assert.Nil(t, getMeResp.User.Settings)
+	assert.Empty(t, getMeResp.Settings)
+
+	// modify session user - add ui setting
+	var modResp modifyUserResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
+		"settings": {
+			"hidden_host_columns": ["osquery_version"]}	
+	}`), http.StatusOK, &modResp)
+
+	// get session user with ui settings, should now be present, two endpoints
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
+	assert.Equal(t, uint(1), getResp.User.ID)
+	assert.Nil(t, getResp.User.Settings)
+	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}})
+
+	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
+	}, "include_ui_settings", "true")
+	err = json.NewDecoder(resp.Body).Decode(&getMeResp)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), getMeResp.User.ID)
+	assert.NotNil(t, getMeResp.User.GlobalRole)
+	assert.Nil(t, getMeResp.User.Settings)
+	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}})
+
+	// modify user ui settings, check they are returned modified
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
+		"settings": {
+			"hidden_host_columns": ["hostname", "osquery_version"]}	
+	}`), http.StatusOK, &modResp)
+
+	// get session user with ui settings, should now be modified, two endpoints
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
+	assert.Equal(t, uint(1), getResp.User.ID)
+	assert.Nil(t, getResp.User.Settings)
+	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}})
+
+	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
+	}, "include_ui_settings", "true")
+	err = json.NewDecoder(resp.Body).Decode(&getMeResp)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), getMeResp.User.ID)
+	assert.NotNil(t, getMeResp.User.GlobalRole)
+	assert.Nil(t, getMeResp.User.Settings)
+	assert.Equal(t, getMeResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}})
+
+	// modify user ui settings, empty array, check they are returned correctly
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
+		"settings": {
+			"hidden_host_columns": []}	
+	}`), http.StatusOK, &modResp)
+
+	// get session user with ui settings, should now be modified, two endpoints
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
+	assert.Equal(t, uint(1), getResp.User.ID)
+	assert.Nil(t, getResp.User.Settings)
+	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{}})
+
+	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
+	}, "include_ui_settings", "true")
+	err = json.NewDecoder(resp.Body).Decode(&getMeResp)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), getMeResp.User.ID)
+	assert.NotNil(t, getMeResp.User.GlobalRole)
+	assert.Nil(t, getMeResp.User.Settings)
+	assert.Equal(t, getMeResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{}})
+
 	// create a new user
 	var createResp createUserResponse
 	userRawPwd := test.GoodPassword
@@ -4712,7 +4799,6 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/sessions", sessionCreateRequest{Token: mfaToken}, http.StatusUnauthorized, &loginResp)
 
 	// turn off MFA
-	var modResp modifyUserResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{MFAEnabled: ptr.Bool(false)}, http.StatusOK, &modResp)
 	require.False(t, modResp.User.MFAEnabled)
 
@@ -4726,7 +4812,6 @@ func (s *integrationTestSuite) TestUsers() {
 	assert.Len(t, loginResp.AvailableTeams, 0)
 
 	// get that user from `/users` endpoint and check that teams info is empty
-	var getResp getUserResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), nil, http.StatusOK, &getResp)
 	assert.Equal(t, u.ID, getResp.User.ID)
 	assert.Len(t, getResp.User.Teams, 0)
