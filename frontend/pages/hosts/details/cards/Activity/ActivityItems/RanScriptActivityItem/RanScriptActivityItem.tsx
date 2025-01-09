@@ -23,7 +23,7 @@ const RanScriptActivityItem = ({
         {ranScriptPrefix}{" "}
         {formatScriptNameForActivityItem(activity.details?.script_name)} on this
         host.{" "}
-        <ShowDetailsButton activity={activity} onShowDetails={onShowDetails} />
+        {/* <ShowDetailsButton activity={activity} onShowDetails={onShowDetails} /> */}
       </>
     </HostActivityItem>
   );

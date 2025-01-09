@@ -13,12 +13,16 @@ import Avatar from "components/Avatar";
 
 import { COLORS } from "styles/var/colors";
 import { dateAgo } from "utilities/date_format";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 
 const baseClass = "host-activity-item";
 
 interface IHostActivityItemProps {
   activity: IActivity;
   children: React.ReactNode;
+  onShowDetails?: () => void;
+  onCancel?: () => void;
   className?: string;
 }
 
@@ -85,6 +89,14 @@ const HostActivityItem = ({
               {internationalTimeFormat(activityCreatedAt)}
             </ReactTooltip>
           )}
+        </div>
+        <div className={`${baseClass}__details-actions`}>
+          <Button variant="icon">
+            <Icon name="info" />
+          </Button>
+          <Button variant="icon">
+            <Icon name="close" />
+          </Button>
         </div>
       </div>
       {/* <div className={`${baseClass}__dash`} /> */}

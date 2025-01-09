@@ -36,6 +36,9 @@
   }
 
   &__details-wrapper {
+    display: flex;
+    gap: $pad-medium;
+    align-items: center;
     grid-column-start: 4;
     grid-row-start: 1;
     padding: $pad-small;
@@ -51,6 +54,21 @@
       margin: 0;
       line-height: 16px;
     }
+
+    &:hover {
+      border-radius: $border-radius-large;
+      background-color: $ui-off-white;
+
+      .host-activity-item__details-actions {
+        visibility: visible;
+      }
+    }
+  }
+
+  &__details-actions {
+    visibility: hidden;
+    display: flex;
+    gap: $pad-medium;
   }
 
   &__details-topline {
@@ -80,10 +98,6 @@
   &:last-child {
     .host-activity-item__avatar-lower-dash {
       border-right: none;
-    }
-
-    .host-activity-item__details-wrapper {
-      padding-bottom: $pad-xxlarge;
     }
   }
 }
