@@ -343,12 +343,12 @@ software:
       labels_include_any:
         - Design
         - Sales
-      state: present
+      install: manual
 ```
 
 - Use `labels_include_any` to target hosts that have any label in the array or `labels_exclude_any` to target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
-- Use `state` to specify whether to automatically write a policy to install the software. If `present`, Fleet will ensure the software is installed, but will not update it if an older version alreday exists on the host.
+- Use `install` to specify whether to automatically write a policy to install the software. If `manual` the software will have to be manually installed. If `auto`, Fleet will ensure the software is installed, but will not update it if an older version alreday exists on the host. If `purge` Fleet will ensure that the software is removed from all hosts.
 
 
 ### packages
