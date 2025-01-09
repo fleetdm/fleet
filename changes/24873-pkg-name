@@ -1,0 +1,1 @@
+- Added a workaround that attempts to get the correct app name for .pkg installers that have default or incorrect app names in their metadata. 
