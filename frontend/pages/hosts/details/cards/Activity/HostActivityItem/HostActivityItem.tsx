@@ -92,10 +92,14 @@ const HostActivityItem = ({
         </div>
         <div className={`${baseClass}__details-actions`}>
           <Button variant="icon">
-            <Icon name="info" />
+            <Icon name="info" size="medium" color="ui-fleet-black-75" />
           </Button>
           <Button variant="icon">
-            <Icon name="close" />
+            <Icon
+              name="close"
+              color="ui-fleet-black-75"
+              className={`${baseClass}__close-icon`}
+            />
           </Button>
         </div>
       </div>

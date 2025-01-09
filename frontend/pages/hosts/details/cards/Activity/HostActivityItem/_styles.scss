@@ -66,10 +66,21 @@
   }
 
   &__details-actions {
-    visibility: hidden;
+    // visibility: hidden;
     display: flex;
     gap: $pad-medium;
   }
+
+  &__close-icon {
+    cursor: pointer;
+    &:hover {
+      svg {
+        path {
+          stroke: $core-vibrant-blue;
+        }
+      }
+    }
+  };
 
   &__details-topline {
     font-size: $x-small;
