@@ -270,7 +270,6 @@ func parseDistributionFile(rawXML []byte) (*InstallerMetadata, error) {
 		BundleIdentifier: identifier,
 		PackageIDs:       packageIDs,
 	}, nil
-
 }
 
 // getDistributionInfo gets the name, bundle identifier and version of a PKG distribution file
@@ -278,7 +277,7 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 	var appVersion string
 
 	// find the package ids that have an installation size
-	var packageIDSet = make(map[string]struct{}, 1)
+	packageIDSet := make(map[string]struct{}, 1)
 	for _, pkg := range d.PkgRefs {
 		if pkg.InstallKBytes != "" && pkg.InstallKBytes != "0" {
 			var id string
@@ -368,7 +367,9 @@ out:
 	if name == "" && d.Title != "" {
 		name = d.Title
 	}
-	if name == "" {
+	// "DISTRIBUTION_TITLE" is a default title that is sometimes left in the Distribution file. Fall
+	// back to the bundle ID if this is the case.
+	if name == "" || name == "DISTRIBUTION_TITLE" {
 		name = identifier
 	}
 
@@ -405,12 +406,11 @@ func parsePackageInfoFile(rawXML []byte) (*InstallerMetadata, error) {
 		BundleIdentifier: identifier,
 		PackageIDs:       packageIDs,
 	}, nil
-
 }
 
 // getPackageInfo gets the name, bundle identifier and version of a PKG top level PackageInfo file
 func getPackageInfo(p *packageInfoXML) (name string, identifier string, version string, packageIDs []string) {
-	var packageIDSet = make(map[string]struct{}, 1)
+	packageIDSet := make(map[string]struct{}, 1)
 	for _, bundle := range p.Bundles {
 		installPath := bundle.Path
 		if p.InstallLocation != "" {
