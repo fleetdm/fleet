@@ -27,6 +27,7 @@ type SoftwareInstallerStore interface {
 	Put(ctx context.Context, installerID string, content io.ReadSeeker) error
 	Exists(ctx context.Context, installerID string) (bool, error)
 	Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error)
+	Sign(ctx context.Context, fileID string) (string, error)
 }
 
 // FailingSoftwareInstallerStore is an implementation of SoftwareInstallerStore
@@ -53,6 +54,10 @@ func (FailingSoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerI
 	return 0, nil
 }
 
+func (FailingSoftwareInstallerStore) Sign(_ context.Context, _ string) (string, error) {
+	return "", errors.New("software installer store not properly configured")
+}
+
 // SoftwareInstallDetails contains all of the information
 // required for a client to pull in and install software from the fleet server
 type SoftwareInstallDetails struct {
@@ -73,6 +78,15 @@ type SoftwareInstallDetails struct {
 	PostInstallScript string `json:"post_install_script" db:"post_install_script"`
 	// SelfService indicates the install was initiated by the device user
 	SelfService bool `json:"self_service" db:"self_service"`
+	// SoftwareInstallerURL contains the details to download the software installer from CDN.
+	SoftwareInstallerURL *SoftwareInstallerURL `json:"installer_url,omitempty"`
+}
+
+type SoftwareInstallerURL struct {
+	// URL is the URL to download the software installer.
+	URL string `json:"url"`
+	// Filename is the name of the software installer file that contents should be downloaded to from the URL.
+	Filename string `json:"filename"`
 }
 
 // SoftwareInstaller represents a software installer package that can be used to install software on

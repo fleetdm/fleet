@@ -166,6 +166,7 @@ require (
 	github.com/apache/thrift v0.18.1 // indirect
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/cloudfront/sign v1.8.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/c-bata/go-prompt v0.2.3 // indirect
 	github.com/cavaliercoder/go-cpio v0.0.0-20180626203310-925f9528c45e // indirect
