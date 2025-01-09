@@ -129,6 +129,12 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
     execution_id = ?`
 
 	const hostMDMActionsStmt = `
+  SELECT 'uninstall' AS action
+  FROM
+	host_software_installs
+  WHERE
+	execution_id = :execution_id AND host_id = :host_id
+  UNION -- host_mdm_actions query (and thus row in union) must be last to avoid #25144
   SELECT
     CASE
       WHEN lock_ref = :execution_id THEN 'lock_ref'
@@ -140,12 +146,6 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
     host_mdm_actions
   WHERE
     host_id = :host_id
-  UNION
-  SELECT 'uninstall' AS action
-  FROM
-	host_software_installs
-  WHERE
-	execution_id = :execution_id AND host_id = :host_id
 `
 
 	output := truncateScriptResult(result.Output)

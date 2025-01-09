@@ -448,7 +448,10 @@ data "aws_iam_policy_document" "cron_monitoring_lambda" {
       "sns:Publish"
     ]
 
-    resources = lookup(var.sns_topic_arns_map, "cron_monitoring", var.default_sns_topic_arns)
+    resources = distinct(concat(
+      lookup(var.sns_topic_arns_map, "cron_monitoring", var.default_sns_topic_arns),
+      lookup(var.sns_topic_arns_map, "cron_job_failure_monitoring", var.default_sns_topic_arns)
+    ))
 
     effect = "Allow"
   }

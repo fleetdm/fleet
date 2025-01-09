@@ -12500,6 +12500,21 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 			"install_script_output": "ok"
 		}`, *h.OrbitNodeKey, installUUID)), http.StatusNoContent)
 
+	// simulate a lock/unlock; this creates the host_mdm_actions table, which reproduces #25144
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", h.ID), nil, http.StatusNoContent)
+	status, err := s.ds.GetHostLockWipeStatus(context.Background(), h)
+	require.NoError(t, err)
+	var orbitScriptResp orbitPostScriptResultResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *h.OrbitNodeKey, status.LockScript.ExecutionID)),
+		http.StatusOK, &orbitScriptResp)
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", h.ID), nil, http.StatusNoContent)
+	status, err = s.ds.GetHostLockWipeStatus(context.Background(), h)
+	require.NoError(t, err)
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *h.OrbitNodeKey, status.UnlockScript.ExecutionID)),
+		http.StatusOK, &orbitScriptResp)
+
 	// Do uninstall
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", h.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &getHostSoftwareResp)
@@ -15289,6 +15304,215 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, vimInstallerID)
 	require.NoError(t, err)
 	require.NotNil(t, host1LastInstall)
+}
+
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigger() {
+	t := s.T()
+	ctx := context.Background()
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	// Create a few labels
+	var newLabelResp createLabelResponse
+	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
+		Name:  uuid.NewString(),
+		Query: "SELECT 1",
+	}, http.StatusOK, &newLabelResp)
+	lbl1 := newLabelResp.Label
+
+	newLabelResp = createLabelResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
+		Name:  uuid.NewString(),
+		Query: "SELECT 2",
+	}, http.StatusOK, &newLabelResp)
+	lbl2 := newLabelResp.Label
+
+	newLabelResp = createLabelResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
+		Name:  uuid.NewString(),
+		Query: "SELECT 3",
+	}, http.StatusOK, &newLabelResp)
+	lbl3 := newLabelResp.Label
+
+	// Add label1 and label2 to the host
+	err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lbl1.ID: ptr.Bool(true), lbl2.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+
+	// upload software. Add label1 and label3 as "exclude any" labels.
+	rubyPayload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "some deb install script",
+		Filename:         "ruby.deb",
+		TeamID:           nil,
+		LabelsIncludeAny: []string{lbl1.Name, lbl3.Name},
+		Platform:         "linux",
+	}
+	s.uploadSoftwareInstaller(t, rubyPayload, http.StatusOK, "")
+
+	// Get software title ID of the uploaded installer.
+	resp := listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "ruby",
+		"team_id", "0",
+	)
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	rubyDebTitleID := resp.SoftwareTitles[0].ID
+
+	var rubyDetail getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyDebTitleID), nil, http.StatusOK, &rubyDetail)
+	require.NotNil(t, rubyDetail.SoftwareTitle)
+	require.NotNil(t, rubyDetail.SoftwareTitle.SoftwarePackage)
+	rubyInstallerID := rubyDetail.SoftwareTitle.SoftwarePackage.InstallerID
+
+	policy1, err := s.ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:     "policy1",
+		Query:    "SELECT 1;",
+		Platform: "linux",
+	})
+	require.NoError(t, err)
+
+	mtplr := modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", policy1.ID), modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
+		},
+	}, http.StatusOK, &mtplr)
+
+	// No install attempt yet
+	host1LastInstall, err := s.ds.GetHostLastInstallData(ctx, host.ID, rubyInstallerID)
+	require.NoError(t, err)
+	require.Nil(t, host1LastInstall)
+
+	// Send back a failed result for the policy.
+	distributedResp := submitDistributedQueryResultsResponse{}
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host,
+		map[uint]*bool{
+			policy1.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy1, err = s.ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+
+	// Because the installer is in scope, the policy is failing
+	require.Equal(t, uint(0), policy1.PassingHostCount)
+	require.Equal(t, uint(1), policy1.FailingHostCount)
+
+	// We've triggered an installation attempt
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, rubyInstallerID)
+	require.NoError(t, err)
+	require.NotNil(t, host1LastInstall)
+
+	// Update the installer's labels to "exclude any". This de-scopes the software.
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		InstallScript:     ptr.String("some install script"),
+		PreInstallQuery:   ptr.String("some pre install query"),
+		PostInstallScript: ptr.String("some post install script"),
+		Filename:          "ruby.deb",
+		TitleID:           rubyDebTitleID,
+		TeamID:            nil,
+		LabelsExcludeAny:  []string{lbl1.Name, lbl3.Name},
+	}, http.StatusOK, "")
+
+	// The update should clear out the installation attempt
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, rubyInstallerID)
+	require.NoError(t, err)
+	require.Nil(t, host1LastInstall)
+
+	// Update the installer's labels to be "include any" again. The software is now back in scope.
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		InstallScript:     ptr.String("some install script"),
+		PreInstallQuery:   ptr.String("some pre install query"),
+		PostInstallScript: ptr.String("some post install script"),
+		Filename:          "ruby.deb",
+		TitleID:           rubyDebTitleID,
+		TeamID:            nil,
+		LabelsIncludeAny:  []string{lbl1.Name, lbl3.Name},
+	}, http.StatusOK, "")
+
+	// Simulate a failure of the policy
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host,
+		map[uint]*bool{
+			policy1.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy1, err = s.ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	// Because the installer is in scope, the policy should be failing again
+	require.Equal(t, uint(0), policy1.PassingHostCount)
+	require.Equal(t, uint(1), policy1.FailingHostCount)
+
+	// We have an installation attempt again; the policy automation has been re-triggered
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, rubyInstallerID)
+	require.NoError(t, err)
+	require.NotNil(t, host1LastInstall)
+
+	// Update the include any labels. The host doesn't have label2, so this means that the software
+	// moved out of scope.
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		InstallScript:     ptr.String("some install script"),
+		PreInstallQuery:   ptr.String("some pre install query"),
+		PostInstallScript: ptr.String("some post install script"),
+		Filename:          "ruby.deb",
+		TitleID:           rubyDebTitleID,
+		TeamID:            nil,
+		LabelsIncludeAny:  []string{lbl2.Name},
+	}, http.StatusOK, "")
+
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, rubyInstallerID)
+	require.NoError(t, err)
+	require.Nil(t, host1LastInstall)
+
+	// Update to exclude any with label 2. This moves the software back into scope. The policy
+	// automation should re-trigger.
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		InstallScript:     ptr.String("some install script"),
+		PreInstallQuery:   ptr.String("some pre install query"),
+		PostInstallScript: ptr.String("some post install script"),
+		Filename:          "ruby.deb",
+		TitleID:           rubyDebTitleID,
+		TeamID:            nil,
+		LabelsExcludeAny:  []string{lbl2.Name},
+	}, http.StatusOK, "")
+
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host,
+		map[uint]*bool{
+			policy1.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy1, err = s.ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	// Because the installer is in scope, the policy should be failing again.
+	require.Equal(t, uint(0), policy1.PassingHostCount)
+	require.Equal(t, uint(1), policy1.FailingHostCount)
+
+	// We have an installation attempt again.
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, rubyInstallerID)
+	require.NoError(t, err)
+	require.Nil(t, host1LastInstall)
 }
 
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {

@@ -417,6 +417,34 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	return nil
 }
 
+func (ds *Datastore) ClearAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	stmt := `
+UPDATE
+	policies p
+	JOIN policy_membership pm ON pm.policy_id = p.id
+SET
+	passes = NULL
+WHERE
+	p.software_installer_id = ?
+	AND pm.host_id IN (?)
+		`
+
+	stmt, args, err := sqlx.In(stmt, installerID, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building in statement for clearing auto install policy status")
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "clearing auto install policy status")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 	return listPoliciesDB(ctx, ds.reader(ctx), nil, opts)
 }

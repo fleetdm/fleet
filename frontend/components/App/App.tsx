@@ -77,6 +77,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     isOnlyObserver,
     isAnyTeamMaintainerOrTeamAdmin,
     setAvailableTeams,
+    setUserSettings,
     setCurrentUser,
     setConfig,
     setEnrollSecret,
@@ -165,9 +166,10 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
 
   const fetchCurrentUser = async () => {
     try {
-      const { user, available_teams } = await usersAPI.me();
+      const { user, available_teams, settings } = await usersAPI.me();
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);
+      setUserSettings(settings);
       fetchConfig();
     } catch (error) {
       if (

@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250102205257, Down_20250102205257)
+	MigrationClient.AddMigration(Up_20250110205257, Down_20250110205257)
 }
 
-func Up_20250102205257(tx *sql.Tx) error {
+func Up_20250110205257(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 		ALTER TABLE policies
 		ADD COLUMN vpp_apps_teams_id INT UNSIGNED DEFAULT NULL,
@@ -29,6 +29,6 @@ func Up_20250102205257(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20250102205257(tx *sql.Tx) error {
+func Down_20250110205257(tx *sql.Tx) error {
 	return nil
 }
