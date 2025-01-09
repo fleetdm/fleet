@@ -147,6 +147,7 @@ const ManageHostsPage = ({
     setFilteredPoliciesPath,
     setFilteredQueriesPath,
     setFilteredSoftwarePath,
+    setUserSettings,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -174,6 +175,27 @@ const ManageHostsPage = ({
         newTeamId === API_ALL_TEAMS_ID,
     },
   });
+
+  // migrate users with current local storage based solution to db persistence
+  const locallyHiddenCols = localStorage.getItem("hostHiddenColumns");
+  if (!currentUser) {
+    // for type checker
+    return <></>;
+  }
+  if (locallyHiddenCols) {
+    (async () => {
+      const parsed = JSON.parse(locallyHiddenCols) as string[];
+      try {
+        await usersAPI.update(currentUser.id, {
+          settings: { ...userSettings, hidden_host_columns: parsed },
+        });
+        localStorage.removeItem("hostHiddenColumns");
+      } catch {
+        // don't remove local storage, proceed with setting context with local storage value
+      }
+      setUserSettings({ ...userSettings, hidden_host_columns: parsed });
+    })();
+  }
 
   // Functions to avoid race conditions
   const initialSortBy: ISortOption[] = (() => {
