@@ -38,6 +38,7 @@
   &__details-wrapper {
     display: flex;
     gap: $pad-medium;
+    justify-content: space-between;
     align-items: center;
     grid-column-start: 4;
     grid-row-start: 1;
@@ -66,7 +67,7 @@
   }
 
   &__details-actions {
-    // visibility: hidden;
+    visibility: hidden;
     display: flex;
     gap: $pad-medium;
   }

@@ -15,15 +15,16 @@ import { COLORS } from "styles/var/colors";
 import { dateAgo } from "utilities/date_format";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import { noop } from "lodash";
 
 const baseClass = "host-activity-item";
 
 interface IHostActivityItemProps {
   activity: IActivity;
   children: React.ReactNode;
+  className?: string;
   onShowDetails?: () => void;
   onCancel?: () => void;
-  className?: string;
 }
 
 /**
@@ -36,6 +37,8 @@ const HostActivityItem = ({
   activity,
   children,
   className,
+  onShowDetails = noop,
+  onCancel = noop,
 }: IHostActivityItemProps) => {
   const { actor_email } = activity;
   const { gravatar_url } = actor_email
@@ -64,7 +67,7 @@ const HostActivityItem = ({
         />
         <div className={`${baseClass}__avatar-lower-dash`} />
       </div>
-      <div className={`${baseClass}__details-wrapper`}>
+      <div className={`${baseClass}__details-wrapper`} onClick={onShowDetails}>
         <div className={"activity-details"}>
           <span className={`${baseClass}__details-topline`}>
             <span>{children}</span>
@@ -91,10 +94,10 @@ const HostActivityItem = ({
           )}
         </div>
         <div className={`${baseClass}__details-actions`}>
-          <Button variant="icon">
+          <Button variant="icon" onClick={onShowDetails}>
             <Icon name="info" size="medium" color="ui-fleet-black-75" />
           </Button>
-          <Button variant="icon">
+          <Button variant="icon" onClick={onCancel}>
             <Icon
               name="close"
               color="ui-fleet-black-75"
