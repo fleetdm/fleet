@@ -1,6 +1,6 @@
 # Automatically install software
 
-Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) introduces the ability to automatically and remotely install software on hosts based on predefined policy failures. This guide will walk you through the process of configuring fleet for automatic installation of software on hosts using uploaded installation images and based on programmed policies.  You'll learn how to configure and use this feature, as well as understand how the underlying mechanism works.
+Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) introduces the ability to automatically and remotely install software on hosts based on predefined policy failures. This guide will walk you through the process of configuring Fleet for automatic installation of software on hosts using uploaded custom packages or Fleet-maintained apps and based on programmed policies.  You'll learn how to configure and use this feature, as well as understand how the underlying mechanism works.
 
 Fleet allows its users to upload trusted software installation files to be installed and used on hosts. This installation could be conditioned on a failure of a specific Fleet Policy.
 
@@ -25,6 +25,8 @@ Current supported software deployment formats:
 
 Coming soon:
 - VPP for iOS and iPadOS
+
+> Note: starting with v4.62.0, you have Fleet create an automatic install policy automatically when you upload an installer. If you use this "Automatic" install mode, you do not have to create your own policy. See our [deploying software](https://fleetdm.com/guides/deploy-security-agents) guide for more details.
 
 2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go to Policies tab --> Press the "Add policy" button --> Click "create your own policy" --> Enter your policy SQL --> Save --> Fill in details in the Save modal and Save.
 

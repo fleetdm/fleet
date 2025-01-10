@@ -28,7 +28,7 @@ Learn more about automatically installing software in a separate guide [here](ht
 
 * Choose a file to upload. `.pkg`, `.msi`, `.exe`, `.rpm`, and `.deb` files are supported.
 
-* Select the hosts that you want to target with this software, under "Target". Select "All hosts" if you want the software to be available to all your hosts. Select "Custom" to scope the software to specific groups of hosts based on label membership. You can select "Include any", which will scope the software to hosts that have any of the labels you select, or "Exclude any", which will scope the software to hosts that do _not_ have the selected labels.
+* Select the installation mode under "Install". If you select "Manual", you will have to manually tell Fleet to install the software. If you select "Automatic", Fleet will create a policy that checks for the existence of the software and will automatically trigger an install on hosts that fail the policy.
 
 * Select the hosts that you want to target with this software, under "Target". Select "All hosts" if you want the software to be available to all your hosts. Select "Custom" to scope the software to specific groups of hosts based on label membership. You can select "Include any", which will scope the software to hosts that have any of the labels you select, or "Exclude any", which will scope the software to hosts that do _not_ have the selected labels.
 
@@ -36,7 +36,7 @@ Learn more about automatically installing software in a separate guide [here](ht
 
 * To customize installer behavior, click on “Advanced options.”
 
-> After the initial package upload, all options can be modified, including the self-service setting, pre-install query, scripts, and even the software package file. When replacing an installer package, the replacement package must be the same type and for the same software as the original package.
+> After the initial package upload, all options except the installation mode can be modified, including the self-service setting, pre-install query, scripts, and even the software package file. When replacing an installer package, the replacement package must be the same type and for the same software as the original package. If you want to enable automatic installs after initial package upload, follow the steps in our [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet) to add an automatic install policy.
 
 ### Package metadata extraction
 
