@@ -35,6 +35,7 @@ const TeamManagementPage = (): JSX.Element => {
     setCurrentTeam,
     setCurrentUser,
     setAvailableTeams,
+    setUserSettings,
   } = useContext(AppContext);
   const [isUpdatingTeams, setIsUpdatingTeams] = useState(false);
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
@@ -48,9 +49,10 @@ const TeamManagementPage = (): JSX.Element => {
 
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     enabled: false,
-    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
+    onSuccess: ({ user, available_teams, settings }: IGetMeResponse) => {
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);
+      setUserSettings(settings);
     },
   });
 

@@ -40,7 +40,7 @@ require (
 	github.com/getsentry/sentry-go v0.18.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/github/smimesign v0.2.0
-	github.com/go-git/go-git/v5 v5.11.0
+	github.com/go-git/go-git/v5 v5.13.0
 	github.com/go-ini/ini v1.67.0
 	github.com/go-kit/kit v0.12.0
 	github.com/go-kit/log v0.2.1
@@ -105,7 +105,7 @@ require (
 	github.com/spf13/cast v1.4.1
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.10.0
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	github.com/theupdateframework/go-tuf v0.5.2
 	github.com/throttled/throttled/v2 v2.8.0
 	github.com/tj/assert v0.0.3
@@ -124,16 +124,16 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.31.0
 	go.opentelemetry.io/otel/sdk v1.31.0
 	golang.org/x/crypto v0.31.0
-	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
+	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
 	golang.org/x/image v0.18.0
-	golang.org/x/mod v0.17.0
-	golang.org/x/net v0.30.0
+	golang.org/x/mod v0.19.0
+	golang.org/x/net v0.33.0
 	golang.org/x/oauth2 v0.22.0
 	golang.org/x/sync v0.10.0
 	golang.org/x/sys v0.28.0
 	golang.org/x/term v0.27.0
 	golang.org/x/text v0.21.0
-	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d
+	golang.org/x/tools v0.23.0
 	google.golang.org/api v0.178.0
 	google.golang.org/grpc v1.67.1
 	gopkg.in/guregu/null.v3 v3.5.0
@@ -159,13 +159,14 @@ require (
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/OneOfOne/xxhash v1.2.8 // indirect
-	github.com/ProtonMail/go-crypto v1.0.0 // indirect
+	github.com/ProtonMail/go-crypto v1.1.3 // indirect
 	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/akavel/rsrc v0.10.2 // indirect
 	github.com/antchfx/xpath v1.2.2 // indirect
 	github.com/apache/thrift v0.18.1 // indirect
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/cloudfront/sign v1.8.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/c-bata/go-prompt v0.2.3 // indirect
 	github.com/cavaliercoder/go-cpio v0.0.0-20180626203310-925f9528c45e // indirect
@@ -174,7 +175,7 @@ require (
 	github.com/cloudflare/circl v1.3.8 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.3 // indirect
-	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
+	github.com/cyphar/filepath-securejoin v0.2.5 // indirect
 	github.com/dgraph-io/ristretto v0.1.0 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
@@ -189,7 +190,7 @@ require (
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/garyburd/go-oauth v0.0.0-20180319155456-bca2e7f09a17 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
-	github.com/go-git/go-billy/v5 v5.5.0 // indirect
+	github.com/go-git/go-billy/v5 v5.6.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -247,10 +248,10 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/secDre4mer/pkcs7 v0.0.0-20240322103146-665324a4461d // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.5.0 // indirect
-	github.com/sergi/go-diff v1.2.0 // indirect
+	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/siderolabs/go-cmd v0.1.1 // indirect
-	github.com/skeema/knownhosts v1.2.1 // indirect
+	github.com/skeema/knownhosts v1.3.0 // indirect
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect

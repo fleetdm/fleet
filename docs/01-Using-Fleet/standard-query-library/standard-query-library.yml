@@ -45,7 +45,43 @@ spec:
         );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, premium,
-  contributors: sharon-fdm
+  contributors: sharon-fdm,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>PayloadDisplayName</key>
+          <string>Screensaver</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.screensaver.AB633B1B-EAEF-4AB6-B5F6-DE67193267E9</string>
+          <key>PayloadType</key>
+          <string>com.apple.screensaver</string>
+          <key>PayloadUUID</key>
+          <string>AB633B1B-EAEF-4AB6-B5F6-DE67193267E9</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+          <key>askForPassword</key>
+          <true/>
+          <key>askForPasswordDelay</key>
+          <integer>0</integer>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Require password after screensaver or sleep</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.password_policy</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>5A2DC0F2-C5FE-4808-9083-D9879684D7FA</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
@@ -72,7 +108,41 @@ spec:
         );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, premium
-  contributors: sharon-fdm
+  contributors: sharon-fdm,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>AutomaticCheckEnabled</key>
+          <true/>
+          <key>PayloadDisplayName</key>
+          <string>Software Update</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.SoftwareUpdate.8567CAE0-4F08-49B7-9DEE-EE7A1FB232E4</string>
+          <key>PayloadType</key>
+          <string>com.apple.SoftwareUpdate</string>
+          <key>PayloadUUID</key>
+          <string>8567CAE0-4F08-49B7-9DEE-EE7A1FB232E4</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Automatically install updates</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.automatically_install_updates</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>C9797096-D3DD-4BB4-85B0-6679209BA78F</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
@@ -575,7 +645,46 @@ spec:
   resolution: "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
   tags: compliance, hardening, built-in, CIS, CIS2.5.2.1, critical
   platform: darwin
-  contributors: groob
+  contributors: groob,ddribeiro
+  script: |
+    #!/bin/sh
+
+    ## command to enable gatekeeper
+    /usr/sbin/spctl --master-enable
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>EnableAssessment</key>
+          <true/>
+          <key>PayloadDisplayName</key>
+          <string>System Policy Control</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.systempolicy.control.6CA698CD-1DBB-445C-BDA3-60E35FBBF0E9</string>
+          <key>PayloadType</key>
+          <string>com.apple.systempolicy.control</string>
+          <key>PayloadUUID</key>
+          <string>6CA698CD-1DBB-445C-BDA3-60E35FBBF0E9</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Enable Gatekeeper</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.enablegatekeeper.DF30A9A2-C9F9-421D-A26A-6FAA7216E72F</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>DF30A9A2-C9F9-421D-A26A-6FAA7216E72F</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
@@ -634,7 +743,41 @@ spec:
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables automatic login."
   tags: MDM required, compliance, hardening, built-in, critical
   platform: darwin
-  contributors: groob
+  contributors: groob,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>PayloadDisplayName</key>
+          <string>Login Window #1</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.loginwindow.CE506065-7C0E-434E-8B8C-12E164116C94</string>
+          <key>PayloadType</key>
+          <string>com.apple.loginwindow</string>
+          <key>PayloadUUID</key>
+          <string>CE506065-7C0E-434E-8B8C-12E164116C94</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+          <key>com.apple.login.mcx.DisableAutoLoginClient</key>
+          <true/>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Disable Automatic Login</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.disableautomaticlogin.F07E2CB5-56CC-4699-B061-EAA253220BA8</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>F07E2CB5-56CC-4699-B061-EAA253220BA8</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
@@ -645,7 +788,41 @@ spec:
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables secure keyboard entry for the Terminal application."
   tags: MDM required, compliance, hardening, built-in
   platform: darwin
-  contributors: groob
+  contributors: groob,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>SecureKeyboardEntry</key>
+          <true/>
+          <key>PayloadDisplayName</key>
+          <string>Terminal</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.Terminal.89C5FA0F-CA32-4CC7-99D9-931B13CB923B</string>
+          <key>PayloadType</key>
+          <string>com.apple.Terminal</string>
+          <key>PayloadUUID</key>
+          <string>89C5FA0F-CA32-4CC7-99D9-931B13CB923B</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Enable Terminal Secure Keyboard Entry</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.enableterminalsecurekeyboardentry.6E73E3DF-0D0A-4B17-BBCB-3E0906C78743</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>6E73E3DF-0D0A-4B17-BBCB-3E0906C78743</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: query
@@ -692,7 +869,43 @@ spec:
     updates.
   tags: compliance, malware, hardening, built-in, template
   platform: darwin
-  contributors: GuillaumeRoss
+  contributors: GuillaumeRoss,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>ConfigDataInstall</key>
+          <true/>
+          <key>CriticalUpdateInstall</key>
+          <true/>
+          <key>PayloadDisplayName</key>
+          <string>Software Update</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.SoftwareUpdate.C0292C9C-7506-4A51-9C19-52FF2DB632EC</string>
+          <key>PayloadType</key>
+          <string>com.apple.SoftwareUpdate</string>
+          <key>PayloadUUID</key>
+          <string>C0292C9C-7506-4A51-9C19-52FF2DB632EC</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Enable automatic system data files and security updates</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.enableSystemDataFilesAndSecurityUpdates.1C24BCAF-E18D-434B-B5D2-70F886F19912</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>1C24BCAF-E18D-434B-B5D2-70F886F19912</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
@@ -769,7 +982,41 @@ spec:
   resolution: "In System Preferences, open Security & Privacy, navigate to the Firewall tab and click Turn On Firewall."
   tags: hardening, compliance, built-in, CIS, CIS2.5.2.2
   platform: darwin
-  contributors: GuillaumeRoss
+  contributors: GuillaumeRoss,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>EnableFirewall</key>
+          <true/>
+          <key>PayloadDisplayName</key>
+          <string>Firewall</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.security.firewall.84151DEA-D0E5-4334-91D4-4BBDFA38CD17</string>
+          <key>PayloadType</key>
+          <string>com.apple.security.firewall</string>
+          <key>PayloadUUID</key>
+          <string>84151DEA-D0E5-4334-91D4-4BBDFA38CD17</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Enable Firewall</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.enablefirewall.D93BF783-383E-41CD-97AA-1D3FD71045BE</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>D93BF783-383E-41CD-97AA-1D3FD71045BE</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
@@ -780,7 +1027,43 @@ spec:
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables screen lock."
   tags: MDM required, compliance, hardening, built-in
   platform: darwin
-  contributors: GuillaumeRoss
+  contributors: GuillaumeRoss,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>PayloadDisplayName</key>
+          <string>Screensaver</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.screensaver.C3B911F5-A787-4B64-86D9-3DFE19B5F72F</string>
+          <key>PayloadType</key>
+          <string>com.apple.screensaver</string>
+          <key>PayloadUUID</key>
+          <string>C3B911F5-A787-4B64-86D9-3DFE19B5F72F</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+          <key>askForPassword</key>
+          <true/>
+          <key>askForPasswordDelay</key>
+          <integer>0</integer>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Enable screen lock</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.enableScreenLock.5BFC3E0C-50E1-4D61-82D8-3A784D4DD200</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>5BFC3E0C-50E1-4D61-82D8-3A784D4DD200</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
@@ -802,7 +1085,41 @@ spec:
   resolution: "Contact your IT administrator to make sure your Mac is receiving configuration profiles for password length."
   platform: darwin
   tags: compliance, hardening, built-in, CIS, CIS5.2.2
-  contributors: GuillaumeRoss
+  contributors: GuillaumeRoss,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>PayloadDisplayName</key>
+          <string>Passcode</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.mobiledevice.passwordpolicy.0668AAD7-0A80-476C-AAF7-C5F63B5E8E3D</string>
+          <key>PayloadType</key>
+          <string>com.apple.mobiledevice.passwordpolicy</string>
+          <key>PayloadUUID</key>
+          <string>0668AAD7-0A80-476C-AAF7-C5F63B5E8E3D</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+          <key>minLength</key>
+          <integer>10</integer>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Require password of 10 or more characters</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.passwordPolicy10Characters.D3CDEDA2-DC77-484F-92F8-68A4902800AD</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>D3CDEDA2-DC77-484F-92F8-68A4902800AD</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
@@ -835,7 +1152,41 @@ spec:
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic update downloads."
   tags: MDM required, compliance, CIS, CIS1.3
   platform: darwin
-  contributors: GuillaumeRoss
+  contributors: GuillaumeRoss,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>AutomaticDownload</key>
+          <true/>
+          <key>PayloadDisplayName</key>
+          <string>Software Update</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.SoftwareUpdate.79490A7F-FBE2-4E28-9E98-CE8232A87C6A</string>
+          <key>PayloadType</key>
+          <string>com.apple.SoftwareUpdate</string>
+          <key>PayloadUUID</key>
+          <string>79490A7F-FBE2-4E28-9E98-CE8232A87C6A</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Enable automatic update downloads</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.enableAutomaticUpdateDownloads.16F48F16-F1DC-44D6-9126-B9D1E1274C93</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>16F48F16-F1DC-44D6-9126-B9D1E1274C93</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
@@ -846,7 +1197,41 @@ spec:
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of application updates."
   tags: MDM required, compliance, CIS, CIS1.4
   platform: darwin
-  contributors: GuillaumeRoss
+  contributors: GuillaumeRoss,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>AutomaticallyInstallAppUpdates</key>
+          <true/>
+          <key>PayloadDisplayName</key>
+          <string>Software Update</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.SoftwareUpdate.4E11DA65-B6D8-4C65-AB72-DAC3177FC487</string>
+          <key>PayloadType</key>
+          <string>com.apple.SoftwareUpdate</string>
+          <key>PayloadUUID</key>
+          <string>4E11DA65-B6D8-4C65-AB72-DAC3177FC487</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Enable automatic installation of application updates</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.enableAutomaticInstallationOfAppUpdates.66A51CA4-49DE-49B1-A8EE-DFB0D44D5C62</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>66A51CA4-49DE-49B1-A8EE-DFB0D44D5C62</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
@@ -857,7 +1242,41 @@ spec:
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic security and data update installation."
   tags: MDM required, compliance, CIS, CIS1.5
   platform: darwin
-  contributors: GuillaumeRoss
+  contributors: GuillaumeRoss,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>CriticalUpdateInstall</key>
+          <true/>
+          <key>PayloadDisplayName</key>
+          <string>Software Update</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.SoftwareUpdate.E53C14AB-3694-4D90-87A0-79E6496EC0E1</string>
+          <key>PayloadType</key>
+          <string>com.apple.SoftwareUpdate</string>
+          <key>PayloadUUID</key>
+          <string>E53C14AB-3694-4D90-87A0-79E6496EC0E1</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Enable automatic security and data file updates</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.enableAutomaticSecurityAndDataFileUpdates.Dales-MacBook-Pro.50CE2929-89F7-4283-922A-F30C15D6B1FD</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>50CE2929-89F7-4283-922A-F30C15D6B1FD</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
@@ -868,7 +1287,41 @@ spec:
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of operating system updates."
   tags: MDM required, compliance, CIS, CIS1.6
   platform: darwin
-  contributors: GuillaumeRoss
+  contributors: GuillaumeRoss,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>AutomaticallyInstallMacOSUpdates</key>
+          <true/>
+          <key>PayloadDisplayName</key>
+          <string>Software Update</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.SoftwareUpdate.B5EF9664-07BB-4775-B597-59F21F413878</string>
+          <key>PayloadType</key>
+          <string>com.apple.SoftwareUpdate</string>
+          <key>PayloadUUID</key>
+          <string>B5EF9664-07BB-4775-B597-59F21F413878</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Enable automatic installation of OS updates</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.enableAutomaticOSUpddates.A5CA0F6B-02F8-42D0-805E-D13FDB9B093B</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>A5CA0F6B-02F8-42D0-805E-D13FDB9B093B</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
@@ -879,7 +1332,41 @@ spec:
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic time and date configuration."
   tags: MDM required, compliance, CIS, CIS2.2.1
   platform: darwin
-  contributors: GuillaumeRoss
+  contributors: GuillaumeRoss,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>PayloadDisplayName</key>
+          <string>Restrictions</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.applicationaccess.B0EBDEA9-69D3-46CA-BB19-72B86A7111F5</string>
+          <key>PayloadType</key>
+          <string>com.apple.applicationaccess</string>
+          <key>PayloadUUID</key>
+          <string>B0EBDEA9-69D3-46CA-BB19-72B86A7111F5</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+          <key>forceAutomaticDateAndTime</key>
+          <true/>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Automatically configure time and date</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.automaticallyConfigureTimeAndDate.BA0A14E0-22A2-4D59-A803-BB04F374F6A3</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>BA0A14E0-22A2-4D59-A803-BB04F374F6A3</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
@@ -890,7 +1377,45 @@ spec:
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables the screen saver after inactivity of 20 minutes or less."
   tags: MDM required, compliance, CIS, CIS2.3.1, CIS5.8
   platform: darwin
-  contributors: GuillaumeRoss
+  contributors: GuillaumeRoss,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>PayloadDisplayName</key>
+          <string>Screensaver</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.screensaver.FDC5E74E-C09E-484C-B3F3-FF04BF8AF9AB</string>
+          <key>PayloadType</key>
+          <string>com.apple.screensaver</string>
+          <key>PayloadUUID</key>
+          <string>FDC5E74E-C09E-484C-B3F3-FF04BF8AF9AB</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+          <key>askForPassword</key>
+          <true/>
+          <key>askForPasswordDelay</key>
+          <integer>60</integer>
+          <key>idleTime</key>
+          <integer>1140</integer>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Lock screen after inactivity of 20 minutes</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.lockScreenAfter20Minutes.34DD0263-156C-48DB-B6B8-64D3112A1128</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>34DD0263-156C-48DB-B6B8-64D3112A1128</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
@@ -901,7 +1426,41 @@ spec:
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that prevents Internet sharing."
   tags: MDM required, compliance, CIS, CIS2.4.2
   platform: darwin
-  contributors: GuillaumeRoss
+  contributors: GuillaumeRoss,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>PayloadDisplayName</key>
+          <string>Managed Preferences</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.MCX.7BE9B7E8-14E4-49CF-AEC5-CD7806957F5A</string>
+          <key>PayloadType</key>
+          <string>com.apple.MCX</string>
+          <key>PayloadUUID</key>
+          <string>7BE9B7E8-14E4-49CF-AEC5-CD7806957F5A</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+          <key>forceInternetSharingOff</key>
+          <true/>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Turn off internet sharing</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.turnOffInternetSharing.22125243-721F-4A26-862E-5B16F28977C0</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>22125243-721F-4A26-862E-5B16F28977C0</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
@@ -912,7 +1471,41 @@ spec:
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables content caching."
   tags: MDM required, compliance, CIS, CIS2.4.10
   platform: darwin
-  contributors: GuillaumeRoss
+  contributors: GuillaumeRoss,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>PayloadDisplayName</key>
+          <string>Restrictions</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.applicationaccess.EEFDDF9B-F4D3-45FC-A832-F20096938668</string>
+          <key>PayloadType</key>
+          <string>com.apple.applicationaccess</string>
+          <key>PayloadUUID</key>
+          <string>EEFDDF9B-F4D3-45FC-A832-F20096938668</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+          <key>allowContentCaching</key>
+          <false/>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Disable content caching</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.disableContentCaching.6154F973-CF2C-46A5-B38C-DCF44A3FFC65</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>6154F973-CF2C-46A5-B38C-DCF44A3FFC65</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
@@ -923,7 +1516,41 @@ spec:
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables advertisement tracking."
   tags: MDM required, compliance, CIS, CIS2.5.6
   platform: darwin
-  contributors: GuillaumeRoss
+  contributors: GuillaumeRoss,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>PayloadDisplayName</key>
+          <string>iCloud</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.icloud.managed.19CEE0E2-2D04-43E7-AB98-B93B179A20ED</string>
+          <key>PayloadType</key>
+          <string>com.apple.icloud.managed</string>
+          <key>PayloadUUID</key>
+          <string>19CEE0E2-2D04-43E7-AB98-B93B179A20ED</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+          <key>DisableCloudSync</key>
+          <true/>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Limit ad tracking</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.disableiCloudDesktopAndDocumentsSync.9CEE4A9A-3BC6-4E2C-A093-8CC3B7F26EF8</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>9CEE4A9A-3BC6-4E2C-A093-8CC3B7F26EF8</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
@@ -934,7 +1561,41 @@ spec:
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile to prevent iCloud Desktop and Documents sync."
   tags: MDM required, compliance, CIS, CIS2.6.1.4
   platform: darwin
-  contributors: GuillaumeRoss
+  contributors: GuillaumeRoss,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>PayloadDisplayName</key>
+          <string>iCloud</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.icloud.managed.19CEE0E2-2D04-43E7-AB98-B93B179A20ED</string>
+          <key>PayloadType</key>
+          <string>com.apple.icloud.managed</string>
+          <key>PayloadUUID</key>
+          <string>19CEE0E2-2D04-43E7-AB98-B93B179A20ED</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+          <key>DisableCloudSync</key>
+          <true/>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Disable iCloud Desktop and Documents Sync</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.disableiCloudDesktopAndDocumentsSync.9CEE4A9A-3BC6-4E2C-A093-8CC3B7F26EF8</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>9CEE4A9A-3BC6-4E2C-A093-8CC3B7F26EF8</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
@@ -945,18 +1606,88 @@ spec:
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables firewall logging."
   tags: MDM required, compliance, CIS, CIS3.6
   platform: darwin
-  contributors: GuillaumeRoss
+  contributors: GuillaumeRoss,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>EnableFirewall</key>
+          <true/>
+          <key>EnableLogging</key>
+          <true/>
+          <key>PayloadDisplayName</key>
+          <string>Firewall</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.security.firewall.E91C28D7-A35F-44DF-8656-07C738F8946E</string>
+          <key>PayloadType</key>
+          <string>com.apple.security.firewall</string>
+          <key>PayloadUUID</key>
+          <string>E91C28D7-A35F-44DF-8656-07C738F8946E</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Enable firewall logging</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.enableFirewallLogging.A97BF2B6-968B-4C9B-B02C-331595377934</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>A97BF2B6-968B-4C9B-B02C-331595377934</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
 spec:
   name: Guest account disabled (macOS)
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND name='DisableGuestAccount' AND value='1' LIMIT 1;
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.MCX' AND name='DisableGuestAccount' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent the use of a guest account."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables the guest account."
   tags: MDM required, compliance, CIS, CIS6.1.3
   platform: darwin
-  contributors: GuillaumeRoss
+  contributors: GuillaumeRoss,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>DisableGuestAccount</key>
+          <true/>
+          <key>PayloadDisplayName</key>
+          <string>Energy Saver, FileVault, Time Server, Mobile Accounts and Guest Account</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.MCX.87E0D7FE-FDEF-4B61-8505-C009C975AFD4</string>
+          <key>PayloadType</key>
+          <string>com.apple.MCX</string>
+          <key>PayloadUUID</key>
+          <string>87E0D7FE-FDEF-4B61-8505-C009C975AFD4</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Disable guest account</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.disableGuestAccount.E29C0490-83B0-4AD1-AD50-AC9B63D1DD96</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>E29C0490-83B0-4AD1-AD50-AC9B63D1DD96</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
@@ -967,7 +1698,41 @@ spec:
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that prevents guest access to shared folders."
   tags: MDM required, compliance, CIS, CIS6.1.4
   platform: darwin
-  contributors: GuillaumeRoss
+  contributors: GuillaumeRoss,ddribeiro
+  configuration_profile: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>PayloadContent</key>
+      <array>
+        <dict>
+          <key>guestAccess</key>
+          <false/>
+          <key>PayloadDisplayName</key>
+          <string>File Server</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.AppleFileServer.0C0C0FED-098F-4BAA-8917-3313A8A1F3A1</string>
+          <key>PayloadType</key>
+          <string>com.apple.AppleFileServer</string>
+          <key>PayloadUUID</key>
+          <string>0C0C0FED-098F-4BAA-8917-3313A8A1F3A1</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Disable guest access to shared folders</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.disableGuestAccessToSharedFolders.819D93D8-E078-43A5-9661-F5E96F84F384</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadUUID</key>
+      <string>819D93D8-E078-43A5-9661-F5E96F84F384</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+    </plist>
 ---
 apiVersion: v1
 kind: policy
