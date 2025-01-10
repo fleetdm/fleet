@@ -483,9 +483,9 @@ func (ds *Datastore) GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppApps
     	JOIN vpp_apps_teams vat ON vat.adam_id = va.adam_id AND vat.platform = va.platform AND vat.id = ?`, vppAppsTeamsID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP app")
+			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP title info from VPP apps teams ID")
 		}
-		return nil, ctxerr.Wrap(ctx, err, "get VPP app")
+		return nil, ctxerr.Wrap(ctx, err, "get VPP title info from VPP apps teams ID")
 	}
 
 	return &info, nil
