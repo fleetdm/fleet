@@ -1010,8 +1010,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
-		if err := svc.processVPPForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults); err != nil {
-			logging.WithErr(ctx, err)
+		if host.Platform == "darwin" {
+			if err := svc.processVPPForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults); err != nil {
+				logging.WithErr(ctx, err)
+			}
 		}
 
 		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults); err != nil {
@@ -1884,7 +1886,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Get policies with associated installers for the team.
+	// Get policies with associated VPP apps for the team.
 	policiesWithVPP, err := svc.ds.GetPoliciesWithAssociatedVPP(ctx, policyTeamID, incomingFailingPoliciesIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to get policies with installer")
@@ -1893,7 +1895,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Filter out results of policies that are not associated to installers.
+	// Filter out results of policies that are not associated to VPP apps.
 	policiesWithAPPMap := make(map[uint]fleet.PolicyVPPData)
 	for _, policyWithVPP := range policiesWithVPP {
 		policiesWithAPPMap[policyWithVPP.ID] = policyWithVPP

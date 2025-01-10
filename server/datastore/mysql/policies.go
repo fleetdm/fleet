@@ -150,7 +150,7 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	}
 
 	if p.TeamID != nil {
-		if err := assertTeamMatches(ctx, ds.writer(ctx), *p.TeamID, p.SoftwareInstallerID, p.ScriptID); err != nil {
+		if err := assertTeamMatches(ctx, ds.writer(ctx), *p.TeamID, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID); err != nil {
 			return ctxerr.Wrap(ctx, err, "save policy")
 		}
 	}
@@ -186,7 +186,7 @@ var (
 	errMismatchedScriptTeam    = &fleet.BadRequestError{Message: "script is associated with a different team"}
 )
 
-func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, softwareInstallerID *uint, scriptID *uint) error {
+func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, softwareInstallerID *uint, scriptID *uint, vppAppsTeamsID *uint) error {
 	if softwareInstallerID != nil {
 		var softwareInstallerTeamID uint
 		err := sqlx.GetContext(ctx, db, &softwareInstallerTeamID, "SELECT global_or_team_id FROM software_installers WHERE id = ?", softwareInstallerID)
@@ -197,6 +197,20 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 			}
 			return err
 		} else if softwareInstallerTeamID != teamID {
+			return errMismatchedInstallerTeam
+		}
+	}
+
+	if vppAppsTeamsID != nil {
+		var vppAppTeamID uint
+		err := sqlx.GetContext(ctx, db, &vppAppTeamID, "SELECT global_or_team_id FROM vpp_apps_teams WHERE id = ?", vppAppsTeamsID)
+
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return &fleet.BadRequestError{Message: "A VPP app with the supplied ID does not exist"}
+			}
+			return err
+		} else if vppAppTeamID != teamID {
 			return errMismatchedInstallerTeam
 		}
 	}
@@ -704,7 +718,7 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	nameUnicode := norm.NFC.String(args.Name)
 
-	if err := assertTeamMatches(ctx, db, teamID, args.SoftwareInstallerID, args.ScriptID); err != nil {
+	if err := assertTeamMatches(ctx, db, teamID, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create team policy")
 	}
 
@@ -1655,7 +1669,7 @@ func (ds *Datastore) GetPoliciesWithAssociatedVPP(ctx context.Context, teamID ui
 	if len(policyIDs) == 0 {
 		return nil, nil
 	}
-	query := `SELECT id, adam_id, platform FROM policies p JOIN vpp_apps_teams vat ON vat.id = p.vpp_apps_teams_id WHERE p.team_id = ? AND p.id IN (?);`
+	query := `SELECT p.id, vat.adam_id, vat.platform FROM policies p JOIN vpp_apps_teams vat ON vat.id = p.vpp_apps_teams_id WHERE p.team_id = ? AND p.id IN (?);`
 	query, args, err := sqlx.In(query, teamID, policyIDs)
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "build sqlx.In for get policies with associated installer")

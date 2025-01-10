@@ -14561,7 +14561,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	})
 	require.NotZero(t, fleetOsqueryMSIInstallerID)
 
-	// Create a VPP app to test that policies cannot be assigned to them.
+	// Create a VPP app to test that policies *can* be assigned to them (VPP automation is tested in MDM integration test)
 	_, err = s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name:             "App123 " + t.Name(),
 		BundleIdentifier: "bid_" + t.Name(),
