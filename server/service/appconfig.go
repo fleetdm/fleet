@@ -135,24 +135,21 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	}
 
 	isGlobalAdmin := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin
-	isTeamAdmin := false
+	isAnyTeamAdmin := false
 	if vc.User.Teams != nil {
-		// gather the teams the current user is admin for.
-		currentUserTeamAdmin := make(map[uint]struct{})
+		// check if the user is an admin for any team
 		for _, team := range vc.User.Teams {
 			if team.Role == fleet.RoleAdmin {
-				currentUserTeamAdmin[team.ID] = struct{}{}
+				isAnyTeamAdmin = true
+				break
 			}
-		}
-		if len(currentUserTeamAdmin) > 0 {
-			isTeamAdmin = true
 		}
 	}
 
 	// Only admins should see SMTP and SSO settings
 	var smtpSettings *fleet.SMTPSettings
 	var ssoSettings *fleet.SSOSettings
-	if isGlobalAdmin || isTeamAdmin {
+	if isGlobalAdmin || isAnyTeamAdmin {
 		smtpSettings = appConfig.SMTPSettings
 		ssoSettings = appConfig.SSOSettings
 	}
