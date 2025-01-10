@@ -18,7 +18,7 @@ const InstalledSoftwareActivityItem = ({
     details.status === "failed" ? "failed_uninstall" : details.status;
 
   const actorDisplayName = self_service ? (
-    <span>An end user</span>
+    <span>End user</span>
   ) : (
     <b>{actorName}</b>
   );

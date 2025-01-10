@@ -133,7 +133,6 @@ const HostActivityItem = ({
           )}
         </div>
       </div>
-      {/* <div className={`${baseClass}__dash`} /> */}
     </div>
   );
 };
