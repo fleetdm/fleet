@@ -249,9 +249,6 @@ controls:
     enable_end_user_authentication: true
     macos_setup_assistant: ../lib/dep-profile.json
     script: ../lib/macos-setup-script.sh
-    software:
-      - app_store_id: '1091189122'
-      - package_path: ../lib/software/adobe-acrobat.software.yml
   macos_migration: # Available in Fleet Premium
     enable: true
     mode: voluntary
@@ -296,7 +293,6 @@ The `macos_setup` section lets you control the out-of-the-box macOS [setup exper
 - `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host. 
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
 - `script` is the path to a custom setup script to run after the host is first set up.
-- `software` is a list of references to either a `package_path` matching a package in the `software` section below or an `app_store_id` to install when the host is first set up.
 
 ### macos_migration
 
@@ -347,18 +343,20 @@ Use `labels_include_any` to target hosts that have any label in the array or `la
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
+- `setup_experience` specifies whether the app will be installed when the host is first step up. Currently this works only for macOS apps (i.e. .pkg).
 
 #### Example
 
 `lib/software-name.package.yml`:
 
 ```yaml
-url: https://dl.tailscale.com/stable/tailscale-setup-1.72.0.exe
+url: https://dl.sample.com/stable/SampleApp.pkg
 install_script:
-  path: ../lib/software/tailscale-install-script.ps1
+  path: ../lib/software/SampleApp-install-script.sh
 uninstall_script:
-  path: ../lib/software/tailscale-uninstall-script.ps1
+  path: ../lib/software/SampleApp-uninstall-script.sh
 self_service: true
+setup_experience: true
 ```
 
 ### app_store_apps
@@ -368,6 +366,13 @@ self_service: true
 > Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 
 - `self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
+- `setup_experience` specifies whether the app will be installed when the host is first step up.
+
+```yaml
+app_store_apps:
+  – app_store_id: '1091189122'
+    setup_experience: true
+```
 
 ## org_settings and team_settings
 
