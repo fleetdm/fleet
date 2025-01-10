@@ -6,7 +6,7 @@ _Available in Fleet Premium_
 
 In Fleet, you can lock and wipe macOS, Windows, and Linux hosts remotely when a host might have been lost or stolen, or to remotely prepare a device to be re-deployed to another end user.
 
-Company-owned iOS and iPadOS hosts can be wiped.
+iOS and iPadOS hosts can be wiped. Restricting wipe to only company-owned iPhones and iPads is coming soon.
 
 ## Lock a host
 
