@@ -4679,7 +4679,7 @@ func (s *integrationTestSuite) TestUsers() {
 	var modResp modifyUserResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
 		"settings": {
-			"hidden_host_columns": ["osquery_version"]}	
+			"hidden_host_columns": ["osquery_version"]}
 	}`), http.StatusOK, &modResp)
 
 	// get session user with ui settings, should now be present, two endpoints
@@ -4701,7 +4701,7 @@ func (s *integrationTestSuite) TestUsers() {
 	// modify user ui settings, check they are returned modified
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
 		"settings": {
-			"hidden_host_columns": ["hostname", "osquery_version"]}	
+			"hidden_host_columns": ["hostname", "osquery_version"]}
 	}`), http.StatusOK, &modResp)
 
 	// get session user with ui settings, should now be modified, two endpoints
@@ -4723,7 +4723,7 @@ func (s *integrationTestSuite) TestUsers() {
 	// modify user ui settings, empty array, check they are returned correctly
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
 		"settings": {
-			"hidden_host_columns": []}	
+			"hidden_host_columns": []}
 	}`), http.StatusOK, &modResp)
 
 	// get session user with ui settings, should now be modified, two endpoints
@@ -5539,6 +5539,14 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				"project_key": "qux",
 				"enable_software_vulnerabilities": true
 			}]
+		},
+		"webhook_settings": {
+			"vulnerabilities_webhook": {
+				"enable_vulnerabilities_webhook": true,
+				"destination_url": "http://some/url",
+				"host_batch_size": 1234
+			},
+			"interval": "1h"
 		}
 	}`, srvURL)), http.StatusUnprocessableEntity)
 
@@ -5954,6 +5962,14 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				"group_id": 122,
 				"enable_software_vulnerabilities": true
 			}]
+		},
+		"webhook_settings": {
+			"vulnerabilities_webhook": {
+				"enable_vulnerabilities_webhook": true,
+				"destination_url": "http://some/url",
+				"host_batch_size": 1234
+			},
+			"interval": "1h"
 		}
 	}`, srvURL)), http.StatusUnprocessableEntity)
 
