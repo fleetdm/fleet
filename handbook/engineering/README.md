@@ -225,7 +225,7 @@ If the PR is a quick fix (i.e. typo) or obvious technical improvement that doesn
 For PRs that change the product:
 
 - Set the PR to draft.
-- Thank the contributor for their hard work, explain that all changes to the product go through Fleet's [prioritization process]([TODO link](https://fleetdm.com/handbook/company/product-groups#how-feature-requests-are-prioritized)), and ask them to file a [feature request]([TODO link here](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=)).
+- Thank the contributor for their hard work, explain that all changes to the product go through Fleet's [prioritization process](https://fleetdm.com/handbook/company/product-groups#how-feature-requests-are-prioritized)), and ask them to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=)) that describe the change their PR is introducing.
 
 For PRs that will not be merged:
 
