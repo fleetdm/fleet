@@ -518,7 +518,7 @@ type VulnerabilitiesConfig struct {
 	DisableDataSync             bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
 	RecentVulnerabilityMaxAge   time.Duration `json:"recent_vulnerability_max_age" yaml:"recent_vulnerability_max_age"`
 	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities" yaml:"disable_win_os_vulnerabilities"`
-	MaxRoutines                 int           `json:"max_routines" yaml:"max_routines"`
+	MaxConcurrency              int           `json:"max_concurrency" yaml:"max_concurrency"`
 }
 
 // UpgradesConfig defines configs related to fleet server upgrades.
@@ -1311,7 +1311,7 @@ func (man Manager) addConfigs() {
 		"Don't sync installed Windows updates nor perform Windows OS vulnerability processing.",
 	)
 	man.addConfigInt(
-		"vulnerabilities.max_routines",
+		"vulnerabilities.max_concurrency",
 		5,
 		"Maximum number of concurrent database queries to use for processing vulnerabilities.",
 	)
@@ -1586,7 +1586,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			DisableDataSync:             man.getConfigBool("vulnerabilities.disable_data_sync"),
 			RecentVulnerabilityMaxAge:   man.getConfigDuration("vulnerabilities.recent_vulnerability_max_age"),
 			DisableWinOSVulnerabilities: man.getConfigBool("vulnerabilities.disable_win_os_vulnerabilities"),
-			MaxRoutines:                 man.getConfigInt("vulnerabilities.max_routines"),
+			MaxConcurrency:              man.getConfigInt("vulnerabilities.max_concurrency"),
 		},
 		Upgrades: UpgradesConfig{
 			AllowMissingMigrations: man.getConfigBool("upgrades.allow_missing_migrations"),
