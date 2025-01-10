@@ -65,6 +65,14 @@
         visibility: visible;
       }
     }
+
+    .button {
+      height: 16px;
+
+      &--icon svg {
+        padding: 0;
+      }
+    }
   }
 
   &__details-actions {
