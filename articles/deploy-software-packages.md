@@ -24,7 +24,9 @@ Learn more about automatically installing software in a separate guide [here](ht
 
 > Software cannot be added to "All teams."
 
-* Click the “Add Software” button in the top right corner, and a dialog will appear.
+* Click the “Add Software” button in the top right corner. 
+
+* Select the "Custom package" tab.
 
 * Choose a file to upload. `.pkg`, `.msi`, `.exe`, `.rpm`, and `.deb` files are supported.
 
