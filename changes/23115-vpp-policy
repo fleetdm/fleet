@@ -1,1 +1,2 @@
 * Added ability to install VPP apps on policy failure
+* Added ability to specify multiple platforms (comma-separated) in `GET /api/v1/fleet/software/titles` to match titles from any platform
