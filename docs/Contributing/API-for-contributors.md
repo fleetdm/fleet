@@ -4190,7 +4190,7 @@ _Available in Fleet Premium._
 ```json
 {
   "team_name": "Foobar",
-  "app_store_apps": {
+  "app_store_apps": [
     {
       "app_store_id": "597799333",
       "self_service": false,
@@ -4203,7 +4203,7 @@ _Available in Fleet Premium._
       "app_store_id": "497799835",
       "self_service": true,
     }
-  }
+  ]
 }
 ```
 
