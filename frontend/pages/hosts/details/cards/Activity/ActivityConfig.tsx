@@ -14,18 +14,13 @@ import RanScriptActivityItem from "./ActivityItems/RanScriptActivityItem";
 import LockedHostActivityItem from "./ActivityItems/LockedHostActivityItem";
 import UnlockedHostActivityItem from "./ActivityItems/UnlockedHostActivityItem";
 import InstalledSoftwareActivityItem from "./ActivityItems/InstalledSoftwareActivityItem";
+import CanceledScriptActivityItem from "./ActivityItems/CanceledScriptActivityItem";
+import CanceledSoftwareInstallActivityItem from "./ActivityItems/CanceledSoftwareInstallActivityItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
   activity: IHostPastActivity | IHostUpcomingActivity;
   tab: "past" | "upcoming";
-}
-
-/** Used for activity items component that need a show details handler */
-export interface IHostActivityItemComponentPropsWithShowDetails
-  extends IHostActivityItemComponentProps {
-  onShowDetails: ShowActivityDetailsHandler;
-  onCancel?: () => void;
   /** Set this to `true` when rendering only this activity by itself. This will
    * change the styles for the activity item for solo rendering.
    * @default false */
@@ -34,6 +29,13 @@ export interface IHostActivityItemComponentPropsWithShowDetails
    * @default false
    */
   hideClose?: boolean;
+}
+
+/** Used for activity items component that need a show details handler */
+export interface IHostActivityItemComponentPropsWithShowDetails
+  extends IHostActivityItemComponentProps {
+  onShowDetails: ShowActivityDetailsHandler;
+  onCancel?: () => void;
 }
 
 export const pastActivityComponentMap: Record<
@@ -47,6 +49,8 @@ export const pastActivityComponentMap: Record<
   [ActivityType.InstalledSoftware]: InstalledSoftwareActivityItem,
   [ActivityType.UninstalledSoftware]: InstalledSoftwareActivityItem,
   [ActivityType.InstalledAppStoreApp]: InstalledSoftwareActivityItem,
+  [ActivityType.CanceledScript]: CanceledScriptActivityItem,
+  [ActivityType.CanceledSoftwareInstall]: CanceledSoftwareInstallActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<
