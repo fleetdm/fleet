@@ -260,8 +260,8 @@ module.exports = {
                 throw new Error(`A Markdown file (${pageSourcePath}) contains an HTML comment directly after a list that will cause rendering issues when converted to HTML. To resolve this error, add a blank newline before the start of the HTML comment in this file.`);
               }
               // Look for anything outside of code blocks in markdown content that could be interpreted as a Vue template when converted to HTML (e.g. {{ foo }}). If any are found, throw an error.
-              if (mdString.match(/(?<!```.*)(?<!`){{([^}]+)}}(?!`)/gi)) {
-                throw new Error(`A Markdown file (${pageSourcePath}) contains a Vue template (${mdString.match(/(?<!```.*)(?<!`){{([^}]+)}}(?!`)/gi)[0]}) that will cause client-side JavaScript errors when converted to HTML. To resolve this error, change or remove the double curly brackets in this file.`);
+              if (mdString.match(/(?<!```.*)(?<!`){{([^}]+)}}(?!`)/gis)) {
+                throw new Error(`A Markdown file (${pageSourcePath}) contains a Vue template (${mdString.match(/(?<!```.*)(?<!`){{([^}]+)}}(?!`)/gis)[0]}) that will cause client-side JavaScript errors when converted to HTML. To resolve this error, change or remove the double curly brackets in this file.`);
               }
 
               mdString = mdString.replace(/(<call-to-action[\s\S]+[^>\n+])\n+(>)/g, '$1$2'); // « Removes any newlines that might exist before the closing `>` when the <call-to-action> compontent is added to markdown files.
