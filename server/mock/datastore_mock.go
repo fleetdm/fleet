@@ -49,6 +49,8 @@ type UserByEmailFunc func(ctx context.Context, email string) (*fleet.User, error
 
 type UserByIDFunc func(ctx context.Context, id uint) (*fleet.User, error)
 
+type UserSettingsFunc func(ctx context.Context, userID uint) (*fleet.UserSettings, error)
+
 type SaveUserFunc func(ctx context.Context, user *fleet.User) error
 
 type SaveUsersFunc func(ctx context.Context, users []*fleet.User) error
@@ -1077,6 +1079,12 @@ type WipeHostViaWindowsMDMFunc func(ctx context.Context, host *fleet.Host, cmd *
 
 type UpdateHostLockWipeStatusFromAppleMDMResultFunc func(ctx context.Context, hostUUID string, cmdUUID string, requestType string, succeeded bool) error
 
+type GetIncludedHostIDMapForSoftwareInstallerFunc func(ctx context.Context, installerID uint) (map[uint]struct{}, error)
+
+type GetExcludedHostIDMapForSoftwareInstallerFunc func(ctx context.Context, installerID uint) (map[uint]struct{}, error)
+
+type ClearAutoInstallPolicyStatusForHostsFunc func(ctx context.Context, installerID uint, hostIDs []uint) error
+
 type GetSoftwareInstallDetailsFunc func(ctx context.Context, executionId string) (*fleet.SoftwareInstallDetails, error)
 
 type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]string, error)
@@ -1229,6 +1237,9 @@ type DataStore struct {
 
 	UserByIDFunc        UserByIDFunc
 	UserByIDFuncInvoked bool
+
+	UserSettingsFunc				UserSettingsFunc
+	UserSettingsFuncInvoked bool
 
 	SaveUserFunc        SaveUserFunc
 	SaveUserFuncInvoked bool
@@ -2772,6 +2783,15 @@ type DataStore struct {
 	UpdateHostLockWipeStatusFromAppleMDMResultFunc        UpdateHostLockWipeStatusFromAppleMDMResultFunc
 	UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked bool
 
+	GetIncludedHostIDMapForSoftwareInstallerFunc        GetIncludedHostIDMapForSoftwareInstallerFunc
+	GetIncludedHostIDMapForSoftwareInstallerFuncInvoked bool
+
+	GetExcludedHostIDMapForSoftwareInstallerFunc        GetExcludedHostIDMapForSoftwareInstallerFunc
+	GetExcludedHostIDMapForSoftwareInstallerFuncInvoked bool
+
+	ClearAutoInstallPolicyStatusForHostsFunc        ClearAutoInstallPolicyStatusForHostsFunc
+	ClearAutoInstallPolicyStatusForHostsFuncInvoked bool
+
 	GetSoftwareInstallDetailsFunc        GetSoftwareInstallDetailsFunc
 	GetSoftwareInstallDetailsFuncInvoked bool
 
@@ -3036,6 +3056,13 @@ func (s *DataStore) UserByID(ctx context.Context, id uint) (*fleet.User, error) 
 	s.UserByIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.UserByIDFunc(ctx, id)
+}
+
+func (s *DataStore) UserSettings(ctx context.Context, userID uint) (*fleet.UserSettings, error) {
+	s.mu.Lock()
+	s.UserSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UserSettingsFunc(ctx, userID)
 }
 
 func (s *DataStore) SaveUser(ctx context.Context, user *fleet.User) error {
@@ -6634,6 +6661,27 @@ func (s *DataStore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Conte
 	s.UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostLockWipeStatusFromAppleMDMResultFunc(ctx, hostUUID, cmdUUID, requestType, succeeded)
+}
+
+func (s *DataStore) GetIncludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error) {
+	s.mu.Lock()
+	s.GetIncludedHostIDMapForSoftwareInstallerFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetIncludedHostIDMapForSoftwareInstallerFunc(ctx, installerID)
+}
+
+func (s *DataStore) GetExcludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error) {
+	s.mu.Lock()
+	s.GetExcludedHostIDMapForSoftwareInstallerFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetExcludedHostIDMapForSoftwareInstallerFunc(ctx, installerID)
+}
+
+func (s *DataStore) ClearAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error {
+	s.mu.Lock()
+	s.ClearAutoInstallPolicyStatusForHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearAutoInstallPolicyStatusForHostsFunc(ctx, installerID, hostIDs)
 }
 
 func (s *DataStore) GetSoftwareInstallDetails(ctx context.Context, executionId string) (*fleet.SoftwareInstallDetails, error) {

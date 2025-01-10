@@ -44,7 +44,7 @@
   task: "Quarterly roadmap blog post"
   startedOn: "2024-11-05" 
   frequency: "Monthly" 
-  description: "Every quarter, Head of Product Design (HPD) writes a short blog post with the theme and an embedded YouTube video in which HPD walks through this." 
+  description: "Every quarter, Head of Product Design (HPD) meets with the CEO to run through the current quarter objectives and the 3 biggest open opportunities in the product and the solutions we're envisioning for next quarter. Then, the HPD writes a short blog with the objectives, opportunities, and an embedded YouTube video in which HPD walks through this." 
   moreInfoUrl: "" 
   dri: "noahtalerman"
   autoIssue:   

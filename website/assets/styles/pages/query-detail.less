@@ -156,6 +156,33 @@
     margin-bottom: 0px;
     padding: 16px 0px 32px 0px;
   }
+  [purpose='policy-attribution'] {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding-top: 8px;
+    padding-bottom: 16px;
+    [purpose='contributor-profile-picture'] {
+      width: 28.8px;
+      height: 28.8px;
+      margin-right: 8px;
+      border-radius: 50%;
+    }
+    [purpose='contributor-profile-name'] {
+      font-size: 14px;
+      line-height: 150%;
+    }
+    [purpose='policy-link'] {
+      color: unset;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: none;
+      }
+    }
+
+
+  }
   [purpose='policy-details'] {
     padding-right: 64px;
     max-width: 800px;
@@ -282,7 +309,7 @@
     code {
       color: #515774;
       &.has-linebreaks {
-        white-space: pre;
+        white-space: break-spaces;
       }
       &.no-linebreaks {
         white-space: normal;
@@ -342,6 +369,13 @@
     }
     [purpose='breadcrumbs-and-search'] {
       margin-bottom: 32px;
+    }
+    pre {
+      code {
+        &.has-linebreaks {
+          white-space: pre;
+        }
+      }
     }
   }
 

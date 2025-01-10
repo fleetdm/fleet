@@ -19,6 +19,7 @@ var (
 	ErrPasswordResetRequired = &passwordResetRequiredError{}
 	ErrMissingLicense        = &licenseError{}
 	ErrMDMNotConfigured      = &MDMNotConfiguredError{}
+	ErrNotConfigured         = &NotConfiguredError{}
 
 	MDMNotConfiguredMessage              = "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet"
 	WindowsMDMNotConfiguredMessage       = "Windows MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
@@ -348,6 +349,14 @@ func (e *MDMNotConfiguredError) StatusCode() int {
 
 func (e *MDMNotConfiguredError) Error() string {
 	return MDMNotConfiguredMessage
+}
+
+// NotConfiguredError is a generic "not configured" error that can be used
+// when expected configuration is missing.
+type NotConfiguredError struct{}
+
+func (e *NotConfiguredError) Error() string {
+	return "not configured"
 }
 
 // GatewayError is an error type that generates a 502 or 504 status code.

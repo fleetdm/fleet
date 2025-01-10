@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can enforce disk encryption for your macOS and Windows hosts, and verify disk encryption for Ubuntu Linux and Fedora Linux hosts.
+In Fleet, you can enforce disk encryption for your macOS and Windows hosts, and verify disk encryption for Ubuntu Linux, Kubuntu Linux and Fedora Linux hosts.
 
 > Apple calls this [FileVault](https://support.apple.com/en-us/HT204837), Microsoft calls this [BitLocker](https://learn.microsoft.com/en-us/windows/security/operating-system-security/data-protection/bitlocker/), and Linux typically uses [LUKS](https://en.wikipedia.org/wiki/Linux_Unified_Key_Setup) (Linux Unified Key Setup).
 
@@ -48,9 +48,9 @@ You can click each status to view the list of hosts for that status.
 
 ## Enforce disk encryption on Linux
 
-To enforce disk encryption on Ubuntu Linux and Fedora Linux devices, Fleet supports Linux Unified Key Setup (LUKS) for encrypting volumes. Support for Ubuntu 20.04 is coming soon.
+Fleet supports Linux Unified Key Setup (LUKS) for encrypting volumes to enforce disk encryption on Ubuntu Linux, Kubuntu Linux, and Fedora Linux devices. Support for Ubuntu 20.04 will be available soon.
 
-1. Share [this step-by-step guide](https://fleetdm.com/learn-more-about/encrypt-linux-device) with end users setting up a work computer running Ubuntu Linux or Fedora Linux.
+1. Share [this step-by-step guide](https://fleetdm.com/learn-more-about/encrypt-linux-device) with end users setting up a work computer running Ubuntu Linux, Kubuntu Linux or Fedora Linux.
 
 > Note that full disk encryption can only enabled during operating system setup. If the operating system has already been installed, the end user will be required to re-install the OS to enable disk encryption.
 

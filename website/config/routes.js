@@ -73,15 +73,142 @@ module.exports.routes = {
     }
   },
 
-  'r|^/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
-    skipAssets: false,
-    action: 'articles/view-basic-article',// Meta title and description set in view action
-  },// Handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /deploy/foo, /podcasts/foo, /report/foo
-
-  'r|^/((success-stories|securing|releases|engineering|guides|announcements|articles|podcasts|report|deploy))/*$|category': {
+  'GET /articles': {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
-  },// Handles the article landing page /articles, and the article cateogry pages (e.g. /device-management, /securing, /releases, etc)
+    locals: {
+      currentSection: 'community',
+    }
+  },
+
+  'GET /success-stories': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },
+
+  'GET /success-stories/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },// handles /success-stores/foo
+
+  'GET /securing': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },
+
+  'GET /securing/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },// handles /securing/foo
+
+  'GET /releases': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'documentation',
+    }
+  },
+
+  'GET /releases/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'documentation',
+    }
+  },// handles /releases/foo
+
+  'GET /guides': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'documentation',
+    }
+  },
+
+  'GET /guides/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'documentation',
+    }
+  },// handles /guides/foo
+
+  'GET /announcements': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },
+
+  'GET /announcements/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },// handles /announcements/foo
+
+  'GET /podcasts': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },
+
+  'GET /podcasts/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },// handles /podcasts/foo
+
+  'GET /engineering': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },
+
+  'GET /engineering/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },// handles /engineering/foo
+
+  'GET /report': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },
+
+  'GET /report/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },// handles /engineering/foo
+
 
   'GET /docs/?*': {
     skipAssets: false,
@@ -321,6 +448,8 @@ module.exports.routes = {
     }
   },
 
+  'GET /admin/query-generator': { action: 'admin/view-query-generator' },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
@@ -520,6 +649,81 @@ module.exports.routes = {
   'GET /guides/how-to-uninstall-osquery': (req,res)=> { return res.redirect(301, '/guides/how-to-uninstall-fleetd');},
   'GET /guides/sysadmin-diaries-lost-device': (req,res)=> { return res.redirect(301, '/guides/lock-wipe-hosts');},
 
+  // Release note article redirects.
+  'GET /releases/fleet-3.10.0': '/releases/fleet-3-10-0',
+  'GET /releases/fleet-3.12.0': '/releases/fleet-3-12-0',
+  'GET /releases/fleet-3.13.0': '/releases/fleet-3-13-0',
+  'GET /releases/fleet-3.5.0': '/releases/fleet-3-5-0',
+  'GET /releases/fleet-3.6.0': '/releases/fleet-3-6-0',
+  'GET /releases/fleet-3.7.1': '/releases/fleet-3-7-1',
+  'GET /releases/fleet-3.8.0': '/releases/fleet-3-8-0',
+  'GET /releases/fleet-3.9.0': '/releases/fleet-3-9-0',
+  'GET /releases/fleet-4.0.0': '/releases/fleet-4-0-0',
+  'GET /releases/fleet-4.1.0': '/releases/fleet-4-1-0',
+  'GET /releases/fleet-4.10.0': '/releases/fleet-4-10-0',
+  'GET /releases/fleet-4.12.0': '/releases/fleet-4-12-0',
+  'GET /releases/fleet-4.11.0': '/releases/fleet-4-11-0',
+  'GET /releases/fleet-4.13.0': '/releases/fleet-4-13-0',
+  'GET /releases/fleet-4.15.0': '/releases/fleet-4-15-0',
+  'GET /releases/fleet-3.11.0': '/releases/fleet-3-11-0',
+  'GET /releases/fleet-4.16.0': '/releases/fleet-4-16-0',
+  'GET /releases/fleet-4.17.0': '/releases/fleet-4-17-0',
+  'GET /releases/fleet-4.18.0': '/releases/fleet-4-18-0',
+  'GET /releases/fleet-4.19.0': '/releases/fleet-4-19-0',
+  'GET /releases/fleet-4.2.0': '/releases/fleet-4-2-0',
+  'GET /releases/fleet-4.21.0': '/releases/fleet-4-21-0',
+  'GET /releases/fleet-4.14.0': '/releases/fleet-4-14-0',
+  'GET /releases/fleet-4.22.0': '/releases/fleet-4-22-0',
+  'GET /releases/fleet-4.20.0': '/releases/fleet-4-20-0',
+  'GET /releases/fleet-4.23.0': '/releases/fleet-4-23-0',
+  'GET /releases/fleet-4.24.0': '/releases/fleet-4-24-0',
+  'GET /releases/fleet-4.25.0': '/releases/fleet-4-25-0',
+  'GET /releases/fleet-4.27.0': '/releases/fleet-4-27-0',
+  'GET /releases/fleet-4.26.0': '/releases/fleet-4-26-0',
+  'GET /releases/fleet-4.28.0': '/releases/fleet-4-28-0',
+  'GET /releases/fleet-4.29.0': '/releases/fleet-4-29-0',
+  'GET /releases/fleet-4.30.0': '/releases/fleet-4-30-0',
+  'GET /releases/fleet-4.31.0': '/releases/fleet-4-31-0',
+  'GET /releases/fleet-4.3.0': '/releases/fleet-4-3-0',
+  'GET /releases/fleet-4.32.0': '/releases/fleet-4-32-0',
+  'GET /releases/fleet-4.33.0': '/releases/fleet-4-33-0',
+  'GET /releases/fleet-4.34.0': '/releases/fleet-4-34-0',
+  'GET /releases/fleet-4.36.0': '/releases/fleet-4-36-0',
+  'GET /releases/fleet-4.38.0': '/releases/fleet-4-38-0',
+  'GET /releases/fleet-4.39.0': '/releases/fleet-4-39-0',
+  'GET /releases/fleet-4.35.0': '/releases/fleet-4-35-0',
+  'GET /releases/fleet-4.4.0': '/releases/fleet-4-4-0',
+  'GET /releases/fleet-4.37.0': '/releases/fleet-4-37-0',
+  'GET /releases/fleet-4.40.0': '/releases/fleet-4-40-0',
+  'GET /releases/fleet-4.42.0': '/releases/fleet-4-42-0',
+  'GET /releases/fleet-4.43.0': '/releases/fleet-4-43-0',
+  'GET /releases/fleet-4.44.0': '/releases/fleet-4-44-0',
+  'GET /releases/fleet-4.41.0': '/releases/fleet-4-41-0',
+  'GET /releases/fleet-4.45.0': '/releases/fleet-4-45-0',
+  'GET /releases/fleet-4.46.0': '/releases/fleet-4-46-0',
+  'GET /releases/fleet-4.47.0': '/releases/fleet-4-47-0',
+  'GET /releases/fleet-4.49.0': '/releases/fleet-4-49-0',
+  'GET /releases/fleet-4.5.0': '/releases/fleet-4-5-0',
+  'GET /releases/fleet-4.50.0': '/releases/fleet-4-50-0',
+  'GET /releases/fleet-4.51.0': '/releases/fleet-4-51-0',
+  'GET /releases/fleet-4.48.0': '/releases/fleet-4-48-0',
+  'GET /releases/fleet-4.53.0': '/releases/fleet-4-53-0',
+  'GET /releases/fleet-4.55.0': '/releases/fleet-4-55-0',
+  'GET /releases/fleet-4.56.0': '/releases/fleet-4-56-0',
+  'GET /releases/fleet-4.54.0': '/releases/fleet-4-54-0',
+  'GET /releases/fleet-4.58.0': '/releases/fleet-4-58-0',
+  'GET /releases/fleet-4.59.0': '/releases/fleet-4-59-0',
+  'GET /releases/fleet-4.57.0': '/releases/fleet-4-57-0',
+  'GET /releases/fleet-4.6.0': '/releases/fleet-4-6-0',
+  'GET /releases/fleet-4.60.0': '/releases/fleet-4-60-0',
+  'GET /releases/fleet-4.7.0': '/releases/fleet-4-7-0',
+  'GET /releases/fleet-4.8.0': '/releases/fleet-4-8-0',
+  'GET /releases/fleet-4.61.0': '/releases/fleet-4-61-0',
+  'GET /releases/fleet-4.9.0': '/releases/fleet-4-9-0',
+  'GET /announcements/nvd-api-2.0': '/announcements/nvd-api-2-0',
+  'GET /releases/osquery-5.11.0': '/releases/osquery-5-11-0',
+  'GET /releases/osquery-5.8.1': '/releases/osquery-5-8-1',
+
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
@@ -614,6 +818,7 @@ module.exports.routes = {
   'GET /learn-more-about/exe-install-scripts': '/guides/exe-install-scripts',
   'GET /learn-more-about/install-scripts': '/guides/deploy-software-packages#install-script',
   'GET /learn-more-about/uninstall-scripts': '/guides/deploy-software-packages#uninstall-script',
+  'GET /learn-more-about/package-metadata-extraction': '/guides/deploy-software-packages#package-metadata-extraction',
   'GET /learn-more-about/read-package-version': '/guides/deploy-software-packages#add-a-software-package-to-a-team',
   'GET /learn-more-about/fleetctl': '/guides/fleetctl',
   'GET /feature-request': 'https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~feature+fest%2C%3Aproduct&projects=&template=feature-request.md&title=',
@@ -703,4 +908,5 @@ module.exports.routes = {
   'POST /api/v1/deliver-deal-registration-submission': { action: 'deliver-deal-registration-submission' },
   '/api/v1/unsubscribe-from-marketing-emails': { action: 'unsubscribe-from-marketing-emails' },
   'POST /api/v1/customers/get-stripe-checkout-session-url': { action: 'customers/get-stripe-checkout-session-url' },
+  'POST /api/v1/admin/get-llm-generated-sql': { action: 'admin/get-llm-generated-sql' },
 };

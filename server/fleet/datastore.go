@@ -68,6 +68,8 @@ type Datastore interface {
 	// written to user record. userID is the ID of the user whose e-mail is being changed.
 	ConfirmPendingEmailChange(ctx context.Context, userID uint, token string) (string, error)
 
+	UserSettings(ctx context.Context, userID uint) (*UserSettings, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// QueryStore
 
@@ -1705,6 +1707,18 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Software installers
 	//
+
+	// GetIncludedHostIDMapForSoftwareInstaller gets the set of hosts that are targeted/in scope for the
+	// given software installer, based label membership.
+	GetIncludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error)
+
+	// GetExcludedHostIDMapForSoftwareInstaller gets the set of hosts that are NOT targeted/in scope for the
+	// given software installer, based label membership.
+	GetExcludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error)
+
+	// ClearAutoInstallPolicyStatusForHosts clears out the status of the policy related to the given
+	// software installer for all the given hosts.
+	ClearAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error
 
 	// GetSoftwareInstallDetails returns details required to fetch and
 	// run software installers

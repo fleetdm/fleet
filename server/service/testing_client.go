@@ -692,6 +692,16 @@ func (ts *withServer) updateSoftwareInstaller(
 			require.NoError(t, w.WriteField("self_service", "false"))
 		}
 	}
+	if payload.LabelsIncludeAny != nil {
+		for _, l := range payload.LabelsIncludeAny {
+			require.NoError(t, w.WriteField("labels_include_any", l))
+		}
+	}
+	if payload.LabelsExcludeAny != nil {
+		for _, l := range payload.LabelsExcludeAny {
+			require.NoError(t, w.WriteField("labels_exclude_any", l))
+		}
+	}
 
 	w.Close()
 

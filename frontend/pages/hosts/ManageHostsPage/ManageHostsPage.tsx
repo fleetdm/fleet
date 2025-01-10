@@ -11,9 +11,9 @@ import { RouteProps } from "react-router/lib/Route";
 import { find, isEmpty, isEqual, omit } from "lodash";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
-import classNames from "classnames";
 
 import enrollSecretsAPI from "services/entities/enroll_secret";
+import usersAPI from "services/entities/users";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
@@ -46,7 +46,6 @@ import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
-import { getErrorReason } from "interfaces/errors";
 import { ILabel } from "interfaces/label";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
@@ -143,10 +142,12 @@ const ManageHostsPage = ({
     isPremiumTier,
     isFreeTier,
     isSandboxMode,
+    userSettings,
     setFilteredHostsPath,
     setFilteredPoliciesPath,
     setFilteredQueriesPath,
     setFilteredSoftwarePath,
+    setUserSettings,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -174,11 +175,6 @@ const ManageHostsPage = ({
         newTeamId === API_ALL_TEAMS_ID,
     },
   });
-
-  const hostHiddenColumns = localStorage.getItem("hostHiddenColumns");
-  const storedHiddenColumns = hostHiddenColumns
-    ? JSON.parse(hostHiddenColumns)
-    : null;
 
   // Functions to avoid race conditions
   const initialSortBy: ISortOption[] = (() => {
@@ -212,7 +208,7 @@ const ManageHostsPage = ({
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
-    storedHiddenColumns || defaultHiddenColumns
+    userSettings?.hidden_host_columns || defaultHiddenColumns
   );
   const [selectedHostIds, setSelectedHostIds] = useState<number[]>([]);
   const [isAllMatchingHostsSelected, setIsAllMatchingHostsSelected] = useState(
@@ -466,6 +462,29 @@ const ManageHostsPage = ({
       select: (data) => data.count,
     }
   );
+
+  // migrate users with current local storage based solution to db persistence
+  const locallyHiddenCols = localStorage.getItem("hostHiddenColumns");
+  if (locallyHiddenCols) {
+    console.log("found local hidden columns: ", locallyHiddenCols);
+    console.log("migrating to server persistence...");
+    (async () => {
+      if (!currentUser) {
+        // for type checker
+        return;
+      }
+      const parsed = JSON.parse(locallyHiddenCols) as string[];
+      try {
+        await usersAPI.update(currentUser.id, {
+          settings: { ...userSettings, hidden_host_columns: parsed },
+        });
+        localStorage.removeItem("hostHiddenColumns");
+      } catch {
+        // don't remove local storage, proceed with setting context with local storage value
+      }
+      setHiddenColumns(parsed);
+    })();
+  }
 
   const refetchHosts = () => {
     refetchHostsAPI();
@@ -766,10 +785,23 @@ const ManageHostsPage = ({
     router.push(`${PATHS.EDIT_LABEL(parseInt(labelID, 10))}`);
   };
 
-  const onSaveColumns = (newHiddenColumns: string[]) => {
-    localStorage.setItem("hostHiddenColumns", JSON.stringify(newHiddenColumns));
-    setHiddenColumns(newHiddenColumns);
-    setShowEditColumnsModal(false);
+  const onSaveColumns = async (newHiddenColumns: string[]) => {
+    if (!currentUser) {
+      return;
+    }
+    try {
+      await usersAPI.update(currentUser.id, {
+        settings: { ...userSettings, hidden_host_columns: newHiddenColumns },
+      });
+      // No success renderFlash, to make column setting more seamless
+      // only set state and close modal if server persist succeeds, keeping UI and server state in
+      // sync.
+      // Can also add local storage fallback behavior in next iteration if we want.
+      setHiddenColumns(newHiddenColumns);
+      setShowEditColumnsModal(false);
+    } catch (response) {
+      renderFlash("error", "Couldn't save column settings. Please try again.");
+    }
   };
 
   // NOTE: this is called once on initial render and every time the query changes
