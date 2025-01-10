@@ -389,20 +389,6 @@ out:
 		}
 	}
 
-	if identifier == "" {
-		for _, pkg := range d.PkgRefs {
-			if pkg.PackageIdentifier != "" {
-				identifier = pkg.PackageIdentifier
-				break
-			}
-
-			if pkg.ID != "" {
-				identifier = pkg.ID
-				break
-			}
-		}
-	}
-
 	// if the identifier is still empty, try to use the product id
 	if identifier == "" && d.Product.ID != "" {
 		identifier = d.Product.ID
