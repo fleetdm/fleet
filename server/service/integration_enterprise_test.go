@@ -1491,6 +1491,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	require.Contains(t, errText, "\"distributed_tls_max_attempts\" should be part of the \"config.options\" object")
 
 	badRes = s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
+		"config": { "options": { "logger_plugin": 3 } }
+	}`), http.StatusBadRequest)
+	errText = extractServerErrorText(badRes.Body)
+	require.Contains(t, errText, "\"logger_plugin\" should be part of the \"command_line_flags\" object")
+
+	badRes = s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
 		"update_channels": { "config": 1 }
 	}`), http.StatusBadRequest)
 	errText = extractServerErrorText(badRes.Body)
