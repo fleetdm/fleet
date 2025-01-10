@@ -15,7 +15,7 @@ iOS and iPadOS hosts can be wiped. Restricting wipe to only company-owned iPhone
 3. Click the **Actions** dropdown, then click  **Lock**.
 4. A confirmation dialog will appear. Confirm that you want to lock the device. The host will now be marked with a "Lock pending" badge. Once the lock command is acknowledged by the host, the badge will update to "Locked".*
 
-Currently, there's no lock feature on iOS and iPadOS. If an iOS or iPadOS host is lost/stolen, or the end user leaves the company, the best practice is to wipe the host. If you send the `DeviceLock` command as a [custom command](https://fleetdm.com/guides/mdm-commands#custom-commands) to an iOS or iPadOS host, the end user is still able to unlock the host.
+Currently, there's no **Lock** button for iOS and iPadOS. If an iOS or iPadOS host is lost/stolen, the best practice is to send the [`EnableLostMode`](https://developer.apple.com/documentation/devicemanagement/enable_lost_mode) and [`DisableLostMode`] commands using a [custom command](https://fleetdm.com/guides/mdm-commands#custom-commands). If the host's owner (employee) is leaving the company and keeping a company-owned iOS or iPadOS host, the best practice is to wipe it.
 
 ## Wipe a host
 
