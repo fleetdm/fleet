@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useMemo } from "react";
 
 import { useQuery } from "react-query";
 import { omit } from "lodash";
@@ -62,6 +62,11 @@ interface IFormPolicy {
 
 export type IInstallSoftwareFormData = IFormPolicy[];
 
+interface IEnhancedSoftwareTitle extends ISoftwareTitle {
+  platform: Platform | null;
+  extension?: string;
+}
+
 interface IInstallSoftwareModal {
   onExit: () => void;
   onSubmit: (formData: IInstallSoftwareFormData) => void;
@@ -69,6 +74,7 @@ interface IInstallSoftwareModal {
   policies: IPolicyStats[];
   teamId: number;
 }
+
 const InstallSoftwareModal = ({
   onExit,
   onSubmit,
@@ -97,7 +103,7 @@ const InstallSoftwareModal = ({
   } = useQuery<
     ISoftwareTitlesResponse,
     Error,
-    ISoftwareTitle[],
+    IEnhancedSoftwareTitle[],
     [ISoftwareTitlesQueryKey]
   >(
     [
@@ -109,13 +115,21 @@ const InstallSoftwareModal = ({
         orderDirection: "desc",
         orderKey: "hosts_count",
         teamId,
-        availableForInstall: true, // Includes FMA, VPP, and custom packages
+        availableForInstall: true,
       },
     ],
     ({ queryKey: [queryKey] }) =>
       softwareAPI.getSoftwareTitles(omit(queryKey, "scope")),
     {
-      select: (data) => data.software_titles,
+      select: (data): IEnhancedSoftwareTitle[] =>
+        data.software_titles.map((title) => {
+          const extension = title.software_package?.name.split(".").pop();
+          return {
+            ...title,
+            platform: getPlatformFromExtension(extension),
+            extension,
+          };
+        }),
       ...DEFAULT_USE_QUERY_OPTIONS,
     }
   );
@@ -158,62 +172,59 @@ const InstallSoftwareModal = ({
     [formData]
   );
 
-  /**
-   * Filters and transforms software titles into dropdown options
-   * Filters titlesAFI to include only software compatible with the policy's
-   * platform(s) by using the file extension to determine the platform
-   */
-  const availableSoftwareOptions = (policy: IFormPolicy) => {
-    return titlesAFI
-      ?.filter((title) => {
-        const splitName = title.software_package?.name.split(".") ?? "";
-        const ext =
-          splitName.length > 1 ? splitName[splitName.length - 1] : undefined;
-        const platform = getPlatformFromExtension(ext);
+  // Filters and transforms software titles into dropdown options
+  // to include only software compatible with the policy's platform(s)
+  const availableSoftwareOptions = useCallback(
+    (policy: IFormPolicy) => {
+      const policyPlatforms = policy.platform.split(",");
+      return titlesAFI
+        ?.filter(
+          (title) =>
+            (title.platform && policyPlatforms.includes(title.platform)) ||
+            (policyPlatforms.includes("darwin") &&
+              title.source === "apps" &&
+              title.app_store_app)
+        )
+        .map((title) => {
+          const vppOption = title.source === "apps" && !!title.app_store_app;
+          const platformString = () => {
+            if (vppOption) {
+              return "macOS (App Store) • ";
+            }
 
-        // Filter apps to FMA/custom packages with extensions that match policy's platform
-        const isAvailableSoftwarePackageOption =
-          platform && policy.platform.split(",").includes(platform);
+            return title.extension
+              ? `${
+                  title.platform && PLATFORM_DISPLAY_NAMES[title.platform]
+                } (.${title.extension}) • `
+              : "";
+          };
+          const versionString = () => {
+            return vppOption
+              ? title.app_store_app?.version
+              : title.software_package?.version ?? "";
+          };
 
-        // Filters apps to only macOS VPP apps for macOS policies
-        const isAvailableVPPOption =
-          policy.platform.split(",").includes("darwin") &&
-          title.source === "apps" &&
-          !!title.app_store_app;
+          return {
+            label: title.name,
+            value: title.id,
+            helpText: `${platformString()}${versionString()}`,
+          };
+        });
+    },
+    [titlesAFI]
+  );
 
-        return isAvailableSoftwarePackageOption || isAvailableVPPOption;
-      })
-      .map((title) => {
-        const vppOption = title.source === "apps" && !!title.app_store_app;
-        const splitName = title.software_package?.name.split(".") ?? "";
-        const ext =
-          splitName.length > 1 ? splitName[splitName.length - 1] : undefined;
-        const platformString = () => {
-          if (vppOption) {
-            return "macOS (App Store) • ";
-          }
-          return ext
-            ? `${
-                PLATFORM_DISPLAY_NAMES[
-                  getPlatformFromExtension(ext) as Platform
-                ]
-              } (.${ext}) • `
-            : "";
-        };
-
-        const versionString = () => {
-          vppOption
-            ? title.app_store_app?.version
-            : title.software_package?.version ?? "";
-        };
-
-        return {
-          label: title.name,
-          value: title.id,
-          helpText: `${platformString()}${versionString()}`,
-        };
-      });
-  };
+  // Cache availableSoftwareOptions for each unique platform
+  const memoizedAvailableSoftwareOptions = useMemo(() => {
+    const cache = new Map();
+    return (policy: IFormPolicy) => {
+      const key = policy.platform;
+      if (!cache.has(key)) {
+        cache.set(key, availableSoftwareOptions(policy));
+      }
+      return cache.get(key);
+    };
+  }, [availableSoftwareOptions]);
 
   const renderPolicySwInstallOption = (policy: IFormPolicy) => {
     const {
@@ -243,7 +254,7 @@ const InstallSoftwareModal = ({
         </Checkbox>
         {enabled && (
           <Dropdown
-            options={availableSoftwareOptions(policy)} // Options filtered for policy's platform(s)
+            options={memoizedAvailableSoftwareOptions(policy)} // Options filtered for policy's platform(s)
             value={swIdToInstall}
             onChange={onSelectPolicySoftware}
             placeholder="Select software"
