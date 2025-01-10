@@ -22,7 +22,7 @@ Big opportunities that Fleet is building towards in the near future (next 180 da
 - 🗓️ Native patching for apps and OS during maintenance windows
 - 🤖 AI-generated osquery queries
 
-Any feedback or a questions? You can find us where we hang out in the [osquery // #fleet Slack channel](https://chat.osquery.io/c/fleet).
+Any feedback or a questions?  Contributions welcome! You can find us [where we hang out](https://fleetdm.com/support).
 
 <meta name="category" value="announcements">
 <meta name="authorFullName" value="Noah Talerman">
