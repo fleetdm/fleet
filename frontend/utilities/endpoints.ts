@@ -9,6 +9,9 @@ export default {
   HOST_UPCOMING_ACTIVITIES: (id: number): string => {
     return `/${API_VERSION}/fleet/hosts/${id}/activities/upcoming`;
   },
+  HOST_CANCEL_ACTIVITY: (hostId: number, uuid: string): string => {
+    return `/${API_VERSION}/fleet/hosts/${hostId}/activities/upcoming/${uuid}`;
+  },
 
   CHANGE_PASSWORD: `/${API_VERSION}/fleet/change_password`,
   CONFIG: `/${API_VERSION}/fleet/config`,

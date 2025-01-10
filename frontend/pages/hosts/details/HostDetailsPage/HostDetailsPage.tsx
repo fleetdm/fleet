@@ -1084,6 +1084,7 @@ const HostDetailsPage = ({
         )}
         {selectedCancelActivity && (
           <CancelActivityModal
+            hostId={host.id}
             activity={selectedCancelActivity}
             onExit={() => setSelectedCancelActivity(null)}
           />
