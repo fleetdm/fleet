@@ -63,6 +63,15 @@ const HostActivityItem = ({
     [`${baseClass}__solo-activity`]: soloActivity,
   });
 
+  const onShowActivityDetails = () => {
+    onShowDetails({ type: activity.type, details: activity.details });
+  };
+
+  const onCancelActivity = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    onCancel();
+  };
+
   return (
     <div className={classNames}>
       <div className={`${baseClass}__avatar-wrapper`}>
@@ -75,7 +84,10 @@ const HostActivityItem = ({
         />
         <div className={`${baseClass}__avatar-lower-dash`} />
       </div>
-      <div className={`${baseClass}__details-wrapper`} onClick={onShowDetails}>
+      <div
+        className={`${baseClass}__details-wrapper`}
+        onClick={onShowActivityDetails}
+      >
         <div className={"activity-details"}>
           <span className={`${baseClass}__details-topline`}>
             <span>{children}</span>
@@ -102,10 +114,10 @@ const HostActivityItem = ({
           )}
         </div>
         <div className={`${baseClass}__details-actions`}>
-          <Button variant="icon" onClick={onShowDetails}>
+          <Button variant="icon" onClick={onShowActivityDetails}>
             <Icon name="info" size="medium" color="ui-fleet-black-75" />
           </Button>
-          <Button variant="icon" onClick={onCancel}>
+          <Button variant="icon" onClick={onCancelActivity}>
             <Icon
               name="close"
               color="ui-fleet-black-75"
