@@ -27,6 +27,8 @@ import Button from "components/buttons/Button";
 import { ISoftwareTitle } from "interfaces/software";
 import TooltipWrapper from "components/TooltipWrapper";
 
+// TODO: Replace this with a PLATFORM_BY_SOURCE and use title.source instead to determine platform
+// Why? It will work for all available software installers including packages AND VPP
 const getPlatformFromExtension = (ext: string | undefined): Platform | null => {
   switch (ext) {
     case "pkg":
