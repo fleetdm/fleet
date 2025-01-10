@@ -83,7 +83,7 @@ interface ITableContainerProps<T = any> {
   onQueryChange?:
     | ((queryData: ITableQueryData) => void)
     | ((queryData: ITableQueryData) => number);
-  customControl?: () => JSX.Element;
+  customControl?: () => JSX.Element | null;
   /** Filter button right of the search rendering alternative responsive design where search bar moves to new line but filter button remains inline with other table headers */
   customFiltersButton?: () => JSX.Element;
   stackControls?: boolean;
@@ -288,11 +288,11 @@ const TableContainer = <T,>({
     const opacity = isLoading ? { opacity: 0.4 } : { opacity: 1 };
 
     // New preferred pattern uses grid container/box to allow for more dynamic responsiveness
-    // At low widths, search bar (3rd div of 4) moves above other 3 divs
-    if (customFiltersButton) {
+    // At low widths, right header stacks on top of left header
+    if (stackControls) {
       return (
         <div className="container">
-          <div className="box">
+          <div className="stackable-header">
             {renderCount && !disableCount && (
               <div
                 className={`${baseClass}__results-count ${
@@ -304,8 +304,9 @@ const TableContainer = <T,>({
               </div>
             )}
           </div>
-          <div className="box">
-            {actionButton && !actionButton.hideButton && (
+
+          {actionButton && !actionButton.hideButton && (
+            <div className="stackable-header">
               <Button
                 disabled={disableActionButton}
                 onClick={actionButton.onActionButtonClick}
@@ -317,10 +318,10 @@ const TableContainer = <T,>({
                   {actionButton.iconSvg && <Icon name={actionButton.iconSvg} />}
                 </>
               </Button>
-            )}
+            </div>
+          )}
+          <div className="stackable-header top-shift-header">
             {customControl && customControl()}
-          </div>
-          <div className="box search">
             {searchable && !wideSearch && (
               <div className={`${baseClass}__search`}>
                 <div
@@ -347,8 +348,8 @@ const TableContainer = <T,>({
                 </ReactTooltip>
               </div>
             )}
+            {customFiltersButton && customFiltersButton()}
           </div>
-          <div className="box"> {customFiltersButton()} </div>
         </div>
       );
     }
