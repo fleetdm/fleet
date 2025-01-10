@@ -762,7 +762,7 @@ func previewResetCommand() *cli.Command {
 				return fmt.Errorf("Failed to stop orbit: %w", err)
 			}
 
-			if err := os.RemoveAll(filepath.Join(orbitDir, "tuf-metadata.json")); err != nil {
+			if err := os.RemoveAll(filepath.Join(orbitDir, update.MetadataFileName)); err != nil {
 				return fmt.Errorf("failed to remove preview update metadata file: %w", err)
 			}
 			if err := os.RemoveAll(filepath.Join(orbitDir, "bin")); err != nil {

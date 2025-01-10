@@ -414,6 +414,23 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 
 	if teamOptions != nil {
 		if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, teamOptions, true); err != nil {
+			if field := fleet.GetJSONUnknownField(err); field != nil {
+				correctKeyPath, keyErr := fleet.FindAgentOptionsKeyPath(*field)
+				if keyErr != nil {
+					level.Error(svc.logger).Log("err", err, "msg", "error parsing generated agent options structs")
+				}
+				var keyPathJoined string
+				switch pathLen := len(correctKeyPath); {
+				case pathLen > 1:
+					keyPathJoined = fmt.Sprintf("%q", strings.Join(correctKeyPath[:len(correctKeyPath)-1], "."))
+				case pathLen == 1:
+					keyPathJoined = "top level"
+				}
+				if keyPathJoined != "" {
+					err = fmt.Errorf("%q should be part of the %s object", *field, keyPathJoined)
+				}
+			}
+
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOptions.Force && !applyOptions.DryRun {
 				level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")

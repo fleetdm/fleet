@@ -4,7 +4,11 @@ system=$1
 target_name=$2
 target_path=$3
 major_version=$4
-TUF_PATH=test_tuf
+
+if [ -z "$TUF_PATH" ]; then
+  TUF_PATH=test_tuf
+fi
+export TUF_PATH
 
 export FLEET_ROOT_PASSPHRASE=p4ssphr4s3
 export FLEET_TARGETS_PASSPHRASE=p4ssphr4s3
