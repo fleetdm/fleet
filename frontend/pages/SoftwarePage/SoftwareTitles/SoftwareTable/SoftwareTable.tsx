@@ -21,8 +21,6 @@ import {
 } from "services/entities/software";
 import { ISoftwareTitle, ISoftwareVersion } from "interfaces/software";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
 import TableContainer from "components/TableContainer";
 import Slider from "components/forms/fields/Slider";
 import CustomLink from "components/CustomLink";
@@ -32,6 +30,9 @@ import TableCount from "components/TableContainer/TableCount";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 
@@ -284,28 +285,36 @@ const SoftwareTable = ({
             }
           />
         )}
-      </>
-    );
-  };
-
-  const renderCustomControls = () => {
-    return (
-      <div className={`${baseClass}__filter-controls`}>
-        {!showVersions && ( // Hidden when viewing versions table
-          <Dropdown
-            value={softwareFilter}
-            className={`${baseClass}__vuln_dropdown`}
-            options={SOFTWARE_TITLES_DROPDOWN_OPTIONS}
-            searchable={false}
-            onChange={handleCustomFilterDropdownChange}
-            iconName="filter"
-          />
-        )}
         <Slider
           value={showVersions}
           onChange={handleShowVersionsToggle}
           inactiveText="Show versions"
           activeText="Show versions"
+        />
+      </>
+    );
+  };
+
+  const renderCustomControls = () => {
+    // Hidden when viewing versions table
+    if (showVersions) {
+      return null;
+    }
+
+    return (
+      <div className={`${baseClass}__filter-controls`}>
+        <DropdownWrapper
+          name="software-filter"
+          value={softwareFilter}
+          className={`${baseClass}__filter-dropdown`}
+          options={SOFTWARE_TITLES_DROPDOWN_OPTIONS}
+          onChange={(newValue: SingleValue<CustomOptionType>) =>
+            newValue &&
+            handleCustomFilterDropdownChange(
+              newValue.value as ISoftwareDropdownFilterVal
+            )
+          }
+          iconName="filter"
         />
       </div>
     );
