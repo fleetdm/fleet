@@ -26,7 +26,7 @@ Current supported software deployment formats:
 Coming soon:
 - VPP for iOS and iPadOS
 
-> Note: starting with v4.62.0, you have Fleet create an automatic install policy automatically when you upload an installer. If you use this "Automatic" install mode, you do not have to create your own policy. See our [deploying software](https://fleetdm.com/guides/deploy-security-agents) guide for more details.
+> Note: starting with v4.62.0, you can have Fleet create an automatic install policy for you when you upload an installer. If you use this "Automatic" installation mode, you do not have to create your own policy. See our [deploying software](https://fleetdm.com/guides/deploy-security-agents) guide for more details.
 
 2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go to Policies tab --> Press the "Add policy" button --> Click "create your own policy" --> Enter your policy SQL --> Save --> Fill in details in the Save modal and Save.
 
