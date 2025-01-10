@@ -201,6 +201,14 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
 
+	appMeta, err := ds.GetVPPAppMetadataByAdamIDAndPlatform(ctx, meta.AdamID, meta.Platform)
+	require.NoError(t, err)
+	require.Equal(t, appMeta.AdamID, meta.AdamID)
+	require.Equal(t, appMeta.Platform, meta.Platform)
+
+	_, err = ds.GetVPPAppMetadataByAdamIDAndPlatform(ctx, "foo", meta.Platform)
+	require.ErrorContains(t, err, "not found")
+
 	// mark it as install_during_setup for team 2
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE vpp_apps_teams SET install_during_setup = 1 WHERE global_or_team_id = ? AND adam_id = ?`, team2.ID, vpp2.AdamID)
@@ -910,6 +918,8 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Len(t, teamTok.Teams, 1)
 	assert.Equal(t, team.ID, teamTok.Teams[0].ID)
 	assert.Equal(t, team.Name, teamTok.Teams[0].Name)
+
+	// TODO make sure policies are unaffected
 
 	// Renew flow
 	upTok, err = ds.UpdateVPPToken(ctx, tokID, dataToken6)

@@ -614,7 +614,7 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 		if softwareTitle.AppStoreApp.Platform != fleet.MacOSPlatform {
 			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf(
-					"software_title_id %d on team_id %d is assocated to an iOS or iPadOS VPP app, only software installers or macOS VPP apps are supported",
+					"software_title_id %d on team_id %d is associated to an iOS or iPadOS VPP app, only software installers or macOS VPP apps are supported",
 					*softwareTitleID,
 					*teamID,
 				),
