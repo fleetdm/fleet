@@ -4359,6 +4359,7 @@ func testTeamPoliciesWithVPP(t *testing.T, ds *Datastore) {
 		Query:          "SELECT 4;",
 		VPPAppsTeamsID: ptr.Uint(noTeamMeta.VPPAppsTeamsID),
 	})
+	require.NoError(t, err)
 
 	// create another team1 app
 	team1App2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
