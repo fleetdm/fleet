@@ -1476,6 +1476,32 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 		"x": "y"
 	}`), http.StatusBadRequest, &tmResp)
 
+	// modify team agent options with invalid key
+	badRes := s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
+		"bad_key": 1
+	}`), http.StatusBadRequest)
+	errText := extractServerErrorText(badRes.Body)
+	require.Contains(t, errText, "unsupported key provided")
+
+	// modify team agent options with correct options under the wrong key
+	badRes = s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
+		"distributed_tls_max_attempts": 3
+	}`), http.StatusBadRequest)
+	errText = extractServerErrorText(badRes.Body)
+	require.Contains(t, errText, "\"distributed_tls_max_attempts\" should be part of the \"config.options\" object")
+
+	badRes = s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
+		"config": { "options": { "logger_plugin": 3 } }
+	}`), http.StatusBadRequest)
+	errText = extractServerErrorText(badRes.Body)
+	require.Contains(t, errText, "\"logger_plugin\" should be part of the \"command_line_flags\" object")
+
+	badRes = s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
+		"update_channels": { "config": 1 }
+	}`), http.StatusBadRequest)
+	errText = extractServerErrorText(badRes.Body)
+	require.Contains(t, errText, "\"config\" should be part of the top level object")
+
 	// modify team agent options with invalid platform options
 	tmResp.Team = nil
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(
