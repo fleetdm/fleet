@@ -18,7 +18,7 @@ const baseClass = "past-activity-feed";
 interface IPastActivityFeedProps {
   activities?: IHostPastActivitiesResponse;
   isError?: boolean;
-  onDetailsClick: ShowActivityDetailsHandler;
+  onShowDetails: ShowActivityDetailsHandler;
   onNextPage: () => void;
   onPreviousPage: () => void;
 }
@@ -26,7 +26,7 @@ interface IPastActivityFeedProps {
 const PastActivityFeed = ({
   activities,
   isError = false,
-  onDetailsClick,
+  onShowDetails,
   onNextPage,
   onPreviousPage,
 }: IPastActivityFeedProps) => {
@@ -61,7 +61,7 @@ const PastActivityFeed = ({
               tab="past"
               activity={activity}
               hideClose
-              onShowDetails={onDetailsClick}
+              onShowDetails={onShowDetails}
             />
           );
         })}

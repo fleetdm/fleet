@@ -95,7 +95,7 @@ const Activity = ({
           <TabPanel>
             <PastActivityFeed
               activities={activities as IHostPastActivitiesResponse | undefined}
-              onDetailsClick={onShowDetails}
+              onShowDetails={onShowDetails}
               isError={isError}
               onNextPage={onNextPage}
               onPreviousPage={onPreviousPage}
