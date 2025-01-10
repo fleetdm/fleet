@@ -711,7 +711,7 @@ User story reviews [happen weekly](https://fleetdm.com/handbook/product-design#r
 
 The purpose of the review is to familiarize the EM and QA Engineer with the user story, and provide an opportunity to ask questions, clarify requirements, and highlight potential implementation issues. The first draft of the test plan produced by the Product Designer is reviewed and revised as needed during the call. The QA Engineer is the DRI for finalizing the test plan.
 
-If there are design changes, the user story is brought back into product design for additional drafting. If there are no design changes, the story is assigned to the EM to [complete the drafting process](#defining-done) before bringing to estimation.
+The purpose of the user story review is to align product, engineering, and QA on functionality and implementation details. Wireframe reviews occur daily during [design reviews](https://fleetdm.com/handbook/company/product-groups#design-reviews) where contributors are welcome to join and provide design feedback in the agenda document. However, sometimes there are design changes needed if a gap is discovered or an implementation issue is raised during user story review. If there are design changes, the user story is moved back to the "In progress" column for additional drafting. If there are no design changes, the story is assigned to the EM to [complete the drafting process](#defining-done) before bringing to estimation.
 
 
 ### Group weeklies
