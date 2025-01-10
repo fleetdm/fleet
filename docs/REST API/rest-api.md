@@ -5986,10 +5986,17 @@ List software that can or will be automatically installed during macOS setup. If
       "id": 12,
       "name": "Firefox.app",
       "software_package": {
-        "name": "FirefoxInsall.pkg",
+        "name": "FirefoxInstall.pkg",
         "version": "125.6",
         "self_service": true,
-        "install_during_setup": true
+        "install_during_setup": true,
+        "labels_include_any": [
+          {
+            "name": "Label 1",
+            "id": 1
+          }
+        ],
+        "labels_exclude_any": null
       },
       "app_store_app": null,
       "versions_count": 3,
