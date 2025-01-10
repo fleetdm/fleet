@@ -372,6 +372,9 @@ out:
 
 		for _, l := range d.ChoicesOutline.Lines {
 			c := choicesByID[l.Choice]
+			// Note: we can't create a map of pkg-refs by ID like we do for the choices above
+			// because different pkg-refs can have the same ID attribute. See distribution-go.xml
+			// for an example of this (this case is covered in tests).
 			for _, p := range d.PkgRefs {
 				if p.ID == c.PkgRef.ID {
 					identifier = p.PackageIdentifier
