@@ -20,7 +20,7 @@
   }
 
   &__avatar-upper-dash {
-    border-right: 1px dashed $ui-fleet-black-25;
+    border-right: 1px solid $ui-fleet-black-10;
     grid-column-start: 1;
     grid-column-end: 2;
     grid-row-start: 1;
@@ -28,7 +28,7 @@
   }
 
   &__avatar-lower-dash {
-    border-right: 1px dashed $ui-fleet-black-25;
+    border-right: 1px solid $ui-fleet-black-10;
     grid-column-start: 1;
     grid-column-end: 2;
     grid-row-start: 3;
@@ -110,6 +110,41 @@
   &:last-child {
     .host-activity-item__avatar-lower-dash {
       border-right: none;
+    }
+  }
+
+  /**
+   * Starting here are the styles for the host activity item when it is the
+   * only activity that is being displayed (controlled by the `soloActivity prop`.
+   * We switch from grid to flexbox since we don't need the dashed lines anymore.
+   */
+  &__solo-activity {
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-large;
+    padding: $pad-medium;
+    display: flex;
+    gap: $pad-medium;
+
+    .host-activity-item__avatar-wrapper {
+      display: block;
+    }
+
+    .host-activity-item__avatar-lower-dash {
+      display: none;
+    }
+
+    .host-activity-item__details-wrapper {
+      display: block;
+      padding: 0;
+      margin-bottom: 0;
+
+      &:hover {
+        background-color: transparent;
+      }
+    }
+
+    .host-activity-item__details-actions {
+      display: none;
     }
   }
 }

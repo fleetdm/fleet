@@ -1,6 +1,6 @@
 import React from "react";
 
-import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
+import { IHostUpcomingActivity } from "interfaces/activity";
 import { IHostUpcomingActivitiesResponse } from "services/entities/activities";
 
 // @ts-ignore
@@ -17,7 +17,8 @@ const baseClass = "upcoming-activity-feed";
 interface IUpcomingActivityFeedProps {
   activities?: IHostUpcomingActivitiesResponse;
   isError?: boolean;
-  onDetailsClick: ShowActivityDetailsHandler;
+  onShowDetails: ShowActivityDetailsHandler;
+  onCancel: (activity: IHostUpcomingActivity) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
 }
@@ -25,7 +26,8 @@ interface IUpcomingActivityFeedProps {
 const UpcomingActivityFeed = ({
   activities,
   isError = false,
-  onDetailsClick,
+  onShowDetails,
+  onCancel,
   onNextPage,
   onPreviousPage,
 }: IUpcomingActivityFeedProps) => {
@@ -60,7 +62,8 @@ const UpcomingActivityFeed = ({
               key={activity.id}
               tab="upcoming"
               activity={activity}
-              onShowDetails={onDetailsClick}
+              onShowDetails={onShowDetails}
+              onCancel={() => onCancel(activity)}
             />
           );
         })}

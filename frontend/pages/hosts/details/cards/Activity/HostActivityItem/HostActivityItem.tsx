@@ -16,14 +16,19 @@ import { dateAgo } from "utilities/date_format";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { noop } from "lodash";
+import { ShowActivityDetailsHandler } from "../Activity";
 
 const baseClass = "host-activity-item";
 
 interface IHostActivityItemProps {
   activity: IActivity;
   children: React.ReactNode;
+  /** Set this to `true` when rendering only this activity by itself. This will
+   * change the styles for the activity item for solo rendering.
+   * @default false */
+  soloActivity?: boolean;
   className?: string;
-  onShowDetails?: () => void;
+  onShowDetails?: ShowActivityDetailsHandler;
   onCancel?: () => void;
 }
 
@@ -37,6 +42,7 @@ const HostActivityItem = ({
   activity,
   children,
   className,
+  soloActivity,
   onShowDetails = noop,
   onCancel = noop,
 }: IHostActivityItemProps) => {
@@ -53,7 +59,9 @@ const HostActivityItem = ({
     activityCreatedAt = null;
   }
 
-  const classNames = classnames(baseClass, className);
+  const classNames = classnames(baseClass, className, {
+    [`${baseClass}__solo-activity`]: soloActivity,
+  });
 
   return (
     <div className={classNames}>

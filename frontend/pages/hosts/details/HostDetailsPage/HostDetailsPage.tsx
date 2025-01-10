@@ -31,6 +31,7 @@ import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
 import { IHostSoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
+import { IHostUpcomingActivity } from "interfaces/activity";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
@@ -92,6 +93,7 @@ import WipeModal from "./modals/WipeModal";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import { getErrorMessage } from "./helpers";
+import CancelActivityModal from "./modals/CancelActivityModal";
 
 const baseClass = "host-details";
 
@@ -194,6 +196,10 @@ const HostDetailsPage = ({
     selectedSoftwareDetails,
     setSelectedSoftwareDetails,
   ] = useState<IHostSoftware | null>(null);
+  const [
+    selectedCancelActivity,
+    setSelectedCancelActivity,
+  ] = useState<IHostUpcomingActivity | null>(null);
 
   // activity states
   const [activeActivityTab, setActiveActivityTab] = useState<
@@ -695,6 +701,10 @@ const HostDetailsPage = ({
     }
   };
 
+  const onCancelActivity = (activity: IHostUpcomingActivity) => {
+    setSelectedCancelActivity(activity);
+  };
+
   const renderActionDropdown = () => {
     if (!host) {
       return null;
@@ -872,6 +882,7 @@ const HostDetailsPage = ({
                 onNextPage={() => setActivityPage(activityPage + 1)}
                 onPreviousPage={() => setActivityPage(activityPage - 1)}
                 onShowDetails={onShowActivityDetails}
+                onCancel={onCancelActivity}
               />
               {!isIosOrIpadosHost && (
                 <AgentOptionsCard
@@ -1069,6 +1080,12 @@ const HostDetailsPage = ({
             hostDisplayName={host.display_name}
             software={selectedSoftwareDetails}
             onExit={() => setSelectedSoftwareDetails(null)}
+          />
+        )}
+        {selectedCancelActivity && (
+          <CancelActivityModal
+            activity={selectedCancelActivity}
+            onExit={() => setSelectedCancelActivity(null)}
           />
         )}
       </>

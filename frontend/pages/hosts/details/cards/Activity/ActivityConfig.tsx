@@ -25,6 +25,11 @@ export interface IHostActivityItemComponentProps {
 export interface IHostActivityItemComponentPropsWithShowDetails
   extends IHostActivityItemComponentProps {
   onShowDetails: ShowActivityDetailsHandler;
+  onCancel: () => void;
+  /** Set this to `true` when rendering only this activity by itself. This will
+   * change the styles for the activity item for solo rendering.
+   * @default false */
+  soloActivity?: boolean;
 }
 
 export const pastActivityComponentMap: Record<

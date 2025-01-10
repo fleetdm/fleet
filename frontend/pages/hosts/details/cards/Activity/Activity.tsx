@@ -1,7 +1,7 @@
 import React from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
-import { IActivityDetails } from "interfaces/activity";
+import { IActivityDetails, IHostUpcomingActivity } from "interfaces/activity";
 import {
   IHostPastActivitiesResponse,
   IHostUpcomingActivitiesResponse,
@@ -22,9 +22,10 @@ export interface IShowActivityDetailsData {
   details?: IActivityDetails;
 }
 
-export type ShowActivityDetailsHandler = (
-  data: IShowActivityDetailsData
-) => void;
+export type ShowActivityDetailsHandler = ({
+  type,
+  details,
+}: IShowActivityDetailsData) => void;
 
 const UpcomingTooltip = () => {
   return (
@@ -47,6 +48,7 @@ interface IActivityProps {
   onNextPage: () => void;
   onPreviousPage: () => void;
   onShowDetails: ShowActivityDetailsHandler;
+  onCancel: (activity: IHostUpcomingActivity) => void;
 }
 
 const Activity = ({
@@ -59,6 +61,7 @@ const Activity = ({
   onNextPage,
   onPreviousPage,
   onShowDetails,
+  onCancel,
 }: IActivityProps) => {
   return (
     <Card
@@ -106,7 +109,8 @@ const Activity = ({
               activities={
                 activities as IHostUpcomingActivitiesResponse | undefined
               }
-              onDetailsClick={onShowDetails}
+              onShowDetails={onShowDetails}
+              onCancel={onCancel}
               isError={isError}
               onNextPage={onNextPage}
               onPreviousPage={onPreviousPage}
