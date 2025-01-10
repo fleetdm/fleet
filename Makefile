@@ -131,11 +131,14 @@ lint-go:
 	golangci-lint run --exclude-dirs ./node_modules --timeout 15m
 
 .help-short--lint:
-	@echo "Run all linters"
-ifeq ($(ARG1), go)
-lint: lint-go
-else ifeq ($(ARG1), js)
-lint: lint-js
+	@echo "Run linters"
+.help-long--lint:
+	@echo "Runs the linters for Go and Javascript code. Specify 'go' or 'js' to run only that linter, or else both will be run."
+.help-usage--lint:
+	@echo "$(TOOL_CMD) lint [linter-type]"	
+
+ifdef ARG1
+lint: lint-$(ARG1)
 else
 lint: lint-go lint-js
 endif

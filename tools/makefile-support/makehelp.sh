@@ -7,12 +7,13 @@ if [ -n "$CMD" ]; then
   short_target=".help-short--$CMD";
   long_target=".help-long--$CMD";
   options_target=".help-options--$CMD";
+  usage_target=".help-usage--$CMD";
   
   delim=$'\036'  # ASCII 30
   nl=$'\037'
 
   # Try and get the help for the command.  Sections of the output will be delimited bv ASCII 30 (arbirary non-printing char)
-  output=$(make $short_target .help-sep-1 $long_target .help-sep-2 $options_target .help-sep-3 2>/dev/null)
+  output=$(make $short_target .help-sep-1 $long_target .help-sep-2 $options_target .help-sep-3 $usage_target .help-sep-4 2>/dev/null)
   # Clean the output for "read" by replacing newlines with ASCII 31 (also arbitrary)
   cleaned_output=$(echo "$output" | tr '\n' $nl )
   # Read the output into an array
@@ -21,6 +22,7 @@ if [ -n "$CMD" ]; then
   short_desc="${sections[0]}"
   long_desc=$(echo "${sections[1]}" | tr $nl '\n')
   options_text=$(echo "${sections[2]}" | tr $nl '\n')
+  usage_text=$(echo "${sections[3]}" | tr $nl '\n')
   
   # If we found a long help description, then continue printing help.
   if [ -n "$long_desc" ]; then
@@ -41,6 +43,11 @@ if [ -n "$CMD" ]; then
     # Output whatever help we hot.
     echo "NAME:";
     echo "  $CMD - $short_desc";
+    if [ -n "$usage_text" ]; then
+      echo;
+      echo "USAGE:";
+      echo "  $usage_text";
+    fi;
     if [ -n "$long_desc" ]; then
       echo;
       echo "DESCRIPTION:";

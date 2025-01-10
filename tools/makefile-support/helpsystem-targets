@@ -14,3 +14,5 @@ help:
 	@printf "\036"
 .help-sep-3:
 	@printf "\036"
+.help-sep-4:
+	@printf "\036"
