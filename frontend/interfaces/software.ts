@@ -56,7 +56,7 @@ export interface ISoftwareTitleVersion {
   hosts_count?: number;
 }
 
-export interface ISoftwarePackagePolicy {
+export interface ISoftwareInstallPolicy {
   id: number;
   name: string;
 }
@@ -82,7 +82,7 @@ export interface ISoftwarePackage {
     pending_uninstall: number;
     failed_uninstall: number;
   };
-  automatic_install_policies?: ISoftwarePackagePolicy[] | null;
+  automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   install_during_setup?: boolean;
   labels_include_any: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
@@ -105,10 +105,17 @@ export interface IAppStoreApp {
     failed: number;
   };
   install_during_setup?: boolean;
-  automatic_installed_policies?: null; // why isn't this on this interface but in the api?
-  last_install?: string; // why isn't this on this interface but in the api
-  last_uninstall?: string; // why isn't this on this interface but in the api
-  version?: string; // why isn't this on this interface but in the api
+  automatic_install_policies?: ISoftwareInstallPolicy[] | null;
+  last_install?: {
+    install_uuid: string;
+    command_uuid: string;
+    installed_at: string;
+  } | null;
+  last_uninstall?: {
+    script_execution_id: string;
+    uninstalled_at: string;
+  } | null;
+  version?: string;
 }
 
 export interface ISoftwareTitle {

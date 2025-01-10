@@ -7,7 +7,7 @@ import { IPolicyStats } from "interfaces/policy";
 import {
   Platform,
   PLATFORM_DISPLAY_NAMES,
-  SelectedPlatformString,
+  CommaSeparatedPlatformString,
 } from "interfaces/platform";
 import softwareAPI, {
   ISoftwareTitlesQueryKey,
@@ -57,7 +57,7 @@ interface IFormPolicy {
   id: number;
   installSoftwareEnabled: boolean;
   swIdToInstall?: number;
-  platform: SelectedPlatformString;
+  platform: CommaSeparatedPlatformString;
 }
 
 export type IInstallSoftwareFormData = IFormPolicy[];
@@ -116,6 +116,7 @@ const InstallSoftwareModal = ({
         orderKey: "hosts_count",
         teamId,
         availableForInstall: true,
+        platform: "darwin,windows,linux",
       },
     ],
     ({ queryKey: [queryKey] }) =>
